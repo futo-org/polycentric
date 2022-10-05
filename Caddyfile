@@ -1,0 +1,10 @@
+polycentric.io {
+    root * /static
+    try_files {path} {file} /index.html
+    file_server
+}
+
+srv1.polycentric.io {
+    reverse_proxy http://server:8081
+}
+

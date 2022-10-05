@@ -1,0 +1,48 @@
+{
+  "name": "polycentric-bot",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "abstract-level": "^1.0.3",
+    "classic-level": "^1.2.0",
+    "node-fetch": "^3.2.10",
+    "path": "^0.12.7",
+    "polycentric-core": "../polycentric-core",
+    "rss-parser": "^3.12.0",
+    "xml2js": "^0.4.23"
+  },
+  "scripts": {
+    "build": "webpack --mode=development",
+    "build:production": "webpack --mode=production",
+    "start": "node dist/index.js"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "homepage": "./",
+  "build": {
+    "extends": null,
+    "files": [
+      "build"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    }
+  },
+  "devDependencies": {
+    "@types/jsdom": "^20.0.0",
+    "@types/xml2js": "^0.4.11",
+    "ts-loader": "^9.3.1",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.8.3",
+    "webpack": "^5.74.0",
+    "webpack-cli": "^4.10.0"
+  }
+}

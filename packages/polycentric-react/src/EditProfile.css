@@ -1,0 +1,32 @@
+.editProfile {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 20px;
+}
+
+.editProfile__break {
+    flex-basis: 100%;
+}
+
+.editProfile__serverRow {
+    display: flex;
+    flex-grow: 1;
+    column-gap: 20px;
+    margin-top: 10px;
+}
+
+.editProfile__top {
+    margin-top: 10px;
+    display: flex;
+    flex-grow: 1;
+    column-gap: 10px;
+}
+
+.editProfile__description {
+    display: flex;
+    flex-grow: 1;
+}
+
+.updateButton {
+    margin-top: 10px;
+}

@@ -1,0 +1,24 @@
+.profileHeader {
+    padding: 20px;
+}
+
+.profileHeader__flex {
+    display: flex;
+    align-items: flex-start;
+}
+
+.profileHeader__identity {
+    font-weight: 600;
+    font-size: 12px;
+    color: gray;
+}
+
+.profileHeader__headerText > h3 {
+    font-size: 15px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.profileHeader__headerText > h3:hover {
+    text-decoration: underline;
+}

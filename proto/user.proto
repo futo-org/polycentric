@@ -1,0 +1,160 @@
+syntax = "proto3";
+package userpackage;
+
+message EventClockEntry {
+    bytes key = 1;
+    uint64 value = 2;
+}
+
+message Event {
+    optional bytes previous_event_hash = 1;
+    bytes writer_id = 2;
+    bytes author_public_key = 3;
+    uint64 sequence_number = 4;
+    bytes content = 5;
+    repeated EventClockEntry clocks = 6;
+    optional bytes signature = 7;
+    uint64 unix_milliseconds = 8;
+}
+
+message Events {
+    repeated Event events = 1;
+}
+
+message Pointer {
+    bytes public_key = 1;
+    bytes writer_id = 2;
+    uint64 sequence_number = 3;
+}
+
+message EventBodyProfile {
+    bytes profile_name = 1;
+    repeated bytes profile_servers = 3;
+    optional bytes profile_description = 4;
+    optional Pointer profile_image_pointer = 5;
+}
+
+message EventBodyMessage {
+    bytes message = 1;
+    optional Pointer image = 2;
+    optional Pointer boost_pointer = 3;
+}
+
+message EventBodyFollow {
+    bytes public_key = 1;
+    bool unfollow = 2;
+}
+
+message EventBodyBlobMeta {
+    uint64 section_count = 1;
+    string kind = 2;
+}
+
+message EventBodyBlobSection {
+    uint64 meta_pointer = 1;
+    bytes content = 2;
+}
+
+message EventBodyDelete {
+    Pointer pointer = 1;
+}
+
+message EventBody {
+    oneof event_type {
+        EventBodyMessage message = 1;
+        EventBodyProfile profile = 2;
+        EventBodyFollow follow = 3;
+        EventBodyBlobMeta blob_meta = 4;
+        EventBodyBlobSection blob_section = 5;
+        EventBodyDelete delete = 6;
+    }
+}
+
+message Range {
+    uint64 low = 1;
+    uint64 high = 2;
+}
+
+message RequestKnownRanges {
+    bytes author_public_key = 1;
+    bytes writer_id = 2;
+}
+
+message KnownRanges {
+    repeated Range ranges = 1;
+}
+
+message RequestEventsHead {
+    bytes author_public_key = 1;
+    repeated EventClockEntry clocks = 2;
+}
+
+message RequestEventRanges {
+    bytes author_public_key = 1;
+    bytes writer_id = 2;
+    repeated Range ranges = 3;
+}
+
+message URLInfo {
+    bytes public_key = 1;
+    repeated bytes servers = 2;
+    optional bytes writer_id = 3;
+    optional uint64 sequence_number = 4;
+}
+
+message RequestKnownRangesForFeed {
+    bytes public_key = 1;
+}
+
+message WriterAndRanges {
+    bytes writer_id = 1;
+    repeated Range ranges = 2;
+}
+
+message ResponseKnownRangesForFeed {
+    repeated WriterAndRanges writers = 1;
+}
+
+message ExportBundle {
+    bytes private_key = 1;
+    repeated Event events = 2;
+}
+
+message Search {
+    string search = 1;
+}
+
+message StorageTypeRange {
+    bytes public_key = 1;
+    bytes writer_id = 2;
+    uint64 low_sequence_number = 3;
+    uint64 high_sequence_number = 4;
+}
+
+message StorageTypeFollowing {
+    bytes public_key = 1;
+    uint64 unix_milliseconds = 2;
+    bool unfollow = 3;
+}
+
+message StorageTypeProfile {
+    bytes public_key = 1;
+    bytes username = 2;
+    optional bytes description = 3;
+    optional Pointer image_pointer = 4;
+    optional Pointer mutated_by = 5;
+    uint64 unix_milliseconds = 6;
+    repeated EventClockEntry heads = 7;
+    repeated bytes servers = 8;
+}
+
+message StorageTypeIdentity {
+    bytes private_key = 1;
+    bytes writer_id = 2;
+    uint64 sequence_number = 3;
+}
+
+message StorageTypeEvent {
+    optional Event event = 1;
+    optional Pointer mutation_pointer = 2;
+}

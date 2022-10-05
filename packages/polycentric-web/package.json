@@ -1,0 +1,53 @@
+{
+  "name": "polycentric-web",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "abstract-level": "^1.0.3",
+    "browser-level": "^1.0.1",
+    "polycentric-react": "../polycentric-react",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0",
+    "memory-level": "^1.0.0"
+  },
+  "scripts": {
+    "start": "HTTPS=true SSL_CRT_FILE=./cert/cert.pem SSL_KEY_FILE=./cert/key.pem react-scripts start",
+    "build": "react-scripts build",
+    "build:production": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "homepage": "./",
+  "build": {
+    "extends": null,
+    "files": [
+      "build/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    }
+  },
+  "browserslist": {
+    "production": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "react-scripts": "5.0.1",
+    "prettier": "2.7.1"
+  }
+}

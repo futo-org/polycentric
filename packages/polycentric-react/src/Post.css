@@ -1,0 +1,41 @@
+.post__body > img {
+    border-radius: 20px;
+    width: 100%;
+}
+.post__image {
+    max-width: 100%;
+}
+.post__footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+}
+.post__headerText > h3 {
+    font-size: 15px;
+    margin-bottom: 5px;
+}
+.post__headerText > h3:hover {
+    text-decoration: underline;
+}
+.post__content {
+    font-size: 15px;
+    margin-bottom: 5px;
+}
+.post__main {
+    padding: 10px;
+    flex: 1;
+}
+.post__avatar {
+    padding: 20px;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+.hashTag {
+    color: blue;
+    text-decoration: none;
+}
+
+.hashTag:hover {
+    text-decoration: underline;
+}
