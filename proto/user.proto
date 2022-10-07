@@ -124,6 +124,11 @@ message Search {
     string search = 1;
 }
 
+message ResponseSearch {
+    repeated Event related_events = 1;
+    repeated Event result_events = 2;
+}
+
 message StorageTypeRange {
     bytes public_key = 1;
     bytes writer_id = 2;

@@ -1,5 +1,5 @@
-import { Paper, TextField } from '@mui/material';
-import { useState, useEffect } from 'react';
+import { Paper, TextField, LinearProgress } from '@mui/material';
+import { useState, useEffect, ReactNode } from 'react';
 import * as Base64 from '@borderless/base64';
 import { useParams } from 'react-router-dom';
 
@@ -9,16 +9,104 @@ import * as PostMod from './Post';
 import Post from './Post';
 import './Standard.css';
 import * as ProfileUtil from './ProfileUtil';
+import ProfileHeader from './ProfileHeader';
 
 type SearchProps = {
     state: Core.DB.PolycentricState;
 };
 
+type DispatchCard = {
+    state: Core.DB.PolycentricState;
+    pointer: Core.Protocol.Pointer;
+    fromServer: string;
+};
+
+function DispatchCard(props: DispatchCard) {
+    const [card, setCard] = useState<ReactNode | undefined>(undefined);
+
+    const loadCard = async () => {
+        const event = await Core.DB.tryLoadStorageEventByPointer(
+            props.state,
+            props.pointer,
+        );
+
+        if (event === undefined || event.event === undefined) {
+            return undefined;
+        }
+
+        const body = Core.Protocol.EventBody.decode(event.event.content);
+
+        if (body.profile !== undefined) {
+            const profile = await ProfileUtil.loadProfileOrFallback(
+                props.state,
+                event.event.authorPublicKey,
+            );
+
+            setCard(
+                <div
+                    style={{
+                        marginTop: '15px',
+                    }}
+                >
+                    <ProfileHeader
+                        key={Base64.encodeUrl(event.event.authorPublicKey)}
+                        publicKey={event.event.authorPublicKey}
+                        state={props.state}
+                        fromServer={props.fromServer}
+                    />
+                </div>,
+            );
+        } else if (body.message !== undefined) {
+            const profiles = new Map<string, ProfileUtil.DisplayableProfile>();
+
+            const displayable = await Feed.eventToDisplayablePost(
+                props.state,
+                profiles,
+                {
+                    event: event.event,
+                    mutationPointer: undefined,
+                },
+            );
+
+            if (displayable === undefined) {
+                return undefined;
+            }
+
+            displayable.fromServer = props.fromServer;
+
+            setCard(
+                <Post
+                    state={props.state}
+                    post={displayable}
+                    showBoost={true}
+                    depth={0}
+                />,
+            );
+        }
+    };
+
+    useEffect(() => {
+        const handlePut = (key: Uint8Array, value: Uint8Array) => {
+            loadCard();
+        };
+
+        props.state.level.on('put', handlePut);
+
+        loadCard();
+
+        return () => {
+            props.state.level.removeListener('put', handlePut);
+        };
+    }, [props.pointer, props.fromServer]);
+
+    return <div>{card}</div>;
+}
+
 function Search(props: SearchProps) {
     const params = useParams();
     const [search, setSearch] = useState<string>('');
     const [searchResult, setSearchResult] = useState<
-        [Core.Protocol.Event, PostMod.DisplayablePost][]
+        [string, Core.Protocol.Pointer][]
     >([]);
     const [searchActive, setSearchActive] = useState<boolean>(false);
     const [submittedOnce, setSubmittedOnce] = useState<boolean>(false);
@@ -34,30 +122,33 @@ function Search(props: SearchProps) {
 
         setSubmittedOnce(true);
         setSearchActive(true);
+        setSearchResult([]);
 
-        const events = await Core.DB.search(props.state, topic);
+        const responses = await Core.DB.search(props.state, topic);
 
-        const justEvents = events.map((x) => x[1]);
-        await Core.Synchronization.saveBatch(props.state, justEvents);
-
-        const profiles = new Map<string, ProfileUtil.DisplayableProfile>();
-
-        let filteredPosts: [Core.Protocol.Event, PostMod.DisplayablePost][] =
-            [];
-
-        for (const event of events) {
-            const displayable = await Feed.eventToDisplayablePost(
+        for (const response of responses) {
+            await Core.Synchronization.saveBatch(
                 props.state,
-                profiles,
-                {
-                    event: event[1],
-                    mutationPointer: undefined,
-                },
+                response[1].relatedEvents,
             );
+            await Core.Synchronization.saveBatch(
+                props.state,
+                response[1].resultEvents,
+            );
+        }
 
-            if (displayable !== undefined) {
-                displayable.fromServer = event[0];
-                filteredPosts.push([event[1], displayable]);
+        let filteredPosts: [string, Core.Protocol.Pointer][] = [];
+
+        for (const response of responses) {
+            for (const event of response[1].resultEvents) {
+                filteredPosts.push([
+                    response[0],
+                    {
+                        publicKey: event.authorPublicKey,
+                        writerId: event.writerId,
+                        sequenceNumber: event.sequenceNumber,
+                    },
+                ]);
             }
         }
 
@@ -112,18 +203,17 @@ function Search(props: SearchProps) {
                 const item = post[1];
 
                 return (
-                    <Post
+                    <DispatchCard
                         key={Base64.encode(
                             Core.DB.makeStorageTypeEventKey(
-                                raw.authorPublicKey,
-                                raw.writerId,
-                                raw.sequenceNumber,
+                                item.publicKey,
+                                item.writerId,
+                                item.sequenceNumber,
                             ),
                         )}
                         state={props.state}
-                        post={item}
-                        showBoost={true}
-                        depth={0}
+                        pointer={item}
+                        fromServer={raw}
                     />
                 );
             })}
@@ -139,6 +229,20 @@ function Search(props: SearchProps) {
                 >
                     <h3> Nothing was found matching this query </h3>
                 </Paper>
+            )}
+
+            {searchActive && (
+                <div
+                    style={{
+                        width: '80%',
+                        marginTop: '15px',
+                        marginBottom: '15px',
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                    }}
+                >
+                    <LinearProgress />
+                </div>
             )}
         </div>
     );

@@ -109,9 +109,6 @@ async fn post_events_handler(
             .map_err(|_| RequestError::DatabaseFailed)?;
 
         if event_body.has_message() {
-            let message =
-                ::std::str::from_utf8(&event_body.message().message).unwrap();
-
             let author_public_key = ::base64::encode(&event.author_public_key);
             let writer_id = ::base64::encode(&event.writer_id);
             let sequence_number = event.sequence_number.to_string();
@@ -121,14 +118,80 @@ async fn post_events_handler(
                 author_public_key, writer_id, sequence_number,
             );
 
+            let mut body = OpenSearchSearchDocumentMessage {
+                author_public_key: author_public_key,
+                writer_id: writer_id,
+                sequence_number: event.sequence_number as i64,
+                message: None,
+            };
+
+            body.message = Some(
+                ::std::str::from_utf8(&event_body.message().message)
+                    .unwrap()
+                    .to_string(),
+            );
+
             let response = state
                 .search
                 .index(::opensearch::IndexParts::IndexId("posts", &key))
+                .body(body)
+                .send()
+                .await
+                .map_err(|_| RequestError::DatabaseFailed)?;
+
+            let err = response.exception().await.unwrap();
+
+            if let Some(body) = err {
+                warn!("body {:?}", body);
+            }
+        }
+
+        if event_body.has_profile() {
+            let key = ::base64::encode(&event.author_public_key);
+            let writer_id = ::base64::encode(&event.writer_id);
+
+            let mut body = OpenSearchSearchDocumentProfile {
+                author_public_key: key.clone(),
+                writer_id: writer_id,
+                sequence_number: event.sequence_number as i64,
+                profile_name: "".to_string(),
+                profile_description: None,
+                unix_milliseconds: event.unix_milliseconds,
+            };
+
+            body.profile_name =
+                ::std::str::from_utf8(&event_body.profile().profile_name)
+                    .unwrap()
+                    .to_string();
+
+            if let Some(description) = &event_body.profile().profile_description
+            {
+                body.profile_description = Some(
+                    ::std::str::from_utf8(description).unwrap().to_string(),
+                );
+            }
+
+            let script = r#"
+                if (ctx.op == "create") {
+                    ctx._source = params
+                } else if (ctx._source.unix_milliseconds > params.unix_milliseconds) {
+                    ctx.op = 'noop'
+                } else {
+                    ctx._source = params
+                }
+            "#;
+
+            let response = state
+                .search
+                .update(::opensearch::UpdateParts::IndexId("profiles", &key))
                 .body(json!({
-                    "author_public_key": &author_public_key,
-                    "writer_id": &writer_id,
-                    "sequence_number": event.sequence_number,
-                    "message": message,
+                    "scripted_upsert": true,
+                    "script": {
+                        "lang": "painless",
+                        "params": body,
+                        "inline": script,
+                    },
+                    "upsert": {}
                 }))
                 .send()
                 .await
@@ -390,11 +453,19 @@ async fn maybe_add_profile(
     Ok(())
 }
 
+struct ProcessMutationsResult {
+    related_events: ::std::vec::Vec<user::Event>,
+    result_events: ::std::vec::Vec<user::Event>,
+}
+
 async fn process_mutations(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     history: ::std::vec::Vec<EventRow>,
-) -> Result<::std::vec::Vec<crate::user::Event>, ::warp::Rejection> {
-    let mut result: ::std::vec::Vec<user::Event> = vec![];
+) -> Result<ProcessMutationsResult, ::warp::Rejection> {
+    let mut result = ProcessMutationsResult {
+        related_events: vec![],
+        result_events: vec![],
+    };
 
     let mut profile_keys =
         ::std::collections::HashSet::<::std::vec::Vec<u8>>::new();
@@ -402,7 +473,7 @@ async fn process_mutations(
     for row in history {
         maybe_add_profile(
             &mut *transaction,
-            &mut result,
+            &mut result.related_events,
             &mut profile_keys,
             &row.author_public_key,
         )
@@ -424,7 +495,7 @@ async fn process_mutations(
             })?;
 
             if let Some(event) = &mutation {
-                result.push(event.clone());
+                result.result_events.push(event.clone());
             }
         } else {
             info!("did not get mutation pointer");
@@ -437,7 +508,7 @@ async fn process_mutations(
             if event_body.has_follow() {
                 maybe_add_profile(
                     &mut *transaction,
-                    &mut result,
+                    &mut result.related_events,
                     &mut profile_keys,
                     &event_body.follow().public_key,
                 )
@@ -448,7 +519,7 @@ async fn process_mutations(
                 {
                     maybe_add_profile(
                         &mut *transaction,
-                        &mut result,
+                        &mut result.related_events,
                         &mut profile_keys,
                         &pointer.public_key,
                     )
@@ -456,7 +527,7 @@ async fn process_mutations(
                 }
             }
 
-            result.push(event);
+            result.result_events.push(event);
         }
     }
 
@@ -505,9 +576,12 @@ async fn request_event_ranges_handler(
 
     let mut result = crate::user::Events::new();
 
-    result.events = process_mutations(&mut transaction, history)
+    let mut processed_events = process_mutations(&mut transaction, history)
         .await
         .map_err(|_| RequestError::DatabaseFailed)?;
+
+    result.events.append(&mut processed_events.related_events);
+    result.events.append(&mut processed_events.result_events);
 
     transaction
         .commit()
@@ -524,6 +598,46 @@ async fn request_event_ranges_handler(
     ))
 }
 
+#[derive(::serde::Deserialize, ::serde::Serialize)]
+struct OpenSearchSearchDocumentMessage {
+    author_public_key: String,
+    writer_id: String,
+    sequence_number: i64,
+    message: Option<String>,
+}
+
+#[derive(::serde::Deserialize, ::serde::Serialize)]
+struct OpenSearchSearchDocumentProfile {
+    author_public_key: String,
+    writer_id: String,
+    sequence_number: i64,
+    profile_name: String,
+    profile_description: Option<String>,
+    unix_milliseconds: u64,
+}
+
+#[derive(::serde::Deserialize)]
+struct OpenSearchPointer {
+    author_public_key: String,
+    writer_id: String,
+    sequence_number: i64,
+}
+
+#[derive(::serde::Deserialize)]
+struct OpenSearchSearchL2 {
+    _source: OpenSearchPointer,
+}
+
+#[derive(::serde::Deserialize)]
+struct OpenSearchSearchL1 {
+    hits: ::std::vec::Vec<OpenSearchSearchL2>,
+}
+
+#[derive(::serde::Deserialize)]
+struct OpenSearchSearchL0 {
+    hits: OpenSearchSearchL1,
+}
+
 async fn request_search_handler(
     state: ::std::sync::Arc<State>,
     bytes: ::bytes::Bytes,
@@ -535,14 +649,17 @@ async fn request_search_handler(
 
     let response = state
         .search
-        .search(::opensearch::SearchParts::Index(&["posts"]))
+        .search(::opensearch::SearchParts::Index(&["posts", "profiles"]))
         .body(json!({
             "query": {
-                "match": {
-                    "message": {
-                        "query": request.search,
-                        "fuzziness": 2,
-                    }
+                "multi_match": {
+                    "query": request.search,
+                    "fuzziness": 2,
+                    "fields": [
+                        "message",
+                        "profile_description",
+                        "profile_name"
+                    ]
                 }
             }
         }))
@@ -551,7 +668,7 @@ async fn request_search_handler(
         .map_err(|_| RequestError::DatabaseFailed)?;
 
     let response_body = response
-        .json::<::serde_json::Value>()
+        .json::<OpenSearchSearchL0>()
         .await
         .map_err(|_| RequestError::DatabaseFailed)?;
 
@@ -572,17 +689,13 @@ async fn request_search_handler(
 
     let mut history: ::std::vec::Vec<EventRow> = vec![];
 
-    for hit in response_body["hits"]["hits"].as_array().unwrap() {
-        let raw = &hit["_source"];
-
+    for hit in response_body.hits.hits {
         let author_public_key =
-            ::base64::decode(&raw["author_public_key"].as_str().unwrap())
-                .unwrap();
+            ::base64::decode(hit._source.author_public_key).unwrap();
 
-        let writer_id =
-            ::base64::decode(&raw["writer_id"].as_str().unwrap()).unwrap();
+        let writer_id = ::base64::decode(hit._source.writer_id).unwrap();
 
-        let sequence_number = &raw["sequence_number"].as_i64().unwrap();
+        let sequence_number = hit._source.sequence_number;
 
         let event_query_rows =
             ::sqlx::query_as::<_, EventRow>(GET_EVENT_STATEMENT)
@@ -601,11 +714,18 @@ async fn request_search_handler(
         }
     }
 
-    let mut result = crate::user::Events::new();
+    let mut result = crate::user::ResponseSearch::new();
 
-    result.events = process_mutations(&mut transaction, history)
+    let mut processed_events = process_mutations(&mut transaction, history)
         .await
         .map_err(|_| RequestError::DatabaseFailed)?;
+
+    result
+        .related_events
+        .append(&mut processed_events.related_events);
+    result
+        .result_events
+        .append(&mut processed_events.result_events);
 
     transaction
         .commit()
@@ -722,9 +842,12 @@ async fn request_events_head_handler(
 
     let mut result = crate::user::Events::new();
 
-    result.events = process_mutations(&mut transaction, history)
+    let mut processed_events = process_mutations(&mut transaction, history)
         .await
         .map_err(|_| RequestError::DatabaseFailed)?;
+
+    result.events.append(&mut processed_events.related_events);
+    result.events.append(&mut processed_events.result_events);
 
     transaction
         .commit()

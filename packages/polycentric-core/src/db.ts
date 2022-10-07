@@ -165,21 +165,19 @@ export async function loadSpecificProfile(
 export async function search(
     state: PolycentricState,
     query: string,
-): Promise<Array<[string, Protocol.Event]>> {
+): Promise<Array<[string, Protocol.ResponseSearch]>> {
     const profile = await loadProfile(state);
 
-    const result: Array<[string, Protocol.Event]> = [];
+    const result: Array<[string, Protocol.ResponseSearch]> = [];
 
     for (const server of profile.servers) {
         const address = new TextDecoder().decode(server);
 
-        const events = await APIMethods.fetchPostSearch(address, {
+        const response = await APIMethods.fetchPostSearch(address, {
             search: query,
         });
 
-        for (const event of events.events) {
-            result.push([address, event]);
-        }
+        result.push([address, response]);
     }
 
     return result;

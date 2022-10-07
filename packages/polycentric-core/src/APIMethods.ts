@@ -70,14 +70,14 @@ export async function fetchPostEvents(
 export async function fetchPostSearch(
     address: string,
     event: Protocol.Search,
-): Promise<Protocol.Events> {
+): Promise<Protocol.ResponseSearch> {
     const response = await fetch(address + '/search', {
         method: 'POST',
         headers: new Headers({ 'content-type': 'application/octet-stream' }),
         body: Protocol.Search.encode(event).finish(),
     });
     const rawBody = new Uint8Array(await response.arrayBuffer());
-    return Protocol.Events.decode(rawBody);
+    return Protocol.ResponseSearch.decode(rawBody);
 }
 
 export async function fetchGetRecommendProfiles(
