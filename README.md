@@ -1,6 +1,14 @@
 # Polycentric
 
-Polycentric is a distributed microblogging platform.
+Polycentric is a distributed Open-source Social Network with
+cryptographic sovereign identities. Content lives on multiple
+servers chosen by the identity owner.
+
+Your client will automatically download content from the servers
+it lives on. Data is cryptographically integrity checked to
+ensure servers are not modifying, or hiding messages from users.
+Data is offline first, allowing offline browsing, and offline
+posting.
 
 ## Development quickstart
 
