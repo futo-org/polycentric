@@ -958,7 +958,10 @@ async fn request_recommend_profiles_handler(
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
     const RANDOM_USERS_QUERY_STATEMENT: &str = "
         SELECT * FROM (
-            SELECT DISTINCT(author_public_key) FROM events
+            SELECT author_public_key 
+            FROM events
+            GROUP BY author_public_key
+            HAVING COUNT(*) > 1
         ) t
         ORDER BY RANDOM()
         LIMIT 3;
