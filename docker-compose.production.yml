@@ -4,6 +4,8 @@ services:
         image: postgres
         environment:
             POSTGRES_PASSWORD: testing
+        volumes:
+            - ./state/postgres/data:/var/lib/postgresql/data
     opensearch-node1:
         image: opensearchproject/opensearch:2.1.0
         environment:
@@ -14,11 +16,15 @@ services:
             - "DISABLE_INSTALL_DEMO_CONFIG=true"
             - "DISABLE_SECURITY_PLUGIN=true"
             - "discovery.type=single-node"
+        volumes:
+            - ./state/opensearch/data:/usr/share/opensearch/data
     server:
         image: ubuntu:22.04
         volumes:
             - ./server/target/debug/server:/server:ro
         command: /server
+        environment:
+            - "RUST_LOG=server=info"
     proxy:
         image: caddy
         volumes:
