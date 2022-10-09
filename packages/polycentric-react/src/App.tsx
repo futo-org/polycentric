@@ -26,6 +26,7 @@ type AppProps = {
 
 function App(props: AppProps) {
     const [modalIsOpen, setModalIsOpen] = useState(false);
+    const [initial, setInitial] = useState(true);
 
     const location = useLocation();
     const navigate = useNavigate();
@@ -37,26 +38,30 @@ function App(props: AppProps) {
         ) {
             navigate('/setup');
         }
+
+        setInitial(false);
     }, [location, navigate, props.state.identity]);
 
     return (
         <div>
             <ThemeProvider theme={theme}>
-                <AppBar position="sticky">
-                    <Toolbar className="app__header">
-                        <Link to="/">Feed</Link>
-                        <Link to="/profile">Profile</Link>
-                        <Link to="/following">Following</Link>
-                        <Link to="/search">Search</Link>
-                        <a
-                            onClick={() => {
-                                setModalIsOpen(true);
-                            }}
-                        >
-                            Post
-                        </a>
-                    </Toolbar>
-                </AppBar>
+                { props.state.identity !== undefined &&
+                    <AppBar position="sticky">
+                        <Toolbar className="app__header">
+                            <Link to="/">Feed</Link>
+                            <Link to="/profile">Profile</Link>
+                            <Link to="/following">Following</Link>
+                            <Link to="/search">Search</Link>
+                            <a
+                                onClick={() => {
+                                    setModalIsOpen(true);
+                                }}
+                            >
+                                Post
+                            </a>
+                        </Toolbar>
+                    </AppBar>
+                }
 
                 <PostModal
                     state={props.state}
@@ -66,9 +71,11 @@ function App(props: AppProps) {
                     }}
                 />
 
-                <div className="app">
-                    <Outlet />
-                </div>
+                { initial === false && 
+                    <div className="app">
+                        <Outlet />
+                    </div>
+                }
             </ThemeProvider>
         </div>
     );
