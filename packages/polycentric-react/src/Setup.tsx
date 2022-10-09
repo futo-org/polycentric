@@ -94,6 +94,10 @@ function Setup(props: SetupProps) {
                 locally. There are no usernames or passwords. You may login on a
                 different device by exporting, and then importing your profile.
             </p>
+            <p>
+                Polycentric is currently in development. Incompatible changes
+                may be made, and your profile may not be usable forever.
+            </p>
             <div
                 style={{
                     display: 'flex',
