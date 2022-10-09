@@ -47,20 +47,20 @@ link:
 		packages/polycentric-web/node_modules \
 		packages/polycentric-desktop/node_modules
 
-	ln -sn \
-		packages/polycentric-core \
+	ln -sf \
+		/app/packages/polycentric-core \
 		packages/polycentric-react/node_modules/polycentric-core
 
-	ln -sn \
-		packages/polycentric-core \
+	ln -sf \
+		/app/packages/polycentric-core \
 		packages/polycentric-bot/node_modules/polycentric-core
 
-	ln -sn \
-		packages/polycentric-react \
+	ln -sf \
+		/app/packages/polycentric-react \
 		packages/polycentric-web/node_modules/polycentric-react
 
-	ln -sn \
-		packages/polycentric-react \
+	ln -sf \
+		/app/packages/polycentric-react \
 		packages/polycentric-desktop/node_modules/polycentric-react
 
 build-production: proto
