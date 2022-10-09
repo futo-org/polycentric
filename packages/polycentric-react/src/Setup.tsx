@@ -76,12 +76,6 @@ function Setup(props: SetupProps) {
                 servers chosen by the identity owner.
             </p>
             <p>
-                Although it is distributed Polycentric is not Federated. Your
-                profile is not tied to a server, and servers do not communicate
-                with each other. Nor is Polycentric Peer-to-peer. Clients do not
-                directly communicate with each other.
-            </p>
-            <p>
                 Your client will automatically download content from the servers
                 it lives on. Data is cryptographically integrity checked to
                 ensure servers are not modifying, or hiding messages from users.
