@@ -26,20 +26,36 @@ function ProfileCard({ publicKey, state }: ProfileHeaderProps) {
         await Core.DB.levelUnfollowUser(state, publicKey);
     };
 
-    const loadProfile = async () => {
-        setProfile(await ProfileUtil.loadProfileOrFallback(state, publicKey));
+    const loadProfile = async (
+        cancelControl: Core.Util.PromiseCancelControl,
+    ) => {
+        const result = await ProfileUtil.loadProfileOrFallback(
+            state,
+            publicKey,
+        );
+
+        if (cancelControl.cancelled === false) {
+            setProfile(result);
+        } else {
+            console.log('ProfileCard loadProfile was cancelled');
+        }
     };
 
     useEffect(() => {
+        const cancelControl = {
+            cancelled: false,
+        };
+
         const handlePut = (key: Uint8Array, value: Uint8Array) => {
-            loadProfile();
+            loadProfile(cancelControl);
         };
 
         state.levelEvents.on('put', handlePut);
 
-        loadProfile();
+        loadProfile(cancelControl);
 
         return () => {
+            cancelControl.cancelled = true;
             state.levelEvents.removeListener('put', handlePut);
         };
     }, [publicKey]);

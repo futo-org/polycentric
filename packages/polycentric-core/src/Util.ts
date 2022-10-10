@@ -123,3 +123,7 @@ export function numberToBinaryBE(value: number): Uint8Array {
     const long = Long.fromNumber(value, true);
     return new Uint8Array(long.toBytesBE());
 }
+
+export type PromiseCancelControl = {
+    cancelled: boolean;
+};

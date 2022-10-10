@@ -45,7 +45,7 @@ function App(props: AppProps) {
     return (
         <div>
             <ThemeProvider theme={theme}>
-                { props.state.identity !== undefined &&
+                {props.state.identity !== undefined && (
                     <AppBar position="sticky">
                         <Toolbar className="app__header">
                             <Link to="/">Feed</Link>
@@ -61,7 +61,7 @@ function App(props: AppProps) {
                             </a>
                         </Toolbar>
                     </AppBar>
-                }
+                )}
 
                 <PostModal
                     state={props.state}
@@ -71,11 +71,11 @@ function App(props: AppProps) {
                     }}
                 />
 
-                { initial === false && 
+                {initial === false && (
                     <div className="app">
                         <Outlet />
                     </div>
-                }
+                )}
             </ThemeProvider>
         </div>
     );

@@ -202,13 +202,25 @@ export function Feed(props: FeedProps) {
         undefined,
     );
 
-    async function loadState() {
-        setQueryResult(
-            await loadPosts2(props.state, decodedFeed.current, limit.current),
+    async function loadState(cancelControl: Core.Util.PromiseCancelControl) {
+        const result = await loadPosts2(
+            props.state,
+            decodedFeed.current,
+            limit.current,
         );
+
+        if (cancelControl.cancelled === false) {
+            setQueryResult(result);
+        } else {
+            console.log('Feed loadPosts was cancelled');
+        }
     }
 
     useEffect(() => {
+        const cancelControl = {
+            cancelled: false,
+        };
+
         window.scrollTo(0, 0);
 
         if (feed) {
@@ -235,7 +247,7 @@ export function Feed(props: FeedProps) {
 
         const loadStateDebounce = Lodash.debounce(() => {
             console.log('calling debounce');
-            loadState();
+            loadState(cancelControl);
         }, 500);
 
         const handlePut = (key: Uint8Array, value: Uint8Array) => {
@@ -244,14 +256,19 @@ export function Feed(props: FeedProps) {
 
         props.state.levelEvents.on('put', handlePut);
 
-        loadState();
+        loadState(cancelControl);
 
         return () => {
+            cancelControl.cancelled = true;
             props.state.levelEvents.removeListener('put', handlePut);
         };
     }, [feed]);
 
     useEffect(() => {
+        const cancelControl = {
+            cancelled: false,
+        };
+
         if (
             queryResult !== undefined &&
             queryResult.belowLimit === false &&
@@ -259,7 +276,7 @@ export function Feed(props: FeedProps) {
         ) {
             limit.current = limit.current + 10;
 
-            loadState();
+            loadState(cancelControl);
         }
 
         if (
@@ -279,9 +296,13 @@ export function Feed(props: FeedProps) {
                 );
                 // console.log('feed was incomplete finished fetch');
                 queryActive.current = false;
-                loadState();
+                loadState(cancelControl);
             })();
         }
+
+        return () => {
+            cancelControl.cancelled = true;
+        };
     }, [inView, feed, queryResult]);
 
     return (
