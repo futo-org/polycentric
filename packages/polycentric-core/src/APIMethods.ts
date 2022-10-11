@@ -90,3 +90,17 @@ export async function fetchGetRecommendProfiles(
     const rawBody = new Uint8Array(await response.arrayBuffer());
     return Protocol.Events.decode(rawBody);
 }
+
+export async function fetchPostExplore(
+    address: string,
+    event: Protocol.RequestExplore,
+): Promise<Protocol.ResponseSearch> {
+    const response = await fetch(address + '/explore', {
+        method: 'POST',
+        headers: new Headers({ 'content-type': 'application/octet-stream' }),
+        body: Protocol.RequestExplore.encode(event).finish(),
+    });
+    const rawBody = new Uint8Array(await response.arrayBuffer());
+    return Protocol.ResponseSearch.decode(rawBody);
+}
+
