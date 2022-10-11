@@ -1046,6 +1046,51 @@ async fn request_recommend_profiles_handler(
     ))
 }
 
+async fn request_explore_handler(
+    state: ::std::sync::Arc<State>,
+    bytes: ::bytes::Bytes,
+) -> Result<impl ::warp::Reply, ::warp::Rejection> {
+    let request = crate::user::Search::parse_from_tokio_bytes(&bytes)
+        .map_err(|_| RequestError::ParsingFailed)?;
+
+    let mut history: ::std::vec::Vec<EventRow> = vec![];
+
+    let mut transaction = state
+        .pool
+        .begin()
+        .await
+        .map_err(|_| RequestError::DatabaseFailed)?;
+
+    let mut processed_events = process_mutations(&mut transaction, history)
+        .await
+        .map_err(|_| RequestError::DatabaseFailed)?;
+
+    let mut result = crate::user::ResponseSearch::new();
+
+    result
+        .related_events
+        .append(&mut processed_events.related_events);
+    result
+        .result_events
+        .append(&mut processed_events.result_events);
+
+    transaction
+        .commit()
+        .await
+        .map_err(|_| RequestError::DatabaseFailed)?;
+
+    let result_serialized = result
+        .write_to_bytes()
+        .map_err(|_| RequestError::SerializationFailed)?;
+
+    Ok(::warp::reply::with_status(
+        result_serialized,
+        ::warp::http::StatusCode::OK,
+    ))
+}
+
+
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
     let port = 8081;
@@ -1178,6 +1223,14 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
         .and_then(request_search_handler)
         .with(cors.clone());
 
+    let request_explore_route = ::warp::post()
+        .and(::warp::path("explore"))
+        .and(::warp::path::end())
+        .and(state_filter.clone())
+        .and(::warp::body::bytes())
+        .and_then(request_explore_handler)
+        .with(cors.clone());
+
     let request_recommend_profiles_route = ::warp::get()
         .and(::warp::path("recommended_profiles"))
         .and(::warp::path::end())
@@ -1191,6 +1244,7 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
         .or(request_events_head_route)
         .or(known_ranges_route)
         .or(request_search_route)
+        .or(request_explore_route)
         .or(request_recommend_profiles_route)
         .recover(handle_rejection);
 
