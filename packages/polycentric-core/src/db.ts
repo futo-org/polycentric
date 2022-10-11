@@ -185,6 +185,7 @@ export async function search(
 
 export async function explore(
     state: PolycentricState,
+    beforeTime: number | undefined,
 ): Promise<Array<[string, Protocol.ResponseSearch]>> {
     const profile = await loadProfile(state);
 
@@ -193,7 +194,9 @@ export async function explore(
     for (const server of profile.servers) {
         const address = new TextDecoder().decode(server);
 
-        const response = await APIMethods.fetchPostExplore(address, {});
+        const response = await APIMethods.fetchPostExplore(address, {
+            beforeTime: beforeTime,
+	});
 
         result.push([address, response]);
     }

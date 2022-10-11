@@ -1,5 +1,5 @@
 import { Paper, TextField, LinearProgress } from '@mui/material';
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, useRef, ReactNode } from 'react';
 import * as Base64 from '@borderless/base64';
 import { useParams } from 'react-router-dom';
 
@@ -21,8 +21,17 @@ function Explore(props: ExploreProps) {
         [string, Core.Protocol.Pointer][]
     >([]);
 
+    const [loading, setLoading] = useState<boolean>(true);
+
+    const earliestTime = useRef<number | undefined>(undefined);
+
     const handleLoad = async () => {
-        const responses = await Core.DB.explore(props.state);
+        setLoading(true);
+
+        const responses = await Core.DB.explore(
+            props.state,
+            earliestTime.current,
+        );
 
         for (const response of responses) {
             await Core.Synchronization.saveBatch(
@@ -33,6 +42,15 @@ function Explore(props: ExploreProps) {
                 props.state,
                 response[1].resultEvents,
             );
+
+            for (const event of response[1].resultEvents) {
+                if (
+                    earliestTime.current === undefined ||
+                    earliestTime.current > event.unixMilliseconds
+                ) {
+                    earliestTime.current = event.unixMilliseconds;
+                }
+            }
         }
 
         let filteredPosts: [string, Core.Protocol.Pointer][] = [];
@@ -51,9 +69,13 @@ function Explore(props: ExploreProps) {
         }
 
         setExploreResults(filteredPosts);
+
+        setLoading(false);
     };
 
     useEffect(() => {
+        earliestTime.current = undefined;
+
         handleLoad();
     }, []);
 
@@ -78,6 +100,21 @@ function Explore(props: ExploreProps) {
                     />
                 );
             })}
+
+
+            {loading && (
+                <div
+                    style={{
+                        width: '80%',
+                        marginTop: '15px',
+                        marginBottom: '15px',
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                    }}
+                >
+                    <LinearProgress />
+                </div>
+            )}
         </div>
     );
 }
