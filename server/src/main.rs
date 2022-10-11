@@ -77,7 +77,9 @@ async fn post_events_handler(
             crate::user::EventBody::parse_from_bytes(&event.content)
                 .map_err(|_| RequestError::ParsingFailed)?;
 
-        if event_body.has_profile() {
+        if event_body.has_message() {
+            message_type = 1;
+        } else if event_body.has_profile() {
             message_type = 2;
         } else if event_body.has_delete() {
             message_type = 6;
@@ -1050,7 +1052,14 @@ async fn request_explore_handler(
     state: ::std::sync::Arc<State>,
     bytes: ::bytes::Bytes,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
-    let request = crate::user::Search::parse_from_tokio_bytes(&bytes)
+    const STATEMENT: &str = "
+        SELECT *
+        FROM events
+        ORDER BY unix_milliseconds DESC
+        LIMIT 20
+    ";
+
+    let request = crate::user::RequestExplore::parse_from_tokio_bytes(&bytes)
         .map_err(|_| RequestError::ParsingFailed)?;
 
     let mut history: ::std::vec::Vec<EventRow> = vec![];
@@ -1060,6 +1069,15 @@ async fn request_explore_handler(
         .begin()
         .await
         .map_err(|_| RequestError::DatabaseFailed)?;
+
+    let rows = ::sqlx::query_as::<_, EventRow>(STATEMENT)
+        .fetch_all(&mut transaction)
+        .await
+        .map_err(|_| RequestError::DatabaseFailed)?;
+
+    for row in rows {
+        history.push(row);
+    }
 
     let mut processed_events = process_mutations(&mut transaction, history)
         .await
@@ -1088,8 +1106,6 @@ async fn request_explore_handler(
         ::warp::http::StatusCode::OK,
     ))
 }
-
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn ::std::error::Error>> {

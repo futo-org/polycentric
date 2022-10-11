@@ -120,6 +120,10 @@ message ExportBundle {
     repeated Event events = 2;
 }
 
+message RequestExplore {
+    optional uint64 before_time = 1;
+}
+
 message Search {
     string search = 1;
 }
