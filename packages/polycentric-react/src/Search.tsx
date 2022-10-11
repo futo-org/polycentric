@@ -15,13 +15,13 @@ type SearchProps = {
     state: Core.DB.PolycentricState;
 };
 
-type DispatchCard = {
+type DispatchCardProps = {
     state: Core.DB.PolycentricState;
     pointer: Core.Protocol.Pointer;
     fromServer: string;
 };
 
-function DispatchCard(props: DispatchCard) {
+export function DispatchCard(props: DispatchCardProps) {
     const [card, setCard] = useState<ReactNode | undefined>(undefined);
 
     const loadCard = async () => {

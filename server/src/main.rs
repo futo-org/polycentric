@@ -1055,6 +1055,7 @@ async fn request_explore_handler(
     const STATEMENT: &str = "
         SELECT *
         FROM events
+        WHERE event_type = 1
         ORDER BY unix_milliseconds DESC
         LIMIT 20
     ";

@@ -183,6 +183,24 @@ export async function search(
     return result;
 }
 
+export async function explore(
+    state: PolycentricState,
+): Promise<Array<[string, Protocol.ResponseSearch]>> {
+    const profile = await loadProfile(state);
+
+    const result: Array<[string, Protocol.ResponseSearch]> = [];
+
+    for (const server of profile.servers) {
+        const address = new TextDecoder().decode(server);
+
+        const response = await APIMethods.fetchPostExplore(address, {});
+
+        result.push([address, response]);
+    }
+
+    return result;
+}
+
 export async function recommend_profiles(
     state: PolycentricState,
 ): Promise<Array<[string, Protocol.Event]>> {
