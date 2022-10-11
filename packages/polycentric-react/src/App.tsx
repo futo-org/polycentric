@@ -48,6 +48,7 @@ function App(props: AppProps) {
                 {props.state.identity !== undefined && (
                     <AppBar position="sticky">
                         <Toolbar className="app__header">
+                            <Link to="/explore">Explore</Link>
                             <Link to="/">Feed</Link>
                             <Link to="/profile">Profile</Link>
                             <Link to="/following">Following</Link>

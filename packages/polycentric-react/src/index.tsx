@@ -10,6 +10,7 @@ import EditProfile from './EditProfile';
 import Following from './Following';
 import Setup from './Setup';
 import Search from './Search';
+import Explore from './Explore';
 import reportWebVitals from './reportWebVitals';
 import { Feed } from './Feed';
 import * as Core from 'polycentric-core';
@@ -68,6 +69,7 @@ export async function createApp(
     const PolycentricRoutes = () => (
         <Routes>
             <Route path="/" element={<App state={state} />}>
+                <Route path="/explore" element={<Explore state={state} />} />
                 <Route path="/" element={<Feed state={state} />} />
                 <Route
                     path="/profile"
