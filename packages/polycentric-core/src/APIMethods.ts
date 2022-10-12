@@ -116,4 +116,3 @@ export async function fetchPostNotifications(
     const rawBody = new Uint8Array(await response.arrayBuffer());
     return Protocol.ResponseNotifications.decode(rawBody);
 }
-

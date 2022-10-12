@@ -47,10 +47,8 @@ async fn persist_event_search(
         let writer_id = ::base64::encode(&event.writer_id);
         let sequence_number = event.sequence_number.to_string();
 
-        let key = format!(
-            "{}{}{}",
-            author_public_key, writer_id, sequence_number,
-        );
+        let key =
+            format!("{}{}{}", author_public_key, writer_id, sequence_number,);
 
         let mut body = OpenSearchSearchDocumentMessage {
             author_public_key: author_public_key,
@@ -98,11 +96,9 @@ async fn persist_event_search(
                 .unwrap()
                 .to_string();
 
-        if let Some(description) = &event_body.profile().profile_description
-        {
-            body.profile_description = Some(
-                ::std::str::from_utf8(description).unwrap().to_string(),
-            );
+        if let Some(description) = &event_body.profile().profile_description {
+            body.profile_description =
+                Some(::std::str::from_utf8(description).unwrap().to_string());
         }
 
         let script = r#"
@@ -201,7 +197,6 @@ async fn persist_event_feed(
         .await
         .map_err(|_| RequestError::DatabaseFailed)?;
 
-
     if event_body.has_delete() {
         sqlx::query(query_with_pointer)
             .bind(event_body.delete().pointer.public_key.clone())
@@ -253,26 +248,24 @@ async fn persist_event_notification(
         return Ok(());
     }
 
-    if
-        let ::protobuf::MessageField(Some(pointer)) =
+    if let ::protobuf::MessageField(Some(pointer)) =
         &event_body.message().boost_pointer
     {
         let potential_row = ::sqlx::query_as::<_, NotificationIdRow>(
-                LATEST_NOTIFICATION_ID_QUERY_STATEMENT
-            )
-            .bind(&pointer.public_key)
-            .fetch_optional(&mut *transaction)
-            .await
-            .map_err(|err| {
-                error!("latest notification id {}", err);
-                RequestError::DatabaseFailed
-            })?;
+            LATEST_NOTIFICATION_ID_QUERY_STATEMENT,
+        )
+        .bind(&pointer.public_key)
+        .fetch_optional(&mut *transaction)
+        .await
+        .map_err(|err| {
+            error!("latest notification id {}", err);
+            RequestError::DatabaseFailed
+        })?;
 
         let next_id = match potential_row {
             Some(row) => row.notification_id + 1,
             None => 0,
         };
-
 
         if pointer.public_key != event.author_public_key {
             ::sqlx::query(INSERT_NOTIFICATION_STATEMENT)
@@ -314,23 +307,12 @@ async fn post_events_handler(
             crate::user::EventBody::parse_from_bytes(&event.content)
                 .map_err(|_| RequestError::ParsingFailed)?;
 
-        persist_event_feed(
-            &mut transaction,
-            &event,
-            &event_body,
-        ).await?;
+        persist_event_feed(&mut transaction, &event, &event_body).await?;
 
-        persist_event_notification(
-            &mut transaction,
-            &event,
-            &event_body,
-        ).await?;
+        persist_event_notification(&mut transaction, &event, &event_body)
+            .await?;
 
-        persist_event_search(
-            state.clone(),
-            &event,
-            &event_body,
-        ).await?;
+        persist_event_search(state.clone(), &event, &event_body).await?;
     }
 
     transaction
@@ -985,7 +967,6 @@ async fn request_events_head_handler(
     ))
 }
 
-
 async fn get_specific_event_row(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     author_public_key: &::std::vec::Vec<u8>,
@@ -1234,7 +1215,6 @@ async fn request_explore_handler(
             .fetch_all(&mut transaction)
             .await
             .map_err(|_| RequestError::DatabaseFailed)?;
-
     } else {
         history = ::sqlx::query_as::<_, EventRow>(STATEMENT_WITHOUT_TIME)
             .fetch_all(&mut transaction)
@@ -1293,7 +1273,7 @@ async fn request_notifications_handler(
 
     let request =
         crate::user::RequestNotifications::parse_from_tokio_bytes(&bytes)
-        .map_err(|_| RequestError::ParsingFailed)?;
+            .map_err(|_| RequestError::ParsingFailed)?;
 
     let notifications: ::std::vec::Vec<NotificationRow>;
 
@@ -1304,36 +1284,33 @@ async fn request_notifications_handler(
         .map_err(|_| RequestError::DatabaseFailed)?;
 
     if let Some(after_index) = request.after_index {
-        notifications = ::sqlx::query_as::<_, NotificationRow>(
-                STATEMENT_WITH_INDEX
-            )
-            .bind(&request.public_key)
-            .bind(after_index as i64)
-            .fetch_all(&mut transaction)
-            .await
-            .map_err(|_| RequestError::DatabaseFailed)?;
-
+        notifications =
+            ::sqlx::query_as::<_, NotificationRow>(STATEMENT_WITH_INDEX)
+                .bind(&request.public_key)
+                .bind(after_index as i64)
+                .fetch_all(&mut transaction)
+                .await
+                .map_err(|_| RequestError::DatabaseFailed)?;
     } else {
-        notifications = ::sqlx::query_as::<_, NotificationRow>(
-                STATEMENT_WITHOUT_INDEX
-            )
-            .bind(&request.public_key)
-            .fetch_all(&mut transaction)
-            .await
-            .map_err(|_| RequestError::DatabaseFailed)?;
+        notifications =
+            ::sqlx::query_as::<_, NotificationRow>(STATEMENT_WITHOUT_INDEX)
+                .bind(&request.public_key)
+                .fetch_all(&mut transaction)
+                .await
+                .map_err(|_| RequestError::DatabaseFailed)?;
     }
 
-    let mut history: ::std::vec::Vec<EventRow> = vec!();
+    let mut history: ::std::vec::Vec<EventRow> = vec![];
 
     for notification in &notifications {
         let potential_row = get_specific_event_row(
-                &mut transaction,
-                &notification.from_author_public_key,
-                &notification.from_writer_id,
-                notification.from_sequence_number as u64,
-            )
-            .await?;
-    
+            &mut transaction,
+            &notification.from_author_public_key,
+            &notification.from_writer_id,
+            notification.from_sequence_number as u64,
+        )
+        .await?;
+
         if let Some(row) = potential_row {
             history.push(row)
         }
@@ -1348,14 +1325,11 @@ async fn request_notifications_handler(
     for notification in &notifications {
         if let Some(largest_index) = result.largest_index {
             if notification.notification_id > (largest_index as i64) {
-                result.largest_index = Some(
-                    notification.notification_id as u64
-                );
+                result.largest_index =
+                    Some(notification.notification_id as u64);
             }
         } else {
-            result.largest_index = Some(
-                notification.notification_id as u64
-            );
+            result.largest_index = Some(notification.notification_id as u64);
         }
     }
 

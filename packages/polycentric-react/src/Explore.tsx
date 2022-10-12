@@ -124,7 +124,6 @@ function Explore(props: ExploreProps) {
                 ..
             </div>
 
-
             {loading && (
                 <div
                     style={{

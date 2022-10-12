@@ -50,7 +50,7 @@ function Notifications(props: NotificationsProps) {
             if (
                 response[1].largestIndex !== undefined &&
                 (largestIndex.current === undefined ||
-                largestIndex.current < response[1].largestIndex)
+                    largestIndex.current < response[1].largestIndex)
             ) {
                 largestIndex.current = response[1].largestIndex;
             }
