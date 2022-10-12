@@ -1,7 +1,8 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { AppBar, Toolbar, ThemeProvider, Tooltip, IconButton, Avatar, Box, createTheme } from '@mui/material';
+import { AppBar, Toolbar, ThemeProvider, Tooltip, IconButton, Avatar, Box, Menu, MenuItem, Typography, Fab, createTheme } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import EditIcon from '@mui/icons-material/Edit';
 
 import * as Core from 'polycentric-core';
 import PostModal from './PostModal';
@@ -29,17 +30,37 @@ function App(props: AppProps) {
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [initial, setInitial] = useState(true);
     const [avatar, setAvatar] = useState<string | undefined>(undefined);
+    const [anchor, setAnchor] = useState<null | HTMLElement>(null);
 
     const location = useLocation();
     const navigate = useNavigate();
 
     const handleOpenProfile = () => {
         navigate('/profile');
+        setAnchor(null);
     };
 
     const handleOpenNotifications = () => {
         navigate('/notifications');
+        setAnchor(null);
     };
+
+    const handleOpenFollowing = () => {
+        navigate('/following');
+        setAnchor(null);
+    };
+
+    const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
+        setAnchor(event.currentTarget);
+    };
+
+    const handleCloseMenu = () => {
+        setAnchor(null);
+    };
+
+    const handleOpenPostModal = () => {
+        setModalIsOpen(true);
+    }
 
     const loadProfileImage = async () => {
         if (props.state.identity === undefined) {
@@ -100,15 +121,7 @@ function App(props: AppProps) {
                             >
                                 <Link to="/explore">Explore</Link>
                                 <Link to="/">Feed</Link>
-                                <Link to="/following">Following</Link>
                                 <Link to="/search">Search</Link>
-                                <a
-                                    onClick={() => {
-                                        setModalIsOpen(true);
-                                    }}
-                                >
-                                    Post
-                                </a>
                             </Box>
                             <Box sx={{ flexGrow: 1 }} />
                             <Box>
@@ -125,9 +138,9 @@ function App(props: AppProps) {
                                         <NotificationsIcon />
                                     </IconButton>
                                 </Tooltip> 
-                                <Tooltip title="Open Profile">
+                                <Tooltip title="Open Menu">
                                     <IconButton
-                                        onClick={handleOpenProfile}
+                                        onClick={handleOpenMenu}
                                         sx={{ p: 0 }}
                                         size="large"
                                         color="inherit"
@@ -138,6 +151,32 @@ function App(props: AppProps) {
                                         />
                                     </IconButton>
                                 </Tooltip>
+                                <Menu
+                                    sx={{ mt: '45px' }}
+                                    anchorEl={anchor}
+                                    open={Boolean(anchor)}
+                                    onClose={handleCloseMenu}
+                                    anchorOrigin={{
+                                        vertical: 'top',
+                                        horizontal: 'right',
+                                    }}
+                                    keepMounted
+                                    transformOrigin={{
+                                        vertical: 'top',
+                                        horizontal: 'right',
+                                    }}
+                                >
+                                    <MenuItem onClick={handleOpenProfile}>
+                                        <Typography textAlign="center">
+                                            Profile
+                                        </Typography>
+                                    </MenuItem>
+                                    <MenuItem onClick={handleOpenFollowing}>
+                                        <Typography textAlign="center">
+                                            Following
+                                        </Typography>
+                                    </MenuItem>
+                                </Menu>
                             </Box>
                         </Toolbar>
                     </AppBar>
@@ -155,6 +194,21 @@ function App(props: AppProps) {
                     <div className="app">
                         <Outlet />
                     </div>
+                )}
+
+                {initial === false && (
+                    <Fab
+                        color="primary"
+                        size="large"
+                        style={{
+                            position: "fixed",
+                            right: "30px",
+                            bottom: "30px",
+                        }}
+                        onClick={handleOpenPostModal}
+                    >
+                        <EditIcon />
+                    </Fab>
                 )}
             </ThemeProvider>
         </div>

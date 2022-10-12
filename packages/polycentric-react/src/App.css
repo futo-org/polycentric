@@ -11,7 +11,7 @@
 
 .app__header {
     display: flex;
-    gap: 15px;
+    gap: 10px;
 }
 
 .app__header > h2 {
