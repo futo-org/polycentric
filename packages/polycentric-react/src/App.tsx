@@ -1,6 +1,19 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { AppBar, Toolbar, ThemeProvider, Tooltip, IconButton, Avatar, Box, Menu, MenuItem, Typography, Fab, createTheme } from '@mui/material';
+import {
+    AppBar,
+    Toolbar,
+    ThemeProvider,
+    Tooltip,
+    IconButton,
+    Avatar,
+    Box,
+    Menu,
+    MenuItem,
+    Typography,
+    Fab,
+    createTheme,
+} from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import EditIcon from '@mui/icons-material/Edit';
 
@@ -60,7 +73,7 @@ function App(props: AppProps) {
 
     const handleOpenPostModal = () => {
         setModalIsOpen(true);
-    }
+    };
 
     const loadProfileImage = async () => {
         if (props.state.identity === undefined) {
@@ -116,9 +129,7 @@ function App(props: AppProps) {
                 {props.state.identity !== undefined && (
                     <AppBar position="sticky">
                         <Toolbar>
-                            <Box
-                                className="app__header"
-                            >
+                            <Box className="app__header">
                                 <Link to="/explore">Explore</Link>
                                 <Link to="/">Feed</Link>
                                 <Link to="/search">Search</Link>
@@ -137,7 +148,7 @@ function App(props: AppProps) {
                                     >
                                         <NotificationsIcon />
                                     </IconButton>
-                                </Tooltip> 
+                                </Tooltip>
                                 <Tooltip title="Open Menu">
                                     <IconButton
                                         onClick={handleOpenMenu}
@@ -145,10 +156,7 @@ function App(props: AppProps) {
                                         size="large"
                                         color="inherit"
                                     >
-                                        <Avatar
-                                            alt="avatar"
-                                            src={avatar}
-                                        />
+                                        <Avatar alt="avatar" src={avatar} />
                                     </IconButton>
                                 </Tooltip>
                                 <Menu
@@ -201,9 +209,9 @@ function App(props: AppProps) {
                         color="primary"
                         size="large"
                         style={{
-                            position: "fixed",
-                            right: "30px",
-                            bottom: "30px",
+                            position: 'fixed',
+                            right: '30px',
+                            bottom: '30px',
                         }}
                         onClick={handleOpenPostModal}
                     >
