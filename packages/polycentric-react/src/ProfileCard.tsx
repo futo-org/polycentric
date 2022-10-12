@@ -124,11 +124,16 @@ function ProfileCard({ publicKey, state }: ProfileHeaderProps) {
                             variant="contained"
                             onClick={handleUnfollow}
                             color="error"
+                            size="small"
                         >
                             Unfollow
                         </Button>
                     ) : (
-                        <Button variant="contained" onClick={handleFollow}>
+                        <Button
+                            variant="contained"
+                            onClick={handleFollow}
+                            size="small"
+                        >
                             Follow
                         </Button>
                     )}

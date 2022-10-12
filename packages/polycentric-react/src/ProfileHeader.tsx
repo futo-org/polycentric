@@ -168,6 +168,7 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
                             variant="contained"
                             onClick={handleUnfollow}
                             color="error"
+                            size="small"
                         >
                             Unfollow
                         </Button>

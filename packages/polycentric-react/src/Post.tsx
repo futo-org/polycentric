@@ -270,6 +270,7 @@ function Post(props: PostProps) {
                                     variant="contained"
                                     onClick={handleBoost}
                                     startIcon={<LoopIcon />}
+                                    size="small"
                                 >
                                     Boost
                                 </Button>
@@ -279,6 +280,7 @@ function Post(props: PostProps) {
                                         setModalIsOpen(true);
                                     }}
                                     startIcon={<ReplyIcon />}
+                                    size="small"
                                 >
                                     React
                                 </Button>
@@ -290,6 +292,7 @@ function Post(props: PostProps) {
                                 {props.post.author && (
                                     <Button
                                         variant="contained"
+                                        size="small"
                                         color="error"
                                         onClick={() => {
                                             Core.DB.deletePost(
