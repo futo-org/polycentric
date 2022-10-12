@@ -230,11 +230,66 @@ async fn persist_event_feed(
     Ok(())
 }
 
+#[derive(sqlx::FromRow)]
+struct NotificationIdRow {
+    notification_id: i64,
+}
+
 async fn persist_event_notification(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event: &crate::user::Event,
     event_body: &crate::user::EventBody,
 ) -> Result<(), ::warp::Rejection> {
+    const LATEST_NOTIFICATION_ID_QUERY_STATEMENT: &str = "
+        SELECT notification_id FROM notifications
+        WHERE author_public_key = $1
+        ORDER BY notification_id DESC
+        LIMIT 1;
+    ";
+
+    const INSERT_NOTIFICATION_STATEMENT: &str = "
+        INSERT INTO notifications
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT DO NOTHING;
+    ";
+
+    if event_body.has_message() == false {
+        return Ok(());
+    }
+
+    let potential_row = ::sqlx::query_as::<_, NotificationIdRow>(
+            LATEST_NOTIFICATION_ID_QUERY_STATEMENT
+        )
+        .bind(&event.author_public_key)
+        .fetch_optional(&mut *transaction)
+        .await
+        .map_err(|err| {
+            error!("latest notification id {}", err);
+            RequestError::DatabaseFailed
+        })?;
+
+    let next_id = match potential_row {
+        Some(row) => row.notification_id + 1,
+        None => 0,
+    };
+
+    if
+        let ::protobuf::MessageField(Some(pointer)) =
+        &event_body.message().boost_pointer
+    {
+        if pointer.public_key != event.author_public_key {
+            ::sqlx::query(INSERT_NOTIFICATION_STATEMENT)
+                .bind(next_id)
+                .bind(pointer.public_key.clone())
+                .bind(event.author_public_key.clone())
+                .bind(event.writer_id.clone())
+                .bind(event.sequence_number as i64)
+                .execute(&mut *transaction)
+                .await
+                .map_err(|_| RequestError::DatabaseFailed)?;
+        }
+    }
+
     Ok(())
 }
 
