@@ -253,26 +253,27 @@ async fn persist_event_notification(
         return Ok(());
     }
 
-    let potential_row = ::sqlx::query_as::<_, NotificationIdRow>(
-            LATEST_NOTIFICATION_ID_QUERY_STATEMENT
-        )
-        .bind(&event.author_public_key)
-        .fetch_optional(&mut *transaction)
-        .await
-        .map_err(|err| {
-            error!("latest notification id {}", err);
-            RequestError::DatabaseFailed
-        })?;
-
-    let next_id = match potential_row {
-        Some(row) => row.notification_id + 1,
-        None => 0,
-    };
-
     if
         let ::protobuf::MessageField(Some(pointer)) =
         &event_body.message().boost_pointer
     {
+        let potential_row = ::sqlx::query_as::<_, NotificationIdRow>(
+                LATEST_NOTIFICATION_ID_QUERY_STATEMENT
+            )
+            .bind(&pointer.public_key)
+            .fetch_optional(&mut *transaction)
+            .await
+            .map_err(|err| {
+                error!("latest notification id {}", err);
+                RequestError::DatabaseFailed
+            })?;
+
+        let next_id = match potential_row {
+            Some(row) => row.notification_id + 1,
+            None => 0,
+        };
+
+
         if pointer.public_key != event.author_public_key {
             ::sqlx::query(INSERT_NOTIFICATION_STATEMENT)
                 .bind(next_id)
@@ -1342,7 +1343,21 @@ async fn request_notifications_handler(
         .await
         .map_err(|_| RequestError::DatabaseFailed)?;
 
-    let mut result = crate::user::ResponseSearch::new();
+    let mut result = crate::user::ResponseNotifications::new();
+
+    for notification in &notifications {
+        if let Some(largest_index) = result.largest_index {
+            if notification.notification_id > (largest_index as i64) {
+                result.largest_index = Some(
+                    notification.notification_id as u64
+                );
+            }
+        } else {
+            result.largest_index = Some(
+                notification.notification_id as u64
+            );
+        }
+    }
 
     result
         .related_events

@@ -20,21 +20,21 @@ type NotificationsProps = {
 function Notifications(props: NotificationsProps) {
     const { ref, inView } = useInView();
 
-    const [exploreResults, setExploreResults] = useState<
+    const [notificationResults, setNotificationResults] = useState<
         [string, Core.Protocol.Pointer][]
     >([]);
 
     const [loading, setLoading] = useState<boolean>(true);
 
-    const earliestTime = useRef<number | undefined>(undefined);
+    const largestIndex = useRef<number | undefined>(undefined);
     const complete = useRef<boolean>(false);
 
     const handleLoad = async () => {
         setLoading(true);
 
-        const responses = await Core.DB.explore(
+        const responses = await Core.DB.notifications(
             props.state,
-            earliestTime.current,
+            largestIndex.current,
         );
 
         for (const response of responses) {
@@ -47,13 +47,12 @@ function Notifications(props: NotificationsProps) {
                 response[1].resultEvents,
             );
 
-            for (const event of response[1].resultEvents) {
-                if (
-                    earliestTime.current === undefined ||
-                    earliestTime.current > event.unixMilliseconds
-                ) {
-                    earliestTime.current = event.unixMilliseconds;
-                }
+            if (
+                response[1].largestIndex !== undefined &&
+                (largestIndex.current === undefined ||
+                largestIndex.current < response[1].largestIndex)
+            ) {
+                largestIndex.current = response[1].largestIndex;
             }
         }
 
@@ -72,7 +71,7 @@ function Notifications(props: NotificationsProps) {
             }
         }
 
-        setExploreResults(exploreResults.concat(filteredPosts));
+        setNotificationResults(notificationResults.concat(filteredPosts));
 
         if (filteredPosts.length === 0) {
             complete.current = true;
@@ -82,7 +81,7 @@ function Notifications(props: NotificationsProps) {
     };
 
     useEffect(() => {
-        earliestTime.current = undefined;
+        largestIndex.current = undefined;
         complete.current = false;
 
         handleLoad();
@@ -100,7 +99,7 @@ function Notifications(props: NotificationsProps) {
 
     return (
         <div className="standard_width">
-            {exploreResults.map((post) => {
+            {notificationResults.map((post) => {
                 const raw = post[0];
                 const item = post[1];
 
@@ -123,7 +122,6 @@ function Notifications(props: NotificationsProps) {
             <div ref={ref} style={{ visibility: 'hidden' }}>
                 ..
             </div>
-
 
             {loading && (
                 <div

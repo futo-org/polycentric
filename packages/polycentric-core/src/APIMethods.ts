@@ -104,3 +104,16 @@ export async function fetchPostExplore(
     return Protocol.ResponseSearch.decode(rawBody);
 }
 
+export async function fetchPostNotifications(
+    address: string,
+    event: Protocol.RequestNotifications,
+): Promise<Protocol.ResponseNotifications> {
+    const response = await fetch(address + '/notifications', {
+        method: 'POST',
+        headers: new Headers({ 'content-type': 'application/octet-stream' }),
+        body: Protocol.RequestNotifications.encode(event).finish(),
+    });
+    const rawBody = new Uint8Array(await response.arrayBuffer());
+    return Protocol.ResponseNotifications.decode(rawBody);
+}
+

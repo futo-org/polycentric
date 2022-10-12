@@ -196,7 +196,30 @@ export async function explore(
 
         const response = await APIMethods.fetchPostExplore(address, {
             beforeTime: beforeTime,
-	});
+        });
+
+        result.push([address, response]);
+    }
+
+    return result;
+}
+
+export async function notifications(
+    state: PolycentricState,
+    afterIndex: number | undefined,
+): Promise<Array<[string, Protocol.ResponseNotifications]>> {
+    const identity = await levelLoadIdentity(state);
+    const profile = await loadProfile(state);
+
+    const result: Array<[string, Protocol.ResponseNotifications]> = [];
+
+    for (const server of profile.servers) {
+        const address = new TextDecoder().decode(server);
+
+        const response = await APIMethods.fetchPostNotifications(address, {
+            publicKey: identity.publicKey,
+            afterIndex: afterIndex,
+        });
 
         result.push([address, response]);
     }
