@@ -1052,10 +1052,19 @@ async fn request_explore_handler(
     state: ::std::sync::Arc<State>,
     bytes: ::bytes::Bytes,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
-    const STATEMENT: &str = "
+    const STATEMENT_WITHOUT_TIME: &str = "
         SELECT *
         FROM events
         WHERE event_type = 1
+        ORDER BY unix_milliseconds DESC
+        LIMIT 20
+    ";
+
+    const STATEMENT_WITH_TIME: &str = "
+        SELECT *
+        FROM events
+        WHERE event_type = 1
+        AND unix_milliseconds < $1
         ORDER BY unix_milliseconds DESC
         LIMIT 20
     ";
@@ -1071,13 +1080,18 @@ async fn request_explore_handler(
         .await
         .map_err(|_| RequestError::DatabaseFailed)?;
 
-    let rows = ::sqlx::query_as::<_, EventRow>(STATEMENT)
-        .fetch_all(&mut transaction)
-        .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+    if let Some(before_time) = request.before_time {
+        history = ::sqlx::query_as::<_, EventRow>(STATEMENT_WITH_TIME)
+            .bind(before_time as i64)
+            .fetch_all(&mut transaction)
+            .await
+            .map_err(|_| RequestError::DatabaseFailed)?;
 
-    for row in rows {
-        history.push(row);
+    } else {
+        history = ::sqlx::query_as::<_, EventRow>(STATEMENT_WITHOUT_TIME)
+            .fetch_all(&mut transaction)
+            .await
+            .map_err(|_| RequestError::DatabaseFailed)?;
     }
 
     let mut processed_events = process_mutations(&mut transaction, history)

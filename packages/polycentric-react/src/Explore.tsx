@@ -2,6 +2,7 @@ import { Paper, TextField, LinearProgress } from '@mui/material';
 import { useState, useEffect, useRef, ReactNode } from 'react';
 import * as Base64 from '@borderless/base64';
 import { useParams } from 'react-router-dom';
+import { useInView } from 'react-intersection-observer';
 
 import * as Core from 'polycentric-core';
 import * as Feed from './Feed';
@@ -17,6 +18,8 @@ type ExploreProps = {
 };
 
 function Explore(props: ExploreProps) {
+    const { ref, inView } = useInView();
+
     const [exploreResults, setExploreResults] = useState<
         [string, Core.Protocol.Pointer][]
     >([]);
@@ -24,6 +27,7 @@ function Explore(props: ExploreProps) {
     const [loading, setLoading] = useState<boolean>(true);
 
     const earliestTime = useRef<number | undefined>(undefined);
+    const complete = useRef<boolean>(false);
 
     const handleLoad = async () => {
         setLoading(true);
@@ -68,16 +72,31 @@ function Explore(props: ExploreProps) {
             }
         }
 
-        setExploreResults(filteredPosts);
+        setExploreResults(exploreResults.concat(filteredPosts));
+
+        if (filteredPosts.length === 0) {
+            complete.current = true;
+        }
 
         setLoading(false);
     };
 
     useEffect(() => {
         earliestTime.current = undefined;
+        complete.current = false;
 
         handleLoad();
     }, []);
+
+    useEffect(() => {
+        if (
+            loading === false &&
+            inView === true &&
+            complete.current === false
+        ) {
+            handleLoad();
+        }
+    }, [loading, inView]);
 
     return (
         <div className="standard_width">
@@ -100,6 +119,10 @@ function Explore(props: ExploreProps) {
                     />
                 );
             })}
+
+            <div ref={ref} style={{ visibility: 'hidden' }}>
+                ..
+            </div>
 
 
             {loading && (
