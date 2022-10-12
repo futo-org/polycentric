@@ -156,6 +156,21 @@ async function loadPosts2(
                 continue;
             }
 
+            if (
+                decodedFeed === undefined &&
+                post !== undefined &&
+                post.event !== undefined
+            ) {
+                const following = await Core.DB.levelAmFollowing(
+                    state,
+                    post.event.authorPublicKey,
+                );
+
+                if (following === false) {
+                    continue;
+                }
+            }
+
             const displayable = await eventToDisplayablePost(
                 state,
                 profiles,
