@@ -1309,7 +1309,7 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
             for_author_public_key  BYTEA NOT NULL,
             from_author_public_key BYTEA NOT NULL,
             from_writer_id         BYTEA NOT NULL,
-            from_sequence_number   INT8  NOT NULL,
+            from_sequence_number   INT8  NOT NULL
         );
     ",
     )
