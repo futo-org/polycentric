@@ -168,10 +168,6 @@ async fn persist_event_feed(
 
     let mut message_type: i64 = 0;
 
-    let event_body =
-        crate::user::EventBody::parse_from_bytes(&event.content)
-            .map_err(|_| RequestError::ParsingFailed)?;
-
     if event_body.has_message() {
         message_type = 1;
     } else if event_body.has_profile() {
@@ -242,7 +238,7 @@ async fn persist_event_notification(
 ) -> Result<(), ::warp::Rejection> {
     const LATEST_NOTIFICATION_ID_QUERY_STATEMENT: &str = "
         SELECT notification_id FROM notifications
-        WHERE author_public_key = $1
+        WHERE for_author_public_key = $1
         ORDER BY notification_id DESC
         LIMIT 1;
     ";
