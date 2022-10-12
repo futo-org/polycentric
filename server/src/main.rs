@@ -37,13 +37,115 @@ async fn handle_rejection(
     ))
 }
 
-async fn post_events_handler(
+async fn persist_event_search(
     state: ::std::sync::Arc<State>,
-    bytes: ::bytes::Bytes,
-) -> Result<impl ::warp::Reply, ::warp::Rejection> {
-    let events = crate::user::Events::parse_from_tokio_bytes(&bytes)
-        .map_err(|_| RequestError::ParsingFailed)?;
+    event: &crate::user::Event,
+    event_body: &crate::user::EventBody,
+) -> Result<(), ::warp::Rejection> {
+    if event_body.has_message() {
+        let author_public_key = ::base64::encode(&event.author_public_key);
+        let writer_id = ::base64::encode(&event.writer_id);
+        let sequence_number = event.sequence_number.to_string();
 
+        let key = format!(
+            "{}{}{}",
+            author_public_key, writer_id, sequence_number,
+        );
+
+        let mut body = OpenSearchSearchDocumentMessage {
+            author_public_key: author_public_key,
+            writer_id: writer_id,
+            sequence_number: event.sequence_number as i64,
+            message: None,
+        };
+
+        body.message = Some(
+            ::std::str::from_utf8(&event_body.message().message)
+                .unwrap()
+                .to_string(),
+        );
+
+        let response = state
+            .search
+            .index(::opensearch::IndexParts::IndexId("posts", &key))
+            .body(body)
+            .send()
+            .await
+            .map_err(|_| RequestError::DatabaseFailed)?;
+
+        let err = response.exception().await.unwrap();
+
+        if let Some(body) = err {
+            warn!("body {:?}", body);
+        }
+    }
+
+    if event_body.has_profile() {
+        let key = ::base64::encode(&event.author_public_key);
+        let writer_id = ::base64::encode(&event.writer_id);
+
+        let mut body = OpenSearchSearchDocumentProfile {
+            author_public_key: key.clone(),
+            writer_id: writer_id,
+            sequence_number: event.sequence_number as i64,
+            profile_name: "".to_string(),
+            profile_description: None,
+            unix_milliseconds: event.unix_milliseconds,
+        };
+
+        body.profile_name =
+            ::std::str::from_utf8(&event_body.profile().profile_name)
+                .unwrap()
+                .to_string();
+
+        if let Some(description) = &event_body.profile().profile_description
+        {
+            body.profile_description = Some(
+                ::std::str::from_utf8(description).unwrap().to_string(),
+            );
+        }
+
+        let script = r#"
+            if (ctx.op == "create") {
+                ctx._source = params
+            } else if (ctx._source.unix_milliseconds > params.unix_milliseconds) {
+                ctx.op = 'noop'
+            } else {
+                ctx._source = params
+            }
+        "#;
+
+        let response = state
+            .search
+            .update(::opensearch::UpdateParts::IndexId("profiles", &key))
+            .body(json!({
+                "scripted_upsert": true,
+                "script": {
+                    "lang": "painless",
+                    "params": body,
+                    "inline": script,
+                },
+                "upsert": {}
+            }))
+            .send()
+            .await
+            .map_err(|_| RequestError::DatabaseFailed)?;
+
+        let err = response.exception().await.unwrap();
+
+        if let Some(body) = err {
+            warn!("body {:?}", body);
+        }
+    }
+
+    Ok(())
+}
+
+async fn persist_event_feed(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    event: &crate::user::Event,
+    event_body: &crate::user::EventBody,
+) -> Result<(), ::warp::Rejection> {
     let query = "
         INSERT INTO events
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -64,6 +166,84 @@ async fn post_events_handler(
         ;
     ";
 
+    let mut message_type: i64 = 0;
+
+    let event_body =
+        crate::user::EventBody::parse_from_bytes(&event.content)
+            .map_err(|_| RequestError::ParsingFailed)?;
+
+    if event_body.has_message() {
+        message_type = 1;
+    } else if event_body.has_profile() {
+        message_type = 2;
+    } else if event_body.has_delete() {
+        message_type = 6;
+    }
+
+    let mut converted_clocks = vec![];
+
+    for clock in &event.clocks {
+        converted_clocks.push(ClockEntry {
+            writer_id: clock.key.clone(),
+            sequence_number: clock.value,
+        });
+    }
+
+    let clocks_serialized = ::serde_json::to_string(&converted_clocks)
+        .map_err(|_| RequestError::SerializationFailed)?;
+
+    ::sqlx::query(query)
+        .bind(event.author_public_key.clone())
+        .bind(event.writer_id.clone())
+        .bind(event.sequence_number as i64)
+        .bind(event.unix_milliseconds as i64)
+        .bind(event.content.clone())
+        .bind(event.signature.clone())
+        .bind(clocks_serialized)
+        .bind(message_type)
+        .execute(&mut *transaction)
+        .await
+        .map_err(|_| RequestError::DatabaseFailed)?;
+
+
+    if event_body.has_delete() {
+        sqlx::query(query_with_pointer)
+            .bind(event_body.delete().pointer.public_key.clone())
+            .bind(event_body.delete().pointer.writer_id.clone())
+            .bind(event_body.delete().pointer.sequence_number as i64)
+            .bind(0)
+            .bind::<::std::vec::Vec<u8>>(vec![])
+            .bind::<::std::vec::Vec<u8>>(vec![])
+            .bind("")
+            .bind(10)
+            .bind(event.author_public_key.clone())
+            .bind(event.writer_id.clone())
+            .bind(event.sequence_number as i64)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|err| {
+                error!("upsert with pointer {}", err);
+                RequestError::DatabaseFailed
+            })?;
+    }
+
+    Ok(())
+}
+
+
+async fn post_events_handler(
+    state: ::std::sync::Arc<State>,
+    bytes: ::bytes::Bytes,
+) -> Result<impl ::warp::Reply, ::warp::Rejection> {
+    let events = crate::user::Events::parse_from_tokio_bytes(&bytes)
+        .map_err(|_| RequestError::ParsingFailed)?;
+
+    let mut transaction = state
+        .pool
+        .begin()
+        .await
+        .map_err(|_| RequestError::DatabaseFailed)?;
+
     for event in &events.events {
         if !crate::crypto::validate_signature(event) {
             warn!("failed to validate signature");
@@ -71,162 +251,27 @@ async fn post_events_handler(
             continue;
         }
 
-        let mut message_type: i64 = 0;
-
         let event_body =
             crate::user::EventBody::parse_from_bytes(&event.content)
                 .map_err(|_| RequestError::ParsingFailed)?;
 
-        if event_body.has_message() {
-            message_type = 1;
-        } else if event_body.has_profile() {
-            message_type = 2;
-        } else if event_body.has_delete() {
-            message_type = 6;
-        }
+        persist_event_feed(
+            &mut transaction,
+            &event,
+            &event_body,
+        ).await?;
 
-        let mut converted_clocks = vec![];
-
-        for clock in &event.clocks {
-            converted_clocks.push(ClockEntry {
-                writer_id: clock.key.clone(),
-                sequence_number: clock.value,
-            });
-        }
-
-        let clocks_serialized = ::serde_json::to_string(&converted_clocks)
-            .map_err(|_| RequestError::SerializationFailed)?;
-
-        ::sqlx::query(query)
-            .bind(event.author_public_key.clone())
-            .bind(event.writer_id.clone())
-            .bind(event.sequence_number as i64)
-            .bind(event.unix_milliseconds as i64)
-            .bind(event.content.clone())
-            .bind(event.signature.clone())
-            .bind(clocks_serialized)
-            .bind(message_type)
-            .execute(&state.pool)
-            .await
-            .map_err(|_| RequestError::DatabaseFailed)?;
-
-        if event_body.has_message() {
-            let author_public_key = ::base64::encode(&event.author_public_key);
-            let writer_id = ::base64::encode(&event.writer_id);
-            let sequence_number = event.sequence_number.to_string();
-
-            let key = format!(
-                "{}{}{}",
-                author_public_key, writer_id, sequence_number,
-            );
-
-            let mut body = OpenSearchSearchDocumentMessage {
-                author_public_key: author_public_key,
-                writer_id: writer_id,
-                sequence_number: event.sequence_number as i64,
-                message: None,
-            };
-
-            body.message = Some(
-                ::std::str::from_utf8(&event_body.message().message)
-                    .unwrap()
-                    .to_string(),
-            );
-
-            let response = state
-                .search
-                .index(::opensearch::IndexParts::IndexId("posts", &key))
-                .body(body)
-                .send()
-                .await
-                .map_err(|_| RequestError::DatabaseFailed)?;
-
-            let err = response.exception().await.unwrap();
-
-            if let Some(body) = err {
-                warn!("body {:?}", body);
-            }
-        }
-
-        if event_body.has_profile() {
-            let key = ::base64::encode(&event.author_public_key);
-            let writer_id = ::base64::encode(&event.writer_id);
-
-            let mut body = OpenSearchSearchDocumentProfile {
-                author_public_key: key.clone(),
-                writer_id: writer_id,
-                sequence_number: event.sequence_number as i64,
-                profile_name: "".to_string(),
-                profile_description: None,
-                unix_milliseconds: event.unix_milliseconds,
-            };
-
-            body.profile_name =
-                ::std::str::from_utf8(&event_body.profile().profile_name)
-                    .unwrap()
-                    .to_string();
-
-            if let Some(description) = &event_body.profile().profile_description
-            {
-                body.profile_description = Some(
-                    ::std::str::from_utf8(description).unwrap().to_string(),
-                );
-            }
-
-            let script = r#"
-                if (ctx.op == "create") {
-                    ctx._source = params
-                } else if (ctx._source.unix_milliseconds > params.unix_milliseconds) {
-                    ctx.op = 'noop'
-                } else {
-                    ctx._source = params
-                }
-            "#;
-
-            let response = state
-                .search
-                .update(::opensearch::UpdateParts::IndexId("profiles", &key))
-                .body(json!({
-                    "scripted_upsert": true,
-                    "script": {
-                        "lang": "painless",
-                        "params": body,
-                        "inline": script,
-                    },
-                    "upsert": {}
-                }))
-                .send()
-                .await
-                .map_err(|_| RequestError::DatabaseFailed)?;
-
-            let err = response.exception().await.unwrap();
-
-            if let Some(body) = err {
-                warn!("body {:?}", body);
-            }
-        }
-
-        if event_body.has_delete() {
-            sqlx::query(query_with_pointer)
-                .bind(event_body.delete().pointer.public_key.clone())
-                .bind(event_body.delete().pointer.writer_id.clone())
-                .bind(event_body.delete().pointer.sequence_number as i64)
-                .bind(0)
-                .bind::<::std::vec::Vec<u8>>(vec![])
-                .bind::<::std::vec::Vec<u8>>(vec![])
-                .bind("")
-                .bind(10)
-                .bind(event.author_public_key.clone())
-                .bind(event.writer_id.clone())
-                .bind(event.sequence_number as i64)
-                .execute(&state.pool)
-                .await
-                .map_err(|err| {
-                    error!("upsert with pointer {}", err);
-                    RequestError::DatabaseFailed
-                })?;
-        }
+        persist_event_search(
+            state.clone(),
+            &event,
+            &event_body,
+        ).await?;
     }
+
+    transaction
+        .commit()
+        .await
+        .map_err(|_| RequestError::DatabaseFailed)?;
 
     Ok(::warp::reply::with_status("", ::warp::http::StatusCode::OK))
 }
@@ -1072,7 +1117,7 @@ async fn request_explore_handler(
     let request = crate::user::RequestExplore::parse_from_tokio_bytes(&bytes)
         .map_err(|_| RequestError::ParsingFailed)?;
 
-    let mut history: ::std::vec::Vec<EventRow> = vec![];
+    let history: ::std::vec::Vec<EventRow>;
 
     let mut transaction = state
         .pool
@@ -1184,6 +1229,29 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
         "
         CREATE UNIQUE INDEX IF NOT EXISTS events_index
         ON events (author_public_key, writer_id, sequence_number);
+    ",
+    )
+    .execute(&mut transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        CREATE TABLE IF NOT EXISTS notifications (
+            notification_id        INT8  NOT NULL,
+            for_author_public_key  BYTEA NOT NULL,
+            from_author_public_key BYTEA NOT NULL,
+            from_writer_id         BYTEA NOT NULL,
+            from_sequence_number   INT8  NOT NULL,
+        );
+    ",
+    )
+    .execute(&mut transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        CREATE UNIQUE INDEX IF NOT EXISTS notifications_index
+        ON notifications (for_author_public_key, notification_id);
     ",
     )
     .execute(&mut transaction)
