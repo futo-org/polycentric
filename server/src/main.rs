@@ -230,6 +230,13 @@ async fn persist_event_feed(
     Ok(())
 }
 
+async fn persist_event_notification(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    event: &crate::user::Event,
+    event_body: &crate::user::EventBody,
+) -> Result<(), ::warp::Rejection> {
+    Ok(())
+}
 
 async fn post_events_handler(
     state: ::std::sync::Arc<State>,
@@ -256,6 +263,12 @@ async fn post_events_handler(
                 .map_err(|_| RequestError::ParsingFailed)?;
 
         persist_event_feed(
+            &mut transaction,
+            &event,
+            &event_body,
+        ).await?;
+
+        persist_event_notification(
             &mut transaction,
             &event,
             &event_body,
