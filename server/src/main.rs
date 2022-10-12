@@ -1300,6 +1300,16 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
 
     ::sqlx::query(
         "
+        CREATE UNIQUE INDEX IF NOT EXISTS
+        events_index_by_time_by_type
+        ON events (unix_milliseconds, event_type);
+    ",
+    )
+    .execute(&mut transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
         CREATE TABLE IF NOT EXISTS notifications (
             notification_id        INT8  NOT NULL,
             for_author_public_key  BYTEA NOT NULL,
