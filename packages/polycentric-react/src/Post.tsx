@@ -251,9 +251,10 @@ function Post(props: PostProps) {
                             }}
                         >
                             <p>
+                                Posted on: &nbsp;
                                 {new Date(
                                     props.post.unixMilliseconds,
-                                ).toString()}
+                                ).toLocaleString()}
                             </p>
                             <p onClick={handleNavigate}>
                                 {props.post.pointer.sequenceNumber}
