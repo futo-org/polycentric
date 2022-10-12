@@ -11,7 +11,7 @@
 
 .app__header {
     display: flex;
-    justify-content: space-between;
+    gap: 15px;
 }
 
 .app__header > h2 {
