@@ -377,6 +377,15 @@ struct EventRow {
     mutation_pointer: Option<Pointer>,
 }
 
+#[derive(sqlx::FromRow)]
+struct NotificationRow {
+    notification_id: i64,
+    for_author_public_key: ::std::vec::Vec<u8>,
+    from_author_public_key: ::std::vec::Vec<u8>,
+    from_writer_id: ::std::vec::Vec<u8>,
+    from_sequence_number: i64,
+}
+
 fn event_row_to_event_proto(row: EventRow) -> user::Event {
     let mut event = crate::user::Event::new();
     event.writer_id = row.writer_id;
@@ -975,6 +984,35 @@ async fn request_events_head_handler(
     ))
 }
 
+
+async fn get_specific_event_row(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    author_public_key: &::std::vec::Vec<u8>,
+    writer_id: &::std::vec::Vec<u8>,
+    sequence_number: u64,
+) -> Result<Option<EventRow>, ::warp::Rejection> {
+    const STATEMENT: &str = "
+        SELECT * FROM events
+        WHERE author_public_key = $1
+        AND writer_id = $2
+        AND sequence_number = $3
+        LIMIT 1;
+    ";
+
+    let potential_row = ::sqlx::query_as::<_, EventRow>(STATEMENT)
+        .bind(author_public_key)
+        .bind(writer_id)
+        .bind(sequence_number as i64)
+        .fetch_optional(&mut *transaction)
+        .await
+        .map_err(|err| {
+            error!("get_specific_event {}", err);
+            RequestError::DatabaseFailed
+        })?;
+
+    Ok(potential_row)
+}
+
 async fn get_specific_event(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     author_public_key: ::std::vec::Vec<u8>,
@@ -1231,6 +1269,103 @@ async fn request_explore_handler(
     ))
 }
 
+async fn request_notifications_handler(
+    state: ::std::sync::Arc<State>,
+    bytes: ::bytes::Bytes,
+) -> Result<impl ::warp::Reply, ::warp::Rejection> {
+    const STATEMENT_WITHOUT_INDEX: &str = "
+        SELECT *
+        FROM notifications
+        WHERE for_author_public_key = $1
+        ORDER BY notification_id ASC
+        LIMIT 20
+    ";
+
+    const STATEMENT_WITH_INDEX: &str = "
+        SELECT *
+        FROM notifications
+        WHERE for_author_public_key = $1
+        AND notification_id > $2
+        ORDER BY notification_id ASC
+        LIMIT 20
+    ";
+
+    let request =
+        crate::user::RequestNotifications::parse_from_tokio_bytes(&bytes)
+        .map_err(|_| RequestError::ParsingFailed)?;
+
+    let notifications: ::std::vec::Vec<NotificationRow>;
+
+    let mut transaction = state
+        .pool
+        .begin()
+        .await
+        .map_err(|_| RequestError::DatabaseFailed)?;
+
+    if let Some(after_index) = request.after_index {
+        notifications = ::sqlx::query_as::<_, NotificationRow>(
+                STATEMENT_WITH_INDEX
+            )
+            .bind(&request.public_key)
+            .bind(after_index as i64)
+            .fetch_all(&mut transaction)
+            .await
+            .map_err(|_| RequestError::DatabaseFailed)?;
+
+    } else {
+        notifications = ::sqlx::query_as::<_, NotificationRow>(
+                STATEMENT_WITHOUT_INDEX
+            )
+            .bind(&request.public_key)
+            .fetch_all(&mut transaction)
+            .await
+            .map_err(|_| RequestError::DatabaseFailed)?;
+    }
+
+    let mut history: ::std::vec::Vec<EventRow> = vec!();
+
+    for notification in &notifications {
+        let potential_row = get_specific_event_row(
+                &mut transaction,
+                &notification.from_author_public_key,
+                &notification.from_writer_id,
+                notification.from_sequence_number as u64,
+            )
+            .await?;
+    
+        if let Some(row) = potential_row {
+            history.push(row)
+        }
+    }
+
+    let mut processed_events = process_mutations(&mut transaction, history)
+        .await
+        .map_err(|_| RequestError::DatabaseFailed)?;
+
+    let mut result = crate::user::ResponseSearch::new();
+
+    result
+        .related_events
+        .append(&mut processed_events.related_events);
+    result
+        .result_events
+        .append(&mut processed_events.result_events);
+
+    transaction
+        .commit()
+        .await
+        .map_err(|_| RequestError::DatabaseFailed)?;
+
+    let result_serialized = result
+        .write_to_bytes()
+        .map_err(|_| RequestError::SerializationFailed)?;
+
+    Ok(::warp::reply::with_status(
+        result_serialized,
+        ::warp::http::StatusCode::OK,
+    ))
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
     let port = 8081;
@@ -1404,6 +1539,14 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
         .and_then(request_explore_handler)
         .with(cors.clone());
 
+    let request_notifications_route = ::warp::post()
+        .and(::warp::path("notifications"))
+        .and(::warp::path::end())
+        .and(state_filter.clone())
+        .and(::warp::body::bytes())
+        .and_then(request_notifications_handler)
+        .with(cors.clone());
+
     let request_recommend_profiles_route = ::warp::get()
         .and(::warp::path("recommended_profiles"))
         .and(::warp::path::end())
@@ -1418,6 +1561,7 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
         .or(known_ranges_route)
         .or(request_search_route)
         .or(request_explore_route)
+        .or(request_notifications_route)
         .or(request_recommend_profiles_route)
         .recover(handle_rejection);
 
