@@ -49,6 +49,7 @@ function App(props: AppProps) {
                     <AppBar position="sticky">
                         <Toolbar className="app__header">
                             <Link to="/explore">Explore</Link>
+                            <Link to="/notifications">Notifications</Link>
                             <Link to="/">Feed</Link>
                             <Link to="/profile">Profile</Link>
                             <Link to="/following">Following</Link>
