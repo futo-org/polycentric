@@ -161,7 +161,7 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
                             margin: '5px',
                         }}
                     >
-                        Sync Status: {profile.status}
+                        Downloaded: {profile.status}
                     </h3>
                     {profile.following ? (
                         <Button

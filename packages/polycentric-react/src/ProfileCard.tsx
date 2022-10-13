@@ -117,7 +117,7 @@ function ProfileCard({ publicKey, state }: ProfileHeaderProps) {
                             margin: '5px',
                         }}
                     >
-                        Sync Status: {profile.status}
+                        Downloaded: {profile.status}
                     </h3>
                     {profile.following ? (
                         <Button
