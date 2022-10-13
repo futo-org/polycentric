@@ -26,54 +26,77 @@ function Notifications(props: NotificationsProps) {
 
     const [loading, setLoading] = useState<boolean>(true);
 
-    const largestIndex = useRef<number | undefined>(undefined);
+    const largestIndexByServer = useRef<Map<string, number>>(new Map());
     const complete = useRef<boolean>(false);
 
     const handleLoad = async () => {
         setLoading(true);
 
-        const responses = await Core.DB.notifications(
-            props.state,
-            largestIndex.current,
-        );
+        const identity = await Core.DB.levelLoadIdentity(props.state);
+        const profile = await Core.DB.loadProfile(props.state);
+        let progress = false;
 
-        for (const response of responses) {
-            await Core.Synchronization.saveBatch(
-                props.state,
-                response[1].relatedEvents,
-            );
-            await Core.Synchronization.saveBatch(
-                props.state,
-                response[1].resultEvents,
-            );
+        for (const server of profile.servers) {
+            try {
+                const address = new TextDecoder().decode(server);
+                let largestIndex = largestIndexByServer.current.get(address);
 
-            if (
-                response[1].largestIndex !== undefined &&
-                (largestIndex.current === undefined ||
-                    largestIndex.current < response[1].largestIndex)
-            ) {
-                largestIndex.current = response[1].largestIndex;
-            }
-        }
-
-        let filteredPosts: [string, Core.Protocol.Pointer][] = [];
-
-        for (const response of responses) {
-            for (const event of response[1].resultEvents) {
-                filteredPosts.push([
-                    response[0],
+                const response = await Core.APIMethods.fetchPostNotifications(
+                    address,
                     {
-                        publicKey: event.authorPublicKey,
-                        writerId: event.writerId,
-                        sequenceNumber: event.sequenceNumber,
+                        publicKey: identity.publicKey,
+                        afterIndex: largestIndex,
                     },
-                ]);
+                );
+
+                await Core.Synchronization.saveBatch(
+                    props.state,
+                    response.relatedEvents,
+                );
+
+                await Core.Synchronization.saveBatch(
+                    props.state,
+                    response.resultEvents,
+                );
+
+                if (
+                    response.largestIndex !== undefined &&
+                    (largestIndex == undefined ||
+                        largestIndex < response.largestIndex)
+                ) {
+                    largestIndexByServer.current.set(
+                        address,
+                        response.largestIndex,
+                    );
+                }
+
+                let filteredPosts: [string, Core.Protocol.Pointer][] = [];
+
+                for (const event of response.resultEvents) {
+                    filteredPosts.push([
+                        address,
+                        {
+                            publicKey: event.authorPublicKey,
+                            writerId: event.writerId,
+                            sequenceNumber: event.sequenceNumber,
+                        },
+                    ]);
+                }
+
+                setNotificationResults(
+                    notificationResults.concat(filteredPosts),
+                );
+
+                if (filteredPosts.length !== 0) {
+                    progress = true;
+                }
+            } catch (err) {
+                console.log(err);
+                progress = true;
             }
         }
 
-        setNotificationResults(notificationResults.concat(filteredPosts));
-
-        if (filteredPosts.length === 0) {
+        if (progress === false) {
             complete.current = true;
         }
 
@@ -81,7 +104,7 @@ function Notifications(props: NotificationsProps) {
     };
 
     useEffect(() => {
-        largestIndex.current = undefined;
+        largestIndexByServer.current = new Map();
         complete.current = false;
 
         handleLoad();
