@@ -1424,7 +1424,7 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
 
     ::sqlx::query(
         "
-        CREATE UNIQUE INDEX IF NOT EXISTS
+        CREATE INDEX IF NOT EXISTS
         events_index_by_time_by_type
         ON events (unix_milliseconds, event_type);
     ",
