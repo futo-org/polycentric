@@ -11,7 +11,7 @@ function profileToLink(profile: Core.Protocol.StorageTypeProfile): string {
     );
 }
 
-function profileToLinkOnlyKey(publicKey: Uint8Array): string {
+export function profileToLinkOnlyKey(publicKey: Uint8Array): string {
     return Base64.encodeUrl(
         Core.Protocol.URLInfo.encode({
             publicKey: publicKey,

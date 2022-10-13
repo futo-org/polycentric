@@ -19,6 +19,7 @@ import EditIcon from '@mui/icons-material/Edit';
 
 import * as Core from 'polycentric-core';
 import PostModal from './PostModal';
+import * as ProfileUtil from './ProfileUtil';
 import './App.css';
 
 const theme = createTheme({
@@ -61,6 +62,18 @@ function App(props: AppProps) {
     const handleOpenFollowing = () => {
         navigate('/following');
         setAnchor(null);
+    };
+
+    const handleOpenMyPosts = () => {
+        if (props.state.identity !== undefined) {
+            navigate(
+                '/' +
+                    ProfileUtil.profileToLinkOnlyKey(
+                        props.state.identity.publicKey,
+                    ),
+            );
+            setAnchor(null);
+        }
     };
 
     const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -174,9 +187,14 @@ function App(props: AppProps) {
                                         horizontal: 'right',
                                     }}
                                 >
+                                    <MenuItem onClick={handleOpenMyPosts}>
+                                        <Typography textAlign="center">
+                                            My Posts
+                                        </Typography>
+                                    </MenuItem>
                                     <MenuItem onClick={handleOpenProfile}>
                                         <Typography textAlign="center">
-                                            Profile
+                                            Edit Profile
                                         </Typography>
                                     </MenuItem>
                                     <MenuItem onClick={handleOpenFollowing}>
