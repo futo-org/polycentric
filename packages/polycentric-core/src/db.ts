@@ -192,13 +192,17 @@ export async function explore(
     const result: Array<[string, Protocol.ResponseSearch]> = [];
 
     for (const server of profile.servers) {
-        const address = new TextDecoder().decode(server);
+        try {
+            const address = new TextDecoder().decode(server);
 
-        const response = await APIMethods.fetchPostExplore(address, {
-            beforeTime: beforeTime,
-        });
+            const response = await APIMethods.fetchPostExplore(address, {
+                beforeTime: beforeTime,
+            });
 
-        result.push([address, response]);
+            result.push([address, response]);
+        } catch (err) {
+            console.log("explore", err);
+        }
     }
 
     return result;

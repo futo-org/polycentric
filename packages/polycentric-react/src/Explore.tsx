@@ -120,6 +120,19 @@ function Explore(props: ExploreProps) {
                 );
             })}
 
+            {exploreResults.length === 0 && (
+                <Paper
+                    elevation={4}
+                    style={{
+                        marginTop: '15px',
+                        padding: '15px',
+                        textAlign: 'center',
+                    }}
+                >
+                    <h3> There does not appear to be anything to explore. </h3>
+                </Paper>
+            )}
+
             <div ref={ref} style={{ visibility: 'hidden' }}>
                 ..
             </div>

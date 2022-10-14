@@ -1,8 +1,9 @@
 import { Paper, TextField, LinearProgress } from '@mui/material';
-import { useState, useEffect, useRef, ReactNode } from 'react';
+import { useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import * as Base64 from '@borderless/base64';
 import { useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
+import * as Lodash from 'lodash';
 
 import * as Core from 'polycentric-core';
 import * as Feed from './Feed';
@@ -103,11 +104,18 @@ function Notifications(props: NotificationsProps) {
         setLoading(false);
     };
 
+    const handleLoadDebounce = useCallback(
+        Lodash.debounce(() => {
+            console.log('calling debounce');
+            handleLoad();
+        }, 5000, { leading: true })
+    , []);
+
     useEffect(() => {
         largestIndexByServer.current = new Map();
         complete.current = false;
 
-        handleLoad();
+        handleLoadDebounce();
     }, []);
 
     useEffect(() => {
@@ -116,7 +124,7 @@ function Notifications(props: NotificationsProps) {
             inView === true &&
             complete.current === false
         ) {
-            handleLoad();
+            handleLoadDebounce();
         }
     }, [loading, inView]);
 
@@ -141,6 +149,19 @@ function Notifications(props: NotificationsProps) {
                     />
                 );
             })}
+
+            {notificationResults.length === 0 && (
+                <Paper
+                    elevation={4}
+                    style={{
+                        marginTop: '15px',
+                        padding: '15px',
+                        textAlign: 'center',
+                    }}
+                >
+                    <h3> You don't appear to have any notifications. </h3>
+                </Paper>
+            )}
 
             <div ref={ref} style={{ visibility: 'hidden' }}>
                 ..
