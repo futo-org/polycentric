@@ -173,7 +173,12 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
                             Unfollow
                         </Button>
                     ) : (
-                        <Button variant="contained" onClick={handleFollow}>
+                        <Button
+                            variant="contained"
+                            onClick={handleFollow}
+                            size="small"
+                            disabled={!profile.allowFollow}
+                        >
                             Follow
                         </Button>
                     )}

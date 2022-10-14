@@ -28,6 +28,7 @@ export type DisplayableProfile = {
     status: string;
     description: string;
     following: boolean;
+    allowFollow: boolean;
 };
 
 export async function loadProfileOrFallback(
@@ -47,6 +48,7 @@ export async function loadProfileOrFallback(
             status: '',
             description: '',
             following: false,
+            allowFollow: false,
         };
 
         return fallback;
@@ -79,6 +81,7 @@ async function loadDisplayableProfile(
         status: await Core.DB.makeSyncStatusString(state, publicKey),
         description: decoder.decode(profile.description),
         following: await Core.DB.levelAmFollowing(state, publicKey),
+        allowFollow: true,
     };
 
     if (profile.imagePointer !== undefined) {
@@ -87,6 +90,16 @@ async function loadDisplayableProfile(
         if (loaded !== undefined) {
             result.avatar = Core.Util.blobToURL(loaded.kind, loaded.blob);
         }
+    }
+
+    if (
+        state.identity !== undefined &&
+        Core.Util.blobsEqual(
+            state.identity.publicKey,
+            publicKey,
+        )
+    ) {
+        result.allowFollow = false;
     }
 
     return result;

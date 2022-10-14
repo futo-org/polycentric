@@ -133,6 +133,7 @@ function ProfileCard({ publicKey, state }: ProfileHeaderProps) {
                             variant="contained"
                             onClick={handleFollow}
                             size="small"
+                            disabled={!profile.allowFollow}
                         >
                             Follow
                         </Button>
