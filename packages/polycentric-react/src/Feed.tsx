@@ -161,13 +161,21 @@ async function loadPosts2(
                 post !== undefined &&
                 post.event !== undefined
             ) {
-                const following = await Core.DB.levelAmFollowing(
-                    state,
-                    post.event.authorPublicKey,
-                );
+                if (
+                    state.identity !== undefined &&
+                    Core.Util.blobsEqual(
+                        state.identity.publicKey,
+                        post.event.authorPublicKey,
+                    ) === false
+                ) {
+                    const following = await Core.DB.levelAmFollowing(
+                        state,
+                        post.event.authorPublicKey,
+                    );
 
-                if (following === false) {
-                    continue;
+                    if (following === false) {
+                        continue;
+                    }
                 }
             }
 
