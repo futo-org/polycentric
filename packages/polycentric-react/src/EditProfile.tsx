@@ -483,7 +483,7 @@ function EditProfile(props: EditProfileProps) {
 
                 <div className="editProfile__serverRow">
                     <TextField
-                        label="Server Name"
+                        label="Server Address"
                         value={newServer}
                         onChange={handleNewServerChange}
                         error={!isNewServerValid()}
