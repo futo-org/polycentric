@@ -294,7 +294,7 @@ function Post(props: PostProps) {
                                     <Button
                                         variant="contained"
                                         size="small"
-                                        color="error"
+                                        color="warning"
                                         onClick={() => {
                                             Core.DB.deletePost(
                                                 props.state,

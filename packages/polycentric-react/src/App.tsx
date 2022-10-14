@@ -30,8 +30,11 @@ const theme = createTheme({
         secondary: {
             main: '#64D98A',
         },
-        error: {
+        warning: {
             main: '#64D98A',
+        },
+        error: {
+            main: '#8B0000',
         },
     },
 });

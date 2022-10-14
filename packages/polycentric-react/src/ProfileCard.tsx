@@ -123,7 +123,7 @@ function ProfileCard({ publicKey, state }: ProfileHeaderProps) {
                         <Button
                             variant="contained"
                             onClick={handleUnfollow}
-                            color="error"
+                            color="warning"
                             size="small"
                         >
                             Unfollow

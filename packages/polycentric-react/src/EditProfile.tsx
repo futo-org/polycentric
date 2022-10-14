@@ -471,7 +471,7 @@ function EditProfile(props: EditProfileProps) {
                             <Button
                                 variant="contained"
                                 onClick={() => handleRemoveServer(server)}
-                                color="error"
+                                color="warning"
                             >
                                 <RemoveIcon />
                             </Button>
