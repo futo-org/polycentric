@@ -94,10 +94,7 @@ async function loadDisplayableProfile(
 
     if (
         state.identity !== undefined &&
-        Core.Util.blobsEqual(
-            state.identity.publicKey,
-            publicKey,
-        )
+        Core.Util.blobsEqual(state.identity.publicKey, publicKey)
     ) {
         result.allowFollow = false;
     }
