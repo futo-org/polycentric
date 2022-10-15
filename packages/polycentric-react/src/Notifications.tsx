@@ -159,7 +159,9 @@ function Notifications(props: NotificationsProps) {
                         textAlign: 'center',
                     }}
                 >
-                    <h3> You don't appear to have any notifications. </h3>
+                    <h3>
+                        You don't appear to have any notifications.
+                    </h3>
                 </Paper>
             )}
 

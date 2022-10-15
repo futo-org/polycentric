@@ -39,3 +39,11 @@
 .hashTag:hover {
     text-decoration: underline;
 }
+
+.expandWarning {
+    text-decoration: none;
+}
+
+.expandWarning:hover {
+    text-decoration: underline;
+}
