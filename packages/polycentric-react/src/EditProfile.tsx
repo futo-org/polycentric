@@ -1,4 +1,4 @@
-import { Button, TextField, Avatar } from '@mui/material';
+import { Button, TextField, Avatar, Tooltip } from '@mui/material';
 import React, { useState, useRef, useEffect } from 'react';
 import * as Base64 from '@borderless/base64';
 import RemoveIcon from '@mui/icons-material/Remove';
@@ -409,14 +409,16 @@ function EditProfile(props: EditProfileProps) {
             <div className="editProfile">
                 <div className="editProfile__top">
                     <label>
-                        <Avatar
-                            src={avatar}
-                            onClick={() => {
-                                if (uploadRef.current) {
-                                    uploadRef.current.click();
-                                }
-                            }}
-                        />
+                        <Tooltip title="Upload Profile Image">
+                            <Avatar
+                                src={avatar}
+                                onClick={() => {
+                                    if (uploadRef.current) {
+                                        uploadRef.current.click();
+                                    }
+                                }}
+                            />
+                        </Tooltip>
                     </label>
                     <TextField
                         label="Profile Name"
