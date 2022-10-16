@@ -201,7 +201,7 @@ export async function explore(
 
             result.push([address, response]);
         } catch (err) {
-            console.log("explore", err);
+            console.log('explore', err);
         }
     }
 

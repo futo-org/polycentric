@@ -105,11 +105,16 @@ function Notifications(props: NotificationsProps) {
     };
 
     const handleLoadDebounce = useCallback(
-        Lodash.debounce(() => {
-            console.log('calling debounce');
-            handleLoad();
-        }, 5000, { leading: true })
-    , []);
+        Lodash.debounce(
+            () => {
+                console.log('calling debounce');
+                handleLoad();
+            },
+            5000,
+            { leading: true },
+        ),
+        [],
+    );
 
     useEffect(() => {
         largestIndexByServer.current = new Map();
@@ -159,9 +164,7 @@ function Notifications(props: NotificationsProps) {
                         textAlign: 'center',
                     }}
                 >
-                    <h3>
-                        You don't appear to have any notifications.
-                    </h3>
+                    <h3>You don't appear to have any notifications.</h3>
                 </Paper>
             )}
 

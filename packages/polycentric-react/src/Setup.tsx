@@ -90,7 +90,15 @@ function Setup(props: SetupProps) {
             </p>
             <p>
                 Polycentric is currently in development. Incompatible changes
-                may be made, and your profile may not be usable forever.
+                may be made, and your profile may not be usable forever. For
+                more information checkout out our &nbsp;
+                <a
+                    target="_blank"
+                    href="https://gitlab.futo.org/harpo/polycentric/-/blob/master/README.md"
+                >
+                    GitLab repo
+                </a>
+                .
             </p>
             <div
                 style={{
