@@ -18,6 +18,12 @@ Certain features are very difficult to provide via a trustless methodology, or p
 
 The server architecture itself is intended to handle millions of users and is not limited to a single node. The core server process is intended to be horizontally scaled behind a load balancer, utilize a cluster for search, a database with replicas, object storage for large files, and a distributed caching layer. While it is possible to run small single node instances, handling large numbers of users requires following a standard modern system architecture.
 
+## Inspirational work
+
+* [Secure Scuttlebutt](https://scuttlebutt.nz/)
+* [Hypercore](https://datproject.org/)
+* [Mastodon](https://joinmastodon.org/)
+
 ## Development quickstart
 
 Development requires `docker`, and `docker-compose`.
