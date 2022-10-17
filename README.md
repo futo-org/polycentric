@@ -5,6 +5,7 @@ Polycentric is an Open-source distributed social network. Checkout our GitLab [h
 ## Project features and goals
 
 Offline first: When content is downloaded it is automatically cached locally. You can browse the feeds of people you are following, and even post or reply to others without an active internet connection. When a client is back online it will automatically synchronize any state changes. Not all functionality is possible offline such as getting recommendations from servers, or browsing the feeds of people your client has never seen before.
+First class multi-device support: From day one Polycentric supports identities utilizing multiple devices. You are able to use your identity on a Phone, and Laptop at the same time. Not supporting multiple devices has been a major pain point for many of the projects Polycentric draws inspiration from.
 
 Cheap synchronization and censorship detection: Due to personal preference or legal requirement servers may choose not to mirror all content available in a feed. When a server refuses to deliver a subset of a users messages this fact is cheaply detectable, and clients will automatically download content from another source. There is no need to download everything from every server to detect if messages are missing because of our data model. Additionally a client can choose to download different subsets of feeds from multiple servers concurrently for increased performance, without duplicated transfer.
 
