@@ -225,7 +225,7 @@ function App(props: AppProps) {
                     </div>
                 )}
 
-                {initial === false && (
+                {props.state.identity !== undefined && (
                     <Fab
                         color="primary"
                         size="large"
