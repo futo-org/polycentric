@@ -18,6 +18,18 @@ Certain features are very difficult to provide via a trustless methodology, or p
 
 The server architecture itself is intended to handle millions of users and is not limited to a single node. The core server process is intended to be horizontally scaled behind a load balancer, utilize a cluster for search, a database with replicas, object storage for large files, and a distributed caching layer. While it is possible to run small single node instances, handling large numbers of users requires following a standard modern system architecture.
 
+
+## Project layout
+
+Polycentric is split into a variety of Typescript packages, and a Rust backend. Aspects like persistence are abstracted away allowing browsers to use `IndexedDB` while desktop or bots use `LevelDB`.
+
+- Browser client `./packages/polycentric-web` which depends on `polycentric-react`
+- Desktop client `./packages/polycentric-desktop` which depends on `polycentric-react`
+- React UI `./packages/polycentric-react` which depends on `polycentric-core`
+- Bot client `./packages/polycentric-bot` which depends on `polycentric-core`
+- Core logic `./packages/polycentric-core`
+- Server implementation `./server`
+
 ## Inspirational work
 
 * [Secure Scuttlebutt](https://scuttlebutt.nz/)
