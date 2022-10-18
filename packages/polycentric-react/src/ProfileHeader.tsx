@@ -36,6 +36,7 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
         const result = await ProfileUtil.loadProfileOrFallback(
             state,
             publicKey,
+            [],
         );
 
         if (cancelControl.cancelled === false) {

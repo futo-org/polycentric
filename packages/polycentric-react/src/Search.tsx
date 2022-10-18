@@ -43,6 +43,7 @@ export function DispatchCard(props: DispatchCardProps) {
             const profile = await ProfileUtil.loadProfileOrFallback(
                 props.state,
                 event.event.authorPublicKey,
+                []
             );
 
             setCard(

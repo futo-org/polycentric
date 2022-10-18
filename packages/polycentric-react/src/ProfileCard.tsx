@@ -32,6 +32,7 @@ function ProfileCard({ publicKey, state }: ProfileHeaderProps) {
         const result = await ProfileUtil.loadProfileOrFallback(
             state,
             publicKey,
+            [],
         );
 
         if (cancelControl.cancelled === false) {

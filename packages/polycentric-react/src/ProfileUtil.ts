@@ -34,8 +34,13 @@ export type DisplayableProfile = {
 export async function loadProfileOrFallback(
     state: Core.DB.PolycentricState,
     publicKey: Uint8Array,
+    needPointersOut: Array<Core.Protocol.Pointer>,
 ): Promise<DisplayableProfile> {
-    let displayable = await loadDisplayableProfile(state, publicKey);
+    let displayable = await loadDisplayableProfile(
+        state,
+        publicKey,
+        needPointersOut,
+    );
 
     if (displayable !== undefined) {
         return displayable;
@@ -58,6 +63,7 @@ export async function loadProfileOrFallback(
 async function loadDisplayableProfile(
     state: Core.DB.PolycentricState,
     publicKey: Uint8Array,
+    needPointersOut: Array<Core.Protocol.Pointer>,
 ): Promise<DisplayableProfile | undefined> {
     const potentialProfile = await Core.DB.tryLoadKey(
         state.levelProfiles,
@@ -85,7 +91,11 @@ async function loadDisplayableProfile(
     };
 
     if (profile.imagePointer !== undefined) {
-        const loaded = await Core.DB.loadBlob(state, profile.imagePointer, []);
+        const loaded = await Core.DB.loadBlob(
+            state,
+            profile.imagePointer,
+            needPointersOut,
+        );
 
         if (loaded !== undefined) {
             result.avatar = Core.Util.blobToURL(loaded.kind, loaded.blob);

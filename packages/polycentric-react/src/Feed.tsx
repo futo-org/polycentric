@@ -46,6 +46,7 @@ export async function eventToDisplayablePost(
             displayableProfile = await ProfileUtil.loadProfileOrFallback(
                 state,
                 event.authorPublicKey,
+                needPointersOut,
             );
 
             profiles.set(authorPublicKey, displayableProfile);
