@@ -85,7 +85,7 @@ async function loadDisplayableProfile(
     };
 
     if (profile.imagePointer !== undefined) {
-        const loaded = await Core.DB.loadBlob(state, profile.imagePointer);
+        const loaded = await Core.DB.loadBlob(state, profile.imagePointer, []);
 
         if (loaded !== undefined) {
             result.avatar = Core.Util.blobToURL(loaded.kind, loaded.blob);

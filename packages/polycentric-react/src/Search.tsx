@@ -1,5 +1,5 @@
 import { Paper, TextField, LinearProgress } from '@mui/material';
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, useEffect, useRef, ReactNode } from 'react';
 import * as Base64 from '@borderless/base64';
 import { useParams } from 'react-router-dom';
 
@@ -24,7 +24,9 @@ type DispatchCardProps = {
 export function DispatchCard(props: DispatchCardProps) {
     const [card, setCard] = useState<ReactNode | undefined>(undefined);
 
-    const loadCard = async () => {
+    const loadCard = async (
+        needPointersListeners: [Core.Protocol.Pointer, () => void][]
+    ) => {
 
         const event = await Core.DB.tryLoadStorageEventByPointer(
             props.state,
@@ -60,6 +62,8 @@ export function DispatchCard(props: DispatchCardProps) {
         } else if (body.message !== undefined) {
             const profiles = new Map<string, ProfileUtil.DisplayableProfile>();
 
+            const needPointers = new Array<Core.Protocol.Pointer>();
+
             const displayable = await Feed.eventToDisplayablePost(
                 props.state,
                 profiles,
@@ -67,7 +71,23 @@ export function DispatchCard(props: DispatchCardProps) {
                     event: event.event,
                     mutationPointer: undefined,
                 },
+                needPointers,
             );
+
+            for (const needPointer of needPointers) {
+                const cb = () => {
+                    console.log("load CB-------");
+                    loadCard(needPointersListeners)
+                }
+
+                needPointersListeners.push([needPointer, cb]);
+
+                Core.DB.waitOnEvent(
+                    props.state,
+                    needPointer,
+                    cb,
+                );
+            }
 
             if (displayable === undefined) {
                 return undefined;
@@ -89,16 +109,18 @@ export function DispatchCard(props: DispatchCardProps) {
     useEffect(() => {
         console.log("render dispatch card");
 
-        const handlePut = (key: Uint8Array, value: Uint8Array) => {
-            loadCard();
-        };
+        const needPointersListeners: [Core.Protocol.Pointer, () => void][] = [];
 
-        props.state.level.on('put', handlePut);
-
-        loadCard();
+        loadCard(needPointersListeners);
 
         return () => {
-            props.state.level.removeListener('put', handlePut);
+            for (const listener of needPointersListeners) {
+                Core.DB.cancelWaitOnEvent(
+                    props.state,
+                    listener[0],
+                    listener[1],
+                )
+            }
         };
     }, [props.pointer, props.fromServer]);
 

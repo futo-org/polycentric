@@ -18,6 +18,7 @@ export async function eventToDisplayablePost(
     state: Core.DB.PolycentricState,
     profiles: Map<string, ProfileUtil.DisplayableProfile>,
     storageEvent: Core.Protocol.StorageTypeEvent,
+    needPointersOut: Array<Core.Protocol.Pointer>,
 ): Promise<PostMod.DisplayablePost | undefined> {
     if (storageEvent.mutationPointer !== undefined) {
         return undefined;
@@ -77,19 +78,28 @@ export async function eventToDisplayablePost(
             body.message.boostPointer,
         );
 
-        if (boost !== undefined) {
+        if (boost === undefined) {
+            needPointersOut.push(body.message.boostPointer);
+        } else {
             displayable.boost = await eventToDisplayablePost(
                 state,
                 profiles,
                 boost,
+                needPointersOut
             );
         }
     }
 
     if (body.message.image !== undefined) {
-        const loaded = await Core.DB.loadBlob(state, body.message.image);
+        const loaded = await Core.DB.loadBlob(
+            state,
+            body.message.image,
+            needPointersOut,
+        );
 
-        if (loaded !== undefined) {
+        if (loaded === undefined) {
+            needPointersOut.push(body.message.image);
+        } else {
             displayable.image = Core.Util.blobToURL(loaded.kind, loaded.blob);
         }
     }
@@ -183,6 +193,7 @@ async function loadPosts2(
                 state,
                 profiles,
                 post,
+                []
             );
 
             if (displayable !== undefined && post.event !== undefined) {

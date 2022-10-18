@@ -373,6 +373,7 @@ function EditProfile(props: EditProfileProps) {
                 const loaded = await Core.DB.loadBlob(
                     props.state,
                     profile.imagePointer,
+                    [],
                 );
 
                 if (loaded !== undefined) {

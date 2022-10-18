@@ -2,6 +2,7 @@ import * as Ed from '@noble/ed25519';
 import * as AbstractLevel from 'abstract-level';
 import AsyncLock from 'async-lock';
 import Long from 'long';
+import * as Base64 from '@borderless/base64';
 
 import * as Util from './Util';
 import * as Protocol from './user';
@@ -46,11 +47,14 @@ export class PolycentricState {
     levelIndexPostByTime: BinaryAbstractLevel;
     levelIndexPostByAuthorByTime: BinaryAbstractLevel;
 
+    listeners: Map<string, Set<() => void>>;
+
     constructor(level: BinaryAbstractLevel) {
         console.log('creating state');
         this.sync = new Synchronization.SynchronizationState();
         this.identity = undefined;
         this.autoSync = true;
+        this.listeners = new Map();
 
         this.lock = new AsyncLock();
 
@@ -90,6 +94,73 @@ export class PolycentricState {
         ) as BinaryAbstractLevel;
 
         this.level.setMaxListeners(10000);
+    }
+}
+
+export function waitOnEvent(
+    state: PolycentricState,
+    pointer: Protocol.Pointer,
+    cb: () => void
+) {
+    const key = Base64.encode(
+        makeStorageTypeEventKey(
+            pointer.publicKey,
+            pointer.writerId,
+            pointer.sequenceNumber,
+        ),
+    );
+
+    let listenersForKey = state.listeners.get(key);
+
+    if (listenersForKey === undefined) {
+        listenersForKey = new Set();
+
+        state.listeners.set(key, listenersForKey);
+    }
+
+    listenersForKey.add(cb);
+}
+
+export function cancelWaitOnEvent(
+    state: PolycentricState,
+    pointer: Protocol.Pointer,
+    cb: () => void
+) {
+    console.log("removing listener");
+    const key = Base64.encode(
+        makeStorageTypeEventKey(
+            pointer.publicKey,
+            pointer.writerId,
+            pointer.sequenceNumber,
+        ),
+    );
+
+    let listenersForKey = state.listeners.get(key);
+
+    if (listenersForKey !== undefined) {
+        listenersForKey.delete(cb);
+    }
+
+}
+
+function fireListenersForEvent(
+    state: PolycentricState,
+    pointer: Protocol.Pointer,
+) {
+    const key = Base64.encode(
+        makeStorageTypeEventKey(
+            pointer.publicKey,
+            pointer.writerId,
+            pointer.sequenceNumber,
+        ),
+    );
+
+    let listenersForKey = state.listeners.get(key);
+
+    if (listenersForKey !== undefined) {
+        for (const listener of listenersForKey) {
+            listener();
+        }
     }
 }
 
@@ -344,11 +415,13 @@ export async function tryLoadStorageEventByKey(
 export async function loadBlob(
     state: PolycentricState,
     pointer: Protocol.Pointer,
+    needPointersOut: Array<Protocol.Pointer>,
 ): Promise<BlobWithKind | undefined> {
     const outerMeta = await tryLoadStorageEventByPointer(state, pointer);
 
     if (outerMeta === undefined) {
         console.log('tried to load blob without a meta event');
+        needPointersOut.push(pointer);
         return undefined;
     }
 
@@ -368,14 +441,20 @@ export async function loadBlob(
     let result = new Uint8Array();
 
     for (let i = 1; i <= decodedMeta.blobMeta.sectionCount; i++) {
-        const outerSection = await tryLoadStorageEventByPointer(state, {
+        const sectionPointer = {
             publicKey: pointer.publicKey,
             writerId: pointer.writerId,
             sequenceNumber: pointer.sequenceNumber + i,
-        });
+        };
+
+        const outerSection = await tryLoadStorageEventByPointer(
+            state,
+            sectionPointer,
+        );
 
         if (outerSection === undefined) {
             console.log('tried to load blob without a meta section');
+            needPointersOut.push(sectionPointer);
             return undefined;
         }
 
@@ -979,7 +1058,14 @@ export async function levelSaveEvent(
             writerId: event.writerId,
             sequenceNumber: event.sequenceNumber,
         });
+
         await insertEvent(state.levelEvents, event);
+
+        fireListenersForEvent(state, {
+            publicKey: event.authorPublicKey,
+            writerId: event.writerId,
+            sequenceNumber: event.sequenceNumber,
+        });
     });
 }
 
