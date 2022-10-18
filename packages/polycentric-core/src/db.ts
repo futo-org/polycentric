@@ -703,38 +703,58 @@ export async function levelUpdateRanges(
         possibleLowRange[0].highSequenceNumber + 2 ===
             possibleHighRange[0].lowSequenceNumber
     ) {
-        await table.del(
-            makeStorageTypeRangeKey(
-                event.publicKey,
-                event.writerId,
-                possibleHighRange[0].lowSequenceNumber,
-            ),
-        );
-
-        await insertRange(table, {
-            publicKey: event.publicKey,
-            writerId: event.writerId,
-            lowSequenceNumber: possibleLowRange[0].lowSequenceNumber,
-            highSequenceNumber: possibleHighRange[0].highSequenceNumber,
-        });
+        await table.batch([
+            {
+                type: 'del',
+                key: makeStorageTypeRangeKey(
+                    event.publicKey,
+                    event.writerId,
+                    possibleHighRange[0].lowSequenceNumber,
+                ),
+            },
+            {
+                type: 'put',
+                key: makeStorageTypeRangeKey(
+                    event.publicKey,
+                    event.writerId,
+                    possibleLowRange[0].lowSequenceNumber,
+                ),
+                value: Protocol.StorageTypeRange.encode({
+                    publicKey: event.publicKey,
+                    writerId: event.writerId,
+                    lowSequenceNumber: possibleLowRange[0].lowSequenceNumber,
+                    highSequenceNumber: possibleHighRange[0].highSequenceNumber,
+                }).finish(),
+            }
+        ]);
     } else if (
         possibleHighRange.length !== 0 &&
         possibleHighRange[0].lowSequenceNumber - 1 === event.sequenceNumber
     ) {
-        await table.del(
-            makeStorageTypeRangeKey(
-                event.publicKey,
-                event.writerId,
-                possibleHighRange[0].lowSequenceNumber,
-            ),
-        );
-
-        await insertRange(table, {
-            publicKey: event.publicKey,
-            writerId: event.writerId,
-            lowSequenceNumber: event.sequenceNumber,
-            highSequenceNumber: possibleHighRange[0].highSequenceNumber,
-        });
+        await table.batch([
+            {
+                type: 'del',
+                key: makeStorageTypeRangeKey(
+                    event.publicKey,
+                    event.writerId,
+                    possibleHighRange[0].lowSequenceNumber,
+                ),
+            },
+            {
+                type: 'put',
+                key: makeStorageTypeRangeKey(
+                    event.publicKey,
+                    event.writerId,
+                    event.sequenceNumber,
+                ),
+                value: Protocol.StorageTypeRange.encode({
+                    publicKey: event.publicKey,
+                    writerId: event.writerId,
+                    lowSequenceNumber: event.sequenceNumber,
+                    highSequenceNumber: possibleHighRange[0].highSequenceNumber,
+                }).finish(),
+            }
+        ]);
     } else if (
         possibleLowRange.length !== 0 &&
         possibleLowRange[0].highSequenceNumber + 1 === event.sequenceNumber
