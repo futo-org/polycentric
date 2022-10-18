@@ -725,7 +725,7 @@ export async function levelUpdateRanges(
                     lowSequenceNumber: possibleLowRange[0].lowSequenceNumber,
                     highSequenceNumber: possibleHighRange[0].highSequenceNumber,
                 }).finish(),
-            }
+            },
         ]);
     } else if (
         possibleHighRange.length !== 0 &&
@@ -753,7 +753,7 @@ export async function levelUpdateRanges(
                     lowSequenceNumber: event.sequenceNumber,
                     highSequenceNumber: possibleHighRange[0].highSequenceNumber,
                 }).finish(),
-            }
+            },
         ]);
     } else if (
         possibleLowRange.length !== 0 &&
