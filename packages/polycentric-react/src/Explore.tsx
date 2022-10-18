@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, ReactNode } from 'react';
 import * as Base64 from '@borderless/base64';
 import { useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
+import InfiniteScroll from 'react-infinite-scroll-component';
 
 import * as Core from 'polycentric-core';
 import * as Feed from './Feed';
@@ -94,37 +95,47 @@ function Explore(props: ExploreProps) {
         handleLoad();
     }, []);
 
-    useEffect(() => {
-        if (
-            loading === false &&
-            inView === true &&
-            complete.current === false
-        ) {
-            handleLoad();
-        }
-    }, [loading, inView]);
-
     return (
         <div className="standard_width">
-            {exploreResults.map((post) => {
-                const raw = post[0];
-                const item = post[1];
+            <InfiniteScroll
+                dataLength={exploreResults.length}
+                next={handleLoad}
+                hasMore={complete.current === false}
+                loader={
+                    <div
+                        style={{
+                            width: '80%',
+                            marginTop: '15px',
+                            marginBottom: '15px',
+                            marginLeft: 'auto',
+                            marginRight: 'auto',
+                        }}
+                    >
+                        <LinearProgress />
+                    </div> 
+                }
+                endMessage={<div></div>}
+            >
+                {exploreResults.map((post) => {
+                    const raw = post[0];
+                    const item = post[1];
 
-                return (
-                    <Search.DispatchCard
-                        key={Base64.encode(
-                            Core.DB.makeStorageTypeEventKey(
-                                item.publicKey,
-                                item.writerId,
-                                item.sequenceNumber,
-                            ),
-                        )}
-                        state={props.state}
-                        pointer={item}
-                        fromServer={raw}
-                    />
-                );
-            })}
+                    return (
+                        <Search.DispatchCard
+                            key={Base64.encode(
+                                Core.DB.makeStorageTypeEventKey(
+                                    item.publicKey,
+                                    item.writerId,
+                                    item.sequenceNumber,
+                                ),
+                            )}
+                            state={props.state}
+                            pointer={item}
+                            fromServer={raw}
+                        />
+                    );
+                })}
+            </InfiniteScroll>
 
             {initial === false && exploreResults.length === 0 && (
                 <Paper
@@ -137,24 +148,6 @@ function Explore(props: ExploreProps) {
                 >
                     <h3> There does not appear to be anything to explore. </h3>
                 </Paper>
-            )}
-
-            <div ref={ref} style={{ visibility: 'hidden' }}>
-                ..
-            </div>
-
-            {loading && (
-                <div
-                    style={{
-                        width: '80%',
-                        marginTop: '15px',
-                        marginBottom: '15px',
-                        marginLeft: 'auto',
-                        marginRight: 'auto',
-                    }}
-                >
-                    <LinearProgress />
-                </div>
             )}
         </div>
     );
