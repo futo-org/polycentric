@@ -26,6 +26,7 @@ function Notifications(props: NotificationsProps) {
     >([]);
 
     const [loading, setLoading] = useState<boolean>(true);
+    const [initial, setInitial] = useState<boolean>(true);
 
     const largestIndexByServer = useRef<Map<string, number>>(new Map());
     const complete = useRef<boolean>(false);
@@ -102,6 +103,7 @@ function Notifications(props: NotificationsProps) {
         }
 
         setLoading(false);
+        setInitial(false);
     };
 
     const handleLoadDebounce = useCallback(
@@ -117,6 +119,10 @@ function Notifications(props: NotificationsProps) {
     );
 
     useEffect(() => {
+        setNotificationResults([]);
+        setLoading(true);
+        setInitial(true);
+
         largestIndexByServer.current = new Map();
         complete.current = false;
 
@@ -155,7 +161,7 @@ function Notifications(props: NotificationsProps) {
                 );
             })}
 
-            {notificationResults.length === 0 && (
+            {initial === false && notificationResults.length === 0 && (
                 <Paper
                     elevation={4}
                     style={{
