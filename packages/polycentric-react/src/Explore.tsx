@@ -1,5 +1,5 @@
 import { Paper, TextField, LinearProgress } from '@mui/material';
-import { useState, useEffect, useRef, ReactNode } from 'react';
+import { useState, useEffect, useRef, ReactNode, memo } from 'react';
 import * as Base64 from '@borderless/base64';
 import { useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
@@ -18,18 +18,25 @@ type ExploreProps = {
     state: Core.DB.PolycentricState;
 };
 
+const DispatchCardMemo = memo(Search.DispatchCard);
+
+type ExploreItem = {
+    fromServer: string,
+    key: string,
+    pointer: Core.Protocol.Pointer,
+}
+
 function Explore(props: ExploreProps) {
     const { ref, inView } = useInView();
 
-    const [exploreResults, setExploreResults] = useState<
-        [string, Core.Protocol.Pointer][]
-    >([]);
+    const [exploreResults, setExploreResults] =
+        useState<Array<ExploreItem>>([]);
 
     const [loading, setLoading] = useState<boolean>(true);
     const [initial, setInitial] = useState<boolean>(true);
+    const [complete, setComplete] = useState<boolean>(false);
 
     const earliestTime = useRef<number | undefined>(undefined);
-    const complete = useRef<boolean>(false);
 
     const handleLoad = async () => {
         setLoading(true);
@@ -59,25 +66,36 @@ function Explore(props: ExploreProps) {
             }
         }
 
-        let filteredPosts: [string, Core.Protocol.Pointer][] = [];
+        let filteredPosts: Array<ExploreItem> = [];
 
         for (const response of responses) {
             for (const event of response[1].resultEvents) {
-                filteredPosts.push([
-                    response[0],
-                    {
+                filteredPosts.push({
+                    fromServer: response[0],
+                    key: Base64.encode(
+                        Core.DB.makeStorageTypeEventKey(
+                            event.authorPublicKey,
+                            event.writerId,
+                            event.sequenceNumber,
+                        ),
+                    ),
+                    pointer: {
                         publicKey: event.authorPublicKey,
                         writerId: event.writerId,
                         sequenceNumber: event.sequenceNumber,
                     },
-                ]);
+                });
             }
         }
 
-        setExploreResults(exploreResults.concat(filteredPosts));
+        const totalResults = exploreResults.concat(filteredPosts);
+
+        console.log("total", totalResults.length, "new", filteredPosts.length);
+
+        setExploreResults(totalResults);
 
         if (filteredPosts.length === 0) {
-            complete.current = true;
+            setComplete(true);
         }
 
         setLoading(false);
@@ -88,9 +106,9 @@ function Explore(props: ExploreProps) {
         setInitial(true);
         setExploreResults([]);
         setLoading(true);
+        setComplete(false);
 
         earliestTime.current = undefined;
-        complete.current = false;
 
         handleLoad();
     }, []);
@@ -100,7 +118,7 @@ function Explore(props: ExploreProps) {
             <InfiniteScroll
                 dataLength={exploreResults.length}
                 next={handleLoad}
-                hasMore={complete.current === false}
+                hasMore={complete === false}
                 loader={
                     <div
                         style={{
@@ -114,27 +132,23 @@ function Explore(props: ExploreProps) {
                         <LinearProgress />
                     </div> 
                 }
-                endMessage={<div></div>}
+                endMessage={
+                    <div
+                        style={{
+                            marginTop: '15px',
+                        }}
+                    >
+                    </div>
+                }
             >
-                {exploreResults.map((post) => {
-                    const raw = post[0];
-                    const item = post[1];
-
-                    return (
-                        <Search.DispatchCard
-                            key={Base64.encode(
-                                Core.DB.makeStorageTypeEventKey(
-                                    item.publicKey,
-                                    item.writerId,
-                                    item.sequenceNumber,
-                                ),
-                            )}
-                            state={props.state}
-                            pointer={item}
-                            fromServer={raw}
-                        />
-                    );
-                })}
+                {exploreResults.map((item, index) => (
+                    <DispatchCardMemo
+                        key={index}
+                        state={props.state}
+                        pointer={item.pointer}
+                        fromServer={item.fromServer}
+                    />
+                ))}
             </InfiniteScroll>
 
             {initial === false && exploreResults.length === 0 && (

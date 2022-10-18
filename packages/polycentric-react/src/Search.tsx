@@ -25,6 +25,7 @@ export function DispatchCard(props: DispatchCardProps) {
     const [card, setCard] = useState<ReactNode | undefined>(undefined);
 
     const loadCard = async () => {
+
         const event = await Core.DB.tryLoadStorageEventByPointer(
             props.state,
             props.pointer,
@@ -86,6 +87,8 @@ export function DispatchCard(props: DispatchCardProps) {
     };
 
     useEffect(() => {
+        console.log("render dispatch card");
+
         const handlePut = (key: Uint8Array, value: Uint8Array) => {
             loadCard();
         };

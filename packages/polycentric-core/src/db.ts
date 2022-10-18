@@ -89,7 +89,7 @@ export class PolycentricState {
             },
         ) as BinaryAbstractLevel;
 
-        this.level.setMaxListeners(100);
+        this.level.setMaxListeners(10000);
     }
 }
 
