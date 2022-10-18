@@ -25,6 +25,7 @@ function Explore(props: ExploreProps) {
     >([]);
 
     const [loading, setLoading] = useState<boolean>(true);
+    const [initial, setInitial] = useState<boolean>(true);
 
     const earliestTime = useRef<number | undefined>(undefined);
     const complete = useRef<boolean>(false);
@@ -79,9 +80,14 @@ function Explore(props: ExploreProps) {
         }
 
         setLoading(false);
+        setInitial(false);
     };
 
     useEffect(() => {
+        setInitial(true);
+        setExploreResults([]);
+        setLoading(true);
+
         earliestTime.current = undefined;
         complete.current = false;
 
@@ -120,7 +126,7 @@ function Explore(props: ExploreProps) {
                 );
             })}
 
-            {exploreResults.length === 0 && (
+            {initial === false && exploreResults.length === 0 && (
                 <Paper
                     elevation={4}
                     style={{
