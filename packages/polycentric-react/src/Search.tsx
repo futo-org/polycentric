@@ -76,7 +76,6 @@ export function DispatchCard(props: DispatchCardProps) {
 
             for (const needPointer of needPointers) {
                 const cb = () => {
-                    console.log('load CB-------');
                     loadCard(needPointersListeners);
                 };
 
@@ -103,8 +102,6 @@ export function DispatchCard(props: DispatchCardProps) {
     };
 
     useEffect(() => {
-        console.log('render dispatch card');
-
         const needPointersListeners: [Core.Protocol.Pointer, () => void][] = [];
 
         loadCard(needPointersListeners);
