@@ -105,7 +105,7 @@ function App(props: AppProps) {
         const loaded = await Core.DB.loadBlob(
             props.state,
             profile.imagePointer,
-	    [],
+            [],
         );
 
         if (loaded === undefined) {

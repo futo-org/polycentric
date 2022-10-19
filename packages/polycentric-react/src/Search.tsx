@@ -25,9 +25,8 @@ export function DispatchCard(props: DispatchCardProps) {
     const [card, setCard] = useState<ReactNode | undefined>(undefined);
 
     const loadCard = async (
-        needPointersListeners: [Core.Protocol.Pointer, () => void][]
+        needPointersListeners: [Core.Protocol.Pointer, () => void][],
     ) => {
-
         const event = await Core.DB.tryLoadStorageEventByPointer(
             props.state,
             props.pointer,
@@ -43,7 +42,7 @@ export function DispatchCard(props: DispatchCardProps) {
             const profile = await ProfileUtil.loadProfileOrFallback(
                 props.state,
                 event.event.authorPublicKey,
-                []
+                [],
             );
 
             setCard(
@@ -77,17 +76,13 @@ export function DispatchCard(props: DispatchCardProps) {
 
             for (const needPointer of needPointers) {
                 const cb = () => {
-                    console.log("load CB-------");
-                    loadCard(needPointersListeners)
-                }
+                    console.log('load CB-------');
+                    loadCard(needPointersListeners);
+                };
 
                 needPointersListeners.push([needPointer, cb]);
 
-                Core.DB.waitOnEvent(
-                    props.state,
-                    needPointer,
-                    cb,
-                );
+                Core.DB.waitOnEvent(props.state, needPointer, cb);
             }
 
             if (displayable === undefined) {
@@ -108,7 +103,7 @@ export function DispatchCard(props: DispatchCardProps) {
     };
 
     useEffect(() => {
-        console.log("render dispatch card");
+        console.log('render dispatch card');
 
         const needPointersListeners: [Core.Protocol.Pointer, () => void][] = [];
 
@@ -120,7 +115,7 @@ export function DispatchCard(props: DispatchCardProps) {
                     props.state,
                     listener[0],
                     listener[1],
-                )
+                );
             }
         };
     }, [props.pointer, props.fromServer]);

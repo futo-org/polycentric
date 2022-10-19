@@ -86,7 +86,7 @@ export async function eventToDisplayablePost(
                 state,
                 profiles,
                 boost,
-                needPointersOut
+                needPointersOut,
             );
         }
     }
@@ -194,7 +194,7 @@ async function loadPosts2(
                 state,
                 profiles,
                 post,
-                []
+                [],
             );
 
             if (displayable !== undefined && post.event !== undefined) {

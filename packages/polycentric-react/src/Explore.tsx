@@ -21,16 +21,17 @@ type ExploreProps = {
 const DispatchCardMemo = memo(Search.DispatchCard);
 
 type ExploreItem = {
-    fromServer: string,
-    key: string,
-    pointer: Core.Protocol.Pointer,
-}
+    fromServer: string;
+    key: string;
+    pointer: Core.Protocol.Pointer;
+};
 
 function Explore(props: ExploreProps) {
     const { ref, inView } = useInView();
 
-    const [exploreResults, setExploreResults] =
-        useState<Array<ExploreItem>>([]);
+    const [exploreResults, setExploreResults] = useState<Array<ExploreItem>>(
+        [],
+    );
 
     const [loading, setLoading] = useState<boolean>(true);
     const [initial, setInitial] = useState<boolean>(true);
@@ -90,7 +91,7 @@ function Explore(props: ExploreProps) {
 
         const totalResults = exploreResults.concat(filteredPosts);
 
-        console.log("total", totalResults.length, "new", filteredPosts.length);
+        console.log('total', totalResults.length, 'new', filteredPosts.length);
 
         setExploreResults(totalResults);
 
@@ -130,15 +131,14 @@ function Explore(props: ExploreProps) {
                         }}
                     >
                         <LinearProgress />
-                    </div> 
+                    </div>
                 }
                 endMessage={
                     <div
                         style={{
                             marginTop: '15px',
                         }}
-                    >
-                    </div>
+                    ></div>
                 }
             >
                 {exploreResults.map((item, index) => (

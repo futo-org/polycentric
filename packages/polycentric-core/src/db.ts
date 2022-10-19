@@ -100,7 +100,7 @@ export class PolycentricState {
 export function waitOnEvent(
     state: PolycentricState,
     pointer: Protocol.Pointer,
-    cb: () => void
+    cb: () => void,
 ) {
     const key = Base64.encode(
         makeStorageTypeEventKey(
@@ -124,9 +124,9 @@ export function waitOnEvent(
 export function cancelWaitOnEvent(
     state: PolycentricState,
     pointer: Protocol.Pointer,
-    cb: () => void
+    cb: () => void,
 ) {
-    console.log("removing listener");
+    console.log('removing listener');
     const key = Base64.encode(
         makeStorageTypeEventKey(
             pointer.publicKey,
@@ -140,7 +140,6 @@ export function cancelWaitOnEvent(
     if (listenersForKey !== undefined) {
         listenersForKey.delete(cb);
     }
-
 }
 
 function fireListenersForEvent(
