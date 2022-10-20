@@ -12,7 +12,7 @@ import Post from './Post';
 import './Standard.css';
 import * as ProfileUtil from './ProfileUtil';
 import ProfileHeader from './ProfileHeader';
-import * as Search from './Search';
+import { DispatchCard } from './DispatchCard';
 
 type NotificationsProps = {
     state: Core.DB.PolycentricState;
@@ -146,7 +146,7 @@ function Notifications(props: NotificationsProps) {
                 const item = post[1];
 
                 return (
-                    <Search.DispatchCard
+                    <DispatchCard
                         key={Base64.encode(
                             Core.DB.makeStorageTypeEventKey(
                                 item.publicKey,

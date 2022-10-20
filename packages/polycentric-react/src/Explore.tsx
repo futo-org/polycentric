@@ -13,12 +13,11 @@ import './Standard.css';
 import * as ProfileUtil from './ProfileUtil';
 import ProfileHeader from './ProfileHeader';
 import * as Search from './Search';
+import { DispatchCardMemo } from './DispatchCard';
 
 type ExploreProps = {
     state: Core.DB.PolycentricState;
 };
-
-const DispatchCardMemo = memo(Search.DispatchCard);
 
 type ExploreItem = {
     fromServer: string;
