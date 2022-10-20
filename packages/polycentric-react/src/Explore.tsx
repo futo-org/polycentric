@@ -8,21 +8,20 @@ import InfiniteScroll from 'react-infinite-scroll-component';
 import * as Core from 'polycentric-core';
 import * as Feed from './Feed';
 import * as PostMod from './Post';
-import Post from './Post';
 import './Standard.css';
 import * as ProfileUtil from './ProfileUtil';
 import ProfileHeader from './ProfileHeader';
 import * as Search from './Search';
 import { DispatchCardMemo } from './DispatchCard';
+import * as Post from './Post';
 
 type ExploreProps = {
     state: Core.DB.PolycentricState;
 };
 
 type ExploreItem = {
-    fromServer: string;
-    key: string;
-    pointer: Core.Protocol.Pointer;
+    initialPost: Post.DisplayablePost;
+    dependencies: Array<Core.Protocol.Pointer>;
 };
 
 function Explore(props: ExploreProps) {
@@ -37,6 +36,10 @@ function Explore(props: ExploreProps) {
     const [complete, setComplete] = useState<boolean>(false);
 
     const earliestTime = useRef<number | undefined>(undefined);
+
+    const needPointersListeners = useRef<
+        Array<[Core.Protocol.Pointer, () => void]>
+    >([]);
 
     const handleLoad = async () => {
         setLoading(true);
@@ -70,20 +73,25 @@ function Explore(props: ExploreProps) {
 
         for (const response of responses) {
             for (const event of response[1].resultEvents) {
-                filteredPosts.push({
-                    fromServer: response[0],
-                    key: Base64.encode(
-                        Core.DB.makeStorageTypeEventKey(
-                            event.authorPublicKey,
-                            event.writerId,
-                            event.sequenceNumber,
-                        ),
-                    ),
-                    pointer: {
+                const needPointers = new Array<Core.Protocol.Pointer>();
+
+                const displayable = await Post.tryLoadDisplayable(
+                    props.state,
+                    {
                         publicKey: event.authorPublicKey,
                         writerId: event.writerId,
                         sequenceNumber: event.sequenceNumber,
                     },
+                    needPointers,
+                );
+
+                if (displayable === undefined) {
+                    continue;
+                }
+
+                filteredPosts.push({
+                    initialPost: displayable,
+                    dependencies: needPointers,
                 });
             }
         }
@@ -141,11 +149,13 @@ function Explore(props: ExploreProps) {
                 }
             >
                 {exploreResults.map((item, index) => (
-                    <DispatchCardMemo
+                    <Post.PostLoaderMemo
                         key={index}
                         state={props.state}
-                        pointer={item.pointer}
-                        fromServer={item.fromServer}
+                        initialPost={item.initialPost}
+                        dependsOn={item.dependencies}
+                        showBoost={true}
+                        depth={0}
                     />
                 ))}
             </InfiniteScroll>

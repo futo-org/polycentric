@@ -1,14 +1,16 @@
 import { Avatar, Button, Paper } from '@mui/material';
 import { Link } from 'react-router-dom';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReplyIcon from '@mui/icons-material/Reply';
 import LoopIcon from '@mui/icons-material/Loop';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ImageViewer from 'react-simple-image-viewer';
 import * as Base64 from '@borderless/base64';
+import * as Lodash from 'lodash';
 
 import * as Core from 'polycentric-core';
+import * as Feed from './Feed';
 import PostModal from './PostModal';
 import './Post.css';
 import * as ProfileUtil from './ProfileUtil';
@@ -30,6 +32,118 @@ type PostProps = {
     showBoost: boolean;
     depth: number;
 };
+
+export type PostLoaderProps = {
+    state: Core.DB.PolycentricState;
+    initialPost: DisplayablePost;
+    showBoost: boolean;
+    depth: number;
+    dependsOn: Array<Core.Protocol.Pointer>;
+};
+
+export async function tryLoadDisplayable(
+    state: Core.DB.PolycentricState,
+    pointer: Core.Protocol.Pointer,
+    needPointers: Array<Core.Protocol.Pointer>,
+) {
+    const event = await Core.DB.tryLoadStorageEventByPointer(state, pointer);
+
+    if (event === undefined || event.event === undefined) {
+        return undefined;
+    }
+
+    const body = Core.Protocol.EventBody.decode(event.event.content);
+
+    const profiles = new Map<string, ProfileUtil.DisplayableProfile>();
+
+    const displayable = await Feed.eventToDisplayablePost(
+        state,
+        profiles,
+        {
+            event: event.event,
+            mutationPointer: undefined,
+        },
+        needPointers,
+    );
+
+    return displayable;
+}
+
+export const PostLoaderMemo = memo(PostLoader);
+
+export function PostLoader(props: PostLoaderProps) {
+    console.log('PostLoader');
+    const [displayable, setDisplayable] = useState<DisplayablePost>(
+        props.initialPost,
+    );
+
+    const loadCard = async (
+        dependencyListeners: [Core.Protocol.Pointer, () => void][],
+    ) => {
+        const needPointers = new Array<Core.Protocol.Pointer>();
+
+        const displayable = await tryLoadDisplayable(
+            props.state,
+            props.initialPost.pointer,
+            needPointers,
+        );
+
+        if (displayable === undefined) {
+            return;
+        }
+
+        const cb = Lodash.once(() => {
+            loadCard(dependencyListeners);
+        });
+
+        for (const dependency of needPointers) {
+            dependencyListeners.push([dependency, cb]);
+
+            Core.DB.waitOnEvent(props.state, dependency, cb);
+        }
+
+        displayable.fromServer = props.initialPost.fromServer;
+
+        setDisplayable(displayable);
+    };
+
+    useEffect(() => {
+        const dependencyListeners: [Core.Protocol.Pointer, () => void][] = [];
+
+        const cb = Lodash.once(() => {
+            loadCard(dependencyListeners);
+        });
+
+        for (const dependency of props.dependsOn) {
+            dependencyListeners.push([dependency, cb]);
+
+            Core.DB.waitOnEvent(props.state, dependency, cb);
+        }
+
+        if (props.dependsOn.length !== 0) {
+            loadCard(dependencyListeners);
+        }
+
+        return () => {
+            for (const listener of dependencyListeners) {
+                Core.DB.cancelWaitOnEvent(
+                    props.state,
+                    listener[0],
+                    listener[1],
+                );
+            }
+        };
+    }, []);
+
+    return (
+        <Post
+            state={props.state}
+            post={displayable}
+            showBoost={props.showBoost}
+            depth={props.depth}
+        />
+    );
+}
 
 function processText(message: string) {
     let position = 0;

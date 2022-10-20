@@ -1,5 +1,6 @@
-import { useState, useEffect, memo, ReactNode } from 'react'
+import { useState, useEffect, memo, ReactNode } from 'react';
 import * as Base64 from '@borderless/base64';
+import * as Lodash from 'lodash';
 
 import * as Core from 'polycentric-core';
 import * as ProfileUtil from './ProfileUtil';
@@ -68,11 +69,11 @@ export function DispatchCard(props: DispatchCardProps) {
                 needPointers,
             );
 
-            for (const needPointer of needPointers) {
-                const cb = () => {
-                    loadCard(needPointersListeners);
-                };
+            const cb = Lodash.once(() => {
+                loadCard(needPointersListeners);
+            });
 
+            for (const needPointer of needPointers) {
                 needPointersListeners.push([needPointer, cb]);
 
                 Core.DB.waitOnEvent(props.state, needPointer, cb);
@@ -113,4 +114,3 @@ export function DispatchCard(props: DispatchCardProps) {
 
     return <div>{card}</div>;
 }
-
