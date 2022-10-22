@@ -380,9 +380,11 @@ function Post(props: PostProps) {
                                     props.post.unixMilliseconds,
                                 ).toLocaleString()}
                             </p>
+                            {/*
                             <p onClick={handleNavigate}>
                                 {props.post.pointer.sequenceNumber}
                             </p>
+                            */}
                         </div>
                         {props.showBoost === true && (
                             <div
