@@ -351,12 +351,19 @@ function Post(props: PostProps) {
                             />
                         )}
                         {props.post.boost !== undefined && props.depth >= 1 && (
-                            <h3
-                                onClick={handleNavigate}
-                                className="expandWarning"
+                            <Paper
+                                elevation={4}
+                                style={{
+                                    textAlign: 'center',
+                                }}
                             >
-                                Too many nested posts. Click to expand...
-                            </h3>
+                                <h4
+                                    onClick={handleNavigate}
+                                    className="expandWarning"
+                                >
+                                    Too many nested posts. Click to expand...
+                                </h4>
+                            </Paper>
                         )}
                         <div
                             style={{
