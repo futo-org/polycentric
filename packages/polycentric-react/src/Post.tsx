@@ -41,6 +41,100 @@ export type PostLoaderProps = {
     dependsOn: Array<Core.Protocol.Pointer>;
 };
 
+export async function eventToDisplayablePost(
+    state: Core.DB.PolycentricState,
+    profiles: Map<string, ProfileUtil.DisplayableProfile>,
+    storageEvent: Core.Protocol.StorageTypeEvent,
+    needPointersOut: Array<Core.Protocol.Pointer>,
+): Promise<DisplayablePost | undefined> {
+    if (storageEvent.mutationPointer !== undefined) {
+        return undefined;
+    }
+
+    if (storageEvent.event === undefined) {
+        return undefined;
+    }
+
+    const event = storageEvent.event;
+
+    const body = Core.Protocol.EventBody.decode(event.content);
+
+    if (body.message === undefined) {
+        return undefined;
+    }
+
+    let displayableProfile = undefined;
+
+    {
+        const authorPublicKey = Base64.encodeUrl(event.authorPublicKey);
+        let existing = profiles.get(authorPublicKey);
+
+        if (existing === undefined) {
+            displayableProfile = await ProfileUtil.loadProfileOrFallback(
+                state,
+                event.authorPublicKey,
+                needPointersOut,
+            );
+
+            profiles.set(authorPublicKey, displayableProfile);
+        } else {
+            displayableProfile = existing;
+        }
+    }
+
+    const amAuthor = Core.Util.blobsEqual(
+        (await Core.DB.levelLoadIdentity(state)).publicKey,
+        event.authorPublicKey,
+    );
+
+    let displayable: DisplayablePost = {
+        pointer: {
+            publicKey: event.authorPublicKey,
+            writerId: event.writerId,
+            sequenceNumber: event.sequenceNumber,
+        },
+        profile: displayableProfile,
+        message: new TextDecoder().decode(body.message.message),
+        unixMilliseconds: event.unixMilliseconds,
+        author: amAuthor,
+        boost: undefined,
+    };
+
+    if (body.message.boostPointer !== undefined) {
+        const boost = await Core.DB.tryLoadStorageEventByPointer(
+            state,
+            body.message.boostPointer,
+        );
+
+        if (boost === undefined) {
+            needPointersOut.push(body.message.boostPointer);
+        } else {
+            displayable.boost = await eventToDisplayablePost(
+                state,
+                profiles,
+                boost,
+                needPointersOut,
+            );
+        }
+    }
+
+    if (body.message.image !== undefined) {
+        const loaded = await Core.DB.loadBlob(
+            state,
+            body.message.image,
+            needPointersOut,
+        );
+
+        if (loaded === undefined) {
+            needPointersOut.push(body.message.image);
+        } else {
+            displayable.image = Core.Util.blobToURL(loaded.kind, loaded.blob);
+        }
+    }
+
+    return displayable;
+}
+
 export async function tryLoadDisplayable(
     state: Core.DB.PolycentricState,
     pointer: Core.Protocol.Pointer,
@@ -56,7 +150,7 @@ export async function tryLoadDisplayable(
 
     const profiles = new Map<string, ProfileUtil.DisplayableProfile>();
 
-    const displayable = await Feed.eventToDisplayablePost(
+    const displayable = await eventToDisplayablePost(
         state,
         profiles,
         {
@@ -194,7 +288,7 @@ function postToLink(pointer: Core.Protocol.Pointer): string {
     );
 }
 
-function Post(props: PostProps) {
+export function Post(props: PostProps) {
     let navigate = useNavigate();
 
     const [viewerLink, setViewerLink] = useState<string | undefined>(undefined);

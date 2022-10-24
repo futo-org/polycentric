@@ -5,7 +5,7 @@ import * as Lodash from 'lodash';
 import * as Core from 'polycentric-core';
 import * as ProfileUtil from './ProfileUtil';
 import * as Feed from './Feed';
-import Post from './Post';
+import * as Post from './Post';
 import ProfileHeader from './ProfileHeader';
 
 export type DispatchCardProps = {
@@ -59,7 +59,7 @@ export function DispatchCard(props: DispatchCardProps) {
 
             const needPointers = new Array<Core.Protocol.Pointer>();
 
-            const displayable = await Feed.eventToDisplayablePost(
+            const displayable = await Post.eventToDisplayablePost(
                 props.state,
                 profiles,
                 {
@@ -86,7 +86,7 @@ export function DispatchCard(props: DispatchCardProps) {
             displayable.fromServer = props.fromServer;
 
             setCard(
-                <Post
+                <Post.Post
                     state={props.state}
                     post={displayable}
                     showBoost={true}

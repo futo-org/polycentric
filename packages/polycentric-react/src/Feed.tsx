@@ -6,115 +6,20 @@ import { Paper, LinearProgress } from '@mui/material';
 import * as Lodash from 'lodash';
 
 import * as Core from 'polycentric-core';
-import Post from './Post';
-import * as PostMod from './Post';
+import * as Post from './Post';
 import ProfileCard from './ProfileCard';
 import RecommendedProfiles from './RecommendedProfiles';
 import * as ProfileUtil from './ProfileUtil';
 
 import './Standard.css';
 
-export async function eventToDisplayablePost(
-    state: Core.DB.PolycentricState,
-    profiles: Map<string, ProfileUtil.DisplayableProfile>,
-    storageEvent: Core.Protocol.StorageTypeEvent,
-    needPointersOut: Array<Core.Protocol.Pointer>,
-): Promise<PostMod.DisplayablePost | undefined> {
-    if (storageEvent.mutationPointer !== undefined) {
-        return undefined;
-    }
-
-    if (storageEvent.event === undefined) {
-        return undefined;
-    }
-
-    const event = storageEvent.event;
-
-    const body = Core.Protocol.EventBody.decode(event.content);
-
-    if (body.message === undefined) {
-        return undefined;
-    }
-
-    let displayableProfile = undefined;
-
-    {
-        const authorPublicKey = Base64.encodeUrl(event.authorPublicKey);
-        let existing = profiles.get(authorPublicKey);
-
-        if (existing === undefined) {
-            displayableProfile = await ProfileUtil.loadProfileOrFallback(
-                state,
-                event.authorPublicKey,
-                needPointersOut,
-            );
-
-            profiles.set(authorPublicKey, displayableProfile);
-        } else {
-            displayableProfile = existing;
-        }
-    }
-
-    const amAuthor = Core.Util.blobsEqual(
-        (await Core.DB.levelLoadIdentity(state)).publicKey,
-        event.authorPublicKey,
-    );
-
-    let displayable: PostMod.DisplayablePost = {
-        pointer: {
-            publicKey: event.authorPublicKey,
-            writerId: event.writerId,
-            sequenceNumber: event.sequenceNumber,
-        },
-        profile: displayableProfile,
-        message: new TextDecoder().decode(body.message.message),
-        unixMilliseconds: event.unixMilliseconds,
-        author: amAuthor,
-        boost: undefined,
-    };
-
-    if (body.message.boostPointer !== undefined) {
-        const boost = await Core.DB.tryLoadStorageEventByPointer(
-            state,
-            body.message.boostPointer,
-        );
-
-        if (boost === undefined) {
-            needPointersOut.push(body.message.boostPointer);
-        } else {
-            displayable.boost = await eventToDisplayablePost(
-                state,
-                profiles,
-                boost,
-                needPointersOut,
-            );
-        }
-    }
-
-    if (body.message.image !== undefined) {
-        const loaded = await Core.DB.loadBlob(
-            state,
-            body.message.image,
-            needPointersOut,
-        );
-
-        if (loaded === undefined) {
-            needPointersOut.push(body.message.image);
-        } else {
-            displayable.image = Core.Util.blobToURL(loaded.kind, loaded.blob);
-        }
-    }
-
-    return displayable;
-}
-
 type LoadPostsResult = {
-    filteredPosts: Array<[Core.Protocol.Event, PostMod.DisplayablePost]>;
+    filteredPosts: Array<[Core.Protocol.Event, Post.DisplayablePost]>;
     belowLimit: boolean;
     isFeedComplete: boolean;
 };
 
-async function loadPosts2(
+async function loadPosts(
     state: Core.DB.PolycentricState,
     decodedFeed: Core.Protocol.URLInfo | undefined,
     limit: number,
@@ -157,7 +62,7 @@ async function loadPosts2(
             .all();
     }
 
-    let filteredPosts: [Core.Protocol.Event, PostMod.DisplayablePost][] = [];
+    let filteredPosts: [Core.Protocol.Event, Post.DisplayablePost][] = [];
 
     for (const index of postIndexes) {
         try {
@@ -190,7 +95,7 @@ async function loadPosts2(
                 }
             }
 
-            const displayable = await eventToDisplayablePost(
+            const displayable = await Post.eventToDisplayablePost(
                 state,
                 profiles,
                 post,
@@ -238,7 +143,7 @@ export function Feed(props: FeedProps) {
     );
 
     async function loadState(cancelControl: Core.Util.PromiseCancelControl) {
-        const result = await loadPosts2(
+        const result = await loadPosts(
             props.state,
             decodedFeed.current,
             limit.current,
@@ -376,7 +281,7 @@ export function Feed(props: FeedProps) {
                         const item = post[1];
 
                         return (
-                            <Post
+                            <Post.Post
                                 key={Base64.encode(
                                     Core.DB.makeStorageTypeEventKey(
                                         raw.authorPublicKey,
