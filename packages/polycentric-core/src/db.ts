@@ -563,7 +563,7 @@ export async function isFeedComplete(
             sum += range.highSequenceNumber - range.lowSequenceNumber + 1;
         }
 
-        if (sum !== entry.value) {
+        if (sum < entry.value) {
             return false;
         }
     }

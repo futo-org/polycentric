@@ -89,6 +89,8 @@ function Explore(props: ExploreProps) {
                     continue;
                 }
 
+                displayable.fromServer = response[0];
+
                 filteredPosts.push({
                     initialPost: displayable,
                     dependencies: needPointers,
