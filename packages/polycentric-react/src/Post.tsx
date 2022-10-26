@@ -26,6 +26,7 @@ export type DisplayablePost = {
     author: boolean;
     boost: DisplayablePost | undefined;
     fromServer?: string;
+    boostedBy?: string;
 };
 
 type PostProps = {
@@ -124,7 +125,7 @@ export async function eventToDisplayablePost(
         }
 
         displayable.pointer = pointer;
-        displayable.fromServer = displayableProfile.displayName;
+        displayable.boostedBy = displayableProfile.displayName;
         displayable.author = amAuthor;
 
         return displayable;
@@ -405,6 +406,35 @@ export function Post(props: PostProps) {
                     />
                 </div>
             )}
+            {props.post.boostedBy !== undefined && (
+                <div
+                    style={{
+                        paddingLeft: '5px',
+                        paddingTop: '5px',
+                        width: '100%',
+                    }}
+                >
+                    Boosted By: &nbsp;
+                    <span
+                        style={{
+                            color: 'gray',
+                            fontWeight: 600,
+                        }}
+                    >
+                        {props.post.boostedBy}
+                    </span>
+                    <div
+                        style={{
+                            width: '99%',
+                            marginTop: '5px',
+                            marginLeft: 'auto',
+                            marginRight: 'auto',
+                            borderBottom: '1px solid gray',
+                        }}
+                    />
+                </div>
+            )}
+
             <div
                 style={{
                     display: 'flex',
