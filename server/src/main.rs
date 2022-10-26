@@ -1464,6 +1464,7 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
 
     let cors = ::warp::cors()
         .allow_any_origin()
+        .max_age(::std::time::Duration::from_secs(60 * 5))
         .allow_headers(vec!["content-type"])
         .allow_methods(&[
             ::warp::http::Method::POST,
