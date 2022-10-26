@@ -17,6 +17,7 @@ import * as ProfileUtil from './ProfileUtil';
 
 export type DisplayablePost = {
     pointer: Core.Protocol.Pointer;
+    actionPointer: Core.Protocol.Pointer;
     profile: ProfileUtil.DisplayableProfile;
     message: string;
     image?: string;
@@ -87,12 +88,50 @@ export async function eventToDisplayablePost(
         event.authorPublicKey,
     );
 
+    const pointer = {
+        publicKey: event.authorPublicKey,
+        writerId: event.writerId,
+        sequenceNumber: event.sequenceNumber,
+    };
+
+    // if this is a pure boost
+    if (
+        body.message.message.length === 0 &&
+        body.message.image === undefined &&
+        body.message.boostPointer !== undefined
+    ) {
+        const boost = await Core.DB.tryLoadStorageEventByPointer(
+            state,
+            body.message.boostPointer,
+        );
+
+        if (boost === undefined) {
+            needPointersOut.push(body.message.boostPointer);
+
+            return undefined;
+        }
+
+        const displayable = await eventToDisplayablePost(
+            state,
+            profiles,
+            boost,
+            needPointersOut,
+        );
+
+        if (displayable === undefined) {
+            return undefined;
+        }
+
+        displayable.pointer = pointer;
+        displayable.fromServer = displayableProfile.displayName;
+        displayable.author = amAuthor;
+
+        return displayable;
+    }
+
     let displayable: DisplayablePost = {
-        pointer: {
-            publicKey: event.authorPublicKey,
-            writerId: event.writerId,
-            sequenceNumber: event.sequenceNumber,
-        },
+        pointer: pointer,
+        actionPointer: pointer,
         profile: displayableProfile,
         message: new TextDecoder().decode(body.message.message),
         unixMilliseconds: event.unixMilliseconds,
@@ -298,7 +337,7 @@ export function Post(props: PostProps) {
         const event = Core.DB.makeDefaultEventBody();
         event.message = {
             message: new Uint8Array(),
-            boostPointer: props.post.pointer,
+            boostPointer: props.post.actionPointer,
         };
 
         await Core.DB.levelSavePost(props.state, event);
@@ -356,7 +395,7 @@ export function Post(props: PostProps) {
                     onClose={() => {
                         setModalIsOpen(false);
                     }}
-                    boostPointer={props.post.pointer}
+                    boostPointer={props.post.actionPointer}
                 />
                 <div className="post__avatar">
                     <Avatar
