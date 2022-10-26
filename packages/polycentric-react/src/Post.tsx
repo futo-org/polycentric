@@ -1,4 +1,5 @@
 import { Avatar, Button, Paper } from '@mui/material';
+import LoadingButton from '@mui/lab/LoadingButton';
 import { Link } from 'react-router-dom';
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -332,8 +333,16 @@ export function Post(props: PostProps) {
 
     const [viewerLink, setViewerLink] = useState<string | undefined>(undefined);
     const [modalIsOpen, setModalIsOpen] = useState(false);
+    const [boosting, setBoosting] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     const handleBoost = async () => {
+        if (boosting === true) {
+            return;
+        }
+
+        setBoosting(true);
+
         const event = Core.DB.makeDefaultEventBody();
         event.message = {
             message: new Uint8Array(),
@@ -341,9 +350,15 @@ export function Post(props: PostProps) {
         };
 
         await Core.DB.levelSavePost(props.state, event);
+
+        setTimeout(() => {
+            setBoosting(false);
+        }, 500);
     };
 
     const handleDelete = Lodash.once(async () => {
+        setDeleting(true);
+
         await Core.DB.deletePost(
             props.state,
             props.post.pointer,
@@ -533,14 +548,16 @@ export function Post(props: PostProps) {
                                     columnGap: '5px',
                                 }}
                             >
-                                <Button
+                                <LoadingButton
+                                    loading={boosting}
                                     variant="contained"
                                     onClick={handleBoost}
+                                    loadingPosition="start"
                                     startIcon={<LoopIcon />}
                                     size="small"
                                 >
                                     Boost
-                                </Button>
+                                </LoadingButton>
                                 <Button
                                     variant="contained"
                                     onClick={() => {
@@ -557,14 +574,15 @@ export function Post(props: PostProps) {
                                     }}
                                 />
                                 {props.post.author && (
-                                    <Button
+                                    <LoadingButton
+                                        loading={deleting}
                                         variant="contained"
                                         size="small"
                                         color="warning"
                                         onClick={handleDelete}
                                     >
                                         <DeleteIcon />
-                                    </Button>
+                                    </LoadingButton>
                                 )}
                             </div>
                         )}
