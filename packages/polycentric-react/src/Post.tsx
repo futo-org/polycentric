@@ -343,6 +343,13 @@ export function Post(props: PostProps) {
         await Core.DB.levelSavePost(props.state, event);
     };
 
+    const handleDelete = Lodash.once(async () => {
+        await Core.DB.deletePost(
+            props.state,
+            props.post.pointer,
+        );
+    });
+
     const handleNavigate = (event: React.MouseEvent<HTMLDivElement>) => {
         navigate('/' + postToLink(props.post.pointer));
     };
@@ -554,12 +561,7 @@ export function Post(props: PostProps) {
                                         variant="contained"
                                         size="small"
                                         color="warning"
-                                        onClick={() => {
-                                            Core.DB.deletePost(
-                                                props.state,
-                                                props.post.pointer,
-                                            );
-                                        }}
+                                        onClick={handleDelete}
                                     >
                                         <DeleteIcon />
                                     </Button>
