@@ -73,13 +73,11 @@ export async function eventToDisplayablePost(
         let existing = profiles.get(authorPublicKey);
 
         if (existing === undefined) {
-            console.log('loading displayable');
             displayableProfile = await ProfileUtil.loadProfileOrFallback(
                 state,
                 event.authorPublicKey,
                 dependencyContext,
             );
-            console.log('after loading displayable');
 
             profiles.set(authorPublicKey, displayableProfile);
         } else {
