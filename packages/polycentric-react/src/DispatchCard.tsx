@@ -20,7 +20,7 @@ export function DispatchCard(props: DispatchCardProps) {
     const [card, setCard] = useState<ReactNode | undefined>(undefined);
 
     const loadCard = async (
-        needPointersListeners: [Core.Protocol.Pointer, () => void][],
+        dependencyContext: Core.DB.DependencyContext,
     ) => {
         const event = await Core.DB.tryLoadStorageEventByPointer(
             props.state,
@@ -34,11 +34,15 @@ export function DispatchCard(props: DispatchCardProps) {
         const body = Core.Protocol.EventBody.decode(event.event.content);
 
         if (body.profile !== undefined) {
+            const nextDependencyContext = new Core.DB.DependencyContext(props.state);
+
             const profile = await ProfileUtil.loadProfileOrFallback(
                 props.state,
                 event.event.authorPublicKey,
-                [],
+                nextDependencyContext,
             );
+
+            nextDependencyContext.cleanup();
 
             setCard(
                 <div
@@ -57,7 +61,7 @@ export function DispatchCard(props: DispatchCardProps) {
         } else if (body.message !== undefined) {
             const profiles = new Map<string, ProfileUtil.DisplayableProfile>();
 
-            const needPointers = new Array<Core.Protocol.Pointer>();
+            const nextDependencyContext = new Core.DB.DependencyContext(props.state);
 
             const displayable = await Post.eventToDisplayablePost(
                 props.state,
@@ -66,9 +70,12 @@ export function DispatchCard(props: DispatchCardProps) {
                     event: event.event,
                     mutationPointer: undefined,
                 },
-                needPointers,
+                nextDependencyContext,
             );
 
+            nextDependencyContext.cleanup();
+
+            /*
             const cb = Lodash.once(() => {
                 loadCard(needPointersListeners);
             });
@@ -78,6 +85,7 @@ export function DispatchCard(props: DispatchCardProps) {
 
                 Core.DB.waitOnEvent(props.state, needPointer, cb);
             }
+            */
 
             if (displayable === undefined) {
                 return undefined;
@@ -97,18 +105,12 @@ export function DispatchCard(props: DispatchCardProps) {
     };
 
     useEffect(() => {
-        const needPointersListeners: [Core.Protocol.Pointer, () => void][] = [];
+        const dependencyContext = new Core.DB.DependencyContext(props.state);
 
-        loadCard(needPointersListeners);
+        loadCard(dependencyContext);
 
         return () => {
-            for (const listener of needPointersListeners) {
-                Core.DB.cancelWaitOnEvent(
-                    props.state,
-                    listener[0],
-                    listener[1],
-                );
-            }
+            dependencyContext.cleanup();
         };
     }, [props.pointer, props.fromServer]);
 

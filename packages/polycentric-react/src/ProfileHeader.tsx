@@ -33,11 +33,15 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
     const loadProfile = async (
         cancelControl: Core.Util.PromiseCancelControl,
     ) => {
+        const dependencyContext = new Core.DB.DependencyContext(state);
+
         const result = await ProfileUtil.loadProfileOrFallback(
             state,
             publicKey,
-            [],
+            dependencyContext,
         );
+
+        dependencyContext.cleanup();
 
         if (cancelControl.cancelled === false) {
             setProfile(result);

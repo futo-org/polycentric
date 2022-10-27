@@ -102,11 +102,15 @@ function App(props: AppProps) {
             return;
         }
 
+        const dependencyContext = new Core.DB.DependencyContext(props.state);
+
         const loaded = await Core.DB.loadBlob(
             props.state,
             profile.imagePointer,
-            [],
+            dependencyContext,
         );
+
+        dependencyContext.cleanup();
 
         if (loaded === undefined) {
             return;

@@ -3,12 +3,90 @@ import * as AbstractLevel from 'abstract-level';
 import AsyncLock from 'async-lock';
 import Long from 'long';
 import * as Base64 from '@borderless/base64';
+import * as Lodash from 'lodash';
 
 import * as Util from './Util';
 import * as Protocol from './user';
 import * as Crypto from './crypto';
 import * as Synchronization from './synchronization';
 import * as APIMethods from './APIMethods';
+
+export type Listener = {
+    pointer: Protocol.Pointer;
+    callback: () => void;
+};
+
+export class DependencyContext {
+    private _mutated: boolean;
+    private _cleanup: boolean;
+    private _handler: (() => void) | undefined;
+    private _listeners: Array<Listener>;
+    private _state: PolycentricState;
+    private _listenerCallback: () => void;
+
+    public constructor(state: PolycentricState) {
+        this._mutated = false;
+        this._cleanup = false;
+        this._handler = undefined;
+        this._listeners = new Array();
+        this._state = state;
+
+        const selfa = this;
+
+        this._listenerCallback = Lodash.once(() => {
+            selfa._mutated = true;
+
+            if (selfa._handler !== undefined && selfa._cleanup !== true) {
+                console.log("called dependency handler");
+                selfa._handler();
+            }
+        });
+    };
+
+    public addDependency(
+        pointer: Protocol.Pointer,
+    ): void {
+        if (this._cleanup === true) {
+            throw new Error("addDependency called after cleanup");
+        }
+
+        this._listeners.push({
+            pointer: pointer,
+            callback: this._listenerCallback,
+        });
+
+        waitOnEvent(this._state, pointer, this._listenerCallback);
+    };
+
+    public cleanup(): void {
+        if (this._cleanup === true) {
+            console.log("cleanup called after cleanup");
+            return;
+            // throw new Error("cleanup called after cleanup");
+        }
+
+        console.log("cancelled count", this._listeners.length);
+        for (const listener of this._listeners) {
+            cancelWaitOnEvent(
+                this._state, 
+                listener.pointer,
+                listener.callback
+            );
+        }
+
+        this._cleanup = true;
+    }
+
+    public setHandler(callback: () => void): void {
+        this._handler = callback;
+
+        if (this._mutated === true) {
+            console.log("mutation detected on set handler");
+
+            this._handler();
+        }
+    }
+};
 
 export enum EventMessageType {
     Message,
@@ -158,6 +236,7 @@ function fireListenersForEvent(
 
     if (listenersForKey !== undefined) {
         for (const listener of listenersForKey) {
+            console.log("firing");
             listener();
         }
     }
@@ -414,13 +493,14 @@ export async function tryLoadStorageEventByKey(
 export async function loadBlob(
     state: PolycentricState,
     pointer: Protocol.Pointer,
-    needPointersOut: Array<Protocol.Pointer>,
+    dependencyContext: DependencyContext,
 ): Promise<BlobWithKind | undefined> {
+    dependencyContext.addDependency(pointer);
+
     const outerMeta = await tryLoadStorageEventByPointer(state, pointer);
 
     if (outerMeta === undefined) {
         console.log('tried to load blob without a meta event');
-        needPointersOut.push(pointer);
         return undefined;
     }
 
@@ -445,6 +525,8 @@ export async function loadBlob(
             writerId: pointer.writerId,
             sequenceNumber: pointer.sequenceNumber + i,
         };
+    
+        dependencyContext.addDependency(sectionPointer);
 
         const outerSection = await tryLoadStorageEventByPointer(
             state,
@@ -453,7 +535,6 @@ export async function loadBlob(
 
         if (outerSection === undefined) {
             console.log('tried to load blob without a meta section');
-            needPointersOut.push(sectionPointer);
             return undefined;
         }
 

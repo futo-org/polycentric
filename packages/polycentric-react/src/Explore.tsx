@@ -21,7 +21,7 @@ type ExploreProps = {
 
 type ExploreItem = {
     initialPost: Post.DisplayablePost;
-    dependencies: Array<Core.Protocol.Pointer>;
+    dependencyContext: Core.DB.DependencyContext;
 };
 
 function Explore(props: ExploreProps) {
@@ -36,18 +36,27 @@ function Explore(props: ExploreProps) {
     const [complete, setComplete] = useState<boolean>(false);
 
     const earliestTime = useRef<number | undefined>(undefined);
+    const masterCancel = useRef<Core.Util.PromiseCancelControl>({
+        cancelled: false,
+    });
 
-    const needPointersListeners = useRef<
-        Array<[Core.Protocol.Pointer, () => void]>
-    >([]);
+    const handleLoad = async (
+        cancelControl: Core.Util.PromiseCancelControl,
+    ) => {
+        if (cancelControl.cancelled) {
+            return;
+        }
 
-    const handleLoad = async () => {
         setLoading(true);
 
         const responses = await Core.DB.explore(
             props.state,
             earliestTime.current,
         );
+
+        if (cancelControl.cancelled) {
+            return;
+        }
 
         for (const response of responses) {
             await Core.Synchronization.saveBatch(
@@ -58,6 +67,10 @@ function Explore(props: ExploreProps) {
                 props.state,
                 response[1].resultEvents,
             );
+
+            if (cancelControl.cancelled) {
+                return;
+            }
 
             for (const event of response[1].resultEvents) {
                 if (
@@ -73,7 +86,9 @@ function Explore(props: ExploreProps) {
 
         for (const response of responses) {
             for (const event of response[1].resultEvents) {
-                const needPointers = new Array<Core.Protocol.Pointer>();
+                const dependencyContext = new Core.DB.DependencyContext(
+                    props.state,
+                );
 
                 const displayable = await Post.tryLoadDisplayable(
                     props.state,
@@ -82,10 +97,12 @@ function Explore(props: ExploreProps) {
                         writerId: event.writerId,
                         sequenceNumber: event.sequenceNumber,
                     },
-                    needPointers,
+                    dependencyContext,
                 );
 
                 if (displayable === undefined) {
+                    dependencyContext.cleanup();
+
                     continue;
                 }
 
@@ -93,16 +110,29 @@ function Explore(props: ExploreProps) {
 
                 filteredPosts.push({
                     initialPost: displayable,
-                    dependencies: needPointers,
+                    dependencyContext: dependencyContext,
                 });
             }
         }
 
-        const totalResults = exploreResults.concat(filteredPosts);
+        if (cancelControl.cancelled) {
+            for (const item of filteredPosts) {
+                item.dependencyContext.cleanup();
+            }
 
-        console.log('total', totalResults.length, 'new', filteredPosts.length);
+            return;
+        }
 
-        setExploreResults(totalResults);
+        setExploreResults((previous) => {
+            const totalResults = previous.concat(filteredPosts);
+
+            console.log(
+                'total', totalResults.length,
+                'new', filteredPosts.length,
+            );
+
+            return totalResults;
+        });
 
         if (filteredPosts.length === 0) {
             setComplete(true);
@@ -113,21 +143,34 @@ function Explore(props: ExploreProps) {
     };
 
     useEffect(() => {
+        const cancelControl = {
+            cancelled: false,
+        };
+
         setInitial(true);
         setExploreResults([]);
         setLoading(true);
         setComplete(false);
 
         earliestTime.current = undefined;
+        masterCancel.current = cancelControl;
 
-        handleLoad();
-    }, []);
+        handleLoad(cancelControl);
+
+        return () => {
+            cancelControl.cancelled = true;
+
+            for (const item of exploreResults) {
+                item.dependencyContext.cleanup();
+            }
+        };
+    }, [props.state]);
 
     return (
         <div className="standard_width">
             <InfiniteScroll
                 dataLength={exploreResults.length}
-                next={handleLoad}
+                next={() => { handleLoad(masterCancel.current) }}
                 hasMore={complete === false}
                 loader={
                     <div
@@ -155,7 +198,7 @@ function Explore(props: ExploreProps) {
                         key={index}
                         state={props.state}
                         initialPost={item.initialPost}
-                        dependsOn={item.dependencies}
+                        dependencyContext={item.dependencyContext}
                         showBoost={true}
                         depth={0}
                     />

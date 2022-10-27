@@ -94,13 +94,17 @@ async function loadPosts(
                     }
                 }
             }
+ 
+            const dependencyContext = new Core.DB.DependencyContext(state);
 
             const displayable = await Post.eventToDisplayablePost(
                 state,
                 profiles,
                 post,
-                [],
+                dependencyContext,
             );
+
+            dependencyContext.cleanup();
 
             if (displayable !== undefined && post.event !== undefined) {
                 filteredPosts.push([post.event, displayable]);

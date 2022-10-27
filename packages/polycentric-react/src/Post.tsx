@@ -41,14 +41,14 @@ export type PostLoaderProps = {
     initialPost: DisplayablePost;
     showBoost: boolean;
     depth: number;
-    dependsOn: Array<Core.Protocol.Pointer>;
+    dependencyContext: Core.DB.DependencyContext;
 };
 
 export async function eventToDisplayablePost(
     state: Core.DB.PolycentricState,
     profiles: Map<string, ProfileUtil.DisplayableProfile>,
     storageEvent: Core.Protocol.StorageTypeEvent,
-    needPointersOut: Array<Core.Protocol.Pointer>,
+    dependencyContext: Core.DB.DependencyContext,
 ): Promise<DisplayablePost | undefined> {
     if (storageEvent.mutationPointer !== undefined) {
         return undefined;
@@ -73,11 +73,13 @@ export async function eventToDisplayablePost(
         let existing = profiles.get(authorPublicKey);
 
         if (existing === undefined) {
+            console.log("loading displayable");
             displayableProfile = await ProfileUtil.loadProfileOrFallback(
                 state,
                 event.authorPublicKey,
-                needPointersOut,
+                dependencyContext,
             );
+            console.log("after loading displayable");
 
             profiles.set(authorPublicKey, displayableProfile);
         } else {
@@ -96,6 +98,14 @@ export async function eventToDisplayablePost(
         sequenceNumber: event.sequenceNumber,
     };
 
+    if (body.message.image !== undefined) {
+        dependencyContext.addDependency(body.message.image);
+    }
+
+    if (body.message.boostPointer !== undefined) {
+        dependencyContext.addDependency(body.message.boostPointer);
+    }
+
     // if this is a pure boost
     if (
         body.message.message.length === 0 &&
@@ -107,28 +117,23 @@ export async function eventToDisplayablePost(
             body.message.boostPointer,
         );
 
-        if (boost === undefined) {
-            needPointersOut.push(body.message.boostPointer);
+        // pure boost not available yet so just display outer profile
+        if (boost !== undefined) {
+            const displayable = await eventToDisplayablePost(
+                state,
+                profiles,
+                boost,
+                dependencyContext,
+            );
 
-            return undefined;
+            if (displayable !== undefined) {
+                displayable.pointer = pointer;
+                displayable.boostedBy = displayableProfile.displayName;
+                displayable.author = amAuthor;
+
+                return displayable;
+            }
         }
-
-        const displayable = await eventToDisplayablePost(
-            state,
-            profiles,
-            boost,
-            needPointersOut,
-        );
-
-        if (displayable === undefined) {
-            return undefined;
-        }
-
-        displayable.pointer = pointer;
-        displayable.boostedBy = displayableProfile.displayName;
-        displayable.author = amAuthor;
-
-        return displayable;
     }
 
     let displayable: DisplayablePost = {
@@ -147,14 +152,12 @@ export async function eventToDisplayablePost(
             body.message.boostPointer,
         );
 
-        if (boost === undefined) {
-            needPointersOut.push(body.message.boostPointer);
-        } else {
+        if (boost !== undefined) {
             displayable.boost = await eventToDisplayablePost(
                 state,
                 profiles,
                 boost,
-                needPointersOut,
+                dependencyContext,
             );
         }
     }
@@ -163,12 +166,10 @@ export async function eventToDisplayablePost(
         const loaded = await Core.DB.loadBlob(
             state,
             body.message.image,
-            needPointersOut,
+            dependencyContext,
         );
 
-        if (loaded === undefined) {
-            needPointersOut.push(body.message.image);
-        } else {
+        if (loaded !== undefined) {
             displayable.image = Core.Util.blobToURL(loaded.kind, loaded.blob);
         }
     }
@@ -179,8 +180,10 @@ export async function eventToDisplayablePost(
 export async function tryLoadDisplayable(
     state: Core.DB.PolycentricState,
     pointer: Core.Protocol.Pointer,
-    needPointers: Array<Core.Protocol.Pointer>,
+    dependencyContext: Core.DB.DependencyContext,
 ) {
+    dependencyContext.addDependency(pointer);
+
     const event = await Core.DB.tryLoadStorageEventByPointer(state, pointer);
 
     if (event === undefined || event.event === undefined) {
@@ -198,7 +201,7 @@ export async function tryLoadDisplayable(
             event: event.event,
             mutationPointer: undefined,
         },
-        needPointers,
+        dependencyContext,
     );
 
     return displayable;
@@ -208,65 +211,65 @@ export const PostLoaderMemo = memo(PostLoader);
 
 export function PostLoader(props: PostLoaderProps) {
     console.log('PostLoader');
+
     const [displayable, setDisplayable] = useState<DisplayablePost>(
         props.initialPost,
     );
 
+    const didMount = useRef<boolean>(false);
+
     const loadCard = async (
-        dependencyListeners: [Core.Protocol.Pointer, () => void][],
+        cancelControl: Core.Util.PromiseCancelControl,
     ) => {
-        const needPointers = new Array<Core.Protocol.Pointer>();
+        if (cancelControl.cancelled) {
+            return;
+        }
+
+        const dependencyContext =
+            new Core.DB.DependencyContext(props.state);
 
         const displayable = await tryLoadDisplayable(
             props.state,
             props.initialPost.pointer,
-            needPointers,
+            dependencyContext,
         );
 
-        if (displayable === undefined) {
+        if (cancelControl.cancelled) {
+            dependencyContext.cleanup();
             return;
         }
 
-        const cb = Lodash.once(() => {
-            loadCard(dependencyListeners);
-        });
+        const recurse = () => {
+            dependencyContext.setHandler(Lodash.once(() => {
+                dependencyContext.cleanup();
+                loadCard(cancelControl);
+            }));
+        };
 
-        for (const dependency of needPointers) {
-            dependencyListeners.push([dependency, cb]);
-
-            Core.DB.waitOnEvent(props.state, dependency, cb);
+        if (displayable === undefined) {
+            console.log("was not displayable");
+            recurse();
+            return;
         }
 
         displayable.fromServer = props.initialPost.fromServer;
 
         setDisplayable(displayable);
+
+        recurse();
     };
 
     useEffect(() => {
-        const dependencyListeners: [Core.Protocol.Pointer, () => void][] = [];
+        const cancelControl = {
+            cancelled: false,
+        };
 
-        const cb = Lodash.once(() => {
-            loadCard(dependencyListeners);
-        });
-
-        for (const dependency of props.dependsOn) {
-            dependencyListeners.push([dependency, cb]);
-
-            Core.DB.waitOnEvent(props.state, dependency, cb);
-        }
-
-        if (props.dependsOn.length !== 0) {
-            loadCard(dependencyListeners);
-        }
+        props.dependencyContext.setHandler(Lodash.once(() => {
+            loadCard(cancelControl);
+        }));
 
         return () => {
-            for (const listener of dependencyListeners) {
-                Core.DB.cancelWaitOnEvent(
-                    props.state,
-                    listener[0],
-                    listener[1],
-                );
-            }
+            cancelControl.cancelled = true;
         };
     }, []);
 
