@@ -37,15 +37,13 @@ export class DependencyContext {
             selfa._mutated = true;
 
             if (selfa._handler !== undefined && selfa._cleanup !== true) {
-                console.log("called dependency handler");
+                console.log('called dependency handler');
                 selfa._handler();
             }
         });
-    };
+    }
 
-    public addDependency(
-        pointer: Protocol.Pointer,
-    ): void {
+    public addDependency(pointer: Protocol.Pointer): void {
         const key = makeStorageTypeEventKey(
             pointer.publicKey,
             pointer.writerId,
@@ -53,13 +51,11 @@ export class DependencyContext {
         );
 
         this.addDependencyByKey(key);
-    };
+    }
 
-    public addDependencyByKey(
-        buffer: Uint8Array,
-    ): void {
+    public addDependencyByKey(buffer: Uint8Array): void {
         if (this._cleanup === true) {
-            throw new Error("addDependency called after cleanup");
+            throw new Error('addDependency called after cleanup');
         }
 
         const key = Base64.encode(buffer);
@@ -70,22 +66,18 @@ export class DependencyContext {
         });
 
         waitOnEvent(this._state, key, this._listenerCallback);
-    };
+    }
 
     public cleanup(): void {
         if (this._cleanup === true) {
-            console.log("cleanup called after cleanup");
+            console.log('cleanup called after cleanup');
             return;
             // throw new Error("cleanup called after cleanup");
         }
 
-        console.log("cancelled count", this._listeners.length);
+        console.log('cancelled count', this._listeners.length);
         for (const listener of this._listeners) {
-            cancelWaitOnEvent(
-                this._state, 
-                listener.key,
-                listener.callback
-            );
+            cancelWaitOnEvent(this._state, listener.key, listener.callback);
         }
 
         this._cleanup = true;
@@ -95,12 +87,12 @@ export class DependencyContext {
         this._handler = callback;
 
         if (this._mutated === true) {
-            console.log("mutation detected on set handler");
+            console.log('mutation detected on set handler');
 
             this._handler();
         }
     }
-};
+}
 
 export enum EventMessageType {
     Message,
@@ -217,10 +209,7 @@ export function cancelWaitOnEvent(
     }
 }
 
-function fireListenersForEvent(
-    state: PolycentricState,
-    key: string,
-) {
+function fireListenersForEvent(state: PolycentricState, key: string) {
     let listenersForKey = state.listeners.get(key);
 
     if (listenersForKey !== undefined) {
@@ -513,7 +502,7 @@ export async function loadBlob(
             writerId: pointer.writerId,
             sequenceNumber: pointer.sequenceNumber + i,
         };
-    
+
         dependencyContext.addDependency(sectionPointer);
 
         const outerSection = await tryLoadStorageEventByPointer(
@@ -1146,10 +1135,12 @@ export async function levelSaveEvent(
         }
 
         if (mutatedProfile) {
-            const key = Base64.encode(new Uint8Array([
-                ...(new TextEncoder().encode("!profiles!")),
-                ...event.authorPublicKey,
-            ]));
+            const key = Base64.encode(
+                new Uint8Array([
+                    ...new TextEncoder().encode('!profiles!'),
+                    ...event.authorPublicKey,
+                ]),
+            );
 
             fireListenersForEvent(state, key);
         }

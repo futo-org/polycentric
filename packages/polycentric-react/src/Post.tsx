@@ -73,13 +73,13 @@ export async function eventToDisplayablePost(
         let existing = profiles.get(authorPublicKey);
 
         if (existing === undefined) {
-            console.log("loading displayable");
+            console.log('loading displayable');
             displayableProfile = await ProfileUtil.loadProfileOrFallback(
                 state,
                 event.authorPublicKey,
                 dependencyContext,
             );
-            console.log("after loading displayable");
+            console.log('after loading displayable');
 
             profiles.set(authorPublicKey, displayableProfile);
         } else {
@@ -211,22 +211,18 @@ export const PostLoaderMemo = memo(PostLoader);
 export function PostLoader(props: PostLoaderProps) {
     console.log('PostLoader');
 
-    const [displayable, setDisplayable] =
-        useState<DisplayablePost | undefined>(
-            props.initialPost,
-        );
+    const [displayable, setDisplayable] = useState<DisplayablePost | undefined>(
+        props.initialPost,
+    );
 
     const didMount = useRef<boolean>(false);
 
-    const loadCard = async (
-        cancelControl: Core.Util.PromiseCancelControl,
-    ) => {
+    const loadCard = async (cancelControl: Core.Util.PromiseCancelControl) => {
         if (cancelControl.cancelled) {
             return;
         }
 
-        const dependencyContext =
-            new Core.DB.DependencyContext(props.state);
+        const dependencyContext = new Core.DB.DependencyContext(props.state);
 
         const displayable = await tryLoadDisplayable(
             props.state,
@@ -240,10 +236,12 @@ export function PostLoader(props: PostLoaderProps) {
         }
 
         const recurse = () => {
-            dependencyContext.setHandler(Lodash.once(() => {
-                dependencyContext.cleanup();
-                loadCard(cancelControl);
-            }));
+            dependencyContext.setHandler(
+                Lodash.once(() => {
+                    dependencyContext.cleanup();
+                    loadCard(cancelControl);
+                }),
+            );
         };
 
         if (displayable !== undefined) {
@@ -260,9 +258,11 @@ export function PostLoader(props: PostLoaderProps) {
             cancelled: false,
         };
 
-        props.dependencyContext.setHandler(Lodash.once(() => {
-            loadCard(cancelControl);
-        }));
+        props.dependencyContext.setHandler(
+            Lodash.once(() => {
+                loadCard(cancelControl);
+            }),
+        );
 
         return () => {
             cancelControl.cancelled = true;
@@ -279,7 +279,7 @@ export function PostLoader(props: PostLoaderProps) {
             />
         );
     } else {
-        return (<div/>);
+        return <div />;
     }
 }
 
@@ -363,10 +363,7 @@ export function Post(props: PostProps) {
     const handleDelete = Lodash.once(async () => {
         setDeleting(true);
 
-        await Core.DB.deletePost(
-            props.state,
-            props.post.pointer,
-        );
+        await Core.DB.deletePost(props.state, props.post.pointer);
     });
 
     const handleNavigate = (event: React.MouseEvent<HTMLDivElement>) => {

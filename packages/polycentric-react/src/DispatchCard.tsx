@@ -19,9 +19,7 @@ export const DispatchCardMemo = memo(DispatchCard);
 export function DispatchCard(props: DispatchCardProps) {
     const [card, setCard] = useState<ReactNode | undefined>(undefined);
 
-    const loadCard = async (
-        dependencyContext: Core.DB.DependencyContext,
-    ) => {
+    const loadCard = async (dependencyContext: Core.DB.DependencyContext) => {
         const event = await Core.DB.tryLoadStorageEventByPointer(
             props.state,
             props.pointer,
@@ -34,7 +32,9 @@ export function DispatchCard(props: DispatchCardProps) {
         const body = Core.Protocol.EventBody.decode(event.event.content);
 
         if (body.profile !== undefined) {
-            const nextDependencyContext = new Core.DB.DependencyContext(props.state);
+            const nextDependencyContext = new Core.DB.DependencyContext(
+                props.state,
+            );
 
             const profile = await ProfileUtil.loadProfileOrFallback(
                 props.state,
@@ -61,7 +61,9 @@ export function DispatchCard(props: DispatchCardProps) {
         } else if (body.message !== undefined) {
             const profiles = new Map<string, ProfileUtil.DisplayableProfile>();
 
-            const nextDependencyContext = new Core.DB.DependencyContext(props.state);
+            const nextDependencyContext = new Core.DB.DependencyContext(
+                props.state,
+            );
 
             const displayable = await Post.eventToDisplayablePost(
                 props.state,

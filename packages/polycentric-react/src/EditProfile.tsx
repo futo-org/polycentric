@@ -370,8 +370,9 @@ function EditProfile(props: EditProfileProps) {
             }
 
             if (profile.imagePointer !== undefined) {
-                const dependencyContext =
-                    new Core.DB.DependencyContext(props.state);
+                const dependencyContext = new Core.DB.DependencyContext(
+                    props.state,
+                );
 
                 const loaded = await Core.DB.loadBlob(
                     props.state,

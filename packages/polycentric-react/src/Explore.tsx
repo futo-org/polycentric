@@ -127,8 +127,10 @@ function Explore(props: ExploreProps) {
             const totalResults = previous.concat(filteredPosts);
 
             console.log(
-                'total', totalResults.length,
-                'new', filteredPosts.length,
+                'total',
+                totalResults.length,
+                'new',
+                filteredPosts.length,
             );
 
             return totalResults;
@@ -170,7 +172,9 @@ function Explore(props: ExploreProps) {
         <div className="standard_width">
             <InfiniteScroll
                 dataLength={exploreResults.length}
-                next={() => { handleLoad(masterCancel.current) }}
+                next={() => {
+                    handleLoad(masterCancel.current);
+                }}
                 hasMore={complete === false}
                 loader={
                     <div

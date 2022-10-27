@@ -94,7 +94,7 @@ async function loadPosts(
                     }
                 }
             }
- 
+
             const dependencyContext = new Core.DB.DependencyContext(state);
 
             const displayable = await Post.eventToDisplayablePost(
