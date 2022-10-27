@@ -24,6 +24,8 @@ type ExploreItem = {
     dependencyContext: Core.DB.DependencyContext;
 };
 
+export const ExploreMemo = memo(Explore);
+
 function Explore(props: ExploreProps) {
     const { ref, inView } = useInView();
 

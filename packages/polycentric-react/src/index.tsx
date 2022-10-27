@@ -10,25 +10,11 @@ import EditProfile from './EditProfile';
 import Following from './Following';
 import Setup from './Setup';
 import Search from './Search';
-import Explore from './Explore';
 import Notifications from './Notifications';
 import reportWebVitals from './reportWebVitals';
 import { Feed } from './Feed';
 import * as Core from 'polycentric-core';
-
-/*
-async function createDB(name: string) {
-    try {
-        const db = new DB.PolycentricDatabase(name, false);
-        await db.open();
-        return db;
-    } catch (err) {
-        alert('Failed to setup IndexedDB, using memory fallback');
-        console.log(err);
-        return new DB.PolycentricDatabase(name, true);
-    }
-}
-*/
+import * as Explore from './Explore';
 
 export async function createApp(
     level: AbstractLevel.AbstractLevel<Uint8Array, Uint8Array, Uint8Array>,
@@ -70,7 +56,10 @@ export async function createApp(
     const PolycentricRoutes = () => (
         <Routes>
             <Route path="/" element={<App state={state} />}>
-                <Route path="/explore" element={<Explore state={state} />} />
+                <Route
+                    path="/explore"
+                    element={<Explore.ExploreMemo state={state} />}
+                />
                 <Route
                     path="/notifications"
                     element={<Notifications state={state} />}
