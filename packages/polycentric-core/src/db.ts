@@ -12,7 +12,7 @@ import * as Synchronization from './synchronization';
 import * as APIMethods from './APIMethods';
 
 export type Listener = {
-    pointer: Protocol.Pointer;
+    key: string;
     callback: () => void;
 };
 
@@ -46,16 +46,30 @@ export class DependencyContext {
     public addDependency(
         pointer: Protocol.Pointer,
     ): void {
+        const key = makeStorageTypeEventKey(
+            pointer.publicKey,
+            pointer.writerId,
+            pointer.sequenceNumber,
+        );
+
+        this.addDependencyByKey(key);
+    };
+
+    public addDependencyByKey(
+        buffer: Uint8Array,
+    ): void {
         if (this._cleanup === true) {
             throw new Error("addDependency called after cleanup");
         }
 
+        const key = Base64.encode(buffer);
+
         this._listeners.push({
-            pointer: pointer,
+            key: key,
             callback: this._listenerCallback,
         });
 
-        waitOnEvent(this._state, pointer, this._listenerCallback);
+        waitOnEvent(this._state, key, this._listenerCallback);
     };
 
     public cleanup(): void {
@@ -69,7 +83,7 @@ export class DependencyContext {
         for (const listener of this._listeners) {
             cancelWaitOnEvent(
                 this._state, 
-                listener.pointer,
+                listener.key,
                 listener.callback
             );
         }
@@ -177,17 +191,9 @@ export class PolycentricState {
 
 export function waitOnEvent(
     state: PolycentricState,
-    pointer: Protocol.Pointer,
+    key: string,
     cb: () => void,
 ) {
-    const key = Base64.encode(
-        makeStorageTypeEventKey(
-            pointer.publicKey,
-            pointer.writerId,
-            pointer.sequenceNumber,
-        ),
-    );
-
     let listenersForKey = state.listeners.get(key);
 
     if (listenersForKey === undefined) {
@@ -201,18 +207,9 @@ export function waitOnEvent(
 
 export function cancelWaitOnEvent(
     state: PolycentricState,
-    pointer: Protocol.Pointer,
+    key: string,
     cb: () => void,
 ) {
-    console.log('removing listener');
-    const key = Base64.encode(
-        makeStorageTypeEventKey(
-            pointer.publicKey,
-            pointer.writerId,
-            pointer.sequenceNumber,
-        ),
-    );
-
     let listenersForKey = state.listeners.get(key);
 
     if (listenersForKey !== undefined) {
@@ -222,21 +219,12 @@ export function cancelWaitOnEvent(
 
 function fireListenersForEvent(
     state: PolycentricState,
-    pointer: Protocol.Pointer,
+    key: string,
 ) {
-    const key = Base64.encode(
-        makeStorageTypeEventKey(
-            pointer.publicKey,
-            pointer.writerId,
-            pointer.sequenceNumber,
-        ),
-    );
-
     let listenersForKey = state.listeners.get(key);
 
     if (listenersForKey !== undefined) {
         for (const listener of listenersForKey) {
-            console.log("firing");
             listener();
         }
     }
@@ -976,6 +964,8 @@ export async function levelSaveEvent(
 
         const body = Protocol.EventBody.decode(event.content);
 
+        let mutatedProfile = false;
+
         {
             let mutated = false;
 
@@ -1046,6 +1036,8 @@ export async function levelSaveEvent(
                     Protocol.StorageTypeProfile.encode(profile).finish(),
                 );
             }
+
+            mutatedProfile = mutated;
         }
 
         if (body.follow !== undefined) {
@@ -1141,11 +1133,26 @@ export async function levelSaveEvent(
 
         await insertEvent(state.levelEvents, event);
 
-        fireListenersForEvent(state, {
-            publicKey: event.authorPublicKey,
-            writerId: event.writerId,
-            sequenceNumber: event.sequenceNumber,
-        });
+        {
+            const key = Base64.encode(
+                makeStorageTypeEventKey(
+                    event.authorPublicKey,
+                    event.writerId,
+                    event.sequenceNumber,
+                ),
+            );
+
+            fireListenersForEvent(state, key);
+        }
+
+        if (mutatedProfile) {
+            const key = Base64.encode(new Uint8Array([
+                ...(new TextEncoder().encode("!profiles!")),
+                ...event.authorPublicKey,
+            ]));
+
+            fireListenersForEvent(state, key);
+        }
     });
 }
 

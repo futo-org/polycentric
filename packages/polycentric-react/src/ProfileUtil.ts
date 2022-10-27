@@ -65,9 +65,16 @@ async function loadDisplayableProfile(
     publicKey: Uint8Array,
     dependencyContext: Core.DB.DependencyContext,
 ): Promise<DisplayableProfile | undefined> {
+    const fullKey = new Uint8Array([
+        ...(new TextEncoder().encode("!profiles!")),
+        ...publicKey,
+    ]);
+
+    dependencyContext.addDependencyByKey(fullKey);
+
     const potentialProfile = await Core.DB.tryLoadKey(
-        state.levelProfiles,
-        publicKey,
+        state.level,
+        fullKey,
     );
 
     if (potentialProfile === undefined) {
