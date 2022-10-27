@@ -117,7 +117,6 @@ export async function eventToDisplayablePost(
             body.message.boostPointer,
         );
 
-        // pure boost not available yet so just display outer profile
         if (boost !== undefined) {
             const displayable = await eventToDisplayablePost(
                 state,
@@ -212,9 +211,10 @@ export const PostLoaderMemo = memo(PostLoader);
 export function PostLoader(props: PostLoaderProps) {
     console.log('PostLoader');
 
-    const [displayable, setDisplayable] = useState<DisplayablePost>(
-        props.initialPost,
-    );
+    const [displayable, setDisplayable] =
+        useState<DisplayablePost | undefined>(
+            props.initialPost,
+        );
 
     const didMount = useRef<boolean>(false);
 
@@ -246,13 +246,9 @@ export function PostLoader(props: PostLoaderProps) {
             }));
         };
 
-        if (displayable === undefined) {
-            console.log("was not displayable");
-            recurse();
-            return;
+        if (displayable !== undefined) {
+            displayable.fromServer = props.initialPost.fromServer;
         }
-
-        displayable.fromServer = props.initialPost.fromServer;
 
         setDisplayable(displayable);
 
@@ -273,14 +269,18 @@ export function PostLoader(props: PostLoaderProps) {
         };
     }, []);
 
-    return (
-        <Post
-            state={props.state}
-            post={displayable}
-            showBoost={props.showBoost}
-            depth={props.depth}
-        />
-    );
+    if (displayable !== undefined) {
+        return (
+            <Post
+                state={props.state}
+                post={displayable}
+                showBoost={props.showBoost}
+                depth={props.depth}
+            />
+        );
+    } else {
+        return (<div/>);
+    }
 }
 
 function processText(message: string) {
