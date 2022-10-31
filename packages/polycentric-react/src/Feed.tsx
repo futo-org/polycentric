@@ -357,12 +357,12 @@ function FeedForProfile(props: FeedForProfileProps) {
         Core.DB.appendBuffers(props.feed.publicKey, MAX_KEY),
     );
 
-    const masterCancel = useRef<Core.Util.PromiseCancelControl>({
-        cancelled: false,
-    });
+    const masterCancel = useRef<Core.CancelContext.CancelContext>(
+        new Core.CancelContext.CancelContext(),
+    );
 
     const doBackfill = async (
-        cancelControl: Core.Util.PromiseCancelControl,
+        cancelContext: Core.CancelContext.CancelContext,
     ) => {
         if (loadingMore.current == true) {
             return;
@@ -374,13 +374,13 @@ function FeedForProfile(props: FeedForProfileProps) {
 
         await Core.Synchronization.backfillClient(props.state, props.feed);
 
-        if (cancelControl.cancelled) {
+        if (cancelContext.cancelled()) {
             return;
         }
 
         loadingMore.current = false;
 
-        handleLoad(cancelControl);
+        handleLoad(cancelContext);
     };
 
     const loadEvent = async (
@@ -417,11 +417,11 @@ function FeedForProfile(props: FeedForProfileProps) {
     };
 
     const handleLoad = async (
-        cancelControl: Core.Util.PromiseCancelControl,
+        cancelContext: Core.CancelContext.CancelContext,
     ) => {
         console.log('handle load');
 
-        if (cancelControl.cancelled) {
+        if (cancelContext.cancelled()) {
             return;
         }
 
@@ -456,7 +456,7 @@ function FeedForProfile(props: FeedForProfileProps) {
 
                     filteredPosts.push(post);
 
-                    if (cancelControl.cancelled) {
+                    if (cancelContext.cancelled()) {
                         for (const item of filteredPosts) {
                             item.dependencyContext.cleanup();
                         }
@@ -473,7 +473,7 @@ function FeedForProfile(props: FeedForProfileProps) {
             }
         }
 
-        if (cancelControl.cancelled) {
+        if (cancelContext.cancelled()) {
             for (const item of filteredPosts) {
                 item.dependencyContext.cleanup();
             }
@@ -491,7 +491,7 @@ function FeedForProfile(props: FeedForProfileProps) {
 
             if (isFeedComplete === false) {
                 console.log('stalled');
-                doBackfill(cancelControl);
+                doBackfill(cancelContext);
             }
         } else {
             setExploreResults((old) => {
@@ -538,7 +538,7 @@ function FeedForProfile(props: FeedForProfileProps) {
 
     const addEvent = async (
         key: Uint8Array,
-        cancelControl: Core.Util.PromiseCancelControl,
+        cancelContext: Core.CancelContext.CancelContext,
     ): Promise<void> => {
         const filtered = await loadEvent(key);
 
@@ -547,8 +547,9 @@ function FeedForProfile(props: FeedForProfileProps) {
             return;
         }
 
-        if (cancelControl.cancelled === true) {
+        if (cancelContext.cancelled()) {
             filtered.dependencyContext.cleanup();
+            return;
         }
 
         setExploreResults((old) => {
@@ -578,15 +579,13 @@ function FeedForProfile(props: FeedForProfileProps) {
     };
 
     useEffect(() => {
-        const cancelControl = {
-            cancelled: false,
-        };
+        const cancelContext = new Core.CancelContext.CancelContext();
 
         setExploreResults([]);
         setInitial(true);
         setComplete(false);
         iterator.current = Core.DB.appendBuffers(props.feed.publicKey, MAX_KEY);
-        masterCancel.current = cancelControl;
+        masterCancel.current = cancelContext;
         loadingMore.current = false;
 
         const handlePut = (key: Uint8Array, value: Uint8Array) => {
@@ -611,11 +610,11 @@ function FeedForProfile(props: FeedForProfileProps) {
 
             if (updateParsed.time < iteratorParsed.time) {
                 console.log('outside of iterator');
-                handleLoad(cancelControl);
+                handleLoad(cancelContext);
             } else {
                 console.log('within iterator');
-                addEvent(value, cancelControl);
-                handleLoad(cancelControl);
+                addEvent(value, cancelContext);
+                handleLoad(cancelContext);
             }
         };
 
@@ -623,10 +622,10 @@ function FeedForProfile(props: FeedForProfileProps) {
 
         Core.Synchronization.loadServerHead(props.state, props.feed);
 
-        handleLoad(cancelControl);
+        handleLoad(cancelContext);
 
         return () => {
-            cancelControl.cancelled = true;
+            cancelContext.cancel();
             props.state.levelIndexPostByAuthorByTime.removeListener(
                 'put',
                 handlePut,
