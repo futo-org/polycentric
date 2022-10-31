@@ -406,13 +406,7 @@ function EditProfile(props: EditProfileProps) {
     }
 
     return (
-        <Paper
-            elevation={4}
-            className="standard_width"
-            style={{
-                marginTop: '15px',
-            }}
-        >
+        <Paper elevation={4} className="standard_width">
             <div className="editProfile">
                 <div className="editProfile__top">
                     <label>

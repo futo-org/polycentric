@@ -36,12 +36,7 @@ function Following(props: FollowingProps) {
     }, []);
 
     return (
-        <div
-            className="standard_width"
-            style={{
-                marginTop: '15px',
-            }}
-        >
+        <div className="standard_width">
             {following?.map((following) => (
                 <ProfileHeader
                     key={Base64.encodeUrl(following)}

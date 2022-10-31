@@ -89,7 +89,7 @@ function Search(props: SearchProps) {
             <Paper
                 elevation={4}
                 style={{
-                    marginTop: '15px',
+                    marginBottom: '15px',
                     padding: '10px',
                     display: 'flex',
                 }}

@@ -1071,23 +1071,6 @@ export async function levelSaveEvent(
             }
         }
 
-        if (body.message !== undefined) {
-            await state.levelIndexPostByTime.put(
-                deepCopyUint8Array(
-                    Util.numberToBinaryBE(event.unixMilliseconds),
-                ),
-                deepCopyUint8Array(key),
-            );
-
-            await state.levelIndexPostByAuthorByTime.put(
-                makeStorageTypeEventKeyByAuthorByTime(
-                    event.authorPublicKey,
-                    event.unixMilliseconds,
-                ),
-                deepCopyUint8Array(key),
-            );
-        }
-
         if (body.delete !== undefined && body.delete.pointer !== undefined) {
             const pointer = body.delete.pointer;
 
@@ -1143,6 +1126,23 @@ export async function levelSaveEvent(
             );
 
             fireListenersForEvent(state, key);
+        }
+
+        if (body.message !== undefined) {
+            await state.levelIndexPostByTime.put(
+                deepCopyUint8Array(
+                    Util.numberToBinaryBE(event.unixMilliseconds),
+                ),
+                deepCopyUint8Array(key),
+            );
+
+            await state.levelIndexPostByAuthorByTime.put(
+                makeStorageTypeEventKeyByAuthorByTime(
+                    event.authorPublicKey,
+                    event.unixMilliseconds,
+                ),
+                deepCopyUint8Array(key),
+            );
         }
     });
 }

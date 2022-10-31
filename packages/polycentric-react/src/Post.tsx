@@ -38,7 +38,8 @@ type PostProps = {
 
 export type PostLoaderProps = {
     state: Core.DB.PolycentricState;
-    initialPost: DisplayablePost;
+    pointer: Core.Protocol.Pointer,
+    initialPost: DisplayablePost | undefined;
     showBoost: boolean;
     depth: number;
     dependencyContext: Core.DB.DependencyContext;
@@ -224,7 +225,7 @@ export function PostLoader(props: PostLoaderProps) {
 
         const displayable = await tryLoadDisplayable(
             props.state,
-            props.initialPost.pointer,
+            props.pointer,
             dependencyContext,
         );
 
@@ -242,7 +243,7 @@ export function PostLoader(props: PostLoaderProps) {
             );
         };
 
-        if (displayable !== undefined) {
+        if (displayable !== undefined && props.initialPost !== undefined) {
             displayable.fromServer = props.initialPost.fromServer;
         }
 
@@ -372,7 +373,7 @@ export function Post(props: PostProps) {
         <Paper
             elevation={4}
             style={{
-                marginTop: '15px',
+                marginBottom: '15px',
                 paddingRight: '5px',
             }}
         >

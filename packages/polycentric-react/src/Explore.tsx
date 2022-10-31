@@ -171,7 +171,12 @@ function Explore(props: ExploreProps) {
     }, [props.state]);
 
     return (
-        <div className="standard_width">
+        <div
+            className="standard_width"
+            style={{
+                position: 'relative',
+            }}
+        >
             <InfiniteScroll
                 dataLength={exploreResults.length}
                 next={() => {
@@ -203,6 +208,7 @@ function Explore(props: ExploreProps) {
                     <Post.PostLoaderMemo
                         key={index}
                         state={props.state}
+                        pointer={item.initialPost.pointer}
                         initialPost={item.initialPost}
                         dependencyContext={item.dependencyContext}
                         showBoost={true}

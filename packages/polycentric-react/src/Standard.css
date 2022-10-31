@@ -2,6 +2,7 @@
 /* small 4:3 960 × 720 */
 
 .standard_width {
+    margin-top: 15px;
     min-width: 360px;
     margin-left: auto;
     margin-right: auto;
