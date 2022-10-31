@@ -304,9 +304,7 @@ function FeedForTimeline(props: FeedProps) {
                         <LinearProgress />
                     </div>
                 }
-                endMessage={
-                    <div></div>
-                }
+                endMessage={<div></div>}
             >
                 {exploreResults.map((item, index) => (
                     <Post.PostLoaderMemo
@@ -658,9 +656,7 @@ function FeedForProfile(props: FeedForProfileProps) {
                         <LinearProgress />
                     </div>
                 }
-                endMessage={
-                    <div></div>
-                }
+                endMessage={<div></div>}
             >
                 {exploreResults.map((item, index) => (
                     <Post.PostLoaderMemo
@@ -690,12 +686,10 @@ function FeedForProfile(props: FeedForProfileProps) {
     );
 }
 
-
 type FeedForThreadProps = {
     state: Core.DB.PolycentricState;
     feed: Core.Protocol.URLInfo;
 };
-
 
 type ExploreItem2 = {
     pointer: Core.Protocol.Pointer;
@@ -709,11 +703,9 @@ function FeedForThread(props: FeedForThreadProps) {
         [],
     );
 
-    const loadPost = async (
-        cancelControl: Core.Util.PromiseCancelControl,
-    ) => {
+    const loadPost = async (cancelControl: Core.Util.PromiseCancelControl) => {
         const profiles = new Map<string, ProfileUtil.DisplayableProfile>();
-        
+
         const dependencyContext = new Core.DB.DependencyContext(props.state);
 
         const pointer = {
@@ -755,7 +747,7 @@ function FeedForThread(props: FeedForThreadProps) {
             }
         }
 
-        console.log("fallback");
+        console.log('fallback');
 
         const item = {
             pointer: pointer,
@@ -766,7 +758,7 @@ function FeedForThread(props: FeedForThreadProps) {
                     props.feed.publicKey,
                     props.feed.writerId!,
                     props.feed.sequenceNumber!,
-                )
+                ),
             ),
         };
 
@@ -861,13 +853,15 @@ export function Feed(props: FeedProps) {
                 <FeedForTimeline state={props.state} />
             )}
 
-            {decodedFeed !== undefined && decodedFeed.writerId === undefined && (
-                <FeedForProfile state={props.state} feed={decodedFeed} />
-            )}
+            {decodedFeed !== undefined &&
+                decodedFeed.writerId === undefined && (
+                    <FeedForProfile state={props.state} feed={decodedFeed} />
+                )}
 
-            {decodedFeed !== undefined && decodedFeed.writerId !== undefined && (
-                <FeedForThread state={props.state} feed={decodedFeed} />
-            )}
+            {decodedFeed !== undefined &&
+                decodedFeed.writerId !== undefined && (
+                    <FeedForThread state={props.state} feed={decodedFeed} />
+                )}
         </div>
     );
 }

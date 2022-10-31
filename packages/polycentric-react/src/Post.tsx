@@ -38,7 +38,7 @@ type PostProps = {
 
 export type PostLoaderProps = {
     state: Core.DB.PolycentricState;
-    pointer: Core.Protocol.Pointer,
+    pointer: Core.Protocol.Pointer;
     initialPost: DisplayablePost | undefined;
     showBoost: boolean;
     depth: number;
