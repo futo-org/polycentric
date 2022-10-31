@@ -27,8 +27,8 @@ function ProfileCard({ publicKey, state }: ProfileHeaderProps) {
     };
 
     const loadProfile = async (
-        cancelControl: Core.Util.PromiseCancelControl,
-    ) => {
+        cancelContext: Core.CancelContext.CancelContext,
+    ): Promise<void> => {
         const dependencyContext = new Core.DB.DependencyContext(state);
 
         const result = await ProfileUtil.loadProfileOrFallback(
@@ -39,28 +39,26 @@ function ProfileCard({ publicKey, state }: ProfileHeaderProps) {
 
         dependencyContext.cleanup();
 
-        if (cancelControl.cancelled === false) {
-            setProfile(result);
-        } else {
-            console.log('ProfileCard loadProfile was cancelled');
+        if (cancelContext.cancelled()) {
+            return;
         }
+
+        setProfile(result);
     };
 
     useEffect(() => {
-        const cancelControl = {
-            cancelled: false,
-        };
+        const cancelContext = new Core.CancelContext.CancelContext();
 
         const handlePut = (key: Uint8Array, value: Uint8Array) => {
-            loadProfile(cancelControl);
+            loadProfile(cancelContext);
         };
 
         state.levelEvents.on('put', handlePut);
 
-        loadProfile(cancelControl);
+        loadProfile(cancelContext);
 
         return () => {
-            cancelControl.cancelled = true;
+            cancelContext.cancel();
             state.levelEvents.removeListener('put', handlePut);
         };
     }, [publicKey]);
