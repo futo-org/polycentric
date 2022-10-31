@@ -701,7 +701,9 @@ function FeedForThread(props: FeedForThreadProps) {
         [],
     );
 
-    const loadPost = async (cancelControl: Core.Util.PromiseCancelControl) => {
+    const loadPost = async (
+        cancelContext: Core.CancelContext.CancelContext,
+    ): Promise<void> => {
         const profiles = new Map<string, ProfileUtil.DisplayableProfile>();
 
         const dependencyContext = new Core.DB.DependencyContext(props.state);
@@ -723,6 +725,12 @@ function FeedForThread(props: FeedForThreadProps) {
             return undefined;
         }
 
+        if (cancelContext.cancelled()) {
+            dependencyContext.cleanup();
+            return;
+        }
+
+
         if (post !== undefined && post.event !== undefined) {
             const displayable = await Post.eventToDisplayablePost(
                 props.state,
@@ -731,6 +739,11 @@ function FeedForThread(props: FeedForThreadProps) {
                 dependencyContext,
             );
 
+            if (cancelContext.cancelled()) {
+                dependencyContext.cleanup();
+                return;
+            }
+
             if (displayable !== undefined) {
                 const item = {
                     pointer: pointer,
@@ -738,6 +751,11 @@ function FeedForThread(props: FeedForThreadProps) {
                     dependencyContext: dependencyContext,
                     key: eventGetKey(post.event),
                 };
+
+                if (cancelContext.cancelled()) {
+                    dependencyContext.cleanup();
+                    return;
+                }
 
                 setExploreResults([item]);
 
@@ -760,20 +778,23 @@ function FeedForThread(props: FeedForThreadProps) {
             ),
         };
 
+        if (cancelContext.cancelled()) {
+            dependencyContext.cleanup();
+            return;
+        }
+
         setExploreResults([item]);
     };
 
     useEffect(() => {
-        const cancelControl = {
-            cancelled: false,
-        };
+        const cancelContext = new Core.CancelContext.CancelContext();
 
         setExploreResults([]);
 
-        loadPost(cancelControl);
+        loadPost(cancelContext);
 
         return () => {
-            cancelControl.cancelled = true;
+            cancelContext.cancel();
 
             for (const item of exploreResults) {
                 item.dependencyContext.cleanup();
