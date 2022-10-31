@@ -196,11 +196,7 @@ function Explore(props: ExploreProps) {
                     </div>
                 }
                 endMessage={
-                    <div
-                        style={{
-                            marginTop: '15px',
-                        }}
-                    ></div>
+                    <div></div>
                 }
             >
                 {exploreResults.map((item, index) => (
@@ -220,7 +216,6 @@ function Explore(props: ExploreProps) {
                 <Paper
                     elevation={4}
                     style={{
-                        marginTop: '15px',
                         padding: '15px',
                         textAlign: 'center',
                     }}
