@@ -14,23 +14,34 @@ function Following(props: FollowingProps) {
     const [loaded, setLoaded] = useState<boolean>(false);
     const [following, setFollowing] = useState<Array<Uint8Array>>([]);
 
-    async function updateFollowing() {
-        setFollowing(await Core.DB.levelLoadFollowing(props.state));
+    async function updateFollowing(
+        cancelContext: Core.CancelContext.CancelContext,
+    ): Promise<void> {
+        const amFollowing = await Core.DB.levelLoadFollowing(props.state);
+
+        if (cancelContext.cancelled()) {
+            return;
+        }
+
+        setFollowing(amFollowing);
         setLoaded(true);
     }
 
     useEffect(() => {
+        const cancelContext = new Core.CancelContext.CancelContext();
+
         setLoaded(false);
 
         const handlePut = (key: Uint8Array, value: Uint8Array) => {
-            updateFollowing();
+            updateFollowing(cancelContext);
         };
 
         props.state.levelFollowing.on('put', handlePut);
 
-        updateFollowing();
+        updateFollowing(cancelContext);
 
         return () => {
+            cancelContext.cancel();
             props.state.levelFollowing.removeListener('put', handlePut);
         };
     }, []);
