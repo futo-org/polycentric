@@ -4,3 +4,4 @@ export * as DB from './db';
 export * as Synchronization from './synchronization';
 export * as Protocol from './user';
 export * as Util from './Util';
+export * as CancelContext from './cancel-context';

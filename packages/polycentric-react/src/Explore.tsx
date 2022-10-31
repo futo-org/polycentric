@@ -38,14 +38,15 @@ function Explore(props: ExploreProps) {
     const [complete, setComplete] = useState<boolean>(false);
 
     const earliestTime = useRef<number | undefined>(undefined);
-    const masterCancel = useRef<Core.Util.PromiseCancelControl>({
-        cancelled: false,
-    });
+
+    const masterCancel = useRef<Core.CancelContext.CancelContext>(
+        new Core.CancelContext.CancelContext(),
+    );
 
     const handleLoad = async (
-        cancelControl: Core.Util.PromiseCancelControl,
-    ) => {
-        if (cancelControl.cancelled) {
+        cancelContext: Core.CancelContext.CancelContext,
+    ): Promise<void> => {
+        if (cancelContext.cancelled()) {
             return;
         }
 
@@ -56,7 +57,7 @@ function Explore(props: ExploreProps) {
             earliestTime.current,
         );
 
-        if (cancelControl.cancelled) {
+        if (cancelContext.cancelled()) {
             return;
         }
 
@@ -70,7 +71,7 @@ function Explore(props: ExploreProps) {
                 response[1].resultEvents,
             );
 
-            if (cancelControl.cancelled) {
+            if (cancelContext.cancelled()) {
                 return;
             }
 
@@ -117,7 +118,7 @@ function Explore(props: ExploreProps) {
             }
         }
 
-        if (cancelControl.cancelled) {
+        if (cancelContext.cancelled()) {
             for (const item of filteredPosts) {
                 item.dependencyContext.cleanup();
             }
@@ -147,9 +148,7 @@ function Explore(props: ExploreProps) {
     };
 
     useEffect(() => {
-        const cancelControl = {
-            cancelled: false,
-        };
+        const cancelContext = new Core.CancelContext.CancelContext();
 
         setInitial(true);
         setExploreResults([]);
@@ -157,12 +156,12 @@ function Explore(props: ExploreProps) {
         setComplete(false);
 
         earliestTime.current = undefined;
-        masterCancel.current = cancelControl;
+        masterCancel.current = cancelContext;
 
-        handleLoad(cancelControl);
+        handleLoad(cancelContext);
 
         return () => {
-            cancelControl.cancelled = true;
+            cancelContext.cancel();
 
             for (const item of exploreResults) {
                 item.dependencyContext.cleanup();
