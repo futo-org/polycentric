@@ -730,7 +730,6 @@ function FeedForThread(props: FeedForThreadProps) {
             return;
         }
 
-
         if (post !== undefined && post.event !== undefined) {
             const displayable = await Post.eventToDisplayablePost(
                 props.state,
