@@ -124,6 +124,3 @@ export function numberToBinaryBE(value: number): Uint8Array {
     return new Uint8Array(long.toBytesBE());
 }
 
-export type PromiseCancelControl = {
-    cancelled: boolean;
-};
