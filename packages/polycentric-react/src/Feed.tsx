@@ -64,9 +64,10 @@ function FeedForTimeline(props: FeedProps) {
     const [complete, setComplete] = useState<boolean>(false);
 
     const iterator = useRef<Uint8Array | undefined>(undefined);
-    const masterCancel = useRef<Core.Util.PromiseCancelControl>({
-        cancelled: false,
-    });
+
+    const masterCancel = useRef<Core.CancelContext.CancelContext>(
+        new Core.CancelContext.CancelContext(),
+    );
 
     const loadEvent = async (
         key: Uint8Array,
@@ -119,9 +120,9 @@ function FeedForTimeline(props: FeedProps) {
     };
 
     const handleLoad = async (
-        cancelControl: Core.Util.PromiseCancelControl,
+        cancelContext: Core.CancelContext.CancelContext,
     ) => {
-        if (cancelControl.cancelled) {
+        if (cancelContext.cancelled()) {
             return;
         }
 
@@ -142,7 +143,7 @@ function FeedForTimeline(props: FeedProps) {
                 })
                 .all();
 
-            if (cancelControl.cancelled) {
+            if (cancelContext.cancelled()) {
                 return;
             }
 
@@ -161,7 +162,7 @@ function FeedForTimeline(props: FeedProps) {
                         continue;
                     }
 
-                    if (cancelControl.cancelled) {
+                    if (cancelContext.cancelled()) {
                         for (const item of filteredPosts) {
                             item.dependencyContext.cleanup();
                         }
@@ -180,7 +181,7 @@ function FeedForTimeline(props: FeedProps) {
             }
         }
 
-        if (cancelControl.cancelled) {
+        if (cancelContext.cancelled()) {
             for (const item of filteredPosts) {
                 item.dependencyContext.cleanup();
             }
@@ -209,7 +210,7 @@ function FeedForTimeline(props: FeedProps) {
 
     const addEvent = async (
         key: Uint8Array,
-        cancelControl: Core.Util.PromiseCancelControl,
+        cancelContext: Core.CancelContext.CancelContext,
     ): Promise<void> => {
         const filtered = await loadEvent(key);
 
@@ -218,7 +219,7 @@ function FeedForTimeline(props: FeedProps) {
             return;
         }
 
-        if (cancelControl.cancelled === true) {
+        if (cancelContext.cancelled()) {
             filtered.dependencyContext.cleanup();
         }
 
@@ -235,15 +236,13 @@ function FeedForTimeline(props: FeedProps) {
     };
 
     useEffect(() => {
-        const cancelControl = {
-            cancelled: false,
-        };
+        const cancelContext = new Core.CancelContext.CancelContext();
 
         setExploreResults([]);
         setInitial(true);
         setComplete(false);
         iterator.current = undefined;
-        masterCancel.current = cancelControl;
+        masterCancel.current = cancelContext;
 
         const handlePut = (key: Uint8Array, value: Uint8Array) => {
             const updateParsed = Long.fromBytesBE(
@@ -260,18 +259,18 @@ function FeedForTimeline(props: FeedProps) {
 
             if (updateParsed >= iteratorParsed) {
                 console.log('within iterator', value);
-                addEvent(value, cancelControl);
+                addEvent(value, cancelContext);
             }
         };
 
         props.state.levelIndexPostByTime.on('put', handlePut);
 
-        handleLoad(cancelControl);
+        handleLoad(cancelContext);
 
         return () => {
             props.state.levelIndexPostByTime.removeListener('put', handlePut);
 
-            cancelControl.cancelled = true;
+            cancelContext.cancel();
 
             for (const item of exploreResults) {
                 item.dependencyContext.cleanup();
