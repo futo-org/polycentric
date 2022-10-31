@@ -70,6 +70,7 @@ function ProfileCard({ publicKey, state }: ProfileHeaderProps) {
             elevation={4}
             style={{
                 overflow: 'hidden',
+                marginBottom: '15px',
             }}
         >
             <img
