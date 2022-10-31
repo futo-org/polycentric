@@ -525,12 +525,18 @@ export function Post(props: PostProps) {
                             </div>
                         </div>
                         {props.post.boost !== undefined && props.depth < 1 && (
-                            <Post
-                                state={props.state}
-                                post={props.post.boost}
-                                showBoost={false}
-                                depth={props.depth + 1}
-                            />
+                            <div
+                                style={{
+                                    marginTop: '10px',
+                                }}
+                            >
+                                <Post
+                                    state={props.state}
+                                    post={props.post.boost}
+                                    showBoost={false}
+                                    depth={props.depth + 1}
+                                />
+                            </div>
                         )}
                         {props.post.boost !== undefined && props.depth >= 1 && (
                             <Paper
@@ -562,11 +568,6 @@ export function Post(props: PostProps) {
                                     props.post.unixMilliseconds,
                                 ).toLocaleString()}
                             </p>
-                            {/*
-                            <p onClick={handleNavigate}>
-                                {props.post.pointer.sequenceNumber}
-                            </p>
-                            */}
                         </div>
                         {props.showBoost === true && (
                             <div
