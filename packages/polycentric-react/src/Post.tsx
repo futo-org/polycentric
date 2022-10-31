@@ -214,10 +214,10 @@ export function PostLoader(props: PostLoaderProps) {
         props.initialPost,
     );
 
-    const didMount = useRef<boolean>(false);
-
-    const loadCard = async (cancelControl: Core.Util.PromiseCancelControl) => {
-        if (cancelControl.cancelled) {
+    const loadCard = async (
+        cancelContext: Core.CancelContext.CancelContext,
+    ): Promise<void> => {
+        if (cancelContext.cancelled()) {
             return;
         }
 
@@ -229,7 +229,7 @@ export function PostLoader(props: PostLoaderProps) {
             dependencyContext,
         );
 
-        if (cancelControl.cancelled) {
+        if (cancelContext.cancelled()) {
             dependencyContext.cleanup();
             return;
         }
@@ -238,7 +238,7 @@ export function PostLoader(props: PostLoaderProps) {
             dependencyContext.setHandler(
                 Lodash.once(() => {
                     dependencyContext.cleanup();
-                    loadCard(cancelControl);
+                    loadCard(cancelContext);
                 }),
             );
         };
@@ -253,18 +253,16 @@ export function PostLoader(props: PostLoaderProps) {
     };
 
     useEffect(() => {
-        const cancelControl = {
-            cancelled: false,
-        };
+        const cancelContext = new Core.CancelContext.CancelContext();
 
         props.dependencyContext.setHandler(
             Lodash.once(() => {
-                loadCard(cancelControl);
+                loadCard(cancelContext);
             }),
         );
 
         return () => {
-            cancelControl.cancelled = true;
+            cancelContext.cancel();
         };
     }, []);
 
