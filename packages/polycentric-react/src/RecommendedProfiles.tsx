@@ -14,13 +14,24 @@ function RecommendedProfiles(props: RecommendedProfilesProps) {
         Array<[string, Uint8Array]>
     >([]);
 
-    const loadProfiles = async () => {
+    const loadProfiles = async (
+        cancelContext: Core.CancelContext.CancelContext,
+    ): Promise<void> => {
         const events = await Core.DB.recommend_profiles(props.state);
+
+        if (cancelContext.cancelled()) {
+            return;
+        }
 
         let filteredPosts: Array<[string, Uint8Array]> = [];
 
         const justEvents = events.map((x) => x[1]);
+
         await Core.Synchronization.saveBatch(props.state, justEvents);
+
+        if (cancelContext.cancelled()) {
+            return;
+        }
 
         for (const event of events) {
             const body = Core.Protocol.EventBody.decode(event[1].content);
@@ -33,7 +44,13 @@ function RecommendedProfiles(props: RecommendedProfilesProps) {
     };
 
     useEffect(() => {
-        loadProfiles();
+        const cancelContext = new Core.CancelContext.CancelContext();
+
+        loadProfiles(cancelContext);
+
+        return () => {
+            cancelContext.cancel();
+        };
     }, []);
 
     return (
