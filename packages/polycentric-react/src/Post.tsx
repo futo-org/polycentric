@@ -584,7 +584,11 @@ export function Post(props: PostProps) {
                                 justifyContent: 'space-between',
                             }}
                         >
-                            <p>
+                            <p
+                                style={{
+                                    marginTop: '6px',
+                                }}
+                            >
                                 Posted on: &nbsp;
                                 {new Date(
                                     props.post.unixMilliseconds,
