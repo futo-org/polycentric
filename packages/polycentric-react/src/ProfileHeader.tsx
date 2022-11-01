@@ -135,7 +135,7 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
                         }}
                     >
                         <h3
-                           style={{
+                            style={{
                                 whiteSpace: 'pre-wrap',
                                 overflowWrap: 'anywhere',
                                 marginTop: '0px',
@@ -143,11 +143,10 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
                             }}
                         >
                             {profile.displayName}
-                       </h3>
+                        </h3>
                         <span className="profileHeader__identity">
                             @{profile.identity}
                         </span>
-
                     </div>
                 </div>
                 <h3

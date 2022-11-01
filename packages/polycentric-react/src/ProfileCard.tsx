@@ -100,7 +100,7 @@ function ProfileCard({ publicKey, state }: ProfileHeaderProps) {
                             }}
                         >
                             {profile.displayName}
-                       </h3>
+                        </h3>
                         <span className="profileHeader__identity">
                             @{profile.identity}
                         </span>

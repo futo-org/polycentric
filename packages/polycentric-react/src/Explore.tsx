@@ -195,9 +195,7 @@ function Explore(props: ExploreProps) {
                         <LinearProgress />
                     </div>
                 }
-                endMessage={
-                    <div></div>
-                }
+                endMessage={<div></div>}
             >
                 {exploreResults.map((item, index) => (
                     <Post.PostLoaderMemo
