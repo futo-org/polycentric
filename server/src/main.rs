@@ -1,3 +1,4 @@
+use ::envconfig::Envconfig;
 use ::log::*;
 use ::protobuf::Message;
 use ::serde_json::json;
@@ -1361,21 +1362,39 @@ async fn request_notifications_handler(
     ))
 }
 
+#[derive(::envconfig::Envconfig)]
+struct Config {
+    #[envconfig(from = "HTTP_PORT", default = "8081")]
+    pub http_port: u16,
+
+    #[envconfig(
+        from = "POSTGRES_STRING",
+        default = "postgres://postgres:testing@postgres"
+    )]
+    pub postgres_string: String,
+
+    #[envconfig(
+        from = "OPENSEARCH_STRING",
+        default = "http://opensearch-node1:9200"
+    )]
+    pub opensearch_string: String,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
-    let port = 8081;
-
     ::env_logger::init();
+
+    let config = Config::init_from_env().unwrap();
 
     info!("Connecting to Postgres");
     let pool = ::sqlx::postgres::PgPoolOptions::new()
         .max_connections(10)
-        .connect("postgres://postgres:testing@postgres")
+        .connect(&config.postgres_string)
         .await?;
 
     let opensearch_transport =
         ::opensearch::http::transport::Transport::single_node(
-            "http://opensearch-node1:9200",
+            &config.opensearch_string,
         )?;
 
     let opensearch_client = ::opensearch::OpenSearch::new(opensearch_transport);
@@ -1561,8 +1580,10 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
         .or(request_recommend_profiles_route)
         .recover(handle_rejection);
 
-    info!("Listening on {}", port);
-    ::warp::serve(routes).run(([0, 0, 0, 0], port)).await;
+    info!("Listening on {}", config.http_port);
+    ::warp::serve(routes)
+        .run(([0, 0, 0, 0], config.http_port))
+        .await;
 
     Ok(())
 }
