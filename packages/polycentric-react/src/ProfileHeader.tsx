@@ -128,21 +128,26 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
                         />
                     )}
 
-                    <div className="profileHeader__headerText">
+                    <div
+                        className="profileHeader__headerText"
+                        onClick={() => {
+                            navigate('/' + profile.link);
+                        }}
+                    >
                         <h3
-                            onClick={() => {
-                                navigate('/' + profile.link);
-                            }}
-                            style={{
+                           style={{
                                 whiteSpace: 'pre-wrap',
                                 overflowWrap: 'anywhere',
+                                marginTop: '0px',
+                                marginBottom: '0px',
                             }}
                         >
                             {profile.displayName}
-                            <span className="profileHeader__identity">
-                                @{profile.identity}
-                            </span>
-                        </h3>
+                       </h3>
+                        <span className="profileHeader__identity">
+                            @{profile.identity}
+                        </span>
+
                     </div>
                 </div>
                 <h3
@@ -157,11 +162,15 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
                     style={{
                         display: 'flex',
                         justifyContent: 'space-between',
+                        marginTop: '5px',
                     }}
                 >
                     <h3
                         style={{
-                            margin: '5px',
+                            marginTop: '0px',
+                            marginBottom: '0px',
+                            display: 'flex',
+                            alignItems: 'center',
                         }}
                     >
                         Downloaded: {profile.status}

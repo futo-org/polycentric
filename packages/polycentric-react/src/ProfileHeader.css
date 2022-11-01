@@ -13,12 +13,10 @@
     color: gray;
 }
 
-.profileHeader__headerText > h3 {
+.profileHeader__headerTex {
     font-size: 15px;
-    margin-top: 5px;
-    margin-bottom: 5px;
 }
 
-.profileHeader__headerText > h3:hover {
+.profileHeader__headerText:hover {
     text-decoration: underline;
 }
