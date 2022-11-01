@@ -372,15 +372,16 @@ export function Post(props: PostProps) {
             elevation={4}
             style={{
                 marginBottom: '15px',
-                paddingRight: '5px',
+                overflow: 'auto',
             }}
         >
             {props.post.fromServer !== undefined && (
                 <div
                     style={{
-                        paddingLeft: '5px',
-                        paddingTop: '5px',
-                        width: '100%',
+                        margin: '10px',
+                        marginTop: '5px',
+                        marginBottom: '0px',
+                        fontSize: '11px',
                     }}
                 >
                     Recommended By: &nbsp;
@@ -406,9 +407,10 @@ export function Post(props: PostProps) {
             {props.post.boostedBy !== undefined && (
                 <div
                     style={{
-                        paddingLeft: '5px',
-                        paddingTop: '5px',
-                        width: '100%',
+                        margin: '10px',
+                        marginTop: '5px',
+                        marginBottom: '0px',
+                        fontSize: '11px',
                     }}
                 >
                     Boosted By: &nbsp;
@@ -446,7 +448,13 @@ export function Post(props: PostProps) {
                     }}
                     boostPointer={props.post.actionPointer}
                 />
-                <div className="post__avatar">
+                <div
+                    style={{
+                        marginTop: '11px',
+                        marginLeft: '8px',
+                        marginRight: '8px',
+                    }}
+                >
                     <Avatar
                         src={props.post.profile.avatar}
                         onClick={() => {
@@ -454,37 +462,51 @@ export function Post(props: PostProps) {
                         }}
                     />
                 </div>
-                <div className="post__main">
+                <div
+                    style={{
+                        flex: '1',
+                        marginTop: '10px',
+                        marginRight: '10px',
+                        marginBottom: '10px',
+                    }}
+                >
                     <div className="post__header">
                         <div
-                            className="post__headerText"
+                            className="post__headerText expandWarning"
                             style={{
                                 whiteSpace: 'pre-wrap',
                                 overflowWrap: 'anywhere',
                             }}
+                            onClick={() => {
+                                navigate('/' + props.post.profile.link);
+                            }}
                         >
                             <h3
-                                onClick={() => {
-                                    navigate('/' + props.post.profile.link);
+                                style={{
+                                    whiteSpace: 'pre-wrap',
+                                    overflowWrap: 'anywhere',
+                                    marginTop: '0px',
+                                    marginBottom: '0px',
                                 }}
                             >
-                                {props.post.profile.displayName}{' '}
-                                <span
-                                    style={{
-                                        fontWeight: '600',
-                                        fontSize: '12px',
-                                        color: 'gray',
-                                    }}
-                                >
-                                    @{props.post.profile.identity}
-                                </span>
+                                {props.post.profile.displayName}
                             </h3>
+                            <span
+                                style={{
+                                    fontWeight: '600',
+                                    fontSize: '11px',
+                                    color: 'gray',
+                                }}
+                            >
+                                @{props.post.profile.identity}
+                            </span>
                         </div>
                         <div className="post__content">
                             <div
                                 style={{
                                     whiteSpace: 'pre-wrap',
                                     overflowWrap: 'anywhere',
+                                    marginTop: '5px',
                                 }}
                             >
                                 {processText(props.post.message)}
