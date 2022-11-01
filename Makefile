@@ -7,18 +7,19 @@ export CURRENT_UID
 export CURRENT_GID
 
 build-sandbox:
-	docker-compose pull
-	docker-compose build
+	docker-compose -f docker-compose.development.yml pull
+	docker-compose -f docker-compose.development.yml build
 
 start-sandbox:
-	docker-compose up -d
+	docker-compose -f docker-compose.development.yml up -d
 
 stop-sandbox:
-	docker-compose down
-	docker-compose rm
+	docker-compose -f docker-compose.development.yml down
+	docker-compose -f docker-compose.development.yml rm
 
 join-sandbox:
-	docker-compose exec development /bin/bash
+	docker-compose -f docker-compose.development.yml \
+		exec development /bin/bash
 
 proto: proto/protocol.proto
 	npm install
