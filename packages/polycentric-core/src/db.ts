@@ -6,7 +6,7 @@ import * as Base64 from '@borderless/base64';
 import * as Lodash from 'lodash';
 
 import * as Util from './Util';
-import * as Protocol from './user';
+import * as Protocol from './protocol';
 import * as Crypto from './crypto';
 import * as Synchronization from './synchronization';
 import * as APIMethods from './APIMethods';

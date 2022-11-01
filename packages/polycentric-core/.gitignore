@@ -22,9 +22,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-proto/user.ts
-src/user.ts
-server2/src/user.rs
-server2/target
+src/protocol.ts
 dist
 .parcel-cache

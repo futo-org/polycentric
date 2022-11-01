@@ -1,6 +1,6 @@
 import fetch, { Headers } from 'cross-fetch';
 
-import * as Protocol from './user';
+import * as Protocol from './protocol';
 
 export async function fetchPostHead(
     address: string,

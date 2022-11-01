@@ -1,3 +1,3 @@
 // @generated
 
-pub mod user;
+pub mod protocol;

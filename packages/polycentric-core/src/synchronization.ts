@@ -2,7 +2,7 @@ import * as Base64 from '@borderless/base64';
 import Deque from 'double-ended-queue';
 
 import * as DB from './db';
-import * as Protocol from './user';
+import * as Protocol from './protocol';
 import * as APIMethods from './APIMethods';
 import * as Util from './Util';
 

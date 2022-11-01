@@ -20,7 +20,7 @@ stop-sandbox:
 join-sandbox:
 	docker-compose exec development /bin/bash
 
-proto: proto/user.proto
+proto: proto/protocol.proto
 	npm install
 	protoc \
 		--plugin=./node_modules/.bin/protoc-gen-ts_proto \
@@ -28,8 +28,8 @@ proto: proto/user.proto
 		--ts_proto_out=. \
 		--rust_out=server/src/ \
 		--experimental_allow_proto3_optional \
-		proto/user.proto
-	cp proto/user.ts packages/polycentric-core/src/user.ts
+		proto/protocol.proto
+	cp proto/protocol.ts packages/polycentric-core/src/protocol.ts
 
 pretty:
 	npx prettier --write \
@@ -82,8 +82,8 @@ build-production: proto
 clean:
 	rm -rf \
 		node_modules \
-		packages/polycentric-core/src/user.ts \
-		server/src/user.rs \
+		packages/polycentric-core/src/protocol.ts \
+		server/src/protocol.rs \
 		packages/polycentric-core/node_modules \
 		packages/polycentric-core/dist \
 		packages/polycentric-react/node_modules \

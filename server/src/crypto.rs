@@ -1,6 +1,6 @@
 use ::ed25519_dalek::Verifier;
 
-pub fn hash_event(event: &crate::user::Event) -> [u8; 32] {
+pub fn hash_event(event: &crate::protocol::Event) -> [u8; 32] {
     let mut hasher = ::hmac_sha256::Hash::new();
     hasher.update(&event.writer_id);
     hasher.update(&event.author_public_key);
@@ -16,7 +16,7 @@ pub fn hash_event(event: &crate::user::Event) -> [u8; 32] {
     hasher.finalize()
 }
 
-pub fn validate_signature(event: &crate::user::Event) -> bool {
+pub fn validate_signature(event: &crate::protocol::Event) -> bool {
     let public_key = match ::ed25519_dalek::PublicKey::from_bytes(
         &event.author_public_key,
     ) {
@@ -47,7 +47,7 @@ mod tests {
     use ::rand::Rng;
 
     pub fn add_signature(
-        event: &mut crate::user::Event,
+        event: &mut crate::protocol::Event,
         keypair: &::ed25519_dalek::Keypair,
     ) {
         let hash = hash_event(&event);
@@ -61,17 +61,17 @@ mod tests {
 
     fn make_test_event(
         keypair: &::ed25519_dalek::Keypair,
-    ) -> crate::user::Event {
+    ) -> crate::protocol::Event {
         let writer_id = ::rand::thread_rng().gen::<[u8; 32]>().to_vec();
 
-        let event_body_message = crate::user::EventBodyMessage::new();
-        let mut event_body = crate::user::EventBody::new();
+        let event_body_message = crate::protocol::EventBodyMessage::new();
+        let mut event_body = crate::protocol::EventBody::new();
 
         event_body.set_message(event_body_message);
 
         let event_body_serialized = event_body.write_to_bytes().unwrap();
 
-        let mut event = crate::user::Event::new();
+        let mut event = crate::protocol::Event::new();
         event.content = event_body_serialized;
         event.writer_id = writer_id.clone();
         event.author_public_key = keypair.public.to_bytes().to_vec().clone();

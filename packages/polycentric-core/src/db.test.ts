@@ -1,9 +1,9 @@
-import * as DB from './db';
-import * as Protocol from './user';
-import * as Util from './Util';
-
 import * as Ed from '@noble/ed25519';
 import * as MemoryLevel from 'memory-level';
+
+import * as DB from './db';
+import * as Protocol from './protocol';
+import * as Util from './Util';
 
 describe('subtractRange', () => {
     test('both empty are empty', () => {

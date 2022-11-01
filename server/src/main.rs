@@ -4,7 +4,7 @@ use ::serde_json::json;
 use ::warp::Filter;
 
 mod crypto;
-mod user;
+mod protocol;
 
 #[derive(Debug)]
 enum RequestError {
@@ -39,8 +39,8 @@ async fn handle_rejection(
 
 async fn persist_event_search(
     state: ::std::sync::Arc<State>,
-    event: &crate::user::Event,
-    event_body: &crate::user::EventBody,
+    event: &crate::protocol::Event,
+    event_body: &crate::protocol::EventBody,
 ) -> Result<(), ::warp::Rejection> {
     if event_body.has_message() {
         let author_public_key = ::base64::encode(&event.author_public_key);
@@ -139,8 +139,8 @@ async fn persist_event_search(
 
 async fn persist_event_feed(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    event: &crate::user::Event,
-    event_body: &crate::user::EventBody,
+    event: &crate::protocol::Event,
+    event_body: &crate::protocol::EventBody,
 ) -> Result<(), ::warp::Rejection> {
     let query = "
         INSERT INTO events
@@ -228,8 +228,8 @@ struct NotificationIdRow {
 
 async fn persist_event_notification(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    event: &crate::user::Event,
-    event_body: &crate::user::EventBody,
+    event: &crate::protocol::Event,
+    event_body: &crate::protocol::EventBody,
 ) -> Result<(), ::warp::Rejection> {
     const LATEST_NOTIFICATION_ID_QUERY_STATEMENT: &str = "
         SELECT notification_id FROM notifications
@@ -287,7 +287,7 @@ async fn post_events_handler(
     state: ::std::sync::Arc<State>,
     bytes: ::bytes::Bytes,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
-    let events = crate::user::Events::parse_from_tokio_bytes(&bytes)
+    let events = crate::protocol::Events::parse_from_tokio_bytes(&bytes)
         .map_err(|_| RequestError::ParsingFailed)?;
 
     let mut transaction = state
@@ -304,7 +304,7 @@ async fn post_events_handler(
         }
 
         let event_body =
-            crate::user::EventBody::parse_from_bytes(&event.content)
+            crate::protocol::EventBody::parse_from_bytes(&event.content)
                 .map_err(|_| RequestError::ParsingFailed)?;
 
         persist_event_feed(&mut transaction, &event, &event_body).await?;
@@ -369,8 +369,8 @@ struct NotificationRow {
     from_sequence_number: i64,
 }
 
-fn event_row_to_event_proto(row: EventRow) -> user::Event {
-    let mut event = crate::user::Event::new();
+fn event_row_to_event_proto(row: EventRow) -> crate::protocol::Event {
+    let mut event = crate::protocol::Event::new();
     event.writer_id = row.writer_id;
     event.author_public_key = row.author_public_key;
     event.sequence_number = row.sequence_number as u64;
@@ -382,7 +382,7 @@ fn event_row_to_event_proto(row: EventRow) -> user::Event {
         ::serde_json::from_str(&row.clocks).unwrap();
 
     for clock in clocks_deserialized {
-        let mut proto_clock = crate::user::EventClockEntry::new();
+        let mut proto_clock = crate::protocol::EventClockEntry::new();
         proto_clock.key = clock.writer_id.clone();
         proto_clock.value = clock.sequence_number;
         event.clocks.push(proto_clock);
@@ -416,11 +416,13 @@ async fn known_ranges_for_feed_handler(
     ";
 
     let request =
-        crate::user::RequestKnownRangesForFeed::parse_from_tokio_bytes(&bytes)
-            .map_err(|err| {
-                error!("{}", err);
-                RequestError::ParsingFailed
-            })?;
+        crate::protocol::RequestKnownRangesForFeed::parse_from_tokio_bytes(
+            &bytes,
+        )
+        .map_err(|err| {
+            error!("{}", err);
+            RequestError::ParsingFailed
+        })?;
 
     let writers_for_feed_rows =
         ::sqlx::query_as::<_, WriterAndLargest>(WRITERS_FOR_FEED_STATEMENT)
@@ -432,10 +434,10 @@ async fn known_ranges_for_feed_handler(
                 RequestError::DatabaseFailed
             })?;
 
-    let mut result = crate::user::ResponseKnownRangesForFeed::default();
+    let mut result = crate::protocol::ResponseKnownRangesForFeed::default();
 
     for writers_for_feed_row in writers_for_feed_rows {
-        let mut writer_and_ranges = crate::user::WriterAndRanges::new();
+        let mut writer_and_ranges = crate::protocol::WriterAndRanges::new();
         writer_and_ranges.writer_id = writers_for_feed_row.writer_id.clone();
 
         let ranges_for_writer_rows =
@@ -450,7 +452,7 @@ async fn known_ranges_for_feed_handler(
                 })?;
 
         for ranges_for_writer_row in ranges_for_writer_rows {
-            let mut range = crate::user::Range::new();
+            let mut range = crate::protocol::Range::new();
             range.low = ranges_for_writer_row.start_number as u64;
             range.high = ranges_for_writer_row.end_number as u64;
             writer_and_ranges.ranges.push(range);
@@ -487,10 +489,10 @@ async fn known_ranges_handler(
     ";
 
     let request =
-        crate::user::RequestKnownRanges::parse_from_tokio_bytes(&bytes)
+        crate::protocol::RequestKnownRanges::parse_from_tokio_bytes(&bytes)
             .map_err(|_| RequestError::ParsingFailed)?;
 
-    let mut known_ranges = crate::user::KnownRanges::new();
+    let mut known_ranges = crate::protocol::KnownRanges::new();
 
     let ranges_for_writer_rows =
         ::sqlx::query_as::<_, StartAndEnd>(RANGES_FOR_WRITER_STATEMENT)
@@ -504,7 +506,7 @@ async fn known_ranges_handler(
             })?;
 
     for ranges_for_writer_row in ranges_for_writer_rows {
-        let mut range = crate::user::Range::new();
+        let mut range = crate::protocol::Range::new();
         range.low = ranges_for_writer_row.start_number as u64;
         range.high = ranges_for_writer_row.end_number as u64;
         known_ranges.ranges.push(range);
@@ -522,7 +524,7 @@ async fn known_ranges_handler(
 
 async fn maybe_add_profile(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    result: &mut ::std::vec::Vec<crate::user::Event>,
+    result: &mut ::std::vec::Vec<crate::protocol::Event>,
     profile_keys: &mut ::std::collections::HashSet<::std::vec::Vec<u8>>,
     public_key: &::std::vec::Vec<u8>,
 ) -> Result<(), ::warp::Rejection> {
@@ -557,8 +559,8 @@ async fn maybe_add_profile(
 }
 
 struct ProcessMutationsResult {
-    related_events: ::std::vec::Vec<user::Event>,
-    result_events: ::std::vec::Vec<user::Event>,
+    related_events: ::std::vec::Vec<crate::protocol::Event>,
+    result_events: ::std::vec::Vec<crate::protocol::Event>,
 }
 
 async fn process_mutations(
@@ -605,7 +607,7 @@ async fn process_mutations(
             let event = event_row_to_event_proto(row);
 
             let event_body =
-                crate::user::EventBody::parse_from_bytes(&event.content)
+                crate::protocol::EventBody::parse_from_bytes(&event.content)
                     .map_err(|_| RequestError::ParsingFailed)?;
 
             if event_body.has_follow() {
@@ -657,7 +659,7 @@ async fn request_event_ranges_handler(
         .map_err(|_| RequestError::DatabaseFailed)?;
 
     let request =
-        crate::user::RequestEventRanges::parse_from_tokio_bytes(&bytes)
+        crate::protocol::RequestEventRanges::parse_from_tokio_bytes(&bytes)
             .map_err(|_| RequestError::ParsingFailed)?;
 
     let mut history: ::std::vec::Vec<EventRow> = vec![];
@@ -677,7 +679,7 @@ async fn request_event_ranges_handler(
         }
     }
 
-    let mut result = crate::user::Events::new();
+    let mut result = crate::protocol::Events::new();
 
     let mut processed_events = process_mutations(&mut transaction, history)
         .await
@@ -745,7 +747,7 @@ async fn request_search_handler(
     state: ::std::sync::Arc<State>,
     bytes: ::bytes::Bytes,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
-    let request = crate::user::Search::parse_from_tokio_bytes(&bytes)
+    let request = crate::protocol::Search::parse_from_tokio_bytes(&bytes)
         .map_err(|_| RequestError::ParsingFailed)?;
 
     info!("searching for {}", request.search);
@@ -817,7 +819,7 @@ async fn request_search_handler(
         }
     }
 
-    let mut result = crate::user::ResponseSearch::new();
+    let mut result = crate::protocol::ResponseSearch::new();
 
     let mut processed_events = process_mutations(&mut transaction, history)
         .await
@@ -876,7 +878,7 @@ async fn request_events_head_handler(
     ";
 
     let request =
-        crate::user::RequestEventsHead::parse_from_tokio_bytes(&bytes)
+        crate::protocol::RequestEventsHead::parse_from_tokio_bytes(&bytes)
             .map_err(|_| RequestError::ParsingFailed)?;
 
     let mut transaction = state
@@ -943,7 +945,7 @@ async fn request_events_head_handler(
         }
     }
 
-    let mut result = crate::user::Events::new();
+    let mut result = crate::protocol::Events::new();
 
     let mut processed_events = process_mutations(&mut transaction, history)
         .await
@@ -1000,7 +1002,7 @@ async fn get_specific_event(
     author_public_key: ::std::vec::Vec<u8>,
     writer_id: ::std::vec::Vec<u8>,
     sequence_number: u64,
-) -> Result<Option<crate::user::Event>, ::warp::Rejection> {
+) -> Result<Option<crate::protocol::Event>, ::warp::Rejection> {
     const STATEMENT: &str = "
         SELECT * FROM events
         WHERE author_public_key = $1
@@ -1032,7 +1034,7 @@ async fn get_profile_image(
     author_public_key: ::std::vec::Vec<u8>,
     writer_id: ::std::vec::Vec<u8>,
     sequence_number: u64,
-) -> Result<Vec<crate::user::Event>, ::warp::Rejection> {
+) -> Result<Vec<crate::protocol::Event>, ::warp::Rejection> {
     let mut result = vec![];
 
     let possible_meta = get_specific_event(
@@ -1046,8 +1048,9 @@ async fn get_profile_image(
     if let Some(meta) = possible_meta {
         result.push(meta.clone());
 
-        let meta_body = crate::user::EventBody::parse_from_bytes(&meta.content)
-            .map_err(|_| RequestError::ParsingFailed)?;
+        let meta_body =
+            crate::protocol::EventBody::parse_from_bytes(&meta.content)
+                .map_err(|_| RequestError::ParsingFailed)?;
 
         if !meta_body.has_blob_meta() {
             warn!("did not have blob meta body");
@@ -1065,8 +1068,10 @@ async fn get_profile_image(
 
             if let Some(section) = possible_section {
                 let section_body =
-                    user::EventBody::parse_from_bytes(&section.content)
-                        .map_err(|_| RequestError::ParsingFailed)?;
+                    crate::protocol::EventBody::parse_from_bytes(
+                        &section.content,
+                    )
+                    .map_err(|_| RequestError::ParsingFailed)?;
 
                 if section_body.has_blob_section() {
                     result.push(section.clone());
@@ -1106,7 +1111,7 @@ async fn request_recommend_profiles_handler(
         LIMIT 1;
     ";
 
-    let mut result = crate::user::Events::new();
+    let mut result = crate::protocol::Events::new();
 
     let mut transaction = state
         .pool
@@ -1139,7 +1144,7 @@ async fn request_recommend_profiles_handler(
             result.events.push(event.clone());
 
             let event_body =
-                crate::user::EventBody::parse_from_bytes(&event.content)
+                crate::protocol::EventBody::parse_from_bytes(&event.content)
                     .map_err(|_| RequestError::ParsingFailed)?;
 
             if event_body.has_profile() {
@@ -1198,8 +1203,9 @@ async fn request_explore_handler(
         LIMIT 20
     ";
 
-    let request = crate::user::RequestExplore::parse_from_tokio_bytes(&bytes)
-        .map_err(|_| RequestError::ParsingFailed)?;
+    let request =
+        crate::protocol::RequestExplore::parse_from_tokio_bytes(&bytes)
+            .map_err(|_| RequestError::ParsingFailed)?;
 
     let history: ::std::vec::Vec<EventRow>;
 
@@ -1226,7 +1232,7 @@ async fn request_explore_handler(
         .await
         .map_err(|_| RequestError::DatabaseFailed)?;
 
-    let mut result = crate::user::ResponseSearch::new();
+    let mut result = crate::protocol::ResponseSearch::new();
 
     result
         .related_events
@@ -1272,7 +1278,7 @@ async fn request_notifications_handler(
     ";
 
     let request =
-        crate::user::RequestNotifications::parse_from_tokio_bytes(&bytes)
+        crate::protocol::RequestNotifications::parse_from_tokio_bytes(&bytes)
             .map_err(|_| RequestError::ParsingFailed)?;
 
     let notifications: ::std::vec::Vec<NotificationRow>;
@@ -1320,7 +1326,7 @@ async fn request_notifications_handler(
         .await
         .map_err(|_| RequestError::DatabaseFailed)?;
 
-    let mut result = crate::user::ResponseNotifications::new();
+    let mut result = crate::protocol::ResponseNotifications::new();
 
     for notification in &notifications {
         if let Some(largest_index) = result.largest_index {

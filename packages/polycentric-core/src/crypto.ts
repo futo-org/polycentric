@@ -2,7 +2,7 @@ import Long from 'long';
 import * as Ed from '@noble/ed25519';
 import * as sha256 from 'fast-sha256';
 
-import * as Protocol from './user';
+import * as Protocol from './protocol';
 
 function numberToBinary(value: number): Uint8Array {
     const long = Long.fromNumber(value, true);
