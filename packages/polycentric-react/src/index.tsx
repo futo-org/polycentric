@@ -19,6 +19,7 @@ import * as Explore from './Explore';
 export async function createApp(
     level: AbstractLevel.AbstractLevel<Uint8Array, Uint8Array, Uint8Array>,
 ) {
+    /*
     console.log(
         'navigator.storage.persisted',
         await navigator.storage.persisted(),
@@ -28,6 +29,7 @@ export async function createApp(
         'navigator.storage.persistent',
         await navigator.storage.persist(),
     );
+    */
 
     try {
         const storageEstimate = await navigator.storage.estimate();
@@ -47,6 +49,11 @@ export async function createApp(
     const state = new Core.DB.PolycentricState(level);
 
     if (await Core.DB.doesIdentityExist(state)) {
+        console.log(
+            'navigator.storage.persist',
+            await navigator.storage.persist(),
+        );
+
         await Core.DB.startIdentity(state);
     }
 

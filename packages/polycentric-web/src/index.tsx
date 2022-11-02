@@ -40,8 +40,6 @@ async function main() {
     try {
         await level.open();
     } catch (err) {
-        alert('Failed to open IndexedDB. Using in memory fallback.');
-
         level = new MemoryLevel.MemoryLevel<Uint8Array, Uint8Array>({
             keyEncoding: 'buffer',
             valueEncoding: 'buffer',

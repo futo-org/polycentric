@@ -234,15 +234,22 @@ export async function startIdentity(state: PolycentricState): Promise<void> {
     Synchronization.backfillServer(state);
 }
 
-export async function newIdentity(state: PolycentricState) {
+export async function newIdentity(
+    state: PolycentricState,
+    profileName?: string,
+) {
     const privateKey = Ed.utils.randomPrivateKey();
 
     await levelNewDeviceForExistingIdentity(state, privateKey);
 
     const message = makeDefaultEventBody();
 
+    if (profileName === undefined) {
+        profileName = 'Anonymous';
+    }
+
     message.profile = {
-        profileName: new TextEncoder().encode('Anonymous'),
+        profileName: new TextEncoder().encode(profileName),
         profileDescription: undefined,
         profileServers: [
             new TextEncoder().encode('https://srv1.polycentric.io'),
