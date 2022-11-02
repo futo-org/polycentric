@@ -1,4 +1,11 @@
-import { Paper } from '@mui/material';
+import {
+    Paper,
+    Table,
+    TableBody,
+    TableRow,
+    TableCell,
+    Divider,
+} from '@mui/material';
 import { useEffect, useState, Fragment } from 'react';
 import prettyBytes from 'pretty-bytes';
 
@@ -87,19 +94,31 @@ export function About(props: AboutProps) {
                     padding: '10px',
                 }}
             >
-                <h3>
-                    Storage Persistent:{' '}
-                    {printOptionalPersistent(state.persistent)}
-                </h3>
-
-                <h3>
-                    Available Storage:{' '}
-                    {printOptionalBytes(state.storageAvailableBytes)}
-                </h3>
-
-                <h3>
-                    Used Storage: {printOptionalBytes(state.storageUsedBytes)}
-                </h3>
+                <Divider>Persistence Information</Divider>
+                <Table>
+                    <TableBody>
+                        <TableRow>
+                            <TableCell>Storage Persistent</TableCell>
+                            <TableCell>
+                                {printOptionalPersistent(state.persistent)}
+                            </TableCell>
+                        </TableRow>
+                        <TableRow>
+                            <TableCell>Estimated Storage Available</TableCell>
+                            <TableCell>
+                                {printOptionalBytes(
+                                    state.storageAvailableBytes,
+                                )}
+                            </TableCell>
+                        </TableRow>
+                        <TableRow>
+                            <TableCell>Estimated Storage Used</TableCell>
+                            <TableCell>
+                                {printOptionalBytes(state.storageUsedBytes)}
+                            </TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
             </Paper>
         );
     } else {
