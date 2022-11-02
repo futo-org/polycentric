@@ -4,6 +4,7 @@ import * as Base64 from '@borderless/base64';
 import { useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import * as Lodash from 'lodash';
+import InfiniteScroll from 'react-infinite-scroll-component';
 
 import * as Core from 'polycentric-core';
 import * as Feed from './Feed';
@@ -18,25 +19,38 @@ type NotificationsProps = {
     state: Core.DB.PolycentricState;
 };
 
-function Notifications(props: NotificationsProps) {
-    const { ref, inView } = useInView();
+type Item = {
+    fromServer: string;
+    pointer: Core.Protocol.Pointer;
+};
 
-    const [notificationResults, setNotificationResults] = useState<
-        [string, Core.Protocol.Pointer][]
-    >([]);
+function Notifications(props: NotificationsProps) {
+    const [notificationResults, setNotificationResults] = useState<Array<Item>>(
+        [],
+    );
 
     const [loading, setLoading] = useState<boolean>(true);
     const [initial, setInitial] = useState<boolean>(true);
+    const [complete, setComplete] = useState<boolean>(false);
 
     const largestIndexByServer = useRef<Map<string, number>>(new Map());
-    const complete = useRef<boolean>(false);
 
-    const handleLoad = async () => {
+    const masterCancel = useRef<Core.CancelContext.CancelContext>(
+        new Core.CancelContext.CancelContext(),
+    );
+
+    const handleLoad = async (
+        cancelContext: Core.CancelContext.CancelContext,
+    ): Promise<void> => {
         setLoading(true);
 
         const identity = await Core.DB.levelLoadIdentity(props.state);
         const profile = await Core.DB.loadProfile(props.state);
         let progress = false;
+
+        if (cancelContext.cancelled()) {
+            return;
+        }
 
         for (const server of profile.servers) {
             try {
@@ -72,22 +86,28 @@ function Notifications(props: NotificationsProps) {
                     );
                 }
 
-                let filteredPosts: [string, Core.Protocol.Pointer][] = [];
+                let filteredPosts: Array<Item> = [];
 
                 for (const event of response.resultEvents) {
-                    filteredPosts.push([
-                        address,
-                        {
+                    filteredPosts.push({
+                        fromServer: address,
+                        pointer: {
                             publicKey: event.authorPublicKey,
                             writerId: event.writerId,
                             sequenceNumber: event.sequenceNumber,
                         },
-                    ]);
+                    });
                 }
 
-                setNotificationResults(
-                    notificationResults.concat(filteredPosts),
-                );
+                if (cancelContext.cancelled()) {
+                    return;
+                }
+
+                if (filteredPosts.length !== 0) {
+                    setNotificationResults((old) => {
+                        return old.concat(filteredPosts);
+                    });
+                }
 
                 if (filteredPosts.length !== 0) {
                     progress = true;
@@ -98,98 +118,81 @@ function Notifications(props: NotificationsProps) {
             }
         }
 
+        if (cancelContext.cancelled()) {
+            return;
+        }
+
         if (progress === false) {
-            complete.current = true;
+            setComplete(true);
         }
 
         setLoading(false);
         setInitial(false);
     };
 
-    const handleLoadDebounce = useCallback(
-        Lodash.debounce(
-            () => {
-                console.log('calling debounce');
-                handleLoad();
-            },
-            5000,
-            { leading: true },
-        ),
-        [],
-    );
-
     useEffect(() => {
+        const cancelContext = new Core.CancelContext.CancelContext();
+
         setNotificationResults([]);
         setLoading(true);
         setInitial(true);
+        setComplete(false);
 
         largestIndexByServer.current = new Map();
-        complete.current = false;
+        masterCancel.current = cancelContext;
 
-        handleLoadDebounce();
-    }, []);
+        handleLoad(cancelContext);
 
-    useEffect(() => {
-        if (
-            loading === false &&
-            inView === true &&
-            complete.current === false
-        ) {
-            handleLoadDebounce();
-        }
-    }, [loading, inView]);
+        return () => {
+            cancelContext.cancel();
+        };
+    }, [props.state]);
 
     return (
         <div className="standard_width">
-            {notificationResults.map((post) => {
-                const raw = post[0];
-                const item = post[1];
-
-                return (
-                    <DispatchCard
-                        key={Base64.encode(
-                            Core.DB.makeStorageTypeEventKey(
-                                item.publicKey,
-                                item.writerId,
-                                item.sequenceNumber,
-                            ),
-                        )}
-                        state={props.state}
-                        pointer={item}
-                        fromServer={raw}
-                    />
-                );
-            })}
+            <InfiniteScroll
+                dataLength={notificationResults.length}
+                next={() => {
+                    handleLoad(masterCancel.current);
+                }}
+                hasMore={complete === false}
+                loader={
+                    <div
+                        style={{
+                            width: '80%',
+                            marginTop: '15px',
+                            marginBottom: '15px',
+                            marginLeft: 'auto',
+                            marginRight: 'auto',
+                        }}
+                    >
+                        <LinearProgress />
+                    </div>
+                }
+                endMessage={<div></div>}
+            >
+                {notificationResults.map((item, index) => {
+                    return (
+                        <DispatchCard
+                            key={index}
+                            state={props.state}
+                            pointer={item.pointer}
+                            fromServer={item.fromServer}
+                        />
+                    );
+                })}
+            </InfiniteScroll>
 
             {initial === false && notificationResults.length === 0 && (
                 <Paper
                     elevation={4}
                     style={{
-                        marginTop: '15px',
                         padding: '15px',
                         textAlign: 'center',
                     }}
                 >
                     <h3>You don't appear to have any notifications.</h3>
                 </Paper>
-            )}
-
-            <div ref={ref} style={{ visibility: 'hidden' }}>
-                ..
-            </div>
-
-            {loading && (
-                <div
-                    style={{
-                        width: '80%',
-                        marginTop: '15px',
-                        marginBottom: '15px',
-                        marginLeft: 'auto',
-                        marginRight: 'auto',
-                    }}
-                >
-                    <LinearProgress />
-                </div>
             )}
         </div>
     );
