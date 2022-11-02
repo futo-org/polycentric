@@ -34,6 +34,7 @@
     "long": "^5.2.0",
     "memory-level": "^1.0.0",
     "polycentric-core": "../polycentric-core",
+    "pretty-bytes": "^6.0.0",
     "protobufjs": "^6.11.3",
     "react-easy-crop": "^4.4.1",
     "react-infinite-scroll-component": "^6.1.0",

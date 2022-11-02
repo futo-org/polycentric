@@ -15,6 +15,7 @@ import reportWebVitals from './reportWebVitals';
 import { Feed } from './Feed';
 import * as Core from 'polycentric-core';
 import * as Explore from './Explore';
+import * as About from './About';
 
 export async function createApp(
     level: AbstractLevel.AbstractLevel<Uint8Array, Uint8Array, Uint8Array>,
@@ -85,6 +86,7 @@ export async function createApp(
                     path="/following"
                     element={<Following state={state} />}
                 />
+                <Route path="/about" element={<About.About state={state} />} />
                 <Route path="/setup" element={<Setup state={state} />} />
                 <Route path=":feed" element={<Feed state={state} />} />
             </Route>

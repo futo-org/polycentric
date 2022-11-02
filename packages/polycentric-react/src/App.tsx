@@ -67,6 +67,11 @@ function App(props: AppProps) {
         setAnchor(null);
     };
 
+    const handleOpenAbout = () => {
+        navigate('/about');
+        setAnchor(null);
+    };
+
     const handleOpenMyPosts = () => {
         if (props.state.identity !== undefined) {
             navigate(
@@ -208,6 +213,11 @@ function App(props: AppProps) {
                                     <MenuItem onClick={handleOpenFollowing}>
                                         <Typography textAlign="center">
                                             Following
+                                        </Typography>
+                                    </MenuItem>
+                                    <MenuItem onClick={handleOpenAbout}>
+                                        <Typography textAlign="center">
+                                            About
                                         </Typography>
                                     </MenuItem>
                                 </Menu>
