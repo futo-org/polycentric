@@ -2,7 +2,6 @@ import { Paper, TextField, LinearProgress } from '@mui/material';
 import { useState, useEffect, useRef, ReactNode, memo } from 'react';
 import * as Base64 from '@borderless/base64';
 import { useParams } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
 import InfiniteScroll from 'react-infinite-scroll-component';
 
 import * as Core from 'polycentric-core';
@@ -27,8 +26,6 @@ type ExploreItem = {
 export const ExploreMemo = memo(Explore);
 
 function Explore(props: ExploreProps) {
-    const { ref, inView } = useInView();
-
     const [exploreResults, setExploreResults] = useState<Array<ExploreItem>>(
         [],
     );

@@ -2,7 +2,6 @@ import { Paper, TextField, LinearProgress } from '@mui/material';
 import { useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import * as Base64 from '@borderless/base64';
 import { useParams } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
 import * as Lodash from 'lodash';
 import InfiniteScroll from 'react-infinite-scroll-component';
 

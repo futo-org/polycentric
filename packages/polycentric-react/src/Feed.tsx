@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import * as Base64 from '@borderless/base64';
 import { useParams } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
 import { Paper, LinearProgress } from '@mui/material';
 import * as Lodash from 'lodash';
 import InfiniteScroll from 'react-infinite-scroll-component';
