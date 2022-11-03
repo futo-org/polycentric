@@ -129,6 +129,7 @@ export class PolycentricState {
     autoSync: boolean;
     lock: AsyncLock;
     storageDriver: StorageDriver;
+    client: string;
 
     level: BinaryAbstractLevel;
     levelEvents: BinaryAbstractLevel;
@@ -140,13 +141,18 @@ export class PolycentricState {
 
     listeners: Map<string, Set<() => void>>;
 
-    constructor(level: BinaryAbstractLevel, storageDriver: StorageDriver) {
+    constructor(
+        level: BinaryAbstractLevel,
+        storageDriver: StorageDriver,
+        client: string,
+    ) {
         console.log('creating state');
         this.sync = new Synchronization.SynchronizationState();
         this.identity = undefined;
         this.autoSync = true;
         this.listeners = new Map();
         this.storageDriver = storageDriver;
+        this.client = client;
 
         this.lock = new AsyncLock();
 

@@ -29,7 +29,22 @@ export async function createApp(
 
     Modal.setAppElement('#root');
 
-    const state = new Core.DB.PolycentricState(level, storageDriver);
+    const isElectron: boolean =
+        navigator.userAgent.toLowerCase().indexOf(' electron/') > -1;
+
+    const clientString: string = (() => {
+        if (isElectron) {
+            return 'Desktop';
+        } else {
+            return 'Web';
+        }
+    })();
+
+    const state = new Core.DB.PolycentricState(
+        level,
+        storageDriver,
+        clientString,
+    );
 
     if (await Core.DB.doesIdentityExist(state)) {
         console.log(
@@ -39,9 +54,6 @@ export async function createApp(
 
         await Core.DB.startIdentity(state);
     }
-
-    const isElectron =
-        navigator.userAgent.toLowerCase().indexOf(' electron/') > -1;
 
     const PolycentricRoutes = () => (
         <Routes>

@@ -11,7 +11,8 @@ RUN apt-get update -y && \
 		protobuf-compiler \
 		nodejs \
 		bash \
-		build-essential && \
+		build-essential \
+		git && \
 	export RUSTUP_HOME=/opt/rust && \
 	curl https://sh.rustup.rs -sSf | sh -s -- -y && \
 	cargo install protobuf-codegen@3.1.0 --root /opt/protobuf-codegen

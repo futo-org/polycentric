@@ -5,3 +5,4 @@ export * as Synchronization from './synchronization';
 export * as Protocol from './protocol';
 export * as Util from './Util';
 export * as CancelContext from './cancel-context';
+export * as Version from './version';

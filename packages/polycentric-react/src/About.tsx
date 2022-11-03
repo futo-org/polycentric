@@ -84,8 +84,22 @@ export function About(props: AboutProps) {
         }
     };
 
-    if (state !== undefined) {
+    const versionToLink = (version: string) => {
         return (
+            <a
+                href={
+                    "https://gitlab.futo.org/harpo/polycentric/-/tree/" +
+                    version
+                }
+                target="_blank"
+            >
+                {version.slice(0, 8)}
+            </a>
+        );
+    };
+
+    if (state !== undefined) {
+        return (<Fragment>
             <Paper
                 elevation={4}
                 className="standard_width"
@@ -124,7 +138,36 @@ export function About(props: AboutProps) {
                     </TableBody>
                 </Table>
             </Paper>
-        );
+
+            <Paper
+                elevation={4}
+                className="standard_width"
+                style={{
+                    marginTop: '10px',
+                    padding: '10px',
+                }}
+            >
+                <Divider>Client Information</Divider>
+                <Table>
+                    <TableBody>
+                        <TableRow>
+                            <TableCell>Client Context</TableCell>
+                            <TableCell>
+                                {props.state.client}
+                            </TableCell>
+                        </TableRow>
+                        <TableRow>
+                            <TableCell>Client Build Version</TableCell>
+                            <TableCell>
+                                {versionToLink(
+                                    Core.Version.SHA,
+                                )}
+                           </TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
+            </Paper>
+        </Fragment>);
     } else {
         return <Fragment />;
     }

@@ -65,6 +65,8 @@ link:
 		packages/polycentric-desktop/node_modules/polycentric-react
 
 build-production: proto
+	./version.sh
+
 	cd packages/polycentric-core && \
 		npm install && \
 		npm run build:production
