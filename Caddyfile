@@ -1,6 +1,4 @@
 polycentric.io {
-    root * /static
-    try_files {path} {file} /index.html
     reverse_proxy http://server:8082
 }
 

@@ -1599,7 +1599,8 @@ async fn serve_static(
         None => return Ok(())
     };
 
-    let routes = ::warp::fs::dir(config.static_path.clone());
+    let routes = ::warp::filters::fs::dir(config.static_path.clone())
+        .or(::warp::filters::fs::file("/static/index.html"));
 
     info!("Static server listening on {}", port);
     ::warp::serve(routes)
