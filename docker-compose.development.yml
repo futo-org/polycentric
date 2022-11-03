@@ -1,7 +1,7 @@
 version: '2'
 services:
     postgres:
-        image: postgres
+        image: postgres:14
         environment:
             POSTGRES_PASSWORD: testing
     opensearch-node1:
