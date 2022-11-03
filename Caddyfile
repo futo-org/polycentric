@@ -1,7 +1,3 @@
-polycentric.io {
-    reverse_proxy http://server:8082
-}
-
 srv1.polycentric.io {
     reverse_proxy http://server:8081
 }
