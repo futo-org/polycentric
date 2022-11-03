@@ -37,7 +37,11 @@ async function runBot(
         },
     );
 
-    const state = new Core.DB.PolycentricState(level);
+    const state = new Core.DB.PolycentricState(
+        level,
+        Core.DB.StorageDriver.LevelDB,
+        'bot',
+    );
 
     if (!(await Core.DB.doesIdentityExist(state))) {
         console.log('generating new identity');

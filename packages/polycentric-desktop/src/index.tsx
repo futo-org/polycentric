@@ -1,4 +1,4 @@
-import * as Core from 'polycentric-react';
+import * as PolycentricReact from 'polycentric-react';
 import express, { Express, Request, Response } from 'express';
 
 import * as AbstractLevel from 'abstract-level';
@@ -12,7 +12,10 @@ const level = new ClassicLevel.ClassicLevel<Uint8Array, Uint8Array>(
     },
 ) as any as AbstractLevel.AbstractLevel<Uint8Array, Uint8Array, Uint8Array>;
 
-Core.createApp(level);
+PolycentricReact.createApp(
+    level,
+    PolycentricReact.Core.DB.StorageDriver.LevelDB,
+);
 
 const app: Express = express();
 
