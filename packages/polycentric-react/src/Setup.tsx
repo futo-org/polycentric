@@ -29,7 +29,13 @@ function SetupCreateProfile(props: SetupCreateProfileProps) {
     };
 
     const handleSaveIdentity = async () => {
-        const persisted = await navigator.storage.persist();
+        let persisted = false;
+
+        try {
+            persisted = await navigator.storage.persist();
+        } catch (err) {
+            console.log(err);
+        }
 
         await Core.DB.newIdentity(props.state, profileName);
         await Core.DB.startIdentity(props.state);
