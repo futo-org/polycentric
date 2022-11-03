@@ -23,7 +23,6 @@ services:
         read_only: true
         environment:
             - "RUST_LOG=server=info"
-            - "HTTP_PORT_STATIC=8082"
     proxy:
         image: caddy
         volumes:
