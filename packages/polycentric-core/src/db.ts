@@ -117,11 +117,18 @@ export type BinaryAbstractLevel = AbstractLevel.AbstractLevel<
     Uint8Array
 >;
 
+export enum StorageDriver {
+    Memory = 'Memory',
+    IndexedDB = 'IndexedDB',
+    LevelDB = 'LevelDB',
+}
+
 export class PolycentricState {
     sync: Synchronization.SynchronizationState;
     identity: IIdentityState | undefined;
     autoSync: boolean;
     lock: AsyncLock;
+    storageDriver: StorageDriver;
 
     level: BinaryAbstractLevel;
     levelEvents: BinaryAbstractLevel;
@@ -133,12 +140,13 @@ export class PolycentricState {
 
     listeners: Map<string, Set<() => void>>;
 
-    constructor(level: BinaryAbstractLevel) {
+    constructor(level: BinaryAbstractLevel, storageDriver: StorageDriver) {
         console.log('creating state');
         this.sync = new Synchronization.SynchronizationState();
         this.identity = undefined;
         this.autoSync = true;
         this.listeners = new Map();
+        this.storageDriver = storageDriver;
 
         this.lock = new AsyncLock();
 

@@ -2,7 +2,7 @@ import * as AbstractLevel from 'abstract-level';
 import * as BrowserLevel from 'browser-level';
 import * as MemoryLevel from 'memory-level';
 
-import * as Core from 'polycentric-react';
+import * as PolycentricReact from 'polycentric-react';
 
 let level = new BrowserLevel.BrowserLevel<Uint8Array, Uint8Array>(
     'PolycentricStateV5',
@@ -37,15 +37,20 @@ const registerServiceWorker = async () => {
 async function main() {
     await registerServiceWorker();
 
+    let storageDriver = PolycentricReact.Core.DB.StorageDriver.Memory;
+
     try {
         await level.open();
+
+        storageDriver = PolycentricReact.Core.DB.StorageDriver.IndexedDB;
     } catch (err) {
         level = new MemoryLevel.MemoryLevel<Uint8Array, Uint8Array>({
             keyEncoding: 'buffer',
             valueEncoding: 'buffer',
         }) as AbstractLevel.AbstractLevel<Uint8Array, Uint8Array, Uint8Array>;
     }
-    Core.createApp(level);
+
+    PolycentricReact.createApp(level, storageDriver);
 }
 
 main();

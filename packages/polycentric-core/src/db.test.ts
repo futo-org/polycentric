@@ -141,7 +141,7 @@ function makeTestState(): DB.PolycentricState {
         valueEncoding: 'buffer',
     }) as DB.BinaryAbstractLevel;
 
-    const state = new DB.PolycentricState(level);
+    const state = new DB.PolycentricState(level, DB.StorageDriver.Memory);
     state.autoSync = false;
     return state;
 }

@@ -104,6 +104,10 @@ export function About(props: AboutProps) {
                             </TableCell>
                         </TableRow>
                         <TableRow>
+                            <TableCell>Storage Driver</TableCell>
+                            <TableCell>{props.state.storageDriver}</TableCell>
+                        </TableRow>
+                        <TableRow>
                             <TableCell>Estimated Storage Available</TableCell>
                             <TableCell>
                                 {printOptionalBytes(

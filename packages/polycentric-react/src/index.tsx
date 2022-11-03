@@ -17,37 +17,19 @@ import * as Core from 'polycentric-core';
 import * as Explore from './Explore';
 import * as About from './About';
 
+export * as Core from 'polycentric-core';
+
 export async function createApp(
     level: AbstractLevel.AbstractLevel<Uint8Array, Uint8Array, Uint8Array>,
+    storageDriver: Core.DB.StorageDriver,
 ) {
-    /*
-    console.log(
-        'navigator.storage.persisted',
-        await navigator.storage.persisted(),
-    );
-
-    console.log(
-        'navigator.storage.persistent',
-        await navigator.storage.persist(),
-    );
-    */
-
-    try {
-        const storageEstimate = await navigator.storage.estimate();
-        console.log(storageEstimate);
-        console.log('storage available', storageEstimate.quota! / 1024 / 1024);
-        console.log('storage usage', storageEstimate.usage! / 1024 / 1024);
-    } catch (err) {
-        console.log('storage info error', err);
-    }
-
     const root = ReactDOM.createRoot(
         document.getElementById('root') as HTMLElement,
     );
 
     Modal.setAppElement('#root');
 
-    const state = new Core.DB.PolycentricState(level);
+    const state = new Core.DB.PolycentricState(level, storageDriver);
 
     if (await Core.DB.doesIdentityExist(state)) {
         console.log(
