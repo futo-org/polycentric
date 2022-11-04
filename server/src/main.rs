@@ -6,6 +6,7 @@ use ::warp::Filter;
 
 mod crypto;
 mod protocol;
+mod version;
 
 #[derive(Debug)]
 enum RequestError {
@@ -1183,6 +1184,16 @@ async fn request_recommend_profiles_handler(
     ))
 }
 
+
+async fn request_version_handler()
+-> Result<impl ::warp::Reply, ::warp::Rejection> {
+
+    Ok(::warp::reply::json(&::serde_json::json!({
+        "sha": crate::version::VERSION,
+    })))
+
+}
+
 async fn request_explore_handler(
     state: ::std::sync::Arc<State>,
     bytes: ::bytes::Bytes,
@@ -1572,6 +1583,12 @@ async fn serve_api(
         .and_then(request_recommend_profiles_handler)
         .with(cors.clone());
 
+    let request_version_route = ::warp::get()
+        .and(::warp::path("version"))
+        .and(::warp::path::end())
+        .and_then(request_version_handler)
+        .with(cors.clone());
+
     let routes = post_events_route
         .or(known_ranges_for_feed_route)
         .or(request_event_ranges_route)
@@ -1581,6 +1598,7 @@ async fn serve_api(
         .or(request_explore_route)
         .or(request_notifications_route)
         .or(request_recommend_profiles_route)
+        .or(request_version_route)
         .recover(handle_rejection);
 
     info!("API server listening on {}", config.http_port_api);

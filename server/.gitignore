@@ -1,2 +1,3 @@
 target
 src/protocol.rs
+src/version.rs
