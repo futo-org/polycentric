@@ -174,7 +174,7 @@ function SetupLanding(props: SetupLandingProps) {
                 );
 
                 for (const event of bundle.events) {
-                    await Core.DB.levelSaveEvent(props.state, event);
+                    await Core.Ingest.levelSaveEvent(props.state, event);
                 }
 
                 await Core.DB.startIdentity(props.state);

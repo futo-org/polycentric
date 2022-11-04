@@ -6,6 +6,7 @@ import * as Keys from './keys';
 import * as Protocol from './protocol';
 import * as APIMethods from './APIMethods';
 import * as Util from './Util';
+import * as Ingest from './ingest';
 
 type FeedSyncState = {
     publicKey: Uint8Array;
@@ -143,7 +144,7 @@ export async function saveBatch(
     events: Array<Protocol.Event>,
 ) {
     for (const event of events) {
-        await DB.levelSaveEvent(state, event);
+        await Ingest.levelSaveEvent(state, event);
     }
 }
 

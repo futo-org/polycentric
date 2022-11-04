@@ -7,3 +7,4 @@ export * as Util from './Util';
 export * as CancelContext from './cancel-context';
 export * as Version from './version';
 export * as Keys from './keys';
+export * as Ingest from './ingest';

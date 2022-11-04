@@ -5,6 +5,7 @@ import * as DB from './db';
 import * as Protocol from './protocol';
 import * as Util from './Util';
 import * as Keys from './keys';
+import * as Ingest from './ingest';
 
 describe('subtractRange', () => {
     test('both empty are empty', () => {
@@ -182,9 +183,9 @@ describe('levelStoreRanges', () => {
         const state = makeTestState();
         const db = state.levelRanges;
 
-        await DB.levelUpdateRanges(db, makeTestPointer(0));
-        await DB.levelUpdateRanges(db, makeTestPointer(2));
-        await DB.levelUpdateRanges(db, makeTestPointer(4));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(0));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(2));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(4));
 
         expect(await db.values().all()).toStrictEqual(
             [
@@ -214,9 +215,9 @@ describe('levelStoreRanges', () => {
         const state = makeTestState();
         const db = state.levelRanges;
 
-        await DB.levelUpdateRanges(db, makeTestPointer(5));
-        await DB.levelUpdateRanges(db, makeTestPointer(11));
-        await DB.levelUpdateRanges(db, makeTestPointer(10));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(5));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(11));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(10));
 
         expect(await db.values().all()).toStrictEqual([
             Protocol.StorageTypeRange.encode({
@@ -237,9 +238,9 @@ describe('levelStoreRanges', () => {
     test('highMergeNoLow', async () => {
         const state = makeTestState();
         const db = state.levelRanges;
-        await DB.levelUpdateRanges(db, makeTestPointer(115));
-        await DB.levelUpdateRanges(db, makeTestPointer(114));
-        await DB.levelUpdateRanges(db, makeTestPointer(113));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(115));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(114));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(113));
         expect(await db.values().all()).toStrictEqual(
             [
                 {
@@ -255,9 +256,9 @@ describe('levelStoreRanges', () => {
     test('lowMerge', async () => {
         const state = makeTestState();
         const db = state.levelRanges;
-        await DB.levelUpdateRanges(db, makeTestPointer(11));
-        await DB.levelUpdateRanges(db, makeTestPointer(4));
-        await DB.levelUpdateRanges(db, makeTestPointer(12));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(11));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(4));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(12));
         expect(await db.values().all()).toStrictEqual(
             [
                 {
@@ -279,8 +280,8 @@ describe('levelStoreRanges', () => {
     test('lowMergeNoHigh', async () => {
         const state = makeTestState();
         const db = state.levelRanges;
-        await DB.levelUpdateRanges(db, makeTestPointer(52));
-        await DB.levelUpdateRanges(db, makeTestPointer(53));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(52));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(53));
         expect(await db.values().all()).toStrictEqual(
             [
                 {
@@ -296,9 +297,9 @@ describe('levelStoreRanges', () => {
     test('highAndLowMerge', async () => {
         const state = makeTestState();
         const db = state.levelRanges;
-        await DB.levelUpdateRanges(db, makeTestPointer(22));
-        await DB.levelUpdateRanges(db, makeTestPointer(24));
-        await DB.levelUpdateRanges(db, makeTestPointer(23));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(22));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(24));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(23));
         expect(await db.values().all()).toStrictEqual(
             [
                 {
@@ -314,11 +315,11 @@ describe('levelStoreRanges', () => {
     test('manyContinuous', async () => {
         const state = makeTestState();
         const db = state.levelRanges;
-        await DB.levelUpdateRanges(db, makeTestPointer(5));
-        await DB.levelUpdateRanges(db, makeTestPointer(6));
-        await DB.levelUpdateRanges(db, makeTestPointer(7));
-        await DB.levelUpdateRanges(db, makeTestPointer(8));
-        await DB.levelUpdateRanges(db, makeTestPointer(9));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(5));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(6));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(7));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(8));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(9));
         expect(await db.values().all()).toStrictEqual(
             [
                 {
@@ -334,12 +335,12 @@ describe('levelStoreRanges', () => {
     test('mergeLargeBlocks', async () => {
         const state = makeTestState();
         const db = state.levelRanges;
-        await DB.levelUpdateRanges(db, makeTestPointer(3));
-        await DB.levelUpdateRanges(db, makeTestPointer(2));
-        await DB.levelUpdateRanges(db, makeTestPointer(1));
-        await DB.levelUpdateRanges(db, makeTestPointer(6));
-        await DB.levelUpdateRanges(db, makeTestPointer(5));
-        await DB.levelUpdateRanges(db, makeTestPointer(4));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(3));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(2));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(1));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(6));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(5));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(4));
         expect(await db.values().all()).toStrictEqual(
             [
                 {
@@ -355,11 +356,11 @@ describe('levelStoreRanges', () => {
     test('insertIntoExistingRange', async () => {
         const state = makeTestState();
         const db = state.levelRanges;
-        await DB.levelUpdateRanges(db, makeTestPointer(1));
-        await DB.levelUpdateRanges(db, makeTestPointer(2));
-        await DB.levelUpdateRanges(db, makeTestPointer(3));
-        await DB.levelUpdateRanges(db, makeTestPointer(4));
-        await DB.levelUpdateRanges(db, makeTestPointer(2));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(1));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(2));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(3));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(4));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(2));
         expect(await db.values().all()).toStrictEqual(
             [
                 {
@@ -375,7 +376,7 @@ describe('levelStoreRanges', () => {
     test('bulkUpdate', async () => {
         const state = makeTestState();
         for (let i = 0; i < 1000; i++) {
-            await DB.levelUpdateRanges(state.level, makeTestPointer(i));
+            await Ingest.levelUpdateRanges(state.level, makeTestPointer(i));
         }
     });
 });
@@ -427,15 +428,15 @@ describe('levelStoreEvent', () => {
 
         expect(await DB.isFeedComplete(state, publicKey)).toStrictEqual(false);
 
-        await DB.levelSaveEvent(state, makeTestEvent(1));
+        await Ingest.levelSaveEvent(state, makeTestEvent(1));
 
         expect(await DB.isFeedComplete(state, publicKey)).toStrictEqual(true);
 
-        await DB.levelSaveEvent(state, makeTestEvent(3));
+        await Ingest.levelSaveEvent(state, makeTestEvent(3));
 
         expect(await DB.isFeedComplete(state, publicKey)).toStrictEqual(false);
 
-        await DB.levelSaveEvent(state, makeTestEvent(2));
+        await Ingest.levelSaveEvent(state, makeTestEvent(2));
 
         expect(await DB.isFeedComplete(state, publicKey)).toStrictEqual(true);
     });
@@ -448,19 +449,19 @@ describe('levelStoreEvent', () => {
             'unknown profile',
         );
 
-        await DB.levelSaveEvent(state, makeTestEvent(1));
+        await Ingest.levelSaveEvent(state, makeTestEvent(1));
 
         expect(await DB.makeSyncStatusString(state, publicKey)).toStrictEqual(
             '1/1 ',
         );
 
-        await DB.levelSaveEvent(state, makeTestEvent(5));
+        await Ingest.levelSaveEvent(state, makeTestEvent(5));
 
         expect(await DB.makeSyncStatusString(state, publicKey)).toStrictEqual(
             '2/5 ',
         );
 
-        await DB.levelSaveEvent(state, makeTestEvent(2));
+        await Ingest.levelSaveEvent(state, makeTestEvent(2));
 
         expect(await DB.makeSyncStatusString(state, publicKey)).toStrictEqual(
             '3/5 ',
