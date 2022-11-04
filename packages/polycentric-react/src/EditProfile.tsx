@@ -57,11 +57,7 @@ async function createExportBundle(state: Core.DB.PolycentricState) {
     if (profile !== undefined && profile.mutatedBy !== undefined) {
         const pointer = profile.mutatedBy;
         const potentialEvent = await state.levelEvents.get(
-            Core.DB.makeStorageTypeEventKey(
-                pointer.publicKey,
-                pointer.writerId,
-                pointer.sequenceNumber,
-            ),
+            Core.Keys.pointerToKey(pointer),
         );
         if (potentialEvent !== undefined) {
             const event = Core.Protocol.StorageTypeEvent.decode(potentialEvent);

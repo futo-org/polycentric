@@ -88,7 +88,7 @@ export function About(props: AboutProps) {
         return (
             <a
                 href={
-                    "https://gitlab.futo.org/harpo/polycentric/-/tree/" +
+                    'https://gitlab.futo.org/harpo/polycentric/-/tree/' +
                     version
                 }
                 target="_blank"
@@ -99,75 +99,77 @@ export function About(props: AboutProps) {
     };
 
     if (state !== undefined) {
-        return (<Fragment>
-            <Paper
-                elevation={4}
-                className="standard_width"
-                style={{
-                    marginTop: '10px',
-                    padding: '10px',
-                }}
-            >
-                <Divider>Persistence Information</Divider>
-                <Table>
-                    <TableBody>
-                        <TableRow>
-                            <TableCell>Storage Persistent</TableCell>
-                            <TableCell>
-                                {printOptionalPersistent(state.persistent)}
-                            </TableCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableCell>Storage Driver</TableCell>
-                            <TableCell>{props.state.storageDriver}</TableCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableCell>Estimated Storage Available</TableCell>
-                            <TableCell>
-                                {printOptionalBytes(
-                                    state.storageAvailableBytes,
-                                )}
-                            </TableCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableCell>Estimated Storage Used</TableCell>
-                            <TableCell>
-                                {printOptionalBytes(state.storageUsedBytes)}
-                            </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-            </Paper>
+        return (
+            <Fragment>
+                <Paper
+                    elevation={4}
+                    className="standard_width"
+                    style={{
+                        marginTop: '10px',
+                        padding: '10px',
+                    }}
+                >
+                    <Divider>Persistence Information</Divider>
+                    <Table>
+                        <TableBody>
+                            <TableRow>
+                                <TableCell>Storage Persistent</TableCell>
+                                <TableCell>
+                                    {printOptionalPersistent(state.persistent)}
+                                </TableCell>
+                            </TableRow>
+                            <TableRow>
+                                <TableCell>Storage Driver</TableCell>
+                                <TableCell>
+                                    {props.state.storageDriver}
+                                </TableCell>
+                            </TableRow>
+                            <TableRow>
+                                <TableCell>
+                                    Estimated Storage Available
+                                </TableCell>
+                                <TableCell>
+                                    {printOptionalBytes(
+                                        state.storageAvailableBytes,
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                            <TableRow>
+                                <TableCell>Estimated Storage Used</TableCell>
+                                <TableCell>
+                                    {printOptionalBytes(state.storageUsedBytes)}
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </Paper>
 
-            <Paper
-                elevation={4}
-                className="standard_width"
-                style={{
-                    marginTop: '10px',
-                    padding: '10px',
-                }}
-            >
-                <Divider>Client Information</Divider>
-                <Table>
-                    <TableBody>
-                        <TableRow>
-                            <TableCell>Client Context</TableCell>
-                            <TableCell>
-                                {props.state.client}
-                            </TableCell>
-                        </TableRow>
-                        <TableRow>
-                            <TableCell>Client Build Version</TableCell>
-                            <TableCell>
-                                {versionToLink(
-                                    Core.Version.SHA,
-                                )}
-                           </TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-            </Paper>
-        </Fragment>);
+                <Paper
+                    elevation={4}
+                    className="standard_width"
+                    style={{
+                        marginTop: '10px',
+                        padding: '10px',
+                    }}
+                >
+                    <Divider>Client Information</Divider>
+                    <Table>
+                        <TableBody>
+                            <TableRow>
+                                <TableCell>Client Context</TableCell>
+                                <TableCell>{props.state.client}</TableCell>
+                            </TableRow>
+                            <TableRow>
+                                <TableCell>Client Build Version</TableCell>
+                                <TableCell>
+                                    {versionToLink(Core.Version.SHA)}
+                                </TableCell>
+                            </TableRow>
+                        </TableBody>
+                    </Table>
+                </Paper>
+            </Fragment>
+        );
     } else {
         return <Fragment />;
     }

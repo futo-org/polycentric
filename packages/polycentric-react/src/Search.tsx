@@ -118,13 +118,7 @@ function Search(props: SearchProps) {
 
                 return (
                     <DispatchCard
-                        key={Base64.encode(
-                            Core.DB.makeStorageTypeEventKey(
-                                item.publicKey,
-                                item.writerId,
-                                item.sequenceNumber,
-                            ),
-                        )}
+                        key={Base64.encode(Core.Keys.pointerToKey(item))}
                         state={props.state}
                         pointer={item}
                         fromServer={raw}

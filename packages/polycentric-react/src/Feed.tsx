@@ -43,11 +43,11 @@ export function parseKeyByAuthorByTime(buffer: Uint8Array): KeyByAuthorByTime {
 
 function eventGetKey(event: Core.Protocol.Event): string {
     return Base64.encode(
-        Core.DB.makeStorageTypeEventKey(
-            event.authorPublicKey,
-            event.writerId,
-            event.sequenceNumber,
-        ),
+        Core.Keys.pointerToKey({
+            publicKey: event.authorPublicKey,
+            writerId: event.writerId,
+            sequenceNumber: event.sequenceNumber,
+        }),
     );
 }
 
@@ -339,9 +339,6 @@ type FeedForProfileProps = {
     feed: Core.Protocol.URLInfo;
 };
 
-const MAX_KEY = new Uint8Array([255, 255, 255, 255, 255, 255, 255, 255]);
-const MIN_KEY = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0]);
-
 function FeedForProfile(props: FeedForProfileProps) {
     const [exploreResults, setExploreResults] = useState<Array<ExploreItem>>(
         [],
@@ -353,7 +350,7 @@ function FeedForProfile(props: FeedForProfileProps) {
     const loadingMore = useRef<boolean>(false);
 
     const iterator = useRef<Uint8Array>(
-        Core.DB.appendBuffers(props.feed.publicKey, MAX_KEY),
+        Core.DB.appendBuffers(props.feed.publicKey, Core.Keys.MAX_UINT64_KEY),
     );
 
     const masterCancel = useRef<Core.CancelContext.CancelContext>(
@@ -431,7 +428,10 @@ function FeedForProfile(props: FeedForProfileProps) {
 
             const postIndexes = await props.state.levelIndexPostByAuthorByTime
                 .iterator({
-                    gte: Core.DB.appendBuffers(props.feed.publicKey, MIN_KEY),
+                    gte: Core.DB.appendBuffers(
+                        props.feed.publicKey,
+                        Core.Keys.MIN_UINT64_KEY,
+                    ),
                     lt: iterator.current,
                     limit: LIMIT - filteredPosts.length,
                     reverse: true,
@@ -583,7 +583,10 @@ function FeedForProfile(props: FeedForProfileProps) {
         setExploreResults([]);
         setInitial(true);
         setComplete(false);
-        iterator.current = Core.DB.appendBuffers(props.feed.publicKey, MAX_KEY);
+        iterator.current = Core.DB.appendBuffers(
+            props.feed.publicKey,
+            Core.Keys.MAX_UINT64_KEY,
+        );
         masterCancel.current = cancelContext;
         loadingMore.current = false;
 
@@ -768,11 +771,11 @@ function FeedForThread(props: FeedForThreadProps) {
             initialPost: undefined,
             dependencyContext: dependencyContext,
             key: Base64.encode(
-                Core.DB.makeStorageTypeEventKey(
-                    props.feed.publicKey,
-                    props.feed.writerId!,
-                    props.feed.sequenceNumber!,
-                ),
+                Core.Keys.pointerToKey({
+                    publicKey: props.feed.publicKey,
+                    writerId: props.feed.writerId!,
+                    sequenceNumber: props.feed.sequenceNumber!,
+                }),
             ),
         };
 

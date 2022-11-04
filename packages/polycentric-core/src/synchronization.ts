@@ -2,6 +2,7 @@ import * as Base64 from '@borderless/base64';
 import Deque from 'double-ended-queue';
 
 import * as DB from './db';
+import * as Keys from './keys';
 import * as Protocol from './protocol';
 import * as APIMethods from './APIMethods';
 import * as Util from './Util';
@@ -27,13 +28,7 @@ export async function needPointer(
     state: DB.PolycentricState,
     pointer: Protocol.Pointer,
 ) {
-    const key = Base64.encode(
-        DB.makeStorageTypeEventKey(
-            pointer.publicKey,
-            pointer.writerId,
-            pointer.sequenceNumber,
-        ),
-    );
+    const key = Base64.encode(Keys.pointerToKey(pointer));
 
     if (!state.sync.pointerSet.has(key)) {
         state.sync.pointerSet.add(key);
@@ -323,11 +318,7 @@ export async function processMutations(
 
                 const potentialEvent = await DB.tryLoadKey(
                     state.levelEvents,
-                    DB.makeStorageTypeEventKey(
-                        pointer.publicKey,
-                        pointer.writerId,
-                        pointer.sequenceNumber,
-                    ),
+                    Keys.pointerToKey(pointer),
                 );
 
                 if (potentialEvent !== undefined) {
@@ -365,11 +356,7 @@ export async function processMutations(
         } else {
             const potentialMutation = await DB.tryLoadKey(
                 state.levelEvents,
-                DB.makeStorageTypeEventKey(
-                    event.mutationPointer.publicKey,
-                    event.mutationPointer.writerId,
-                    event.mutationPointer.sequenceNumber,
-                ),
+                Keys.pointerToKey(event.mutationPointer),
             );
 
             if (potentialMutation !== undefined) {
@@ -415,16 +402,16 @@ export async function backfillSpecificServer(
         const events = (
             await state.levelEvents
                 .values({
-                    lte: DB.makeStorageTypeEventKey(
-                        identity.publicKey,
-                        identity.writerId,
-                        range.high,
-                    ),
-                    gte: DB.makeStorageTypeEventKey(
-                        identity.publicKey,
-                        identity.writerId,
-                        range.low,
-                    ),
+                    lte: Keys.pointerToKey({
+                        publicKey: identity.publicKey,
+                        writerId: identity.writerId,
+                        sequenceNumber: range.high,
+                    }),
+                    gte: Keys.pointerToKey({
+                        publicKey: identity.publicKey,
+                        writerId: identity.writerId,
+                        sequenceNumber: range.low,
+                    }),
                     limit: eventBatchSize - history.length,
                 })
                 .all()

@@ -6,6 +6,7 @@ import * as Base64 from '@borderless/base64';
 import * as Lodash from 'lodash';
 
 import * as Util from './Util';
+import * as Keys from './keys';
 import * as Protocol from './protocol';
 import * as Crypto from './crypto';
 import * as Synchronization from './synchronization';
@@ -44,11 +45,7 @@ export class DependencyContext {
     }
 
     public addDependency(pointer: Protocol.Pointer): void {
-        const key = makeStorageTypeEventKey(
-            pointer.publicKey,
-            pointer.writerId,
-            pointer.sequenceNumber,
-        );
+        const key = Keys.pointerToKey(pointer);
 
         this.addDependencyByKey(key);
     }
@@ -236,7 +233,7 @@ function fireListenersForEvent(state: PolycentricState, key: string) {
 export async function doesIdentityExist(
     state: PolycentricState,
 ): Promise<boolean> {
-    return await doesKeyExist(state.level, IDENTITY_KEY);
+    return await doesKeyExist(state.level, Keys.IDENTITY_KEY);
 }
 
 export async function startIdentity(state: PolycentricState): Promise<void> {
@@ -461,11 +458,7 @@ export async function tryLoadStorageEventByPointer(
 ): Promise<Protocol.StorageTypeEvent | undefined> {
     const value = await tryLoadStorageEventByKey(
         state,
-        makeStorageTypeEventKey(
-            pointer.publicKey,
-            pointer.writerId,
-            pointer.sequenceNumber,
-        ),
+        Keys.pointerToKey(pointer),
     );
 
     return value;
@@ -478,7 +471,7 @@ export async function tryLoadStorageEventByKey(
     const raw = await tryLoadKey(state.levelEvents, key);
 
     if (raw === undefined) {
-        const pointer = parseStorageTypeEventKey(key);
+        const pointer = Keys.keyToPointer(key);
 
         Synchronization.needPointer(state, pointer);
 
@@ -608,15 +601,17 @@ export async function rangesForFeed(
     publicKey: Uint8Array,
     writerId: Uint8Array,
 ): Promise<Array<Protocol.StorageTypeRange>> {
-    const minKey = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0]);
-
-    const maxKey = new Uint8Array([255, 255, 255, 255, 255, 255, 255, 255]);
-
     return (
         await state.levelRanges
             .values({
-                lte: appendBuffers(appendBuffers(publicKey, writerId), maxKey),
-                gte: appendBuffers(appendBuffers(publicKey, writerId), minKey),
+                lte: appendBuffers(
+                    appendBuffers(publicKey, writerId),
+                    Keys.MAX_UINT64_KEY,
+                ),
+                gte: appendBuffers(
+                    appendBuffers(publicKey, writerId),
+                    Keys.MIN_UINT64_KEY,
+                ),
             })
             .all()
     ).map((x) => Protocol.StorageTypeRange.decode(x));
@@ -678,73 +673,6 @@ export async function makeSyncStatusString(
     return status;
 }
 
-function makeStorageTypeRangeKey(
-    publicKey: Uint8Array,
-    writerId: Uint8Array,
-    lowSequenceNumber: number,
-): Uint8Array {
-    if (publicKey.length != 32) {
-        throw new Error('expected publicKey to be 32 bytes');
-    }
-
-    if (writerId.length != 32) {
-        throw new Error('expected writerId to be 32 bytes');
-    }
-
-    const number = Util.numberToBinary(lowSequenceNumber);
-    const merged = new Uint8Array(
-        publicKey.length + writerId.length + number.length,
-    );
-    merged.set(publicKey);
-    merged.set(writerId, publicKey.length);
-    merged.set(number, publicKey.length + writerId.length);
-    return merged;
-}
-
-export function makeStorageTypeEventKey(
-    publicKey: Uint8Array,
-    writerId: Uint8Array,
-    sequenceNumber: number,
-): Uint8Array {
-    if (publicKey.length != 32) {
-        throw new Error('expected publicKey to be 32 bytes');
-    }
-
-    if (writerId.length != 32) {
-        throw new Error('expected writerId to be 32 bytes');
-    }
-
-    const number = Util.numberToBinary(sequenceNumber);
-    const merged = new Uint8Array(
-        publicKey.length + writerId.length + number.length,
-    );
-    merged.set(publicKey);
-    merged.set(writerId, publicKey.length);
-    merged.set(number, publicKey.length + writerId.length);
-    return merged;
-}
-
-export function parseStorageTypeEventKey(key: Uint8Array): Protocol.Pointer {
-    if (key.length !== 32 + 32 + 8) {
-        throw new Error('unexpected key size');
-    }
-
-    const publicKey = key.slice(0, 32);
-    const writerId = key.slice(32, 32 + 32);
-    const sequenceNumberArray = Array.from(key.slice(64, 64 + 8));
-
-    const sequenceNumber = Long.fromBytesLE(
-        sequenceNumberArray,
-        true,
-    ).toNumber();
-
-    return {
-        publicKey: publicKey,
-        writerId: writerId,
-        sequenceNumber: sequenceNumber,
-    };
-}
-
 export function appendBuffers(left: Uint8Array, right: Uint8Array): Uint8Array {
     const merged = new Uint8Array(left.length + right.length);
     merged.set(left);
@@ -772,11 +700,11 @@ async function insertRange(
     event: Protocol.StorageTypeRange,
 ) {
     await table.put(
-        makeStorageTypeRangeKey(
-            event.publicKey,
-            event.writerId,
-            event.lowSequenceNumber,
-        ),
+        Keys.pointerToKey({
+            publicKey: event.publicKey,
+            writerId: event.writerId,
+            sequenceNumber: event.lowSequenceNumber,
+        }),
         Protocol.StorageTypeRange.encode(event).finish(),
     );
 }
@@ -786,11 +714,11 @@ async function insertEvent(
     event: Protocol.Event,
 ) {
     await table.put(
-        makeStorageTypeEventKey(
-            event.authorPublicKey,
-            event.writerId,
-            event.sequenceNumber,
-        ),
+        Keys.pointerToKey({
+            publicKey: event.authorPublicKey,
+            writerId: event.writerId,
+            sequenceNumber: event.sequenceNumber,
+        }),
         Protocol.StorageTypeEvent.encode({
             event: event,
             mutationPointer: undefined,
@@ -802,14 +730,7 @@ export async function levelUpdateRanges(
     table: AbstractLevel.AbstractLevel<Uint8Array, Uint8Array, Uint8Array>,
     event: Protocol.Pointer,
 ) {
-    const minKey = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0]);
-    const maxKey = new Uint8Array([255, 255, 255, 255, 255, 255, 255, 255]);
-
-    const key = makeStorageTypeRangeKey(
-        event.publicKey,
-        event.writerId,
-        event.sequenceNumber,
-    );
+    const key = Keys.pointerToKey(event);
 
     const possibleLowRange = (
         await table
@@ -817,7 +738,7 @@ export async function levelUpdateRanges(
                 lt: key,
                 gte: appendBuffers(
                     appendBuffers(event.publicKey, event.writerId),
-                    minKey,
+                    Keys.MIN_UINT64_KEY,
                 ),
                 limit: 1,
                 reverse: true,
@@ -831,7 +752,7 @@ export async function levelUpdateRanges(
                 gt: key,
                 lte: appendBuffers(
                     appendBuffers(event.publicKey, event.writerId),
-                    maxKey,
+                    Keys.MAX_UINT64_KEY,
                 ),
                 limit: 1,
             })
@@ -863,19 +784,19 @@ export async function levelUpdateRanges(
         await table.batch([
             {
                 type: 'del',
-                key: makeStorageTypeRangeKey(
-                    event.publicKey,
-                    event.writerId,
-                    possibleHighRange[0].lowSequenceNumber,
-                ),
+                key: Keys.pointerToKey({
+                    publicKey: event.publicKey,
+                    writerId: event.writerId,
+                    sequenceNumber: possibleHighRange[0].lowSequenceNumber,
+                }),
             },
             {
                 type: 'put',
-                key: makeStorageTypeRangeKey(
-                    event.publicKey,
-                    event.writerId,
-                    possibleLowRange[0].lowSequenceNumber,
-                ),
+                key: Keys.pointerToKey({
+                    publicKey: event.publicKey,
+                    writerId: event.writerId,
+                    sequenceNumber: possibleLowRange[0].lowSequenceNumber,
+                }),
                 value: Protocol.StorageTypeRange.encode({
                     publicKey: event.publicKey,
                     writerId: event.writerId,
@@ -891,19 +812,19 @@ export async function levelUpdateRanges(
         await table.batch([
             {
                 type: 'del',
-                key: makeStorageTypeRangeKey(
-                    event.publicKey,
-                    event.writerId,
-                    possibleHighRange[0].lowSequenceNumber,
-                ),
+                key: Keys.pointerToKey({
+                    publicKey: event.publicKey,
+                    writerId: event.writerId,
+                    sequenceNumber: possibleHighRange[0].lowSequenceNumber,
+                }),
             },
             {
                 type: 'put',
-                key: makeStorageTypeRangeKey(
-                    event.publicKey,
-                    event.writerId,
-                    event.sequenceNumber,
-                ),
+                key: Keys.pointerToKey({
+                    publicKey: event.publicKey,
+                    writerId: event.writerId,
+                    sequenceNumber: event.sequenceNumber,
+                }),
                 value: Protocol.StorageTypeRange.encode({
                     publicKey: event.publicKey,
                     writerId: event.writerId,
@@ -962,11 +883,11 @@ export async function levelSaveEvent(
     return await state.lock.acquire('lock', async () => {
         const event = deepCopyEvent(eventTainted);
 
-        const key = makeStorageTypeEventKey(
-            event.authorPublicKey,
-            event.writerId,
-            event.sequenceNumber,
-        );
+        const key = Keys.pointerToKey({
+            publicKey: event.authorPublicKey,
+            writerId: event.writerId,
+            sequenceNumber: event.sequenceNumber,
+        });
 
         if ((await doesKeyExist(state.levelEvents, key)) === true) {
             return;
@@ -1097,11 +1018,7 @@ export async function levelSaveEvent(
 
             if (Util.blobsEqual(pointer.publicKey, event.authorPublicKey)) {
                 await state.levelEvents.put(
-                    makeStorageTypeEventKey(
-                        pointer.publicKey,
-                        pointer.writerId,
-                        pointer.sequenceNumber,
-                    ),
+                    Keys.pointerToKey(pointer),
                     Protocol.StorageTypeEvent.encode({
                         event: undefined,
                         mutationPointer: {
@@ -1128,11 +1045,11 @@ export async function levelSaveEvent(
 
         {
             const key = Base64.encode(
-                makeStorageTypeEventKey(
-                    event.authorPublicKey,
-                    event.writerId,
-                    event.sequenceNumber,
-                ),
+                Keys.pointerToKey({
+                    publicKey: event.authorPublicKey,
+                    writerId: event.writerId,
+                    sequenceNumber: event.sequenceNumber,
+                }),
             );
 
             fireListenersForEvent(state, key);
@@ -1158,7 +1075,7 @@ export async function levelSaveEvent(
             );
 
             await state.levelIndexPostByAuthorByTime.put(
-                makeStorageTypeEventKeyByAuthorByTime(
+                Keys.makeStorageTypeEventKeyByAuthorByTime(
                     event.authorPublicKey,
                     event.unixMilliseconds,
                 ),
@@ -1235,8 +1152,6 @@ export async function levelLoadFollowing(
     return result;
 }
 
-const IDENTITY_KEY = new TextEncoder().encode('IDENTITY');
-
 export async function levelNewDeviceForExistingIdentity(
     state: PolycentricState,
     privateKey: Uint8Array,
@@ -1244,7 +1159,7 @@ export async function levelNewDeviceForExistingIdentity(
     const writerId = Ed.utils.randomPrivateKey();
 
     await state.level.put(
-        IDENTITY_KEY,
+        Keys.IDENTITY_KEY,
         Protocol.StorageTypeIdentity.encode({
             privateKey: privateKey,
             writerId: writerId,
@@ -1256,7 +1171,7 @@ export async function levelNewDeviceForExistingIdentity(
 export async function levelLoadIdentity(
     state: PolycentricState,
 ): Promise<IIdentityState> {
-    const rawResult = await tryLoadKey(state.level, IDENTITY_KEY);
+    const rawResult = await tryLoadKey(state.level, Keys.IDENTITY_KEY);
 
     if (rawResult === undefined) {
         throw new Error('Expected identity to exist');
@@ -1298,7 +1213,7 @@ export async function levelSavePost(
     await Crypto.addEventSignature(event, identity.privateKey);
 
     await state.level.put(
-        IDENTITY_KEY,
+        Keys.IDENTITY_KEY,
         Protocol.StorageTypeIdentity.encode({
             privateKey: identity.privateKey,
             writerId: identity.writerId,

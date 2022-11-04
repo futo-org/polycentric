@@ -4,6 +4,7 @@ import * as MemoryLevel from 'memory-level';
 import * as DB from './db';
 import * as Protocol from './protocol';
 import * as Util from './Util';
+import * as Keys from './keys';
 
 describe('subtractRange', () => {
     test('both empty are empty', () => {
@@ -473,13 +474,13 @@ describe('keySerializationAndParsing', () => {
         const writerId = Ed.utils.randomPrivateKey();
         const sequenceNumber = Math.floor(Math.random() * 100);
 
-        const encoded = DB.makeStorageTypeEventKey(
-            publicKey,
-            writerId,
-            sequenceNumber,
-        );
+        const encoded = Keys.pointerToKey({
+            publicKey: publicKey,
+            writerId: writerId,
+            sequenceNumber: sequenceNumber,
+        });
 
-        const decoded = DB.parseStorageTypeEventKey(encoded);
+        const decoded = Keys.keyToPointer(encoded);
 
         expect(decoded).toStrictEqual({
             publicKey: publicKey,
