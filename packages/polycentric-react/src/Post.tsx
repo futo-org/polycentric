@@ -337,7 +337,9 @@ export function Post(props: PostProps) {
     const [boosting, setBoosting] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
-    const handleBoost = async () => {
+    const handleBoost = async (e: React.MouseEvent<HTMLElement>) => {
+        e.stopPropagation();
+
         if (boosting === true) {
             return;
         }
@@ -357,13 +359,21 @@ export function Post(props: PostProps) {
         }, 500);
     };
 
-    const handleDelete = Lodash.once(async () => {
+    const handleDelete = async (e: React.MouseEvent<HTMLElement>) => {
+        e.stopPropagation();
+
         setDeleting(true);
 
         await Core.DB.deletePost(props.state, props.post.pointer);
-    });
+    };
 
     const handleNavigate = (event: React.MouseEvent<HTMLDivElement>) => {
+        navigate('/' + postToLink(props.post.pointer));
+    };
+
+    const handleBackgroundClick = (e: React.MouseEvent<HTMLElement>) => {
+        e.stopPropagation();
+        
         navigate('/' + postToLink(props.post.pointer));
     };
 
@@ -439,15 +449,22 @@ export function Post(props: PostProps) {
                     display: 'flex',
                     alignItems: 'flex-start',
                 }}
+                onClick={handleBackgroundClick}
             >
-                <PostModal
-                    state={props.state}
-                    isOpen={modalIsOpen}
-                    onClose={() => {
-                        setModalIsOpen(false);
+                <div
+                    onClick={(e) => {
+                        e.stopPropagation();
                     }}
-                    boostPointer={props.post.actionPointer}
-                />
+                >
+                    <PostModal
+                        state={props.state}
+                        isOpen={modalIsOpen}
+                        onClose={() => {
+                            setModalIsOpen(false);
+                        }}
+                        boostPointer={props.post.actionPointer}
+                    />
+                </div>
                 <div
                     style={{
                         marginTop: '11px',
@@ -457,7 +474,8 @@ export function Post(props: PostProps) {
                 >
                     <Avatar
                         src={props.post.profile.avatar}
-                        onClick={() => {
+                        onClick={(e) => {
+                            e.stopPropagation();
                             setViewerLink(props.post.profile.avatar);
                         }}
                     />
@@ -477,7 +495,8 @@ export function Post(props: PostProps) {
                                 whiteSpace: 'pre-wrap',
                                 overflowWrap: 'anywhere',
                             }}
-                            onClick={() => {
+                            onClick={(e) => {
+                                e.stopPropagation();
                                 navigate('/' + props.post.profile.link);
                             }}
                         >
@@ -501,7 +520,12 @@ export function Post(props: PostProps) {
                                 @{props.post.profile.identity}
                             </span>
                         </div>
-                        <div className="post__content">
+                        <div
+                            className="post__content"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                            }}
+                        >
                             <div
                                 style={{
                                     whiteSpace: 'pre-wrap',
@@ -588,6 +612,9 @@ export function Post(props: PostProps) {
                                 style={{
                                     marginTop: '6px',
                                 }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                }}
                             >
                                 Posted on: &nbsp;
                                 {new Date(
@@ -614,7 +641,8 @@ export function Post(props: PostProps) {
                                 </LoadingButton>
                                 <Button
                                     variant="contained"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                        e.stopPropagation();
                                         setModalIsOpen(true);
                                     }}
                                     startIcon={<ReplyIcon />}

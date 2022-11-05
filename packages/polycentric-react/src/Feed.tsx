@@ -865,9 +865,11 @@ export function Feed(props: FeedProps) {
                 </div>
             )}
 
-            <div className="recommendedcard_position">
-                <RecommendedProfiles state={props.state} />
-            </div>
+            {decodedFeed !== undefined && decodedFeed.writerId === undefined && (
+                <div className="recommendedcard_position">
+                    <RecommendedProfiles state={props.state} />
+                </div>
+            )}
 
             {decodedFeed === undefined && (
                 <FeedForTimeline state={props.state} />
