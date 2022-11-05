@@ -116,6 +116,11 @@ export async function eventToDisplayablePost(
             body.message.boostPointer,
         );
 
+        // display nothing for deleted subject
+        if (boost !== undefined && boost.event === undefined) {
+            return undefined;
+        }
+
         if (boost !== undefined) {
             const displayable = await eventToDisplayablePost(
                 state,
