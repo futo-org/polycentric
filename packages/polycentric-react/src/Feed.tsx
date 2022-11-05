@@ -517,8 +517,8 @@ function FeedForProfile(props: FeedForProfileProps) {
 
                 return totalResults
                     .sort((a, b) => {
-                        const at = a.initialPost.unixMilliseconds;
-                        const bt = b.initialPost.unixMilliseconds;
+                        const at = a.initialPost.sortMilliseconds;
+                        const bt = b.initialPost.sortMilliseconds;
 
                         if (at < bt) {
                             return -1;
@@ -562,8 +562,8 @@ function FeedForProfile(props: FeedForProfileProps) {
             return [filtered]
                 .concat(old)
                 .sort((a, b) => {
-                    const at = a.initialPost.unixMilliseconds;
-                    const bt = b.initialPost.unixMilliseconds;
+                    const at = a.initialPost.sortMilliseconds;
+                    const bt = b.initialPost.sortMilliseconds;
 
                     if (at < bt) {
                         return -1;

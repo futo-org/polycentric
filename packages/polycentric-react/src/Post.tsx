@@ -23,6 +23,7 @@ export type DisplayablePost = {
     message: string;
     image?: string;
     unixMilliseconds: number;
+    sortMilliseconds: number;
     author: boolean;
     boost: DisplayablePost | undefined;
     fromServer?: string;
@@ -133,6 +134,7 @@ export async function eventToDisplayablePost(
                 displayable.pointer = pointer;
                 displayable.boostedBy = displayableProfile.displayName;
                 displayable.author = amAuthor;
+                displayable.sortMilliseconds = event.unixMilliseconds;
 
                 return displayable;
             }
@@ -145,6 +147,7 @@ export async function eventToDisplayablePost(
         profile: displayableProfile,
         message: new TextDecoder().decode(body.message.message),
         unixMilliseconds: event.unixMilliseconds,
+        sortMilliseconds: event.unixMilliseconds,
         author: amAuthor,
         boost: undefined,
     };
@@ -378,7 +381,7 @@ export function Post(props: PostProps) {
 
     const handleBackgroundClick = (e: React.MouseEvent<HTMLElement>) => {
         e.stopPropagation();
-        
+
         navigate('/' + postToLink(props.post.pointer));
     };
 
