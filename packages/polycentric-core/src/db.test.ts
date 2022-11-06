@@ -386,9 +386,22 @@ describe('levelStoreRanges', () => {
 
     test('bulkUpdate', async () => {
         const state = makeTestState();
+        const db = state.levelRanges;
         for (let i = 0; i < 1000; i++) {
-            await Ingest.levelUpdateRanges(state.level, makeTestPointer(i));
+            await Ingest.levelUpdateRanges(db, makeTestPointer(i));
         }
+        /*
+        expect(await db.values().all()).toStrictEqual(
+            [
+                {
+                    publicKey: publicKey,
+                    writerId: writerId,
+                    lowSequenceNumber: 0,
+                    highSequenceNumber: 999,
+                },
+            ].map((x) => Protocol.StorageTypeRange.encode(x).finish()),
+        );
+        */
     });
 });
 
