@@ -185,10 +185,6 @@ export async function levelSaveEvent(
             sequenceNumber: event.sequenceNumber,
         });
 
-        if ((await DB.doesKeyExist(state.levelEvents, key)) === true) {
-            return;
-        }
-
         const body = Protocol.EventBody.decode(event.content);
 
         if (Validation.validateEventBody(body) === false) {
@@ -198,8 +194,6 @@ export async function levelSaveEvent(
         }
 
         const fireListenersFor = new Set<string>();
-
-        fireListenersFor.add(Base64.encode(key));
 
         {
             let mutated = false;
@@ -350,13 +344,17 @@ export async function levelSaveEvent(
             }
         }
 
-        await levelUpdateRanges(state.levelRanges, {
-            publicKey: event.authorPublicKey,
-            writerId: event.writerId,
-            sequenceNumber: event.sequenceNumber,
-        });
+        if ((await DB.doesKeyExist(state.levelEvents, key)) === false) {
+            await levelUpdateRanges(state.levelRanges, {
+                publicKey: event.authorPublicKey,
+                writerId: event.writerId,
+                sequenceNumber: event.sequenceNumber,
+            });
 
-        await insertEvent(state.levelEvents, event);
+            await insertEvent(state.levelEvents, event);
+
+            fireListenersFor.add(Base64.encode(key));
+        }
 
         for (const key of fireListenersFor) {
             DB.fireListenersForEvent(state, key);
