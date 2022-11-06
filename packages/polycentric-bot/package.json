@@ -10,6 +10,7 @@
     "abstract-level": "^1.0.3",
     "classic-level": "^1.2.0",
     "node-fetch": "^3.2.10",
+    "node-html-parser": "^6.1.1",
     "path": "^0.12.7",
     "polycentric-core": "../polycentric-core",
     "rss-parser": "^3.12.0",

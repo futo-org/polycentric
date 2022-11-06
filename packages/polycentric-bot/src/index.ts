@@ -4,6 +4,7 @@ import Parser from 'rss-parser';
 import fetch from 'node-fetch';
 import * as FS from 'fs';
 import * as XML2JS from 'xml2js';
+import * as NodeHTMLParser from 'node-html-parser';
 
 import * as Core from 'polycentric-core';
 
@@ -107,8 +108,12 @@ async function runBot(
 
             let feed = await parser.parseString(xml);
 
+            console.log('feed length', feed.items.length);
+
             for (const item of feed.items) {
                 if (item.guid === undefined) {
+                    console.log('no guid');
+
                     continue;
                 }
 
@@ -159,57 +164,122 @@ async function handlerNitter(
     item: any,
 ): Promise<void> {
     if (item.content === undefined) {
+        console.log('item content was empty');
+
         return;
     }
 
-    const lines = item.content.split('\n');
+    const parsed = NodeHTMLParser.parse(item.content);
 
-    if (lines.length !== 2) {
+    // console.log(parsed);
+
+    if (parsed.childNodes.length === 0) {
+        console.log('no childNodes');
+
         return;
     }
 
-    const parsed = await XML2JS.parseStringPromise(lines[1], { strict: false });
+    let imagePointer: Core.Protocol.Pointer | undefined;
+    let message = '';
 
-    const imgURL = parsed['IMG']['$']['SRC'];
-    const imageKind = imgURL.substr(imgURL.length - 3);
+    const textNodes = parsed.getElementsByTagName('p');
 
-    if (imageKind !== 'png' && imageKind !== 'jpg') {
-        console.log('unknown image type', imageKind);
-        return;
+    if (textNodes.length > 0) {
+        if (textNodes.length > 1) {
+            console.log('more than one text node, using the first one');
+        }
+
+        const textNode = textNodes[0];
+
+        if (textNode.childNodes.length !== 0) {
+            message = textNode.childNodes[0].rawText;
+            console.log('text is:', message);
+        } else {
+            console.log('text node had no children');
+        }
     }
 
-    const imageResponse = await fetch(imgURL, {
-        method: 'GET',
-    });
+    const imageNodes = parsed.getElementsByTagName('img');
 
-    if (imageResponse.status !== 200) {
-        console.log('failed downloading image', imageResponse.status);
-        return;
+    if (imageNodes.length > 0) {
+        if (imageNodes.length > 1) {
+            console.log('more than one image node, using last one');
+        }
+
+        const imageNode = imageNodes[imageNodes.length - 1];
+
+        const imgURL = imageNode.getAttribute('src');
+
+        if (imgURL === undefined) {
+            return;
+        }
+
+        console.log('imgURL is', imgURL);
+
+        const imageResponse = await fetch(imgURL, {
+            method: 'GET',
+        });
+
+        if (imageResponse.status !== 200) {
+            console.log('failed downloading image', imageResponse.status);
+            return;
+        }
+
+        if (!imageResponse.headers.has('Content-Type')) {
+            console.log('media did not have content type header');
+        }
+
+        const mime = imageResponse.headers.get('Content-Type');
+
+        if (
+            mime === undefined ||
+            (mime !== 'image/png' && mime !== 'image/jpeg')
+        ) {
+            console.log('media unexpected mime', mime);
+            return;
+        }
+
+        const imageRaw = new Uint8Array(await imageResponse.arrayBuffer());
+
+        imagePointer = await Core.DB.saveBlob(state, mime!, imageRaw);
     }
-
-    if (!imageResponse.headers.has('Content-Type')) {
-        console.log('media did not have content type header');
-    }
-
-    const mime = imageResponse.headers.get('Content-Type');
-
-    if (mime !== 'image/png' && mime !== 'image/jpeg') {
-        console.log('media unexpected mime', mime);
-        return;
-    }
-
-    const imageRaw = new Uint8Array(await imageResponse.arrayBuffer());
 
     const event = Core.DB.makeDefaultEventBody();
     event.message = {
-        message: new TextEncoder().encode(''),
+        message: new TextEncoder().encode(message),
         boostPointer: undefined,
+        image: imagePointer,
     };
-
-    event.message.image = await Core.DB.saveBlob(state, mime, imageRaw);
 
     await Core.DB.levelSavePost(state, event);
 }
+
+runBot(
+    'state_ap',
+    'ap.jpg',
+    'The Associated Press',
+    'Advancing the power of facts, globally.',
+    'https://nitter.net/ap/rss',
+    handlerNitter,
+);
+
+runBot(
+    'state_biden',
+    'biden.jpg',
+    'President Biden',
+    '46th President of the United States',
+    'https://nitter.net/potus/rss',
+    handlerNitter,
+);
+
+runBot(
+    'state_dril',
+    'dril.jpg',
+    'wint',
+    'Societary Fact Whisperer || alienPiss',
+    'https://nitter.net/dril/rss',
+    handlerNitter,
+);
 
 runBot(
     'state_hackernews',
