@@ -423,9 +423,9 @@ function FeedForProfile(props: FeedForProfileProps) {
 
         let filteredPosts: Array<ExploreItem> = [];
 
-        while (true) {
-            const LIMIT = 20;
+        const LIMIT = 20;
 
+        while (true) {
             const postIndexes = await props.state.levelIndexPostByAuthorByTime
                 .iterator({
                     gte: Core.DB.appendBuffers(
@@ -508,12 +508,24 @@ function FeedForProfile(props: FeedForProfileProps) {
                     }
                 }
 
+                const addedCount = totalResults.length - old.length;
+
                 console.log(
                     'total',
                     totalResults.length,
                     'new',
-                    filteredPosts.length,
+                    addedCount,
                 );
+
+                if (addedCount === 0) {
+                    console.log("added count was zero so doing backfill");
+
+                    doBackfill(cancelContext);
+                } else if (totalResults.length < LIMIT) {
+                    console.log("not enough posts to fill render");
+
+                    doBackfill(cancelContext);
+                }
 
                 return totalResults
                     .sort((a, b) => {
