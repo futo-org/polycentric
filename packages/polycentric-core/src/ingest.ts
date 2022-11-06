@@ -6,6 +6,7 @@ import * as Util from './Util';
 import * as Protocol from './protocol';
 import * as Keys from './keys';
 import * as Synchronization from './synchronization';
+import * as Validation from './validation';
 
 async function insertRange(
     table: AbstractLevel.AbstractLevel<Uint8Array, Uint8Array, Uint8Array>,
@@ -169,6 +170,12 @@ export async function levelSaveEvent(
     state: DB.PolycentricState,
     eventTainted: Protocol.Event,
 ) {
+    if (Validation.validateEvent(eventTainted) === false) {
+        console.log('event validation failed');
+
+        return;
+    }
+
     return await state.lock.acquire('lock', async () => {
         const event = DB.deepCopyEvent(eventTainted);
 
@@ -183,6 +190,12 @@ export async function levelSaveEvent(
         }
 
         const body = Protocol.EventBody.decode(event.content);
+
+        if (Validation.validateEventBody(body) === false) {
+            console.log('event body validation failed');
+
+            return;
+        }
 
         let mutatedProfile = false;
 
