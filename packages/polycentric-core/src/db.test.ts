@@ -6,6 +6,7 @@ import * as Protocol from './protocol';
 import * as Util from './Util';
 import * as Keys from './keys';
 import * as Ingest from './ingest';
+import * as Crypto from './crypto';
 
 describe('subtractRange', () => {
     test('both empty are empty', () => {
@@ -152,13 +153,19 @@ function makeTestState(): DB.PolycentricState {
     return state;
 }
 
-const publicKey = new Uint8Array(32);
-const writerId = new Uint8Array(32);
-const content = new Uint8Array(0);
-const signature = new Uint8Array(0);
+let privateKey = new Uint8Array(32);
+let publicKey = new Uint8Array(32);
+let writerId = new Uint8Array(32);
+let content = new Uint8Array(0);
+let signature = new Uint8Array(0);
 
-function makeTestEvent(sequenceNumber: number): Protocol.Event {
-    return {
+async function setupTestData(): Promise<void> {
+    privateKey = await Ed.utils.randomPrivateKey();
+    writerId = await Ed.utils.randomPrivateKey();
+}
+
+async function makeTestEvent(sequenceNumber: number): Promise<Protocol.Event> {
+    const event: Protocol.Event = {
         writerId: writerId,
         authorPublicKey: publicKey,
         sequenceNumber: sequenceNumber,
@@ -168,6 +175,10 @@ function makeTestEvent(sequenceNumber: number): Protocol.Event {
         previousEventHash: undefined,
         unixMilliseconds: Date.now(),
     };
+
+    await Crypto.addEventSignature(event, privateKey);
+
+    return event;
 }
 
 function makeTestPointer(sequenceNumber: number): Protocol.Pointer {
@@ -403,6 +414,10 @@ function makeFollowEvent(sequenceNumber: number): Protocol.Event {
 */
 
 describe('levelStoreEvent', () => {
+    beforeEach(async () => {
+        await setupTestData();
+    });
+
     test('followUserAPI', async () => {
         const state = makeTestState();
         await DB.newIdentity(state);
@@ -428,15 +443,15 @@ describe('levelStoreEvent', () => {
 
         expect(await DB.isFeedComplete(state, publicKey)).toStrictEqual(false);
 
-        await Ingest.levelSaveEvent(state, makeTestEvent(1));
+        await Ingest.levelSaveEvent(state, await makeTestEvent(1));
 
         expect(await DB.isFeedComplete(state, publicKey)).toStrictEqual(true);
 
-        await Ingest.levelSaveEvent(state, makeTestEvent(3));
+        await Ingest.levelSaveEvent(state, await makeTestEvent(3));
 
         expect(await DB.isFeedComplete(state, publicKey)).toStrictEqual(false);
 
-        await Ingest.levelSaveEvent(state, makeTestEvent(2));
+        await Ingest.levelSaveEvent(state, await makeTestEvent(2));
 
         expect(await DB.isFeedComplete(state, publicKey)).toStrictEqual(true);
     });
@@ -449,19 +464,19 @@ describe('levelStoreEvent', () => {
             'unknown profile',
         );
 
-        await Ingest.levelSaveEvent(state, makeTestEvent(1));
+        await Ingest.levelSaveEvent(state, await makeTestEvent(1));
 
         expect(await DB.makeSyncStatusString(state, publicKey)).toStrictEqual(
             '1/1 ',
         );
 
-        await Ingest.levelSaveEvent(state, makeTestEvent(5));
+        await Ingest.levelSaveEvent(state, await makeTestEvent(5));
 
         expect(await DB.makeSyncStatusString(state, publicKey)).toStrictEqual(
             '2/5 ',
         );
 
-        await Ingest.levelSaveEvent(state, makeTestEvent(2));
+        await Ingest.levelSaveEvent(state, await makeTestEvent(2));
 
         expect(await DB.makeSyncStatusString(state, publicKey)).toStrictEqual(
             '3/5 ',
