@@ -197,7 +197,9 @@ export async function levelSaveEvent(
             return;
         }
 
-        let mutatedProfile = false;
+        const fireListenersFor = new Set<string>();
+
+        fireListenersFor.add(Base64.encode(key));
 
         {
             let mutated = false;
@@ -268,9 +270,16 @@ export async function levelSaveEvent(
                     event.authorPublicKey,
                     Protocol.StorageTypeProfile.encode(profile).finish(),
                 );
-            }
 
-            mutatedProfile = mutated;
+                fireListenersFor.add(
+                    Base64.encode(
+                        new Uint8Array([
+                            ...new TextEncoder().encode('!profiles!'),
+                            ...event.authorPublicKey,
+                        ]),
+                    ),
+                );
+            }
         }
 
         if (body.follow !== undefined) {
@@ -319,8 +328,10 @@ export async function levelSaveEvent(
             const pointer = body.delete.pointer;
 
             if (Util.blobsEqual(pointer.publicKey, event.authorPublicKey)) {
+                const key = Keys.pointerToKey(pointer);
+
                 await state.levelEvents.put(
-                    Keys.pointerToKey(pointer),
+                    key,
                     Protocol.StorageTypeEvent.encode({
                         event: undefined,
                         mutationPointer: {
@@ -332,6 +343,8 @@ export async function levelSaveEvent(
                 );
 
                 await levelUpdateRanges(state.levelRanges, pointer);
+
+                fireListenersFor.add(Base64.encode(key));
             } else {
                 console.log('received malicious delete');
             }
@@ -345,26 +358,7 @@ export async function levelSaveEvent(
 
         await insertEvent(state.levelEvents, event);
 
-        {
-            const key = Base64.encode(
-                Keys.pointerToKey({
-                    publicKey: event.authorPublicKey,
-                    writerId: event.writerId,
-                    sequenceNumber: event.sequenceNumber,
-                }),
-            );
-
-            DB.fireListenersForEvent(state, key);
-        }
-
-        if (mutatedProfile) {
-            const key = Base64.encode(
-                new Uint8Array([
-                    ...new TextEncoder().encode('!profiles!'),
-                    ...event.authorPublicKey,
-                ]),
-            );
-
+        for (const key of fireListenersFor) {
             DB.fireListenersForEvent(state, key);
         }
 

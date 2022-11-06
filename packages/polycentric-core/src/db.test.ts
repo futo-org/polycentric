@@ -1,5 +1,6 @@
 import * as Ed from '@noble/ed25519';
 import * as MemoryLevel from 'memory-level';
+import * as Base64 from '@borderless/base64';
 
 import * as DB from './db';
 import * as Protocol from './protocol';
@@ -170,6 +171,26 @@ async function makeTestEvent(sequenceNumber: number): Promise<Protocol.Event> {
         authorPublicKey: publicKey,
         sequenceNumber: sequenceNumber,
         content: content,
+        clocks: [],
+        signature: signature,
+        previousEventHash: undefined,
+        unixMilliseconds: Date.now(),
+    };
+
+    await Crypto.addEventSignature(event, privateKey);
+
+    return event;
+}
+
+async function makeTestEvent2(
+    sequenceNumber: number,
+    body: Protocol.EventBody,
+): Promise<Protocol.Event> {
+    const event: Protocol.Event = {
+        writerId: writerId,
+        authorPublicKey: publicKey,
+        sequenceNumber: sequenceNumber,
+        content: Protocol.EventBody.encode(body).finish(),
         clocks: [],
         signature: signature,
         previousEventHash: undefined,
@@ -405,28 +426,141 @@ describe('levelStoreRanges', () => {
     });
 });
 
-/*
-function makeFollowEvent(sequenceNumber: number): Protocol.Event {
-    const event = DB.makeDefaultEventBody();
-    event.follow = {
-        publicKey: publicKey,
-        unfollow: false,
-    };
+describe('delete', () => {
+    beforeEach(async () => {
+        await setupTestData();
+    });
 
-    return {
-        writerId: writerId,
-        authorPublicKey: publicKey,
-        sequenceNumber: sequenceNumber,
-        content: Protocol.EventBody.encode(event).finish(),
-        clocks: [],
-        signature: signature,
-        previousEventHash: undefined,
-        unixMilliseconds: sequenceNumber,
-    };
-}
-*/
+    test('deleteSubjectAfterSubjectStored', async () => {
+        const state = makeTestState();
+        await DB.newIdentity(state);
 
-describe('levelStoreEvent', () => {
+        let p1ListenerCallCount = 0;
+        let p2ListenerCallCount = 0;
+
+        const p1Pointer = makeTestPointer(5);
+        const p2Pointer = makeTestPointer(10);
+
+        DB.waitOnEvent(
+            state,
+            Base64.encode(Keys.pointerToKey(p1Pointer)),
+            () => {
+                p1ListenerCallCount++;
+            },
+        );
+
+        DB.waitOnEvent(
+            state,
+            Base64.encode(Keys.pointerToKey(p2Pointer)),
+            () => {
+                p2ListenerCallCount++;
+            },
+        );
+
+        const p1Body = DB.makeDefaultEventBody();
+        p1Body.message = {
+            message: new Uint8Array(),
+            image: undefined,
+            boostPointer: undefined,
+        };
+        await Ingest.levelSaveEvent(
+            state,
+            await makeTestEvent2(p1Pointer.sequenceNumber, p1Body),
+        );
+
+        expect(p1ListenerCallCount).toStrictEqual(1);
+        expect(p2ListenerCallCount).toStrictEqual(0);
+
+        const p2Body = DB.makeDefaultEventBody();
+        p2Body.delete = {
+            pointer: p1Pointer,
+        };
+        await Ingest.levelSaveEvent(
+            state,
+            await makeTestEvent2(p2Pointer.sequenceNumber, p2Body),
+        );
+
+        expect(p1ListenerCallCount).toStrictEqual(2);
+        expect(p2ListenerCallCount).toStrictEqual(1);
+
+        expect(
+            Protocol.StorageTypeEvent.encode(
+                (await DB.tryLoadStorageEventByPointer(state, p1Pointer))!,
+            ).finish(),
+        ).toStrictEqual(
+            Protocol.StorageTypeEvent.encode({
+                event: undefined,
+                mutationPointer: p2Pointer,
+            }).finish(),
+        );
+    });
+
+    test('deleteSubjectBeforeSubjectStored', async () => {
+        const state = makeTestState();
+        await DB.newIdentity(state);
+
+        let p1ListenerCallCount = 0;
+        let p2ListenerCallCount = 0;
+
+        const p1Pointer = makeTestPointer(5);
+        const p2Pointer = makeTestPointer(10);
+
+        DB.waitOnEvent(
+            state,
+            Base64.encode(Keys.pointerToKey(p1Pointer)),
+            () => {
+                p1ListenerCallCount++;
+            },
+        );
+
+        DB.waitOnEvent(
+            state,
+            Base64.encode(Keys.pointerToKey(p2Pointer)),
+            () => {
+                p2ListenerCallCount++;
+            },
+        );
+
+        const p2Body = DB.makeDefaultEventBody();
+        p2Body.delete = {
+            pointer: p1Pointer,
+        };
+        await Ingest.levelSaveEvent(
+            state,
+            await makeTestEvent2(p2Pointer.sequenceNumber, p2Body),
+        );
+
+        expect(p1ListenerCallCount).toStrictEqual(1);
+        expect(p2ListenerCallCount).toStrictEqual(1);
+
+        const p1Body = DB.makeDefaultEventBody();
+        p1Body.message = {
+            message: new Uint8Array(),
+            image: undefined,
+            boostPointer: undefined,
+        };
+        await Ingest.levelSaveEvent(
+            state,
+            await makeTestEvent2(p1Pointer.sequenceNumber, p1Body),
+        );
+
+        expect(p1ListenerCallCount).toStrictEqual(1);
+        expect(p2ListenerCallCount).toStrictEqual(1);
+
+        expect(
+            Protocol.StorageTypeEvent.encode(
+                (await DB.tryLoadStorageEventByPointer(state, p1Pointer))!,
+            ).finish(),
+        ).toStrictEqual(
+            Protocol.StorageTypeEvent.encode({
+                event: undefined,
+                mutationPointer: p2Pointer,
+            }).finish(),
+        );
+    });
+});
+
+describe('levelMethods', () => {
     beforeEach(async () => {
         await setupTestData();
     });
