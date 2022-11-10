@@ -55,6 +55,7 @@ export function DispatchCard(props: DispatchCardProps) {
                         publicKey={event.event.authorPublicKey}
                         state={props.state}
                         fromServer={props.fromServer}
+                        profilePageProps={undefined}
                     />
                 </div>,
             );

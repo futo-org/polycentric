@@ -53,6 +53,7 @@ function Following(props: FollowingProps) {
                     key={Base64.encodeUrl(following)}
                     publicKey={following}
                     state={props.state}
+                    profilePageProps={undefined}
                 />
             ))}
             {loaded && following.length === 0 && (

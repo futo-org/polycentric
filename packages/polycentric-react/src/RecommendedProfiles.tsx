@@ -65,6 +65,7 @@ function RecommendedProfiles(props: RecommendedProfilesProps) {
                         state={props.state}
                         publicKey={profileKey}
                         fromServer={from}
+                        profilePageProps={undefined}
                     />
                 );
             })}

@@ -8,6 +8,7 @@ import * as Util from './Util';
 import * as Keys from './keys';
 import * as Ingest from './ingest';
 import * as Crypto from './crypto';
+import * as PersistenceDriver from './persistence-driver';
 
 describe('subtractRange', () => {
     test('both empty are empty', () => {
@@ -139,18 +140,15 @@ describe('takeRangesMaxItems', () => {
     });
 });
 
-function makeTestState(): DB.PolycentricState {
-    const level = new MemoryLevel.MemoryLevel<Uint8Array, Uint8Array>({
-        keyEncoding: 'buffer',
-        valueEncoding: 'buffer',
-    }) as DB.BinaryAbstractLevel;
+async function makeTestState(): Promise<DB.PolycentricState> {
+    const persistenceDriver = PersistenceDriver.createPersistenceDriverMemory();
 
-    const state = new DB.PolycentricState(
-        level,
-        DB.StorageDriver.Memory,
-        'tests',
-    );
+    const level = await persistenceDriver.openStore('');
+
+    const state = new DB.PolycentricState(level, persistenceDriver, 'tests');
+
     state.autoSync = false;
+
     return state;
 }
 
@@ -212,7 +210,7 @@ function makeTestPointer(sequenceNumber: number): Protocol.Pointer {
 
 describe('levelStoreRanges', () => {
     test('discontinuous', async () => {
-        const state = makeTestState();
+        const state = await makeTestState();
         const db = state.levelRanges;
 
         await Ingest.levelUpdateRanges(db, makeTestPointer(0));
@@ -244,7 +242,7 @@ describe('levelStoreRanges', () => {
     });
 
     test('highMerge', async () => {
-        const state = makeTestState();
+        const state = await makeTestState();
         const db = state.levelRanges;
 
         await Ingest.levelUpdateRanges(db, makeTestPointer(5));
@@ -268,7 +266,7 @@ describe('levelStoreRanges', () => {
     });
 
     test('highMergeNoLow', async () => {
-        const state = makeTestState();
+        const state = await makeTestState();
         const db = state.levelRanges;
         await Ingest.levelUpdateRanges(db, makeTestPointer(115));
         await Ingest.levelUpdateRanges(db, makeTestPointer(114));
@@ -286,7 +284,7 @@ describe('levelStoreRanges', () => {
     });
 
     test('lowMerge', async () => {
-        const state = makeTestState();
+        const state = await makeTestState();
         const db = state.levelRanges;
         await Ingest.levelUpdateRanges(db, makeTestPointer(11));
         await Ingest.levelUpdateRanges(db, makeTestPointer(4));
@@ -310,7 +308,7 @@ describe('levelStoreRanges', () => {
     });
 
     test('lowMergeNoHigh', async () => {
-        const state = makeTestState();
+        const state = await makeTestState();
         const db = state.levelRanges;
         await Ingest.levelUpdateRanges(db, makeTestPointer(52));
         await Ingest.levelUpdateRanges(db, makeTestPointer(53));
@@ -327,7 +325,7 @@ describe('levelStoreRanges', () => {
     });
 
     test('highAndLowMerge', async () => {
-        const state = makeTestState();
+        const state = await makeTestState();
         const db = state.levelRanges;
         await Ingest.levelUpdateRanges(db, makeTestPointer(22));
         await Ingest.levelUpdateRanges(db, makeTestPointer(24));
@@ -345,7 +343,7 @@ describe('levelStoreRanges', () => {
     });
 
     test('manyContinuous', async () => {
-        const state = makeTestState();
+        const state = await makeTestState();
         const db = state.levelRanges;
         await Ingest.levelUpdateRanges(db, makeTestPointer(5));
         await Ingest.levelUpdateRanges(db, makeTestPointer(6));
@@ -365,7 +363,7 @@ describe('levelStoreRanges', () => {
     });
 
     test('mergeLargeBlocks', async () => {
-        const state = makeTestState();
+        const state = await makeTestState();
         const db = state.levelRanges;
         await Ingest.levelUpdateRanges(db, makeTestPointer(3));
         await Ingest.levelUpdateRanges(db, makeTestPointer(2));
@@ -386,7 +384,7 @@ describe('levelStoreRanges', () => {
     });
 
     test('insertIntoExistingRange', async () => {
-        const state = makeTestState();
+        const state = await makeTestState();
         const db = state.levelRanges;
         await Ingest.levelUpdateRanges(db, makeTestPointer(1));
         await Ingest.levelUpdateRanges(db, makeTestPointer(2));
@@ -406,12 +404,11 @@ describe('levelStoreRanges', () => {
     });
 
     test('bulkUpdate', async () => {
-        const state = makeTestState();
+        const state = await makeTestState();
         const db = state.levelRanges;
         for (let i = 0; i < 1000; i++) {
             await Ingest.levelUpdateRanges(db, makeTestPointer(i));
         }
-        /*
         expect(await db.values().all()).toStrictEqual(
             [
                 {
@@ -422,7 +419,6 @@ describe('levelStoreRanges', () => {
                 },
             ].map((x) => Protocol.StorageTypeRange.encode(x).finish()),
         );
-        */
     });
 });
 
@@ -432,7 +428,7 @@ describe('delete', () => {
     });
 
     test('deleteSubjectAfterSubjectStored', async () => {
-        const state = makeTestState();
+        const state = await makeTestState();
         await DB.newIdentity(state);
 
         let p1ListenerCallCount = 0;
@@ -496,7 +492,7 @@ describe('delete', () => {
     });
 
     test('deleteSubjectBeforeSubjectStored', async () => {
-        const state = makeTestState();
+        const state = await makeTestState();
         await DB.newIdentity(state);
 
         let p1ListenerCallCount = 0;
@@ -566,7 +562,7 @@ describe('levelMethods', () => {
     });
 
     test('followUserAPI', async () => {
-        const state = makeTestState();
+        const state = await makeTestState();
         await DB.newIdentity(state);
 
         expect(await DB.levelAmFollowing(state, publicKey)).toStrictEqual(
@@ -585,7 +581,7 @@ describe('levelMethods', () => {
     });
 
     test('isFeedComplete', async () => {
-        const state = makeTestState();
+        const state = await makeTestState();
         await DB.newIdentity(state);
 
         expect(await DB.isFeedComplete(state, publicKey)).toStrictEqual(false);
@@ -604,7 +600,7 @@ describe('levelMethods', () => {
     });
 
     test('makeSyncStatusString', async () => {
-        const state = makeTestState();
+        const state = await makeTestState();
         await DB.newIdentity(state);
 
         expect(await DB.makeSyncStatusString(state, publicKey)).toStrictEqual(

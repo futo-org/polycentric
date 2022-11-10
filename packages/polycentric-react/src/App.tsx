@@ -40,12 +40,13 @@ const theme = createTheme({
 });
 
 type AppProps = {
-    state: Core.DB.PolycentricState;
+    state: Core.DB.PolycentricState | undefined;
+    metaStore: Core.PersistenceDriver.IMetaStore;
+    setState: (state: Core.DB.PolycentricState | undefined) => void;
 };
 
 function App(props: AppProps) {
     const [modalIsOpen, setModalIsOpen] = useState(false);
-    const [initial, setInitial] = useState(true);
     const [avatar, setAvatar] = useState<string | undefined>(undefined);
     const [anchor, setAnchor] = useState<null | HTMLElement>(null);
 
@@ -72,8 +73,15 @@ function App(props: AppProps) {
         setAnchor(null);
     };
 
+    const handleSwitchProfile = async () => {
+        await props.metaStore.unsetActiveStore();
+        props.setState(undefined);
+        navigate('/profiles');
+        setAnchor(null);
+    };
+
     const handleOpenMyPosts = () => {
-        if (props.state.identity !== undefined) {
+        if (props.state !== undefined && props.state.identity !== undefined) {
             navigate(
                 '/' +
                     ProfileUtil.profileToLinkOnlyKey(
@@ -96,21 +104,17 @@ function App(props: AppProps) {
         setModalIsOpen(true);
     };
 
-    const loadProfileImage = async () => {
-        if (props.state.identity === undefined) {
-            return;
-        }
-
-        const profile = await Core.DB.loadProfile(props.state);
+    const loadProfileImage = async (state: Core.DB.PolycentricState) => {
+        const profile = await Core.DB.loadProfile(state);
 
         if (profile.imagePointer === undefined) {
             return;
         }
 
-        const dependencyContext = new Core.DB.DependencyContext(props.state);
+        const dependencyContext = new Core.DB.DependencyContext(state);
 
         const loaded = await Core.DB.loadBlob(
-            props.state,
+            state,
             profile.imagePointer,
             dependencyContext,
         );
@@ -125,34 +129,31 @@ function App(props: AppProps) {
     };
 
     useEffect(() => {
-        if (
-            location.pathname !== '/setup' &&
-            props.state.identity === undefined
-        ) {
-            navigate('/setup');
+        if (props.state === undefined) {
+            return;
         }
 
-        setInitial(false);
-    }, [location, navigate, props.state.identity]);
+        const state = props.state;
 
-    useEffect(() => {
         const handlePut = (key: Uint8Array, value: Uint8Array) => {
-            loadProfileImage();
+            if (props.state !== undefined) {
+                loadProfileImage(state);
+            }
         };
 
-        props.state.level.on('put', handlePut);
+        state.level.on('put', handlePut);
 
-        loadProfileImage();
+        loadProfileImage(state);
 
         return () => {
-            props.state.level.removeListener('put', handlePut);
+            state.level.removeListener('put', handlePut);
         };
-    }, []);
+    }, [props.state]);
 
     return (
         <div>
             <ThemeProvider theme={theme}>
-                {props.state.identity !== undefined && (
+                {props.state && props.state.identity !== undefined && (
                     <AppBar position="sticky">
                         <Toolbar>
                             <Box className="app__header">
@@ -220,27 +221,32 @@ function App(props: AppProps) {
                                             About
                                         </Typography>
                                     </MenuItem>
+                                    <MenuItem onClick={handleSwitchProfile}>
+                                        <Typography textAlign="center">
+                                            Switch Profile
+                                        </Typography>
+                                    </MenuItem>
                                 </Menu>
                             </Box>
                         </Toolbar>
                     </AppBar>
                 )}
 
-                <PostModal
-                    state={props.state}
-                    isOpen={modalIsOpen}
-                    onClose={() => {
-                        setModalIsOpen(false);
-                    }}
-                />
-
-                {initial === false && (
-                    <div className="app">
-                        <Outlet />
-                    </div>
+                {props.state && (
+                    <PostModal
+                        state={props.state}
+                        isOpen={modalIsOpen}
+                        onClose={() => {
+                            setModalIsOpen(false);
+                        }}
+                    />
                 )}
 
-                {props.state.identity !== undefined && (
+                <div className="app">
+                    <Outlet />
+                </div>
+
+                {props.state && props.state.identity !== undefined && (
                     <Fab
                         color="primary"
                         size="large"

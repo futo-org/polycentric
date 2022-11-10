@@ -510,19 +510,14 @@ function FeedForProfile(props: FeedForProfileProps) {
 
                 const addedCount = totalResults.length - old.length;
 
-                console.log(
-                    'total',
-                    totalResults.length,
-                    'new',
-                    addedCount,
-                );
+                console.log('total', totalResults.length, 'new', addedCount);
 
                 if (addedCount === 0) {
-                    console.log("added count was zero so doing backfill");
+                    console.log('added count was zero so doing backfill');
 
                     doBackfill(cancelContext);
                 } else if (totalResults.length < LIMIT) {
-                    console.log("not enough posts to fill render");
+                    console.log('not enough posts to fill render');
 
                     doBackfill(cancelContext);
                 }
@@ -645,7 +640,7 @@ function FeedForProfile(props: FeedForProfileProps) {
                 handlePut,
             );
         };
-    }, [props.feed]);
+    }, [props.state, props.feed]);
 
     return (
         <div>

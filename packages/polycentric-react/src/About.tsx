@@ -33,25 +33,13 @@ export function About(props: AboutProps) {
             storageUsedBytes: undefined,
         };
 
-        try {
-            nextState.persistent = await navigator.storage.persisted();
-        } catch (err) {
-            console.log(err);
-        }
+        nextState.persistent = await props.state.persistenceDriver.persisted();
 
-        try {
-            const storageEstimate = await navigator.storage.estimate();
+        const storageEstimate =
+            await props.state.persistenceDriver.estimateStorage();
 
-            nextState.storageAvailableBytes = storageEstimate.quota;
-
-            nextState.storageUsedBytes = storageEstimate.usage;
-        } catch (err) {
-            console.log(err);
-        }
-
-        if (cancelContext.cancelled()) {
-            return;
-        }
+        nextState.storageAvailableBytes = storageEstimate.bytesAvailable;
+        nextState.storageUsedBytes = storageEstimate.bytesUsed;
 
         setState(nextState);
     };
@@ -98,6 +86,8 @@ export function About(props: AboutProps) {
         );
     };
 
+    const driverName = props.state.persistenceDriver.getImplementationName();
+
     if (state !== undefined) {
         return (
             <Fragment>
@@ -120,9 +110,7 @@ export function About(props: AboutProps) {
                             </TableRow>
                             <TableRow>
                                 <TableCell>Storage Driver</TableCell>
-                                <TableCell>
-                                    {props.state.storageDriver}
-                                </TableCell>
+                                <TableCell>{driverName}</TableCell>
                             </TableRow>
                             <TableRow>
                                 <TableCell>

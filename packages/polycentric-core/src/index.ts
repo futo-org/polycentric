@@ -8,3 +8,5 @@ export * as CancelContext from './cancel-context';
 export * as Version from './version';
 export * as Keys from './keys';
 export * as Ingest from './ingest';
+export * as PersistenceDriver from './persistence-driver';
+export * as Migrate from './migrate';
