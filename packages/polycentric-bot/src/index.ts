@@ -8,6 +8,51 @@ import * as NodeHTMLParser from 'node-html-parser';
 
 import * as Core from 'polycentric-core';
 
+function createPersistenceDriverLevelDB(
+    directory: string,
+): Core.PersistenceDriver.PersistenceDriver {
+    const getImplementationName = () => {
+        return 'LevelDB';
+    };
+
+    const openStore = async (path: string) => {
+        const level = new ClassicLevel.ClassicLevel<Uint8Array, Uint8Array>(
+            directory + '/' + path,
+            {
+                keyEncoding: 'buffer',
+                valueEncoding: 'buffer',
+            },
+        ) as any as Core.DB.BinaryAbstractLevel;
+
+        await level.open();
+
+        return level;
+    };
+
+    const estimateStorage = async () => {
+        return {
+             bytesAvailable: undefined,
+            bytesUsed: undefined,
+        };
+    };
+
+    const persisted = async () => {
+        return true;
+    };
+
+    const destroyStore = async (path: string) => {};
+
+    return {
+        getImplementationName: getImplementationName,
+        openStore: openStore,
+        estimateStorage: estimateStorage,
+        persisted: persisted,
+        destroyStore: destroyStore,
+    };
+}
+
+
+
 function sleep(ms: number) {
     return new Promise((resolve) => {
         setTimeout(resolve, ms);
@@ -22,13 +67,13 @@ async function runBot(
     feedURL: string,
     handler: (a: Core.DB.PolycentricState, b: any) => Promise<void>,
 ) {
-    const level = new ClassicLevel.ClassicLevel<Uint8Array, Uint8Array>(
-        stateDirectoryPath + '/polycentric',
-        {
-            keyEncoding: 'buffer',
-            valueEncoding: 'buffer',
-        },
-    ) as any as AbstractLevel.AbstractLevel<Uint8Array, Uint8Array, Uint8Array>;
+    const persistenceDriver = createPersistenceDriverLevelDB(
+        stateDirectoryPath,
+    );
+
+    const metaStore = await Core.PersistenceDriver.createMetaStore(
+        persistenceDriver,
+    );
 
     const levelRSS = new ClassicLevel.ClassicLevel<string, string>(
         stateDirectoryPath + '/rss',
@@ -38,17 +83,46 @@ async function runBot(
         },
     );
 
-    const state = new Core.DB.PolycentricState(
-        level,
-        Core.DB.StorageDriver.LevelDB,
-        'bot',
-    );
+    const state = await (async () => {
+        let levelInfo = await metaStore.getActiveStore();
 
-    if (!(await Core.DB.doesIdentityExist(state))) {
-        console.log('generating new identity');
+        if (levelInfo !== undefined) {
+            const level = await metaStore.openStore(
+                levelInfo.publicKey,
+                levelInfo.version,
+            );
 
-        await Core.DB.newIdentity(state);
-    }
+            const state = new Core.DB.PolycentricState(
+                level,
+                persistenceDriver,
+                'bot',
+            );
+
+            await Core.DB.startIdentity(state);
+
+            return state;
+        } else {
+            const state = await Core.DB.createStateNewIdentity(
+                metaStore,
+                persistenceDriver,
+                'username',
+            );
+
+            await Core.DB.startIdentity(state);
+
+            await metaStore.setStoreReady(
+                state.identity!.publicKey,
+                Core.DB.STORAGE_VERSION,
+            );
+
+            await metaStore.setActiveStore(
+                state.identity!.publicKey,
+                Core.DB.STORAGE_VERSION,
+            );
+
+            return state;
+        }
+    })();
 
     {
         const message = Core.DB.makeDefaultEventBody();
@@ -77,8 +151,6 @@ async function runBot(
 
         await Core.DB.levelSavePost(state, message);
     }
-
-    await Core.DB.startIdentity(state);
 
     let parser = new Parser();
 
@@ -255,7 +327,7 @@ async function handlerNitter(
 }
 
 runBot(
-    'state_ap',
+    'state/ap',
     'ap.jpg',
     'The Associated Press',
     'Advancing the power of facts, globally.',
@@ -264,7 +336,7 @@ runBot(
 );
 
 runBot(
-    'state_biden',
+    'state/biden',
     'biden.jpg',
     'President Biden',
     '46th President of the United States',
@@ -273,7 +345,7 @@ runBot(
 );
 
 runBot(
-    'state_dril',
+    'state/dril',
     'dril.jpg',
     'wint',
     'Societary Fact Whisperer || alienPiss',
@@ -282,7 +354,7 @@ runBot(
 );
 
 runBot(
-    'state_hackernews',
+    'state/hackernews',
     'hnlogo.jpg',
     'Hacker News Bot',
     'Posting content from the front page of Hacker News',
@@ -291,7 +363,7 @@ runBot(
 );
 
 runBot(
-    'state_archillect',
+    'state/archillect',
     'archillectlogo.jpg',
     'Archillect',
     'The ocular engine.',

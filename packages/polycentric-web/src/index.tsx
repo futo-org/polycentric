@@ -1,16 +1,6 @@
-import * as AbstractLevel from 'abstract-level';
 import * as BrowserLevel from 'browser-level';
-import * as MemoryLevel from 'memory-level';
 
 import * as PolycentricReact from 'polycentric-react';
-
-let level = new BrowserLevel.BrowserLevel<Uint8Array, Uint8Array>(
-    'PolycentricStateV5',
-    {
-        keyEncoding: 'buffer',
-        valueEncoding: 'buffer',
-    },
-) as AbstractLevel.AbstractLevel<Uint8Array, Uint8Array, Uint8Array>;
 
 const registerServiceWorker = async () => {
     if ('serviceWorker' in navigator) {
@@ -34,23 +24,147 @@ const registerServiceWorker = async () => {
     }
 };
 
+function createPersistenceDriverIndexedDB(): PolycentricReact.Core.PersistenceDriver.PersistenceDriver {
+    const getImplementationName = () => {
+        return 'IndexedDB';
+    };
+
+    const openStore = async (path: string) => {
+        const level = new BrowserLevel.BrowserLevel<Uint8Array, Uint8Array>(
+            path,
+            {
+                keyEncoding: 'buffer',
+                valueEncoding: 'buffer',
+            },
+        ) as PolycentricReact.Core.PersistenceDriver.BinaryAbstractLevel;
+
+        await level.open();
+
+        return level;
+    };
+
+    const estimateStorage = async () => {
+        const estimate: PolycentricReact.Core.PersistenceDriver.StorageEstimate =
+            {
+                bytesAvailable: undefined,
+                bytesUsed: undefined,
+            };
+
+        try {
+            const storageEstimate = await navigator.storage.estimate();
+
+            estimate.bytesAvailable = storageEstimate.quota;
+
+            estimate.bytesUsed = storageEstimate.usage;
+        } catch (err) {
+            console.log(err);
+        }
+
+        return estimate;
+    };
+
+    const persisted = async () => {
+        try {
+            return await navigator.storage.persisted();
+        } catch (err) {
+            console.log(err);
+        }
+
+        return false;
+    };
+
+    const destroyStore = async (path: string) => {
+        await indexedDB.deleteDatabase('level-js-' + path);
+    };
+
+    return {
+        getImplementationName: getImplementationName,
+        openStore: openStore,
+        estimateStorage: estimateStorage,
+        persisted: persisted,
+        destroyStore: destroyStore,
+    };
+}
+
+async function migrateFromOldStateIfNeeded(
+    meta: PolycentricReact.Core.PersistenceDriver.IMetaStore,
+    persistenceDriver: PolycentricReact.Core.PersistenceDriver.PersistenceDriver,
+): Promise<void> {
+    const oldLevel = await persistenceDriver.openStore('PolycentricStateV5');
+
+    const oldState = new PolycentricReact.Core.DB.PolycentricState(
+        oldLevel,
+        persistenceDriver,
+        'browser',
+    );
+
+    let identity = undefined;
+
+    try {
+        identity = await PolycentricReact.Core.DB.levelLoadIdentity(oldState);
+    } catch (err) {}
+
+    if (identity === undefined) {
+        return;
+    }
+
+    alert('Doing a migration, this may take several minutes. Click OK.');
+
+    await meta.unsetActiveStore();
+
+    await meta.deleteStore(
+        identity.publicKey,
+        PolycentricReact.Core.DB.STORAGE_VERSION,
+    );
+
+    const newLevel = await meta.openStore(
+        identity.publicKey,
+        PolycentricReact.Core.DB.STORAGE_VERSION,
+    );
+
+    const newState = new PolycentricReact.Core.DB.PolycentricState(
+        newLevel,
+        persistenceDriver,
+        'browser',
+    );
+
+    await PolycentricReact.Core.Migrate.migrateCopyEvents(oldState, newState);
+
+    await meta.setActiveStore(
+        identity.publicKey,
+        PolycentricReact.Core.DB.STORAGE_VERSION,
+    );
+
+    await meta.setStoreReady(
+        identity.publicKey,
+        PolycentricReact.Core.DB.STORAGE_VERSION,
+    );
+
+    await persistenceDriver.destroyStore('PolycentricStateV5');
+
+    alert('migration done');
+}
+
 async function main() {
     await registerServiceWorker();
 
-    let storageDriver = PolycentricReact.Core.DB.StorageDriver.Memory;
+    let persistenceDriver = createPersistenceDriverIndexedDB();
 
     try {
-        await level.open();
+        const metaStore =
+            await PolycentricReact.Core.PersistenceDriver.createMetaStore(
+                persistenceDriver,
+            );
 
-        storageDriver = PolycentricReact.Core.DB.StorageDriver.IndexedDB;
+        await migrateFromOldStateIfNeeded(metaStore, persistenceDriver);
     } catch (err) {
-        level = new MemoryLevel.MemoryLevel<Uint8Array, Uint8Array>({
-            keyEncoding: 'buffer',
-            valueEncoding: 'buffer',
-        }) as AbstractLevel.AbstractLevel<Uint8Array, Uint8Array, Uint8Array>;
+        console.log('failed to open indexedb');
+
+        persistenceDriver =
+            PolycentricReact.Core.PersistenceDriver.createPersistenceDriverMemory();
     }
 
-    PolycentricReact.createApp(level, storageDriver);
+    PolycentricReact.createApp(persistenceDriver);
 }
 
 main();

@@ -61,7 +61,7 @@ function ProfileCard({ publicKey, state }: ProfileHeaderProps) {
             cancelContext.cancel();
             state.levelEvents.removeListener('put', handlePut);
         };
-    }, [publicKey]);
+    }, [state, publicKey]);
 
     return profile ? (
         <Paper

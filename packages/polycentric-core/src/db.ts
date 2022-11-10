@@ -12,6 +12,9 @@ import * as Crypto from './crypto';
 import * as Synchronization from './synchronization';
 import * as APIMethods from './APIMethods';
 import * as Ingest from './ingest';
+import * as PersistenceDriver from './persistence-driver';
+
+export const STORAGE_VERSION = 0;
 
 export type Listener = {
     key: string;
@@ -115,18 +118,12 @@ export type BinaryAbstractLevel = AbstractLevel.AbstractLevel<
     Uint8Array
 >;
 
-export enum StorageDriver {
-    Memory = 'Memory',
-    IndexedDB = 'IndexedDB',
-    LevelDB = 'LevelDB',
-}
-
 export class PolycentricState {
     sync: Synchronization.SynchronizationState;
     identity: IIdentityState | undefined;
     autoSync: boolean;
     lock: AsyncLock;
-    storageDriver: StorageDriver;
+    persistenceDriver: PersistenceDriver.PersistenceDriver;
     client: string;
 
     level: BinaryAbstractLevel;
@@ -141,7 +138,7 @@ export class PolycentricState {
 
     constructor(
         level: BinaryAbstractLevel,
-        storageDriver: StorageDriver,
+        persistenceDriver: PersistenceDriver.PersistenceDriver,
         client: string,
     ) {
         console.log('creating state');
@@ -149,7 +146,7 @@ export class PolycentricState {
         this.identity = undefined;
         this.autoSync = true;
         this.listeners = new Map();
-        this.storageDriver = storageDriver;
+        this.persistenceDriver = persistenceDriver;
         this.client = client;
 
         this.lock = new AsyncLock();
@@ -244,6 +241,62 @@ export async function startIdentity(state: PolycentricState): Promise<void> {
     Synchronization.addFeed(state, identity.publicKey);
     Synchronization.addAllFollowing(state);
     Synchronization.backfillServer(state);
+}
+
+export async function createStateNewIdentity(
+    metaStore: PersistenceDriver.IMetaStore,
+    persistenceDriver: PersistenceDriver.PersistenceDriver,
+    profileName?: string,
+): Promise<PolycentricState> {
+    const privateKey = Ed.utils.randomPrivateKey();
+
+    const state = await createStateExtendIdentity(
+        metaStore,
+        persistenceDriver,
+        privateKey,
+    );
+
+    const message = makeDefaultEventBody();
+
+    if (profileName === undefined) {
+        profileName = 'Anonymous';
+    }
+
+    message.profile = {
+        profileName: new TextEncoder().encode(profileName),
+        profileDescription: undefined,
+        profileServers: [
+            new TextEncoder().encode('https://srv1.polycentric.io'),
+        ],
+    };
+
+    await levelSavePost(state, message);
+
+    return state;
+}
+
+export async function createStateExtendIdentity(
+    metaStore: PersistenceDriver.IMetaStore,
+    persistenceDriver: PersistenceDriver.PersistenceDriver,
+    privateKey: Uint8Array,
+): Promise<PolycentricState> {
+    const publicKey = await Ed.getPublicKey(privateKey);
+    const writerId = Ed.utils.randomPrivateKey();
+
+    const store = await metaStore.openStore(publicKey, STORAGE_VERSION);
+
+    const state = new PolycentricState(store, persistenceDriver, 'browser');
+
+    await state.level.put(
+        Keys.IDENTITY_KEY,
+        Protocol.StorageTypeIdentity.encode({
+            privateKey: privateKey,
+            writerId: writerId,
+            sequenceNumber: 0,
+        }).finish(),
+    );
+
+    return state;
 }
 
 export async function newIdentity(

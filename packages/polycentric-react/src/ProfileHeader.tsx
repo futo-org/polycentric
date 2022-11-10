@@ -7,13 +7,19 @@ import * as Core from 'polycentric-core';
 import './ProfileHeader.css';
 import * as ProfileUtil from './ProfileUtil';
 
+type ProfilePageProps = {
+    onOpen: () => void;
+    onDelete: () => void;
+};
+
 type ProfileHeaderProps = {
     publicKey: Uint8Array;
     state: Core.DB.PolycentricState;
     fromServer?: string;
+    profilePageProps: ProfilePageProps | undefined;
 };
 
-function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
+function ProfileHeader(props: ProfileHeaderProps) {
     const navigate = useNavigate();
 
     const [profile, setProfile] = useState<
@@ -23,21 +29,21 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
     const [viewerLink, setViewerLink] = useState<string | undefined>(undefined);
 
     const handleFollow = async () => {
-        await Core.DB.levelFollowUser(state, publicKey);
+        await Core.DB.levelFollowUser(props.state, props.publicKey);
     };
 
     const handleUnfollow = async () => {
-        await Core.DB.levelUnfollowUser(state, publicKey);
+        await Core.DB.levelUnfollowUser(props.state, props.publicKey);
     };
 
     const loadProfile = async (
         cancelContext: Core.CancelContext.CancelContext,
     ) => {
-        const dependencyContext = new Core.DB.DependencyContext(state);
+        const dependencyContext = new Core.DB.DependencyContext(props.state);
 
         const result = await ProfileUtil.loadProfileOrFallback(
-            state,
-            publicKey,
+            props.state,
+            props.publicKey,
             dependencyContext,
         );
 
@@ -57,15 +63,15 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
             loadProfile(cancelContext);
         };
 
-        state.level.on('put', handlePut);
+        props.state.level.on('put', handlePut);
 
         loadProfile(cancelContext);
 
         return () => {
             cancelContext.cancel();
-            state.level.removeListener('put', handlePut);
+            props.state.level.removeListener('put', handlePut);
         };
-    }, [publicKey]);
+    }, [props.state, props.publicKey]);
 
     return profile ? (
         <Paper
@@ -74,7 +80,7 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
                 marginBottom: '15px',
             }}
         >
-            {fromServer !== undefined && (
+            {props.fromServer !== undefined && (
                 <div
                     style={{
                         paddingLeft: '5px',
@@ -89,7 +95,7 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
                             fontWeight: 600,
                         }}
                     >
-                        {fromServer}
+                        {props.fromServer}
                     </span>
                     <div
                         style={{
@@ -131,7 +137,11 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
                     <div
                         className="profileHeader__headerText"
                         onClick={() => {
-                            navigate('/' + profile.link);
+                            if (props.profilePageProps !== undefined) {
+                                props.profilePageProps.onOpen();
+                            } else {
+                                navigate('/' + profile.link);
+                            }
                         }}
                     >
                         <h3
@@ -157,6 +167,7 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
                 >
                     {profile.description}
                 </h3>
+
                 <div
                     style={{
                         display: 'flex',
@@ -164,34 +175,56 @@ function ProfileHeader({ publicKey, state, fromServer }: ProfileHeaderProps) {
                         marginTop: '5px',
                     }}
                 >
-                    <h3
-                        style={{
-                            marginTop: '0px',
-                            marginBottom: '0px',
-                            display: 'flex',
-                            alignItems: 'center',
-                        }}
-                    >
-                        Downloaded: {profile.status}
-                    </h3>
-                    {profile.following ? (
-                        <Button
-                            variant="contained"
-                            onClick={handleUnfollow}
-                            color="warning"
-                            size="small"
-                        >
-                            Unfollow
-                        </Button>
+                    {props.profilePageProps === undefined ? (
+                        <React.Fragment>
+                            <h3
+                                style={{
+                                    marginTop: '0px',
+                                    marginBottom: '0px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                }}
+                            >
+                                Downloaded: {profile.status}
+                            </h3>
+                            {profile.following ? (
+                                <Button
+                                    variant="contained"
+                                    onClick={handleUnfollow}
+                                    color="warning"
+                                    size="small"
+                                >
+                                    Unfollow
+                                </Button>
+                            ) : (
+                                <Button
+                                    variant="contained"
+                                    onClick={handleFollow}
+                                    size="small"
+                                    disabled={!profile.allowFollow}
+                                >
+                                    Follow
+                                </Button>
+                            )}
+                        </React.Fragment>
                     ) : (
-                        <Button
-                            variant="contained"
-                            onClick={handleFollow}
-                            size="small"
-                            disabled={!profile.allowFollow}
-                        >
-                            Follow
-                        </Button>
+                        <React.Fragment>
+                            <Button
+                                variant="contained"
+                                color="warning"
+                                onClick={props.profilePageProps.onDelete}
+                                size="small"
+                            >
+                                Delete
+                            </Button>
+                            <Button
+                                variant="contained"
+                                onClick={props.profilePageProps.onOpen}
+                                size="small"
+                            >
+                                Open
+                            </Button>
+                        </React.Fragment>
                     )}
                 </div>
             </div>

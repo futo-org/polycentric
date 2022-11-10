@@ -1,27 +1,16 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, HashRouter, Routes, Route } from 'react-router-dom';
 import Modal from 'react-modal';
-import * as AbstractLevel from 'abstract-level';
 
 import './index.css';
-import App from './App';
-import EditProfile from './EditProfile';
-import Following from './Following';
-import Setup from './Setup';
-import Search from './Search';
-import Notifications from './Notifications';
 import reportWebVitals from './reportWebVitals';
-import { Feed } from './Feed';
 import * as Core from 'polycentric-core';
-import * as Explore from './Explore';
-import * as About from './About';
+import * as PolycentricRoutes from './Routes';
 
 export * as Core from 'polycentric-core';
 
 export async function createApp(
-    level: AbstractLevel.AbstractLevel<Uint8Array, Uint8Array, Uint8Array>,
-    storageDriver: Core.DB.StorageDriver,
+    persistenceDriver: Core.PersistenceDriver.PersistenceDriver,
 ) {
     const root = ReactDOM.createRoot(
         document.getElementById('root') as HTMLElement,
@@ -40,66 +29,46 @@ export async function createApp(
         }
     })();
 
-    const state = new Core.DB.PolycentricState(
-        level,
-        storageDriver,
-        clientString,
+    const metaStore = await Core.PersistenceDriver.createMetaStore(
+        persistenceDriver,
     );
 
-    if (await Core.DB.doesIdentityExist(state)) {
-        console.log(
-            'navigator.storage.persist',
-            await navigator.storage.persist(),
+    const activeStore = await metaStore.getActiveStore();
+
+    let state;
+
+    let existingProfiles = true;
+
+    if (activeStore !== undefined) {
+        const level = await metaStore.openStore(
+            activeStore.publicKey,
+            activeStore.version,
+        );
+
+        state = new Core.DB.PolycentricState(
+            level,
+            persistenceDriver,
+            clientString,
         );
 
         await Core.DB.startIdentity(state);
-    }
+    } else {
+        const stores = await metaStore.listStores();
 
-    const PolycentricRoutes = () => (
-        <Routes>
-            <Route path="/" element={<App state={state} />}>
-                <Route
-                    path="/explore"
-                    element={<Explore.ExploreMemo state={state} />}
-                />
-                <Route
-                    path="/notifications"
-                    element={<Notifications state={state} />}
-                />
-                <Route path="/" element={<Feed state={state} />} />
-                <Route
-                    path="/profile"
-                    element={<EditProfile state={state} />}
-                />
-                <Route path="/search" element={<Search state={state} />} />
-                <Route
-                    path="/search/:search"
-                    element={<Search state={state} />}
-                />
-                <Route
-                    path="/following"
-                    element={<Following state={state} />}
-                />
-                <Route path="/about" element={<About.About state={state} />} />
-                <Route path="/setup" element={<Setup state={state} />} />
-                <Route path=":feed" element={<Feed state={state} />} />
-            </Route>
-        </Routes>
-    );
+        if (stores.length === 0) {
+            existingProfiles = false;
+        }
+    }
 
     root.render(
         <React.StrictMode>
-            {isElectron ? (
-                <HashRouter>
-                    {' '}
-                    <PolycentricRoutes />{' '}
-                </HashRouter>
-            ) : (
-                <BrowserRouter>
-                    {' '}
-                    <PolycentricRoutes />{' '}
-                </BrowserRouter>
-            )}
+            <PolycentricRoutes.PolycentricRoutesMemo
+                initialState={state}
+                persistenceDriver={persistenceDriver}
+                metaStore={metaStore}
+                isElectron={isElectron}
+                existingProfiles={existingProfiles}
+            />
         </React.StrictMode>,
     );
 }

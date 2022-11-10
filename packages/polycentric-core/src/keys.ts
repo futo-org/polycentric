@@ -20,7 +20,7 @@ export function pointerToKey(pointer: Protocol.Pointer): Uint8Array {
         throw new Error('expected writerId to be 32 bytes');
     }
 
-    const number = Util.numberToBinary(pointer.sequenceNumber);
+    const number = Util.numberToBinaryBE(pointer.sequenceNumber);
 
     const merged = new Uint8Array(
         pointer.publicKey.length + pointer.writerId.length + number.length,
@@ -42,7 +42,7 @@ export function keyToPointer(key: Uint8Array): Protocol.Pointer {
     const writerId = key.slice(32, 32 + 32);
     const sequenceNumberArray = Array.from(key.slice(64, 64 + 8));
 
-    const sequenceNumber = Long.fromBytesLE(
+    const sequenceNumber = Long.fromBytesBE(
         sequenceNumberArray,
         true,
     ).toNumber();

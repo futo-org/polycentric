@@ -2,13 +2,16 @@ import { Button, Paper, TextField } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useState, useRef } from 'react';
 import * as Base64 from '@borderless/base64';
+import * as Ed from '@noble/ed25519';
 
 import * as Core from 'polycentric-core';
 import './Standard.css';
 
 type SetupCreateProfileProps = {
-    state: Core.DB.PolycentricState;
+    setState: (state: Core.DB.PolycentricState | undefined) => void;
     onBack: () => void;
+    persistenceDriver: Core.PersistenceDriver.PersistenceDriver;
+    metaStore: Core.PersistenceDriver.IMetaStore;
 };
 
 function SetupCreateProfile(props: SetupCreateProfileProps) {
@@ -16,6 +19,8 @@ function SetupCreateProfile(props: SetupCreateProfileProps) {
 
     const [page, setPage] = useState<number>(0);
     const [profileName, setProfileName] = useState<string>('');
+
+    const nextState = useRef<Core.DB.PolycentricState | undefined>(undefined);
 
     const isProfileNameValid = () => {
         const length = profileName.length;
@@ -37,17 +42,39 @@ function SetupCreateProfile(props: SetupCreateProfileProps) {
             console.log(err);
         }
 
-        await Core.DB.newIdentity(props.state, profileName);
-        await Core.DB.startIdentity(props.state);
+        const state = await Core.DB.createStateNewIdentity(
+            props.metaStore,
+            props.persistenceDriver,
+            profileName,
+        );
+
+        await Core.DB.startIdentity(state);
+
+        await props.metaStore.setStoreReady(
+            state.identity!.publicKey,
+            Core.DB.STORAGE_VERSION,
+        );
+
+        await props.metaStore.setActiveStore(
+            state.identity!.publicKey,
+            Core.DB.STORAGE_VERSION,
+        );
 
         if (persisted === true) {
+            console.log('navigating');
+
+            props.setState(state);
+
             navigate('/explore');
         } else {
+            console.log('other page');
+            nextState.current = state;
             setPage(1);
         }
     };
 
     const handleContinue = () => {
+        props.setState(nextState.current);
         navigate('/explore');
     };
 
@@ -146,8 +173,10 @@ function SetupCreateProfile(props: SetupCreateProfileProps) {
 }
 
 type SetupLandingProps = {
-    state: Core.DB.PolycentricState;
     onCreateProfile: () => void;
+    persistenceDriver: Core.PersistenceDriver.PersistenceDriver;
+    metaStore: Core.PersistenceDriver.IMetaStore;
+    setState: (state: Core.DB.PolycentricState | undefined) => void;
 };
 
 function SetupLanding(props: SetupLandingProps) {
@@ -168,16 +197,29 @@ function SetupLanding(props: SetupLandingProps) {
                     return;
                 }
 
-                await Core.DB.levelNewDeviceForExistingIdentity(
-                    props.state,
+                const state = await Core.DB.createStateExtendIdentity(
+                    props.metaStore,
+                    props.persistenceDriver,
                     bundle.privateKey,
                 );
 
                 for (const event of bundle.events) {
-                    await Core.Ingest.levelSaveEvent(props.state, event);
+                    await Core.Ingest.levelSaveEvent(state, event);
                 }
 
-                await Core.DB.startIdentity(props.state);
+                await Core.DB.startIdentity(state);
+
+                await props.metaStore.setStoreReady(
+                    state.identity!.publicKey,
+                    Core.DB.STORAGE_VERSION,
+                );
+
+                await props.metaStore.setActiveStore(
+                    state.identity!.publicKey,
+                    Core.DB.STORAGE_VERSION,
+                );
+
+                props.setState(state);
 
                 navigate('/');
             }
@@ -260,7 +302,9 @@ function SetupLanding(props: SetupLandingProps) {
 }
 
 type SetupProps = {
-    state: Core.DB.PolycentricState;
+    setState: (state: Core.DB.PolycentricState | undefined) => void;
+    persistenceDriver: Core.PersistenceDriver.PersistenceDriver;
+    metaStore: Core.PersistenceDriver.IMetaStore;
 };
 
 function Setup(props: SetupProps) {
@@ -275,12 +319,21 @@ function Setup(props: SetupProps) {
     };
 
     if (page === 1) {
-        return <SetupCreateProfile state={props.state} onBack={handleBack} />;
+        return (
+            <SetupCreateProfile
+                onBack={handleBack}
+                persistenceDriver={props.persistenceDriver}
+                metaStore={props.metaStore}
+                setState={props.setState}
+            />
+        );
     } else {
         return (
             <SetupLanding
-                state={props.state}
                 onCreateProfile={handleCreateProfile}
+                persistenceDriver={props.persistenceDriver}
+                metaStore={props.metaStore}
+                setState={props.setState}
             />
         );
     }
