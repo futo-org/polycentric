@@ -9,6 +9,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ImageViewer from 'react-simple-image-viewer';
 import * as Base64 from '@borderless/base64';
 import * as Lodash from 'lodash';
+import getYouTubeID from 'get-youtube-id';
 
 import * as Core from 'polycentric-core';
 import * as Feed from './Feed';
@@ -344,6 +345,9 @@ export function Post(props: PostProps) {
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [boosting, setBoosting] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [youtubeLink, setYoutubeLink] = useState<string | undefined>(
+        undefined,
+    );
 
     const handleBoost = async (e: React.MouseEvent<HTMLElement>) => {
         e.stopPropagation();
@@ -384,6 +388,16 @@ export function Post(props: PostProps) {
 
         navigate('/' + postToLink(props.post.pointer));
     };
+
+    useEffect(() => {
+        props.post.message.split(/(\s+)/g).map((section: string) => {
+            const parsed = getYouTubeID(section, { fuzzy: false });
+
+            if (parsed !== null) {
+                setYoutubeLink('https://www.youtube.com/embed/' + parsed);
+            }
+        });
+    }, [props.post]);
 
     return (
         <Paper
@@ -546,9 +560,24 @@ export function Post(props: PostProps) {
                             <div
                                 style={{
                                     display: 'flex',
+                                    flexDirection: 'column',
                                     justifyContent: 'center',
                                 }}
                             >
+                                {youtubeLink !== undefined && (
+                                    <iframe
+                                        src={youtubeLink}
+                                        frameBorder="0"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                        title="Embedded youtube"
+                                        style={{
+                                            maxHeight: '500px',
+                                            minHeight: '300px',
+                                            marginTop: '10px',
+                                        }}
+                                    />
+                                )}
                                 <img
                                     hidden={props.post.image === undefined}
                                     className="post__image"
