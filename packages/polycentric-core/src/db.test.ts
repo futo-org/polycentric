@@ -564,6 +564,7 @@ describe('levelMethods', () => {
     test('followUserAPI', async () => {
         const state = await makeTestState();
         await DB.newIdentity(state);
+        await DB.cacheIdentity(state);
 
         expect(await DB.levelAmFollowing(state, publicKey)).toStrictEqual(
             false,

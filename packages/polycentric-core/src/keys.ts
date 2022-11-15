@@ -9,6 +9,10 @@ export const MAX_UINT64_KEY = new Uint8Array([
     255, 255, 255, 255, 255, 255, 255, 255,
 ]);
 
+export const MIN_32BYTE_KEY = new Uint8Array(32).fill(0);
+
+export const MAX_32BYTE_KEY = new Uint8Array(32).fill(255);
+
 export const IDENTITY_KEY = new TextEncoder().encode('IDENTITY');
 
 export function pointerToKey(pointer: Protocol.Pointer): Uint8Array {

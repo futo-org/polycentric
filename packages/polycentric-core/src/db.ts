@@ -118,6 +118,19 @@ export type BinaryAbstractLevel = AbstractLevel.AbstractLevel<
     Uint8Array
 >;
 
+export type BinaryAbstractSubLevel = AbstractLevel.AbstractSublevel<
+    BinaryAbstractLevel,
+    Uint8Array,
+    Uint8Array,
+    Uint8Array
+>;
+
+export type BinaryPutLevel = AbstractLevel.AbstractBatchPutOperation<
+    BinaryAbstractLevel,
+    Uint8Array,
+    Uint8Array
+>;
+
 export class PolycentricState {
     sync: Synchronization.SynchronizationState;
     identity: IIdentityState | undefined;
@@ -130,6 +143,7 @@ export class PolycentricState {
     levelEvents: BinaryAbstractLevel;
     levelRanges: BinaryAbstractLevel;
     levelFollowing: BinaryAbstractLevel;
+    private readonly levelFollowing2: BinaryAbstractSubLevel;
     levelProfiles: BinaryAbstractLevel;
     levelIndexPostByTime: BinaryAbstractLevel;
     levelIndexPostByAuthorByTime: BinaryAbstractLevel;
@@ -168,6 +182,11 @@ export class PolycentricState {
             valueEncoding: 'buffer',
         }) as BinaryAbstractLevel;
 
+        this.levelFollowing2 = this.level.sublevel('following2', {
+            keyEncoding: 'buffer',
+            valueEncoding: 'buffer',
+        }) as BinaryAbstractSubLevel;
+
         this.levelProfiles = this.level.sublevel('profiles', {
             keyEncoding: 'buffer',
             valueEncoding: 'buffer',
@@ -187,6 +206,71 @@ export class PolycentricState {
         ) as BinaryAbstractLevel;
 
         this.level.setMaxListeners(10000);
+    }
+
+    makeFollowingPut(
+        follower: Uint8Array,
+        following: Uint8Array,
+        body: Protocol.StorageTypeFollowing,
+    ): BinaryPutLevel {
+        if (follower.length != 32) {
+            throw new Error('expected follower to be 32 bytes');
+        }
+
+        if (following.length != 32) {
+            throw new Error('expected following to be 32 bytes');
+        }
+
+        if (body.publicKey.length != 32) {
+            throw new Error('expected body.publicKey to be 32 bytes');
+        }
+
+        const key = appendBuffers(follower, following);
+
+        return {
+            type: 'put',
+            key: key,
+            value: Protocol.StorageTypeFollowing.encode(body).finish(),
+            sublevel: this.levelFollowing2,
+        };
+    }
+
+    async getFollowing(
+        follower: Uint8Array,
+        following: Uint8Array,
+    ): Promise<Protocol.StorageTypeFollowing | undefined> {
+        if (follower.length != 32) {
+            throw new Error('expected follower to be 32 bytes');
+        }
+
+        if (following.length != 32) {
+            throw new Error('expected following to be 32 bytes');
+        }
+
+        const key = appendBuffers(follower, following);
+
+        const value = await tryLoadKey(this.levelFollowing2, key);
+
+        if (value === undefined) {
+            return undefined;
+        }
+
+        return Protocol.StorageTypeFollowing.decode(value);
+    }
+
+    async getAllFollowing(
+        follower: Uint8Array,
+    ): Promise<Array<Protocol.StorageTypeFollowing>> {
+        return (
+            await this.levelFollowing2
+                .values({
+                    lte: appendBuffers(follower, Keys.MAX_32BYTE_KEY),
+                    gte: appendBuffers(follower, Keys.MIN_32BYTE_KEY),
+                })
+                .all()
+        ).map((item) => {
+            return Protocol.StorageTypeFollowing.decode(item);
+        });
     }
 }
 
@@ -232,6 +316,11 @@ export async function doesIdentityExist(
     state: PolycentricState,
 ): Promise<boolean> {
     return await doesKeyExist(state.level, Keys.IDENTITY_KEY);
+}
+
+export async function cacheIdentity(state: PolycentricState): Promise<void> {
+    const identity = await levelLoadIdentity(state);
+    state.identity = identity;
 }
 
 export async function startIdentity(state: PolycentricState): Promise<void> {
@@ -800,15 +889,16 @@ export async function levelAmFollowing(
     state: PolycentricState,
     publicKey: Uint8Array,
 ) {
-    const result = await tryLoadKey(state.levelFollowing, publicKey);
+    const result = await state.getFollowing(
+        state.identity!.publicKey,
+        publicKey,
+    );
 
     if (result === undefined) {
         return false;
     }
 
-    const parsed = Protocol.StorageTypeFollowing.decode(result);
-
-    return !parsed.unfollow;
+    return !result.unfollow;
 }
 
 export async function levelLoadFollowing(
@@ -816,15 +906,15 @@ export async function levelLoadFollowing(
 ): Promise<Array<Uint8Array>> {
     const result = [];
 
-    const all = await state.levelFollowing.values().all();
+    const all = await state.getAllFollowing(state.identity!.publicKey);
 
     for (const value of all) {
-        const decoded = Protocol.StorageTypeFollowing.decode(value);
-
-        if (decoded.unfollow === false) {
-            result.push(decoded.publicKey);
+        if (value.unfollow === false) {
+            result.push(value.publicKey);
         }
     }
+
+    console.log(all);
 
     return result;
 }

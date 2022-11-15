@@ -277,43 +277,40 @@ export async function levelSaveEvent(
         }
 
         if (body.follow !== undefined) {
-            const messageFromIdentity = Util.blobsEqual(
-                (await DB.levelLoadIdentity(state)).publicKey,
+            let update = false;
+
+            const existing = await state.getFollowing(
                 event.authorPublicKey,
+                body.follow.publicKey,
             );
 
-            if (messageFromIdentity) {
-                let update = false;
+            if (existing === undefined) {
+                update = true;
+            } else if (existing.unixMilliseconds < event.unixMilliseconds) {
+                update = true;
+            }
 
-                const existing = await DB.tryLoadKey(
-                    state.levelFollowing,
+            if (update === true) {
+                const action = state.makeFollowingPut(
+                    event.authorPublicKey,
                     body.follow.publicKey,
+                    {
+                        publicKey: body.follow.publicKey,
+                        unixMilliseconds: event.unixMilliseconds,
+                        unfollow: body.follow.unfollow,
+                    },
                 );
 
-                if (existing === undefined) {
-                    update = true;
-                } else {
-                    const decoded =
-                        Protocol.StorageTypeFollowing.decode(existing);
+                await state.level.batch([action]);
 
-                    if (decoded.unixMilliseconds < event.unixMilliseconds) {
-                        update = true;
-                    }
-                }
-
-                if (update === true) {
-                    await state.levelFollowing.put(
-                        body.follow.publicKey,
-                        Protocol.StorageTypeFollowing.encode({
-                            publicKey: body.follow.publicKey,
-                            unixMilliseconds: event.unixMilliseconds,
-                            unfollow: body.follow.unfollow,
-                        }).finish(),
-                    );
-
-                    if (body.follow.unfollow === false) {
-                        Synchronization.addFeed(state, body.follow.publicKey);
-                    }
+                if (
+                    body.follow.unfollow === false &&
+                    Util.blobsEqual(
+                        event.authorPublicKey,
+                        state.identity!.publicKey,
+                    ) === true
+                ) {
+                    Synchronization.addFeed(state, body.follow.publicKey);
                 }
             }
         }
