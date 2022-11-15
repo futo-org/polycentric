@@ -140,13 +140,13 @@ export class PolycentricState {
     client: string;
 
     level: BinaryAbstractLevel;
-    levelEvents: BinaryAbstractLevel;
+    levelEvents: BinaryAbstractSubLevel;
     levelRanges: BinaryAbstractLevel;
     levelFollowing: BinaryAbstractLevel;
     private readonly levelFollowing2: BinaryAbstractSubLevel;
-    levelProfiles: BinaryAbstractLevel;
-    levelIndexPostByTime: BinaryAbstractLevel;
-    levelIndexPostByAuthorByTime: BinaryAbstractLevel;
+    levelProfiles: BinaryAbstractSubLevel;
+    levelIndexPostByTime: BinaryAbstractSubLevel;
+    levelIndexPostByAuthorByTime: BinaryAbstractSubLevel;
 
     listeners: Map<string, Set<() => void>>;
 
@@ -170,7 +170,7 @@ export class PolycentricState {
         this.levelEvents = this.level.sublevel('events', {
             keyEncoding: 'buffer',
             valueEncoding: 'buffer',
-        }) as BinaryAbstractLevel;
+        }) as BinaryAbstractSubLevel;
 
         this.levelRanges = this.level.sublevel('ranges', {
             keyEncoding: 'buffer',
@@ -190,12 +190,12 @@ export class PolycentricState {
         this.levelProfiles = this.level.sublevel('profiles', {
             keyEncoding: 'buffer',
             valueEncoding: 'buffer',
-        }) as BinaryAbstractLevel;
+        }) as BinaryAbstractSubLevel;
 
         this.levelIndexPostByTime = this.level.sublevel('indexPostByTime', {
             keyEncoding: 'buffer',
             valueEncoding: 'buffer',
-        }) as BinaryAbstractLevel;
+        }) as BinaryAbstractSubLevel;
 
         this.levelIndexPostByAuthorByTime = this.level.sublevel(
             'indexPostByAuthorByTime',
@@ -203,9 +203,81 @@ export class PolycentricState {
                 keyEncoding: 'buffer',
                 valueEncoding: 'buffer',
             },
-        ) as BinaryAbstractLevel;
+        ) as BinaryAbstractSubLevel;
 
         this.level.setMaxListeners(10000);
+    }
+
+    makeProfilePut(
+        key: Uint8Array,
+        body: Protocol.StorageTypeProfile,
+    ): BinaryPutLevel {
+        if (key.length != 32) {
+            throw new Error('expected key to be 32 bytes');
+        }
+
+        return {
+            type: 'put',
+            key: key,
+            value: Protocol.StorageTypeProfile.encode(body).finish(),
+            sublevel: this.levelProfiles,
+        };
+    }
+
+    makeEventPut(
+        key: Uint8Array,
+        body: Protocol.StorageTypeEvent,
+    ): BinaryPutLevel {
+        if (key.length !== 32 + 32 + 8) {
+            throw new Error('incorrect key size');
+        }
+
+        return {
+            type: 'put',
+            key: key,
+            value: Protocol.StorageTypeEvent.encode(body).finish(),
+            sublevel: this.levelEvents,
+        };
+    }
+
+    makeIndexPostByTimePut(
+        unixMilliseconds: number,
+        key: Uint8Array,
+    ): BinaryPutLevel {
+        if (key.length !== 32 + 32 + 8) {
+            throw new Error('incorrect key size');
+        }
+
+        return {
+            type: 'put',
+            key: Util.numberToBinaryBE(unixMilliseconds),
+            value: key,
+            sublevel: this.levelIndexPostByTime,
+        };
+    }
+
+    makeIndexPostByAuthorByTimePut(
+        author: Uint8Array,
+        unixMilliseconds: number,
+        key: Uint8Array,
+    ): BinaryPutLevel {
+        if (author.length != 32) {
+            throw new Error('expected key to be 32 bytes');
+        }
+
+        if (key.length !== 32 + 32 + 8) {
+            throw new Error('incorrect key size');
+        }
+
+        return {
+            type: 'put',
+            key: Keys.makeStorageTypeEventKeyByAuthorByTime(
+                author,
+                unixMilliseconds,
+            ),
+            value: key,
+            sublevel: this.levelIndexPostByAuthorByTime,
+        };
     }
 
     makeFollowingPut(

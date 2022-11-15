@@ -195,6 +195,8 @@ export async function levelSaveEvent(
 
         const fireListenersFor = new Set<string>();
 
+        const actions = [];
+
         {
             let mutated = false;
 
@@ -260,9 +262,8 @@ export async function levelSaveEvent(
             }
 
             if (mutated) {
-                await state.levelProfiles.put(
-                    event.authorPublicKey,
-                    Protocol.StorageTypeProfile.encode(profile).finish(),
+                actions.push(
+                    state.makeProfilePut(event.authorPublicKey, profile),
                 );
 
                 fireListenersFor.add(
@@ -301,7 +302,7 @@ export async function levelSaveEvent(
                     },
                 );
 
-                await state.level.batch([action]);
+                actions.push(action);
 
                 if (
                     body.follow.unfollow === false &&
@@ -321,16 +322,15 @@ export async function levelSaveEvent(
             if (Util.blobsEqual(pointer.publicKey, event.authorPublicKey)) {
                 const key = Keys.pointerToKey(pointer);
 
-                await state.levelEvents.put(
-                    key,
-                    Protocol.StorageTypeEvent.encode({
+                actions.push(
+                    state.makeEventPut(key, {
                         event: undefined,
                         mutationPointer: {
                             publicKey: event.authorPublicKey,
                             writerId: event.writerId,
                             sequenceNumber: event.sequenceNumber,
                         },
-                    }).finish(),
+                    }),
                 );
 
                 await levelUpdateRanges(state.levelRanges, pointer);
@@ -348,30 +348,34 @@ export async function levelSaveEvent(
                 sequenceNumber: event.sequenceNumber,
             });
 
-            await insertEvent(state.levelEvents, event);
+            actions.push(
+                state.makeEventPut(key, {
+                    event: event,
+                    mutationPointer: undefined,
+                }),
+            );
 
             fireListenersFor.add(Base64.encode(key));
         }
 
-        for (const key of fireListenersFor) {
-            DB.fireListenersForEvent(state, key);
-        }
-
         if (body.message !== undefined) {
-            await state.levelIndexPostByTime.put(
-                DB.deepCopyUint8Array(
-                    Util.numberToBinaryBE(event.unixMilliseconds),
-                ),
-                DB.deepCopyUint8Array(key),
+            actions.push(
+                state.makeIndexPostByTimePut(event.unixMilliseconds, key),
             );
 
-            await state.levelIndexPostByAuthorByTime.put(
-                Keys.makeStorageTypeEventKeyByAuthorByTime(
+            actions.push(
+                state.makeIndexPostByAuthorByTimePut(
                     event.authorPublicKey,
                     event.unixMilliseconds,
+                    key,
                 ),
-                DB.deepCopyUint8Array(key),
             );
+        }
+
+        await state.level.batch(actions);
+
+        for (const key of fireListenersFor) {
+            DB.fireListenersForEvent(state, key);
         }
     });
 }
