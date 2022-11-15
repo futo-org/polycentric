@@ -31,7 +31,7 @@ function createPersistenceDriverLevelDB(
 
     const estimateStorage = async () => {
         return {
-             bytesAvailable: undefined,
+            bytesAvailable: undefined,
             bytesUsed: undefined,
         };
     };
@@ -51,8 +51,6 @@ function createPersistenceDriverLevelDB(
     };
 }
 
-
-
 function sleep(ms: number) {
     return new Promise((resolve) => {
         setTimeout(resolve, ms);
@@ -67,9 +65,8 @@ async function runBot(
     feedURL: string,
     handler: (a: Core.DB.PolycentricState, b: any) => Promise<void>,
 ) {
-    const persistenceDriver = createPersistenceDriverLevelDB(
-        stateDirectoryPath,
-    );
+    const persistenceDriver =
+        createPersistenceDriverLevelDB(stateDirectoryPath);
 
     const metaStore = await Core.PersistenceDriver.createMetaStore(
         persistenceDriver,

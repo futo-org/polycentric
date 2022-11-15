@@ -1,4 +1,10 @@
-import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
+import {
+    Outlet,
+    Link,
+    NavLink,
+    useNavigate,
+    useLocation,
+} from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import {
     AppBar,
@@ -150,6 +156,10 @@ function App(props: AppProps) {
         };
     }, [props.state]);
 
+    const activeStyle = {
+        textDecoration: 'underline',
+    };
+
     return (
         <div>
             <ThemeProvider theme={theme}>
@@ -157,9 +167,30 @@ function App(props: AppProps) {
                     <AppBar position="sticky">
                         <Toolbar>
                             <Box className="app__header">
-                                <Link to="/explore">Explore</Link>
-                                <Link to="/">Feed</Link>
-                                <Link to="/search">Search</Link>
+                                <NavLink
+                                    to="/explore"
+                                    style={({ isActive }) =>
+                                        isActive ? activeStyle : {}
+                                    }
+                                >
+                                    Explore
+                                </NavLink>
+                                <NavLink
+                                    to="/"
+                                    style={({ isActive }) =>
+                                        isActive ? activeStyle : {}
+                                    }
+                                >
+                                    Feed
+                                </NavLink>
+                                <NavLink
+                                    to="/search"
+                                    style={({ isActive }) =>
+                                        isActive ? activeStyle : {}
+                                    }
+                                >
+                                    Search
+                                </NavLink>
                             </Box>
                             <Box sx={{ flexGrow: 1 }} />
                             <Box>
