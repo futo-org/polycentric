@@ -52,23 +52,25 @@ function Explore(props: ExploreProps) {
 
         setLoading(true);
 
-        const t1 = performance.now();
+        // const t1 = performance.now();
 
         const responses = await Core.DB.explore(
             props.state,
             earliestTime.current,
         );
 
+        /*
         console.log(
             'explore: fetching from server took',
             performance.now() - t1,
         );
+        */
 
         if (cancelContext.cancelled()) {
             return;
         }
 
-        const t2 = performance.now();
+        // const t2 = performance.now();
 
         for (const response of responses) {
             await Core.Synchronization.saveBatch(
@@ -94,9 +96,13 @@ function Explore(props: ExploreProps) {
             }
         }
 
-        console.log('explore: saving from server took', performance.now() - t2);
+        /*
+        console.log(
+            'explore: saving from server took', performance.now() - t2
+        );
+        */
 
-        const t3 = performance.now();
+        // const t3 = performance.now();
 
         let progress = false;
 
@@ -143,10 +149,12 @@ function Explore(props: ExploreProps) {
             }
         }
 
+        /*
         console.log(
             'explore: loading from storage took',
             performance.now() - t3,
         );
+        */
 
         if (cancelContext.cancelled()) {
             return;
@@ -202,8 +210,6 @@ function Explore(props: ExploreProps) {
     }, [props.state]);
 
     useEffect(() => {
-        console.log('inview', inView);
-
         if (loading === true || complete === true) {
             return;
         }
