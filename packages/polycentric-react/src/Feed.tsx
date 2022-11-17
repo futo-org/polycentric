@@ -5,6 +5,7 @@ import { Paper, LinearProgress } from '@mui/material';
 import * as Lodash from 'lodash';
 import InfiniteScroll from 'react-infinite-scroll-component';
 import Long from 'long';
+import { useInView } from 'react-intersection-observer';
 
 import * as Core from 'polycentric-core';
 import * as Post from './Post';
@@ -54,6 +55,8 @@ function eventGetKey(event: Core.Protocol.Event): string {
 const FeedForTimelineMemo = memo(FeedForTimeline);
 
 function FeedForTimeline(props: FeedProps) {
+    const [ref, inView] = useInView();
+
     const [exploreResults, setExploreResults] = useState<Array<ExploreItem>>(
         [],
     );
@@ -61,6 +64,7 @@ function FeedForTimeline(props: FeedProps) {
     const [loading, setLoading] = useState<boolean>(true);
     const [initial, setInitial] = useState<boolean>(true);
     const [complete, setComplete] = useState<boolean>(false);
+    const [scrollPercent, setScrollPercent] = useState<number>(0);
 
     const iterator = useRef<Uint8Array | undefined>(undefined);
 
@@ -127,16 +131,14 @@ function FeedForTimeline(props: FeedProps) {
 
         setLoading(true);
 
-        const profiles = new Map<string, ProfileUtil.DisplayableProfile>();
+        let progress = false;
 
-        let filteredPosts: Array<ExploreItem> = [];
-
-        while (true) {
+        while (progress === false) {
             const LIMIT = 20;
 
             const postIndexes = await props.state.levelIndexPostByTime
                 .iterator({
-                    limit: LIMIT - filteredPosts.length,
+                    limit: LIMIT,
                     reverse: true,
                     lt: iterator.current,
                 })
@@ -153,53 +155,31 @@ function FeedForTimeline(props: FeedProps) {
                 iterator.current = nextIterator;
             }
 
-            for (const [key, index] of postIndexes) {
+            for (const [iterator, index] of postIndexes) {
                 try {
-                    const filtered = await loadEvent(index);
-
-                    if (filtered === undefined) {
-                        continue;
-                    }
+                    const eventAdded = await addEvent(
+                        index,
+                        cancelContext,
+                    );
 
                     if (cancelContext.cancelled()) {
-                        for (const item of filteredPosts) {
-                            item.dependencyContext.cleanup();
-                        }
-
                         return;
                     }
 
-                    filteredPosts.push(filtered);
+                    if (eventAdded === true) {
+                        progress = true;
+                    }
                 } catch (err) {
                     console.log(err);
                 }
             }
-
-            if (filteredPosts.length >= LIMIT) {
-                break;
-            }
         }
 
         if (cancelContext.cancelled()) {
-            for (const item of filteredPosts) {
-                item.dependencyContext.cleanup();
-            }
-
             return;
         }
 
-        setExploreResults((old) => {
-            const totalResults = old.concat(filteredPosts);
-            console.log(
-                'total',
-                totalResults.length,
-                'new',
-                filteredPosts.length,
-            );
-            return totalResults;
-        });
-
-        if (filteredPosts.length === 0) {
+        if (progress === false) {
             setComplete(true);
         }
 
@@ -210,16 +190,19 @@ function FeedForTimeline(props: FeedProps) {
     const addEvent = async (
         key: Uint8Array,
         cancelContext: Core.CancelContext.CancelContext,
-    ): Promise<void> => {
+    ): Promise<boolean> => {
         const filtered = await loadEvent(key);
 
         if (filtered === undefined) {
             console.log('add event filtered');
-            return;
+
+            return false;
         }
 
         if (cancelContext.cancelled()) {
             filtered.dependencyContext.cleanup();
+
+            return false;
         }
 
         setExploreResults((old) => {
@@ -230,8 +213,19 @@ function FeedForTimeline(props: FeedProps) {
                 }
             }
 
-            return [filtered].concat(old);
+            return old.concat([filtered]);
         });
+
+        return true;
+    };
+
+    const calculateScrollPercentage = (): number => {
+        const h = document.documentElement;
+        const b = document.body;
+        const st = 'scrollTop';
+        const sh = 'scrollHeight';
+
+        return ((h[st] || b[st]) / ((h[sh] || b[sh]) - h.clientHeight)) * 100;
     };
 
     useEffect(() => {
@@ -239,7 +233,9 @@ function FeedForTimeline(props: FeedProps) {
 
         setExploreResults([]);
         setInitial(true);
+        setLoading(false);
         setComplete(false);
+
         iterator.current = undefined;
         masterCancel.current = cancelContext;
 
@@ -258,16 +254,24 @@ function FeedForTimeline(props: FeedProps) {
 
             if (updateParsed >= iteratorParsed) {
                 console.log('within iterator', value);
-                addEvent(value, cancelContext);
+                // addEvent(value, cancelContext);
             }
         };
 
-        props.state.levelIndexPostByTime.on('put', handlePut);
+        const updateScrollPercentage = () => {
+            if (cancelContext.cancelled()) {
+                return;
+            }
 
-        handleLoad(cancelContext);
+            setScrollPercent(calculateScrollPercentage());
+        };
+
+        props.state.levelIndexPostByTime.on('put', handlePut);
+        window.addEventListener('scroll', updateScrollPercentage);
 
         return () => {
             props.state.levelIndexPostByTime.removeListener('put', handlePut);
+            window.removeEventListener('scroll', updateScrollPercentage);
 
             cancelContext.cancel();
 
@@ -275,7 +279,30 @@ function FeedForTimeline(props: FeedProps) {
                 item.dependencyContext.cleanup();
             }
         };
-    }, []);
+    }, [props.state]);
+
+    useEffect(() => {
+        if (loading === true || complete === true) {
+            return;
+        }
+
+        const scroll = calculateScrollPercentage();
+
+        if (inView === true || initial === true || scroll >= 80) {
+            /*
+            console.log(
+                "calling load",
+                "inView", inView,
+                "initial", initial,
+                "scrollPercent", scroll,
+                "loading", loading,
+                "complete", complete,
+            );
+            */
+
+            handleLoad(masterCancel.current);
+        }
+    }, [props.state, inView, complete, scrollPercent, loading]);
 
     return (
         <div
@@ -283,30 +310,12 @@ function FeedForTimeline(props: FeedProps) {
                 overflow: 'auto',
             }}
         >
-            <InfiniteScroll
-                dataLength={exploreResults.length}
-                next={() => {
-                    handleLoad(masterCancel.current);
-                }}
-                hasMore={complete === false}
-                loader={
-                    <div
-                        style={{
-                            width: '80%',
-                            marginTop: '15px',
-                            marginBottom: '15px',
-                            marginLeft: 'auto',
-                            marginRight: 'auto',
-                        }}
-                    >
-                        <LinearProgress />
-                    </div>
-                }
-                endMessage={<div></div>}
-            >
-                {exploreResults.map((item, index) => (
+            {exploreResults.map((item, index) => (
+                <div
+                    key={item.key}
+                    ref={index === exploreResults.length - 1 ? ref : undefined}
+                >
                     <Post.PostLoaderMemo
-                        key={item.key}
                         state={props.state}
                         pointer={item.initialPost.pointer}
                         initialPost={item.initialPost}
@@ -314,8 +323,8 @@ function FeedForTimeline(props: FeedProps) {
                         showBoost={true}
                         depth={0}
                     />
-                ))}
-            </InfiniteScroll>
+                </div>
+            ))}
 
             {initial === false && exploreResults.length === 0 && (
                 <Paper
@@ -327,6 +336,20 @@ function FeedForTimeline(props: FeedProps) {
                 >
                     <h3> There does not appear to be anything to here. </h3>
                 </Paper>
+            )}
+
+            {loading === true && (
+                <div
+                    style={{
+                        width: '80%',
+                        marginTop: '15px',
+                        marginBottom: '15px',
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                    }}
+                >
+                    <LinearProgress />
+                </div>
             )}
         </div>
     );
