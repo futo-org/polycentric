@@ -725,7 +725,15 @@ function FeedForProfile(props: FeedForProfileProps) {
 
             handleLoad(masterCancel.current);
         }
-    }, [props.state, props.feed, inView, complete, scrollPercent, loading]);
+    }, [
+        props.state,
+        props.feed,
+        inView,
+        complete,
+        scrollPercent,
+        loading,
+        initial,
+    ]);
 
     return (
         <div>
