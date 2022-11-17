@@ -129,6 +129,13 @@ export type BinaryPutLevel = AbstractLevel.AbstractBatchPutOperation<
     Uint8Array
 >;
 
+export type BinaryDelLevel = AbstractLevel.AbstractBatchDelOperation<
+    BinaryAbstractLevel,
+    Uint8Array
+>;
+
+export type BinaryUpdateLevel = BinaryPutLevel | BinaryDelLevel;
+
 export class PolycentricState {
     sync: Synchronization.SynchronizationState;
     identity: IIdentityState | undefined;

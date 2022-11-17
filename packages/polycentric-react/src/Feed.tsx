@@ -241,22 +241,30 @@ function FeedForTimeline(props: FeedProps) {
         iterator.current = undefined;
         masterCancel.current = cancelContext;
 
-        const handlePut = (key: Uint8Array, value: Uint8Array) => {
-            const updateParsed = Long.fromBytesBE(
-                Array.from(key),
-                true,
-            ).toNumber();
+        const handleBatch = (batch: Array<Core.DB.BinaryUpdateLevel>) => {
+            for (const update of batch) {
+                if (
+                    update.type !== 'put' ||
+                    update.sublevel !== props.state.levelIndexPostByTime
+                ) {
+                    continue;
+                }
 
-            const iteratorParsed = Long.fromBytesBE(
-                Array.from(key),
-                true,
-            ).toNumber();
+                const updateParsed = Long.fromBytesBE(
+                    Array.from(update.key),
+                    true,
+                ).toNumber();
 
-            console.log('iter', iteratorParsed, 'other', updateParsed);
+                const iteratorParsed = iterator.current !== undefined
+                    ? Long.fromBytesBE(
+                        Array.from(iterator.current),
+                        true,
+                    ).toNumber()
+                    : 0;
 
-            if (updateParsed >= iteratorParsed) {
-                console.log('within iterator', value);
-                // addEvent(value, cancelContext);
+                if (updateParsed >= iteratorParsed) {
+                    addEvent(update.value, cancelContext);
+                }
             }
         };
 
@@ -268,11 +276,11 @@ function FeedForTimeline(props: FeedProps) {
             setScrollPercent(calculateScrollPercentage());
         };
 
-        props.state.levelIndexPostByTime.on('put', handlePut);
+        props.state.level.on('batch', handleBatch);
         window.addEventListener('scroll', updateScrollPercentage);
 
         return () => {
-            props.state.levelIndexPostByTime.removeListener('put', handlePut);
+            props.state.level.removeListener('batch', handleBatch);
             window.removeEventListener('scroll', updateScrollPercentage);
 
             cancelContext.cancel();
