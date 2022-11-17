@@ -75,29 +75,31 @@ function FeedForTimeline(props: FeedProps) {
     const loadEvent = async (
         key: Uint8Array,
     ): Promise<ExploreItem | undefined> => {
+        const pointer = Core.Keys.keyToPointer(key);
+
+        if (
+            props.state.identity !== undefined &&
+            Core.Util.blobsEqual(
+                props.state.identity.publicKey,
+                pointer.publicKey,
+            ) === false
+        ) {
+            const following = await Core.DB.levelAmFollowing(
+                props.state,
+                pointer.publicKey,
+            );
+
+            if (following === false) {
+                return undefined;
+            }
+        }
+
         const profiles = new Map<string, ProfileUtil.DisplayableProfile>();
 
         const post = await Core.DB.tryLoadStorageEventByKey(props.state, key);
 
         if (post === undefined || post.event === undefined) {
             return undefined;
-        }
-
-        if (
-            props.state.identity !== undefined &&
-            Core.Util.blobsEqual(
-                props.state.identity.publicKey,
-                post.event.authorPublicKey,
-            ) === false
-        ) {
-            const following = await Core.DB.levelAmFollowing(
-                props.state,
-                post.event.authorPublicKey,
-            );
-
-            if (following === false) {
-                return undefined;
-            }
         }
 
         const dependencyContext = new Core.DB.DependencyContext(props.state);
