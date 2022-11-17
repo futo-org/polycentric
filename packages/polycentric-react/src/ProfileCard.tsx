@@ -53,13 +53,13 @@ function ProfileCard({ publicKey, state }: ProfileHeaderProps) {
             loadProfile(cancelContext);
         };
 
-        state.levelEvents.on('put', handlePut);
+        state.level.on('batch', handlePut);
 
         loadProfile(cancelContext);
 
         return () => {
             cancelContext.cancel();
-            state.levelEvents.removeListener('put', handlePut);
+            state.level.removeListener('batch', handlePut);
         };
     }, [state, publicKey]);
 

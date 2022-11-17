@@ -63,13 +63,13 @@ function ProfileHeader(props: ProfileHeaderProps) {
             loadProfile(cancelContext);
         };
 
-        props.state.level.on('put', handlePut);
+        props.state.level.on('batch', handlePut);
 
         loadProfile(cancelContext);
 
         return () => {
             cancelContext.cancel();
-            props.state.level.removeListener('put', handlePut);
+            props.state.level.removeListener('batch', handlePut);
         };
     }, [props.state, props.publicKey]);
 
