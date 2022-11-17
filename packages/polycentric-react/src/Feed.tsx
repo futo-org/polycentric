@@ -6,6 +6,7 @@ import * as Lodash from 'lodash';
 import InfiniteScroll from 'react-infinite-scroll-component';
 import Long from 'long';
 import { useInView } from 'react-intersection-observer';
+import * as SortedArrayFunctions from 'sorted-array-functions';
 
 import * as Core from 'polycentric-core';
 import * as Post from './Post';
@@ -54,12 +55,33 @@ function eventGetKey(event: Core.Protocol.Event): string {
 
 const FeedForTimelineMemo = memo(FeedForTimeline);
 
+function compareExploreItems(b: ExploreItem, a: ExploreItem) {
+    const at = a.initialPost.sortMilliseconds;
+    const bt = b.initialPost.sortMilliseconds;
+
+    if (at < bt) {
+        return -1;
+    } else if (at > bt) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+class FeedItems {
+    itemKeys: Set<String>;
+    items: Array<ExploreItem>;
+
+    constructor() {
+        this.itemKeys = new Set<String>();
+        this.items = new Array<ExploreItem>();
+    }
+};
+
 function FeedForTimeline(props: FeedProps) {
     const [ref, inView] = useInView();
 
-    const [exploreResults, setExploreResults] = useState<Array<ExploreItem>>(
-        [],
-    );
+    const [feedItems, setFeedItems] = useState<FeedItems>(new FeedItems());
 
     const [loading, setLoading] = useState<boolean>(true);
     const [initial, setInitial] = useState<boolean>(true);
@@ -196,8 +218,6 @@ function FeedForTimeline(props: FeedProps) {
         const filtered = await loadEvent(key);
 
         if (filtered === undefined) {
-            console.log('add event filtered');
-
             return false;
         }
 
@@ -207,15 +227,23 @@ function FeedForTimeline(props: FeedProps) {
             return false;
         }
 
-        setExploreResults((old) => {
-            for (const item of old) {
-                if (item.key === filtered.key) {
-                    console.log('update already applied');
-                    return old;
-                }
+        setFeedItems((oldFeedItems) => {
+            if (oldFeedItems.itemKeys.has(filtered.key) === true) {
+                return oldFeedItems;
             }
 
-            return old.concat([filtered]);
+            const nextFeedItems = new FeedItems();
+            Object.assign(nextFeedItems, oldFeedItems);
+
+            nextFeedItems.itemKeys.add(filtered.key);
+
+            SortedArrayFunctions.add(
+                nextFeedItems.items,
+                filtered,
+                compareExploreItems,
+            );
+
+            return nextFeedItems;
         });
 
         return true;
@@ -233,7 +261,7 @@ function FeedForTimeline(props: FeedProps) {
     useEffect(() => {
         const cancelContext = new Core.CancelContext.CancelContext();
 
-        setExploreResults([]);
+        setFeedItems(new FeedItems());
         setInitial(true);
         setLoading(false);
         setComplete(false);
@@ -285,7 +313,7 @@ function FeedForTimeline(props: FeedProps) {
 
             cancelContext.cancel();
 
-            for (const item of exploreResults) {
+            for (const item of feedItems.items) {
                 item.dependencyContext.cleanup();
             }
         };
@@ -320,10 +348,10 @@ function FeedForTimeline(props: FeedProps) {
                 overflow: 'auto',
             }}
         >
-            {exploreResults.map((item, index) => (
+            {feedItems.items.map((item, index) => (
                 <div
                     key={item.key}
-                    ref={index === exploreResults.length - 1 ? ref : undefined}
+                    ref={index === feedItems.items.length - 1 ? ref : undefined}
                 >
                     <Post.PostLoaderMemo
                         state={props.state}
@@ -336,7 +364,7 @@ function FeedForTimeline(props: FeedProps) {
                 </div>
             ))}
 
-            {initial === false && exploreResults.length === 0 && (
+            {initial === false && feedItems.items.length === 0 && (
                 <Paper
                     elevation={4}
                     style={{
