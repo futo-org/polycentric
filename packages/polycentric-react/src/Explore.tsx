@@ -2,7 +2,7 @@ import { Paper, TextField, LinearProgress } from '@mui/material';
 import { useState, useEffect, useRef, ReactNode, memo } from 'react';
 import * as Base64 from '@borderless/base64';
 import { useParams } from 'react-router-dom';
-import InfiniteScroll from 'react-infinite-scroll-component';
+import { useInView } from 'react-intersection-observer';
 
 import * as Core from 'polycentric-core';
 import * as Feed from './Feed';
@@ -26,6 +26,8 @@ type ExploreItem = {
 export const ExploreMemo = memo(Explore);
 
 function Explore(props: ExploreProps) {
+    const [ref, inView] = useInView();
+
     const [exploreResults, setExploreResults] = useState<Array<ExploreItem>>(
         [],
     );
@@ -33,6 +35,7 @@ function Explore(props: ExploreProps) {
     const [loading, setLoading] = useState<boolean>(true);
     const [initial, setInitial] = useState<boolean>(true);
     const [complete, setComplete] = useState<boolean>(false);
+    const [scrollPercent, setScrollPercent] = useState<number>(0);
 
     const earliestTime = useRef<number | undefined>(undefined);
 
@@ -49,14 +52,23 @@ function Explore(props: ExploreProps) {
 
         setLoading(true);
 
+        const t1 = performance.now();
+
         const responses = await Core.DB.explore(
             props.state,
             earliestTime.current,
         );
 
+        console.log(
+            'explore: fetching from server took',
+            performance.now() - t1,
+        );
+
         if (cancelContext.cancelled()) {
             return;
         }
+
+        const t2 = performance.now();
 
         for (const response of responses) {
             await Core.Synchronization.saveBatch(
@@ -82,7 +94,11 @@ function Explore(props: ExploreProps) {
             }
         }
 
-        let filteredPosts: Array<ExploreItem> = [];
+        console.log('explore: saving from server took', performance.now() - t2);
+
+        const t3 = performance.now();
+
+        let progress = false;
 
         for (const response of responses) {
             for (const event of response[1].resultEvents) {
@@ -108,37 +124,35 @@ function Explore(props: ExploreProps) {
 
                 displayable.fromServer = response[0];
 
-                filteredPosts.push({
+                progress = true;
+
+                const exploreItem = {
                     initialPost: displayable,
                     dependencyContext: dependencyContext,
+                };
+
+                if (cancelContext.cancelled()) {
+                    dependencyContext.cleanup();
+
+                    return;
+                }
+
+                setExploreResults((previous) => {
+                    return previous.concat([exploreItem]);
                 });
             }
         }
 
-        if (cancelContext.cancelled()) {
-            for (const item of filteredPosts) {
-                item.dependencyContext.cleanup();
-            }
+        console.log(
+            'explore: loading from storage took',
+            performance.now() - t3,
+        );
 
+        if (cancelContext.cancelled()) {
             return;
         }
 
-        setExploreResults((previous) => {
-            const totalResults = previous.concat(filteredPosts);
-
-            /*
-            console.log(
-                'total',
-                totalResults.length,
-                'new',
-                filteredPosts.length,
-            );
-            */
-
-            return totalResults;
-        });
-
-        if (filteredPosts.length === 0) {
+        if (progress === false) {
             setComplete(true);
         }
 
@@ -146,20 +160,39 @@ function Explore(props: ExploreProps) {
         setInitial(false);
     };
 
+    const calculateScrollPercentage = (): number => {
+        const h = document.documentElement;
+        const b = document.body;
+        const st = 'scrollTop';
+        const sh = 'scrollHeight';
+
+        return ((h[st] || b[st]) / ((h[sh] || b[sh]) - h.clientHeight)) * 100;
+    };
+
     useEffect(() => {
         const cancelContext = new Core.CancelContext.CancelContext();
 
         setInitial(true);
         setExploreResults([]);
-        setLoading(true);
+        setLoading(false);
         setComplete(false);
 
         earliestTime.current = undefined;
         masterCancel.current = cancelContext;
 
-        handleLoad(cancelContext);
+        const updateScrollPercentage = () => {
+            if (cancelContext.cancelled()) {
+                return;
+            }
+
+            setScrollPercent(calculateScrollPercentage());
+        };
+
+        window.addEventListener('scroll', updateScrollPercentage);
 
         return () => {
+            window.removeEventListener('scroll', updateScrollPercentage);
+
             cancelContext.cancel();
 
             for (const item of exploreResults) {
@@ -168,6 +201,31 @@ function Explore(props: ExploreProps) {
         };
     }, [props.state]);
 
+    useEffect(() => {
+        console.log('inview', inView);
+
+        if (loading === true || complete === true) {
+            return;
+        }
+
+        const scroll = calculateScrollPercentage();
+
+        if (inView === true || initial === true || scroll >= 80) {
+            /*
+            console.log(
+                "calling load",
+                "inView", inView,
+                "initial", initial,
+                "scrollPercent", scroll,
+                "loading", loading,
+                "complete", complete,
+            );
+            */
+
+            handleLoad(masterCancel.current);
+        }
+    }, [props.state, inView, complete, scrollPercent, loading]);
+
     return (
         <div
             className="standard_width"
@@ -175,30 +233,12 @@ function Explore(props: ExploreProps) {
                 position: 'relative',
             }}
         >
-            <InfiniteScroll
-                dataLength={exploreResults.length}
-                next={() => {
-                    handleLoad(masterCancel.current);
-                }}
-                hasMore={complete === false}
-                loader={
-                    <div
-                        style={{
-                            width: '80%',
-                            marginTop: '15px',
-                            marginBottom: '15px',
-                            marginLeft: 'auto',
-                            marginRight: 'auto',
-                        }}
-                    >
-                        <LinearProgress />
-                    </div>
-                }
-                endMessage={<div></div>}
-            >
-                {exploreResults.map((item, index) => (
+            {exploreResults.map((item, index) => (
+                <div
+                    key={index}
+                    ref={index === exploreResults.length - 1 ? ref : undefined}
+                >
                     <Post.PostLoaderMemo
-                        key={index}
                         state={props.state}
                         pointer={item.initialPost.pointer}
                         initialPost={item.initialPost}
@@ -206,8 +246,8 @@ function Explore(props: ExploreProps) {
                         showBoost={true}
                         depth={0}
                     />
-                ))}
-            </InfiniteScroll>
+                </div>
+            ))}
 
             {initial === false && exploreResults.length === 0 && (
                 <Paper
@@ -219,6 +259,20 @@ function Explore(props: ExploreProps) {
                 >
                     <h3> There does not appear to be anything to explore. </h3>
                 </Paper>
+            )}
+
+            {loading === true && (
+                <div
+                    style={{
+                        width: '80%',
+                        marginTop: '15px',
+                        marginBottom: '15px',
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                    }}
+                >
+                    <LinearProgress />
+                </div>
             )}
         </div>
     );

@@ -34,7 +34,7 @@ export async function needPointer(
     if (!state.sync.pointerSet.has(key)) {
         state.sync.pointerSet.add(key);
 
-        console.log('trying to load sequence', pointer.sequenceNumber);
+        // console.log('trying to load sequence', pointer.sequenceNumber);
 
         await backfillClientSpecificPointer(state, pointer);
 
@@ -70,6 +70,7 @@ export async function backfillClientSpecificPointer(
                 },
             );
 
+            /*
             console.log(
                 'got count',
                 events.events.length,
@@ -78,6 +79,7 @@ export async function backfillClientSpecificPointer(
                 'from',
                 address,
             );
+            */
 
             await saveBatch(state, events.events);
         } catch (err) {

@@ -89,7 +89,7 @@ export async function eventToDisplayablePost(
     }
 
     const amAuthor = Core.Util.blobsEqual(
-        (await Core.DB.levelLoadIdentity(state)).publicKey,
+        state.identity!.publicKey,
         event.authorPublicKey,
     );
 

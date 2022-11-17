@@ -42,7 +42,6 @@ export class DependencyContext {
             selfa._mutated = true;
 
             if (selfa._handler !== undefined && selfa._cleanup !== true) {
-                console.log('called dependency handler');
                 selfa._handler();
             }
         });
@@ -73,6 +72,7 @@ export class DependencyContext {
         if (this._cleanup === true) {
             console.log('cleanup called after cleanup');
             return;
+            // throw new Error("cleanup called after cleanup");
         }
 
         for (const listener of this._listeners) {
@@ -704,7 +704,7 @@ export async function loadBlob(
     const outerMeta = await tryLoadStorageEventByPointer(state, pointer);
 
     if (outerMeta === undefined) {
-        console.log('tried to load blob without a meta event');
+        // console.log('tried to load blob without a meta event');
         return undefined;
     }
 
@@ -738,7 +738,7 @@ export async function loadBlob(
         );
 
         if (outerSection === undefined) {
-            console.log('tried to load blob without a meta section');
+            // console.log('tried to load blob without a meta section');
             return undefined;
         }
 
@@ -983,8 +983,6 @@ export async function levelLoadFollowing(
             result.push(value.publicKey);
         }
     }
-
-    console.log(all);
 
     return result;
 }
