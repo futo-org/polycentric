@@ -29,6 +29,8 @@ services:
         working_dir: /app
         environment:
             HOME: "/tmp/home"
+            HTTP_PORT_STATIC: 8082
+            RUST_LOG: "server=info"
         user: "${CURRENT_UID}:${CURRENT_GID}"
         volumes:
             - ./:/app
@@ -37,6 +39,7 @@ services:
         ports:
             - "127.0.0.1:3000:3000"
             - "127.0.0.1:8081:8081"
+            - "127.0.0.1:8082:8082"
         cap_add:
             - SYS_ADMIN
         command: tail -F wait_forever
