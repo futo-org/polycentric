@@ -33,6 +33,18 @@ async fn handle_rejection(
 ) -> Result<impl ::warp::Reply, ::std::convert::Infallible> {
     warn!("rejection {:?}", err);
 
+    if err.is_not_found() {
+        return Ok(::warp::reply::with_status(
+            "Not Found",
+            ::warp::http::StatusCode::NOT_FOUND,
+        ));
+    } else if let Some(e) = err.find::<::warp::reject::MethodNotAllowed>() {
+        return Ok(::warp::reply::with_status(
+            "Method Not Allowed",
+            ::warp::http::StatusCode::BAD_REQUEST,
+        ));
+    }
+
     Ok(::warp::reply::with_status(
         "INTERNAL_SERVER_ERROR",
         ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
