@@ -53,6 +53,15 @@ function eventGetKey(event: Core.Protocol.Event): string {
     );
 }
 
+const calculateScrollPercentage = (): number => {
+    const h = document.documentElement;
+    const b = document.body;
+    const st = 'scrollTop';
+    const sh = 'scrollHeight';
+
+    return ((h[st] || b[st]) / ((h[sh] || b[sh]) - h.clientHeight)) * 100;
+};
+
 const FeedForTimelineMemo = memo(FeedForTimeline);
 
 function compareExploreItems(b: ExploreItem, a: ExploreItem) {
@@ -76,7 +85,7 @@ class FeedItems {
         this.itemKeys = new Set<String>();
         this.items = new Array<ExploreItem>();
     }
-};
+}
 
 function FeedForTimeline(props: FeedProps) {
     const [ref, inView] = useInView();
@@ -181,10 +190,7 @@ function FeedForTimeline(props: FeedProps) {
 
             for (const [iterator, index] of postIndexes) {
                 try {
-                    const eventAdded = await addEvent(
-                        index,
-                        cancelContext,
-                    );
+                    const eventAdded = await addEvent(index, cancelContext);
 
                     if (cancelContext.cancelled()) {
                         return;
@@ -249,15 +255,6 @@ function FeedForTimeline(props: FeedProps) {
         return true;
     };
 
-    const calculateScrollPercentage = (): number => {
-        const h = document.documentElement;
-        const b = document.body;
-        const st = 'scrollTop';
-        const sh = 'scrollHeight';
-
-        return ((h[st] || b[st]) / ((h[sh] || b[sh]) - h.clientHeight)) * 100;
-    };
-
     useEffect(() => {
         const cancelContext = new Core.CancelContext.CancelContext();
 
@@ -283,12 +280,13 @@ function FeedForTimeline(props: FeedProps) {
                     true,
                 ).toNumber();
 
-                const iteratorParsed = iterator.current !== undefined
-                    ? Long.fromBytesBE(
-                        Array.from(iterator.current),
-                        true,
-                    ).toNumber()
-                    : 0;
+                const iteratorParsed =
+                    iterator.current !== undefined
+                        ? Long.fromBytesBE(
+                              Array.from(iterator.current),
+                              true,
+                          ).toNumber()
+                        : 0;
 
                 if (updateParsed >= iteratorParsed) {
                     addEvent(update.value, cancelContext);
@@ -401,14 +399,14 @@ type FeedForProfileProps = {
 };
 
 function FeedForProfile(props: FeedForProfileProps) {
-    const [exploreResults, setExploreResults] = useState<Array<ExploreItem>>(
-        [],
-    );
+    const [ref, inView] = useInView();
 
+    const [feedItems, setFeedItems] = useState<FeedItems>(new FeedItems());
+
+    const [loading, setLoading] = useState<boolean>(true);
     const [initial, setInitial] = useState<boolean>(true);
     const [complete, setComplete] = useState<boolean>(false);
-
-    const loadingMore = useRef<boolean>(false);
+    const [scrollPercent, setScrollPercent] = useState<number>(0);
 
     const iterator = useRef<Uint8Array>(
         Core.DB.appendBuffers(props.feed.publicKey, Core.Keys.MAX_UINT64_KEY),
@@ -421,23 +419,9 @@ function FeedForProfile(props: FeedForProfileProps) {
     const doBackfill = async (
         cancelContext: Core.CancelContext.CancelContext,
     ) => {
-        if (loadingMore.current == true) {
-            return;
-        }
-
-        loadingMore.current = true;
-
         console.log('waiting on backfill');
-
         await Core.Synchronization.backfillClient(props.state, props.feed);
-
-        if (cancelContext.cancelled()) {
-            return;
-        }
-
-        loadingMore.current = false;
-
-        handleLoad(cancelContext);
+        console.log('finished single backfill');
     };
 
     const loadEvent = async (
@@ -482,11 +466,13 @@ function FeedForProfile(props: FeedForProfileProps) {
             return;
         }
 
-        let filteredPosts: Array<ExploreItem> = [];
+        setLoading(true);
 
-        const LIMIT = 20;
+        let progress = false;
 
-        while (true) {
+        while (progress === false) {
+            const LIMIT = 20;
+
             const postIndexes = await props.state.levelIndexPostByAuthorByTime
                 .iterator({
                     gte: Core.DB.appendBuffers(
@@ -494,7 +480,7 @@ function FeedForProfile(props: FeedForProfileProps) {
                         Core.Keys.MIN_UINT64_KEY,
                     ),
                     lt: iterator.current,
-                    limit: LIMIT - filteredPosts.length,
+                    limit: LIMIT,
                     reverse: true,
                 })
                 .all();
@@ -508,39 +494,26 @@ function FeedForProfile(props: FeedForProfileProps) {
 
             for (const [key, index] of postIndexes) {
                 try {
-                    const post = await loadEvent(index);
-
-                    if (post === undefined) {
-                        continue;
-                    }
-
-                    filteredPosts.push(post);
+                    const eventAdded = await addEvent(index, cancelContext);
 
                     if (cancelContext.cancelled()) {
-                        for (const item of filteredPosts) {
-                            item.dependencyContext.cleanup();
-                        }
-
                         return;
+                    }
+
+                    if (eventAdded === true) {
+                        progress = true;
                     }
                 } catch (err) {
                     console.log(err);
                 }
             }
-
-            if (filteredPosts.length >= LIMIT) {
-                break;
-            }
         }
 
         if (cancelContext.cancelled()) {
-            for (const item of filteredPosts) {
-                item.dependencyContext.cleanup();
-            }
-
             return;
         }
 
+        /*
         if (filteredPosts.length < 1) {
             const isFeedComplete = await Core.DB.isFeedComplete(
                 props.state,
@@ -599,136 +572,169 @@ function FeedForProfile(props: FeedForProfileProps) {
                     .reverse();
             });
         }
+        */
 
-        setInitial(false);
+        if (progress === false) {
+            const isFeedComplete = await Core.DB.isFeedComplete(
+                props.state,
+                props.feed.publicKey,
+            );
+
+            if (cancelContext.cancelled()) {
+                return;
+            }
+
+            setComplete(isFeedComplete);
+            setInitial(false);
+
+            if (isFeedComplete === false) {
+                await doBackfill(cancelContext);
+
+                setLoading(false);
+            } else {
+                setLoading(false);
+            }
+        } else {
+            setLoading(false);
+            setInitial(false);
+        }
     };
 
     const addEvent = async (
         key: Uint8Array,
         cancelContext: Core.CancelContext.CancelContext,
-    ): Promise<void> => {
+    ): Promise<boolean> => {
         const filtered = await loadEvent(key);
 
         if (filtered === undefined) {
-            console.log('add event filtered');
-            return;
+            return false;
         }
 
         if (cancelContext.cancelled()) {
             filtered.dependencyContext.cleanup();
-            return;
+
+            return false;
         }
 
-        setExploreResults((old) => {
-            for (const item of old) {
-                if (item.key === filtered.key) {
-                    console.log('update already applied');
-                    return old;
-                }
+        setFeedItems((oldFeedItems) => {
+            if (oldFeedItems.itemKeys.has(filtered.key) === true) {
+                return oldFeedItems;
             }
 
-            return [filtered]
-                .concat(old)
-                .sort((a, b) => {
-                    const at = a.initialPost.sortMilliseconds;
-                    const bt = b.initialPost.sortMilliseconds;
+            const nextFeedItems = new FeedItems();
+            Object.assign(nextFeedItems, oldFeedItems);
 
-                    if (at < bt) {
-                        return -1;
-                    } else if (at > bt) {
-                        return 1;
-                    } else {
-                        return 0;
-                    }
-                })
-                .reverse();
+            nextFeedItems.itemKeys.add(filtered.key);
+
+            SortedArrayFunctions.add(
+                nextFeedItems.items,
+                filtered,
+                compareExploreItems,
+            );
+
+            return nextFeedItems;
         });
+
+        return true;
     };
 
     useEffect(() => {
         const cancelContext = new Core.CancelContext.CancelContext();
 
-        setExploreResults([]);
+        setFeedItems(new FeedItems());
         setInitial(true);
+        setLoading(false);
         setComplete(false);
+
         iterator.current = Core.DB.appendBuffers(
             props.feed.publicKey,
             Core.Keys.MAX_UINT64_KEY,
         );
         masterCancel.current = cancelContext;
-        loadingMore.current = false;
 
-        const handlePut = (key: Uint8Array, value: Uint8Array) => {
-            const updateParsed = parseKeyByAuthorByTime(key);
-            const iteratorParsed = parseKeyByAuthorByTime(iterator.current);
+        const handleBatch = (batch: Array<Core.DB.BinaryUpdateLevel>) => {
+            for (const update of batch) {
+                if (
+                    update.type !== 'put' ||
+                    update.sublevel !== props.state.levelIndexPostByAuthorByTime
+                ) {
+                    continue;
+                }
 
-            if (
-                Core.Util.blobsEqual(
-                    updateParsed.publicKey,
-                    iteratorParsed.publicKey,
-                ) === false
-            ) {
+                const updateParsed = Long.fromBytesBE(
+                    Array.from(update.key),
+                    true,
+                ).toNumber();
+
+                const iteratorParsed =
+                    iterator.current !== undefined
+                        ? Long.fromBytesBE(
+                              Array.from(iterator.current),
+                              true,
+                          ).toNumber()
+                        : 0;
+
+                addEvent(update.value, cancelContext);
+            }
+        };
+
+        const updateScrollPercentage = () => {
+            if (cancelContext.cancelled()) {
                 return;
             }
 
-            console.log(
-                'iter',
-                iteratorParsed.time,
-                'other',
-                updateParsed.time,
-            );
-
-            if (updateParsed.time < iteratorParsed.time) {
-                console.log('outside of iterator');
-                handleLoad(cancelContext);
-            } else {
-                console.log('within iterator');
-                addEvent(value, cancelContext);
-                handleLoad(cancelContext);
-            }
+            setScrollPercent(calculateScrollPercentage());
         };
 
-        props.state.levelIndexPostByAuthorByTime.on('put', handlePut);
+        props.state.level.on('batch', handleBatch);
+        window.addEventListener('scroll', updateScrollPercentage);
 
         Core.Synchronization.loadServerHead(props.state, props.feed);
 
-        handleLoad(cancelContext);
-
         return () => {
             cancelContext.cancel();
-            props.state.levelIndexPostByAuthorByTime.removeListener(
-                'put',
-                handlePut,
-            );
+
+            props.state.level.removeListener('batch', handleBatch);
+
+            window.removeEventListener('scroll', updateScrollPercentage);
+
+            for (const item of feedItems.items) {
+                item.dependencyContext.cleanup();
+            }
         };
     }, [props.state, props.feed]);
 
+    useEffect(() => {
+        if (loading === true || complete === true) {
+            return;
+        }
+
+        const scroll = calculateScrollPercentage();
+
+        if (inView === true || initial === true || scroll >= 80) {
+            /*
+            console.log(
+                "calling load",
+                "inView", inView,
+                "initial", initial,
+                "scrollPercent", scroll,
+                "loading", loading,
+                "complete", complete,
+            );
+            */
+
+            handleLoad(masterCancel.current);
+        }
+    }, [props.state, props.feed, inView, complete, scrollPercent, loading]);
+
     return (
         <div>
-            <InfiniteScroll
-                dataLength={exploreResults.length}
-                next={() => {
-                    handleLoad(masterCancel.current);
-                }}
-                hasMore={complete === false}
-                loader={
-                    <div
-                        style={{
-                            width: '80%',
-                            marginTop: '15px',
-                            marginBottom: '15px',
-                            marginLeft: 'auto',
-                            marginRight: 'auto',
-                        }}
-                    >
-                        <LinearProgress />
-                    </div>
-                }
-                endMessage={<div></div>}
-            >
-                {exploreResults.map((item, index) => (
+            {feedItems.items.map((item, index) => (
+                <div
+                    key={item.key}
+                    ref={index === feedItems.items.length - 1 ? ref : undefined}
+                >
                     <Post.PostLoaderMemo
-                        key={item.key}
                         state={props.state}
                         pointer={item.initialPost.pointer}
                         initialPost={item.initialPost}
@@ -736,10 +742,10 @@ function FeedForProfile(props: FeedForProfileProps) {
                         showBoost={true}
                         depth={0}
                     />
-                ))}
-            </InfiniteScroll>
+                </div>
+            ))}
 
-            {initial === false && exploreResults.length === 0 && (
+            {initial === false && feedItems.items.length === 0 && (
                 <Paper
                     elevation={4}
                     style={{
@@ -749,6 +755,20 @@ function FeedForProfile(props: FeedForProfileProps) {
                 >
                     <h3> There does not appear to be anything to here. </h3>
                 </Paper>
+            )}
+
+            {loading === true && (
+                <div
+                    style={{
+                        width: '80%',
+                        marginTop: '15px',
+                        marginBottom: '15px',
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                    }}
+                >
+                    <LinearProgress />
+                </div>
             )}
         </div>
     );

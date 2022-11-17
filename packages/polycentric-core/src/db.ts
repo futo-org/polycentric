@@ -966,6 +966,10 @@ export async function levelAmFollowing(
     state: PolycentricState,
     publicKey: Uint8Array,
 ) {
+    if (state.identity === undefined) {
+        return false;
+    }
+
     const result = await state.getFollowing(
         state.identity!.publicKey,
         publicKey,
