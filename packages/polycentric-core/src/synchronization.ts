@@ -117,8 +117,6 @@ export async function synchronizationMain(state: DB.PolycentricState) {
         }
 
         if (head.lastNoProgressTime + 30 * 1000 < new Date().getTime()) {
-            console.log('synchronizingFeed:', Base64.encodeUrl(head.publicKey));
-
             const progress = await backfillClient(state, {
                 publicKey: head.publicKey,
                 servers: [],

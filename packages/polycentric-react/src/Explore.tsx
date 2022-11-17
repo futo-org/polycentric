@@ -126,12 +126,14 @@ function Explore(props: ExploreProps) {
         setExploreResults((previous) => {
             const totalResults = previous.concat(filteredPosts);
 
+            /*
             console.log(
                 'total',
                 totalResults.length,
                 'new',
                 filteredPosts.length,
             );
+            */
 
             return totalResults;
         });

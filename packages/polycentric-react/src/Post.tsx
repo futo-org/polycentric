@@ -217,8 +217,6 @@ export async function tryLoadDisplayable(
 export const PostLoaderMemo = memo(PostLoader);
 
 export function PostLoader(props: PostLoaderProps) {
-    console.log('PostLoader');
-
     const [displayable, setDisplayable] = useState<DisplayablePost | undefined>(
         props.initialPost,
     );

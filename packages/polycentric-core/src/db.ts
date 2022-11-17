@@ -73,10 +73,8 @@ export class DependencyContext {
         if (this._cleanup === true) {
             console.log('cleanup called after cleanup');
             return;
-            // throw new Error("cleanup called after cleanup");
         }
 
-        console.log('cancelled count', this._listeners.length);
         for (const listener of this._listeners) {
             cancelWaitOnEvent(this._state, listener.key, listener.callback);
         }
