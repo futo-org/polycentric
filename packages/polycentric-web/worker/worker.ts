@@ -1,12 +1,8 @@
 import * as PolycentricReact from 'polycentric-react';
 
-const cacheKey = 'polycentric-cache';
+const cacheKey = 'polycentric-cache2';
 
 declare const self: ServiceWorkerGlobalScope;
-
-function isSameOrigin(url: string): boolean {
-    return ((new URL(url)).origin) === self.location.origin;
-}
 
 self.addEventListener("install", (event) => {
     self.skipWaiting();
@@ -18,17 +14,27 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event: FetchEvent) => {
     event.respondWith((async () => {
-        if (isSameOrigin(event.request.url) === true) {
+        const url = new URL(event.request.url);
+
+        if (url.origin === self.location.origin) {
+            let request = event.request;
+
+            const accept = event.request.headers.get('Accept');
+
+            if (accept !== null && accept.includes('text/html') === true) {
+                request = new Request(url.origin + '/index.html');
+            }
+
             const cache = await caches.open(cacheKey);
 
             try {
-                const response = await fetch(event.request);
+                const response = await fetch(request);
 
-                cache.put(event.request, response.clone());
+                cache.put(request, response.clone());
 
                 return response;
             } catch {
-                const cached = await cache.match(event.request.url);
+                const cached = await cache.match(request.url);
 
                 if (cached === undefined) {
                     return new Response(new Blob(), {
