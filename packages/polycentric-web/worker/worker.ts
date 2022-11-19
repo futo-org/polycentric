@@ -30,7 +30,11 @@ self.addEventListener("fetch", (event: FetchEvent) => {
             try {
                 const response = await fetch(request);
 
-                cache.put(request, response.clone());
+                if (response.ok === true) {
+                    cache.put(request, response.clone());
+                } else {
+                    throw new Error('response was not ok');
+                }
 
                 return response;
             } catch {
