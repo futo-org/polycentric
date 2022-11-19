@@ -4,7 +4,8 @@
     "lib": [
       "dom",
       "dom.iterable",
-      "esnext"
+      "esnext",
+      "webworker"
     ],
     "allowJs": true,
     "alwaysStrict": true,
@@ -18,7 +19,6 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
     "jsx": "react-jsx",
     "outDir": "dist",
     "declaration": true

@@ -5,17 +5,15 @@
   "dependencies": {
     "abstract-level": "^1.0.3",
     "browser-level": "^1.0.1",
+    "memory-level": "^1.0.0",
     "polycentric-react": "../polycentric-react",
     "react": "^18.1.0",
-    "react-dom": "^18.1.0",
-    "memory-level": "^1.0.0"
+    "react-dom": "^18.1.0"
   },
   "scripts": {
-    "start": "HTTPS=true SSL_CRT_FILE=./cert/cert.pem SSL_KEY_FILE=./cert/key.pem react-scripts start",
-    "build": "react-scripts build",
-    "build:production": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start": "webpack serve --mode=development",
+    "build": "webpack --mode=development",
+    "build:production": "webpack --mode=production"
   },
   "eslintConfig": {
     "extends": [
@@ -47,7 +45,13 @@
     ]
   },
   "devDependencies": {
-    "react-scripts": "5.0.1",
-    "prettier": "2.7.1"
+    "copy-webpack-plugin": "^11.0.0",
+    "css-loader": "^6.7.1",
+    "prettier": "2.7.1",
+    "style-loader": "^3.3.1",
+    "ts-loader": "^9.3.1",
+    "webpack": "^5.74.0",
+    "webpack-cli": "^4.10.0",
+    "webpack-dev-server": "^4.11.1"
   }
 }

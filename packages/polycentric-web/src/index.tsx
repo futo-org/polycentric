@@ -86,65 +86,6 @@ function createPersistenceDriverIndexedDB(): PolycentricReact.Core.PersistenceDr
     };
 }
 
-async function migrateFromOldStateIfNeeded(
-    meta: PolycentricReact.Core.PersistenceDriver.IMetaStore,
-    persistenceDriver: PolycentricReact.Core.PersistenceDriver.PersistenceDriver,
-): Promise<void> {
-    const oldLevel = await persistenceDriver.openStore('PolycentricStateV5');
-
-    const oldState = new PolycentricReact.Core.DB.PolycentricState(
-        oldLevel,
-        persistenceDriver,
-        'browser',
-    );
-
-    let identity = undefined;
-
-    try {
-        identity = await PolycentricReact.Core.DB.levelLoadIdentity(oldState);
-    } catch (err) {}
-
-    if (identity === undefined) {
-        return;
-    }
-
-    alert('Doing a migration, this may take several minutes. Click OK.');
-
-    await meta.unsetActiveStore();
-
-    await meta.deleteStore(
-        identity.publicKey,
-        PolycentricReact.Core.DB.STORAGE_VERSION,
-    );
-
-    const newLevel = await meta.openStore(
-        identity.publicKey,
-        PolycentricReact.Core.DB.STORAGE_VERSION,
-    );
-
-    const newState = new PolycentricReact.Core.DB.PolycentricState(
-        newLevel,
-        persistenceDriver,
-        'browser',
-    );
-
-    await PolycentricReact.Core.Migrate.migrateCopyEvents(oldState, newState);
-
-    await meta.setActiveStore(
-        identity.publicKey,
-        PolycentricReact.Core.DB.STORAGE_VERSION,
-    );
-
-    await meta.setStoreReady(
-        identity.publicKey,
-        PolycentricReact.Core.DB.STORAGE_VERSION,
-    );
-
-    await persistenceDriver.destroyStore('PolycentricStateV5');
-
-    alert('migration done');
-}
-
 async function main() {
     await registerServiceWorker();
 
@@ -155,8 +96,6 @@ async function main() {
             await PolycentricReact.Core.PersistenceDriver.createMetaStore(
                 persistenceDriver,
             );
-
-        await migrateFromOldStateIfNeeded(metaStore, persistenceDriver);
     } catch (err) {
         console.log('failed to open indexedb');
 
