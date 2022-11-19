@@ -1,4 +1,4 @@
 FROM ubuntu:22.04
 COPY ./server/target/debug/server /server
-COPY ./packages/polycentric-web/build /static
+COPY ./packages/polycentric-web/dist /static
 CMD /server
