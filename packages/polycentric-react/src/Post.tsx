@@ -594,7 +594,8 @@ export function Post(props: PostProps) {
                                 maxWidth: '100%',
                                 alignSelf: 'center'
                             }}
-                            onClick={() => {
+                            onClick={(e) => {
+                                e.stopPropagation();
                                 setViewerLink(props.post.image);
                             }}
                         />
