@@ -47,3 +47,7 @@
 .expandWarning:hover {
     text-decoration: underline;
 }
+
+.underline_on_hover:hover {
+    text-decoration: underline;
+}

@@ -434,6 +434,7 @@ export function Post(props: PostProps) {
                     />
                 </div>
             )}
+
             {props.post.boostedBy !== undefined && (
                 <div
                     style={{
@@ -485,21 +486,20 @@ export function Post(props: PostProps) {
                         boostPointer={props.post.actionPointer}
                     />
                 </div>
-                <div
+
+                <Avatar
+                    src={props.post.profile.avatar}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setViewerLink(props.post.profile.avatar);
+                    }}
                     style={{
                         marginTop: '11px',
                         marginLeft: '8px',
                         marginRight: '8px',
                     }}
-                >
-                    <Avatar
-                        src={props.post.profile.avatar}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setViewerLink(props.post.profile.avatar);
-                        }}
-                    />
-                </div>
+                />
+
                 <div
                     style={{
                         flex: '1',
@@ -508,208 +508,212 @@ export function Post(props: PostProps) {
                         marginBottom: '10px',
                     }}
                 >
-                    <div className="post__header">
-                        <div
-                            className="post__headerText expandWarning"
+                    <div
+                        className="underline_on_hover"
+                        style={{
+                            whiteSpace: 'pre-wrap',
+                            overflowWrap: 'anywhere',
+                            fontSize: '15px',
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            navigate('/' + props.post.profile.link);
+                        }}
+                    >
+                        <h3
                             style={{
                                 whiteSpace: 'pre-wrap',
                                 overflowWrap: 'anywhere',
-                            }}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                navigate('/' + props.post.profile.link);
+                                marginTop: '0px',
+                                marginBottom: '0px',
                             }}
                         >
-                            <h3
-                                style={{
-                                    whiteSpace: 'pre-wrap',
-                                    overflowWrap: 'anywhere',
-                                    marginTop: '0px',
-                                    marginBottom: '0px',
-                                }}
-                            >
-                                {props.post.profile.displayName}
-                            </h3>
-                            <span
-                                style={{
-                                    fontWeight: '600',
-                                    fontSize: '11px',
-                                    color: 'gray',
-                                }}
-                            >
-                                @{props.post.profile.identity}
-                            </span>
-                        </div>
-                        <div
-                            className="post__content"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                            }}
-                        >
-                            <div
-                                style={{
-                                    whiteSpace: 'pre-wrap',
-                                    overflowWrap: 'anywhere',
-                                    marginTop: '5px',
-                                }}
-                            >
-                                {processText(props.post.message)}
-                            </div>
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    justifyContent: 'center',
-                                }}
-                            >
-                                {youtubeLink !== undefined && (
-                                    <iframe
-                                        src={youtubeLink}
-                                        frameBorder="0"
-                                        allow={
-                                            'accelerometer; autoplay; ' +
-                                            'clipboard-write; ' +
-                                            'encrypted-media; ' +
-                                            'gyroscope; ' +
-                                            'picture-in-picture'
-                                        }
-                                        allowFullScreen
-                                        title="Embedded youtube"
-                                        style={{
-                                            maxHeight: '500px',
-                                            minHeight: '300px',
-                                            marginTop: '10px',
-                                        }}
-                                    />
-                                )}
-                                <img
-                                    hidden={props.post.image === undefined}
-                                    className="post__image"
-                                    src={props.post.image}
-                                    alt="Within Post"
-                                    style={{
-                                        marginTop: '10px',
-                                        maxHeight: '500px',
-                                    }}
-                                    onClick={() => {
-                                        setViewerLink(props.post.image);
-                                    }}
-                                />
-                                {viewerLink && (
-                                    <ImageViewer
-                                        src={[viewerLink]}
-                                        currentIndex={0}
-                                        closeOnClickOutside={true}
-                                        onClose={() => {
-                                            setViewerLink(undefined);
-                                        }}
-                                        backgroundStyle={{
-                                            backgroundColor: 'rgba(0,0,0,0.5)',
-                                            zIndex: 1300,
-                                        }}
-                                    />
-                                )}
-                            </div>
-                        </div>
-                        {props.post.boost !== undefined && props.depth < 1 && (
-                            <div
-                                style={{
-                                    marginTop: '10px',
-                                }}
-                            >
-                                <Post
-                                    state={props.state}
-                                    post={props.post.boost}
-                                    showBoost={false}
-                                    depth={props.depth + 1}
-                                />
-                            </div>
-                        )}
-                        {props.post.boost !== undefined && props.depth >= 1 && (
-                            <Paper
-                                elevation={4}
-                                style={{
-                                    textAlign: 'center',
-                                }}
-                            >
-                                <h4
-                                    onClick={handleNavigate}
-                                    className="expandWarning"
-                                >
-                                    Too many nested posts. Click to expand...
-                                </h4>
-                            </Paper>
-                        )}
-                        <div
+                            {props.post.profile.displayName}
+                        </h3>
+                        <span
                             style={{
                                 fontWeight: '600',
-                                fontSize: '12px',
+                                fontSize: '11px',
                                 color: 'gray',
-                                display: 'flex',
-                                justifyContent: 'space-between',
                             }}
                         >
-                            <p
+                            @{props.post.profile.identity}
+                        </span>
+                    </div>
+
+                    <p
+                        style={{
+                            whiteSpace: 'pre-wrap',
+                            overflowWrap: 'anywhere',
+                            marginTop: '5px',
+                            fontSize: '15px',
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                        }}
+                    >
+                        {processText(props.post.message)}
+                    </p>
+
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        {youtubeLink !== undefined && (
+                            <iframe
+                                src={youtubeLink}
+                                frameBorder="0"
+                                allow={
+                                    'accelerometer; autoplay; ' +
+                                    'clipboard-write; ' +
+                                    'encrypted-media; ' +
+                                    'gyroscope; ' +
+                                    'picture-in-picture'
+                                }
+                                allowFullScreen
+                                title="Embedded youtube"
                                 style={{
-                                    marginTop: '6px',
+                                    maxHeight: '500px',
+                                    minHeight: '300px',
+                                    marginTop: '10px',
                                 }}
-                                onClick={(e) => {
-                                    e.stopPropagation();
+                            />
+                        )}
+
+                        <img
+                            hidden={props.post.image === undefined}
+                            className="post__image"
+                            src={props.post.image}
+                            alt="Within Post"
+                            style={{
+                                marginTop: '10px',
+                                maxHeight: '500px',
+                            }}
+                            onClick={() => {
+                                setViewerLink(props.post.image);
+                            }}
+                        />
+
+                        {viewerLink && (
+                            <ImageViewer
+                                src={[viewerLink]}
+                                currentIndex={0}
+                                closeOnClickOutside={true}
+                                onClose={() => {
+                                    setViewerLink(undefined);
                                 }}
-                            >
-                                Posted on: &nbsp;
-                                {new Date(
-                                    props.post.unixMilliseconds,
-                                ).toLocaleString()}
-                            </p>
-                        </div>
-                        {props.showBoost === true && (
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    columnGap: '5px',
+                                backgroundStyle={{
+                                    backgroundColor: 'rgba(0,0,0,0.5)',
+                                    zIndex: 1300,
                                 }}
-                            >
-                                <LoadingButton
-                                    loading={boosting}
-                                    variant="contained"
-                                    onClick={handleBoost}
-                                    loadingPosition="start"
-                                    startIcon={<LoopIcon />}
-                                    size="small"
-                                >
-                                    Boost
-                                </LoadingButton>
-                                <Button
-                                    variant="contained"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setModalIsOpen(true);
-                                    }}
-                                    startIcon={<ReplyIcon />}
-                                    size="small"
-                                >
-                                    React
-                                </Button>
-                                <div
-                                    style={{
-                                        flexGrow: '1',
-                                    }}
-                                />
-                                {props.post.author && (
-                                    <LoadingButton
-                                        loading={deleting}
-                                        variant="contained"
-                                        size="small"
-                                        color="warning"
-                                        onClick={handleDelete}
-                                    >
-                                        <DeleteIcon />
-                                    </LoadingButton>
-                                )}
-                            </div>
+                            />
                         )}
                     </div>
+
+                    {props.post.boost !== undefined && props.depth < 1 && (
+                        <div
+                            style={{
+                                marginTop: '10px',
+                            }}
+                        >
+                            <Post
+                                state={props.state}
+                                post={props.post.boost}
+                                showBoost={false}
+                                depth={props.depth + 1}
+                            />
+                        </div>
+                    )}
+
+                    {props.post.boost !== undefined && props.depth >= 1 && (
+                        <Paper
+                            elevation={4}
+                            style={{
+                                textAlign: 'center',
+                            }}
+                        >
+                            <h4
+                                onClick={handleNavigate}
+                                className="expandWarning"
+                            >
+                                Too many nested posts. Click to expand...
+                            </h4>
+                        </Paper>
+                    )}
+
+                    <div
+                        style={{
+                            fontWeight: '600',
+                            fontSize: '12px',
+                            color: 'gray',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                        }}
+                    >
+                        <p
+                            style={{
+                                marginTop: '6px',
+                            }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                            }}
+                        >
+                            Posted on: &nbsp;
+                            {new Date(
+                                props.post.unixMilliseconds,
+                            ).toLocaleString()}
+                        </p>
+                    </div>
+
+                    {props.showBoost === true && (
+                        <div
+                            style={{
+                                display: 'flex',
+                                columnGap: '5px',
+                            }}
+                        >
+                            <LoadingButton
+                                loading={boosting}
+                                variant="contained"
+                                onClick={handleBoost}
+                                loadingPosition="start"
+                                startIcon={<LoopIcon />}
+                                size="small"
+                            >
+                                Boost
+                            </LoadingButton>
+                            <Button
+                                variant="contained"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setModalIsOpen(true);
+                                }}
+                                startIcon={<ReplyIcon />}
+                                size="small"
+                            >
+                                React
+                            </Button>
+                            <div
+                                style={{
+                                    flexGrow: '1',
+                                }}
+                            />
+                            {props.post.author && (
+                                <LoadingButton
+                                    loading={deleting}
+                                    variant="contained"
+                                    size="small"
+                                    color="warning"
+                                    onClick={handleDelete}
+                                >
+                                    <DeleteIcon />
+                                </LoadingButton>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </Paper>
