@@ -563,53 +563,41 @@ export function Post(props: PostProps) {
                     )}
 
                     {youtubeLink !== undefined && (
-                        <div
+                        <iframe
+                            src={youtubeLink}
+                            frameBorder="0"
+                            allow={
+                                'accelerometer; autoplay; ' +
+                                'clipboard-write; ' +
+                                'encrypted-media; ' +
+                                'gyroscope; ' +
+                                'picture-in-picture'
+                            }
+                            allowFullScreen
+                            title="Embedded youtube"
                             style={{
-                                display: 'flex',
-                                justifyContent: 'center',
+                                maxHeight: '500px',
+                                minHeight: '300px',
+                                marginTop: '10px',
+                                alignSelf: 'center'
                             }}
-                        >
-                            <iframe
-                                src={youtubeLink}
-                                frameBorder="0"
-                                allow={
-                                    'accelerometer; autoplay; ' +
-                                    'clipboard-write; ' +
-                                    'encrypted-media; ' +
-                                    'gyroscope; ' +
-                                    'picture-in-picture'
-                                }
-                                allowFullScreen
-                                title="Embedded youtube"
-                                style={{
-                                    maxHeight: '500px',
-                                    minHeight: '300px',
-                                    marginTop: '10px',
-                                }}
-                            />
-                        </div>
+                        />
                     )}
 
                     {props.post.image !== undefined && (
-                        <div
+                        <img
+                            src={props.post.image}
+                            alt="Within Post"
                             style={{
-                                display: 'flex',
-                                justifyContent: 'center',
+                                marginTop: '10px',
+                                maxHeight: '500px',
+                                maxWidth: '100%',
+                                alignSelf: 'center'
                             }}
-                        >
-                            <img
-                                src={props.post.image}
-                                alt="Within Post"
-                                style={{
-                                    marginTop: '10px',
-                                    maxHeight: '500px',
-                                    maxWidth: '100%',
-                                }}
-                                onClick={() => {
-                                    setViewerLink(props.post.image);
-                                }}
-                            />
-                        </div>
+                            onClick={() => {
+                                setViewerLink(props.post.image);
+                            }}
+                        />
                     )}
 
                     {viewerLink && (
@@ -652,7 +640,7 @@ export function Post(props: PostProps) {
                         >
                             <h4
                                 onClick={handleNavigate}
-                                className="expandWarning"
+                                className="underline_on_hover"
                             >
                                 Too many nested posts. Click to expand...
                             </h4>
