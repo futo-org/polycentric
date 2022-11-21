@@ -290,7 +290,7 @@ export function PostLoader(props: PostLoaderProps) {
 function processText(message: string) {
     let position = 0;
     return (
-        <div>
+        <React.Fragment>
             {message.split(/(\s+)/g).map((section: string) => {
                 if (section.startsWith('#')) {
                     position++;
@@ -321,7 +321,7 @@ function processText(message: string) {
                     return section;
                 }
             })}
-        </div>
+        </React.Fragment>
     );
 }
 
@@ -506,11 +506,14 @@ export function Post(props: PostProps) {
                         marginTop: '10px',
                         marginRight: '10px',
                         marginBottom: '10px',
+                        display: 'flex',
+                        flexDirection: 'column',
                     }}
                 >
                     <div
                         className="underline_on_hover"
                         style={{
+                            alignSelf: 'flex-start',
                             whiteSpace: 'pre-wrap',
                             overflowWrap: 'anywhere',
                             fontSize: '15px',
@@ -541,28 +544,31 @@ export function Post(props: PostProps) {
                         </span>
                     </div>
 
-                    <p
-                        style={{
-                            whiteSpace: 'pre-wrap',
-                            overflowWrap: 'anywhere',
-                            marginTop: '5px',
-                            fontSize: '15px',
-                        }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                        }}
-                    >
-                        {processText(props.post.message)}
-                    </p>
+                    {props.post.message !== "" && (
+                        <p
+                            style={{
+                                alignSelf: 'flex-start',
+                                whiteSpace: 'pre-wrap',
+                                overflowWrap: 'anywhere',
+                                marginTop: '5px',
+                                marginBottom: '5px',
+                                fontSize: '15px',
+                            }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                            }}
+                        >
+                            {processText(props.post.message)}
+                        </p>
+                    )}
 
-                    <div
-                        style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'center',
-                        }}
-                    >
-                        {youtubeLink !== undefined && (
+                    {youtubeLink !== undefined && (
+                        <div
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                            }}
+                        >
                             <iframe
                                 src={youtubeLink}
                                 frameBorder="0"
@@ -581,37 +587,45 @@ export function Post(props: PostProps) {
                                     marginTop: '10px',
                                 }}
                             />
-                        )}
+                        </div>
+                    )}
 
-                        <img
-                            hidden={props.post.image === undefined}
-                            className="post__image"
-                            src={props.post.image}
-                            alt="Within Post"
+                    {props.post.image !== undefined && (
+                        <div
                             style={{
-                                marginTop: '10px',
-                                maxHeight: '500px',
+                                display: 'flex',
+                                justifyContent: 'center',
                             }}
-                            onClick={() => {
-                                setViewerLink(props.post.image);
-                            }}
-                        />
-
-                        {viewerLink && (
-                            <ImageViewer
-                                src={[viewerLink]}
-                                currentIndex={0}
-                                closeOnClickOutside={true}
-                                onClose={() => {
-                                    setViewerLink(undefined);
+                        >
+                            <img
+                                src={props.post.image}
+                                alt="Within Post"
+                                style={{
+                                    marginTop: '10px',
+                                    maxHeight: '500px',
+                                    maxWidth: '100%',
                                 }}
-                                backgroundStyle={{
-                                    backgroundColor: 'rgba(0,0,0,0.5)',
-                                    zIndex: 1300,
+                                onClick={() => {
+                                    setViewerLink(props.post.image);
                                 }}
                             />
-                        )}
-                    </div>
+                        </div>
+                    )}
+
+                    {viewerLink && (
+                        <ImageViewer
+                            src={[viewerLink]}
+                            currentIndex={0}
+                            closeOnClickOutside={true}
+                            onClose={() => {
+                                setViewerLink(undefined);
+                            }}
+                            backgroundStyle={{
+                                backgroundColor: 'rgba(0,0,0,0.5)',
+                                zIndex: 1300,
+                            }}
+                        />
+                    )}
 
                     {props.post.boost !== undefined && props.depth < 1 && (
                         <div
@@ -632,6 +646,7 @@ export function Post(props: PostProps) {
                         <Paper
                             elevation={4}
                             style={{
+                                marginTop: '5px',
                                 textAlign: 'center',
                             }}
                         >
@@ -644,29 +659,23 @@ export function Post(props: PostProps) {
                         </Paper>
                     )}
 
-                    <div
+                    <p
                         style={{
                             fontWeight: '600',
                             fontSize: '12px',
                             color: 'gray',
-                            display: 'flex',
-                            justifyContent: 'space-between',
+                            marginTop: '6px',
+                            alignSelf: 'flex-start',
+                        }}
+                        onClick={(e) => {
+                            e.stopPropagation();
                         }}
                     >
-                        <p
-                            style={{
-                                marginTop: '6px',
-                            }}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                            }}
-                        >
-                            Posted on: &nbsp;
-                            {new Date(
-                                props.post.unixMilliseconds,
-                            ).toLocaleString()}
-                        </p>
-                    </div>
+                        Posted on: &nbsp;
+                        {new Date(
+                            props.post.unixMilliseconds,
+                        ).toLocaleString()}
+                    </p>
 
                     {props.showBoost === true && (
                         <div
