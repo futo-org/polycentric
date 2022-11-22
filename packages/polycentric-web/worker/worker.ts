@@ -1,15 +1,15 @@
 import * as PolycentricReact from 'polycentric-react';
 
-const cacheKey = 'polycentric-cache2';
+const cacheKey = 'polycentric-cache3';
 
 declare const self: ServiceWorkerGlobalScope;
 
-self.addEventListener("install", (event) => {
-    self.skipWaiting();
+self.addEventListener("install", (event: ExtendableEvent) => {
+    event.waitUntil(self.skipWaiting());
 });
 
-self.addEventListener("activate", (event) => {
-    self.clients.claim();
+self.addEventListener("activate", (event: ExtendableEvent) => {
+    event.waitUntil(self.clients.claim());
 });
 
 self.addEventListener("fetch", (event: FetchEvent) => {
