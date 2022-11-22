@@ -3,24 +3,22 @@ import * as BrowserLevel from 'browser-level';
 import * as PolycentricReact from 'polycentric-react';
 
 const registerServiceWorker = async () => {
-    if ('serviceWorker' in navigator) {
-        try {
-            const registration = await navigator.serviceWorker.register(
-                '/worker.js',
-                {
-                    scope: '/',
-                },
-            );
-            if (registration.installing) {
-                console.log('Service worker installing');
-            } else if (registration.waiting) {
-                console.log('Service worker installed');
-            } else if (registration.active) {
-                console.log('Service worker active');
-            }
-        } catch (error) {
-            console.error(`Registration failed with ${error}`);
+    try {
+        const registration = await navigator.serviceWorker.register(
+            '/worker.js',
+            {
+                scope: '/',
+            },
+        );
+        if (registration.installing) {
+            console.log('Service worker installing');
+        } else if (registration.waiting) {
+            console.log('Service worker installed');
+        } else if (registration.active) {
+            console.log('Service worker active');
         }
+    } catch (error) {
+        console.error(`Registration failed with ${error}`);
     }
 };
 
@@ -87,6 +85,14 @@ function createPersistenceDriverIndexedDB(): PolycentricReact.Core.PersistenceDr
 }
 
 async function main() {
+    if (('serviceWorker' in navigator) === false) {
+        PolycentricReact.createErrorPage(
+            'Your browser does not support Service Workers'
+        );
+
+        return;
+    }
+
     await registerServiceWorker();
 
     let persistenceDriver = createPersistenceDriverIndexedDB();
@@ -97,10 +103,11 @@ async function main() {
                 persistenceDriver,
             );
     } catch (err) {
-        console.log('failed to open indexedb');
+        PolycentricReact.createErrorPage(
+            'Your browser does not support IndexedDB'
+        );
 
-        persistenceDriver =
-            PolycentricReact.Core.PersistenceDriver.createPersistenceDriverMemory();
+        return;
     }
 
     PolycentricReact.createApp(persistenceDriver);
