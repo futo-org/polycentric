@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "abstract-level": "^1.0.3",
+    "browser-detect": "^0.2.28",
     "browser-level": "^1.0.1",
     "memory-level": "^1.0.0",
     "polycentric-react": "../polycentric-react",

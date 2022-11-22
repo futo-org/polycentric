@@ -1,4 +1,5 @@
 import * as BrowserLevel from 'browser-level';
+import browser from 'browser-detect';
 
 import * as PolycentricReact from 'polycentric-react';
 
@@ -84,7 +85,26 @@ function createPersistenceDriverIndexedDB(): PolycentricReact.Core.PersistenceDr
     };
 }
 
+// https://stackoverflow.com/a/57920600
+function isPWA(): boolean {
+    return ["fullscreen", "standalone", "minimal-ui"].some(
+        (displayMode) => window.matchMedia(
+            '(display-mode: ' + displayMode + ')'
+        ).matches
+    );
+}
+
 async function main() {
+    const browserInfo = browser();
+
+    if (browserInfo.mobile === true && isPWA() === false) {
+        PolycentricReact.createErrorPage(
+            'Please add Polycentric to your home screen'
+        );
+
+        return;
+    }
+
     if (('serviceWorker' in navigator) === false) {
         PolycentricReact.createErrorPage(
             'Your browser does not support Service Workers'
