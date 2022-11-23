@@ -3,12 +3,121 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useRef } from 'react';
 import * as Base64 from '@borderless/base64';
 import * as Ed from '@noble/ed25519';
+import browser from 'browser-detect';
 
 import * as Core from 'polycentric-core';
 import './Standard.css';
 
+type PersistencePageProps = {
+    handleStart: () => Promise<void>;
+};
+
+function PersistencePage(props: PersistencePageProps) {
+    const [page, setPage] = useState<number>(0);
+
+    async function checkPermissions() {
+        const persisted = await navigator.storage.persist();
+
+        if (persisted === true) {
+            await props.handleStart();
+        }
+    }
+
+    async function askPermission() {
+        const browserInfo = browser();
+
+        let persisted = false;
+
+        if (browserInfo.name === 'chrome') {
+            const verdict = await Notification.requestPermission();
+
+            if (verdict === 'granted') {
+                persisted = true;
+            }
+
+            persisted = await navigator.storage.persist();
+        } else {
+            persisted = await navigator.storage.persist();
+        }
+
+        if (persisted === true) {
+            await props.handleStart();
+        } else {
+            setPage(1)
+        }
+    };
+
+    if (page === 0) {
+        return (
+            <Paper
+                elevation={4}
+                className="standard_width"
+                style={{
+                    marginTop: '10px',
+                    padding: '10px',
+                }}
+            >
+                <h3>
+                    It looks like persistence is not enabled in your browser.
+                </h3>
+
+                <p>
+                    Polycentric needs persistence in order to save 
+                    your identity.
+                </p>
+
+                <p>
+                    On Chrome notifications are required for persistence.
+                </p>
+
+                <Button
+                    variant="contained"
+                    onClick={askPermission}
+                    style={{
+                        width: '100%',
+                        marginTop: '10px',
+                    }}
+                >
+                    Ask for permission
+                </Button>
+            </Paper>
+        );
+    } else {
+        return (
+            <Paper
+                elevation={4}
+                className="standard_width"
+                style={{
+                    marginTop: '10px',
+                    padding: '10px',
+                }}
+            >
+                <h3>
+                    It looks like persistence was not enabled.
+                </h3>
+
+                <p>
+                    Polycentric needs persistence in order to save your
+                    identity.
+                </p>
+
+                <Button
+                    variant="contained"
+                    onClick={checkPermissions}
+                    style={{
+                        width: '100%',
+                        marginTop: '10px',
+                    }}
+                >
+                    I updated my permissions
+                </Button>
+            </Paper>
+        );
+    }
+}
+
 type SetupCreateProfileProps = {
-    setState: (state: Core.DB.PolycentricState | undefined) => void;
+    handleStart: (cb: () => Promise<Core.DB.PolycentricState>) => void;
     onBack: () => void;
     persistenceDriver: Core.PersistenceDriver.PersistenceDriver;
     metaStore: Core.PersistenceDriver.IMetaStore;
@@ -17,7 +126,6 @@ type SetupCreateProfileProps = {
 function SetupCreateProfile(props: SetupCreateProfileProps) {
     const navigate = useNavigate();
 
-    const [page, setPage] = useState<number>(0);
     const [profileName, setProfileName] = useState<string>('');
 
     const nextState = useRef<Core.DB.PolycentricState | undefined>(undefined);
@@ -34,149 +142,82 @@ function SetupCreateProfile(props: SetupCreateProfileProps) {
     };
 
     const handleSaveIdentity = async () => {
-        let persisted = false;
+        // console.log(await Notification.requestPermission());
 
-        try {
-            persisted = await navigator.storage.persist();
-        } catch (err) {
-            console.log(err);
-        }
+        const start = async () => {
+            const state = await Core.DB.createStateNewIdentity(
+                props.metaStore,
+                props.persistenceDriver,
+                profileName,
+            );
 
-        const state = await Core.DB.createStateNewIdentity(
-            props.metaStore,
-            props.persistenceDriver,
-            profileName,
-        );
+            await Core.DB.startIdentity(state);
 
-        await Core.DB.startIdentity(state);
+            await props.metaStore.setStoreReady(
+                state.identity!.publicKey,
+                Core.DB.STORAGE_VERSION,
+            );
 
-        await props.metaStore.setStoreReady(
-            state.identity!.publicKey,
-            Core.DB.STORAGE_VERSION,
-        );
+            await props.metaStore.setActiveStore(
+                state.identity!.publicKey,
+                Core.DB.STORAGE_VERSION,
+            );
 
-        await props.metaStore.setActiveStore(
-            state.identity!.publicKey,
-            Core.DB.STORAGE_VERSION,
-        );
+            return state;
+        };
 
-        if (persisted === true) {
-            console.log('navigating');
-
-            props.setState(state);
-
-            navigate('/explore');
-        } else {
-            console.log('other page');
-            nextState.current = state;
-            setPage(1);
-        }
+        props.handleStart(start);
     };
 
-    const handleContinue = () => {
-        props.setState(nextState.current);
-        navigate('/explore');
-    };
+    return (
+        <Paper
+            elevation={4}
+            className="standard_width"
+            style={{
+                marginTop: '10px',
+                padding: '10px',
+            }}
+        >
+            <h3> What do you want to be called? </h3>
 
-    if (page === 0) {
-        return (
-            <Paper
-                elevation={4}
-                className="standard_width"
+            <TextField
+                label="Profile Name"
+                value={profileName}
+                onChange={handleProfileNameChange}
+                variant="standard"
+                error={!isProfileNameValid()}
                 style={{
-                    marginTop: '10px',
-                    padding: '10px',
+                    width: '100%',
+                    marginBottom: '25px',
+                }}
+            />
+
+            <div
+                style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
                 }}
             >
-                <h3> What do you want to be called? </h3>
-
-                <TextField
-                    label="Profile Name"
-                    value={profileName}
-                    onChange={handleProfileNameChange}
-                    variant="standard"
-                    error={!isProfileNameValid()}
-                    style={{
-                        width: '100%',
-                        marginBottom: '25px',
-                    }}
-                />
-
-                <div
-                    style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                    }}
+                <Button variant="contained" onClick={props.onBack}>
+                    Back
+                </Button>
+                <Button
+                    variant="contained"
+                    disabled={!isProfileNameValid()}
+                    onClick={handleSaveIdentity}
                 >
-                    <Button variant="contained" onClick={props.onBack}>
-                        Back
-                    </Button>
-                    <Button
-                        variant="contained"
-                        disabled={!isProfileNameValid()}
-                        onClick={handleSaveIdentity}
-                    >
-                        Create
-                    </Button>
-                </div>
-            </Paper>
-        );
-    } else {
-        return (
-            <Paper
-                elevation={4}
-                className="standard_width"
-                style={{
-                    marginTop: '10px',
-                    padding: '10px',
-                }}
-            >
-                <h3> It looks like your profile may not be persisted </h3>
-
-                <p>
-                    If you are using Chrome you may need to bookmark Polycentric
-                    for the browser to allow persistence.
-                </p>
-
-                <p>
-                    This could be because you are using incognito mode. If you
-                    are using incognito mode please use a normal tab.
-                </p>
-
-                <p>
-                    If you are using Firefox you may have denied Polycentric the
-                    ability to store data. If so please update your permissions
-                    to enable persistent storage.
-                </p>
-
-                <div
-                    style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                    }}
-                >
-                    <div />
-                    <Button
-                        variant="contained"
-                        onClick={handleContinue}
-                        style={{
-                            width: '100%',
-                            marginTop: '10px',
-                        }}
-                    >
-                        Continue at risk of losing your profile.
-                    </Button>
-                </div>
-            </Paper>
-        );
-    }
+                    Create
+                </Button>
+            </div>
+        </Paper>
+    );
 }
 
 type SetupLandingProps = {
+    handleStart: (cb: () => Promise<Core.DB.PolycentricState>) => void;
     onCreateProfile: () => void;
     persistenceDriver: Core.PersistenceDriver.PersistenceDriver;
     metaStore: Core.PersistenceDriver.IMetaStore;
-    setState: (state: Core.DB.PolycentricState | undefined) => void;
 };
 
 function SetupLanding(props: SetupLandingProps) {
@@ -197,31 +238,33 @@ function SetupLanding(props: SetupLandingProps) {
                     return;
                 }
 
-                const state = await Core.DB.createStateExtendIdentity(
-                    props.metaStore,
-                    props.persistenceDriver,
-                    bundle.privateKey,
-                );
+                const start = async () => {
+                    const state = await Core.DB.createStateExtendIdentity(
+                        props.metaStore,
+                        props.persistenceDriver,
+                        bundle.privateKey,
+                    );
 
-                for (const event of bundle.events) {
-                    await Core.Ingest.levelSaveEvent(state, event);
-                }
+                    for (const event of bundle.events) {
+                        await Core.Ingest.levelSaveEvent(state, event);
+                    }
 
-                await Core.DB.startIdentity(state);
+                    await Core.DB.startIdentity(state);
 
-                await props.metaStore.setStoreReady(
-                    state.identity!.publicKey,
-                    Core.DB.STORAGE_VERSION,
-                );
+                    await props.metaStore.setStoreReady(
+                        state.identity!.publicKey,
+                        Core.DB.STORAGE_VERSION,
+                    );
 
-                await props.metaStore.setActiveStore(
-                    state.identity!.publicKey,
-                    Core.DB.STORAGE_VERSION,
-                );
+                    await props.metaStore.setActiveStore(
+                        state.identity!.publicKey,
+                        Core.DB.STORAGE_VERSION,
+                    );
 
-                props.setState(state);
+                    return state;
+                };
 
-                navigate('/');
+                props.handleStart(start);
             }
         } catch (err) {
             console.log(err);
@@ -235,6 +278,9 @@ function SetupLanding(props: SetupLandingProps) {
             uploadRef.current.click();
         }
     };
+
+    const link =
+        "https://gitlab.futo.org/harpo/polycentric/-/blob/master/README.md";
 
     return (
         <Paper
@@ -270,7 +316,7 @@ function SetupLanding(props: SetupLandingProps) {
                 more information checkout our &nbsp;
                 <a
                     target="_blank"
-                    href="https://gitlab.futo.org/harpo/polycentric/-/blob/master/README.md"
+                    href={link}
                 >
                     GitLab repo
                 </a>
@@ -308,7 +354,12 @@ type SetupProps = {
 };
 
 function Setup(props: SetupProps) {
+    const navigate = useNavigate();
     const [page, setPage] = useState<number>(0);
+
+    const [setupCB, setSetupCB] = useState<
+        (() => Promise<void>) | undefined
+    >(undefined);
 
     const handleBack = () => {
         setPage(0);
@@ -318,22 +369,51 @@ function Setup(props: SetupProps) {
         setPage(1);
     };
 
-    if (page === 1) {
+    const handleStart = async (
+        setup: () => Promise<Core.DB.PolycentricState>
+    ) => {
+        const persisted = await props.persistenceDriver.persisted();
+
+        async function runSetup() {
+            const state = await setup();
+
+            props.setState(state);
+
+            navigate('/explore');
+        };
+
+        if (persisted === true) {
+            await runSetup();
+        } else {
+            setSetupCB(() => {
+                return runSetup;
+            });
+        }
+    };
+
+    if (setupCB !== undefined) {
+            console.log('was persisted5');
+        return (
+            <PersistencePage
+                handleStart={setupCB}
+            />
+        );
+    } else if (page === 1) {
         return (
             <SetupCreateProfile
+                handleStart={handleStart}
                 onBack={handleBack}
                 persistenceDriver={props.persistenceDriver}
                 metaStore={props.metaStore}
-                setState={props.setState}
             />
         );
     } else {
         return (
             <SetupLanding
+                handleStart={handleStart}
                 onCreateProfile={handleCreateProfile}
                 persistenceDriver={props.persistenceDriver}
                 metaStore={props.metaStore}
-                setState={props.setState}
             />
         );
     }
