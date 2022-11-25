@@ -271,6 +271,13 @@ async function handlerNitter(
         imagePointer = await Core.DB.saveBlob(state, mime!, imageRaw);
     }
 
+    if (
+        imagePointer === undefined &&
+        message === ""
+    ) {
+        return;
+    }
+
     const event = Core.DB.makeDefaultEventBody();
     event.message = {
         message: new TextEncoder().encode(message),
