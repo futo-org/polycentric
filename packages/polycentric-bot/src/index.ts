@@ -7,49 +7,7 @@ import * as XML2JS from 'xml2js';
 import * as NodeHTMLParser from 'node-html-parser';
 
 import * as Core from 'polycentric-core';
-
-function createPersistenceDriverLevelDB(
-    directory: string,
-): Core.PersistenceDriver.PersistenceDriver {
-    const getImplementationName = () => {
-        return 'LevelDB';
-    };
-
-    const openStore = async (path: string) => {
-        const level = new ClassicLevel.ClassicLevel<Uint8Array, Uint8Array>(
-            directory + '/' + path,
-            {
-                keyEncoding: 'buffer',
-                valueEncoding: 'buffer',
-            },
-        ) as any as Core.DB.BinaryAbstractLevel;
-
-        await level.open();
-
-        return level;
-    };
-
-    const estimateStorage = async () => {
-        return {
-            bytesAvailable: undefined,
-            bytesUsed: undefined,
-        };
-    };
-
-    const persisted = async () => {
-        return true;
-    };
-
-    const destroyStore = async (path: string) => {};
-
-    return {
-        getImplementationName: getImplementationName,
-        openStore: openStore,
-        estimateStorage: estimateStorage,
-        persisted: persisted,
-        destroyStore: destroyStore,
-    };
-}
+import * as PolycentricLevelDB from 'polycentric-leveldb';
 
 function sleep(ms: number) {
     return new Promise((resolve) => {
@@ -66,7 +24,7 @@ async function runBot(
     handler: (a: Core.DB.PolycentricState, b: any) => Promise<void>,
 ) {
     const persistenceDriver =
-        createPersistenceDriverLevelDB(stateDirectoryPath);
+        PolycentricLevelDB.createPersistenceDriverLevelDB(stateDirectoryPath);
 
     const metaStore = await Core.PersistenceDriver.createMetaStore(
         persistenceDriver,

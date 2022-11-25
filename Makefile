@@ -43,26 +43,48 @@ pretty:
 
 link:
 	mkdir -p \
-		packages/polycentric-react/node_modules \
-		packages/polycentric-bot/node_modules \
-		packages/polycentric-web/node_modules \
-		packages/polycentric-desktop/node_modules
+		/app/packages/polycentric-react/node_modules \
+		/app/packages/polycentric-bot/node_modules \
+		/app/packages/polycentric-web/node_modules \
+		/app/packages/polycentric-desktop/node_modules \
+		/app/packages/polycentric-leveldb/node_modules
 
-	ln -sf \
+	rm -f \
+		/app/packages/polycentric-react/node_modules/polycentric-core \
+		/app/packages/polycentric-bot/node_modules/polycentric-core \
+		/app/packages/polycentric-bot/node_modules/polycentric-leveldb \
+		/app/packages/polycentric-leveldb/node_modules/polycentric-core \
+		/app/packages/polycentric-web/node_modules/polycentric-react \
+		/app/packages/polycentric-desktop/node_modules/polycentric-react \
+		/app/packages/polycentric-desktop/node_modules/polycentric-leveldb
+
+	ln -s \
 		/app/packages/polycentric-core \
-		packages/polycentric-react/node_modules/polycentric-core
+		/app/packages/polycentric-react/node_modules/polycentric-core
 
-	ln -sf \
+	ln -s \
 		/app/packages/polycentric-core \
-		packages/polycentric-bot/node_modules/polycentric-core
+		/app/packages/polycentric-bot/node_modules/polycentric-core
 
-	ln -sf \
-		/app/packages/polycentric-react \
-		packages/polycentric-web/node_modules/polycentric-react
+	ln -s \
+		/app/packages/polycentric-core \
+		/app/packages/polycentric-leveldb/node_modules/polycentric-core
 
-	ln -sf \
+	ln -s \
 		/app/packages/polycentric-react \
-		packages/polycentric-desktop/node_modules/polycentric-react
+		/app/packages/polycentric-web/node_modules/polycentric-react
+
+	ln -s \
+		/app/packages/polycentric-react \
+		/app/packages/polycentric-desktop/node_modules/polycentric-react
+
+	ln -s \
+		/app/packages/polycentric-leveldb \
+		/app/packages/polycentric-desktop/node_modules/polycentric-leveldb
+
+	ln -s \
+		/app/packages/polycentric-leveldb \
+		/app/packages/polycentric-bot/node_modules/polycentric-leveldb
 
 build-production: proto
 	./version.sh
@@ -104,4 +126,5 @@ clean:
 		packages/polycentric-desktop/node_modules \
 		packages/polycentric-desktop/build \
 		packages/polycentric-desktop/dist \
+		packages/polycentric-leveldb/dist \
 		server/target
