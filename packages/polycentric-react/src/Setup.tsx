@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useRef } from 'react';
 import * as Base64 from '@borderless/base64';
 import * as Ed from '@noble/ed25519';
-import browser from 'browser-detect';
+import browser from 'browser-detect';
 
 import * as Core from 'polycentric-core';
 import './Standard.css';
@@ -43,9 +43,9 @@ function PersistencePage(props: PersistencePageProps) {
         if (persisted === true) {
             await props.handleStart();
         } else {
-            setPage(1)
+            setPage(1);
         }
-    };
+    }
 
     if (page === 0) {
         return (
@@ -62,13 +62,11 @@ function PersistencePage(props: PersistencePageProps) {
                 </h3>
 
                 <p>
-                    Polycentric needs persistence in order to save 
-                    your identity.
+                    Polycentric needs persistence in order to save your
+                    identity.
                 </p>
 
-                <p>
-                    On Chrome notifications are required for persistence.
-                </p>
+                <p>On Chrome notifications are required for persistence.</p>
 
                 <Button
                     variant="contained"
@@ -92,9 +90,7 @@ function PersistencePage(props: PersistencePageProps) {
                     padding: '10px',
                 }}
             >
-                <h3>
-                    It looks like persistence was not enabled.
-                </h3>
+                <h3>It looks like persistence was not enabled.</h3>
 
                 <p>
                     Polycentric needs persistence in order to save your
@@ -280,7 +276,7 @@ function SetupLanding(props: SetupLandingProps) {
     };
 
     const link =
-        "https://gitlab.futo.org/harpo/polycentric/-/blob/master/README.md";
+        'https://gitlab.futo.org/harpo/polycentric/-/blob/master/README.md';
 
     return (
         <Paper
@@ -314,10 +310,7 @@ function SetupLanding(props: SetupLandingProps) {
                 Polycentric is currently in development. Incompatible changes
                 may be made, and your profile may not be usable forever. For
                 more information checkout our &nbsp;
-                <a
-                    target="_blank"
-                    href={link}
-                >
+                <a target="_blank" href={link}>
                     GitLab repo
                 </a>
                 .
@@ -357,9 +350,9 @@ function Setup(props: SetupProps) {
     const navigate = useNavigate();
     const [page, setPage] = useState<number>(0);
 
-    const [setupCB, setSetupCB] = useState<
-        (() => Promise<void>) | undefined
-    >(undefined);
+    const [setupCB, setSetupCB] = useState<(() => Promise<void>) | undefined>(
+        undefined,
+    );
 
     const handleBack = () => {
         setPage(0);
@@ -370,7 +363,7 @@ function Setup(props: SetupProps) {
     };
 
     const handleStart = async (
-        setup: () => Promise<Core.DB.PolycentricState>
+        setup: () => Promise<Core.DB.PolycentricState>,
     ) => {
         const persisted = await props.persistenceDriver.persisted();
 
@@ -380,7 +373,7 @@ function Setup(props: SetupProps) {
             props.setState(state);
 
             navigate('/explore');
-        };
+        }
 
         if (persisted === true) {
             await runSetup();
@@ -392,12 +385,8 @@ function Setup(props: SetupProps) {
     };
 
     if (setupCB !== undefined) {
-            console.log('was persisted5');
-        return (
-            <PersistencePage
-                handleStart={setupCB}
-            />
-        );
+        console.log('was persisted5');
+        return <PersistencePage handleStart={setupCB} />;
     } else if (page === 1) {
         return (
             <SetupCreateProfile

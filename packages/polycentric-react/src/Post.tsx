@@ -6,6 +6,11 @@ import {
     Menu,
     MenuItem,
     Typography,
+    Table,
+    TableBody,
+    TableRow,
+    TableCell,
+    Divider,
 } from '@mui/material';
 import LoadingButton from '@mui/lab/LoadingButton';
 import { Link } from 'react-router-dom';
@@ -16,9 +21,11 @@ import LoopIcon from '@mui/icons-material/Loop';
 import DeleteIcon from '@mui/icons-material/Delete';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import ImageViewer from 'react-simple-image-viewer';
+import CloseIcon from '@mui/icons-material/Close';
 import * as Base64 from '@borderless/base64';
 import * as Lodash from 'lodash';
 import getYouTubeID from 'get-youtube-id';
+import Modal from 'react-modal';
 
 import * as Core from 'polycentric-core';
 import * as Feed from './Feed';
@@ -345,6 +352,89 @@ function postToLink(pointer: Core.Protocol.Pointer): string {
     );
 }
 
+type PostDebugModalProps = {
+    state: Core.DB.PolycentricState;
+    isOpen: boolean;
+    onClose: () => void;
+    pointer: Core.Protocol.Pointer;
+};
+
+const customStyles = {
+    content: {
+        top: '20%',
+        left: '50%',
+        right: 'auto',
+        bottom: 'auto',
+        minWidth: '25%',
+        marginRight: '-50%',
+        transform: 'translate(-50%, -50%)',
+    },
+    overlay: {
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        zIndex: 1300,
+    },
+};
+
+function PostDebugModal(props: PostDebugModalProps) {
+    const [event, setEvent] =
+        useState<Core.Protocol.Event | undefined>(undefined);
+
+    async function load() {
+        const potentialEvent = await Core.DB.tryLoadStorageEventByPointer(
+            props.state,
+            props.pointer,
+        );
+
+        if (
+            potentialEvent === undefined ||
+            potentialEvent.event === undefined
+        ) {
+            return;
+        }
+
+        setEvent(potentialEvent.event);
+    }
+
+    useEffect(() => {
+        if (props.isOpen === true) {
+            load();
+        }
+    }, [
+        props.state,
+        props.isOpen,
+        props.pointer
+    ]);
+
+    return (
+        <Modal isOpen={props.isOpen} style={customStyles}>
+            <CloseIcon
+                onClick={props.onClose}
+                style={{
+                    position: 'absolute',
+                    right: '5px',
+                    top: '5px',
+                }}
+            />
+
+            <Divider>Clocks</Divider>
+            <Table>
+                <TableBody>
+                    {event && event.clocks.map((item, index) => (
+                        <TableRow key={index}>
+                            <TableCell>
+                                {Base64.encodeUrl(item.key)}
+                            </TableCell>
+                            <TableCell>
+                                {item.value}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </Modal>
+    );
+}
+
 export function Post(props: PostProps) {
     let navigate = useNavigate();
 
@@ -356,6 +446,8 @@ export function Post(props: PostProps) {
         undefined,
     );
     const [anchor, setAnchor] = useState<null | HTMLElement>(null);
+    
+    const [debugModalIsOpen, setDebugModalIsOpen] = useState(false);
 
     const handleBoost = async (e: React.MouseEvent<HTMLElement>) => {
         e.stopPropagation();
@@ -423,6 +515,17 @@ export function Post(props: PostProps) {
                 overflow: 'auto',
             }}
         >
+
+            <PostDebugModal
+                state={props.state}
+                isOpen={debugModalIsOpen}
+                onClose={() => {
+                    setDebugModalIsOpen(false);
+                }}
+                pointer={props.post.pointer}
+            />
+
+
             {props.post.fromServer !== undefined && (
                 <div
                     style={{
@@ -602,7 +705,12 @@ export function Post(props: PostProps) {
                                 e.stopPropagation();
                             }}
                         >
-                            <MenuItem onClick={handleDelete}>
+                            <MenuItem
+                                onClick={() => {
+                                    setDebugModalIsOpen(true);
+                                    setAnchor(null);
+                                }}
+                            >
                                 <Typography textAlign="center">
                                     Debug Info
                                 </Typography>

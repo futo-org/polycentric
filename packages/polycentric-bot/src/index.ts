@@ -271,10 +271,7 @@ async function handlerNitter(
         imagePointer = await Core.DB.saveBlob(state, mime!, imageRaw);
     }
 
-    if (
-        imagePointer === undefined &&
-        message === ""
-    ) {
+    if (imagePointer === undefined && message === '') {
         return;
     }
 

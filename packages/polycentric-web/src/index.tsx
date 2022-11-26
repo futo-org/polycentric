@@ -1,5 +1,5 @@
 import * as BrowserLevel from 'browser-level';
-import browser from 'browser-detect';
+import browser from 'browser-detect';
 
 import * as PolycentricReact from 'polycentric-react';
 
@@ -87,10 +87,9 @@ function createPersistenceDriverIndexedDB(): PolycentricReact.Core.PersistenceDr
 
 // https://stackoverflow.com/a/57920600
 function isPWA(): boolean {
-    return ["fullscreen", "standalone", "minimal-ui"].some(
-        (displayMode) => window.matchMedia(
-            '(display-mode: ' + displayMode + ')'
-        ).matches
+    return ['fullscreen', 'standalone', 'minimal-ui'].some(
+        (displayMode) =>
+            window.matchMedia('(display-mode: ' + displayMode + ')').matches,
     );
 }
 
@@ -99,15 +98,15 @@ async function main() {
 
     if (browserInfo.mobile === true && isPWA() === false) {
         PolycentricReact.createErrorPage(
-            'Please add Polycentric to your home screen'
+            'Please add Polycentric to your home screen',
         );
 
         return;
     }
 
-    if (('serviceWorker' in navigator) === false) {
+    if ('serviceWorker' in navigator === false) {
         PolycentricReact.createErrorPage(
-            'Your browser does not support Service Workers'
+            'Your browser does not support Service Workers',
         );
 
         return;
@@ -124,7 +123,7 @@ async function main() {
             );
     } catch (err) {
         PolycentricReact.createErrorPage(
-            'Your browser does not support IndexedDB'
+            'Your browser does not support IndexedDB',
         );
 
         return;
