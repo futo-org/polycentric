@@ -1056,6 +1056,15 @@ export async function levelSavePost(
         unixMilliseconds: Date.now(),
     };
 
+    const profile = await loadProfile(state);
+
+    for (const head of profile.heads) {
+        event.clocks.push({
+            key: head.key,
+            value: head.value,
+        });
+    }
+
     await Crypto.addEventSignature(event, identity.privateKey);
 
     await state.level.put(

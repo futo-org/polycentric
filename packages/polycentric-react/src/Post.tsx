@@ -1,4 +1,12 @@
-import { Avatar, Button, Paper, IconButton, Menu, MenuItem, Typography } from '@mui/material';
+import {
+    Avatar,
+    Button,
+    Paper,
+    IconButton,
+    Menu,
+    MenuItem,
+    Typography,
+} from '@mui/material';
 import LoadingButton from '@mui/lab/LoadingButton';
 import { Link } from 'react-router-dom';
 import React, { useState, useEffect, useRef, memo } from 'react';
@@ -346,7 +354,7 @@ export function Post(props: PostProps) {
     const [deleting, setDeleting] = useState(false);
     const [youtubeLink, setYoutubeLink] = useState<string | undefined>(
         undefined,
-    ); 
+    );
     const [anchor, setAnchor] = useState<null | HTMLElement>(null);
 
     const handleBoost = async (e: React.MouseEvent<HTMLElement>) => {
@@ -594,22 +602,14 @@ export function Post(props: PostProps) {
                                 e.stopPropagation();
                             }}
                         >
-                            <MenuItem
-                                onClick={handleDelete}
-                            >
-                                <Typography
-                                    textAlign="center"
-                                >
+                            <MenuItem onClick={handleDelete}>
+                                <Typography textAlign="center">
                                     Debug Info
                                 </Typography>
                             </MenuItem>
                             {props.post.author && (
-                                <MenuItem
-                                    onClick={handleDelete}
-                                >
-                                    <Typography
-                                        textAlign="center"
-                                    >
+                                <MenuItem onClick={handleDelete}>
+                                    <Typography textAlign="center">
                                         Delete Post
                                     </Typography>
                                 </MenuItem>
@@ -617,7 +617,7 @@ export function Post(props: PostProps) {
                         </Menu>
                     </div>
 
-                    {props.post.message !== "" && (
+                    {props.post.message !== '' && (
                         <p
                             style={{
                                 alignSelf: 'flex-start',
@@ -652,7 +652,7 @@ export function Post(props: PostProps) {
                                 maxHeight: '500px',
                                 minHeight: '300px',
                                 marginTop: '10px',
-                                alignSelf: 'center'
+                                alignSelf: 'center',
                             }}
                         />
                     )}
@@ -665,7 +665,7 @@ export function Post(props: PostProps) {
                                 marginTop: '10px',
                                 maxHeight: '500px',
                                 maxWidth: '100%',
-                                alignSelf: 'center'
+                                alignSelf: 'center',
                             }}
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -734,9 +734,7 @@ export function Post(props: PostProps) {
                         }}
                     >
                         Posted on: &nbsp;
-                        {new Date(
-                            props.post.unixMilliseconds,
-                        ).toLocaleString()}
+                        {new Date(props.post.unixMilliseconds).toLocaleString()}
                     </p>
 
                     {props.showBoost === true && (
