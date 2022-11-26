@@ -424,6 +424,7 @@ function PostDebugModal(props: PostDebugModalProps) {
                             <TableCell
                                 style={{
                                     wordBreak: 'break-all',
+                                    fontFamily: 'monospace',
                                 }}
                             >
                                 {Base64.encodeUrl(item.key)}
