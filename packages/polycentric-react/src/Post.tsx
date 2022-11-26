@@ -628,7 +628,7 @@ export function Post(props: PostProps) {
                 <div
                     style={{
                         flex: '1',
-                        marginTop: '10px',
+                        marginTop: '11px',
                         marginRight: '10px',
                         marginBottom: '10px',
                         display: 'flex',
@@ -646,7 +646,6 @@ export function Post(props: PostProps) {
                                 alignSelf: 'flex-start',
                                 whiteSpace: 'pre-wrap',
                                 overflowWrap: 'anywhere',
-                                fontSize: '15px',
                                 flex: '1',
                             }}
                             onClick={(e) => {
@@ -661,6 +660,8 @@ export function Post(props: PostProps) {
                                     wordBreak: 'break-all',
                                     marginTop: '0px',
                                     marginBottom: '0px',
+                                    fontSize: '15px',
+                                    lineHeight: '15px',
                                 }}
                             >
                                 {props.post.profile.displayName}
@@ -738,7 +739,7 @@ export function Post(props: PostProps) {
                             style={{
                                 alignSelf: 'flex-start',
                                 whiteSpace: 'pre-wrap',
-                                marginTop: '5px',
+                                marginTop: '2px',
                                 marginBottom: '5px',
                                 fontSize: '15px',
                                 overflowWrap: 'break-word',
@@ -778,7 +779,7 @@ export function Post(props: PostProps) {
                             src={props.post.image}
                             alt="Within Post"
                             style={{
-                                marginTop: '10px',
+                                marginTop: '4px',
                                 maxHeight: '500px',
                                 maxWidth: '100%',
                                 alignSelf: 'center',
