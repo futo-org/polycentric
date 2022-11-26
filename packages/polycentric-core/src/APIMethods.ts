@@ -1,4 +1,5 @@
 import fetch, { Headers } from 'cross-fetch';
+import * as Base64 from '@borderless/base64';
 
 import * as Protocol from './protocol';
 
@@ -45,10 +46,13 @@ export async function fetchPostRequestEventRanges(
     address: string,
     event: Protocol.RequestEventRanges,
 ): Promise<Protocol.Events> {
-    const response = await fetch(address + '/request_event_ranges', {
-        method: 'REPORT',
+    const path = "/request_event_ranges?query=" + Base64.encodeUrl(
+        Protocol.RequestEventRanges.encode(event).finish()
+    );
+
+    const response = await fetch(address + path, {
+        method: 'GET',
         headers: new Headers({ 'content-type': 'application/octet-stream' }),
-        body: Protocol.RequestEventRanges.encode(event).finish(),
     });
     const rawBody = new Uint8Array(await response.arrayBuffer());
     return Protocol.Events.decode(rawBody);

@@ -654,16 +654,9 @@ async fn process_mutations(
 }
 
 async fn request_event_ranges_handler(
-    method: ::http::Method,
+    query: RequestEventRangesQuery,
     state: ::std::sync::Arc<State>,
-    bytes: ::bytes::Bytes,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
-    let report = ::http::Method::from_bytes(b"REPORT").unwrap();
-
-    if method != report {
-        return Err(::warp::reject::reject());
-    }
-
     const STATEMENT: &str = "
         SELECT *
         FROM events
@@ -679,9 +672,7 @@ async fn request_event_ranges_handler(
         .await
         .map_err(|_| RequestError::DatabaseFailed)?;
 
-    let request =
-        crate::protocol::RequestEventRanges::parse_from_tokio_bytes(&bytes)
-            .map_err(|_| RequestError::ParsingFailed)?;
+    let request = query.query;
 
     let mut history: ::std::vec::Vec<EventRow> = vec![];
 
@@ -1420,6 +1411,28 @@ struct Config {
     pub opensearch_string: String,
 }
 
+fn decode_query_request_event_ranges<'de, D>(deserializer: D)
+    -> Result<crate::protocol::RequestEventRanges, D::Error>
+where
+    D: ::serde::Deserializer<'de>,
+{
+    let string: &str = ::serde::Deserialize::deserialize(deserializer)?;
+
+    let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
+        .map_err(::serde::de::Error::custom)?;
+
+    crate::protocol::RequestEventRanges::parse_from_tokio_bytes(
+            &::bytes::Bytes::from(bytes),
+        )
+        .map_err(::serde::de::Error::custom)
+}
+
+#[derive(::serde::Deserialize)]
+struct RequestEventRangesQuery {
+    #[serde(deserialize_with = "decode_query_request_event_ranges")]
+    query: crate::protocol::RequestEventRanges,
+}
+
 async fn serve_api(
     config: &Config
 ) -> Result<(), Box<dyn ::std::error::Error>> {
@@ -1562,11 +1575,11 @@ async fn serve_api(
         .and_then(known_ranges_handler)
         .with(cors.clone());
 
-    let request_event_ranges_route = ::warp::method()
+    let request_event_ranges_route = ::warp::get()
         .and(::warp::path("request_event_ranges"))
         .and(::warp::path::end())
+        .and(::warp::query::<RequestEventRangesQuery>())
         .and(state_filter.clone())
-        .and(::warp::body::bytes())
         .and_then(request_event_ranges_handler)
         .with(cors.clone());
 
