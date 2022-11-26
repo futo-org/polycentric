@@ -770,6 +770,7 @@ export function Post(props: PostProps) {
                                 minHeight: '300px',
                                 marginTop: '10px',
                                 alignSelf: 'center',
+                                width: '100%',
                             }}
                         />
                     )}
