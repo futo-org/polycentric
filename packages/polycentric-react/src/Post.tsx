@@ -421,7 +421,11 @@ function PostDebugModal(props: PostDebugModalProps) {
                 <TableBody>
                     {event && event.clocks.map((item, index) => (
                         <TableRow key={index}>
-                            <TableCell>
+                            <TableCell
+                                style={{
+                                    wordBreak: 'break-all',
+                                }}
+                            >
                                 {Base64.encodeUrl(item.key)}
                             </TableCell>
                             <TableCell>
@@ -654,6 +658,7 @@ export function Post(props: PostProps) {
                                 style={{
                                     whiteSpace: 'pre-wrap',
                                     overflowWrap: 'anywhere',
+                                    wordBreak: 'break-all',
                                     marginTop: '0px',
                                     marginBottom: '0px',
                                 }}
@@ -663,6 +668,7 @@ export function Post(props: PostProps) {
                             <span
                                 style={{
                                     fontWeight: '600',
+                                    wordBreak: 'break-all',
                                     fontSize: '11px',
                                     color: 'gray',
                                 }}
@@ -734,6 +740,7 @@ export function Post(props: PostProps) {
                                 marginTop: '5px',
                                 marginBottom: '5px',
                                 fontSize: '15px',
+                                wordBreak: 'break-all',
                             }}
                             onClick={(e) => {
                                 e.stopPropagation();
