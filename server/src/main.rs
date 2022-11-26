@@ -654,9 +654,16 @@ async fn process_mutations(
 }
 
 async fn request_event_ranges_handler(
+    method: ::http::Method,
     state: ::std::sync::Arc<State>,
     bytes: ::bytes::Bytes,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
+    let report = ::http::Method::from_bytes(b"REPORT").unwrap();
+
+    if method != report {
+        return Err(::warp::reject::reject());
+    }
+
     const STATEMENT: &str = "
         SELECT *
         FROM events
@@ -711,10 +718,16 @@ async fn request_event_ranges_handler(
         .write_to_bytes()
         .map_err(|_| RequestError::SerializationFailed)?;
 
-    Ok(::warp::reply::with_status(
-        result_serialized,
-        ::warp::http::StatusCode::OK,
-    ))
+    Ok(
+        ::warp::reply::with_header(
+            ::warp::reply::with_status(
+                result_serialized,
+                ::warp::http::StatusCode::OK,
+            ),
+            "Cache-Control",
+            "public, max-age=300"
+        )
+    )
 }
 
 #[derive(::serde::Deserialize, ::serde::Serialize)]
@@ -1199,11 +1212,9 @@ async fn request_recommend_profiles_handler(
 
 async fn request_version_handler()
 -> Result<impl ::warp::Reply, ::warp::Rejection> {
-
     Ok(::warp::reply::json(&::serde_json::json!({
         "sha": crate::version::VERSION,
     })))
-
 }
 
 async fn request_explore_handler(
@@ -1513,6 +1524,8 @@ async fn serve_api(
         search: opensearch_client,
     });
 
+    let report = ::http::Method::from_bytes(b"REPORT").unwrap();
+
     let cors = ::warp::cors()
         .allow_any_origin()
         .max_age(::std::time::Duration::from_secs(60 * 5))
@@ -1520,6 +1533,7 @@ async fn serve_api(
         .allow_methods(&[
             ::warp::http::Method::POST,
             ::warp::http::Method::GET,
+            report,
         ]);
 
     let state_filter = ::warp::any().map(move || state.clone());
@@ -1548,7 +1562,7 @@ async fn serve_api(
         .and_then(known_ranges_handler)
         .with(cors.clone());
 
-    let request_event_ranges_route = ::warp::post()
+    let request_event_ranges_route = ::warp::method()
         .and(::warp::path("request_event_ranges"))
         .and(::warp::path::end())
         .and(state_filter.clone())

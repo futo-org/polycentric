@@ -1621,6 +1621,7 @@ dependencies = [
  "envconfig",
  "futures",
  "hmac-sha256",
+ "http",
  "hyper",
  "log",
  "opensearch",

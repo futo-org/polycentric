@@ -46,7 +46,7 @@ export async function fetchPostRequestEventRanges(
     event: Protocol.RequestEventRanges,
 ): Promise<Protocol.Events> {
     const response = await fetch(address + '/request_event_ranges', {
-        method: 'POST',
+        method: 'REPORT',
         headers: new Headers({ 'content-type': 'application/octet-stream' }),
         body: Protocol.RequestEventRanges.encode(event).finish(),
     });
