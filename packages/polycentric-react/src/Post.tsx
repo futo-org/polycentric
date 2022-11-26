@@ -669,8 +669,10 @@ export function Post(props: PostProps) {
                                 style={{
                                     fontWeight: '600',
                                     wordBreak: 'break-all',
-                                    fontSize: '11px',
+                                    fontSize: '9px',
+                                    lineHeight: '9px',
                                     color: 'gray',
+                                    fontFamily: 'monospace',
                                 }}
                             >
                                 @{props.post.profile.identity}
@@ -736,11 +738,10 @@ export function Post(props: PostProps) {
                             style={{
                                 alignSelf: 'flex-start',
                                 whiteSpace: 'pre-wrap',
-                                overflowWrap: 'anywhere',
                                 marginTop: '5px',
                                 marginBottom: '5px',
                                 fontSize: '15px',
-                                wordBreak: 'break-all',
+                                overflowWrap: 'break-word',
                             }}
                             onClick={(e) => {
                                 e.stopPropagation();
