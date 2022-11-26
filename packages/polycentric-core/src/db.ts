@@ -900,20 +900,20 @@ export async function makeSyncStatusString(
 
     const profile = Protocol.StorageTypeProfile.decode(potentialProfile);
 
-    let status = '';
+    let totalKnown = 0;
+    let totalHave = 0;
 
     for (const entry of profile.heads) {
         const ranges = await rangesForFeed(state, publicKey, entry.key);
 
-        let sum = 0;
-        for (const range of ranges) {
-            sum += range.highSequenceNumber - range.lowSequenceNumber + 1;
-        }
+        totalKnown += entry.value;
 
-        status += sum.toString() + '/' + entry.value.toString() + ' ';
+        for (const range of ranges) {
+            totalHave += range.highSequenceNumber - range.lowSequenceNumber + 1;
+        }
     }
 
-    return status;
+    return totalHave.toString() + '/' + totalKnown.toString();
 }
 
 export function appendBuffers(left: Uint8Array, right: Uint8Array): Uint8Array {
