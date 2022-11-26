@@ -1,6 +1,6 @@
 import * as PolycentricReact from 'polycentric-react';
 
-const cacheKey = 'polycentric-cache3';
+const cacheKey = 'polycentric-cache4';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -22,7 +22,16 @@ self.addEventListener("fetch", (event: FetchEvent) => {
             const accept = event.request.headers.get('Accept');
 
             if (accept !== null && accept.includes('text/html') === true) {
-                request = new Request(url.origin + '/index.html');
+                const headers = new Headers();
+                headers.append('Accept', 'text/html');
+
+                request = new Request(
+                    url.origin + '/index.html',
+                    {
+                        method: 'GET',
+                        headers: headers,
+                    }
+                );
             }
 
             const cache = await caches.open(cacheKey);
