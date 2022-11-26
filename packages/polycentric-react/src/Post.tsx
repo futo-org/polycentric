@@ -1,4 +1,4 @@
-import { Avatar, Button, Paper } from '@mui/material';
+import { Avatar, Button, Paper, IconButton, Menu, MenuItem, Typography } from '@mui/material';
 import LoadingButton from '@mui/lab/LoadingButton';
 import { Link } from 'react-router-dom';
 import React, { useState, useEffect, useRef, memo } from 'react';
@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import ReplyIcon from '@mui/icons-material/Reply';
 import LoopIcon from '@mui/icons-material/Loop';
 import DeleteIcon from '@mui/icons-material/Delete';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
 import ImageViewer from 'react-simple-image-viewer';
 import * as Base64 from '@borderless/base64';
 import * as Lodash from 'lodash';
@@ -345,7 +346,8 @@ export function Post(props: PostProps) {
     const [deleting, setDeleting] = useState(false);
     const [youtubeLink, setYoutubeLink] = useState<string | undefined>(
         undefined,
-    );
+    ); 
+    const [anchor, setAnchor] = useState<null | HTMLElement>(null);
 
     const handleBoost = async (e: React.MouseEvent<HTMLElement>) => {
         e.stopPropagation();
@@ -385,6 +387,14 @@ export function Post(props: PostProps) {
         e.stopPropagation();
 
         navigate('/' + postToLink(props.post.pointer));
+    };
+
+    const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
+        setAnchor(event.currentTarget);
+    };
+
+    const handleCloseMenu = () => {
+        setAnchor(null);
     };
 
     useEffect(() => {
@@ -511,37 +521,100 @@ export function Post(props: PostProps) {
                     }}
                 >
                     <div
-                        className="underline_on_hover"
                         style={{
-                            alignSelf: 'flex-start',
-                            whiteSpace: 'pre-wrap',
-                            overflowWrap: 'anywhere',
-                            fontSize: '15px',
-                        }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            navigate('/' + props.post.profile.link);
+                            display: 'flex',
                         }}
                     >
-                        <h3
+                        <div
+                            className="underline_on_hover"
                             style={{
+                                alignSelf: 'flex-start',
                                 whiteSpace: 'pre-wrap',
                                 overflowWrap: 'anywhere',
-                                marginTop: '0px',
-                                marginBottom: '0px',
+                                fontSize: '15px',
+                                flex: '1',
+                            }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigate('/' + props.post.profile.link);
                             }}
                         >
-                            {props.post.profile.displayName}
-                        </h3>
-                        <span
-                            style={{
-                                fontWeight: '600',
-                                fontSize: '11px',
-                                color: 'gray',
+                            <h3
+                                style={{
+                                    whiteSpace: 'pre-wrap',
+                                    overflowWrap: 'anywhere',
+                                    marginTop: '0px',
+                                    marginBottom: '0px',
+                                }}
+                            >
+                                {props.post.profile.displayName}
+                            </h3>
+                            <span
+                                style={{
+                                    fontWeight: '600',
+                                    fontSize: '11px',
+                                    color: 'gray',
+                                }}
+                            >
+                                @{props.post.profile.identity}
+                            </span>
+                        </div>
+
+                        {props.showBoost === true && (
+                            <IconButton
+                                color="primary"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenMenu(e);
+                                }}
+                            >
+                                <MoreHorizIcon
+                                    style={{
+                                        color: 'gray',
+                                    }}
+                                />
+                            </IconButton>
+                        )}
+
+                        <Menu
+                            sx={{ mt: '45px' }}
+                            anchorEl={anchor}
+                            open={Boolean(anchor)}
+                            onClose={handleCloseMenu}
+                            anchorOrigin={{
+                                vertical: 'top',
+                                horizontal: 'right',
+                            }}
+                            keepMounted
+                            transformOrigin={{
+                                vertical: 'top',
+                                horizontal: 'right',
+                            }}
+                            onClick={(e) => {
+                                e.stopPropagation();
                             }}
                         >
-                            @{props.post.profile.identity}
-                        </span>
+                            <MenuItem
+                                onClick={handleDelete}
+                            >
+                                <Typography
+                                    textAlign="center"
+                                >
+                                    Debug Info
+                                </Typography>
+                            </MenuItem>
+                            {props.post.author && (
+                                <MenuItem
+                                    onClick={handleDelete}
+                                >
+                                    <Typography
+                                        textAlign="center"
+                                    >
+                                        Delete Post
+                                    </Typography>
+                                </MenuItem>
+                            )}
+                        </Menu>
                     </div>
 
                     {props.post.message !== "" && (
@@ -694,22 +767,6 @@ export function Post(props: PostProps) {
                             >
                                 React
                             </Button>
-                            <div
-                                style={{
-                                    flexGrow: '1',
-                                }}
-                            />
-                            {props.post.author && (
-                                <LoadingButton
-                                    loading={deleting}
-                                    variant="contained"
-                                    size="small"
-                                    color="warning"
-                                    onClick={handleDelete}
-                                >
-                                    <DeleteIcon />
-                                </LoadingButton>
-                            )}
                         </div>
                     )}
                 </div>
