@@ -431,7 +431,14 @@ function FeedForProfile(props: FeedForProfileProps) {
 
         const post = await Core.DB.tryLoadStorageEventByKey(props.state, key);
 
-        if (post === undefined || post.event === undefined) {
+        if (
+            post === undefined ||
+            post.event === undefined ||
+            Core.Util.blobsEqual(
+                post.event.authorPublicKey,
+                props.feed.publicKey,
+            ) === false
+        ) {
             return undefined;
         }
 
@@ -512,67 +519,6 @@ function FeedForProfile(props: FeedForProfileProps) {
         if (cancelContext.cancelled()) {
             return;
         }
-
-        /*
-        if (filteredPosts.length < 1) {
-            const isFeedComplete = await Core.DB.isFeedComplete(
-                props.state,
-                props.feed.publicKey,
-            );
-
-            setComplete(isFeedComplete);
-
-            if (isFeedComplete === false) {
-                console.log('stalled');
-                doBackfill(cancelContext);
-            }
-        } else {
-            setExploreResults((old) => {
-                const existing = new Set<string>();
-
-                for (const item of old) {
-                    existing.add(item.key);
-                }
-
-                const totalResults = [...old];
-
-                for (const item of filteredPosts) {
-                    if (existing.has(item.key) === false) {
-                        totalResults.push(item);
-                    }
-                }
-
-                const addedCount = totalResults.length - old.length;
-
-                console.log('total', totalResults.length, 'new', addedCount);
-
-                if (addedCount === 0) {
-                    console.log('added count was zero so doing backfill');
-
-                    doBackfill(cancelContext);
-                } else if (totalResults.length < LIMIT) {
-                    console.log('not enough posts to fill render');
-
-                    doBackfill(cancelContext);
-                }
-
-                return totalResults
-                    .sort((a, b) => {
-                        const at = a.initialPost.sortMilliseconds;
-                        const bt = b.initialPost.sortMilliseconds;
-
-                        if (at < bt) {
-                            return -1;
-                        } else if (at > bt) {
-                            return 1;
-                        } else {
-                            return 0;
-                        }
-                    })
-                    .reverse();
-            });
-        }
-        */
 
         if (progress === false) {
             const isFeedComplete = await Core.DB.isFeedComplete(
