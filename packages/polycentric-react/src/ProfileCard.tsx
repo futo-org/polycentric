@@ -101,7 +101,12 @@ function ProfileCard({ publicKey, state }: ProfileHeaderProps) {
                         >
                             {profile.displayName}
                         </h3>
-                        <span className="profileHeader__identity">
+                        <span
+                            className="profileHeader__identity"
+                            style={{
+                                overflowWrap: 'anywhere',
+                            }}
+                        >
                             @{profile.identity}
                         </span>
                     </div>

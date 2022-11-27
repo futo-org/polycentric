@@ -147,14 +147,19 @@ function ProfileHeader(props: ProfileHeaderProps) {
                         <h3
                             style={{
                                 whiteSpace: 'pre-wrap',
-                                overflowWrap: 'anywhere',
                                 marginTop: '0px',
                                 marginBottom: '0px',
+                                overflowWrap: 'anywhere',
                             }}
                         >
                             {profile.displayName}
                         </h3>
-                        <span className="profileHeader__identity">
+                        <span
+                            className="profileHeader__identity"
+                            style={{
+                                overflowWrap: 'anywhere',
+                            }}
+                        >
                             @{profile.identity}
                         </span>
                     </div>

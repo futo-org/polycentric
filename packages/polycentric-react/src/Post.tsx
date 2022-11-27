@@ -743,7 +743,7 @@ export function Post(props: PostProps) {
                                 marginTop: '2px',
                                 marginBottom: '5px',
                                 fontSize: '15px',
-                                overflowWrap: 'break-word',
+                                overflowWrap: 'anywhere',
                             }}
                             onClick={(e) => {
                                 e.stopPropagation();
