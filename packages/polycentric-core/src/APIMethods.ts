@@ -33,12 +33,17 @@ export async function fetchPostKnownRangesForFeed(
     address: string,
     event: Protocol.RequestKnownRangesForFeed,
 ): Promise<Protocol.ResponseKnownRangesForFeed> {
-    const response = await fetch(address + '/known_ranges_for_feed', {
-        method: 'POST',
+    const path = "/known_ranges_for_feed?query=" + Base64.encodeUrl(
+        Protocol.RequestKnownRangesForFeed.encode(event).finish()
+    );
+
+    const response = await fetch(address +  path, {
+        method: 'GET',
         headers: new Headers({ 'content-type': 'application/octet-stream' }),
-        body: Protocol.RequestKnownRangesForFeed.encode(event).finish(),
     });
+
     const rawBody = new Uint8Array(await response.arrayBuffer());
+
     return Protocol.ResponseKnownRangesForFeed.decode(rawBody);
 }
 
@@ -54,7 +59,9 @@ export async function fetchPostRequestEventRanges(
         method: 'GET',
         headers: new Headers({ 'content-type': 'application/octet-stream' }),
     });
+
     const rawBody = new Uint8Array(await response.arrayBuffer());
+
     return Protocol.Events.decode(rawBody);
 }
 

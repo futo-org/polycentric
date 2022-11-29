@@ -38,7 +38,7 @@ async fn handle_rejection(
             "Not Found",
             ::warp::http::StatusCode::NOT_FOUND,
         ));
-    } else if let Some(e) = err.find::<::warp::reject::MethodNotAllowed>() {
+    } else if let Some(_) = err.find::<::warp::reject::MethodNotAllowed>() {
         return Ok(::warp::reply::with_status(
             "Method Not Allowed",
             ::warp::http::StatusCode::BAD_REQUEST,
@@ -405,9 +405,31 @@ fn event_row_to_event_proto(row: EventRow) -> crate::protocol::Event {
     event
 }
 
+fn decode_query_known_ranges_for_feed<'de, D>(deserializer: D)
+    -> Result<crate::protocol::RequestKnownRangesForFeed, D::Error>
+where
+    D: ::serde::Deserializer<'de>,
+{
+    let string: &str = ::serde::Deserialize::deserialize(deserializer)?;
+
+    let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
+        .map_err(::serde::de::Error::custom)?;
+
+    crate::protocol::RequestKnownRangesForFeed::parse_from_tokio_bytes(
+            &::bytes::Bytes::from(bytes),
+        )
+        .map_err(::serde::de::Error::custom)
+}
+
+#[derive(::serde::Deserialize)]
+struct RequestKnownRangesForFeedQuery {
+    #[serde(deserialize_with = "decode_query_known_ranges_for_feed")]
+    query: crate::protocol::RequestKnownRangesForFeed,
+}
+
 async fn known_ranges_for_feed_handler(
+    query: RequestKnownRangesForFeedQuery,
     state: ::std::sync::Arc<State>,
-    bytes: ::bytes::Bytes,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
     const WRITERS_FOR_FEED_STATEMENT: &str = "
         SELECT writer_id, max(sequence_number) as largest_sequence_number
@@ -429,14 +451,7 @@ async fn known_ranges_for_feed_handler(
         GROUP BY sequence_number - rn;
     ";
 
-    let request =
-        crate::protocol::RequestKnownRangesForFeed::parse_from_tokio_bytes(
-            &bytes,
-        )
-        .map_err(|err| {
-            error!("{}", err);
-            RequestError::ParsingFailed
-        })?;
+    let request = query.query;
 
     let writers_for_feed_rows =
         ::sqlx::query_as::<_, WriterAndLargest>(WRITERS_FOR_FEED_STATEMENT)
@@ -479,10 +494,16 @@ async fn known_ranges_for_feed_handler(
         .write_to_bytes()
         .map_err(|_| RequestError::SerializationFailed)?;
 
-    Ok(::warp::reply::with_status(
-        result_serialized,
-        ::warp::http::StatusCode::OK,
-    ))
+    Ok(
+        ::warp::reply::with_header(
+            ::warp::reply::with_status(
+                result_serialized,
+                ::warp::http::StatusCode::OK,
+            ),
+            "Cache-Control",
+            "public, max-age=30"
+        )
+    )
 }
 
 async fn known_ranges_handler(
@@ -653,6 +674,28 @@ async fn process_mutations(
     Ok(result)
 }
 
+fn decode_query_request_event_ranges<'de, D>(deserializer: D)
+    -> Result<crate::protocol::RequestEventRanges, D::Error>
+where
+    D: ::serde::Deserializer<'de>,
+{
+    let string: &str = ::serde::Deserialize::deserialize(deserializer)?;
+
+    let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
+        .map_err(::serde::de::Error::custom)?;
+
+    crate::protocol::RequestEventRanges::parse_from_tokio_bytes(
+            &::bytes::Bytes::from(bytes),
+        )
+        .map_err(::serde::de::Error::custom)
+}
+
+#[derive(::serde::Deserialize)]
+struct RequestEventRangesQuery {
+    #[serde(deserialize_with = "decode_query_request_event_ranges")]
+    query: crate::protocol::RequestEventRanges,
+}
+
 async fn request_event_ranges_handler(
     query: RequestEventRangesQuery,
     state: ::std::sync::Arc<State>,
@@ -716,7 +759,7 @@ async fn request_event_ranges_handler(
                 ::warp::http::StatusCode::OK,
             ),
             "Cache-Control",
-            "public, max-age=300"
+            "public, max-age=30"
         )
     )
 }
@@ -1411,28 +1454,6 @@ struct Config {
     pub opensearch_string: String,
 }
 
-fn decode_query_request_event_ranges<'de, D>(deserializer: D)
-    -> Result<crate::protocol::RequestEventRanges, D::Error>
-where
-    D: ::serde::Deserializer<'de>,
-{
-    let string: &str = ::serde::Deserialize::deserialize(deserializer)?;
-
-    let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
-        .map_err(::serde::de::Error::custom)?;
-
-    crate::protocol::RequestEventRanges::parse_from_tokio_bytes(
-            &::bytes::Bytes::from(bytes),
-        )
-        .map_err(::serde::de::Error::custom)
-}
-
-#[derive(::serde::Deserialize)]
-struct RequestEventRangesQuery {
-    #[serde(deserialize_with = "decode_query_request_event_ranges")]
-    query: crate::protocol::RequestEventRanges,
-}
-
 async fn serve_api(
     config: &Config
 ) -> Result<(), Box<dyn ::std::error::Error>> {
@@ -1559,11 +1580,11 @@ async fn serve_api(
         .and_then(post_events_handler)
         .with(cors.clone());
 
-    let known_ranges_for_feed_route = ::warp::post()
+    let known_ranges_for_feed_route = ::warp::get()
         .and(::warp::path("known_ranges_for_feed"))
         .and(::warp::path::end())
+        .and(::warp::query::<RequestKnownRangesForFeedQuery>())
         .and(state_filter.clone())
-        .and(::warp::body::bytes())
         .and_then(known_ranges_for_feed_handler)
         .with(cors.clone());
 
