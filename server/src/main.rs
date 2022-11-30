@@ -1065,24 +1065,12 @@ async fn get_specific_event(
     writer_id: ::std::vec::Vec<u8>,
     sequence_number: u64,
 ) -> Result<Option<crate::protocol::Event>, ::warp::Rejection> {
-    const STATEMENT: &str = "
-        SELECT * FROM events
-        WHERE author_public_key = $1
-        AND writer_id = $2
-        AND sequence_number = $3
-        LIMIT 1;
-    ";
-
-    let potential_row = ::sqlx::query_as::<_, EventRow>(STATEMENT)
-        .bind(&author_public_key)
-        .bind(&writer_id)
-        .bind(sequence_number as i64)
-        .fetch_optional(&mut *transaction)
-        .await
-        .map_err(|err| {
-            error!("get_specific_event {}", err);
-            RequestError::DatabaseFailed
-        })?;
+    let potential_row = get_specific_event_row(
+        &mut *transaction,
+        &author_public_key,
+        &writer_id,
+        sequence_number,
+    ).await?;
 
     if let Some(row) = potential_row {
         return Ok(Option::Some(event_row_to_event_proto(row)));
