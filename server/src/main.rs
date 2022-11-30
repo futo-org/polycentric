@@ -7,6 +7,7 @@ use ::warp::Filter;
 mod crypto;
 mod protocol;
 mod version;
+mod postgres;
 
 #[derive(Debug)]
 enum RequestError {
@@ -1475,81 +1476,7 @@ async fn serve_api(
 
     let mut transaction = pool.begin().await?;
 
-    ::sqlx::query(
-        "
-        DO $$ BEGIN
-            CREATE TYPE pointer AS (
-                public_key      BYTEA,
-                writer_id       BYTEA,
-                sequence_number INT8
-            );
-        EXCEPTION
-            WHEN duplicate_object THEN null;
-        END $$;
-    ",
-    )
-    .execute(&mut transaction)
-    .await?;
-
-    ::sqlx::query(
-        "
-        CREATE TABLE IF NOT EXISTS events (
-            author_public_key BYTEA NOT NULL,
-            writer_id         BYTEA NOT NULL,
-            sequence_number   INT8  NOT NULL,
-            unix_milliseconds INT8  NOT NULL,
-            content           BYTEA NOT NULL,
-            signature         BYTEA NOT NULL,
-            clocks            TEXT  NOT NULL,
-            event_type        INT8  NOT NULL,
-            mutation_pointer  pointer
-        );
-    ",
-    )
-    .execute(&mut transaction)
-    .await?;
-
-    ::sqlx::query(
-        "
-        CREATE UNIQUE INDEX IF NOT EXISTS events_index
-        ON events (author_public_key, writer_id, sequence_number);
-    ",
-    )
-    .execute(&mut transaction)
-    .await?;
-
-    ::sqlx::query(
-        "
-        CREATE INDEX IF NOT EXISTS
-        events_index_by_time_by_type
-        ON events (unix_milliseconds, event_type);
-    ",
-    )
-    .execute(&mut transaction)
-    .await?;
-
-    ::sqlx::query(
-        "
-        CREATE TABLE IF NOT EXISTS notifications (
-            notification_id        INT8  NOT NULL,
-            for_author_public_key  BYTEA NOT NULL,
-            from_author_public_key BYTEA NOT NULL,
-            from_writer_id         BYTEA NOT NULL,
-            from_sequence_number   INT8  NOT NULL
-        );
-    ",
-    )
-    .execute(&mut transaction)
-    .await?;
-
-    ::sqlx::query(
-        "
-        CREATE UNIQUE INDEX IF NOT EXISTS notifications_index
-        ON notifications (for_author_public_key, notification_id);
-    ",
-    )
-    .execute(&mut transaction)
-    .await?;
+    crate::postgres::prepare_database(&mut transaction).await?;
 
     transaction.commit().await?;
 
