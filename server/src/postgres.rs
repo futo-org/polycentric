@@ -69,3 +69,11 @@ pub(crate) async fn prepare_database(
 
     Ok(())
 }
+
+#[::sqlx::test]
+async fn test_prepare_database(pool: ::sqlx::PgPool) -> ::sqlx::Result<()> {
+    let mut transaction = pool.begin().await?;
+    prepare_database(&mut transaction).await?;
+    transaction.commit().await?;
+    Ok(())
+}
