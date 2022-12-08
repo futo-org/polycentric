@@ -40,7 +40,7 @@ pub fn validate_signature(event: &crate::protocol::Event) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
     use ::ed25519_dalek::Signer;
     use ::protobuf::Message;
@@ -55,11 +55,11 @@ mod tests {
         event.signature = Some(signature.to_bytes().to_vec());
     }
 
-    fn make_test_keypair() -> ::ed25519_dalek::Keypair {
+    pub fn make_test_keypair() -> ::ed25519_dalek::Keypair {
         ::ed25519_dalek::Keypair::generate(&mut ::rand::thread_rng())
     }
 
-    fn make_test_event(
+    pub fn make_test_event(
         keypair: &::ed25519_dalek::Keypair,
     ) -> crate::protocol::Event {
         let writer_id = ::rand::thread_rng().gen::<[u8; 32]>().to_vec();

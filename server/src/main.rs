@@ -8,12 +8,14 @@ mod crypto;
 mod protocol;
 mod version;
 mod postgres;
+mod model;
 
 #[derive(Debug)]
 enum RequestError {
     ParsingFailed,
     SerializationFailed,
     DatabaseFailed,
+    Anyhow(::anyhow::Error),
 }
 
 #[derive(::serde::Serialize, ::serde::Deserialize)]
@@ -32,7 +34,7 @@ struct State {
 async fn handle_rejection(
     err: ::warp::Rejection,
 ) -> Result<impl ::warp::Reply, ::std::convert::Infallible> {
-    warn!("rejection {:?}", err);
+    info!("rejection A: {:?}", err);
 
     if err.is_not_found() {
         return Ok(::warp::reply::with_status(
@@ -44,6 +46,8 @@ async fn handle_rejection(
             "Method Not Allowed",
             ::warp::http::StatusCode::BAD_REQUEST,
         ));
+    } else if let Some(err) = err.find::<RequestError>() {
+        info!("rejection B: {:?}", err);
     }
 
     Ok(::warp::reply::with_status(
@@ -152,90 +156,6 @@ async fn persist_event_search(
     Ok(())
 }
 
-async fn persist_event_feed(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    event: &crate::protocol::Event,
-    event_body: &crate::protocol::EventBody,
-) -> Result<(), ::warp::Rejection> {
-    let query = "
-        INSERT INTO events
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT DO NOTHING;
-    ";
-
-    let query_with_pointer = "
-        INSERT INTO events
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, ROW($9, $10, $11))
-        ON CONFLICT (author_public_key, writer_id, sequence_number)
-        DO UPDATE SET
-            unix_milliseconds = EXCLUDED.unix_milliseconds,
-            content = EXCLUDED.content,
-            signature = EXCLUDED.signature,
-            clocks = EXCLUDED.clocks,
-            event_type = EXCLUDED.event_type,
-            mutation_pointer = EXCLUDED.mutation_pointer
-        ;
-    ";
-
-    let mut message_type: i64 = 0;
-
-    if event_body.has_message() {
-        message_type = 1;
-    } else if event_body.has_profile() {
-        message_type = 2;
-    } else if event_body.has_delete() {
-        message_type = 6;
-    }
-
-    let mut converted_clocks = vec![];
-
-    for clock in &event.clocks {
-        converted_clocks.push(ClockEntry {
-            writer_id: clock.key.clone(),
-            sequence_number: clock.value,
-        });
-    }
-
-    let clocks_serialized = ::serde_json::to_string(&converted_clocks)
-        .map_err(|_| RequestError::SerializationFailed)?;
-
-    ::sqlx::query(query)
-        .bind(event.author_public_key.clone())
-        .bind(event.writer_id.clone())
-        .bind(event.sequence_number as i64)
-        .bind(event.unix_milliseconds as i64)
-        .bind(event.content.clone())
-        .bind(event.signature.clone())
-        .bind(clocks_serialized)
-        .bind(message_type)
-        .execute(&mut *transaction)
-        .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
-
-    if event_body.has_delete() {
-        sqlx::query(query_with_pointer)
-            .bind(event_body.delete().pointer.public_key.clone())
-            .bind(event_body.delete().pointer.writer_id.clone())
-            .bind(event_body.delete().pointer.sequence_number as i64)
-            .bind(0)
-            .bind::<::std::vec::Vec<u8>>(vec![])
-            .bind::<::std::vec::Vec<u8>>(vec![])
-            .bind("")
-            .bind(10)
-            .bind(event.author_public_key.clone())
-            .bind(event.writer_id.clone())
-            .bind(event.sequence_number as i64)
-            .execute(&mut *transaction)
-            .await
-            .map_err(|err| {
-                error!("upsert with pointer {}", err);
-                RequestError::DatabaseFailed
-            })?;
-    }
-
-    Ok(())
-}
-
 #[derive(sqlx::FromRow)]
 struct NotificationIdRow {
     notification_id: i64,
@@ -303,13 +223,13 @@ async fn post_events_handler(
     bytes: ::bytes::Bytes,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
     let events = crate::protocol::Events::parse_from_tokio_bytes(&bytes)
-        .map_err(|_| RequestError::ParsingFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     let mut transaction = state
         .pool
         .begin()
         .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     for event in &events.events {
         if !crate::crypto::validate_signature(event) {
@@ -320,9 +240,16 @@ async fn post_events_handler(
 
         let event_body =
             crate::protocol::EventBody::parse_from_bytes(&event.content)
-                .map_err(|_| RequestError::ParsingFailed)?;
+                .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
-        persist_event_feed(&mut transaction, &event, &event_body).await?;
+        let validated_event = crate::model::protobuf_event_to_signed_event(
+            event,
+        ).map_err(|e| RequestError::Anyhow(e))?;
+
+        crate::postgres::persist_event_feed(
+            &mut transaction,
+            &validated_event,
+        ).await.map_err(|e| RequestError::Anyhow(e))?;
 
         persist_event_notification(&mut transaction, &event, &event_body)
             .await?;
@@ -333,38 +260,21 @@ async fn post_events_handler(
     transaction
         .commit()
         .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     Ok(::warp::reply::with_status("", ::warp::http::StatusCode::OK))
-}
-
-#[derive(sqlx::FromRow)]
-struct WriterAndLargest {
-    writer_id: ::std::vec::Vec<u8>,
-    largest_sequence_number: i64,
-}
-
-#[derive(sqlx::FromRow)]
-struct StartAndEnd {
-    start_number: i64,
-    end_number: i64,
-}
-
-#[derive(sqlx::FromRow)]
-struct PublicKeyRow {
-    author_public_key: ::std::vec::Vec<u8>,
 }
 
 #[derive(sqlx::Type)]
 #[sqlx(type_name = "pointer")]
 struct Pointer {
-    writer_id: ::std::vec::Vec<u8>,
     public_key: ::std::vec::Vec<u8>,
+    writer_id: ::std::vec::Vec<u8>,
     sequence_number: i64,
 }
 
 #[derive(sqlx::FromRow)]
-struct EventRow {
+pub struct EventRow {
     writer_id: ::std::vec::Vec<u8>,
     author_public_key: ::std::vec::Vec<u8>,
     sequence_number: i64,
@@ -382,28 +292,6 @@ struct NotificationRow {
     from_author_public_key: ::std::vec::Vec<u8>,
     from_writer_id: ::std::vec::Vec<u8>,
     from_sequence_number: i64,
-}
-
-fn event_row_to_event_proto(row: EventRow) -> crate::protocol::Event {
-    let mut event = crate::protocol::Event::new();
-    event.writer_id = row.writer_id;
-    event.author_public_key = row.author_public_key;
-    event.sequence_number = row.sequence_number as u64;
-    event.unix_milliseconds = row.unix_milliseconds as u64;
-    event.content = row.content;
-    event.signature = Some(row.signature);
-
-    let clocks_deserialized: ::std::vec::Vec<ClockEntry> =
-        ::serde_json::from_str(&row.clocks).unwrap();
-
-    for clock in clocks_deserialized {
-        let mut proto_clock = crate::protocol::EventClockEntry::new();
-        proto_clock.key = clock.writer_id.clone();
-        proto_clock.value = clock.sequence_number;
-        event.clocks.push(proto_clock);
-    }
-
-    event
 }
 
 fn decode_query_known_ranges_for_feed<'de, D>(deserializer: D)
@@ -432,54 +320,39 @@ async fn known_ranges_for_feed_handler(
     query: RequestKnownRangesForFeedQuery,
     state: ::std::sync::Arc<State>,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
-    const WRITERS_FOR_FEED_STATEMENT: &str = "
-        SELECT writer_id, max(sequence_number) as largest_sequence_number
-        FROM events
-        WHERE author_public_key = $1
-        GROUP BY writer_id;
-    ";
-
-    const RANGES_FOR_WRITER_STATEMENT: &str = "
-        SELECT
-            MIN(sequence_number) as start_number,
-            MAX(sequence_number) as end_number
-        FROM (
-            SELECT *, ROW_NUMBER() OVER(ORDER BY sequence_number) as rn
-            FROM events
-            WHERE author_public_key = $1
-            AND writer_id = $2
-        ) t
-        GROUP BY sequence_number - rn;
-    ";
-
     let request = query.query;
 
-    let writers_for_feed_rows =
-        ::sqlx::query_as::<_, WriterAndLargest>(WRITERS_FOR_FEED_STATEMENT)
-            .bind(&request.public_key)
-            .fetch_all(&state.pool)
-            .await
-            .map_err(|err| {
-                error!("writers_for_feed {}", err);
-                RequestError::DatabaseFailed
-            })?;
+    let identity = ::ed25519_dalek::PublicKey::from_bytes(
+        &request.public_key,
+    ).map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
+
+    let mut transaction = state
+        .pool
+        .begin()
+        .await
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
+
+    let writers_for_feed_rows = crate::postgres::writer_heads_for_identity(
+        &mut transaction,
+        &identity,
+    ).await.map_err(|_| RequestError::DatabaseFailed)?;
 
     let mut result = crate::protocol::ResponseKnownRangesForFeed::default();
 
     for writers_for_feed_row in writers_for_feed_rows {
         let mut writer_and_ranges = crate::protocol::WriterAndRanges::new();
+
         writer_and_ranges.writer_id = writers_for_feed_row.writer_id.clone();
 
-        let ranges_for_writer_rows =
-            ::sqlx::query_as::<_, StartAndEnd>(RANGES_FOR_WRITER_STATEMENT)
-                .bind(&request.public_key)
-                .bind(writers_for_feed_row.writer_id)
-                .fetch_all(&state.pool)
-                .await
-                .map_err(|err| {
-                    error!("ranges_for_writers {}", err);
-                    RequestError::DatabaseFailed
-                })?;
+        let writer = crate::model::vec_to_writer_id(
+            &writers_for_feed_row.writer_id,
+        ).map_err(|e| RequestError::Anyhow(e))?;
+
+        let ranges_for_writer_rows = crate::postgres::ranges_for_writer(
+            &mut transaction,
+            &identity,
+            &writer
+        ).await.map_err(|_| RequestError::DatabaseFailed)?;
 
         for ranges_for_writer_row in ranges_for_writer_rows {
             let mut range = crate::protocol::Range::new();
@@ -491,9 +364,14 @@ async fn known_ranges_for_feed_handler(
         result.writers.push(writer_and_ranges);
     }
 
+    transaction
+        .commit()
+        .await
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
+
     let result_serialized = result
         .write_to_bytes()
-        .map_err(|_| RequestError::SerializationFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     Ok(
         ::warp::reply::with_header(
@@ -511,35 +389,36 @@ async fn known_ranges_handler(
     state: ::std::sync::Arc<State>,
     bytes: ::bytes::Bytes,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
-    const RANGES_FOR_WRITER_STATEMENT: &str = "
-        SELECT
-            MIN(sequence_number) as start_number,
-            MAX(sequence_number) as end_number
-        FROM (
-            SELECT *, ROW_NUMBER() OVER(ORDER BY sequence_number) as rn
-            FROM events
-            WHERE author_public_key = $1
-            AND writer_id = $2
-        ) t
-        GROUP BY sequence_number - rn;
-    ";
-
     let request =
         crate::protocol::RequestKnownRanges::parse_from_tokio_bytes(&bytes)
-            .map_err(|_| RequestError::ParsingFailed)?;
+            .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
+
+    let identity = ::ed25519_dalek::PublicKey::from_bytes(
+        &request.author_public_key,
+    ).map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
+
+    let writer = crate::model::vec_to_writer_id(
+        &request.writer_id,
+    ).map_err(|e| RequestError::Anyhow(e))?;
 
     let mut known_ranges = crate::protocol::KnownRanges::new();
 
-    let ranges_for_writer_rows =
-        ::sqlx::query_as::<_, StartAndEnd>(RANGES_FOR_WRITER_STATEMENT)
-            .bind(&request.author_public_key)
-            .bind(&request.writer_id)
-            .fetch_all(&state.pool)
-            .await
-            .map_err(|err| {
-                error!("ranges_for_writers {}", err);
-                RequestError::DatabaseFailed
-            })?;
+    let mut transaction = state
+        .pool
+        .begin()
+        .await
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
+
+    let ranges_for_writer_rows = crate::postgres::ranges_for_writer(
+        &mut transaction,
+        &identity,
+        &writer
+    ).await.map_err(|_| RequestError::DatabaseFailed)?;
+
+    transaction
+        .commit()
+        .await
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     for ranges_for_writer_row in ranges_for_writer_rows {
         let mut range = crate::protocol::Range::new();
@@ -558,33 +437,24 @@ async fn known_ranges_handler(
     ))
 }
 
-async fn maybe_add_profile(
+async fn maybe_add_profile2(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     result: &mut ::std::vec::Vec<crate::protocol::Event>,
     profile_keys: &mut ::std::collections::HashSet<::std::vec::Vec<u8>>,
     public_key: &::std::vec::Vec<u8>,
-) -> Result<(), ::warp::Rejection> {
-    const NEWEST_PROFILE_QUERY_STATEMENT: &str = "
-        SELECT * FROM events
-        WHERE author_public_key = $1
-        AND event_type = 2
-        ORDER BY unix_milliseconds DESC
-        LIMIT 1;
-    ";
-
+) -> ::anyhow::Result<()> {
     if !profile_keys.contains(public_key) {
-        let newest_profile_query_row =
-            ::sqlx::query_as::<_, EventRow>(NEWEST_PROFILE_QUERY_STATEMENT)
-                .bind(public_key)
-                .fetch_optional(&mut *transaction)
-                .await
-                .map_err(|err| {
-                    error!("newest_profile_query {}", err);
-                    RequestError::DatabaseFailed
-                })?;
+        let identity = ::ed25519_dalek::PublicKey::from_bytes(
+            public_key,
+        )?;
 
-        if let Some(row) = newest_profile_query_row {
-            let event = event_row_to_event_proto(row);
+        let potential_profile = crate::postgres::load_latest_profile(
+            &mut *transaction,
+            &identity,
+        ).await?;
+
+        if let Some(event) = potential_profile {
+            let event = crate::model::signed_event_to_protobuf_event(&event);
             result.push(event);
         }
 
@@ -594,16 +464,98 @@ async fn maybe_add_profile(
     Ok(())
 }
 
-struct ProcessMutationsResult {
+struct ProcessMutationsResult2 {
     related_events: ::std::vec::Vec<crate::protocol::Event>,
     result_events: ::std::vec::Vec<crate::protocol::Event>,
 }
 
-async fn process_mutations(
+async fn process_mutation(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    history: ::std::vec::Vec<EventRow>,
-) -> Result<ProcessMutationsResult, ::warp::Rejection> {
-    let mut result = ProcessMutationsResult {
+    result: &mut ProcessMutationsResult2,
+    profile_keys: &mut ::std::collections::HashSet<::std::vec::Vec<u8>>,
+    item: &crate::postgres::store_item::StoreItem,
+) -> ::anyhow::Result<()> {
+    let mut item_ref = item;
+
+    let mut sub_item_holder:
+        Option<crate::postgres::store_item::StoreItem> = None;
+
+    loop {
+        maybe_add_profile2(
+            &mut *transaction,
+            &mut result.related_events,
+            &mut *profile_keys,
+            &item_ref.pointer().identity().to_bytes().to_vec(),
+        )
+        .await?;
+
+        match item_ref.value() {
+            crate::postgres::store_item::
+                MutationPointerOrSignedEvent::MutationPointer(pointer) =>
+            {
+                let mutation = crate::postgres::get_specific_event(
+                    &mut *transaction,
+                    &pointer,
+                )
+                .await?;
+
+                if let Some(sub_item) = mutation {
+                    sub_item_holder = Some(sub_item);
+                    item_ref = sub_item_holder.as_ref().unwrap();
+
+                    continue;
+                }
+
+                break;
+            },
+            crate::postgres::store_item::
+                MutationPointerOrSignedEvent::SignedEvent(event) =>
+            {
+                let protobuf_event =
+                    crate::model::signed_event_to_protobuf_event(&event);
+
+                let event_body =
+                    crate::protocol::EventBody::parse_from_bytes(
+                            event.event().content()
+                        )?;
+
+                if event_body.has_follow() {
+                    maybe_add_profile2(
+                        &mut *transaction,
+                        &mut result.related_events,
+                        &mut *profile_keys,
+                        &event_body.follow().public_key,
+                    )
+                    .await?; 
+                } else if event_body.has_message() {
+                    if let Some(pointer) =
+                        event_body.message().boost_pointer.as_ref()
+                    {
+                        maybe_add_profile2(
+                            &mut *transaction,
+                            &mut result.related_events,
+                            &mut *profile_keys,
+                            &pointer.public_key,
+                        )
+                        .await?; 
+                    }
+                }
+
+                result.result_events.push(protobuf_event);
+
+                break;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn process_mutations2(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    history: ::std::vec::Vec<crate::postgres::store_item::StoreItem>,
+) -> ::anyhow::Result<ProcessMutationsResult2> {
+    let mut result = ProcessMutationsResult2 {
         related_events: vec![],
         result_events: vec![],
     };
@@ -611,65 +563,13 @@ async fn process_mutations(
     let mut profile_keys =
         ::std::collections::HashSet::<::std::vec::Vec<u8>>::new();
 
-    for row in history {
-        maybe_add_profile(
+    for item in history {
+        process_mutation(
             &mut *transaction,
-            &mut result.related_events,
+            &mut result,
             &mut profile_keys,
-            &row.author_public_key,
-        )
-        .await?;
-
-        if let Some(mutation_pointer) = &row.mutation_pointer {
-            info!("got mutation pointer");
-
-            let mutation = get_specific_event(
-                &mut *transaction,
-                mutation_pointer.public_key.clone(),
-                mutation_pointer.writer_id.clone(),
-                mutation_pointer.sequence_number.try_into().unwrap(),
-            )
-            .await
-            .map_err(|_| {
-                error!("loading mutation");
-                RequestError::DatabaseFailed
-            })?;
-
-            if let Some(event) = &mutation {
-                result.result_events.push(event.clone());
-            }
-        } else {
-            info!("did not get mutation pointer");
-            let event = event_row_to_event_proto(row);
-
-            let event_body =
-                crate::protocol::EventBody::parse_from_bytes(&event.content)
-                    .map_err(|_| RequestError::ParsingFailed)?;
-
-            if event_body.has_follow() {
-                maybe_add_profile(
-                    &mut *transaction,
-                    &mut result.related_events,
-                    &mut profile_keys,
-                    &event_body.follow().public_key,
-                )
-                .await?;
-            } else if event_body.has_message() {
-                if let Some(pointer) =
-                    event_body.message().boost_pointer.as_ref()
-                {
-                    maybe_add_profile(
-                        &mut *transaction,
-                        &mut result.related_events,
-                        &mut profile_keys,
-                        &pointer.public_key,
-                    )
-                    .await?;
-                }
-            }
-
-            result.result_events.push(event);
-        }
+            &item,
+        ).await?;
     }
 
     Ok(result)
@@ -701,45 +601,41 @@ async fn request_event_ranges_handler(
     query: RequestEventRangesQuery,
     state: ::std::sync::Arc<State>,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
-    const STATEMENT: &str = "
-        SELECT *
-        FROM events
-        WHERE author_public_key = $1
-        AND writer_id = $2
-        AND sequence_number >= $3
-        AND sequence_number <= $4
-    ";
+    let request = query.query;
+
+    let identity = ::ed25519_dalek::PublicKey::from_bytes(
+        &request.author_public_key,
+    ).map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
+
+    let writer = crate::model::vec_to_writer_id(
+        &request.writer_id,
+    ).map_err(|e| RequestError::Anyhow(e))?;
 
     let mut transaction = state
         .pool
         .begin()
         .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
-    let request = query.query;
-
-    let mut history: ::std::vec::Vec<EventRow> = vec![];
+    let mut history:
+        ::std::vec::Vec<crate::postgres::store_item::StoreItem> = vec![];
 
     for range in &request.ranges {
-        let rows = ::sqlx::query_as::<_, EventRow>(STATEMENT)
-            .bind(&request.author_public_key)
-            .bind(&request.writer_id)
-            .bind(range.low as i64)
-            .bind(range.high as i64)
-            .fetch_all(&mut transaction)
-            .await
-            .map_err(|_| RequestError::DatabaseFailed)?;
+        let mut rows = crate::postgres::load_range(
+            &mut transaction,
+            &identity,
+            &writer,
+            range.low,
+            range.high,
+        ).await.map_err(|e| RequestError::Anyhow(e))?;
 
-        for row in rows {
-            history.push(row);
-        }
+        history.append(&mut rows);
     }
 
     let mut result = crate::protocol::Events::new();
 
-    let mut processed_events = process_mutations(&mut transaction, history)
-        .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+    let mut processed_events = process_mutations2(&mut transaction, history)
+        .await.map_err(|e| RequestError::Anyhow(e))?;
 
     result.events.append(&mut processed_events.related_events);
     result.events.append(&mut processed_events.result_events);
@@ -747,11 +643,11 @@ async fn request_event_ranges_handler(
     transaction
         .commit()
         .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     let result_serialized = result
         .write_to_bytes()
-        .map_err(|_| RequestError::SerializationFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     Ok(
         ::warp::reply::with_header(
@@ -810,7 +706,7 @@ async fn request_search_handler(
     bytes: ::bytes::Bytes,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
     let request = crate::protocol::Search::parse_from_tokio_bytes(&bytes)
-        .map_err(|_| RequestError::ParsingFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     info!("searching for {}", request.search);
 
@@ -837,55 +733,46 @@ async fn request_search_handler(
     let response_body = response
         .json::<OpenSearchSearchL0>()
         .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
-
-    const GET_EVENT_STATEMENT: &str = "
-        SELECT *
-        FROM events
-        WHERE author_public_key = $1
-        AND writer_id = $2
-        AND sequence_number = $3
-        LIMIT 1;
-    ";
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     let mut transaction = state
         .pool
         .begin()
         .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
-    let mut history: ::std::vec::Vec<EventRow> = vec![];
+    let mut history:
+        ::std::vec::Vec<crate::postgres::store_item::StoreItem> = vec![];
 
     for hit in response_body.hits.hits {
-        let author_public_key =
-            ::base64::decode(hit._source.author_public_key).unwrap();
+        let identity = ::ed25519_dalek::PublicKey::from_bytes(
+            &::base64::decode(hit._source.author_public_key).unwrap(),
+        ).map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
-        let writer_id = ::base64::decode(hit._source.writer_id).unwrap();
+        let writer = crate::model::vec_to_writer_id(
+            &::base64::decode(hit._source.writer_id).unwrap(),
+        ).map_err(|e| RequestError::Anyhow(e))?;
 
         let sequence_number = hit._source.sequence_number;
 
-        let event_query_rows =
-            ::sqlx::query_as::<_, EventRow>(GET_EVENT_STATEMENT)
-                .bind(author_public_key)
-                .bind(writer_id)
-                .bind(sequence_number)
-                .fetch_all(&mut transaction)
-                .await
-                .map_err(|err| {
-                    error!("event_query_statement {}", err);
-                    RequestError::DatabaseFailed
-                })?;
+        let store_item = crate::postgres::get_specific_event(
+            &mut transaction,
+            &crate::model::pointer::Pointer::new(
+                identity,
+                writer,
+                sequence_number.try_into().unwrap(),
+            ),
+        ).await.map_err(|e| RequestError::Anyhow(e))?;
 
-        for row in event_query_rows {
-            history.push(row);
+        if let Some(event) = store_item {
+            history.push(event);
         }
     }
 
     let mut result = crate::protocol::ResponseSearch::new();
 
-    let mut processed_events = process_mutations(&mut transaction, history)
-        .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+    let mut processed_events = process_mutations2(&mut transaction, history)
+        .await.map_err(|e| RequestError::Anyhow(e))?;
 
     result
         .related_events
@@ -897,11 +784,11 @@ async fn request_search_handler(
     transaction
         .commit()
         .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     let result_serialized = result
         .write_to_bytes()
-        .map_err(|_| RequestError::SerializationFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     Ok(::warp::reply::with_status(
         result_serialized,
@@ -913,67 +800,27 @@ async fn request_events_head_handler(
     state: ::std::sync::Arc<State>,
     bytes: ::bytes::Bytes,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
-    const WRITER_HEADS_QUERY_STATEMENT: &str = "
-        SELECT writer_id, max(sequence_number) as largest_sequence_number
-        FROM events
-        WHERE author_public_key = $1
-        GROUP BY writer_id;
-    ";
-
-    const EVENTS_FOR_WRITER_QUERY_STATEMENT: &str = "
-        SELECT *
-        FROM events
-        WHERE author_public_key = $1
-        AND writer_id = $2
-        AND sequence_number <= $3
-        AND sequence_number > $4
-        ORDER BY sequence_number DESC
-        LIMIT 10;
-    ";
-
-    const NEWEST_PROFILE_QUERY_STATEMENT: &str = "
-        SELECT * FROM events
-        WHERE author_public_key = $1
-        AND event_type = 2
-        ORDER BY unix_milliseconds DESC
-        LIMIT 1;
-    ";
-
     let request =
         crate::protocol::RequestEventsHead::parse_from_tokio_bytes(&bytes)
-            .map_err(|_| RequestError::ParsingFailed)?;
+            .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
+
+    let identity = ::ed25519_dalek::PublicKey::from_bytes(
+        &request.author_public_key,
+    ).map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
+
+    let mut history:
+        ::std::vec::Vec<crate::postgres::store_item::StoreItem> = vec![];
 
     let mut transaction = state
         .pool
         .begin()
         .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
-    let newest_profile_query_rows =
-        ::sqlx::query_as::<_, EventRow>(NEWEST_PROFILE_QUERY_STATEMENT)
-            .bind(&request.author_public_key)
-            .fetch_all(&mut transaction)
-            .await
-            .map_err(|err| {
-                error!("newest_profile_query {}", err);
-                RequestError::DatabaseFailed
-            })?;
-
-    let mut history: ::std::vec::Vec<EventRow> = vec![];
-
-    for row in newest_profile_query_rows {
-        history.push(row);
-    }
-
-    let writer_heads_query_rows =
-        ::sqlx::query_as::<_, WriterAndLargest>(WRITER_HEADS_QUERY_STATEMENT)
-            .bind(&request.author_public_key)
-            .fetch_all(&mut transaction)
-            .await
-            .map_err(|err| {
-                error!("writer_heads_query {}", err);
-                RequestError::DatabaseFailed
-            })?;
+    let writer_heads_query_rows = crate::postgres::writer_heads_for_identity(
+        &mut transaction,
+        &identity,
+    ).await.map_err(|_| RequestError::DatabaseFailed)?;
 
     for row in &writer_heads_query_rows {
         let mut client_head = 0;
@@ -987,31 +834,26 @@ async fn request_events_head_handler(
         }
 
         if (client_head as i64) < row.largest_sequence_number {
-            let events_for_writer_rows = ::sqlx::query_as::<_, EventRow>(
-                EVENTS_FOR_WRITER_QUERY_STATEMENT,
-            )
-            .bind(&request.author_public_key)
-            .bind(&row.writer_id)
-            .bind(&row.largest_sequence_number)
-            .bind(client_head as i64)
-            .fetch_all(&mut transaction)
-            .await
-            .map_err(|err| {
-                error!("events_for_writer {}", err);
-                RequestError::DatabaseFailed
-            })?;
+            let writer = crate::model::vec_to_writer_id(
+                &row.writer_id,
+            ).map_err(|e| RequestError::Anyhow(e))?;
 
-            for row in events_for_writer_rows {
-                history.push(row);
-            }
+            let mut rows = crate::postgres::load_range(
+                &mut transaction,
+                &identity,
+                &writer,
+                client_head,
+                row.largest_sequence_number.try_into().unwrap(),
+            ).await.map_err(|e| RequestError::Anyhow(e))?;
+
+            history.append(&mut rows);
         }
     }
 
     let mut result = crate::protocol::Events::new();
 
-    let mut processed_events = process_mutations(&mut transaction, history)
-        .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+    let mut processed_events = process_mutations2(&mut transaction, history)
+        .await.map_err(|e| RequestError::Anyhow(e))?;
 
     result.events.append(&mut processed_events.related_events);
     result.events.append(&mut processed_events.result_events);
@@ -1019,7 +861,7 @@ async fn request_events_head_handler(
     transaction
         .commit()
         .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     let result_serialized = result
         .write_to_bytes()
@@ -1031,196 +873,37 @@ async fn request_events_head_handler(
     ))
 }
 
-async fn get_specific_event_row(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    author_public_key: &::std::vec::Vec<u8>,
-    writer_id: &::std::vec::Vec<u8>,
-    sequence_number: u64,
-) -> Result<Option<EventRow>, ::warp::Rejection> {
-    const STATEMENT: &str = "
-        SELECT * FROM events
-        WHERE author_public_key = $1
-        AND writer_id = $2
-        AND sequence_number = $3
-        LIMIT 1;
-    ";
-
-    let potential_row = ::sqlx::query_as::<_, EventRow>(STATEMENT)
-        .bind(author_public_key)
-        .bind(writer_id)
-        .bind(sequence_number as i64)
-        .fetch_optional(&mut *transaction)
-        .await
-        .map_err(|err| {
-            error!("get_specific_event {}", err);
-            RequestError::DatabaseFailed
-        })?;
-
-    Ok(potential_row)
-}
-
-async fn get_specific_event(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    author_public_key: ::std::vec::Vec<u8>,
-    writer_id: ::std::vec::Vec<u8>,
-    sequence_number: u64,
-) -> Result<Option<crate::protocol::Event>, ::warp::Rejection> {
-    let potential_row = get_specific_event_row(
-        &mut *transaction,
-        &author_public_key,
-        &writer_id,
-        sequence_number,
-    ).await?;
-
-    if let Some(row) = potential_row {
-        return Ok(Option::Some(event_row_to_event_proto(row)));
-    }
-
-    Ok(Option::None)
-}
-
-async fn get_profile_image(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    author_public_key: ::std::vec::Vec<u8>,
-    writer_id: ::std::vec::Vec<u8>,
-    sequence_number: u64,
-) -> Result<Vec<crate::protocol::Event>, ::warp::Rejection> {
-    let mut result = vec![];
-
-    let possible_meta = get_specific_event(
-        &mut *transaction,
-        author_public_key.clone(),
-        writer_id.clone(),
-        sequence_number,
-    )
-    .await?;
-
-    if let Some(meta) = possible_meta {
-        result.push(meta.clone());
-
-        let meta_body =
-            crate::protocol::EventBody::parse_from_bytes(&meta.content)
-                .map_err(|_| RequestError::ParsingFailed)?;
-
-        if !meta_body.has_blob_meta() {
-            warn!("did not have blob meta body");
-            return Ok(result);
-        }
-
-        for i in 1..=(meta_body.blob_meta().section_count) {
-            let possible_section = get_specific_event(
-                &mut *transaction,
-                author_public_key.clone(),
-                writer_id.clone(),
-                sequence_number + i,
-            )
-            .await?;
-
-            if let Some(section) = possible_section {
-                let section_body =
-                    crate::protocol::EventBody::parse_from_bytes(
-                        &section.content,
-                    )
-                    .map_err(|_| RequestError::ParsingFailed)?;
-
-                if section_body.has_blob_section() {
-                    result.push(section.clone());
-                } else {
-                    warn!("did not have blob section body");
-                }
-            } else {
-                warn!("failed to load section")
-            }
-        }
-    } else {
-        warn!("failed to load meta");
-    }
-
-    Ok(result)
-}
-
 async fn request_recommend_profiles_handler(
     state: ::std::sync::Arc<State>,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
-    const RANDOM_USERS_QUERY_STATEMENT: &str = "
-        SELECT * FROM (
-            SELECT author_public_key 
-            FROM events
-            GROUP BY author_public_key
-            HAVING COUNT(*) > 1
-        ) t
-        ORDER BY RANDOM()
-        LIMIT 3;
-    ";
-
-    const NEWEST_PROFILE_QUERY_STATEMENT: &str = "
-        SELECT * FROM events
-        WHERE author_public_key = $1
-        AND event_type = 2
-        ORDER BY unix_milliseconds DESC
-        LIMIT 1;
-    ";
-
     let mut result = crate::protocol::Events::new();
 
     let mut transaction = state
         .pool
         .begin()
         .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
-    let random_users_query_rows =
-        ::sqlx::query_as::<_, PublicKeyRow>(RANDOM_USERS_QUERY_STATEMENT)
-            .fetch_all(&mut transaction)
-            .await
-            .map_err(|err| {
-                error!("random_users_query {}", err);
-                RequestError::DatabaseFailed
-            })?;
+    let random_identities = crate::postgres::load_random_identities(
+        &mut transaction,
+    ).await.map_err(|e| RequestError::Anyhow(e))?;
 
-    for random_user_row in &random_users_query_rows {
-        let newest_profile_query_row =
-            ::sqlx::query_as::<_, EventRow>(NEWEST_PROFILE_QUERY_STATEMENT)
-                .bind(&random_user_row.author_public_key)
-                .fetch_optional(&mut transaction)
-                .await
-                .map_err(|err| {
-                    error!("newest_profile_query {}", err);
-                    RequestError::DatabaseFailed
-                })?;
+    for random_identity in &random_identities {
+        let potential_profile = crate::postgres::load_latest_profile(
+            &mut transaction,
+            &random_identity,
+        ).await.map_err(|e| RequestError::Anyhow(e))?;
 
-        if let Some(row) = newest_profile_query_row {
-            let event = event_row_to_event_proto(row);
-            result.events.push(event.clone());
-
-            let event_body =
-                crate::protocol::EventBody::parse_from_bytes(&event.content)
-                    .map_err(|_| RequestError::ParsingFailed)?;
-
-            if event_body.has_profile() {
-                if let ::protobuf::MessageField(Some(pointer)) =
-                    &event_body.profile().profile_image_pointer
-                {
-                    let image_events = get_profile_image(
-                        &mut transaction,
-                        pointer.public_key.clone(),
-                        pointer.writer_id.clone(),
-                        pointer.sequence_number,
-                    )
-                    .await?;
-
-                    for image_event in &image_events {
-                        result.events.push(image_event.clone());
-                    }
-                }
-            }
+        if let Some(event) = potential_profile {
+            let event = crate::model::signed_event_to_protobuf_event(&event);
+            result.events.push(event);
         }
     }
 
     transaction
         .commit()
         .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     let result_serialized = result
         .write_to_bytes()
@@ -1244,51 +927,23 @@ async fn request_explore_handler(
     state: ::std::sync::Arc<State>,
     bytes: ::bytes::Bytes,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
-    const STATEMENT_WITHOUT_TIME: &str = "
-        SELECT *
-        FROM events
-        WHERE event_type = 1
-        ORDER BY unix_milliseconds DESC
-        LIMIT 20
-    ";
-
-    const STATEMENT_WITH_TIME: &str = "
-        SELECT *
-        FROM events
-        WHERE event_type = 1
-        AND unix_milliseconds < $1
-        ORDER BY unix_milliseconds DESC
-        LIMIT 20
-    ";
-
     let request =
         crate::protocol::RequestExplore::parse_from_tokio_bytes(&bytes)
-            .map_err(|_| RequestError::ParsingFailed)?;
-
-    let history: ::std::vec::Vec<EventRow>;
+            .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     let mut transaction = state
         .pool
         .begin()
         .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
-    if let Some(before_time) = request.before_time {
-        history = ::sqlx::query_as::<_, EventRow>(STATEMENT_WITH_TIME)
-            .bind(before_time as i64)
-            .fetch_all(&mut transaction)
-            .await
-            .map_err(|_| RequestError::DatabaseFailed)?;
-    } else {
-        history = ::sqlx::query_as::<_, EventRow>(STATEMENT_WITHOUT_TIME)
-            .fetch_all(&mut transaction)
-            .await
-            .map_err(|_| RequestError::DatabaseFailed)?;
-    }
+    let history = crate::postgres::load_events_before_time(
+        &mut transaction,
+        request.before_time,
+    ).await.map_err(|e| RequestError::Anyhow(e))?;
 
-    let mut processed_events = process_mutations(&mut transaction, history)
-        .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+    let mut processed_events = process_mutations2(&mut transaction, history)
+        .await.map_err(|e| RequestError::Anyhow(e))?;
 
     let mut result = crate::protocol::ResponseSearch::new();
 
@@ -1302,11 +957,11 @@ async fn request_explore_handler(
     transaction
         .commit()
         .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     let result_serialized = result
         .write_to_bytes()
-        .map_err(|_| RequestError::SerializationFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     Ok(::warp::reply::with_status(
         result_serialized,
@@ -1337,7 +992,7 @@ async fn request_notifications_handler(
 
     let request =
         crate::protocol::RequestNotifications::parse_from_tokio_bytes(&bytes)
-            .map_err(|_| RequestError::ParsingFailed)?;
+            .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     let notifications: ::std::vec::Vec<NotificationRow>;
 
@@ -1345,7 +1000,7 @@ async fn request_notifications_handler(
         .pool
         .begin()
         .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     if let Some(after_index) = request.after_index {
         notifications =
@@ -1354,35 +1009,46 @@ async fn request_notifications_handler(
                 .bind(after_index as i64)
                 .fetch_all(&mut transaction)
                 .await
-                .map_err(|_| RequestError::DatabaseFailed)?;
+                .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
     } else {
         notifications =
             ::sqlx::query_as::<_, NotificationRow>(STATEMENT_WITHOUT_INDEX)
                 .bind(&request.public_key)
                 .fetch_all(&mut transaction)
                 .await
-                .map_err(|_| RequestError::DatabaseFailed)?;
+                .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
     }
 
-    let mut history: ::std::vec::Vec<EventRow> = vec![];
+    let mut history:
+        ::std::vec::Vec<crate::postgres::store_item::StoreItem> = vec![];
 
     for notification in &notifications {
-        let potential_row = get_specific_event_row(
-            &mut transaction,
+        let identity = ::ed25519_dalek::PublicKey::from_bytes(
             &notification.from_author_public_key,
-            &notification.from_writer_id,
-            notification.from_sequence_number as u64,
-        )
-        .await?;
+        ).map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
-        if let Some(row) = potential_row {
-            history.push(row)
+        let writer = crate::model::vec_to_writer_id(
+            &notification.from_writer_id,
+        ).map_err(|e| RequestError::Anyhow(e))?;
+
+        let sequence_number = notification.from_sequence_number;
+
+        let store_item = crate::postgres::get_specific_event(
+            &mut transaction,
+            &crate::model::pointer::Pointer::new(
+                identity,
+                writer,
+                sequence_number.try_into().unwrap(),
+            ),
+        ).await.map_err(|e| RequestError::Anyhow(e))?;
+
+        if let Some(event) = store_item {
+            history.push(event);
         }
     }
 
-    let mut processed_events = process_mutations(&mut transaction, history)
-        .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+    let mut processed_events = process_mutations2(&mut transaction, history)
+        .await.map_err(|e| RequestError::Anyhow(e))?;
 
     let mut result = crate::protocol::ResponseNotifications::new();
 
@@ -1407,11 +1073,11 @@ async fn request_notifications_handler(
     transaction
         .commit()
         .await
-        .map_err(|_| RequestError::DatabaseFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     let result_serialized = result
         .write_to_bytes()
-        .map_err(|_| RequestError::SerializationFailed)?;
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     Ok(::warp::reply::with_status(
         result_serialized,
