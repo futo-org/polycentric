@@ -376,8 +376,9 @@ const customStyles = {
 };
 
 function PostDebugModal(props: PostDebugModalProps) {
-    const [event, setEvent] =
-        useState<Core.Protocol.Event | undefined>(undefined);
+    const [event, setEvent] = useState<Core.Protocol.Event | undefined>(
+        undefined,
+    );
 
     async function load() {
         const potentialEvent = await Core.DB.tryLoadStorageEventByPointer(
@@ -399,11 +400,7 @@ function PostDebugModal(props: PostDebugModalProps) {
         if (props.isOpen === true) {
             load();
         }
-    }, [
-        props.state,
-        props.isOpen,
-        props.pointer
-    ]);
+    }, [props.state, props.isOpen, props.pointer]);
 
     return (
         <Modal isOpen={props.isOpen} style={customStyles}>
@@ -419,21 +416,20 @@ function PostDebugModal(props: PostDebugModalProps) {
             <Divider>Clocks</Divider>
             <Table>
                 <TableBody>
-                    {event && event.clocks.map((item, index) => (
-                        <TableRow key={index}>
-                            <TableCell
-                                style={{
-                                    wordBreak: 'break-all',
-                                    fontFamily: 'monospace',
-                                }}
-                            >
-                                {Base64.encodeUrl(item.key)}
-                            </TableCell>
-                            <TableCell>
-                                {item.value}
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                    {event &&
+                        event.clocks.map((item, index) => (
+                            <TableRow key={index}>
+                                <TableCell
+                                    style={{
+                                        wordBreak: 'break-all',
+                                        fontFamily: 'monospace',
+                                    }}
+                                >
+                                    {Base64.encodeUrl(item.key)}
+                                </TableCell>
+                                <TableCell>{item.value}</TableCell>
+                            </TableRow>
+                        ))}
                 </TableBody>
             </Table>
         </Modal>
@@ -451,7 +447,7 @@ export function Post(props: PostProps) {
         undefined,
     );
     const [anchor, setAnchor] = useState<null | HTMLElement>(null);
-    
+
     const [debugModalIsOpen, setDebugModalIsOpen] = useState(false);
 
     const handleBoost = async (e: React.MouseEvent<HTMLElement>) => {
@@ -520,7 +516,6 @@ export function Post(props: PostProps) {
                 overflow: 'auto',
             }}
         >
-
             <PostDebugModal
                 state={props.state}
                 isOpen={debugModalIsOpen}
@@ -529,7 +524,6 @@ export function Post(props: PostProps) {
                 }}
                 pointer={props.post.pointer}
             />
-
 
             {props.post.fromServer !== undefined && (
                 <div
