@@ -514,6 +514,8 @@ export function Post(props: PostProps) {
             style={{
                 marginBottom: '15px',
                 overflow: 'auto',
+                position: 'relative',
+                pointerEvents: 'auto',
             }}
         >
             <PostDebugModal
@@ -525,367 +527,398 @@ export function Post(props: PostProps) {
                 pointer={props.post.pointer}
             />
 
-            {props.post.fromServer !== undefined && (
-                <div
-                    style={{
-                        margin: '10px',
-                        marginTop: '5px',
-                        marginBottom: '0px',
-                        fontSize: '11px',
+            {viewerLink && (
+                <ImageViewer
+                    src={[viewerLink]}
+                    currentIndex={0}
+                    closeOnClickOutside={true}
+                    onClose={() => {
+                        setViewerLink(undefined);
                     }}
-                >
-                    Recommended By: &nbsp;
-                    <span
-                        style={{
-                            color: 'gray',
-                            fontWeight: 600,
-                        }}
-                    >
-                        {props.post.fromServer}
-                    </span>
-                    <div
-                        style={{
-                            width: '99%',
-                            marginTop: '5px',
-                            marginLeft: 'auto',
-                            marginRight: 'auto',
-                            borderBottom: '1px solid gray',
-                        }}
-                    />
-                </div>
-            )}
-
-            {props.post.boostedBy !== undefined && (
-                <div
-                    style={{
-                        margin: '10px',
-                        marginTop: '5px',
-                        marginBottom: '0px',
-                        fontSize: '11px',
+                    backgroundStyle={{
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        zIndex: 1300,
                     }}
-                >
-                    Boosted By: &nbsp;
-                    <span
-                        style={{
-                            color: 'gray',
-                            fontWeight: 600,
-                        }}
-                    >
-                        {props.post.boostedBy}
-                    </span>
-                    <div
-                        style={{
-                            width: '99%',
-                            marginTop: '5px',
-                            marginLeft: 'auto',
-                            marginRight: 'auto',
-                            borderBottom: '1px solid gray',
-                        }}
-                    />
-                </div>
+                />
             )}
 
             <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
+                onClick={(e) => {
+                    e.stopPropagation();
                 }}
-                onClick={handleBackgroundClick}
             >
-                <div
-                    onClick={(e) => {
-                        e.stopPropagation();
+                <PostModal
+                    state={props.state}
+                    isOpen={modalIsOpen}
+                    onClose={() => {
+                        setModalIsOpen(false);
                     }}
-                >
-                    <PostModal
-                        state={props.state}
-                        isOpen={modalIsOpen}
-                        onClose={() => {
-                            setModalIsOpen(false);
-                        }}
-                        boostPointer={props.post.actionPointer}
-                    />
-                </div>
-
-                <Avatar
-                    src={props.post.profile.avatar}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setViewerLink(props.post.profile.avatar);
-                    }}
-                    style={{
-                        marginTop: '11px',
-                        marginLeft: '8px',
-                        marginRight: '8px',
-                    }}
+                    boostPointer={props.post.actionPointer}
                 />
+            </div>
 
-                <div
-                    style={{
-                        flex: '1',
-                        marginTop: '11px',
-                        marginRight: '10px',
-                        marginBottom: '10px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                    }}
-                >
+            <div
+                style={{
+                    position: 'absolute',
+                    left: '0px',
+                    top: '0px',
+                    height: '100%',
+                    width: '100%',
+                    zIndex: 0,
+                }}
+                className="highlight_on_hover"
+                onClick={handleBackgroundClick}
+            />
+
+            <div
+                style={{
+                    zIndex: 1,
+                    position: 'relative',
+                    pointerEvents: 'none',
+                }}
+            >
+                {props.post.fromServer !== undefined && (
                     <div
                         style={{
+                            margin: '10px',
+                            marginTop: '5px',
+                            marginBottom: '0px',
+                            fontSize: '11px',
+                        }}
+                    >
+                        Recommended By: &nbsp;
+                        <span
+                            style={{
+                                color: 'gray',
+                                fontWeight: 600,
+                            }}
+                        >
+                            {props.post.fromServer}
+                        </span>
+                        <div
+                            style={{
+                                width: '99%',
+                                marginTop: '5px',
+                                marginLeft: 'auto',
+                                marginRight: 'auto',
+                                borderBottom: '1px solid gray',
+                            }}
+                        />
+                    </div>
+                )}
+
+                {props.post.boostedBy !== undefined && (
+                    <div
+                        style={{
+                            margin: '10px',
+                            marginTop: '5px',
+                            marginBottom: '0px',
+                            fontSize: '11px',
+                        }}
+                    >
+                        Boosted By: &nbsp;
+                        <span
+                            style={{
+                                color: 'gray',
+                                fontWeight: 600,
+                            }}
+                        >
+                            {props.post.boostedBy}
+                        </span>
+                        <div
+                            style={{
+                                width: '99%',
+                                marginTop: '5px',
+                                marginLeft: 'auto',
+                                marginRight: 'auto',
+                                borderBottom: '1px solid gray',
+                            }}
+                        />
+                    </div>
+                )}
+
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                    }}
+                >
+                   <Avatar
+                        src={props.post.profile.avatar}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setViewerLink(props.post.profile.avatar);
+                        }}
+                        style={{
+                            marginTop: '11px',
+                            marginLeft: '8px',
+                            marginRight: '8px',
+                            pointerEvents: 'auto',
+                        }}
+                    />
+
+                    <div
+                        style={{
+                            flex: '1',
+                            marginTop: '11px',
+                            marginRight: '10px',
+                            marginBottom: '10px',
                             display: 'flex',
-                            justifyContent: 'space-between',
+                            flexDirection: 'column',
                         }}
                     >
                         <div
-                            className="underline_on_hover"
                             style={{
-                                alignSelf: 'flex-start',
-                                whiteSpace: 'pre-wrap',
-                                overflowWrap: 'anywhere',
                                 display: 'flex',
-                                flexDirection: 'column',
-                            }}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                navigate('/' + props.post.profile.link);
+                                justifyContent: 'space-between',
                             }}
                         >
-                            <h3
+                            <div
+                                className="underline_on_hover"
                                 style={{
                                     alignSelf: 'flex-start',
                                     whiteSpace: 'pre-wrap',
                                     overflowWrap: 'anywhere',
-                                    wordBreak: 'break-all',
-                                    marginTop: '0px',
-                                    marginBottom: '0px',
-                                    fontSize: '15px',
-                                    lineHeight: '15px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    pointerEvents: 'auto',
                                 }}
-                            >
-                                {props.post.profile.displayName}
-                            </h3>
-                            <span
-                                style={{
-                                    alignSelf: 'flex-start',
-                                    fontWeight: '600',
-                                    wordBreak: 'break-all',
-                                    fontSize: '9px',
-                                    lineHeight: '9px',
-                                    color: 'gray',
-                                    fontFamily: 'monospace',
-                                    marginTop: '7px',
-                                }}
-                            >
-                                @{props.post.profile.identity}
-                            </span>
-                        </div>
-
-                        {props.showBoost === true && (
-                            <IconButton
-                                color="primary"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    handleOpenMenu(e);
+                                    navigate('/' + props.post.profile.link);
                                 }}
                             >
-                                <MoreHorizIcon
+                                <h3
                                     style={{
-                                        color: 'gray',
+                                        alignSelf: 'flex-start',
+                                        whiteSpace: 'pre-wrap',
+                                        overflowWrap: 'anywhere',
+                                        wordBreak: 'break-all',
+                                        marginTop: '0px',
+                                        marginBottom: '0px',
+                                        fontSize: '15px',
+                                        lineHeight: '15px',
                                     }}
-                                />
-                            </IconButton>
-                        )}
+                                >
+                                    {props.post.profile.displayName}
+                                </h3>
+                                <span
+                                    style={{
+                                        alignSelf: 'flex-start',
+                                        fontWeight: '600',
+                                        wordBreak: 'break-all',
+                                        fontSize: '9px',
+                                        lineHeight: '9px',
+                                        color: 'gray',
+                                        fontFamily: 'monospace',
+                                        marginTop: '7px',
+                                    }}
+                                >
+                                    @{props.post.profile.identity}
+                                </span>
+                            </div>
 
-                        <Menu
-                            sx={{ mt: '45px' }}
-                            anchorEl={anchor}
-                            open={Boolean(anchor)}
-                            onClose={handleCloseMenu}
-                            anchorOrigin={{
-                                vertical: 'top',
-                                horizontal: 'right',
-                            }}
-                            keepMounted
-                            transformOrigin={{
-                                vertical: 'top',
-                                horizontal: 'right',
-                            }}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                            }}
-                        >
-                            <MenuItem
-                                onClick={() => {
-                                    setDebugModalIsOpen(true);
-                                    setAnchor(null);
+                            {props.showBoost === true && (
+                                <IconButton
+                                    color="primary"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenMenu(e);
+                                    }}
+                                    style={{
+                                        pointerEvents: 'auto',
+                                    }}
+                                >
+                                    <MoreHorizIcon
+                                        style={{
+                                            color: 'gray',
+                                        }}
+                                    />
+                                </IconButton>
+                            )}
+
+                            <Menu
+                                sx={{ mt: '45px' }}
+                                anchorEl={anchor}
+                                open={Boolean(anchor)}
+                                onClose={handleCloseMenu}
+                                anchorOrigin={{
+                                    vertical: 'top',
+                                    horizontal: 'right',
+                                }}
+                                keepMounted
+                                transformOrigin={{
+                                    vertical: 'top',
+                                    horizontal: 'right',
+                                }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
                                 }}
                             >
-                                <Typography textAlign="center">
-                                    Debug Info
-                                </Typography>
-                            </MenuItem>
-                            {props.post.author && (
-                                <MenuItem onClick={handleDelete}>
+                                <MenuItem
+                                    onClick={() => {
+                                        setDebugModalIsOpen(true);
+                                        setAnchor(null);
+                                    }}
+                                >
                                     <Typography textAlign="center">
-                                        Delete Post
+                                        Debug Info
                                     </Typography>
                                 </MenuItem>
-                            )}
-                        </Menu>
-                    </div>
-
-                    {props.post.message !== '' && (
-                        <p
-                            style={{
-                                alignSelf: 'flex-start',
-                                whiteSpace: 'pre-wrap',
-                                marginTop: '2px',
-                                marginBottom: '5px',
-                                fontSize: '15px',
-                                overflowWrap: 'anywhere',
-                            }}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                            }}
-                        >
-                            {processText(props.post.message)}
-                        </p>
-                    )}
-
-                    {youtubeLink !== undefined && (
-                        <iframe
-                            src={youtubeLink}
-                            frameBorder="0"
-                            allow={
-                                'accelerometer; autoplay; ' +
-                                'clipboard-write; ' +
-                                'encrypted-media; ' +
-                                'gyroscope; ' +
-                                'picture-in-picture'
-                            }
-                            allowFullScreen
-                            title="Embedded youtube"
-                            style={{
-                                maxHeight: '500px',
-                                minHeight: '300px',
-                                marginTop: '10px',
-                                alignSelf: 'center',
-                                width: '100%',
-                            }}
-                        />
-                    )}
-
-                    {props.post.image !== undefined && (
-                        <img
-                            src={props.post.image}
-                            alt="Within Post"
-                            style={{
-                                marginTop: '4px',
-                                maxHeight: '500px',
-                                maxWidth: '100%',
-                                alignSelf: 'center',
-                            }}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setViewerLink(props.post.image);
-                            }}
-                        />
-                    )}
-
-                    {viewerLink && (
-                        <ImageViewer
-                            src={[viewerLink]}
-                            currentIndex={0}
-                            closeOnClickOutside={true}
-                            onClose={() => {
-                                setViewerLink(undefined);
-                            }}
-                            backgroundStyle={{
-                                backgroundColor: 'rgba(0,0,0,0.5)',
-                                zIndex: 1300,
-                            }}
-                        />
-                    )}
-
-                    {props.post.boost !== undefined && props.depth < 1 && (
-                        <div
-                            style={{
-                                marginTop: '10px',
-                            }}
-                        >
-                            <Post
-                                state={props.state}
-                                post={props.post.boost}
-                                showBoost={false}
-                                depth={props.depth + 1}
-                            />
+                                {props.post.author && (
+                                    <MenuItem onClick={handleDelete}>
+                                        <Typography textAlign="center">
+                                            Delete Post
+                                        </Typography>
+                                    </MenuItem>
+                                )}
+                            </Menu>
                         </div>
-                    )}
 
-                    {props.post.boost !== undefined && props.depth >= 1 && (
-                        <Paper
-                            elevation={4}
-                            style={{
-                                marginTop: '5px',
-                                textAlign: 'center',
-                            }}
-                        >
-                            <h4
-                                onClick={handleNavigate}
-                                className="underline_on_hover"
-                            >
-                                Too many nested posts. Click to expand...
-                            </h4>
-                        </Paper>
-                    )}
-
-                    <p
-                        style={{
-                            fontWeight: '600',
-                            fontSize: '12px',
-                            color: 'gray',
-                            marginTop: '6px',
-                            alignSelf: 'flex-start',
-                        }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                        }}
-                    >
-                        Posted on: &nbsp;
-                        {new Date(props.post.unixMilliseconds).toLocaleString()}
-                    </p>
-
-                    {props.showBoost === true && (
-                        <div
-                            style={{
-                                display: 'flex',
-                                columnGap: '5px',
-                                alignSelf: 'flex-start',
-                            }}
-                        >
-                            <LoadingButton
-                                loading={boosting}
-                                variant="contained"
-                                onClick={handleBoost}
-                                loadingPosition="start"
-                                startIcon={<LoopIcon />}
-                                size="small"
-                            >
-                                Boost
-                            </LoadingButton>
-                            <Button
-                                variant="contained"
+                        {props.post.message !== '' && (
+                            <p
+                                style={{
+                                    alignSelf: 'flex-start',
+                                    whiteSpace: 'pre-wrap',
+                                    marginTop: '2px',
+                                    marginBottom: '5px',
+                                    fontSize: '15px',
+                                    overflowWrap: 'anywhere',
+                                    pointerEvents: 'auto',
+                                }}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    setModalIsOpen(true);
                                 }}
-                                startIcon={<ReplyIcon />}
-                                size="small"
                             >
-                                React
-                            </Button>
-                        </div>
-                    )}
+                                {processText(props.post.message)}
+                            </p>
+                        )}
+
+                        {youtubeLink !== undefined && (
+                            <iframe
+                                src={youtubeLink}
+                                frameBorder="0"
+                                allow={
+                                    'accelerometer; autoplay; ' +
+                                    'clipboard-write; ' +
+                                    'encrypted-media; ' +
+                                    'gyroscope; ' +
+                                    'picture-in-picture'
+                                }
+                                allowFullScreen
+                                title="Embedded youtube"
+                                style={{
+                                    maxHeight: '500px',
+                                    minHeight: '300px',
+                                    marginTop: '10px',
+                                    alignSelf: 'center',
+                                    width: '100%',
+                                }}
+                            />
+                        )}
+
+                        {props.post.image !== undefined && (
+                            <img
+                                src={props.post.image}
+                                alt="Within Post"
+                                style={{
+                                    marginTop: '4px',
+                                    maxHeight: '500px',
+                                    maxWidth: '100%',
+                                    alignSelf: 'center',
+                                    pointerEvents: 'auto',
+                                }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setViewerLink(props.post.image);
+                                }}
+                            />
+                        )}
+
+                        {props.post.boost !== undefined && props.depth < 1 && (
+                            <div
+                                style={{
+                                    marginTop: '10px',
+                                    pointerEvents: 'none',
+                                }}
+                            >
+                                <Post
+                                    state={props.state}
+                                    post={props.post.boost}
+                                    showBoost={false}
+                                    depth={props.depth + 1}
+                                />
+                            </div>
+                        )}
+
+                        {props.post.boost !== undefined && props.depth >= 1 && (
+                            <Paper
+                                elevation={4}
+                                style={{
+                                    marginTop: '5px',
+                                    textAlign: 'center',
+                                    pointerEvents: 'auto',
+                                }}
+                            >
+                                <h4
+                                    onClick={handleNavigate}
+                                    className="underline_on_hover"
+                                >
+                                    Too many nested posts. Click to expand...
+                                </h4>
+                            </Paper>
+                        )}
+
+                        <p
+                            style={{
+                                fontWeight: '600',
+                                fontSize: '12px',
+                                color: 'gray',
+                                marginTop: '6px',
+                                alignSelf: 'flex-start',
+                                pointerEvents: 'auto',
+                            }}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                            }}
+                        >
+                            Posted on: &nbsp;
+                            {new Date(props.post.unixMilliseconds).toLocaleString()}
+                        </p>
+
+                        {props.showBoost === true && (
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    columnGap: '5px',
+                                    alignSelf: 'flex-start',
+                                    pointerEvents: 'auto',
+                                }}
+                            >
+                                <LoadingButton
+                                    loading={boosting}
+                                    variant="contained"
+                                    onClick={handleBoost}
+                                    loadingPosition="start"
+                                    startIcon={<LoopIcon />}
+                                    size="small"
+                                >
+                                    Boost
+                                </LoadingButton>
+                                <Button
+                                    variant="contained"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setModalIsOpen(true);
+                                    }}
+                                    startIcon={<ReplyIcon />}
+                                    size="small"
+                                >
+                                    React
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </Paper>

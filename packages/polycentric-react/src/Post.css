@@ -51,3 +51,7 @@
 .underline_on_hover:hover {
     text-decoration: underline;
 }
+
+.highlight_on_hover:hover {
+    background-color: #F0F0F0;
+}
