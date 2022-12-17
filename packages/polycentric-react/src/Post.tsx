@@ -633,6 +633,7 @@ export function Post(props: PostProps) {
                     <div
                         style={{
                             display: 'flex',
+                            justifyContent: 'space-between',
                         }}
                     >
                         <div
@@ -641,7 +642,8 @@ export function Post(props: PostProps) {
                                 alignSelf: 'flex-start',
                                 whiteSpace: 'pre-wrap',
                                 overflowWrap: 'anywhere',
-                                flex: '1',
+                                display: 'flex',
+                                flexDirection: 'column',
                             }}
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -650,6 +652,7 @@ export function Post(props: PostProps) {
                         >
                             <h3
                                 style={{
+                                    alignSelf: 'flex-start',
                                     whiteSpace: 'pre-wrap',
                                     overflowWrap: 'anywhere',
                                     wordBreak: 'break-all',
@@ -663,12 +666,14 @@ export function Post(props: PostProps) {
                             </h3>
                             <span
                                 style={{
+                                    alignSelf: 'flex-start',
                                     fontWeight: '600',
                                     wordBreak: 'break-all',
                                     fontSize: '9px',
                                     lineHeight: '9px',
                                     color: 'gray',
                                     fontFamily: 'monospace',
+                                    marginTop: '7px',
                                 }}
                             >
                                 @{props.post.profile.identity}
@@ -855,6 +860,7 @@ export function Post(props: PostProps) {
                             style={{
                                 display: 'flex',
                                 columnGap: '5px',
+                                alignSelf: 'flex-start',
                             }}
                         >
                             <LoadingButton
