@@ -31,6 +31,7 @@ services:
             HOME: "/tmp/home"
             HTTP_PORT_STATIC: 8082
             RUST_LOG: "server=info"
+            DATABASE_URL: "postgres://postgres:testing@postgres" 
         user: "${CURRENT_UID}:${CURRENT_GID}"
         volumes:
             - ./:/app
