@@ -377,58 +377,6 @@ async fn known_ranges_for_feed_handler(
     )
 }
 
-async fn known_ranges_handler(
-    state: ::std::sync::Arc<State>,
-    bytes: ::bytes::Bytes,
-) -> Result<impl ::warp::Reply, ::warp::Rejection> {
-    let request =
-        crate::protocol::RequestKnownRanges::parse_from_tokio_bytes(&bytes)
-            .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
-
-    let identity = ::ed25519_dalek::PublicKey::from_bytes(
-        &request.author_public_key,
-    ).map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
-
-    let writer = crate::model::vec_to_writer_id(
-        &request.writer_id,
-    ).map_err(|e| RequestError::Anyhow(e))?;
-
-    let mut known_ranges = crate::protocol::KnownRanges::new();
-
-    let mut transaction = state
-        .pool
-        .begin()
-        .await
-        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
-
-    let ranges_for_writer_rows = crate::postgres::ranges_for_writer(
-        &mut transaction,
-        &identity,
-        &writer
-    ).await.map_err(|_| RequestError::DatabaseFailed)?;
-
-    transaction
-        .commit()
-        .await
-        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
-
-    for ranges_for_writer_row in ranges_for_writer_rows {
-        let mut range = crate::protocol::Range::new();
-        range.low = ranges_for_writer_row.start_number as u64;
-        range.high = ranges_for_writer_row.end_number as u64;
-        known_ranges.ranges.push(range);
-    }
-
-    let result_serialized = known_ranges
-        .write_to_bytes()
-        .map_err(|_| RequestError::SerializationFailed)?;
-
-    Ok(::warp::reply::with_status(
-        result_serialized,
-        ::warp::http::StatusCode::OK,
-    ))
-}
-
 async fn maybe_add_profile2(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     result: &mut ::std::vec::Vec<crate::protocol::Event>,
@@ -877,7 +825,7 @@ async fn serve_api(
         .and(::warp::path::end())
         .and(state_filter.clone())
         .and(::warp::body::bytes())
-        .and_then(known_ranges_handler)
+        .and_then(crate::handlers::known_ranges::handler)
         .with(cors.clone());
 
     let request_event_ranges_route = ::warp::get()
