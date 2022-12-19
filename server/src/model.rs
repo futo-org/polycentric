@@ -4,7 +4,7 @@ use anyhow::Context;
 pub struct WriterId(pub [u8; 32]);
 
 pub fn vec_to_writer_id(
-    vec: &::std::vec::Vec<u8>
+    vec: &::std::vec::Vec<u8>,
 ) -> ::anyhow::Result<WriterId> {
     Ok(WriterId(vec.as_slice().try_into()?))
 }
@@ -23,7 +23,7 @@ pub mod pointer {
             writer: crate::model::WriterId,
             sequence_number: u64,
         ) -> Pointer {
-            Pointer{
+            Pointer {
                 identity: identity,
                 writer: writer,
                 sequence_number: sequence_number,
@@ -52,11 +52,8 @@ pub mod event {
     }
 
     impl Clock {
-        pub fn new(
-            writer: crate::model::WriterId,
-            value: u64,
-        ) -> Clock {
-            Clock{
+        pub fn new(writer: crate::model::WriterId, value: u64) -> Clock {
+            Clock {
                 writer: writer,
                 value: value,
             }
@@ -90,7 +87,7 @@ pub mod event {
             content: ::std::vec::Vec<u8>,
             clocks: ::std::vec::Vec<Clock>,
         ) -> Event {
-            Event{
+            Event {
                 identity: identity,
                 writer: writer,
                 sequence_number: sequence_number,
@@ -127,8 +124,8 @@ pub mod event {
 }
 
 pub mod signed_event {
-    use ed25519_dalek::Verifier;
     use ed25519_dalek::Signer;
+    use ed25519_dalek::Verifier;
 
     #[derive(PartialEq, Clone, Debug)]
     pub struct SignedEvent {
@@ -145,7 +142,7 @@ pub mod signed_event {
 
             event.identity().verify(&digest, &signature)?;
 
-            Ok(SignedEvent{
+            Ok(SignedEvent {
                 event: event,
                 signature: signature,
             })
@@ -159,7 +156,7 @@ pub mod signed_event {
 
             let signature = keypair.sign(&digest);
 
-            SignedEvent{
+            SignedEvent {
                 event: event,
                 signature,
             }
@@ -193,7 +190,7 @@ pub(crate) fn hash_event(event: &event::Event) -> [u8; 32] {
 }
 
 pub(crate) fn protobuf_event_to_signed_event(
-    protobuf_event: &crate::protocol::Event
+    protobuf_event: &crate::protocol::Event,
 ) -> ::anyhow::Result<signed_event::SignedEvent> {
     let identity = ::ed25519_dalek::PublicKey::from_bytes(
         &protobuf_event.author_public_key,
@@ -201,12 +198,16 @@ pub(crate) fn protobuf_event_to_signed_event(
 
     let writer = vec_to_writer_id(&protobuf_event.writer_id)?;
 
-    let clocks = protobuf_event.clocks.iter().map(|clock| {
-        Ok(event::Clock::new(
-            vec_to_writer_id(&clock.key)?,
-            clock.value,
-        ))
-    }).collect::<::anyhow::Result<::std::vec::Vec<event::Clock>>>()?;
+    let clocks = protobuf_event
+        .clocks
+        .iter()
+        .map(|clock| {
+            Ok(event::Clock::new(
+                vec_to_writer_id(&clock.key)?,
+                clock.value,
+            ))
+        })
+        .collect::<::anyhow::Result<::std::vec::Vec<event::Clock>>>()?;
 
     let event = event::Event::new(
         identity,
@@ -217,9 +218,10 @@ pub(crate) fn protobuf_event_to_signed_event(
         clocks,
     );
 
-    let raw_signature = protobuf_event.signature.clone().context(
-        "expected signature"
-    )?;
+    let raw_signature = protobuf_event
+        .signature
+        .clone()
+        .context("expected signature")?;
 
     let signature = ed25519_dalek::Signature::try_from(&raw_signature[..])?;
 
@@ -238,18 +240,21 @@ pub(crate) fn signed_event_to_protobuf_event(
     result.sequence_number = event.sequence_number();
     result.unix_milliseconds = event.unix_milliseconds();
     result.content = event.content().clone();
-    result.signature = Some(
-        signed_event.signature().to_bytes().to_vec().clone()
-    );
+    result.signature =
+        Some(signed_event.signature().to_bytes().to_vec().clone());
 
-    result.clocks = event.clocks().iter().map(|clock| {
-        let mut result = crate::protocol::EventClockEntry::new();
+    result.clocks = event
+        .clocks()
+        .iter()
+        .map(|clock| {
+            let mut result = crate::protocol::EventClockEntry::new();
 
-        result.key = clock.writer().0.to_vec().clone();
-        result.value = clock.value();
+            result.key = clock.writer().0.to_vec().clone();
+            result.value = clock.value();
 
-        result
-    }).collect();
+            result
+        })
+        .collect();
 
     result
 }
@@ -264,22 +269,20 @@ pub mod tests {
 
         let event = crate::model::event::Event::new(
             identity_keypair.public.clone(),
-            crate::model::WriterId(
-                writer_keypair.public.to_bytes().clone()
-            ),
+            crate::model::WriterId(writer_keypair.public.to_bytes().clone()),
             5,
             100,
             vec![0, 1, 2, 3],
             vec![
                 crate::model::event::Clock::new(
                     crate::model::WriterId(
-                        writer_keypair.public.to_bytes().clone()
+                        writer_keypair.public.to_bytes().clone(),
                     ),
                     5,
                 ),
                 crate::model::event::Clock::new(
                     crate::model::WriterId(
-                        other_writer_keypair.public.to_bytes().clone()
+                        other_writer_keypair.public.to_bytes().clone(),
                     ),
                     12,
                 ),
@@ -291,13 +294,12 @@ pub mod tests {
             &identity_keypair,
         );
 
-        let protobuf_event = crate::model::signed_event_to_protobuf_event(
-            &signed_event,
-        );
+        let protobuf_event =
+            crate::model::signed_event_to_protobuf_event(&signed_event);
 
-        let parsed_event = crate::model::protobuf_event_to_signed_event(
-            &protobuf_event,
-        ).unwrap();
+        let parsed_event =
+            crate::model::protobuf_event_to_signed_event(&protobuf_event)
+                .unwrap();
 
         assert!(signed_event == parsed_event);
     }

@@ -5,11 +5,11 @@ use ::serde_json::json;
 use ::warp::Filter;
 
 mod crypto;
+mod handlers;
+mod model;
+mod postgres;
 mod protocol;
 mod version;
-mod postgres;
-mod model;
-mod handlers;
 
 #[derive(Debug)]
 enum RequestError {
@@ -243,14 +243,13 @@ async fn post_events_handler(
             crate::protocol::EventBody::parse_from_bytes(&event.content)
                 .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
-        let validated_event = crate::model::protobuf_event_to_signed_event(
-            event,
-        ).map_err(|e| RequestError::Anyhow(e))?;
+        let validated_event =
+            crate::model::protobuf_event_to_signed_event(event)
+                .map_err(|e| RequestError::Anyhow(e))?;
 
-        crate::postgres::persist_event_feed(
-            &mut transaction,
-            &validated_event,
-        ).await.map_err(|e| RequestError::Anyhow(e))?;
+        crate::postgres::persist_event_feed(&mut transaction, &validated_event)
+            .await
+            .map_err(|e| RequestError::Anyhow(e))?;
 
         persist_event_notification(&mut transaction, &event, &event_body)
             .await?;
@@ -293,14 +292,11 @@ async fn maybe_add_profile2(
     public_key: &::std::vec::Vec<u8>,
 ) -> ::anyhow::Result<()> {
     if !profile_keys.contains(public_key) {
-        let identity = ::ed25519_dalek::PublicKey::from_bytes(
-            public_key,
-        )?;
+        let identity = ::ed25519_dalek::PublicKey::from_bytes(public_key)?;
 
-        let potential_profile = crate::postgres::load_latest_profile(
-            &mut *transaction,
-            &identity,
-        ).await?;
+        let potential_profile =
+            crate::postgres::load_latest_profile(&mut *transaction, &identity)
+                .await?;
 
         if let Some(event) = potential_profile {
             let event = crate::model::signed_event_to_protobuf_event(&event);
@@ -326,8 +322,8 @@ async fn process_mutation(
 ) -> ::anyhow::Result<()> {
     let mut item_ref = item;
 
-    let mut sub_item_holder:
-        Option<crate::postgres::store_item::StoreItem> = None;
+    let mut sub_item_holder: Option<crate::postgres::store_item::StoreItem> =
+        None;
 
     loop {
         maybe_add_profile2(
@@ -375,7 +371,7 @@ async fn process_mutation(
                         &mut *profile_keys,
                         &event_body.follow().public_key,
                     )
-                    .await?; 
+                    .await?;
                 } else if event_body.has_message() {
                     if let Some(pointer) =
                         event_body.message().boost_pointer.as_ref()
@@ -386,7 +382,7 @@ async fn process_mutation(
                             &mut *profile_keys,
                             &pointer.public_key,
                         )
-                        .await?; 
+                        .await?;
                     }
                 }
 
@@ -418,96 +414,11 @@ async fn process_mutations2(
             &mut result,
             &mut profile_keys,
             &item,
-        ).await?;
+        )
+        .await?;
     }
 
     Ok(result)
-}
-
-fn decode_query_request_event_ranges<'de, D>(deserializer: D)
-    -> Result<crate::protocol::RequestEventRanges, D::Error>
-where
-    D: ::serde::Deserializer<'de>,
-{
-    let string: &str = ::serde::Deserialize::deserialize(deserializer)?;
-
-    let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
-        .map_err(::serde::de::Error::custom)?;
-
-    crate::protocol::RequestEventRanges::parse_from_tokio_bytes(
-            &::bytes::Bytes::from(bytes),
-        )
-        .map_err(::serde::de::Error::custom)
-}
-
-#[derive(::serde::Deserialize)]
-struct RequestEventRangesQuery {
-    #[serde(deserialize_with = "decode_query_request_event_ranges")]
-    query: crate::protocol::RequestEventRanges,
-}
-
-async fn request_event_ranges_handler(
-    query: RequestEventRangesQuery,
-    state: ::std::sync::Arc<State>,
-) -> Result<impl ::warp::Reply, ::warp::Rejection> {
-    let request = query.query;
-
-    let identity = ::ed25519_dalek::PublicKey::from_bytes(
-        &request.author_public_key,
-    ).map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
-
-    let writer = crate::model::vec_to_writer_id(
-        &request.writer_id,
-    ).map_err(|e| RequestError::Anyhow(e))?;
-
-    let mut transaction = state
-        .pool
-        .begin()
-        .await
-        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
-
-    let mut history:
-        ::std::vec::Vec<crate::postgres::store_item::StoreItem> = vec![];
-
-    for range in &request.ranges {
-        let mut rows = crate::postgres::load_range(
-            &mut transaction,
-            &identity,
-            &writer,
-            range.low,
-            range.high,
-        ).await.map_err(|e| RequestError::Anyhow(e))?;
-
-        history.append(&mut rows);
-    }
-
-    let mut result = crate::protocol::Events::new();
-
-    let mut processed_events = process_mutations2(&mut transaction, history)
-        .await.map_err(|e| RequestError::Anyhow(e))?;
-
-    result.events.append(&mut processed_events.related_events);
-    result.events.append(&mut processed_events.result_events);
-
-    transaction
-        .commit()
-        .await
-        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
-
-    let result_serialized = result
-        .write_to_bytes()
-        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
-
-    Ok(
-        ::warp::reply::with_header(
-            ::warp::reply::with_status(
-                result_serialized,
-                ::warp::http::StatusCode::OK,
-            ),
-            "Cache-Control",
-            "public, max-age=30"
-        )
-    )
 }
 
 #[derive(::serde::Deserialize, ::serde::Serialize)]
@@ -590,17 +501,19 @@ async fn request_search_handler(
         .await
         .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
-    let mut history:
-        ::std::vec::Vec<crate::postgres::store_item::StoreItem> = vec![];
+    let mut history: ::std::vec::Vec<crate::postgres::store_item::StoreItem> =
+        vec![];
 
     for hit in response_body.hits.hits {
         let identity = ::ed25519_dalek::PublicKey::from_bytes(
             &::base64::decode(hit._source.author_public_key).unwrap(),
-        ).map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
+        )
+        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
         let writer = crate::model::vec_to_writer_id(
             &::base64::decode(hit._source.writer_id).unwrap(),
-        ).map_err(|e| RequestError::Anyhow(e))?;
+        )
+        .map_err(|e| RequestError::Anyhow(e))?;
 
         let sequence_number = hit._source.sequence_number;
 
@@ -611,7 +524,9 @@ async fn request_search_handler(
                 writer,
                 sequence_number.try_into().unwrap(),
             ),
-        ).await.map_err(|e| RequestError::Anyhow(e))?;
+        )
+        .await
+        .map_err(|e| RequestError::Anyhow(e))?;
 
         if let Some(event) = store_item {
             history.push(event);
@@ -621,11 +536,13 @@ async fn request_search_handler(
     let mut result = crate::protocol::ResponseSearch::new();
 
     let mut processed_events = process_mutations2(&mut transaction, history)
-        .await.map_err(|e| RequestError::Anyhow(e))?;
+        .await
+        .map_err(|e| RequestError::Anyhow(e))?;
 
     result
         .related_events
         .append(&mut processed_events.related_events);
+
     result
         .result_events
         .append(&mut processed_events.result_events);
@@ -670,7 +587,7 @@ struct Config {
 }
 
 async fn serve_api(
-    config: &Config
+    config: &Config,
 ) -> Result<(), Box<dyn ::std::error::Error>> {
     info!("Connecting to Postgres");
     let pool = ::sqlx::postgres::PgPoolOptions::new()
@@ -744,8 +661,7 @@ async fn serve_api(
         .and(::warp::path("request_event_ranges"))
         .and(::warp::path::end())
         .and(::warp::query::<
-             crate::handlers::request_event_ranges
-                ::RequestEventRangesQuery
+            crate::handlers::request_event_ranges::RequestEventRangesQuery,
         >())
         .and(state_filter.clone())
         .and_then(crate::handlers::request_event_ranges::handler)
@@ -817,11 +733,11 @@ async fn serve_api(
 }
 
 async fn serve_static(
-    config: &Config
+    config: &Config,
 ) -> Result<(), Box<dyn ::std::error::Error>> {
     let port = match config.http_port_static {
         Some(x) => x,
-        None => return Ok(())
+        None => return Ok(()),
     };
 
     let routes = ::warp::filters::fs::dir(config.static_path.clone())
@@ -830,14 +746,12 @@ async fn serve_static(
             ::warp::reply::with_header(
                 reply,
                 "Cache-Control",
-                "public, no-cache"
+                "public, no-cache",
             )
         });
 
     info!("Static server listening on {}", port);
-    ::warp::serve(routes)
-        .run(([0, 0, 0, 0], port))
-        .await;
+    ::warp::serve(routes).run(([0, 0, 0, 0], port)).await;
 
     Ok(())
 }

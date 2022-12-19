@@ -1,34 +1,38 @@
 use ::protobuf::Message;
 
-pub (crate) async fn handler(
+pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     bytes: ::bytes::Bytes,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
     let request =
         crate::protocol::RequestKnownRanges::parse_from_tokio_bytes(&bytes)
-            .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
+            .map_err(|e| {
+                crate::RequestError::Anyhow(::anyhow::Error::new(e))
+            })?;
 
-    let identity = ::ed25519_dalek::PublicKey::from_bytes(
-        &request.author_public_key,
-    ).map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
+    let identity =
+        ::ed25519_dalek::PublicKey::from_bytes(&request.author_public_key)
+            .map_err(|e| {
+                crate::RequestError::Anyhow(::anyhow::Error::new(e))
+            })?;
 
-    let writer = crate::model::vec_to_writer_id(
-        &request.writer_id,
-    ).map_err(|e| crate::RequestError::Anyhow(e))?;
+    let writer = crate::model::vec_to_writer_id(&request.writer_id)
+        .map_err(|e| crate::RequestError::Anyhow(e))?;
 
     let mut known_ranges = crate::protocol::KnownRanges::new();
 
-    let mut transaction = state
-        .pool
-        .begin()
-        .await
-        .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
+    let mut transaction =
+        state.pool.begin().await.map_err(|e| {
+            crate::RequestError::Anyhow(::anyhow::Error::new(e))
+        })?;
 
     let ranges_for_writer_rows = crate::postgres::ranges_for_writer(
         &mut transaction,
         &identity,
-        &writer
-    ).await.map_err(|_| crate::RequestError::DatabaseFailed)?;
+        &writer,
+    )
+    .await
+    .map_err(|_| crate::RequestError::DatabaseFailed)?;
 
     transaction
         .commit()
@@ -51,5 +55,3 @@ pub (crate) async fn handler(
         ::warp::http::StatusCode::OK,
     ))
 }
-
-

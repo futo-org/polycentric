@@ -9,7 +9,7 @@ struct NotificationRow {
     from_sequence_number: i64,
 }
 
-pub (crate) async fn handler(
+pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     bytes: ::bytes::Bytes,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
@@ -36,11 +36,10 @@ pub (crate) async fn handler(
 
     let notifications: ::std::vec::Vec<NotificationRow>;
 
-    let mut transaction = state
-        .pool
-        .begin()
-        .await
-        .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
+    let mut transaction =
+        state.pool.begin().await.map_err(|e| {
+            crate::RequestError::Anyhow(::anyhow::Error::new(e))
+        })?;
 
     if let Some(after_index) = request.after_index {
         notifications =
@@ -49,33 +48,32 @@ pub (crate) async fn handler(
                 .bind(after_index as i64)
                 .fetch_all(&mut transaction)
                 .await
-                .map_err(|e|
+                .map_err(|e| {
                     crate::RequestError::Anyhow(::anyhow::Error::new(e))
-                )?;
+                })?;
     } else {
         notifications =
-            ::sqlx::query_as::<_, NotificationRow>(
-                    STATEMENT_WITHOUT_INDEX
-                )
+            ::sqlx::query_as::<_, NotificationRow>(STATEMENT_WITHOUT_INDEX)
                 .bind(&request.public_key)
                 .fetch_all(&mut transaction)
                 .await
-                .map_err(|e|
+                .map_err(|e| {
                     crate::RequestError::Anyhow(::anyhow::Error::new(e))
-                )?;
+                })?;
     }
 
-    let mut history:
-        ::std::vec::Vec<crate::postgres::store_item::StoreItem> = vec![];
+    let mut history: ::std::vec::Vec<crate::postgres::store_item::StoreItem> =
+        vec![];
 
     for notification in &notifications {
         let identity = ::ed25519_dalek::PublicKey::from_bytes(
             &notification.from_author_public_key,
-        ).map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
+        )
+        .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
-        let writer = crate::model::vec_to_writer_id(
-            &notification.from_writer_id,
-        ).map_err(|e| crate::RequestError::Anyhow(e))?;
+        let writer =
+            crate::model::vec_to_writer_id(&notification.from_writer_id)
+                .map_err(|e| crate::RequestError::Anyhow(e))?;
 
         let sequence_number = notification.from_sequence_number;
 
@@ -86,18 +84,19 @@ pub (crate) async fn handler(
                 writer,
                 sequence_number.try_into().unwrap(),
             ),
-        ).await.map_err(|e| crate::RequestError::Anyhow(e))?;
+        )
+        .await
+        .map_err(|e| crate::RequestError::Anyhow(e))?;
 
         if let Some(event) = store_item {
             history.push(event);
         }
     }
 
-    let mut processed_events = crate::process_mutations2(
-            &mut transaction,
-            history,
-        )
-        .await.map_err(|e| crate::RequestError::Anyhow(e))?;
+    let mut processed_events =
+        crate::process_mutations2(&mut transaction, history)
+            .await
+            .map_err(|e| crate::RequestError::Anyhow(e))?;
 
     let mut result = crate::protocol::ResponseNotifications::new();
 
@@ -134,4 +133,3 @@ pub (crate) async fn handler(
         ::warp::http::StatusCode::OK,
     ))
 }
-

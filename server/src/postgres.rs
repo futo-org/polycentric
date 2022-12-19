@@ -19,7 +19,7 @@ pub mod store_item {
             pointer: crate::model::pointer::Pointer,
             value: MutationPointerOrSignedEvent,
         ) -> StoreItem {
-            StoreItem{
+            StoreItem {
                 pointer: pointer,
                 value: value,
             }
@@ -46,9 +46,7 @@ pub(crate) fn signed_event_to_store_item(
             event.writer().clone(),
             event.sequence_number(),
         ),
-        store_item::MutationPointerOrSignedEvent::SignedEvent(
-            signed_event,
-        ),
+        store_item::MutationPointerOrSignedEvent::SignedEvent(signed_event),
     )
 }
 
@@ -150,9 +148,8 @@ pub(crate) async fn persist_event_feed(
 
     let event = signed_event.event();
 
-    let event_body = crate::protocol::EventBody::parse_from_bytes(
-        event.content()
-    )?;
+    let event_body =
+        crate::protocol::EventBody::parse_from_bytes(event.content())?;
 
     let mut message_type: i64 = 0;
 
@@ -210,9 +207,8 @@ pub(crate) async fn persist_event_feed(
 pub fn event_row_to_store_item(
     row: &crate::EventRow,
 ) -> ::anyhow::Result<store_item::StoreItem> {
-    let identity = ::ed25519_dalek::PublicKey::from_bytes(
-        &row.author_public_key,
-    )?;
+    let identity =
+        ::ed25519_dalek::PublicKey::from_bytes(&row.author_public_key)?;
 
     let writer = crate::model::vec_to_writer_id(&row.writer_id)?;
 
@@ -227,9 +223,8 @@ pub fn event_row_to_store_item(
             &mutation_pointer.public_key,
         )?;
 
-        let writer = crate::model::vec_to_writer_id(
-            &mutation_pointer.writer_id
-        )?;
+        let writer =
+            crate::model::vec_to_writer_id(&mutation_pointer.writer_id)?;
 
         let mutation_pointer = crate::model::pointer::Pointer::new(
             identity,
@@ -267,21 +262,17 @@ pub fn event_row_to_store_item(
         pointer.sequence_number(),
         u64::try_from(row.unix_milliseconds)?,
         row.content.clone(),
-        clocks
+        clocks,
     );
 
     let signature = ed25519_dalek::Signature::try_from(&row.signature[..])?;
 
-    let signed_event = crate::model::signed_event::SignedEvent::new(
-        event,
-        signature,
-    )?;
+    let signed_event =
+        crate::model::signed_event::SignedEvent::new(event, signature)?;
 
     Ok(store_item::StoreItem::new(
         pointer.clone(),
-        store_item::MutationPointerOrSignedEvent::SignedEvent(
-            signed_event,
-        ),
+        store_item::MutationPointerOrSignedEvent::SignedEvent(signed_event),
     ))
 }
 
@@ -393,7 +384,9 @@ pub async fn load_range(
         .fetch_all(&mut *transaction)
         .await?;
 
-    range.iter().map(|row| event_row_to_store_item(row))
+    range
+        .iter()
+        .map(|row| event_row_to_store_item(row))
         .collect::<::anyhow::Result<::std::vec::Vec<store_item::StoreItem>>>()
 }
 
@@ -431,7 +424,9 @@ pub async fn load_events_before_time(
             .await?
     }
 
-    history.iter().map(|row| event_row_to_store_item(row))
+    history
+        .iter()
+        .map(|row| event_row_to_store_item(row))
         .collect::<::anyhow::Result<::std::vec::Vec<store_item::StoreItem>>>()
 }
 
@@ -514,7 +509,7 @@ pub mod tests {
 
     #[::sqlx::test]
     async fn ranges_for_writer_none(
-        pool: ::sqlx::PgPool
+        pool: ::sqlx::PgPool,
     ) -> ::sqlx::Result<()> {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
@@ -525,10 +520,9 @@ pub mod tests {
         let result = crate::postgres::ranges_for_writer(
             &mut transaction,
             &identity_keypair.public,
-            &crate::model::WriterId(
-                writer_keypair.public.to_bytes().clone()
-            ),
-        ).await?;
+            &crate::model::WriterId(writer_keypair.public.to_bytes().clone()),
+        )
+        .await?;
 
         transaction.commit().await?;
 
@@ -541,7 +535,7 @@ pub mod tests {
 
     #[::sqlx::test]
     async fn get_item_that_does_not_exist(
-        pool: ::sqlx::PgPool
+        pool: ::sqlx::PgPool,
     ) -> ::anyhow::Result<()> {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
@@ -551,16 +545,13 @@ pub mod tests {
 
         let pointer = crate::model::pointer::Pointer::new(
             identity_keypair.public.clone(),
-            crate::model::WriterId(
-                writer_keypair.public.to_bytes().clone()
-            ),
+            crate::model::WriterId(writer_keypair.public.to_bytes().clone()),
             5,
         );
 
-        let loaded = crate::postgres::get_specific_event(
-            &mut transaction,
-            &pointer,
-        ).await?;
+        let loaded =
+            crate::postgres::get_specific_event(&mut transaction, &pointer)
+                .await?;
 
         transaction.commit().await?;
 
@@ -571,7 +562,7 @@ pub mod tests {
 
     #[::sqlx::test]
     async fn load_range_that_does_not_exist(
-        pool: ::sqlx::PgPool
+        pool: ::sqlx::PgPool,
     ) -> ::anyhow::Result<()> {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
@@ -582,12 +573,11 @@ pub mod tests {
         let loaded = crate::postgres::load_range(
             &mut transaction,
             &identity_keypair.public,
-            &crate::model::WriterId(
-                writer_keypair.public.to_bytes().clone()
-            ),
+            &crate::model::WriterId(writer_keypair.public.to_bytes().clone()),
             5,
             10,
-        ).await?;
+        )
+        .await?;
 
         transaction.commit().await?;
 
@@ -598,7 +588,7 @@ pub mod tests {
 
     #[::sqlx::test]
     async fn writer_heads_for_identity_that_does_not_exist(
-        pool: ::sqlx::PgPool
+        pool: ::sqlx::PgPool,
     ) -> ::anyhow::Result<()> {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
@@ -608,7 +598,8 @@ pub mod tests {
         let loaded = crate::postgres::writer_heads_for_identity(
             &mut transaction,
             &identity_keypair.public,
-        ).await?;
+        )
+        .await?;
 
         transaction.commit().await?;
 
@@ -632,32 +623,26 @@ pub mod tests {
             sequence_number,
             100,
             event_body.write_to_bytes()?,
-            vec![
-                crate::model::event::Clock::new(
-                    writer.clone(),
-                    5,
-                ),
-            ],
+            vec![crate::model::event::Clock::new(writer.clone(), 5)],
         );
 
-        let signed_event = crate::model::signed_event::SignedEvent::sign(
-            event,
-            &keypair,
-        );
+        let signed_event =
+            crate::model::signed_event::SignedEvent::sign(event, &keypair);
 
         Ok(signed_event)
     }
 
     fn generate_writer_id() -> crate::model::WriterId {
         crate::model::WriterId(
-            crate::crypto::tests::make_test_keypair().public.to_bytes().clone()
+            crate::crypto::tests::make_test_keypair()
+                .public
+                .to_bytes()
+                .clone(),
         )
     }
 
     #[::sqlx::test]
-    async fn load_range(
-        pool: ::sqlx::PgPool
-    ) -> ::anyhow::Result<()> {
+    async fn load_range(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
@@ -685,8 +670,9 @@ pub mod tests {
             &identity_keypair.public,
             &writer,
             5,
-            7
-        ).await?;
+            7,
+        )
+        .await?;
 
         let expected = vec![
             crate::postgres::signed_event_to_store_item(e5),
@@ -702,7 +688,7 @@ pub mod tests {
 
     #[::sqlx::test]
     async fn writer_heads_for_identity(
-        pool: ::sqlx::PgPool
+        pool: ::sqlx::PgPool,
     ) -> ::anyhow::Result<()> {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
@@ -722,16 +708,17 @@ pub mod tests {
         let result = crate::postgres::writer_heads_for_identity(
             &mut transaction,
             &identity_keypair.public,
-        ).await?;
+        )
+        .await?;
 
         transaction.commit().await?;
-        
+
         let expected = vec![
-            crate::postgres::WriterAndLargest{
+            crate::postgres::WriterAndLargest {
                 writer_id: writer2.0.to_vec(),
                 largest_sequence_number: 7,
             },
-            crate::postgres::WriterAndLargest{
+            crate::postgres::WriterAndLargest {
                 writer_id: writer1.0.to_vec(),
                 largest_sequence_number: 5,
             },
@@ -743,9 +730,7 @@ pub mod tests {
     }
 
     #[::sqlx::test]
-    async fn ranges_for_writer(
-        pool: ::sqlx::PgPool
-    ) -> ::anyhow::Result<()> {
+    async fn ranges_for_writer(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
@@ -767,16 +752,17 @@ pub mod tests {
             &mut transaction,
             &identity_keypair.public,
             &writer1,
-        ).await?;
+        )
+        .await?;
 
         transaction.commit().await?;
 
         let expected = vec![
-            crate::postgres::StartAndEnd{
+            crate::postgres::StartAndEnd {
                 start_number: 3,
                 end_number: 4,
             },
-            crate::postgres::StartAndEnd{
+            crate::postgres::StartAndEnd {
                 start_number: 8,
                 end_number: 8,
             },
@@ -788,9 +774,7 @@ pub mod tests {
     }
 
     #[::sqlx::test]
-    async fn store_and_get_item(
-        pool: ::sqlx::PgPool
-    ) -> ::anyhow::Result<()> {
+    async fn store_and_get_item(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
@@ -798,9 +782,8 @@ pub mod tests {
         let writer_keypair = crate::crypto::tests::make_test_keypair();
         let other_writer_keypair = crate::crypto::tests::make_test_keypair();
 
-        let writer = crate::model::WriterId(
-            writer_keypair.public.to_bytes().clone()
-        );
+        let writer =
+            crate::model::WriterId(writer_keypair.public.to_bytes().clone());
 
         let event_body_message = crate::protocol::EventBodyMessage::new();
         let mut event_body = crate::protocol::EventBody::new();
@@ -813,13 +796,10 @@ pub mod tests {
             100,
             event_body.write_to_bytes()?,
             vec![
-                crate::model::event::Clock::new(
-                    writer.clone(),
-                    5,
-                ),
+                crate::model::event::Clock::new(writer.clone(), 5),
                 crate::model::event::Clock::new(
                     crate::model::WriterId(
-                        other_writer_keypair.public.to_bytes().clone()
+                        other_writer_keypair.public.to_bytes().clone(),
                     ),
                     12,
                 ),
@@ -831,10 +811,8 @@ pub mod tests {
             &identity_keypair,
         );
 
-        crate::postgres::persist_event_feed(
-            &mut transaction,
-            &signed_event
-        ).await?;
+        crate::postgres::persist_event_feed(&mut transaction, &signed_event)
+            .await?;
 
         let pointer = crate::model::pointer::Pointer::new(
             identity_keypair.public.clone(),
@@ -842,10 +820,9 @@ pub mod tests {
             5,
         );
 
-        let loaded = crate::postgres::get_specific_event(
-            &mut transaction,
-            &pointer,
-        ).await?;
+        let loaded =
+            crate::postgres::get_specific_event(&mut transaction, &pointer)
+                .await?;
 
         transaction.commit().await?;
 
@@ -864,7 +841,7 @@ pub mod tests {
 
     #[::sqlx::test]
     async fn delete_item_that_does_not_exist(
-        pool: ::sqlx::PgPool
+        pool: ::sqlx::PgPool,
     ) -> ::anyhow::Result<()> {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
@@ -881,31 +858,28 @@ pub mod tests {
         delete_pointer.sequence_number = 3;
 
         let mut event_body_delete = crate::protocol::EventBodyDelete::new();
-        event_body_delete.pointer = ::protobuf::MessageField::some(
-            delete_pointer
-        );
+        event_body_delete.pointer =
+            ::protobuf::MessageField::some(delete_pointer);
 
         let mut event_body = crate::protocol::EventBody::new();
         event_body.set_delete(event_body_delete);
 
         let event = crate::model::event::Event::new(
             identity_keypair.public.clone(),
-            crate::model::WriterId(
-                writer_keypair.public.to_bytes().clone()
-            ),
+            crate::model::WriterId(writer_keypair.public.to_bytes().clone()),
             5,
             100,
             event_body.write_to_bytes()?,
             vec![
                 crate::model::event::Clock::new(
                     crate::model::WriterId(
-                        writer_keypair.public.to_bytes().clone()
+                        writer_keypair.public.to_bytes().clone(),
                     ),
                     5,
                 ),
                 crate::model::event::Clock::new(
                     crate::model::WriterId(
-                        other_writer_keypair.public.to_bytes().clone()
+                        other_writer_keypair.public.to_bytes().clone(),
                     ),
                     12,
                 ),
@@ -917,36 +891,32 @@ pub mod tests {
             &identity_keypair,
         );
 
-        crate::postgres::persist_event_feed(
-            &mut transaction,
-            &signed_event
-        ).await?;
+        crate::postgres::persist_event_feed(&mut transaction, &signed_event)
+            .await?;
 
         let delete_event_pointer = crate::model::pointer::Pointer::new(
             identity_keypair.public.clone(),
-            crate::model::WriterId(
-                writer_keypair.public.to_bytes().clone()
-            ),
+            crate::model::WriterId(writer_keypair.public.to_bytes().clone()),
             5,
         );
 
         let loaded_delete = crate::postgres::get_specific_event(
             &mut transaction,
             &delete_event_pointer,
-        ).await?;
+        )
+        .await?;
 
         let deleted_event_pointer = crate::model::pointer::Pointer::new(
             identity_keypair.public.clone(),
-            crate::model::WriterId(
-                writer_keypair.public.to_bytes().clone()
-            ),
+            crate::model::WriterId(writer_keypair.public.to_bytes().clone()),
             3,
         );
 
         let loaded_deleted = crate::postgres::get_specific_event(
             &mut transaction,
             &deleted_event_pointer,
-        ).await?;
+        )
+        .await?;
 
         transaction.commit().await?;
 
