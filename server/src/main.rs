@@ -865,13 +865,6 @@ async fn request_events_head_handler(
     ))
 }
 
-async fn request_version_handler()
--> Result<impl ::warp::Reply, ::warp::Rejection> {
-    Ok(::warp::reply::json(&::serde_json::json!({
-        "sha": crate::version::VERSION,
-    })))
-}
-
 #[derive(::envconfig::Envconfig)]
 struct Config {
     #[envconfig(from = "HTTP_PORT_API", default = "8081")]
@@ -1014,7 +1007,7 @@ async fn serve_api(
     let request_version_route = ::warp::get()
         .and(::warp::path("version"))
         .and(::warp::path::end())
-        .and_then(request_version_handler)
+        .and_then(crate::handlers::version::handler)
         .with(cors.clone());
 
     let routes = post_events_route
