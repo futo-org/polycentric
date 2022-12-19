@@ -3,7 +3,11 @@ import * as Base64 from '@borderless/base64';
 import * as Core from 'polycentric-core';
 
 function profileToLink(profile: Core.Protocol.StorageTypeProfile): string {
-    return Base64.encodeUrl(
+    const username = encodeURIComponent(
+        new TextDecoder().decode(profile.username)
+    );
+
+    return "feed/" + username + '/' + Base64.encodeUrl(
         Core.Protocol.URLInfo.encode({
             publicKey: profile.publicKey,
             servers: profile.servers,
@@ -12,7 +16,7 @@ function profileToLink(profile: Core.Protocol.StorageTypeProfile): string {
 }
 
 export function profileToLinkOnlyKey(publicKey: Uint8Array): string {
-    return Base64.encodeUrl(
+    return "feed/unknown/" + Base64.encodeUrl(
         Core.Protocol.URLInfo.encode({
             publicKey: publicKey,
             servers: [],
@@ -29,6 +33,7 @@ export type DisplayableProfile = {
     description: string;
     following: boolean;
     allowFollow: boolean;
+    servers: Array<Uint8Array>;
 };
 
 export async function loadProfileOrFallback(
@@ -54,6 +59,7 @@ export async function loadProfileOrFallback(
             description: '',
             following: false,
             allowFollow: false,
+            servers: [],
         };
 
         return fallback;
@@ -92,6 +98,7 @@ async function loadDisplayableProfile(
         description: decoder.decode(profile.description),
         following: await Core.DB.levelAmFollowing(state, publicKey),
         allowFollow: true,
+        servers: profile.servers,
     };
 
     if (profile.imagePointer !== undefined) {

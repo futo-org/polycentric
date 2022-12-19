@@ -341,13 +341,17 @@ function processText(message: string) {
     );
 }
 
-function postToLink(pointer: Core.Protocol.Pointer): string {
-    return Base64.encodeUrl(
+function postToLink(post: DisplayablePost): string {
+    const pointer = post.pointer;
+
+    const username = post.profile.displayName;
+
+    return "feed/" + username + '/' + Base64.encodeUrl(
         Core.Protocol.URLInfo.encode({
             publicKey: pointer.publicKey,
             writerId: pointer.writerId,
             sequenceNumber: pointer.sequenceNumber,
-            servers: [],
+            servers: post.profile.servers,
         }).finish(),
     );
 }
@@ -481,13 +485,13 @@ export function Post(props: PostProps) {
     };
 
     const handleNavigate = (event: React.MouseEvent<HTMLDivElement>) => {
-        navigate('/' + postToLink(props.post.pointer));
+        navigate('/' + postToLink(props.post));
     };
 
     const handleBackgroundClick = (e: React.MouseEvent<HTMLElement>) => {
         e.stopPropagation();
 
-        navigate('/' + postToLink(props.post.pointer));
+        navigate('/' + postToLink(props.post));
     };
 
     const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {

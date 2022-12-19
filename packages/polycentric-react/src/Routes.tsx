@@ -170,7 +170,7 @@ export function PolycentricRoutes(props: PolycentricRoutesProps) {
                     }
                 />
                 <Route
-                    path=":feed"
+                    path="/feed/:username/:feed"
                     element={
                         polycentricState ? (
                             <Feed state={polycentricState} />
