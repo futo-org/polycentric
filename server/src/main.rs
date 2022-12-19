@@ -743,9 +743,12 @@ async fn serve_api(
     let request_event_ranges_route = ::warp::get()
         .and(::warp::path("request_event_ranges"))
         .and(::warp::path::end())
-        .and(::warp::query::<RequestEventRangesQuery>())
+        .and(::warp::query::<
+             crate::handlers::request_event_ranges
+                ::RequestEventRangesQuery
+        >())
         .and(state_filter.clone())
-        .and_then(request_event_ranges_handler)
+        .and_then(crate::handlers::request_event_ranges::handler)
         .with(cors.clone());
 
     let request_events_head_route = ::warp::post()
