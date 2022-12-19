@@ -865,49 +865,6 @@ async fn request_events_head_handler(
     ))
 }
 
-async fn request_recommend_profiles_handler(
-    state: ::std::sync::Arc<State>,
-) -> Result<impl ::warp::Reply, ::warp::Rejection> {
-    let mut result = crate::protocol::Events::new();
-
-    let mut transaction = state
-        .pool
-        .begin()
-        .await
-        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
-
-    let random_identities = crate::postgres::load_random_identities(
-        &mut transaction,
-    ).await.map_err(|e| RequestError::Anyhow(e))?;
-
-    for random_identity in &random_identities {
-        let potential_profile = crate::postgres::load_latest_profile(
-            &mut transaction,
-            &random_identity,
-        ).await.map_err(|e| RequestError::Anyhow(e))?;
-
-        if let Some(event) = potential_profile {
-            let event = crate::model::signed_event_to_protobuf_event(&event);
-            result.events.push(event);
-        }
-    }
-
-    transaction
-        .commit()
-        .await
-        .map_err(|e| RequestError::Anyhow(::anyhow::Error::new(e)))?;
-
-    let result_serialized = result
-        .write_to_bytes()
-        .map_err(|_| RequestError::SerializationFailed)?;
-
-    Ok(::warp::reply::with_status(
-        result_serialized,
-        ::warp::http::StatusCode::OK,
-    ))
-}
-
-
 async fn request_version_handler()
 -> Result<impl ::warp::Reply, ::warp::Rejection> {
     Ok(::warp::reply::json(&::serde_json::json!({
@@ -1051,7 +1008,7 @@ async fn serve_api(
         .and(::warp::path("recommended_profiles"))
         .and(::warp::path::end())
         .and(state_filter.clone())
-        .and_then(request_recommend_profiles_handler)
+        .and_then(crate::handlers::recommend_profiles::handler)
         .with(cors.clone());
 
     let request_version_route = ::warp::get()
