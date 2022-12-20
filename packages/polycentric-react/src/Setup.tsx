@@ -276,7 +276,7 @@ function SetupLanding(props: SetupLandingProps) {
     };
 
     const link =
-        'https://gitlab.futo.org/harpo/polycentric/-/blob/master/README.md';
+        'https://gitlab.futo.org/polycentric/polycentric/-/blob/master/README.md';
 
     return (
         <Paper

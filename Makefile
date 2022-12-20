@@ -107,10 +107,10 @@ build-production: proto
 build-server-image:
 	DOCKER_BUILDKIT=1 docker build \
 		-f server.dockerfile \
-		-t gitlab.futo.org:5050/harpo/polycentric .
+		-t gitlab.futo.org:5050/polycentric/polycentric .
 
 push-server-image:
-	docker push gitlab.futo.org:5050/harpo/polycentric
+	docker push gitlab.futo.org:5050/polycentric/polycentric
 
 clean:
 	rm -rf \

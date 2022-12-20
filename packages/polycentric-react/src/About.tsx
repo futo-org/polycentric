@@ -76,7 +76,7 @@ export function About(props: AboutProps) {
         return (
             <a
                 href={
-                    'https://gitlab.futo.org/harpo/polycentric/-/tree/' +
+                    'https://gitlab.futo.org/polycentric/polycentric/-/tree/' +
                     version
                 }
                 target="_blank"

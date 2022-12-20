@@ -1,6 +1,6 @@
 # An introduction to Polycentric
 
-Polycentric is an Open-source distributed social network. Checkout our GitLab [here](https://gitlab.futo.org/harpo/polycentric), or tryout the app [here](https://polycentric.io).
+Polycentric is an Open-source distributed social network. Checkout our GitLab [here](https://gitlab.futo.org/polycentric/polycentric), or tryout the app [here](https://polycentric.io).
 
 ## Project features and goals
 
