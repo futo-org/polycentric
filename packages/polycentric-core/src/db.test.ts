@@ -420,6 +420,25 @@ describe('levelStoreRanges', () => {
             ].map((x) => Protocol.StorageTypeRange.encode(x).finish()),
         );
     });
+
+    test('idempotent', async () => {
+        const state = await makeTestState();
+        const db = state.levelRanges;
+        await Ingest.levelUpdateRanges(db, makeTestPointer(1));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(2));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(3));
+        await Ingest.levelUpdateRanges(db, makeTestPointer(1));
+        expect(await db.values().all()).toStrictEqual(
+            [
+                {
+                    publicKey: publicKey,
+                    writerId: writerId,
+                    lowSequenceNumber: 1,
+                    highSequenceNumber: 3,
+                },
+            ].map((x) => Protocol.StorageTypeRange.encode(x).finish()),
+        );
+    });
 });
 
 describe('delete', () => {

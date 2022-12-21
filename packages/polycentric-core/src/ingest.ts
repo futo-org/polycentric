@@ -45,6 +45,11 @@ export async function levelUpdateRanges(
 ) {
     const key = Keys.pointerToKey(event);
 
+
+    if ((await DB.doesKeyExist(table, key)) === true) {
+        return;
+    }
+
     const possibleLowRange = (
         await table
             .values({

@@ -160,7 +160,6 @@ export class PolycentricState {
         persistenceDriver: PersistenceDriver.PersistenceDriver,
         client: string,
     ) {
-        console.log('creating state');
         this.sync = new Synchronization.SynchronizationState();
         this.identity = undefined;
         this.autoSync = true;
