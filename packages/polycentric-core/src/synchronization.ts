@@ -143,6 +143,10 @@ export async function saveBatch(
     state: DB.PolycentricState,
     events: Array<Protocol.Event>,
 ) {
+    events.sort((a, b) => {
+        return b.unixMilliseconds - a.unixMilliseconds;
+    });
+
     for (const event of events) {
         await Ingest.levelSaveEvent(state, event);
     }
