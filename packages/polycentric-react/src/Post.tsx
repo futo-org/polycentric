@@ -817,6 +817,10 @@ export function Post(props: PostProps) {
                                     marginTop: '10px',
                                     alignSelf: 'center',
                                     width: '100%',
+                                    pointerEvents: 'auto',
+                                }}
+                                onClick={(e) => {
+                                    e.stopPropagation();
                                 }}
                             />
                         )}
