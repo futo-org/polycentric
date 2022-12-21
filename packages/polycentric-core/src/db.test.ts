@@ -611,19 +611,19 @@ describe('levelMethods', () => {
         await Ingest.levelSaveEvent(state, await makeTestEvent(1));
 
         expect(await DB.makeSyncStatusString(state, publicKey)).toStrictEqual(
-            '1/1 ',
+            '1/1',
         );
 
         await Ingest.levelSaveEvent(state, await makeTestEvent(5));
 
         expect(await DB.makeSyncStatusString(state, publicKey)).toStrictEqual(
-            '2/5 ',
+            '2/5',
         );
 
         await Ingest.levelSaveEvent(state, await makeTestEvent(2));
 
         expect(await DB.makeSyncStatusString(state, publicKey)).toStrictEqual(
-            '3/5 ',
+            '3/5',
         );
     });
 });
