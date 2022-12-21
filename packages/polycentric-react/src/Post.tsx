@@ -32,6 +32,7 @@ import * as Feed from './Feed';
 import PostModal from './PostModal';
 import './Post.css';
 import * as ProfileUtil from './ProfileUtil';
+import { useImageViewerContext } from './ImageViewerContext';
 
 export type DisplayablePost = {
     pointer: Core.Protocol.Pointer;
@@ -448,7 +449,6 @@ function PostDebugModal(props: PostDebugModalProps) {
 export function Post(props: PostProps) {
     let navigate = useNavigate();
 
-    const [viewerLink, setViewerLink] = useState<string | undefined>(undefined);
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [boosting, setBoosting] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -458,6 +458,8 @@ export function Post(props: PostProps) {
     const [anchor, setAnchor] = useState<null | HTMLElement>(null);
 
     const [debugModalIsOpen, setDebugModalIsOpen] = useState(false);
+
+    const { setViewerLink } = useImageViewerContext();
 
     const handleBoost = async (e: React.MouseEvent<HTMLElement>) => {
         e.stopPropagation();
@@ -535,21 +537,6 @@ export function Post(props: PostProps) {
                 }}
                 pointer={props.post.pointer}
             />
-
-            {viewerLink && (
-                <ImageViewer
-                    src={[viewerLink]}
-                    currentIndex={0}
-                    closeOnClickOutside={true}
-                    onClose={() => {
-                        setViewerLink(undefined);
-                    }}
-                    backgroundStyle={{
-                        backgroundColor: 'rgba(0,0,0,0.5)',
-                        zIndex: 1300,
-                    }}
-                />
-            )}
 
             <div
                 onClick={(e) => {
@@ -656,7 +643,9 @@ export function Post(props: PostProps) {
                         src={props.post.profile.avatar}
                         onClick={(e) => {
                             e.stopPropagation();
-                            setViewerLink(props.post.profile.avatar);
+                            if (props.post.profile.avatar !== undefined) {
+                                setViewerLink(props.post.profile.avatar);
+                            }
                         }}
                         style={{
                             marginTop: '11px',
@@ -843,7 +832,9 @@ export function Post(props: PostProps) {
                                 }}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    setViewerLink(props.post.image);
+                                    if (props.post.image !== undefined) {
+                                        setViewerLink(props.post.image);
+                                    }
                                 }}
                             />
                         )}

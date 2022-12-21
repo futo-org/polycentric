@@ -22,11 +22,13 @@ import {
 } from '@mui/material';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import EditIcon from '@mui/icons-material/Edit';
+import ImageViewer from 'react-simple-image-viewer';
 
 import * as Core from 'polycentric-core';
 import PostModal from './PostModal';
 import * as ProfileUtil from './ProfileUtil';
 import './App.css';
+import { ImageViewerContext } from './ImageViewerContext';
 
 const theme = createTheme({
     palette: {
@@ -55,6 +57,7 @@ function App(props: AppProps) {
     const [modalIsOpen, setModalIsOpen] = useState(false);
     const [avatar, setAvatar] = useState<string | undefined>(undefined);
     const [anchor, setAnchor] = useState<null | HTMLElement>(null);
+    const [viewerLink, setViewerLink] = useState<string | undefined>(undefined);
 
     const location = useLocation();
     const navigate = useNavigate();
@@ -163,6 +166,22 @@ function App(props: AppProps) {
     return (
         <div>
             <ThemeProvider theme={theme}>
+            <ImageViewerContext.Provider value={{ setViewerLink }}>
+                {viewerLink && (
+                    <ImageViewer
+                        src={[viewerLink]}
+                        currentIndex={0}
+                        closeOnClickOutside={true}
+                        onClose={() => {
+                            setViewerLink(undefined);
+                        }}
+                        backgroundStyle={{
+                            backgroundColor: 'rgba(0,0,0,0.5)',
+                            zIndex: 1300,
+                        }}
+                    />
+                )}
+
                 {props.state && props.state.identity !== undefined && (
                     <AppBar position="sticky">
                         <Toolbar>
@@ -291,6 +310,7 @@ function App(props: AppProps) {
                         <EditIcon />
                     </Fab>
                 )}
+            </ImageViewerContext.Provider>
             </ThemeProvider>
         </div>
     );
