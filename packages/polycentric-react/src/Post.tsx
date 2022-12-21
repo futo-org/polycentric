@@ -346,13 +346,18 @@ function postToLink(post: DisplayablePost): string {
 
     const username = post.profile.displayName;
 
-    return "feed/" + username + '/' + Base64.encodeUrl(
-        Core.Protocol.URLInfo.encode({
-            publicKey: pointer.publicKey,
-            writerId: pointer.writerId,
-            sequenceNumber: pointer.sequenceNumber,
-            servers: post.profile.servers,
-        }).finish(),
+    return (
+        'feed/' +
+        username +
+        '/' +
+        Base64.encodeUrl(
+            Core.Protocol.URLInfo.encode({
+                publicKey: pointer.publicKey,
+                writerId: pointer.writerId,
+                sequenceNumber: pointer.sequenceNumber,
+                servers: post.profile.servers,
+            }).finish(),
+        )
     );
 }
 
@@ -647,7 +652,7 @@ export function Post(props: PostProps) {
                         alignItems: 'flex-start',
                     }}
                 >
-                   <Avatar
+                    <Avatar
                         src={props.post.profile.avatar}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -891,7 +896,9 @@ export function Post(props: PostProps) {
                             }}
                         >
                             Posted on: &nbsp;
-                            {new Date(props.post.unixMilliseconds).toLocaleString()}
+                            {new Date(
+                                props.post.unixMilliseconds,
+                            ).toLocaleString()}
                         </p>
 
                         {props.showBoost === true && (

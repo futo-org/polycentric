@@ -4,23 +4,31 @@ import * as Core from 'polycentric-core';
 
 function profileToLink(profile: Core.Protocol.StorageTypeProfile): string {
     const username = encodeURIComponent(
-        new TextDecoder().decode(profile.username)
+        new TextDecoder().decode(profile.username),
     );
 
-    return "feed/" + username + '/' + Base64.encodeUrl(
-        Core.Protocol.URLInfo.encode({
-            publicKey: profile.publicKey,
-            servers: profile.servers,
-        }).finish(),
+    return (
+        'feed/' +
+        username +
+        '/' +
+        Base64.encodeUrl(
+            Core.Protocol.URLInfo.encode({
+                publicKey: profile.publicKey,
+                servers: profile.servers,
+            }).finish(),
+        )
     );
 }
 
 export function profileToLinkOnlyKey(publicKey: Uint8Array): string {
-    return "feed/unknown/" + Base64.encodeUrl(
-        Core.Protocol.URLInfo.encode({
-            publicKey: publicKey,
-            servers: [],
-        }).finish(),
+    return (
+        'feed/unknown/' +
+        Base64.encodeUrl(
+            Core.Protocol.URLInfo.encode({
+                publicKey: publicKey,
+                servers: [],
+            }).finish(),
+        )
     );
 }
 
