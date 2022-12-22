@@ -12,9 +12,6 @@ mod version;
 
 #[derive(Debug)]
 enum RequestError {
-    ParsingFailed,
-    SerializationFailed,
-    DatabaseFailed,
     Anyhow(::anyhow::Error),
 }
 

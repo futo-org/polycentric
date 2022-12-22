@@ -36,7 +36,9 @@ pub(crate) async fn handler(
 
     let result_serialized = result
         .write_to_bytes()
-        .map_err(|_| crate::RequestError::SerializationFailed)?;
+        .map_err(|e| {
+            crate::RequestError::Anyhow(::anyhow::Error::new(e))
+        })?;
 
     Ok(::warp::reply::with_status(
         result_serialized,

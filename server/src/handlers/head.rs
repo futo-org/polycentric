@@ -27,7 +27,9 @@ pub(crate) async fn handler(
     let writer_heads_query_rows =
         crate::postgres::writer_heads_for_identity(&mut transaction, &identity)
             .await
-            .map_err(|_| crate::RequestError::DatabaseFailed)?;
+            .map_err(|e| {
+                crate::RequestError::Anyhow(::anyhow::Error::new(e))
+            })?;
 
     for row in &writer_heads_query_rows {
         let mut client_head = 0;
@@ -75,7 +77,9 @@ pub(crate) async fn handler(
 
     let result_serialized = result
         .write_to_bytes()
-        .map_err(|_| crate::RequestError::SerializationFailed)?;
+        .map_err(|e| {
+            crate::RequestError::Anyhow(::anyhow::Error::new(e))
+        })?;
 
     Ok(::warp::reply::with_status(
         result_serialized,

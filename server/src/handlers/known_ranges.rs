@@ -32,7 +32,9 @@ pub(crate) async fn handler(
         &writer,
     )
     .await
-    .map_err(|_| crate::RequestError::DatabaseFailed)?;
+    .map_err(|e| {
+        crate::RequestError::Anyhow(::anyhow::Error::new(e))
+    })?;
 
     transaction
         .commit()
@@ -48,7 +50,9 @@ pub(crate) async fn handler(
 
     let result_serialized = known_ranges
         .write_to_bytes()
-        .map_err(|_| crate::RequestError::SerializationFailed)?;
+        .map_err(|e| {
+            crate::RequestError::Anyhow(::anyhow::Error::new(e))
+        })?;
 
     Ok(::warp::reply::with_status(
         result_serialized,

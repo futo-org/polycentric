@@ -29,7 +29,9 @@ pub (crate) async fn handler(
         }))
         .send()
         .await
-        .map_err(|_| crate::RequestError::DatabaseFailed)?;
+        .map_err(|e| {
+            crate::RequestError::Anyhow(::anyhow::Error::new(e))
+        })?;
 
     let response_body = response
         .json::<crate::OpenSearchSearchL0>()

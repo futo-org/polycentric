@@ -40,7 +40,9 @@ pub(crate) async fn handler(
     let writers_for_feed_rows =
         crate::postgres::writer_heads_for_identity(&mut transaction, &identity)
             .await
-            .map_err(|_| crate::RequestError::DatabaseFailed)?;
+            .map_err(|e| {
+                crate::RequestError::Anyhow(::anyhow::Error::new(e))
+            })?;
 
     let mut result = crate::protocol::ResponseKnownRangesForFeed::default();
 
@@ -59,7 +61,9 @@ pub(crate) async fn handler(
             &writer,
         )
         .await
-        .map_err(|_| crate::RequestError::DatabaseFailed)?;
+        .map_err(|e| {
+            crate::RequestError::Anyhow(::anyhow::Error::new(e))
+        })?;
 
         for ranges_for_writer_row in ranges_for_writer_rows {
             let mut range = crate::protocol::Range::new();
