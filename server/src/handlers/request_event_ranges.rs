@@ -1,4 +1,4 @@
-use protobuf::Message;
+use ::protobuf::Message;
 
 fn decode_query_request_event_ranges<'de, D>(
     deserializer: D,

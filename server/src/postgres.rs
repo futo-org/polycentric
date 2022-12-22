@@ -1,5 +1,5 @@
-use protobuf::Message;
-use std::convert::TryFrom;
+use ::protobuf::Message;
+use ::std::convert::TryFrom;
 
 pub mod store_item {
     #[derive(PartialEq, Debug)]
@@ -497,7 +497,7 @@ pub async fn load_random_identities(
 
 #[cfg(test)]
 pub mod tests {
-    use protobuf::Message;
+    use ::protobuf::Message;
 
     #[::sqlx::test]
     async fn test_prepare_database(pool: ::sqlx::PgPool) -> ::sqlx::Result<()> {

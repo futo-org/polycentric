@@ -1,4 +1,4 @@
-use protobuf::Message;
+use ::protobuf::Message;
 
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,

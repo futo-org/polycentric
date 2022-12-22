@@ -1,4 +1,4 @@
-use anyhow::Context;
+use ::anyhow::Context;
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct WriterId(pub [u8; 32]);
@@ -124,8 +124,8 @@ pub mod event {
 }
 
 pub mod signed_event {
-    use ed25519_dalek::Signer;
-    use ed25519_dalek::Verifier;
+    use ::ed25519_dalek::Signer;
+    use ::ed25519_dalek::Verifier;
 
     #[derive(PartialEq, Clone, Debug)]
     pub struct SignedEvent {

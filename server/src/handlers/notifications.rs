@@ -1,6 +1,6 @@
-use protobuf::Message;
+use ::protobuf::Message;
 
-#[derive(sqlx::FromRow)]
+#[derive(::sqlx::FromRow)]
 struct NotificationRow {
     notification_id: i64,
     for_author_public_key: ::std::vec::Vec<u8>,
