@@ -303,8 +303,6 @@ async fn serve_api(
         search: opensearch_client,
     });
 
-    let report = ::http::Method::from_bytes(b"REPORT").unwrap();
-
     let cors = ::warp::cors()
         .allow_any_origin()
         .max_age(::std::time::Duration::from_secs(60 * 5))
@@ -312,7 +310,6 @@ async fn serve_api(
         .allow_methods(&[
             ::warp::http::Method::POST,
             ::warp::http::Method::GET,
-            report,
         ]);
 
     let state_filter = ::warp::any().map(move || state.clone());
