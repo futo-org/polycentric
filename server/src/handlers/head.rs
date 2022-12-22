@@ -51,7 +51,11 @@ pub(crate) async fn handler(
                 &identity,
                 &writer,
                 client_head,
-                row.largest_sequence_number.try_into().unwrap(),
+                row.largest_sequence_number
+                    .try_into()
+                    .map_err(|e|
+                        crate::RequestError::Anyhow(::anyhow::Error::new(e))
+                    )?,
             )
             .await
             .map_err(|e| crate::RequestError::Anyhow(e))?;
@@ -77,9 +81,7 @@ pub(crate) async fn handler(
 
     let result_serialized = result
         .write_to_bytes()
-        .map_err(|e| {
-            crate::RequestError::Anyhow(::anyhow::Error::new(e))
-        })?;
+        .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     Ok(::warp::reply::with_status(
         result_serialized,

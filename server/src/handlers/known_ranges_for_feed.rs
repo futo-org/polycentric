@@ -61,9 +61,7 @@ pub(crate) async fn handler(
             &writer,
         )
         .await
-        .map_err(|e| {
-            crate::RequestError::Anyhow(::anyhow::Error::new(e))
-        })?;
+        .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
         for ranges_for_writer_row in ranges_for_writer_rows {
             let mut range = crate::protocol::Range::new();

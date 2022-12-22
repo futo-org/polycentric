@@ -1,6 +1,6 @@
+use ::log::*;
 use ::protobuf::Message;
 use ::serde_json::json;
-use ::log::*;
 
 async fn persist_event_search(
     state: ::std::sync::Arc<crate::State>,
@@ -40,11 +40,9 @@ async fn persist_event_search(
                 crate::RequestError::Anyhow(::anyhow::Error::new(e))
             })?;
 
-        let err = response.exception()
-            .await
-            .map_err(|e| {
-                crate::RequestError::Anyhow(::anyhow::Error::new(e))
-            })?;
+        let err = response.exception().await.map_err(|e| {
+            crate::RequestError::Anyhow(::anyhow::Error::new(e))
+        })?;
 
         if let Some(body) = err {
             warn!("body {:?}", body);
@@ -74,10 +72,10 @@ async fn persist_event_search(
         if let Some(description) = &event_body.profile().profile_description {
             body.profile_description = Some(
                 ::std::str::from_utf8(description)
-                .map_err(|e| {
-                    crate::RequestError::Anyhow(::anyhow::Error::new(e))
-                })?
-                .to_string()
+                    .map_err(|e| {
+                        crate::RequestError::Anyhow(::anyhow::Error::new(e))
+                    })?
+                    .to_string(),
             );
         }
 
@@ -109,11 +107,9 @@ async fn persist_event_search(
                 crate::RequestError::Anyhow(::anyhow::Error::new(e))
             })?;
 
-        let err = response.exception()
-            .await
-            .map_err(|e| {
-                crate::RequestError::Anyhow(::anyhow::Error::new(e))
-            })?;
+        let err = response.exception().await.map_err(|e| {
+            crate::RequestError::Anyhow(::anyhow::Error::new(e))
+        })?;
 
         if let Some(body) = err {
             warn!("body {:?}", body);
@@ -159,9 +155,7 @@ async fn persist_event_notification(
         .bind(&pointer.public_key)
         .fetch_optional(&mut *transaction)
         .await
-        .map_err(|e| {
-            crate::RequestError::Anyhow(::anyhow::Error::new(e))
-        })?;
+        .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
         let next_id = match potential_row {
             Some(row) => row.notification_id + 1,
@@ -186,18 +180,17 @@ async fn persist_event_notification(
     Ok(())
 }
 
-pub (crate) async fn handler(
+pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     bytes: ::bytes::Bytes,
 ) -> Result<impl ::warp::Reply, ::warp::Rejection> {
     let events = crate::protocol::Events::parse_from_tokio_bytes(&bytes)
         .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
-    let mut transaction = state
-        .pool
-        .begin()
-        .await
-        .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
+    let mut transaction =
+        state.pool.begin().await.map_err(|e| {
+            crate::RequestError::Anyhow(::anyhow::Error::new(e))
+        })?;
 
     for event in &events.events {
         if !crate::crypto::validate_signature(event) {
@@ -207,9 +200,9 @@ pub (crate) async fn handler(
 
         let event_body =
             crate::protocol::EventBody::parse_from_bytes(&event.content)
-                .map_err(|e| 
+                .map_err(|e| {
                     crate::RequestError::Anyhow(::anyhow::Error::new(e))
-                )?;
+                })?;
 
         let validated_event =
             crate::model::protobuf_event_to_signed_event(event)
@@ -232,5 +225,3 @@ pub (crate) async fn handler(
 
     Ok(::warp::reply::with_status("", ::warp::http::StatusCode::OK))
 }
-
-
