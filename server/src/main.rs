@@ -449,7 +449,9 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
     let server_api = serve_api(&config);
     let server_static = serve_static(&config);
 
-    ::futures::future::join(server_api, server_static).await;
+    let (r1, r2) = ::futures::future::join(server_api, server_static).await;
+    r1?;
+    r2?;
 
     Ok(())
 }

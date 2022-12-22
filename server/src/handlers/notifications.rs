@@ -1,5 +1,6 @@
 use ::protobuf::Message;
 
+#[allow(dead_code)]
 #[derive(::sqlx::FromRow)]
 struct NotificationRow {
     notification_id: i64,
