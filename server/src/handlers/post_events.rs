@@ -24,7 +24,9 @@ async fn persist_event_search(
 
         body.message = Some(
             ::std::str::from_utf8(&event_body.message().message)
-                .unwrap()
+                .map_err(|e| {
+                    crate::RequestError::Anyhow(::anyhow::Error::new(e))
+                })?
                 .to_string(),
         );
 
@@ -34,9 +36,15 @@ async fn persist_event_search(
             .body(body)
             .send()
             .await
-            .map_err(|_| crate::RequestError::DatabaseFailed)?;
+            .map_err(|e| {
+                crate::RequestError::Anyhow(::anyhow::Error::new(e))
+            })?;
 
-        let err = response.exception().await.unwrap();
+        let err = response.exception()
+            .await
+            .map_err(|e| {
+                crate::RequestError::Anyhow(::anyhow::Error::new(e))
+            })?;
 
         if let Some(body) = err {
             warn!("body {:?}", body);
@@ -58,12 +66,19 @@ async fn persist_event_search(
 
         body.profile_name =
             ::std::str::from_utf8(&event_body.profile().profile_name)
-                .unwrap()
+                .map_err(|e| {
+                    crate::RequestError::Anyhow(::anyhow::Error::new(e))
+                })?
                 .to_string();
 
         if let Some(description) = &event_body.profile().profile_description {
-            body.profile_description =
-                Some(::std::str::from_utf8(description).unwrap().to_string());
+            body.profile_description = Some(
+                ::std::str::from_utf8(description)
+                .map_err(|e| {
+                    crate::RequestError::Anyhow(::anyhow::Error::new(e))
+                })?
+                .to_string()
+            );
         }
 
         let script = r#"
@@ -90,9 +105,15 @@ async fn persist_event_search(
             }))
             .send()
             .await
-            .map_err(|_| crate::RequestError::DatabaseFailed)?;
+            .map_err(|e| {
+                crate::RequestError::Anyhow(::anyhow::Error::new(e))
+            })?;
 
-        let err = response.exception().await.unwrap();
+        let err = response.exception()
+            .await
+            .map_err(|e| {
+                crate::RequestError::Anyhow(::anyhow::Error::new(e))
+            })?;
 
         if let Some(body) = err {
             warn!("body {:?}", body);
@@ -138,9 +159,8 @@ async fn persist_event_notification(
         .bind(&pointer.public_key)
         .fetch_optional(&mut *transaction)
         .await
-        .map_err(|err| {
-            error!("latest notification id {}", err);
-            crate::RequestError::DatabaseFailed
+        .map_err(|e| {
+            crate::RequestError::Anyhow(::anyhow::Error::new(e))
         })?;
 
         let next_id = match potential_row {
@@ -157,7 +177,9 @@ async fn persist_event_notification(
                 .bind(event.sequence_number as i64)
                 .execute(&mut *transaction)
                 .await
-                .map_err(|_| crate::RequestError::DatabaseFailed)?;
+                .map_err(|e| {
+                    crate::RequestError::Anyhow(::anyhow::Error::new(e))
+                })?;
         }
     }
 
