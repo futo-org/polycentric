@@ -1,0 +1,15 @@
+input: .
+output: .retype
+url: https://docs.polycentric.io
+favicon: static/favicon.ico
+branding:
+  title: Polycentric
+  label: Docs
+  logo: static/logo.png
+links:
+- text: Gitlab
+  link: https://gitlab.futo.org/polycentric/polycentric/
+footer:
+  copyright: "&copy; Copyright {{ year }}. All rights reserved."
+server:
+  host: 0.0.0.0:8083

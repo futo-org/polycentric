@@ -39,8 +39,10 @@ services:
             - /tmp:exec
         ports:
             - "127.0.0.1:3000:3000"
+            # retype port
+            - "127.0.0.1:8083:8083"
+            # wrangler port
+            - "127.0.0.1:8976:8976"
             - "127.0.0.1:8081:8081"
             - "127.0.0.1:8082:8082"
-        cap_add:
-            - SYS_ADMIN
         command: tail -F wait_forever

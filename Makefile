@@ -128,3 +128,9 @@ clean:
 		packages/polycentric-desktop/dist \
 		packages/polycentric-leveldb/dist \
 		server/target
+
+build-doc-site:
+	cd doc && retype build
+
+deploy-doc-site:
+	wrangler pages publish ./doc/.retype/ --branch=master
