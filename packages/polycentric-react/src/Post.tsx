@@ -773,6 +773,38 @@ export function Post(props: PostProps) {
                             </Menu>
                         </div>
 
+                        {props.post.boost !== undefined && props.depth >= 1 && (
+                            <p
+                                onClick={handleNavigate}
+                                className="underline_on_hover"
+                                style={{
+                                    alignSelf: 'flex-start',
+                                    whiteSpace: 'pre-wrap',
+                                    marginTop: '7px',
+                                    marginBottom: '5px',
+                                    fontSize: '9px',
+                                    lineHeight: '9px',
+                                    overflowWrap: 'anywhere',
+                                    pointerEvents: 'auto',
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        color: 'gray',
+                                    }}
+                                >
+                                    Reacting to:{' '}
+                                </span>
+                                <span
+                                    style={{
+                                        fontWeight: 'bold',
+                                    }}
+                                >
+                                    {props.post.boost.profile.displayName}
+                                </span>
+                            </p>
+                        )}
+
                         {props.post.message !== '' && (
                             <p
                                 style={{
@@ -853,24 +885,6 @@ export function Post(props: PostProps) {
                                     depth={props.depth + 1}
                                 />
                             </div>
-                        )}
-
-                        {props.post.boost !== undefined && props.depth >= 1 && (
-                            <Paper
-                                elevation={4}
-                                style={{
-                                    marginTop: '5px',
-                                    textAlign: 'center',
-                                    pointerEvents: 'auto',
-                                }}
-                            >
-                                <h4
-                                    onClick={handleNavigate}
-                                    className="underline_on_hover"
-                                >
-                                    Too many nested posts. Click to expand...
-                                </h4>
-                            </Paper>
                         )}
 
                         <p
