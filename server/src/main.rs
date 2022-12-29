@@ -26,6 +26,7 @@ impl ::warp::reject::Reject for RequestError {}
 struct State {
     pool: ::sqlx::PgPool,
     search: ::opensearch::OpenSearch,
+    admin_token: String,
 }
 
 async fn handle_rejection(
@@ -271,6 +272,11 @@ struct Config {
         default = "http://opensearch-node1:9200"
     )]
     pub opensearch_string: String,
+
+    #[envconfig(
+        from = "ADMIN_TOKEN",
+    )]
+    pub admin_token: String,
 }
 
 async fn serve_api(
@@ -301,6 +307,7 @@ async fn serve_api(
     let state = ::std::sync::Arc::new(State {
         pool,
         search: opensearch_client,
+        admin_token: config.admin_token.clone(),
     });
 
     let cors = ::warp::cors()
@@ -393,7 +400,17 @@ async fn serve_api(
     let request_version_route = ::warp::get()
         .and(::warp::path("version"))
         .and(::warp::path::end())
-        .and_then(crate::handlers::version::handler)
+        .then(crate::handlers::version::handler)
+        .with(cors.clone());
+
+    let censor_route = ::warp::post()
+        .and(::warp::path("censor"))
+        .and(::warp::path::end())
+        .and(state_filter.clone())
+        .and(::warp::header::<String>("authorization"))
+        .and(::warp::query::<crate::handlers::censor::Query>())
+        .and(::warp::body::bytes())
+        .and_then(crate::handlers::censor::handler)
         .with(cors.clone());
 
     let routes = post_events_route
@@ -406,6 +423,7 @@ async fn serve_api(
         .or(request_notifications_route)
         .or(request_recommend_profiles_route)
         .or(request_version_route)
+        .or(censor_route)
         .recover(handle_rejection);
 
     info!("API server listening on {}", config.http_port_api);

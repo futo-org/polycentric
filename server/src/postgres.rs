@@ -50,6 +50,16 @@ pub(crate) fn signed_event_to_store_item(
     )
 }
 
+#[derive(::sqlx::Type)]
+#[sqlx(type_name = "censorship_type")]
+#[sqlx(rename_all = "snake_case")]
+#[derive(::serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum CensorshipType {
+    DoNotRecommend,
+    RefuseStorage,
+}
+
 pub(crate) async fn prepare_database(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
 ) -> ::sqlx::Result<()> {
@@ -71,6 +81,21 @@ pub(crate) async fn prepare_database(
 
     ::sqlx::query(
         "
+        DO $$ BEGIN
+            CREATE TYPE censorship_type AS ENUM (
+                'do_not_recommend',
+                'refuse_storage'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
         CREATE TABLE IF NOT EXISTS events (
             author_public_key BYTEA NOT NULL,
             writer_id         BYTEA NOT NULL,
@@ -81,6 +106,36 @@ pub(crate) async fn prepare_database(
             clocks            TEXT  NOT NULL,
             event_type        INT8  NOT NULL,
             mutation_pointer  pointer
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        CREATE TABLE IF NOT EXISTS censored_posts (
+            author_public_key BYTEA           NOT NULL,
+            writer_id         BYTEA           NOT NULL,
+            sequence_number   INT8            NOT NULL,
+            censorship_type   censorship_type NOT NULL,
+
+            CHECK (sequence_number >= 0),
+
+            UNIQUE (author_public_key, writer_id, sequence_number)
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        CREATE TABLE IF NOT EXISTS censored_identities (
+            author_public_key BYTEA           NOT NULL,
+            censorship_type   censorship_type NOT NULL,
+
+            UNIQUE (author_public_key)
         );
     ",
     )
@@ -398,6 +453,18 @@ pub async fn load_events_before_time(
         SELECT *
         FROM events
         WHERE event_type = 1
+        AND (author_public_key, writer_id, sequence_number) NOT IN (
+            SELECT
+                author_public_key, writer_id, sequence_number
+            FROM
+                censored_posts
+        )
+        AND (author_public_key) NOT IN (
+            SELECT
+                author_public_key
+            FROM
+                censored_identities
+        )
         ORDER BY unix_milliseconds DESC
         LIMIT 20
     ";
@@ -407,6 +474,18 @@ pub async fn load_events_before_time(
         FROM events
         WHERE event_type = 1
         AND unix_milliseconds < $1
+        AND (author_public_key, writer_id, sequence_number) NOT IN (
+            SELECT
+                author_public_key, writer_id, sequence_number
+            FROM
+                censored_posts
+        )
+        AND (author_public_key) NOT IN (
+            SELECT
+                author_public_key
+            FROM
+                censored_identities
+        )
         ORDER BY unix_milliseconds DESC
         LIMIT 20
     ";
@@ -474,6 +553,12 @@ pub async fn load_random_identities(
         SELECT * FROM (
             SELECT author_public_key 
             FROM events
+            WHERE (author_public_key) NOT IN (
+                SELECT
+                    author_public_key
+                FROM
+                    censored_identities
+            )
             GROUP BY author_public_key
             HAVING COUNT(*) > 1
         ) t
@@ -493,6 +578,56 @@ pub async fn load_random_identities(
     }).collect::<
         ::anyhow::Result<::std::vec::Vec<::ed25519_dalek::PublicKey>>
     >()
+}
+
+pub (crate) async fn censor_post(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    pointer: &crate::model::pointer::Pointer,
+    censorship_type: CensorshipType,
+) -> ::anyhow::Result<()> {
+    let query = "
+        INSERT INTO censored_posts
+        (
+            author_public_key,
+            writer_id,
+            sequence_number,
+            censorship_type
+        )
+        VALUES ($1, $2, $3, $4);
+    ";
+
+    ::sqlx::query(query)
+        .bind(&pointer.identity().to_bytes())
+        .bind(&pointer.writer().0)
+        .bind(i64::try_from(pointer.sequence_number())?)
+        .bind(censorship_type)
+        .execute(&mut *transaction)
+        .await?;
+
+    Ok(())
+}
+
+pub (crate) async fn censor_identity(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    identity: &::ed25519_dalek::PublicKey,
+    censorship_type: CensorshipType,
+) -> ::anyhow::Result<()> {
+    let query = "
+        INSERT INTO censored_identities
+        (
+            author_public_key,
+            censorship_type
+        )
+        VALUES ($1, $2);
+    ";
+
+    ::sqlx::query(query)
+        .bind(&identity.to_bytes())
+        .bind(censorship_type)
+        .execute(&mut *transaction)
+        .await?;
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -938,6 +1073,92 @@ pub mod tests {
 
         assert!(loaded_delete == expected_delete);
         assert!(loaded_deleted == expected_deleted);
+
+        Ok(())
+    }
+
+    #[::sqlx::test]
+    async fn censor_post(
+        pool: ::sqlx::PgPool,
+    ) -> ::anyhow::Result<()> {
+        let mut transaction = pool.begin().await?;
+        crate::postgres::prepare_database(&mut transaction).await?;
+
+        let identity_keypair = crate::crypto::tests::make_test_keypair();
+        let writer_id = generate_writer_id();
+
+        let pointer = crate::model::pointer::Pointer::new(
+            identity_keypair.public,
+            writer_id,
+            52,
+        );
+
+        crate::postgres::censor_post(
+            &mut transaction,
+            &pointer,
+            crate::postgres::CensorshipType::DoNotRecommend,
+        ).await?;
+
+        transaction.commit().await?;
+
+        Ok(())
+    }
+
+    #[::sqlx::test]
+    async fn censor_identity(
+        pool: ::sqlx::PgPool,
+    ) -> ::anyhow::Result<()> {
+        let mut transaction = pool.begin().await?;
+        crate::postgres::prepare_database(&mut transaction).await?;
+
+        let identity = crate::crypto::tests::make_test_keypair();
+
+        crate::postgres::censor_identity(
+            &mut transaction,
+            &identity.public,
+            crate::postgres::CensorshipType::RefuseStorage,
+        ).await?;
+
+        transaction.commit().await?;
+
+        Ok(())
+    }
+
+    #[::sqlx::test]
+    async fn load_events_before_time(
+        pool: ::sqlx::PgPool,
+    ) -> ::anyhow::Result<()> {
+        let mut transaction = pool.begin().await?;
+        crate::postgres::prepare_database(&mut transaction).await?;
+
+        crate::postgres::load_events_before_time(
+            &mut transaction,
+            None,
+        ).await?;
+
+        crate::postgres::load_events_before_time(
+            &mut transaction,
+            Some(52),
+        ).await?;
+
+        transaction.commit().await?;
+
+        Ok(())
+    }
+
+
+    #[::sqlx::test]
+    async fn load_random_identities(
+        pool: ::sqlx::PgPool,
+    ) -> ::anyhow::Result<()> {
+        let mut transaction = pool.begin().await?;
+        crate::postgres::prepare_database(&mut transaction).await?;
+
+        crate::postgres::load_random_identities(
+            &mut transaction,
+        ).await?;
+
+        transaction.commit().await?;
 
         Ok(())
     }

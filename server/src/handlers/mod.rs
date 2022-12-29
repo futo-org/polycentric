@@ -8,3 +8,4 @@ pub(crate) mod recommend_profiles;
 pub(crate) mod request_event_ranges;
 pub(crate) mod search;
 pub(crate) mod version;
+pub(crate) mod censor;
