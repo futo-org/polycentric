@@ -137,10 +137,17 @@ export function FeedForThread(props: FeedForThreadProps) {
         });
 
         for (const address of addresses) {
-            const replies = await Core.APIMethods.loadReplies(
-                address,
-                pointer,
-            );
+            let replies;
+            try {
+                replies = await Core.APIMethods.loadReplies(
+                    address,
+                    pointer,
+                );
+            } catch (err) {
+                console.log("failed to load replies from: " + address);
+
+                continue;
+            }
 
             await Core.Synchronization.saveBatch(
                 props.state,
