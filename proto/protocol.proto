@@ -178,3 +178,10 @@ message StorageTypeEvent {
     optional Event event = 1;
     optional Pointer mutation_pointer = 2;
 }
+
+message ResultEventsAndRelatedEventsAndCursor {
+    repeated Event result_events = 1;
+    repeated Event related_events = 2;
+    uint64 cursor = 3;
+}
+

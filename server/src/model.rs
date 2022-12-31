@@ -228,6 +228,22 @@ pub(crate) fn protobuf_event_to_signed_event(
     signed_event::SignedEvent::new(event, signature)
 }
 
+pub(crate) fn protobuf_pointer_to_pointer(
+    protobuf_pointer: &crate::protocol::Pointer,
+) -> ::anyhow::Result<pointer::Pointer> {
+    let identity = ::ed25519_dalek::PublicKey::from_bytes(
+        &protobuf_pointer.public_key,
+    )?;
+
+    let writer = vec_to_writer_id(&protobuf_pointer.writer_id)?;
+
+    Ok(pointer::Pointer::new(
+        identity,
+        writer,
+        protobuf_pointer.sequence_number,
+    ))
+}
+
 pub(crate) fn signed_event_to_protobuf_event(
     signed_event: &signed_event::SignedEvent,
 ) -> crate::protocol::Event {

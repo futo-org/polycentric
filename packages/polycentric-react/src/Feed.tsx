@@ -13,6 +13,7 @@ import * as Post from './Post';
 import ProfileCard from './ProfileCard';
 import RecommendedProfiles from './RecommendedProfiles';
 import * as ProfileUtil from './ProfileUtil';
+import * as FeedForThread from './FeedForThread';
 
 import './Standard.css';
 
@@ -43,7 +44,7 @@ export function parseKeyByAuthorByTime(buffer: Uint8Array): KeyByAuthorByTime {
     return result;
 }
 
-function eventGetKey(event: Core.Protocol.Event): string {
+export function eventGetKey(event: Core.Protocol.Event): string {
     return Base64.encode(
         Core.Keys.pointerToKey({
             publicKey: event.authorPublicKey,
@@ -728,140 +729,6 @@ function FeedForProfile(props: FeedForProfileProps) {
     );
 }
 
-type FeedForThreadProps = {
-    state: Core.DB.PolycentricState;
-    feed: Core.Protocol.URLInfo;
-};
-
-type ExploreItem2 = {
-    pointer: Core.Protocol.Pointer;
-    initialPost: Post.DisplayablePost | undefined;
-    dependencyContext: Core.DB.DependencyContext;
-    key: string;
-};
-
-function FeedForThread(props: FeedForThreadProps) {
-    const [exploreResults, setExploreResults] = useState<Array<ExploreItem2>>(
-        [],
-    );
-
-    const loadPost = async (
-        cancelContext: Core.CancelContext.CancelContext,
-    ): Promise<void> => {
-        const profiles = new Map<string, ProfileUtil.DisplayableProfile>();
-
-        const dependencyContext = new Core.DB.DependencyContext(props.state);
-
-        const pointer = {
-            publicKey: props.feed.publicKey,
-            writerId: props.feed.writerId!,
-            sequenceNumber: props.feed.sequenceNumber!,
-        };
-
-        dependencyContext.addDependency(pointer);
-
-        const post = await Core.DB.tryLoadStorageEventByPointer(
-            props.state,
-            pointer,
-        );
-
-        if (post !== undefined && post.event === undefined) {
-            return undefined;
-        }
-
-        if (cancelContext.cancelled()) {
-            dependencyContext.cleanup();
-            return;
-        }
-
-        if (post !== undefined && post.event !== undefined) {
-            const displayable = await Post.eventToDisplayablePost(
-                props.state,
-                profiles,
-                post,
-                dependencyContext,
-            );
-
-            if (cancelContext.cancelled()) {
-                dependencyContext.cleanup();
-                return;
-            }
-
-            if (displayable !== undefined) {
-                const item = {
-                    pointer: pointer,
-                    initialPost: displayable,
-                    dependencyContext: dependencyContext,
-                    key: eventGetKey(post.event),
-                };
-
-                if (cancelContext.cancelled()) {
-                    dependencyContext.cleanup();
-                    return;
-                }
-
-                setExploreResults([item]);
-
-                return;
-            }
-        }
-
-        console.log('fallback');
-
-        const item = {
-            pointer: pointer,
-            initialPost: undefined,
-            dependencyContext: dependencyContext,
-            key: Base64.encode(
-                Core.Keys.pointerToKey({
-                    publicKey: props.feed.publicKey,
-                    writerId: props.feed.writerId!,
-                    sequenceNumber: props.feed.sequenceNumber!,
-                }),
-            ),
-        };
-
-        if (cancelContext.cancelled()) {
-            dependencyContext.cleanup();
-            return;
-        }
-
-        setExploreResults([item]);
-    };
-
-    useEffect(() => {
-        const cancelContext = new Core.CancelContext.CancelContext();
-
-        setExploreResults([]);
-
-        loadPost(cancelContext);
-
-        return () => {
-            cancelContext.cancel();
-
-            for (const item of exploreResults) {
-                item.dependencyContext.cleanup();
-            }
-        };
-    }, [props.feed]);
-
-    return (
-        <div>
-            {exploreResults.map((item, index) => (
-                <Post.PostLoaderMemo
-                    key={item.key}
-                    state={props.state}
-                    pointer={item.pointer}
-                    initialPost={item.initialPost}
-                    dependencyContext={item.dependencyContext}
-                    showBoost={true}
-                    depth={0}
-                />
-            ))}
-        </div>
-    );
-}
-
 type FeedProps = {
     state: Core.DB.PolycentricState;
 };
@@ -924,7 +791,10 @@ export function Feed(props: FeedProps) {
 
             {decodedFeed !== undefined &&
                 decodedFeed.writerId !== undefined && (
-                    <FeedForThread state={props.state} feed={decodedFeed} />
+                    <FeedForThread.FeedForThread
+                        state={props.state}
+                        feed={decodedFeed} 
+                    />
                 )}
         </div>
     );

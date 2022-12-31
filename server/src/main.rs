@@ -413,6 +413,14 @@ async fn serve_api(
         .and_then(crate::handlers::censor::handler)
         .with(cors.clone());
 
+    let replies_route = ::warp::get()
+        .and(::warp::path("replies"))
+        .and(::warp::path::end())
+        .and(state_filter.clone())
+        .and(::warp::query::<crate::handlers::replies::Query>())
+        .and_then(crate::handlers::replies::handler)
+        .with(cors.clone());
+
     let routes = post_events_route
         .or(known_ranges_for_feed_route)
         .or(request_event_ranges_route)
@@ -424,6 +432,7 @@ async fn serve_api(
         .or(request_recommend_profiles_route)
         .or(request_version_route)
         .or(censor_route)
+        .or(replies_route)
         .recover(handle_rejection);
 
     info!("API server listening on {}", config.http_port_api);

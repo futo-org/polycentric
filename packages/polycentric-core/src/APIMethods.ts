@@ -129,3 +129,21 @@ export async function fetchPostNotifications(
     const rawBody = new Uint8Array(await response.arrayBuffer());
     return Protocol.ResponseNotifications.decode(rawBody);
 }
+
+export async function loadReplies(
+    address: string,
+    pointer: Protocol.Pointer,
+): Promise<Protocol.ResultEventsAndRelatedEventsAndCursor> {
+    const path = '/replies' +
+        `?identity=${Base64.encodeUrl(pointer.publicKey)}` +
+        `&writer_id=${Base64.encodeUrl(pointer.writerId)}` +
+        `&sequence_number=${pointer.sequenceNumber.toString()}`;
+
+    const response = await fetch(address + path, {
+        method: 'GET',
+        headers: new Headers({ 'content-type': 'application/octet-stream' }),
+    });
+    const rawBody = new Uint8Array(await response.arrayBuffer());
+    return Protocol.ResultEventsAndRelatedEventsAndCursor.decode(rawBody);
+}
+

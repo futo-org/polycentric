@@ -60,6 +60,14 @@ pub(crate) enum CensorshipType {
     RefuseStorage,
 }
 
+#[derive(::sqlx::Type)]
+#[sqlx(type_name = "link_type")]
+#[sqlx(rename_all = "snake_case")]
+pub(crate) enum LinkType {
+    React,
+    Boost,
+}
+
 pub(crate) async fn prepare_database(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
 ) -> ::sqlx::Result<()> {
@@ -85,6 +93,21 @@ pub(crate) async fn prepare_database(
             CREATE TYPE censorship_type AS ENUM (
                 'do_not_recommend',
                 'refuse_storage'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        DO $$ BEGIN
+            CREATE TYPE link_type AS ENUM (
+                'react',
+                'boost'
             );
         EXCEPTION
             WHEN duplicate_object THEN null;
@@ -136,6 +159,39 @@ pub(crate) async fn prepare_database(
             censorship_type   censorship_type NOT NULL,
 
             UNIQUE (author_public_key)
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        CREATE TABLE IF NOT EXISTS event_links (
+            id BIGSERIAL PRIMARY KEY,
+
+            link_type link_type NOT NULL,
+
+            from_author_public_key BYTEA NOT NULL,
+            from_writer_id         BYTEA NOT NULL,
+            from_sequence_number   INT8  NOT NULL,
+
+            to_author_public_key BYTEA NOT NULL,
+            to_writer_id         BYTEA NOT NULL,
+            to_sequence_number   INT8  NOT NULL,
+
+            CHECK (LENGTH(from_author_public_key) = 32),
+            CHECK (LENGTH(from_writer_id) = 32),
+            CHECK (from_sequence_number >= 0),
+            CHECK (LENGTH(to_author_public_key) = 32),
+            CHECK (LENGTH(to_writer_id) = 32),
+            CHECK (to_sequence_number >= 0),
+
+            UNIQUE (
+                from_author_public_key,
+                from_writer_id,
+                from_sequence_number
+            )
         );
     ",
     )
@@ -210,6 +266,23 @@ pub(crate) async fn persist_event_feed(
 
     if event_body.has_message() {
         message_type = 1;
+
+        if let Some(pointer) = &event_body.message().boost_pointer.0 {
+            let from = crate::model::pointer::Pointer::new(
+                event.identity().clone(),
+                event.writer().clone(),
+                event.sequence_number(),
+            );
+
+            let to = crate::model::protobuf_pointer_to_pointer(pointer)?;
+
+            insert_event_link_row(
+                &mut *transaction,
+                &LinkType::React,
+                &from,
+                &to,
+            ).await?;
+        }
     } else if event_body.has_profile() {
         message_type = 2;
     } else if event_body.has_delete() {
@@ -630,6 +703,73 @@ pub (crate) async fn censor_identity(
     Ok(())
 }
 
+pub (crate) async fn insert_event_link_row(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    link_type: &LinkType,
+    from: &crate::model::pointer::Pointer,
+    to: &crate::model::pointer::Pointer,
+) -> ::anyhow::Result<()> {
+    let query = "
+        INSERT INTO event_links 
+        (
+            link_type,
+            from_author_public_key,
+            from_writer_id,
+            from_sequence_number,
+            to_author_public_key,
+            to_writer_id,
+            to_sequence_number
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7);
+    ";
+
+    ::sqlx::query(query)
+        .bind(&link_type)
+        .bind(&from.identity().to_bytes())
+        .bind(&from.writer().0)
+        .bind(i64::try_from(from.sequence_number())?)
+        .bind(&to.identity().to_bytes())
+        .bind(&to.writer().0)
+        .bind(i64::try_from(to.sequence_number())?)
+        .execute(&mut *transaction)
+        .await?;
+
+    Ok(())
+}
+
+pub (crate) async fn get_events_linking_to(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    link_type: &LinkType,
+    to: &crate::model::pointer::Pointer,
+) -> ::anyhow::Result<::std::vec::Vec<store_item::StoreItem>> {
+    let query = "
+        SELECT * FROM events
+        WHERE (author_public_key, writer_id, sequence_number) IN (
+            SELECT
+                from_author_public_key as author_public_key,
+                from_writer_id as writer_id,
+                from_sequence_number as sequence_number
+            FROM event_links
+            WHERE to_author_public_key = $1
+            AND to_writer_id = $2
+            AND to_sequence_number = $3
+            AND link_type = $4
+            ORDER BY id ASC
+        );
+    ";
+
+    ::sqlx::query_as::<_, crate::EventRow>(query)
+        .bind(to.identity().to_bytes())
+        .bind(to.writer().0)
+        .bind(i64::try_from(to.sequence_number())?)
+        .bind(link_type)
+        .fetch_all(&mut *transaction)
+        .await?
+        .iter()
+        .map(|row| event_row_to_store_item(row))
+        .collect::<::anyhow::Result<::std::vec::Vec<store_item::StoreItem>>>()
+}
+
 #[cfg(test)]
 pub mod tests {
     use ::protobuf::Message;
@@ -773,6 +913,14 @@ pub mod tests {
                 .public
                 .to_bytes()
                 .clone(),
+        )
+    }
+
+    fn generate_pointer() -> crate::model::pointer::Pointer {
+        crate::model::pointer::Pointer::new(
+            crate::crypto::tests::make_test_keypair().public,
+            generate_writer_id(),
+            52,
         )
     }
 
@@ -1084,18 +1232,9 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let identity_keypair = crate::crypto::tests::make_test_keypair();
-        let writer_id = generate_writer_id();
-
-        let pointer = crate::model::pointer::Pointer::new(
-            identity_keypair.public,
-            writer_id,
-            52,
-        );
-
         crate::postgres::censor_post(
             &mut transaction,
-            &pointer,
+            &generate_pointer(),
             crate::postgres::CensorshipType::DoNotRecommend,
         ).await?;
 
@@ -1146,7 +1285,6 @@ pub mod tests {
         Ok(())
     }
 
-
     #[::sqlx::test]
     async fn load_random_identities(
         pool: ::sqlx::PgPool,
@@ -1156,6 +1294,24 @@ pub mod tests {
 
         crate::postgres::load_random_identities(
             &mut transaction,
+        ).await?;
+
+        transaction.commit().await?;
+
+        Ok(())
+    }
+
+    #[::sqlx::test]
+    async fn get_events_linking_to(
+        pool: ::sqlx::PgPool,
+    ) -> ::anyhow::Result<()> {
+        let mut transaction = pool.begin().await?;
+        crate::postgres::prepare_database(&mut transaction).await?;
+
+        crate::postgres::get_events_linking_to(
+            &mut transaction,
+            &crate::postgres::LinkType::React,
+            &generate_pointer(),
         ).await?;
 
         transaction.commit().await?;
