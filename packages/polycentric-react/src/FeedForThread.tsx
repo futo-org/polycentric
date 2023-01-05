@@ -114,6 +114,7 @@ export function FeedForThread(props: FeedForThreadProps) {
                         });
                     },
                     async (item) => {
+                        item.post.boost = undefined;
                         item.post.fromServer = address;
                         return item;
                     },
