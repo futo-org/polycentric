@@ -6,6 +6,10 @@ import * as Feed from './Feed';
 import { useState, useEffect } from 'react';
 
 export function compareItems(b: FeedItem, a: FeedItem): 0 | 1 | -1 {
+    if (a.post == undefined || b.post == undefined) {
+        return 0;
+    }
+
     const at = a.post.sortMilliseconds;
     const bt = b.post.sortMilliseconds;
 
@@ -20,7 +24,7 @@ export function compareItems(b: FeedItem, a: FeedItem): 0 | 1 | -1 {
 
 export type FeedItem = {
     key: string;
-    post: Post.DisplayablePost;
+    post: Post.DisplayablePost | undefined;
     dependencyContext: Core.DB.DependencyContext;
     generation: number;
 };
@@ -32,7 +36,7 @@ export async function loadFeedItem(
     pointer: Core.Protocol.Pointer,
     generation: number,
     setState: (cb: (feedState: Array<FeedItem>) => Array<FeedItem>) => void,
-    mutateNew: (item: FeedItem) => Promise<FeedItem | undefined>,
+    mutateNew: (item: Post.DisplayablePost) => Promise<Post.DisplayablePost | undefined>,
     handleInsert: (
         feedState: Array<FeedItem>,
         item: FeedItem,
@@ -44,6 +48,8 @@ export async function loadFeedItem(
 
     const dependencyContext = new Core.DB.DependencyContext(state);
 
+    let post: Post.DisplayablePost | undefined = undefined;
+
     const displayable = await Post.tryLoadDisplayable(
         state,
         pointer,
@@ -51,24 +57,34 @@ export async function loadFeedItem(
         cache,
     );
 
-    if (displayable === undefined || cancelContext.cancelled()) {
+    if (cancelContext.cancelled()) {
         dependencyContext.cleanup();
 
         return false;
     }
 
-    const item = await mutateNew({
+    let progress = true;
+
+    if (displayable !== undefined) {
+        post = await mutateNew(displayable);
+
+        if (cancelContext.cancelled()) {
+            dependencyContext.cleanup();
+
+            return false;
+        }
+    }
+
+    if (displayable === undefined || post === undefined) {
+        progress = false;
+    }
+
+    const item = {
         key: Feed.pointerGetKey(pointer),
-        post: displayable,
+        post: post,
         dependencyContext: dependencyContext,
         generation: generation,
-    });
-
-    if (item === undefined || cancelContext.cancelled()) {
-        dependencyContext.cleanup();
-
-        return false;
-    }
+    };
 
     dependencyContext.setHandler(() => {
         loadFeedItem(
@@ -109,5 +125,5 @@ export async function loadFeedItem(
         return handleInsert(previous, item);
     });
 
-    return true;
+    return progress;
 }

@@ -114,8 +114,8 @@ export function FeedForThread(props: FeedForThreadProps) {
                         });
                     },
                     async (item) => {
-                        item.post.boost = undefined;
-                        item.post.fromServer = address;
+                        item.boost = undefined;
+                        item.fromServer = address;
                         return item;
                     },
                     (previous, item) => {
@@ -160,7 +160,7 @@ export function FeedForThread(props: FeedForThreadProps) {
 
     return (
         <div>
-            {feedItems.map((item) => (
+            {feedItems.map((item) => item.post && (
                 <Post.PostMemo
                     key={item.key}
                     state={props.state}
@@ -182,7 +182,7 @@ export function FeedForThread(props: FeedForThreadProps) {
                 <Divider>Reactions</Divider>
             </Paper>
 
-            {replyItems.map((item) => (
+            {replyItems.map((item) => item.post && (
                 <Post.PostMemo
                     key={item.key}
                     state={props.state}

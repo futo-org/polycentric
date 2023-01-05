@@ -184,7 +184,7 @@ function Explore(props: ExploreProps) {
                         });
                     },
                     async (item) => {
-                        item.post.fromServer = response[0];
+                        item.fromServer = response[0];
                         return item;
                     },
                     (previous, item) => {
@@ -273,12 +273,14 @@ function Explore(props: ExploreProps) {
                     key={item.key}
                     ref={index === exploreResults.length - 1 ? ref : undefined}
                 >
-                    <Post.PostMemo
-                        state={props.state}
-                        post={item.post}
-                        showBoost={true}
-                        depth={0}
-                    />
+                    { item.post && (
+                        <Post.PostMemo
+                            state={props.state}
+                            post={item.post}
+                            showBoost={true}
+                            depth={0}
+                        />
+                    )}
                 </div>
             ))}
 

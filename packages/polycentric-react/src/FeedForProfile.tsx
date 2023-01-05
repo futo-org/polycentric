@@ -67,7 +67,7 @@ function FeedForProfile(props: FeedForProfileProps) {
             async (item) => {
                 if (
                     Core.Util.blobsEqual(
-                        item.post.event.authorPublicKey,
+                        item.event.authorPublicKey,
                         props.feed.publicKey,
                     ) === false
                 ) {
@@ -264,12 +264,14 @@ function FeedForProfile(props: FeedForProfileProps) {
                     key={item.key}
                     ref={index === feedItems.length - 1 ? ref : undefined}
                 >
-                    <Post.PostMemo
-                        state={props.state}
-                        post={item.post}
-                        showBoost={true}
-                        depth={0}
-                    />
+                    { item.post && (
+                        <Post.PostMemo
+                            state={props.state}
+                            post={item.post}
+                            showBoost={true}
+                            depth={0}
+                        />
+                    )}
                 </div>
             ))}
 
