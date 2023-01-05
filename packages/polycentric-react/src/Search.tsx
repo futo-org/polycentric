@@ -10,7 +10,7 @@ import Post from './Post';
 import './Standard.css';
 import * as ProfileUtil from './ProfileUtil';
 import ProfileHeader from './ProfileHeader';
-import { DispatchCard } from './DispatchCard';
+import { DispatchCardMemo } from './DispatchCard';
 
 type SearchProps = {
     state: Core.DB.PolycentricState;
@@ -117,7 +117,7 @@ function Search(props: SearchProps) {
                 const item = post[1];
 
                 return (
-                    <DispatchCard
+                    <DispatchCardMemo
                         key={Base64.encode(Core.Keys.pointerToKey(item))}
                         state={props.state}
                         pointer={item}

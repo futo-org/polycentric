@@ -6,6 +6,8 @@ import * as Core from 'polycentric-core';
 import * as Post from './Post';
 import * as ProfileUtil from './ProfileUtil';
 import * as Feed from './Feed';
+import * as Explore from './Explore';
+import * as FeedState from './FeedState';
 
 import './Standard.css';
 
@@ -14,108 +16,46 @@ export type FeedForThreadProps = {
     feed: Core.Protocol.URLInfo;
 };
 
-type FeedItem = {
-    pointer: Core.Protocol.Pointer;
-    initialPost: Post.DisplayablePost | undefined;
-    dependencyContext: Core.DB.DependencyContext;
-    key: string;
-};
-
 export function FeedForThread(props: FeedForThreadProps) {
-    const [feedItems, setFeedItems] = useState<Array<FeedItem>>(
-        [],
-    );
+    const [feedItems, setFeedItems] = useState<Array<FeedState.FeedItem>>([]);
 
-    const [replyItems, setReplyItems] = useState<Array<FeedItem>>(
-        [],
-    );
+    const [replyItems, setReplyItems] = useState<Array<FeedState.FeedItem>>([]);
 
     const [loadingReplies, setLoadingReplies] = useState<boolean>(true);
 
     const loadPost = async (
         cancelContext: Core.CancelContext.CancelContext,
+        cache: Explore.Cache,
     ): Promise<void> => {
-        const profiles = new Map<string, ProfileUtil.DisplayableProfile>();
-
-        const dependencyContext = new Core.DB.DependencyContext(props.state);
-
         const pointer = {
             publicKey: props.feed.publicKey,
             writerId: props.feed.writerId!,
             sequenceNumber: props.feed.sequenceNumber!,
         };
 
-        dependencyContext.addDependency(pointer);
-
-        const post = await Core.DB.tryLoadStorageEventByPointer(
+        await FeedState.loadFeedItem(
             props.state,
+            cancelContext,
+            cache,
             pointer,
+            0,
+            (cb) => {
+                setFeedItems((previous) => {
+                    return cb(previous);
+                });
+            },
+            async (item) => {
+                return item;
+            },
+            (previous, item) => {
+                return previous.concat([item]);
+            },
         );
-
-        if (post !== undefined && post.event === undefined) {
-            return undefined;
-        }
-
-        if (cancelContext.cancelled()) {
-            dependencyContext.cleanup();
-            return;
-        }
-
-        if (post !== undefined && post.event !== undefined) {
-            const displayable = await Post.eventToDisplayablePost(
-                props.state,
-                profiles,
-                post,
-                dependencyContext,
-            );
-
-            if (cancelContext.cancelled()) {
-                dependencyContext.cleanup();
-                return;
-            }
-
-            if (displayable !== undefined) {
-                const item = {
-                    pointer: pointer,
-                    initialPost: displayable,
-                    dependencyContext: dependencyContext,
-                    key: Feed.eventGetKey(post.event),
-                };
-
-                if (cancelContext.cancelled()) {
-                    dependencyContext.cleanup();
-                    return;
-                }
-
-                setFeedItems([item]);
-
-                return;
-            }
-        }
-
-        const item = {
-            pointer: pointer,
-            initialPost: undefined,
-            dependencyContext: dependencyContext,
-            key: Base64.encode(
-                Core.Keys.pointerToKey({
-                    publicKey: props.feed.publicKey,
-                    writerId: props.feed.writerId!,
-                    sequenceNumber: props.feed.sequenceNumber!,
-                }),
-            ),
-        };
-
-        if (cancelContext.cancelled()) {
-            dependencyContext.cleanup();
-            return;
-        }
-
-        setFeedItems([item]);
     };
 
     const loadReplies = async (
         cancelContext: Core.CancelContext.CancelContext,
+        cache: Explore.Cache,
     ): Promise<void> => {
         const pointer = {
             publicKey: props.feed.publicKey,
@@ -139,12 +79,9 @@ export function FeedForThread(props: FeedForThreadProps) {
         for (const address of addresses) {
             let replies;
             try {
-                replies = await Core.APIMethods.loadReplies(
-                    address,
-                    pointer,
-                );
+                replies = await Core.APIMethods.loadReplies(address, pointer);
             } catch (err) {
-                console.log("failed to load replies from: " + address);
+                console.log('failed to load replies from: ' + address);
 
                 continue;
             }
@@ -159,44 +96,31 @@ export function FeedForThread(props: FeedForThreadProps) {
             );
 
             for (const event of replies.resultEvents) {
-                const dependencyContext = new Core.DB.DependencyContext(
-                    props.state,
-                );
-
-                const displayable = await Post.tryLoadDisplayable(
-                    props.state,
-                    {
-                        publicKey: event.authorPublicKey,
-                        writerId: event.writerId,
-                        sequenceNumber: event.sequenceNumber,
-                    },
-                    dependencyContext,
-                );
-
-                if (displayable === undefined) {
-                    dependencyContext.cleanup();
-
-                    continue;
-                }
-
-                displayable.boost = undefined;
-
-                if (cancelContext.cancelled()) {
-                    dependencyContext.cleanup();
-
-                    return;
-                }
-
-                const item = {
-                    pointer: pointer,
-                    initialPost: displayable,
-                    dependencyContext: dependencyContext,
-                    key: Feed.eventGetKey(event),
+                const pointer = {
+                    publicKey: event.authorPublicKey,
+                    writerId: event.writerId,
+                    sequenceNumber: event.sequenceNumber,
                 };
 
-                setReplyItems((previous) => {
-                    return previous.concat([item]);
-                });
+                await FeedState.loadFeedItem(
+                    props.state,
+                    cancelContext,
+                    cache,
+                    pointer,
+                    0,
+                    (cb) => {
+                        setReplyItems((previous) => {
+                            return cb(previous);
+                        });
+                    },
+                    async (item) => {
+                        item.post.fromServer = address;
+                        return item;
+                    },
+                    (previous, item) => {
+                        return previous.concat([item]);
+                    },
+                );
             }
         }
 
@@ -205,17 +129,18 @@ export function FeedForThread(props: FeedForThreadProps) {
         }
 
         setLoadingReplies(false);
-    }
+    };
 
     useEffect(() => {
         const cancelContext = new Core.CancelContext.CancelContext();
+        const cache = new Explore.Cache();
 
         setFeedItems([]);
         setReplyItems([]);
         setLoadingReplies(true);
 
-        loadPost(cancelContext);
-        loadReplies(cancelContext);
+        loadPost(cancelContext, cache);
+        loadReplies(cancelContext, cache);
 
         return () => {
             cancelContext.cancel();
@@ -227,23 +152,23 @@ export function FeedForThread(props: FeedForThreadProps) {
             for (const item of replyItems) {
                 item.dependencyContext.cleanup();
             }
+
+            cache.free();
         };
     }, [props.feed]);
 
     return (
         <div>
-            {feedItems.map((item, index) => (
-                <Post.PostLoaderMemo
+            {feedItems.map((item) => (
+                <Post.PostMemo
                     key={item.key}
                     state={props.state}
-                    pointer={item.pointer}
-                    initialPost={item.initialPost}
-                    dependencyContext={item.dependencyContext}
+                    post={item.post}
                     showBoost={true}
                     depth={0}
                 />
             ))}
-            
+
             <Paper
                 elevation={4}
                 className="standard_width"
@@ -256,13 +181,11 @@ export function FeedForThread(props: FeedForThreadProps) {
                 <Divider>Reactions</Divider>
             </Paper>
 
-            {replyItems.map((item, index) => (
-                <Post.PostLoaderMemo
+            {replyItems.map((item) => (
+                <Post.PostMemo
                     key={item.key}
                     state={props.state}
-                    pointer={item.pointer}
-                    initialPost={item.initialPost}
-                    dependencyContext={item.dependencyContext}
+                    post={item.post}
                     showBoost={true}
                     depth={0}
                 />
@@ -284,4 +207,3 @@ export function FeedForThread(props: FeedForThreadProps) {
         </div>
     );
 }
-

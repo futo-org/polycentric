@@ -134,7 +134,8 @@ export async function loadReplies(
     address: string,
     pointer: Protocol.Pointer,
 ): Promise<Protocol.ResultEventsAndRelatedEventsAndCursor> {
-    const path = '/replies' +
+    const path =
+        '/replies' +
         `?identity=${Base64.encodeUrl(pointer.publicKey)}` +
         `&writer_id=${Base64.encodeUrl(pointer.writerId)}` +
         `&sequence_number=${pointer.sequenceNumber.toString()}`;
@@ -146,4 +147,3 @@ export async function loadReplies(
     const rawBody = new Uint8Array(await response.arrayBuffer());
     return Protocol.ResultEventsAndRelatedEventsAndCursor.decode(rawBody);
 }
-

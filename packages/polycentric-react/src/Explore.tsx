@@ -13,14 +13,70 @@ import ProfileHeader from './ProfileHeader';
 import * as Search from './Search';
 import { DispatchCardMemo } from './DispatchCard';
 import * as Post from './Post';
+import * as FeedState from './FeedState';
+import * as Scroll from './scroll';
+
+type BlobWithLink = {
+    blob: Blob;
+    link: string;
+};
+
+export class Cache {
+    private _images: Map<string, BlobWithLink>;
+
+    public constructor() {
+        this._images = new Map();
+    }
+
+    public getImageLink(pointer: Core.Protocol.Pointer): string | undefined {
+        const key = Feed.pointerGetKey(pointer);
+
+        const item = this._images.get(key);
+
+        if (item === undefined) {
+            return undefined;
+        }
+
+        return item.link;
+    }
+
+    public addImage(pointer: Core.Protocol.Pointer, blob: Blob): string {
+        const key = Feed.pointerGetKey(pointer);
+
+        const item = this._images.get(key);
+
+        if (item !== undefined) {
+            return item.link;
+        }
+
+        const link = URL.createObjectURL(blob);
+
+        this._images.set(key, {
+            blob: blob,
+            link: link,
+        });
+
+        return link;
+    }
+
+    public free(): void {
+        for (const item of this._images.values()) {
+            URL.revokeObjectURL(item.link);
+        }
+
+        this._images = new Map();
+    }
+}
 
 type ExploreProps = {
     state: Core.DB.PolycentricState;
 };
 
 type ExploreItem = {
+    key: string;
     initialPost: Post.DisplayablePost;
     dependencyContext: Core.DB.DependencyContext;
+    generation: number;
 };
 
 export const ExploreMemo = memo(Explore);
@@ -28,16 +84,18 @@ export const ExploreMemo = memo(Explore);
 function Explore(props: ExploreProps) {
     const [ref, inView] = useInView();
 
-    const [exploreResults, setExploreResults] = useState<Array<ExploreItem>>(
-        [],
-    );
+    const [exploreResults, setExploreResults] = useState<
+        Array<FeedState.FeedItem>
+    >(new Array());
 
     const [loading, setLoading] = useState<boolean>(true);
     const [initial, setInitial] = useState<boolean>(true);
     const [complete, setComplete] = useState<boolean>(false);
-    const [scrollPercent, setScrollPercent] = useState<number>(0);
+    const scrollPercent = Scroll.useScrollPercentage();
 
     const earliestTime = useRef<number | undefined>(undefined);
+
+    const cache = useRef<Cache>(new Cache());
 
     const masterCancel = useRef<Core.CancelContext.CancelContext>(
         new Core.CancelContext.CancelContext(),
@@ -108,44 +166,33 @@ function Explore(props: ExploreProps) {
 
         for (const response of responses) {
             for (const event of response[1].resultEvents) {
-                const dependencyContext = new Core.DB.DependencyContext(
-                    props.state,
-                );
-
-                const displayable = await Post.tryLoadDisplayable(
-                    props.state,
-                    {
-                        publicKey: event.authorPublicKey,
-                        writerId: event.writerId,
-                        sequenceNumber: event.sequenceNumber,
-                    },
-                    dependencyContext,
-                );
-
-                if (displayable === undefined) {
-                    dependencyContext.cleanup();
-
-                    continue;
-                }
-
-                displayable.fromServer = response[0];
-
-                progress = true;
-
-                const exploreItem = {
-                    initialPost: displayable,
-                    dependencyContext: dependencyContext,
+                const pointer = {
+                    publicKey: event.authorPublicKey,
+                    writerId: event.writerId,
+                    sequenceNumber: event.sequenceNumber,
                 };
 
-                if (cancelContext.cancelled()) {
-                    dependencyContext.cleanup();
+                await FeedState.loadFeedItem(
+                    props.state,
+                    cancelContext,
+                    cache.current,
+                    pointer,
+                    0,
+                    (cb) => {
+                        setExploreResults((previous) => {
+                            return cb(previous);
+                        });
+                    },
+                    async (item) => {
+                        item.post.fromServer = response[0];
+                        return item;
+                    },
+                    (previous, item) => {
+                        return previous.concat([item]);
+                    },
+                );
 
-                    return;
-                }
-
-                setExploreResults((previous) => {
-                    return previous.concat([exploreItem]);
-                });
+                progress = true;
             }
         }
 
@@ -168,15 +215,6 @@ function Explore(props: ExploreProps) {
         setInitial(false);
     };
 
-    const calculateScrollPercentage = (): number => {
-        const h = document.documentElement;
-        const b = document.body;
-        const st = 'scrollTop';
-        const sh = 'scrollHeight';
-
-        return ((h[st] || b[st]) / ((h[sh] || b[sh]) - h.clientHeight)) * 100;
-    };
-
     useEffect(() => {
         const cancelContext = new Core.CancelContext.CancelContext();
 
@@ -187,25 +225,16 @@ function Explore(props: ExploreProps) {
 
         earliestTime.current = undefined;
         masterCancel.current = cancelContext;
-
-        const updateScrollPercentage = () => {
-            if (cancelContext.cancelled()) {
-                return;
-            }
-
-            setScrollPercent(calculateScrollPercentage());
-        };
-
-        window.addEventListener('scroll', updateScrollPercentage);
+        cache.current = new Cache();
 
         return () => {
-            window.removeEventListener('scroll', updateScrollPercentage);
-
             cancelContext.cancel();
 
             for (const item of exploreResults) {
                 item.dependencyContext.cleanup();
             }
+
+            cache.current.free();
         };
     }, [props.state]);
 
@@ -214,7 +243,7 @@ function Explore(props: ExploreProps) {
             return;
         }
 
-        const scroll = calculateScrollPercentage();
+        const scroll = Scroll.calculateScrollPercentage();
 
         if (inView === true || initial === true || scroll >= 80) {
             /*
@@ -241,14 +270,12 @@ function Explore(props: ExploreProps) {
         >
             {exploreResults.map((item, index) => (
                 <div
-                    key={index}
+                    key={item.key}
                     ref={index === exploreResults.length - 1 ? ref : undefined}
                 >
-                    <Post.PostLoaderMemo
+                    <Post.PostMemo
                         state={props.state}
-                        pointer={item.initialPost.pointer}
-                        initialPost={item.initialPost}
-                        dependencyContext={item.dependencyContext}
+                        post={item.post}
                         showBoost={true}
                         depth={0}
                     />

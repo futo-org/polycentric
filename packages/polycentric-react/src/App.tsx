@@ -166,151 +166,151 @@ function App(props: AppProps) {
     return (
         <div>
             <ThemeProvider theme={theme}>
-            <ImageViewerContext.Provider value={{ setViewerLink }}>
-                {viewerLink && (
-                    <ImageViewer
-                        src={[viewerLink]}
-                        currentIndex={0}
-                        closeOnClickOutside={true}
-                        onClose={() => {
-                            setViewerLink(undefined);
-                        }}
-                        backgroundStyle={{
-                            backgroundColor: 'rgba(0,0,0,0.5)',
-                            zIndex: 1300,
-                        }}
-                    />
-                )}
+                <ImageViewerContext.Provider value={{ setViewerLink }}>
+                    {viewerLink && (
+                        <ImageViewer
+                            src={[viewerLink]}
+                            currentIndex={0}
+                            closeOnClickOutside={true}
+                            onClose={() => {
+                                setViewerLink(undefined);
+                            }}
+                            backgroundStyle={{
+                                backgroundColor: 'rgba(0,0,0,0.5)',
+                                zIndex: 1300,
+                            }}
+                        />
+                    )}
 
-                {props.state && props.state.identity !== undefined && (
-                    <AppBar position="sticky">
-                        <Toolbar>
-                            <Box className="app__header">
-                                <NavLink
-                                    to="/explore"
-                                    style={({ isActive }) =>
-                                        isActive ? activeStyle : {}
-                                    }
-                                >
-                                    Explore
-                                </NavLink>
-                                <NavLink
-                                    to="/"
-                                    style={({ isActive }) =>
-                                        isActive ? activeStyle : {}
-                                    }
-                                >
-                                    Feed
-                                </NavLink>
-                                <NavLink
-                                    to="/search"
-                                    style={({ isActive }) =>
-                                        isActive ? activeStyle : {}
-                                    }
-                                >
-                                    Search
-                                </NavLink>
-                            </Box>
-                            <Box sx={{ flexGrow: 1 }} />
-                            <Box>
-                                <Tooltip title="Open Notifications">
-                                    <IconButton
-                                        onClick={handleOpenNotifications}
-                                        sx={{
-                                            p: 0,
-                                            marginRight: '15px',
+                    {props.state && props.state.identity !== undefined && (
+                        <AppBar position="sticky">
+                            <Toolbar>
+                                <Box className="app__header">
+                                    <NavLink
+                                        to="/explore"
+                                        style={({ isActive }) =>
+                                            isActive ? activeStyle : {}
+                                        }
+                                    >
+                                        Explore
+                                    </NavLink>
+                                    <NavLink
+                                        to="/"
+                                        style={({ isActive }) =>
+                                            isActive ? activeStyle : {}
+                                        }
+                                    >
+                                        Feed
+                                    </NavLink>
+                                    <NavLink
+                                        to="/search"
+                                        style={({ isActive }) =>
+                                            isActive ? activeStyle : {}
+                                        }
+                                    >
+                                        Search
+                                    </NavLink>
+                                </Box>
+                                <Box sx={{ flexGrow: 1 }} />
+                                <Box>
+                                    <Tooltip title="Open Notifications">
+                                        <IconButton
+                                            onClick={handleOpenNotifications}
+                                            sx={{
+                                                p: 0,
+                                                marginRight: '15px',
+                                            }}
+                                            size="large"
+                                            color="inherit"
+                                        >
+                                            <NotificationsIcon />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Open Menu">
+                                        <IconButton
+                                            onClick={handleOpenMenu}
+                                            sx={{ p: 0 }}
+                                            size="large"
+                                            color="inherit"
+                                        >
+                                            <Avatar alt="avatar" src={avatar} />
+                                        </IconButton>
+                                    </Tooltip>
+                                    <Menu
+                                        sx={{ mt: '45px' }}
+                                        anchorEl={anchor}
+                                        open={Boolean(anchor)}
+                                        onClose={handleCloseMenu}
+                                        anchorOrigin={{
+                                            vertical: 'top',
+                                            horizontal: 'right',
                                         }}
-                                        size="large"
-                                        color="inherit"
+                                        keepMounted
+                                        transformOrigin={{
+                                            vertical: 'top',
+                                            horizontal: 'right',
+                                        }}
                                     >
-                                        <NotificationsIcon />
-                                    </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Open Menu">
-                                    <IconButton
-                                        onClick={handleOpenMenu}
-                                        sx={{ p: 0 }}
-                                        size="large"
-                                        color="inherit"
-                                    >
-                                        <Avatar alt="avatar" src={avatar} />
-                                    </IconButton>
-                                </Tooltip>
-                                <Menu
-                                    sx={{ mt: '45px' }}
-                                    anchorEl={anchor}
-                                    open={Boolean(anchor)}
-                                    onClose={handleCloseMenu}
-                                    anchorOrigin={{
-                                        vertical: 'top',
-                                        horizontal: 'right',
-                                    }}
-                                    keepMounted
-                                    transformOrigin={{
-                                        vertical: 'top',
-                                        horizontal: 'right',
-                                    }}
-                                >
-                                    <MenuItem onClick={handleOpenMyPosts}>
-                                        <Typography textAlign="center">
-                                            My Posts
-                                        </Typography>
-                                    </MenuItem>
-                                    <MenuItem onClick={handleOpenProfile}>
-                                        <Typography textAlign="center">
-                                            Edit Profile
-                                        </Typography>
-                                    </MenuItem>
-                                    <MenuItem onClick={handleOpenFollowing}>
-                                        <Typography textAlign="center">
-                                            Following
-                                        </Typography>
-                                    </MenuItem>
-                                    <MenuItem onClick={handleOpenAbout}>
-                                        <Typography textAlign="center">
-                                            About
-                                        </Typography>
-                                    </MenuItem>
-                                    <MenuItem onClick={handleSwitchProfile}>
-                                        <Typography textAlign="center">
-                                            Switch Profile
-                                        </Typography>
-                                    </MenuItem>
-                                </Menu>
-                            </Box>
-                        </Toolbar>
-                    </AppBar>
-                )}
+                                        <MenuItem onClick={handleOpenMyPosts}>
+                                            <Typography textAlign="center">
+                                                My Posts
+                                            </Typography>
+                                        </MenuItem>
+                                        <MenuItem onClick={handleOpenProfile}>
+                                            <Typography textAlign="center">
+                                                Edit Profile
+                                            </Typography>
+                                        </MenuItem>
+                                        <MenuItem onClick={handleOpenFollowing}>
+                                            <Typography textAlign="center">
+                                                Following
+                                            </Typography>
+                                        </MenuItem>
+                                        <MenuItem onClick={handleOpenAbout}>
+                                            <Typography textAlign="center">
+                                                About
+                                            </Typography>
+                                        </MenuItem>
+                                        <MenuItem onClick={handleSwitchProfile}>
+                                            <Typography textAlign="center">
+                                                Switch Profile
+                                            </Typography>
+                                        </MenuItem>
+                                    </Menu>
+                                </Box>
+                            </Toolbar>
+                        </AppBar>
+                    )}
 
-                {props.state && (
-                    <PostModal
-                        state={props.state}
-                        isOpen={modalIsOpen}
-                        onClose={() => {
-                            setModalIsOpen(false);
-                        }}
-                    />
-                )}
+                    {props.state && (
+                        <PostModal
+                            state={props.state}
+                            isOpen={modalIsOpen}
+                            onClose={() => {
+                                setModalIsOpen(false);
+                            }}
+                        />
+                    )}
 
-                <div className="app">
-                    <Outlet />
-                </div>
+                    <div className="app">
+                        <Outlet />
+                    </div>
 
-                {props.state && props.state.identity !== undefined && (
-                    <Fab
-                        color="primary"
-                        size="large"
-                        style={{
-                            position: 'fixed',
-                            right: '30px',
-                            bottom: '30px',
-                        }}
-                        onClick={handleOpenPostModal}
-                    >
-                        <EditIcon />
-                    </Fab>
-                )}
-            </ImageViewerContext.Provider>
+                    {props.state && props.state.identity !== undefined && (
+                        <Fab
+                            color="primary"
+                            size="large"
+                            style={{
+                                position: 'fixed',
+                                right: '30px',
+                                bottom: '30px',
+                            }}
+                            onClick={handleOpenPostModal}
+                        >
+                            <EditIcon />
+                        </Fab>
+                    )}
+                </ImageViewerContext.Provider>
             </ThemeProvider>
         </div>
     );

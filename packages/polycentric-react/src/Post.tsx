@@ -29,12 +29,14 @@ import Modal from 'react-modal';
 
 import * as Core from 'polycentric-core';
 import * as Feed from './Feed';
+import * as Explore from './Explore';
 import PostModal from './PostModal';
 import './Post.css';
 import * as ProfileUtil from './ProfileUtil';
 import { useImageViewerContext } from './ImageViewerContext';
 
 export type DisplayablePost = {
+    event: Core.Protocol.Event;
     pointer: Core.Protocol.Pointer;
     actionPointer: Core.Protocol.Pointer;
     profile: ProfileUtil.DisplayableProfile;
@@ -62,6 +64,7 @@ export type PostLoaderProps = {
     showBoost: boolean;
     depth: number;
     dependencyContext: Core.DB.DependencyContext;
+    cache: Explore.Cache;
 };
 
 export async function eventToDisplayablePost(
@@ -69,6 +72,7 @@ export async function eventToDisplayablePost(
     profiles: Map<string, ProfileUtil.DisplayableProfile>,
     storageEvent: Core.Protocol.StorageTypeEvent,
     dependencyContext: Core.DB.DependencyContext,
+    cache: Explore.Cache,
 ): Promise<DisplayablePost | undefined> {
     if (storageEvent.mutationPointer !== undefined) {
         return undefined;
@@ -146,6 +150,7 @@ export async function eventToDisplayablePost(
                 profiles,
                 boost,
                 dependencyContext,
+                cache,
             );
 
             if (displayable !== undefined) {
@@ -160,6 +165,7 @@ export async function eventToDisplayablePost(
     }
 
     let displayable: DisplayablePost = {
+        event: event,
         pointer: pointer,
         actionPointer: pointer,
         profile: displayableProfile,
@@ -182,19 +188,31 @@ export async function eventToDisplayablePost(
                 profiles,
                 boost,
                 dependencyContext,
+                cache,
             );
         }
     }
 
     if (body.message.image !== undefined) {
-        const loaded = await Core.DB.loadBlob(
-            state,
-            body.message.image,
-            dependencyContext,
-        );
+        const existingLink = cache.getImageLink(body.message.image);
 
-        if (loaded !== undefined) {
-            displayable.image = Core.Util.blobToURL(loaded.kind, loaded.blob);
+        if (existingLink !== undefined) {
+            displayable.image = existingLink;
+        } else {
+            const loaded = await Core.DB.loadBlob(
+                state,
+                body.message.image,
+                dependencyContext,
+            );
+
+            if (loaded !== undefined) {
+                displayable.image = cache.addImage(
+                    body.message.image,
+                    new Blob([loaded.blob], {
+                        type: loaded.kind,
+                    }),
+                );
+            }
         }
     }
 
@@ -205,6 +223,7 @@ export async function tryLoadDisplayable(
     state: Core.DB.PolycentricState,
     pointer: Core.Protocol.Pointer,
     dependencyContext: Core.DB.DependencyContext,
+    cache: Explore.Cache,
 ) {
     dependencyContext.addDependency(pointer);
 
@@ -226,6 +245,7 @@ export async function tryLoadDisplayable(
             mutationPointer: undefined,
         },
         dependencyContext,
+        cache,
     );
 
     return displayable;
@@ -251,6 +271,7 @@ export function PostLoader(props: PostLoaderProps) {
             props.state,
             props.pointer,
             dependencyContext,
+            props.cache,
         );
 
         if (cancelContext.cancelled()) {
@@ -445,6 +466,8 @@ function PostDebugModal(props: PostDebugModalProps) {
         </Modal>
     );
 }
+
+export const PostMemo = memo(Post);
 
 export function Post(props: PostProps) {
     let navigate = useNavigate();

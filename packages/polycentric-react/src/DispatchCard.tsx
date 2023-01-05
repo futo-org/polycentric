@@ -6,6 +6,7 @@ import * as Core from 'polycentric-core';
 import * as ProfileUtil from './ProfileUtil';
 import * as Feed from './Feed';
 import * as Post from './Post';
+import * as Explore from './Explore';
 import ProfileHeader from './ProfileHeader';
 
 export type DispatchCardProps = {
@@ -19,7 +20,10 @@ export const DispatchCardMemo = memo(DispatchCard);
 export function DispatchCard(props: DispatchCardProps) {
     const [card, setCard] = useState<ReactNode | undefined>(undefined);
 
-    const loadCard = async (dependencyContext: Core.DB.DependencyContext) => {
+    const loadCard = async (
+        dependencyContext: Core.DB.DependencyContext,
+        cache: Explore.Cache,
+    ) => {
         const event = await Core.DB.tryLoadStorageEventByPointer(
             props.state,
             props.pointer,
@@ -74,6 +78,7 @@ export function DispatchCard(props: DispatchCardProps) {
                     mutationPointer: undefined,
                 },
                 nextDependencyContext,
+                cache,
             );
 
             nextDependencyContext.cleanup();
@@ -109,11 +114,13 @@ export function DispatchCard(props: DispatchCardProps) {
 
     useEffect(() => {
         const dependencyContext = new Core.DB.DependencyContext(props.state);
+        const cache = new Explore.Cache();
 
-        loadCard(dependencyContext);
+        loadCard(dependencyContext, cache);
 
         return () => {
             dependencyContext.cleanup();
+            cache.free();
         };
     }, [props.pointer, props.fromServer]);
 
