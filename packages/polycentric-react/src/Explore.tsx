@@ -284,7 +284,7 @@ function Explore(props: ExploreProps) {
                 </div>
             ))}
 
-            {initial === false && exploreResults.length === 0 && (
+            {initial === false && FeedState.noneVisible(exploreResults) && (
                 <Paper
                     elevation={4}
                     style={{

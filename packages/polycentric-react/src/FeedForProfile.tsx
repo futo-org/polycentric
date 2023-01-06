@@ -275,7 +275,7 @@ function FeedForProfile(props: FeedForProfileProps) {
                 </div>
             ))}
 
-            {initial === false && feedItems.length === 0 && (
+            {initial === false && FeedState.noneVisible(feedItems) && (
                 <Paper
                     elevation={4}
                     style={{

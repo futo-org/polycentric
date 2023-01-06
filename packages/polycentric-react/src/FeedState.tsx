@@ -29,6 +29,20 @@ export type FeedItem = {
     generation: number;
 };
 
+export function noneVisible(items: Array<FeedItem>): boolean {
+    if (items.length === 0) {
+        return true;
+    }
+
+    for (const item of items) {
+        if (item.post !== undefined) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 export async function loadFeedItem(
     state: Core.DB.PolycentricState,
     cancelContext: Core.CancelContext.CancelContext,
