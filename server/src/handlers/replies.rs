@@ -69,7 +69,7 @@ pub(crate) async fn handler(
             ),
         ).await
     {
-        Ok(a) => (a),
+        Ok(a) => a,
         Err(err) => {
             return Ok(Box::new(::warp::reply::with_status(
                 err.to_string().clone(),
@@ -80,7 +80,7 @@ pub(crate) async fn handler(
 
     let mut processed_events =
         match crate::process_mutations2(&mut transaction, history).await {
-            Ok(a) => (a),
+            Ok(a) => a,
             Err(err) => {
                 return Ok(Box::new(::warp::reply::with_status(
                     err.to_string().clone(),
@@ -111,7 +111,7 @@ pub(crate) async fn handler(
         .append(&mut processed_events.result_events);
 
     let result_serialized = match result.write_to_bytes() {
-        Ok(a) => (a),
+        Ok(a) => a,
         Err(err) => {
             return Ok(Box::new(::warp::reply::with_status(
                 err.to_string().clone(),
