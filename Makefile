@@ -133,4 +133,9 @@ build-doc-site:
 	cd doc && retype build
 
 deploy-doc-site:
-	wrangler pages publish ./doc/.retype/ --branch=master
+	wrangler pages publish --project-name polycentric-docs \
+		./doc/.retype/
+
+deploy-spa:
+	wrangler pages publish --project-name polycentric-spa \
+		./packages/polycentric-web/dist/
