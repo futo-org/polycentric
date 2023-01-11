@@ -120,8 +120,12 @@ pub(crate) async fn handler(
         }
     };
 
-    Ok(Box::new(::warp::reply::with_status(
-        result_serialized,
-        ::warp::http::StatusCode::OK,
+    Ok(Box::new(::warp::reply::with_header(
+        ::warp::reply::with_status(
+            result_serialized,
+            ::warp::http::StatusCode::OK,
+        ),
+        "Cache-Control",
+        "public, max-age=30",
     )))
 }
