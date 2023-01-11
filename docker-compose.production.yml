@@ -23,6 +23,7 @@ services:
         read_only: true
         environment:
             - "RUST_LOG=server=info"
+            - "ADMIN_TOKEN=123"
     proxy:
         image: caddy
         volumes:
