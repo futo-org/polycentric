@@ -29,7 +29,6 @@ services:
         working_dir: /app
         environment:
             HOME: "/tmp/home"
-            HTTP_PORT_STATIC: 8082
             RUST_LOG: "server=info"
             DATABASE_URL: "postgres://postgres:testing@postgres"
             ADMIN_TOKEN: "123"

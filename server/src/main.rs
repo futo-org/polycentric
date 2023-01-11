@@ -255,12 +255,6 @@ struct Config {
     #[envconfig(from = "HTTP_PORT_API", default = "8081")]
     pub http_port_api: u16,
 
-    #[envconfig(from = "HTTP_PORT_STATIC")]
-    pub http_port_static: Option<u16>,
-
-    #[envconfig(from = "STATIC_PATH", default = "/static")]
-    pub static_path: String,
-
     #[envconfig(
         from = "POSTGRES_STRING",
         default = "postgres://postgres:testing@postgres"
@@ -443,42 +437,13 @@ async fn serve_api(
     Ok(())
 }
 
-async fn serve_static(
-    config: &Config,
-) -> Result<(), Box<dyn ::std::error::Error>> {
-    let port = match config.http_port_static {
-        Some(x) => x,
-        None => return Ok(()),
-    };
-
-    let routes = ::warp::filters::fs::dir(config.static_path.clone())
-        .or(::warp::filters::fs::file("/static/index.html"))
-        .map(|reply| {
-            ::warp::reply::with_header(
-                reply,
-                "Cache-Control",
-                "public, no-cache",
-            )
-        });
-
-    info!("Static server listening on {}", port);
-    ::warp::serve(routes).run(([0, 0, 0, 0], port)).await;
-
-    Ok(())
-}
-
 #[::tokio::main]
 async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
     ::env_logger::init();
 
     let config = Config::init_from_env().unwrap();
 
-    let server_api = serve_api(&config);
-    let server_static = serve_static(&config);
-
-    let (r1, r2) = ::futures::future::join(server_api, server_static).await;
-    r1?;
-    r2?;
+    serve_api(&config).await?;
 
     Ok(())
 }
