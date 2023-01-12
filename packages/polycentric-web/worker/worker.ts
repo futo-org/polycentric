@@ -26,7 +26,7 @@ self.addEventListener("fetch", (event: FetchEvent) => {
                 headers.append('Accept', 'text/html');
 
                 request = new Request(
-                    url.origin + '/index.html',
+                    url.origin,
                     {
                         method: 'GET',
                         headers: headers,
