@@ -1,11 +1,12 @@
-use ::protobuf::Message;
 use ::anyhow::Context;
+use ::protobuf::Message;
 
 #[derive(::serde::Deserialize)]
-pub (crate) struct Query {
+pub(crate) struct Query {
     censorship_type: crate::postgres::CensorshipType,
 }
 
+/*
 enum IdentityOrPointer {
     Identity(::ed25519_dalek::PublicKey),
     Pointer(crate::model::pointer::Pointer),
@@ -19,7 +20,7 @@ fn get_identity_or_pointer(
     let url = ::url::Url::parse(url_str).map_err(::anyhow::Error::new)?;
 
     let end_base64 = url.path_segments().expect("expected end").last().unwrap();
-    
+
     let end_bytes = ::base64::decode_config(
         end_base64,
         ::base64::URL_SAFE
@@ -52,8 +53,9 @@ fn get_identity_or_pointer(
         Ok(IdentityOrPointer::Identity(identity))
     }
 }
+*/
 
-pub (crate) async fn handler(
+pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     authorization: String,
     query: Query,
@@ -66,6 +68,7 @@ pub (crate) async fn handler(
         ));
     }
 
+    /*
     let identity_or_pointer = match get_identity_or_pointer(&bytes) {
         Ok(x) => x,
         Err(err) => {
@@ -75,6 +78,7 @@ pub (crate) async fn handler(
             ));
         }
     };
+    */
 
     let mut transaction = match state.pool.begin().await {
         Ok(x) => x,
@@ -86,6 +90,7 @@ pub (crate) async fn handler(
         }
     };
 
+    /*
     match identity_or_pointer {
         IdentityOrPointer::Pointer(pointer) => {
             match
@@ -122,6 +127,7 @@ pub (crate) async fn handler(
             };
         }
     }
+    */
 
     match transaction.commit().await {
         Ok(()) => (),
@@ -135,6 +141,6 @@ pub (crate) async fn handler(
 
     Ok(::warp::reply::with_status(
         String::from(""),
-        ::warp::http::StatusCode::OK),
-    )
+        ::warp::http::StatusCode::OK,
+    ))
 }

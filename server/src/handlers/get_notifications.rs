@@ -12,8 +12,9 @@ struct NotificationRow {
 
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
-    bytes: ::bytes::Bytes,
-) -> Result<impl ::warp::Reply, ::warp::Rejection> {
+    // bytes: ::bytes::Bytes,
+) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+    /*
     const STATEMENT_WITHOUT_INDEX: &str = "
         SELECT *
         FROM notifications
@@ -36,12 +37,19 @@ pub(crate) async fn handler(
             .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
     let notifications: ::std::vec::Vec<NotificationRow>;
+    */
 
-    let mut transaction =
-        state.pool.begin().await.map_err(|e| {
-            crate::RequestError::Anyhow(::anyhow::Error::new(e))
-        })?;
+    let mut transaction = match state.pool.begin().await {
+        Ok(x) => x,
+        Err(err) => {
+            return Ok(Box::new(::warp::reply::with_status(
+                err.to_string().clone(),
+                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            )));
+        }
+    };
 
+    /*
     if let Some(after_index) = request.after_index {
         notifications =
             ::sqlx::query_as::<_, NotificationRow>(STATEMENT_WITH_INDEX)
@@ -98,9 +106,12 @@ pub(crate) async fn handler(
         crate::process_mutations2(&mut transaction, history)
             .await
             .map_err(|e| crate::RequestError::Anyhow(e))?;
+    */
 
-    let mut result = crate::protocol::ResponseNotifications::new();
+    let mut result =
+        crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
 
+    /*
     for notification in &notifications {
         if let Some(largest_index) = result.largest_index {
             if notification.notification_id > (largest_index as i64) {
@@ -119,18 +130,34 @@ pub(crate) async fn handler(
     result
         .result_events
         .append(&mut processed_events.result_events);
+    */
 
-    transaction
-        .commit()
-        .await
-        .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
+    match transaction.commit().await {
+        Ok(()) => (),
+        Err(err) => {
+            return Ok(Box::new(::warp::reply::with_status(
+                err.to_string().clone(),
+                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            )));
+        }
+    };
 
-    let result_serialized = result
-        .write_to_bytes()
-        .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
+    let result_serialized = match result.write_to_bytes() {
+        Ok(a) => a,
+        Err(err) => {
+            return Ok(Box::new(::warp::reply::with_status(
+                err.to_string().clone(),
+                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            )));
+        }
+    };
 
-    Ok(::warp::reply::with_status(
-        result_serialized,
-        ::warp::http::StatusCode::OK,
-    ))
+    Ok(Box::new(::warp::reply::with_header(
+        ::warp::reply::with_status(
+            result_serialized,
+            ::warp::http::StatusCode::OK,
+        ),
+        "Cache-Control",
+        "public, max-age=30",
+    )))
 }

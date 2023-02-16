@@ -253,7 +253,7 @@ function FeedForTimeline(props: Feed.FeedProps) {
                     key={item.key}
                     ref={index === feedItems.length - 1 ? ref : undefined}
                 >
-                    { item.post && (
+                    {item.post && (
                         <Post.PostMemo
                             state={props.state}
                             post={item.post}

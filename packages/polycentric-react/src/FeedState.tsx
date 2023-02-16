@@ -50,7 +50,9 @@ export async function loadFeedItem(
     pointer: Core.Protocol.Pointer,
     generation: number,
     setState: (cb: (feedState: Array<FeedItem>) => Array<FeedItem>) => void,
-    mutateNew: (item: Post.DisplayablePost) => Promise<Post.DisplayablePost | undefined>,
+    mutateNew: (
+        item: Post.DisplayablePost,
+    ) => Promise<Post.DisplayablePost | undefined>,
     handleInsert: (
         feedState: Array<FeedItem>,
         item: FeedItem,

@@ -1,187 +1,187 @@
 syntax = "proto3";
 package userpackage;
 
-message EventClockEntry {
-    bytes key = 1;
-    uint64 value = 2;
+message PublicKey {
+    uint64 key_type = 1;
+    bytes  key      = 2;
 }
 
-message Event {
-    optional bytes previous_event_hash = 1;
-    bytes writer_id = 2;
-    bytes author_public_key = 3;
-    uint64 sequence_number = 4;
-    bytes content = 5;
-    repeated EventClockEntry clocks = 6;
-    optional bytes signature = 7;
-    uint64 unix_milliseconds = 8;
+message Process {
+    bytes process = 1;
 }
 
-message Events {
-    repeated Event events = 1;
+message Index {
+    uint64 index_type    = 1;
+    uint64 logical_clock = 2;
 }
 
-message Pointer {
-    bytes public_key = 1;
-    bytes writer_id = 2;
-    uint64 sequence_number = 3;
+message Indices {
+    repeated Index indices = 1;
 }
 
-message EventBodyProfile {
-    bytes profile_name = 1;
-    repeated bytes profile_servers = 3;
-    optional bytes profile_description = 4;
-    optional Pointer profile_image_pointer = 5;
+message VectorClock {
+    repeated uint64 logical_clocks = 1;
 }
 
-message EventBodyMessage {
-    bytes message = 1;
-    optional Pointer image = 2;
-    optional Pointer boost_pointer = 3;
+message SignedEvent {
+    bytes signature = 1;
+    bytes event     = 2;
 }
 
-message EventBodyFollow {
-    bytes public_key = 1;
-    bool unfollow = 2;
+message LWWElementSet {
+    enum Operation {
+        ADD    = 0;
+        REMOVE = 1;
+    }
+    Operation operation         = 1;
+    bytes     value             = 2;
+    uint64    unix_milliseconds = 3;
 }
 
-message EventBodyBlobMeta {
+message LWWElement {
+    bytes  value             = 1;
+    uint64 unix_milliseconds = 2;
+}
+
+message Server {
+    string server = 1;
+}
+
+message BlobMeta {
     uint64 section_count = 1;
-    string kind = 2;
+    string mime = 2;
 }
 
-message EventBodyBlobSection {
+message BlobSection {
     uint64 meta_pointer = 1;
     bytes content = 2;
 }
 
-message EventBodyDelete {
-    Pointer pointer = 1;
+message Event {
+             PublicKey     system          = 1;
+             Process       process         = 2;
+             uint64        logical_clock   = 3;
+             uint64        content_type    = 4;
+             bytes         content         = 5;
+             VectorClock   vector_clock    = 6;
+             Indices       indices         = 7;
+    optional LWWElementSet lww_element_set = 8;
+    optional LWWElement    lww_element     = 9;
+    repeated Reference     references      = 10;
 }
 
-message EventBody {
-    oneof event_type {
-        EventBodyMessage message = 1;
-        EventBodyProfile profile = 2;
-        EventBodyFollow follow = 3;
-        EventBodyBlobMeta blob_meta = 4;
-        EventBodyBlobSection blob_section = 5;
-        EventBodyDelete delete = 6;
-    }
+message Digest {
+    uint64 digest_type = 1;
+    bytes  digest      = 2;
+}
+
+message Pointer {
+    PublicKey system        = 1;
+    Process   process       = 2;
+    uint64    logical_clock = 3;
+    Digest    event_digest  = 4;
+}
+
+message Delete {
+    Process process       = 1;
+    uint64  logical_clock = 2;
+    Indices indices       = 3;
+}
+
+message Events {
+    repeated SignedEvent events = 1;
 }
 
 message Range {
-    uint64 low = 1;
+    uint64 low  = 1;
     uint64 high = 2;
 }
 
-message RequestKnownRanges {
-    bytes author_public_key = 1;
-    bytes writer_id = 2;
+message RangesForProcess {
+             Process process = 1;
+    repeated Range   ranges  = 2;
 }
 
-message KnownRanges {
-    repeated Range ranges = 1;
-}
-
-message RequestEventsHead {
-    bytes author_public_key = 1;
-    repeated EventClockEntry clocks = 2;
-}
-
-message RequestEventRanges {
-    bytes author_public_key = 1;
-    bytes writer_id = 2;
-    repeated Range ranges = 3;
+message RangesForSystem {
+    repeated RangesForProcess ranges_for_processes = 1;
 }
 
 message URLInfo {
-    bytes public_key = 1;
-    repeated bytes servers = 2;
-    optional bytes writer_id = 3;
-    optional uint64 sequence_number = 4;
+             PublicKey system        = 1;
+    optional Process   process       = 2;
+    optional uint64    logical_clock = 3;
+    repeated string    servers       = 4;
 }
 
-message RequestKnownRangesForFeed {
-    bytes public_key = 1;
-}
-
-message WriterAndRanges {
-    bytes writer_id = 1;
-    repeated Range ranges = 2;
-}
-
-message ResponseKnownRangesForFeed {
-    repeated WriterAndRanges writers = 1;
+message PrivateKey {
+    uint64 key_type = 1;
+    bytes  key      = 2;
 }
 
 message ExportBundle {
-    bytes private_key = 1;
-    repeated Event events = 2;
-}
-
-message RequestExplore {
-    optional uint64 before_time = 1;
-}
-
-message RequestNotifications {
-    bytes public_key = 1;
-    optional uint64 after_index = 2;
-}
-
-message ResponseNotifications {
-    repeated Event related_events = 1;
-    repeated Event result_events = 2;
-    optional uint64 largest_index = 3; 
-}
-
-message Search {
-    string search = 1;
-}
-
-message ResponseSearch {
-    repeated Event related_events = 1;
-    repeated Event result_events = 2;
-}
-
-message StorageTypeRange {
-    bytes public_key = 1;
-    bytes writer_id = 2;
-    uint64 low_sequence_number = 3;
-    uint64 high_sequence_number = 4;
-}
-
-message StorageTypeFollowing {
-    bytes public_key = 1;
-    uint64 unix_milliseconds = 2;
-    bool unfollow = 3;
-}
-
-message StorageTypeProfile {
-    bytes public_key = 1;
-    bytes username = 2;
-    optional bytes description = 3;
-    optional Pointer image_pointer = 4;
-    optional Pointer mutated_by = 5;
-    uint64 unix_milliseconds = 6;
-    repeated EventClockEntry heads = 7;
-    repeated bytes servers = 8;
-}
-
-message StorageTypeIdentity {
-    bytes private_key = 1;
-    bytes writer_id = 2;
-    uint64 sequence_number = 3;
-}
-
-message StorageTypeEvent {
-    optional Event event = 1;
-    optional Pointer mutation_pointer = 2;
+    PrivateKey system_private_key = 1;
+    Events     events             = 2;
 }
 
 message ResultEventsAndRelatedEventsAndCursor {
-    repeated Event result_events = 1;
-    repeated Event related_events = 2;
-    uint64 cursor = 3;
+    Events result_events  = 1;
+    Events related_events = 2;
+    uint64 cursor         = 3;
+}
+
+message Reference {
+    uint64 reference_type = 1;
+    bytes  reference      = 2;
+}
+
+message Post {
+    optional string  content = 1;
+    optional Pointer image   = 2;
+    optional Pointer boost   = 3;
+}
+
+message Claim {
+    uint64 claim_type = 1;
+    bytes  claim      = 2;
+}
+
+message ClaimIdentifier {
+    string identifier = 1;
+}
+
+message Vouch {}
+
+message StorageTypeProcessSecret {
+    PrivateKey system  = 1;
+    Process    process = 2;
+}
+
+message StorageTypeProcessState {
+             uint64 logical_clock = 1;
+    repeated Range  ranges        = 2;
+}
+
+message StorageTypeCRDTSetItem {
+    uint64                  content_type      = 1;
+    bytes                   value             = 2;
+    uint64                  unix_milliseconds = 3;
+    LWWElementSet.Operation operation         = 4;
+}
+
+message StorageTypeCRDTItem {
+    uint64 content_type      = 1;
+    bytes  value             = 2;
+    uint64 unix_milliseconds = 3;
+}
+
+message StorageTypeSystemState {
+    repeated StorageTypeCRDTSetItem crdt_set_items = 1;
+    repeated Process                processes      = 2;
+    repeated StorageTypeCRDTItem    crdt_items     = 3;
+}
+
+message StorageTypeEvent {
+    optional SignedEvent event            = 1;
+    optional Pointer     mutation_pointer = 2;
 }
 

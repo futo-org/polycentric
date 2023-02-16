@@ -1,54 +1,6 @@
+use ::anyhow::Context;
 use ::protobuf::Message;
 use ::std::convert::TryFrom;
-
-pub mod store_item {
-    #[derive(PartialEq, Debug)]
-    pub enum MutationPointerOrSignedEvent {
-        MutationPointer(crate::model::pointer::Pointer),
-        SignedEvent(crate::model::signed_event::SignedEvent),
-    }
-
-    #[derive(PartialEq, Debug)]
-    pub struct StoreItem {
-        pointer: crate::model::pointer::Pointer,
-        value: MutationPointerOrSignedEvent,
-    }
-
-    impl StoreItem {
-        pub fn new(
-            pointer: crate::model::pointer::Pointer,
-            value: MutationPointerOrSignedEvent,
-        ) -> StoreItem {
-            StoreItem {
-                pointer: pointer,
-                value: value,
-            }
-        }
-
-        pub fn pointer(&self) -> &crate::model::pointer::Pointer {
-            &self.pointer
-        }
-
-        pub fn value(&self) -> &MutationPointerOrSignedEvent {
-            &self.value
-        }
-    }
-}
-
-pub(crate) fn signed_event_to_store_item(
-    signed_event: crate::model::signed_event::SignedEvent,
-) -> store_item::StoreItem {
-    let event = signed_event.event();
-
-    store_item::StoreItem::new(
-        crate::model::pointer::Pointer::new(
-            event.identity().clone(),
-            event.writer().clone(),
-            event.sequence_number(),
-        ),
-        store_item::MutationPointerOrSignedEvent::SignedEvent(signed_event),
-    )
-}
 
 #[derive(::sqlx::Type)]
 #[sqlx(type_name = "censorship_type")]
@@ -68,25 +20,39 @@ pub(crate) enum LinkType {
     Boost,
 }
 
+#[allow(dead_code)]
+#[derive(::sqlx::FromRow)]
+struct EventRow {
+    #[sqlx(try_from = "i64")]
+    id: u64,
+    #[sqlx(try_from = "i64")]
+    system_key_type: u64,
+    system_key: ::std::vec::Vec<u8>,
+    process: ::std::vec::Vec<u8>,
+    #[sqlx(try_from = "i64")]
+    logical_clock: u64,
+    #[sqlx(try_from = "i64")]
+    content_type: u64,
+    content: ::std::vec::Vec<u8>,
+    vector_clock: ::std::vec::Vec<u8>,
+    indices: ::std::vec::Vec<u8>,
+    signature: ::std::vec::Vec<u8>,
+    raw_event: ::std::vec::Vec<u8>,
+}
+
+#[allow(dead_code)]
+#[derive(PartialEq, Debug, ::sqlx::FromRow)]
+struct RangeRow {
+    process: ::std::vec::Vec<u8>,
+    #[sqlx(try_from = "i64")]
+    low: u64,
+    #[sqlx(try_from = "i64")]
+    high: u64,
+}
+
 pub(crate) async fn prepare_database(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
 ) -> ::sqlx::Result<()> {
-    ::sqlx::query(
-        "
-        DO $$ BEGIN
-            CREATE TYPE pointer AS (
-                public_key      BYTEA,
-                writer_id       BYTEA,
-                sequence_number INT8
-            );
-        EXCEPTION
-            WHEN duplicate_object THEN null;
-        END $$;
-    ",
-    )
-    .execute(&mut *transaction)
-    .await?;
-
     ::sqlx::query(
         "
         DO $$ BEGIN
@@ -120,45 +86,24 @@ pub(crate) async fn prepare_database(
     ::sqlx::query(
         "
         CREATE TABLE IF NOT EXISTS events (
-            author_public_key BYTEA NOT NULL,
-            writer_id         BYTEA NOT NULL,
-            sequence_number   INT8  NOT NULL,
-            unix_milliseconds INT8  NOT NULL,
-            content           BYTEA NOT NULL,
-            signature         BYTEA NOT NULL,
-            clocks            TEXT  NOT NULL,
-            event_type        INT8  NOT NULL,
-            mutation_pointer  pointer
-        );
-    ",
-    )
-    .execute(&mut *transaction)
-    .await?;
+            id              BIGSERIAL PRIMARY KEY,
+            system_key_type INT8      NOT NULL,
+            system_key      BYTEA     NOT NULL,
+            process         BYTEA     NOT NULL,
+            logical_clock   INT8      NOT NULL,
+            content_type    INT8      NOT NULL,
+            content         BYTEA     NOT NULL,
+            vector_clock    BYTEA     NOT NULL,
+            indices         BYTEA     NOT NULL,
+            signature       BYTEA     NOT NULL,
+            raw_event       BYTEA     NOT NULL,
 
-    ::sqlx::query(
-        "
-        CREATE TABLE IF NOT EXISTS censored_posts (
-            author_public_key BYTEA           NOT NULL,
-            writer_id         BYTEA           NOT NULL,
-            sequence_number   INT8            NOT NULL,
-            censorship_type   censorship_type NOT NULL,
+            CHECK ( system_key_type >= 0  ),
+            CHECK ( LENGTH(process) =  16 ),
+            CHECK ( logical_clock   >= 0  ),
+            CHECK ( content_type    >= 0  ),
 
-            CHECK (sequence_number >= 0),
-
-            UNIQUE (author_public_key, writer_id, sequence_number)
-        );
-    ",
-    )
-    .execute(&mut *transaction)
-    .await?;
-
-    ::sqlx::query(
-        "
-        CREATE TABLE IF NOT EXISTS censored_identities (
-            author_public_key BYTEA           NOT NULL,
-            censorship_type   censorship_type NOT NULL,
-
-            UNIQUE (author_public_key)
+            UNIQUE (system_key_type, system_key, process, logical_clock)
         );
     ",
     )
@@ -168,30 +113,20 @@ pub(crate) async fn prepare_database(
     ::sqlx::query(
         "
         CREATE TABLE IF NOT EXISTS event_links (
-            id BIGSERIAL PRIMARY KEY,
+            id                      BIGSERIAL PRIMARY KEY,
+            subject_system_key_type INT8      NOT NULL,
+            subject_system_key      BYTEA     NOT NULL,
+            subject_process         BYTEA     NOT NULL,
+            subject_logical_clock   INT8      NOT NULL,
+            link_content_type       INT8      NOT NULL,
+            event_id                BIGSERIAL NOT NULL,
 
-            link_type link_type NOT NULL,
+            CHECK ( subject_system_key_type >= 0  ),
+            CHECK ( LENGTH(subject_process) =  16 ),
+            CHECK ( subject_logical_clock   >= 0  ),
+            CHECK ( link_content_type       >= 0  ),
 
-            from_author_public_key BYTEA NOT NULL,
-            from_writer_id         BYTEA NOT NULL,
-            from_sequence_number   INT8  NOT NULL,
-
-            to_author_public_key BYTEA NOT NULL,
-            to_writer_id         BYTEA NOT NULL,
-            to_sequence_number   INT8  NOT NULL,
-
-            CHECK (LENGTH(from_author_public_key) = 32),
-            CHECK (LENGTH(from_writer_id) = 32),
-            CHECK (from_sequence_number >= 0),
-            CHECK (LENGTH(to_author_public_key) = 32),
-            CHECK (LENGTH(to_writer_id) = 32),
-            CHECK (to_sequence_number >= 0),
-
-            UNIQUE (
-                from_author_public_key,
-                from_writer_id,
-                from_sequence_number
-            )
+            CONSTRAINT FK_event FOREIGN KEY (event_id) REFERENCES events(id)
         );
     ",
     )
@@ -200,21 +135,14 @@ pub(crate) async fn prepare_database(
 
     ::sqlx::query(
         "
-        CREATE UNIQUE INDEX IF NOT EXISTS events_index
-        ON events (author_public_key, writer_id, sequence_number);
-    ",
-    )
-    .execute(&mut *transaction)
-    .await?;
+        CREATE TABLE IF NOT EXISTS claims (
+            id         BIGSERIAL PRIMARY KEY,
+            claim_type INT8      NOT NULL,
+            event_id   BIGSERIAL NOT NULL,
 
-    ::sqlx::query(
-        "
-        CREATE TABLE IF NOT EXISTS notifications (
-            notification_id        INT8  NOT NULL,
-            for_author_public_key  BYTEA NOT NULL,
-            from_author_public_key BYTEA NOT NULL,
-            from_writer_id         BYTEA NOT NULL,
-            from_sequence_number   INT8  NOT NULL
+            CHECK ( claim_type >= 0  ),
+
+            CONSTRAINT FK_event FOREIGN KEY (event_id) REFERENCES events(id)
         );
     ",
     )
@@ -223,8 +151,78 @@ pub(crate) async fn prepare_database(
 
     ::sqlx::query(
         "
-        CREATE UNIQUE INDEX IF NOT EXISTS notifications_index
-        ON notifications (for_author_public_key, notification_id);
+        CREATE TABLE IF NOT EXISTS process_state (
+            id              BIGSERIAL PRIMARY KEY,
+            system_key_type INT8      NOT NULL,
+            system_key      BYTEA     NOT NULL,
+            process         BYTEA     NOT NULL,
+            logical_clock   INT8      NOT NULL,
+
+            CHECK ( system_key_type >= 0  ),
+            CHECK ( LENGTH(process) =  16 ),
+            CHECK ( logical_clock   >= 0  ),
+
+            UNIQUE (system_key_type, system_key, process)
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        CREATE TABLE IF NOT EXISTS deletions (
+            id              BIGSERIAL PRIMARY KEY,
+            system_key_type INT8      NOT NULL,
+            system_key      BYTEA     NOT NULL,
+            process         BYTEA     NOT NULL,
+            logical_clock   INT8      NOT NULL,
+            event_id        BIGSERIAL NOT NULL,
+
+            CHECK ( system_key_type >= 0  ),
+            CHECK ( LENGTH(process) =  16 ),
+            CHECK ( logical_clock   >= 0  ),
+            
+            CONSTRAINT FK_event FOREIGN KEY (event_id) REFERENCES events(id)
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        CREATE TABLE IF NOT EXISTS censored_events (
+            id                BIGSERIAL       PRIMARY KEY,
+            system_key_type   INT8            NOT NULL,
+            system_key        BYTEA           NOT NULL,
+            process           BYTEA           NOT NULL,
+            logical_clock     INT8            NOT NULL,
+            censorship_type   censorship_type NOT NULL,
+
+            CHECK ( system_key_type >= 0  ),
+            CHECK ( LENGTH(process) =  16 ),
+            CHECK ( logical_clock   >= 0  ),
+
+            UNIQUE (system_key_type, system_key, process, logical_clock)
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        CREATE TABLE IF NOT EXISTS censored_systems (
+            id                BIGSERIAL       PRIMARY KEY,
+            system_key_type   INT8            NOT NULL,
+            system_key        BYTEA           NOT NULL,
+            censorship_type   censorship_type NOT NULL,
+
+            CHECK ( system_key_type >= 0  ),
+
+            UNIQUE (system_key_type, system_key)
+        );
     ",
     )
     .execute(&mut *transaction)
@@ -233,541 +231,497 @@ pub(crate) async fn prepare_database(
     Ok(())
 }
 
-pub(crate) async fn persist_event_feed(
+pub(crate) async fn load_event(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    system: &crate::model::public_key::PublicKey,
+    process: &crate::model::process::Process,
+    logical_clock: u64,
+) -> ::anyhow::Result<Option<crate::model::signed_event::SignedEvent>> {
+    let query = "
+        SELECT raw_event FROM events
+        WHERE system_key_type = $1
+        AND   system_key      = $2
+        AND   process         = $3
+        AND   logical_clock   = $4
+        LIMIT 1;
+    ";
+
+    let potential_raw = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            system,
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(system))
+        .bind(&process.bytes())
+        .bind(i64::try_from(logical_clock)?)
+        .fetch_optional(&mut *transaction)
+        .await?;
+
+    match potential_raw {
+        Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
+            &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+        )?)),
+        None => Ok(None),
+    }
+}
+
+pub(crate) async fn is_event_deleted(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    event: &crate::model::event::Event,
+) -> ::anyhow::Result<bool> {
+    let query_select_deleted = "
+        SELECT 1 FROM deletions
+        WHERE system_key_type = $1
+        AND system_key = $2
+        AND process = $3
+        AND logical_clock = $4
+        LIMIT 1;
+    ";
+
+    let is_deleted = ::sqlx::query_scalar::<_, i64>(query_select_deleted)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            &event.system(),
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(&event.system()))
+        .bind(&event.process().bytes())
+        .bind(i64::try_from(*event.logical_clock())?)
+        .fetch_optional(&mut *transaction)
+        .await?;
+
+    Ok(is_deleted.is_some())
+}
+
+pub(crate) async fn delete_event(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    system: &crate::model::public_key::PublicKey,
+    delete: &crate::model::delete::Delete,
+) -> ::anyhow::Result<()> {
+    let query_insert_delete = "
+        INSERT INTO deletions
+        (
+            system_key_type,
+            system_key,
+            process,
+            logical_clock,
+            event_id
+        )
+        VALUES (
+            $1, $2, $3, $4, currval(pg_get_serial_sequence('events', 'id'))
+        );
+    ";
+
+    let query_delete_event = "
+        DELETE FROM events
+        WHERE system_key_type = $1
+        AND system_key = $2
+        AND process = $3
+        AND logical_clock = $4;
+    ";
+
+    ::sqlx::query(query_insert_delete)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            system,
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(system))
+        .bind(delete.process().bytes())
+        .bind(i64::try_from(*delete.logical_clock())?)
+        .execute(&mut *transaction)
+        .await?;
+
+    ::sqlx::query(query_delete_event)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            system,
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(system))
+        .bind(delete.process().bytes())
+        .bind(i64::try_from(*delete.logical_clock())?)
+        .execute(&mut *transaction)
+        .await?;
+
+    Ok(())
+}
+
+pub(crate) async fn insert_event(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     signed_event: &crate::model::signed_event::SignedEvent,
-) -> ::anyhow::Result<()> {
-    let query = "
+) -> ::anyhow::Result<u64> {
+    let query_insert_event = "
         INSERT INTO events
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        (
+            system_key_type,
+            system_key,
+            process,
+            logical_clock,
+            content_type,
+            content,
+            vector_clock,
+            indices,
+            signature,
+            raw_event
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING id;
+    ";
+
+    let event = crate::model::event::from_proto(
+        &crate::protocol::Event::parse_from_bytes(signed_event.event())?,
+    )?;
+
+    let serialized =
+        crate::model::signed_event::to_proto(&signed_event).write_to_bytes()?;
+
+    let id = ::sqlx::query_scalar::<_, i64>(query_insert_event)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            &event.system(),
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(&event.system()))
+        .bind(&event.process().bytes())
+        .bind(i64::try_from(*event.logical_clock())?)
+        .bind(i64::try_from(*event.content_type())?)
+        .bind(&event.content())
+        .bind(event.vector_clock().write_to_bytes()?)
+        .bind(event.indices().write_to_bytes()?)
+        .bind(&signed_event.signature())
+        .bind(&serialized)
+        .fetch_one(&mut *transaction)
+        .await?;
+
+    Ok(u64::try_from(id)?)
+}
+
+pub(crate) async fn insert_event_link(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    event_id: u64,
+    link_content_type: u64,
+    pointer: &crate::model::pointer::Pointer,
+) -> ::anyhow::Result<()> {
+    let query_insert_event_link = "
+        INSERT INTO event_links
+        (
+            subject_system_key_type,
+            subject_system_key,
+            subject_process,
+            subject_logical_clock,
+            link_content_type,
+            event_id
+        )
+        VALUES (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            $6
+        )
         ON CONFLICT DO NOTHING;
     ";
 
-    let query_with_pointer = "
-        INSERT INTO events
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, ROW($9, $10, $11))
-        ON CONFLICT (author_public_key, writer_id, sequence_number)
-        DO UPDATE SET
-            unix_milliseconds = EXCLUDED.unix_milliseconds,
-            content = EXCLUDED.content,
-            signature = EXCLUDED.signature,
-            clocks = EXCLUDED.clocks,
-            event_type = EXCLUDED.event_type,
-            mutation_pointer = EXCLUDED.mutation_pointer
-        ;
-    ";
-
-    let event = signed_event.event();
-
-    let event_body =
-        crate::protocol::EventBody::parse_from_bytes(event.content())?;
-
-    let mut message_type: i64 = 0;
-
-    if event_body.has_message() {
-        message_type = 1;
-
-        if let Some(pointer) = &event_body.message().boost_pointer.0 {
-            let from = crate::model::pointer::Pointer::new(
-                event.identity().clone(),
-                event.writer().clone(),
-                event.sequence_number(),
-            );
-
-            let to = crate::model::protobuf_pointer_to_pointer(pointer)?;
-
-            insert_event_link_row(
-                &mut *transaction,
-                &LinkType::React,
-                &from,
-                &to,
-            ).await?;
-        }
-    } else if event_body.has_profile() {
-        message_type = 2;
-    } else if event_body.has_delete() {
-        message_type = 6;
-    }
-
-    let mut converted_clocks = vec![];
-
-    for clock in event.clocks() {
-        converted_clocks.push(crate::ClockEntry {
-            writer_id: clock.writer().0.to_vec().clone(),
-            sequence_number: clock.value(),
-        });
-    }
-
-    let clocks_serialized = ::serde_json::to_string(&converted_clocks)?;
-
-    ::sqlx::query(query)
-        .bind(&event.identity().to_bytes())
-        .bind(&event.writer().0)
-        .bind(i64::try_from(event.sequence_number())?)
-        .bind(i64::try_from(event.unix_milliseconds())?)
-        .bind(&event.content())
-        .bind(&signed_event.signature().to_bytes())
-        .bind(clocks_serialized)
-        .bind(message_type)
+    ::sqlx::query(query_insert_event_link)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            &pointer.system(),
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(&pointer.system()))
+        .bind(&pointer.process().bytes())
+        .bind(i64::try_from(*pointer.logical_clock())?)
+        .bind(i64::try_from(link_content_type)?)
+        .bind(i64::try_from(event_id)?)
         .execute(&mut *transaction)
         .await?;
-
-    if event_body.has_delete() {
-        sqlx::query(query_with_pointer)
-            .bind(event_body.delete().pointer.public_key.clone())
-            .bind(event_body.delete().pointer.writer_id.clone())
-            .bind(i64::try_from(event_body.delete().pointer.sequence_number)?)
-            .bind(0)
-            .bind::<::std::vec::Vec<u8>>(vec![])
-            .bind::<::std::vec::Vec<u8>>(vec![])
-            .bind("")
-            .bind(10)
-            .bind(&event.identity().to_bytes())
-            .bind(&event.writer().0)
-            .bind(i64::try_from(event.sequence_number())?)
-            .execute(&mut *transaction)
-            .await?;
-    }
 
     Ok(())
 }
 
-pub fn event_row_to_store_item(
-    row: &crate::EventRow,
-) -> ::anyhow::Result<store_item::StoreItem> {
-    let identity =
-        ::ed25519_dalek::PublicKey::from_bytes(&row.author_public_key)?;
-
-    let writer = crate::model::vec_to_writer_id(&row.writer_id)?;
-
-    let pointer = crate::model::pointer::Pointer::new(
-        identity,
-        writer,
-        u64::try_from(row.sequence_number)?,
-    );
-
-    if let Some(mutation_pointer) = &row.mutation_pointer {
-        let identity = ::ed25519_dalek::PublicKey::from_bytes(
-            &mutation_pointer.public_key,
-        )?;
-
-        let writer =
-            crate::model::vec_to_writer_id(&mutation_pointer.writer_id)?;
-
-        let mutation_pointer = crate::model::pointer::Pointer::new(
-            identity,
-            writer,
-            u64::try_from(mutation_pointer.sequence_number)?,
-        );
-
-        return Ok(store_item::StoreItem::new(
-            pointer.clone(),
-            store_item::MutationPointerOrSignedEvent::MutationPointer(
-                mutation_pointer,
-            ),
-        ));
-    }
-
-    let clocks_deserialized: ::std::vec::Vec<crate::ClockEntry> =
-        ::serde_json::from_str(&row.clocks)?;
-
-    let clocks = clocks_deserialized.iter().map(|clock| {
-        let key = crate::model::vec_to_writer_id(
-            &clock.writer_id,
-        )?;
-
-        Ok(crate::model::event::Clock::new(
-            key,
-            clock.sequence_number,
-        ))
-    }).collect::<
-        ::anyhow::Result<::std::vec::Vec<crate::model::event::Clock>>
-    >()?;
-
-    let event = crate::model::event::Event::new(
-        pointer.identity().clone(),
-        pointer.writer().clone(),
-        pointer.sequence_number(),
-        u64::try_from(row.unix_milliseconds)?,
-        row.content.clone(),
-        clocks,
-    );
-
-    let signature = ed25519_dalek::Signature::try_from(&row.signature[..])?;
-
-    let signed_event =
-        crate::model::signed_event::SignedEvent::new(event, signature)?;
-
-    Ok(store_item::StoreItem::new(
-        pointer.clone(),
-        store_item::MutationPointerOrSignedEvent::SignedEvent(signed_event),
-    ))
-}
-
-pub async fn get_specific_event(
+pub(crate) async fn insert_claim(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    pointer: &crate::model::pointer::Pointer,
-) -> ::anyhow::Result<Option<store_item::StoreItem>> {
-    const STATEMENT: &str = "
-        SELECT * FROM events
-        WHERE author_public_key = $1
-        AND writer_id = $2
-        AND sequence_number = $3
-        LIMIT 1;
+    claim_type: u64,
+) -> ::anyhow::Result<()> {
+    let query_insert_claim = "
+        INSERT INTO claims
+        (
+            claim_type,
+            event_id
+        )
+        VALUES ($1, currval(pg_get_serial_sequence('events', 'id')))
+        ON CONFLICT DO NOTHING;
     ";
 
-    let potential_row = ::sqlx::query_as::<_, crate::EventRow>(STATEMENT)
-        .bind(&pointer.identity().to_bytes())
-        .bind(&pointer.writer().0)
-        .bind(i64::try_from(pointer.sequence_number())?)
-        .fetch_optional(&mut *transaction)
+    ::sqlx::query(query_insert_claim)
+        .bind(i64::try_from(claim_type)?)
+        .execute(&mut *transaction)
         .await?;
 
-    let row = match potential_row {
-        Some(x) => x,
-        None => return Ok(None),
-    };
-
-    let store_item = event_row_to_store_item(&row)?;
-
-    Ok(Some(store_item))
+    Ok(())
 }
 
-#[derive(::sqlx::FromRow, PartialEq)]
-pub struct StartAndEnd {
-    pub start_number: i64,
-    pub end_number: i64,
-}
-
-pub async fn ranges_for_writer(
+pub(crate) async fn find_claims(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    identity: &::ed25519_dalek::PublicKey,
-    writer: &crate::model::WriterId,
-) -> ::sqlx::Result<::std::vec::Vec<StartAndEnd>> {
-    const STATEMENT: &str = "
+    claim: &crate::model::claim::Claim,
+    trust_root: &crate::model::public_key::PublicKey,
+) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
+{
+    let proto = crate::model::claim::to_proto(claim)
+        .write_to_bytes()
+        .map_err(|e| ::anyhow::Error::new(e))?;
+
+    let query_select_claims = "
         SELECT
-            MIN(sequence_number) as start_number,
-            MAX(sequence_number) as end_number
-        FROM (
-            SELECT *, ROW_NUMBER() OVER(ORDER BY sequence_number) as rn
-            FROM events
-            WHERE author_public_key = $1
-            AND writer_id = $2
-        ) t
-        GROUP BY sequence_number - rn;
-    ";
-
-    ::sqlx::query_as::<_, StartAndEnd>(STATEMENT)
-        .bind(&identity.to_bytes())
-        .bind(&writer.0)
-        .fetch_all(&mut *transaction)
-        .await
-}
-
-#[derive(sqlx::FromRow, PartialEq, Debug)]
-pub struct WriterAndLargest {
-    pub writer_id: ::std::vec::Vec<u8>,
-    pub largest_sequence_number: i64,
-}
-
-pub async fn writer_heads_for_identity(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    identity: &::ed25519_dalek::PublicKey,
-) -> ::sqlx::Result<::std::vec::Vec<WriterAndLargest>> {
-    const STATEMENT: &str = "
-        SELECT writer_id, MAX(sequence_number) as largest_sequence_number
-        FROM events
-        WHERE author_public_key = $1
-        GROUP BY writer_id
-        ORDER BY largest_sequence_number DESC;
-    ";
-
-    ::sqlx::query_as::<_, WriterAndLargest>(STATEMENT)
-        .bind(&identity.to_bytes())
-        .fetch_all(&mut *transaction)
-        .await
-}
-
-pub async fn load_range(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    identity: &::ed25519_dalek::PublicKey,
-    writer: &crate::model::WriterId,
-    low: u64,
-    high: u64,
-) -> ::anyhow::Result<::std::vec::Vec<store_item::StoreItem>> {
-    const STATEMENT: &str = "
-        SELECT *
-        FROM events
-        WHERE author_public_key = $1
-        AND writer_id = $2
-        AND sequence_number >= $3
-        AND sequence_number <= $4
-    ";
-
-    let range = ::sqlx::query_as::<_, crate::EventRow>(STATEMENT)
-        .bind(&identity.to_bytes())
-        .bind(&writer.0)
-        .bind(i64::try_from(low)?)
-        .bind(i64::try_from(high)?)
-        .fetch_all(&mut *transaction)
-        .await?;
-
-    range
-        .iter()
-        .map(|row| event_row_to_store_item(row))
-        .collect::<::anyhow::Result<::std::vec::Vec<store_item::StoreItem>>>()
-}
-
-pub async fn load_events_before_time(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    before_time: Option<u64>,
-) -> ::anyhow::Result<::std::vec::Vec<store_item::StoreItem>> {
-    const STATEMENT_WITHOUT_TIME: &str = "
-        SELECT *
-        FROM events
-        WHERE event_type = 1
-        AND (author_public_key, writer_id, sequence_number) NOT IN (
+            raw_event
+        FROM
+            events
+        WHERE
+            content_type = 12
+        AND
+            content = $1
+        AND (
+            system_key_type,
+            system_key,
+            process,
+            logical_clock
+        ) IN (
             SELECT
-                author_public_key, writer_id, sequence_number
+                t1.subject_system_key_type as system_key_type,
+                t1.subject_system_key as system_key,
+                t1.subject_process as process,
+                t1.subject_logical_clock as logical_clock
             FROM
-                censored_posts
-        )
-        AND (author_public_key) NOT IN (
-            SELECT
-                author_public_key
-            FROM
-                censored_identities
-        )
-        ORDER BY unix_milliseconds DESC
-        LIMIT 20
-    ";
-
-    const STATEMENT_WITH_TIME: &str = "
-        SELECT *
-        FROM events
-        WHERE event_type = 1
-        AND unix_milliseconds < $1
-        AND (author_public_key, writer_id, sequence_number) NOT IN (
-            SELECT
-                author_public_key, writer_id, sequence_number
-            FROM
-                censored_posts
-        )
-        AND (author_public_key) NOT IN (
-            SELECT
-                author_public_key
-            FROM
-                censored_identities
-        )
-        ORDER BY unix_milliseconds DESC
-        LIMIT 20
-    ";
-
-    let history: ::std::vec::Vec<crate::EventRow>;
-
-    if let Some(before_time) = before_time {
-        history = ::sqlx::query_as::<_, crate::EventRow>(STATEMENT_WITH_TIME)
-            .bind(i64::try_from(before_time)?)
-            .fetch_all(&mut *transaction)
-            .await?
-    } else {
-        history = ::sqlx::query_as::<_, crate::EventRow>(STATEMENT_WITHOUT_TIME)
-            .fetch_all(&mut *transaction)
-            .await?
-    }
-
-    history
-        .iter()
-        .map(|row| event_row_to_store_item(row))
-        .collect::<::anyhow::Result<::std::vec::Vec<store_item::StoreItem>>>()
-}
-
-pub async fn load_latest_profile(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    identity: &::ed25519_dalek::PublicKey,
-) -> ::anyhow::Result<Option<crate::model::signed_event::SignedEvent>> {
-    const STATEMENT: &str = "
-        SELECT * FROM events
-        WHERE author_public_key = $1
-        AND event_type = 2
-        ORDER BY unix_milliseconds DESC
-        LIMIT 1;
-    ";
-
-    let potential_row = ::sqlx::query_as::<_, crate::EventRow>(STATEMENT)
-        .bind(&identity.to_bytes())
-        .fetch_optional(&mut *transaction)
-        .await?;
-
-    let row = match potential_row {
-        Some(x) => x,
-        None => return Ok(None),
-    };
-
-    let store_item = event_row_to_store_item(&row)?;
-
-    match store_item.value() {
-        crate::postgres::store_item::
-             MutationPointerOrSignedEvent::SignedEvent(signed_event)
-        => Ok(Some(signed_event.clone())),
-        _ => Ok(None),
-    }
-}
-
-#[derive(sqlx::FromRow)]
-struct PublicKeyRow {
-    author_public_key: ::std::vec::Vec<u8>,
-}
-
-pub async fn load_random_identities(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-) -> ::anyhow::Result<::std::vec::Vec<::ed25519_dalek::PublicKey>> {
-    const STATEMENT: &str = "
-        SELECT * FROM (
-            SELECT author_public_key 
-            FROM events
-            WHERE (author_public_key) NOT IN (
-                SELECT
-                    author_public_key
-                FROM
-                    censored_identities
-            )
-            GROUP BY author_public_key
-            HAVING COUNT(*) > 1
-        ) t
-        ORDER BY RANDOM()
-        LIMIT 3;
-    ";
-
-    let rows = ::sqlx::query_as::<_, PublicKeyRow>(STATEMENT)
-        .fetch_all(&mut *transaction)
-        .await?;
-
-    rows.iter().map(|row| {
-        let key = ::ed25519_dalek::PublicKey::from_bytes(
-            &row.author_public_key
-        )?;
-        Ok(key)
-    }).collect::<
-        ::anyhow::Result<::std::vec::Vec<::ed25519_dalek::PublicKey>>
-    >()
-}
-
-pub (crate) async fn censor_post(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    pointer: &crate::model::pointer::Pointer,
-    censorship_type: CensorshipType,
-) -> ::anyhow::Result<()> {
-    let query = "
-        INSERT INTO censored_posts
-        (
-            author_public_key,
-            writer_id,
-            sequence_number,
-            censorship_type
-        )
-        VALUES ($1, $2, $3, $4);
-    ";
-
-    ::sqlx::query(query)
-        .bind(&pointer.identity().to_bytes())
-        .bind(&pointer.writer().0)
-        .bind(i64::try_from(pointer.sequence_number())?)
-        .bind(censorship_type)
-        .execute(&mut *transaction)
-        .await?;
-
-    Ok(())
-}
-
-pub (crate) async fn censor_identity(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    identity: &::ed25519_dalek::PublicKey,
-    censorship_type: CensorshipType,
-) -> ::anyhow::Result<()> {
-    let query = "
-        INSERT INTO censored_identities
-        (
-            author_public_key,
-            censorship_type
-        )
-        VALUES ($1, $2);
-    ";
-
-    ::sqlx::query(query)
-        .bind(&identity.to_bytes())
-        .bind(censorship_type)
-        .execute(&mut *transaction)
-        .await?;
-
-    Ok(())
-}
-
-pub (crate) async fn insert_event_link_row(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    link_type: &LinkType,
-    from: &crate::model::pointer::Pointer,
-    to: &crate::model::pointer::Pointer,
-) -> ::anyhow::Result<()> {
-    let query = "
-        INSERT INTO event_links 
-        (
-            link_type,
-            from_author_public_key,
-            from_writer_id,
-            from_sequence_number,
-            to_author_public_key,
-            to_writer_id,
-            to_sequence_number
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7);
-    ";
-
-    ::sqlx::query(query)
-        .bind(&link_type)
-        .bind(&from.identity().to_bytes())
-        .bind(&from.writer().0)
-        .bind(i64::try_from(from.sequence_number())?)
-        .bind(&to.identity().to_bytes())
-        .bind(&to.writer().0)
-        .bind(i64::try_from(to.sequence_number())?)
-        .execute(&mut *transaction)
-        .await?;
-
-    Ok(())
-}
-
-pub (crate) async fn get_events_linking_to(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    link_type: &LinkType,
-    to: &crate::model::pointer::Pointer,
-) -> ::anyhow::Result<::std::vec::Vec<store_item::StoreItem>> {
-    let query = "
-        SELECT * FROM events
-        WHERE (author_public_key, writer_id, sequence_number) IN (
-            SELECT
-                from_author_public_key as author_public_key,
-                from_writer_id as writer_id,
-                from_sequence_number as sequence_number
-            FROM event_links
-            WHERE to_author_public_key = $1
-            AND to_writer_id = $2
-            AND to_sequence_number = $3
-            AND link_type = $4
-            ORDER BY id ASC
+                event_links t1
+            JOIN
+                events t2
+            ON
+                t1.event_id = t2.id
+            WHERE
+                t2.system_key_type = $2
+            AND
+                t2.system_key = $3
+            AND
+                t1.link_content_type = 11
         );
     ";
 
-    ::sqlx::query_as::<_, crate::EventRow>(query)
-        .bind(to.identity().to_bytes())
-        .bind(to.writer().0)
-        .bind(i64::try_from(to.sequence_number())?)
-        .bind(link_type)
+    let query_select_vouches_for_claim = "
+        SELECT
+            raw_event
+        FROM
+            events
+        WHERE
+            id
+        IN (
+            SELECT
+                event_id as id
+            FROM
+                event_links
+            WHERE
+                subject_system_key_type = $1
+            AND
+                subject_system_key = $2
+            AND
+                subject_process = $3
+            AND
+                subject_logical_clock = $4
+        );
+    ";
+
+    let claims =
+        ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query_select_claims)
+            .bind(&proto)
+            .bind(i64::try_from(crate::model::public_key::get_key_type(
+                trust_root,
+            ))?)
+            .bind(crate::model::public_key::get_key_bytes(trust_root))
+            .fetch_all(&mut *transaction)
+            .await?
+            .iter()
+            .map(|raw| {
+                crate::model::signed_event::from_proto(
+                    &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+                )
+            })
+            .collect::<::anyhow::Result<
+                ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+            >>()?;
+
+    let mut all_vouches = vec![];
+
+    for claim_event_raw in claims.iter() {
+        let claim_event = crate::model::event::from_proto(
+            &crate::protocol::Event::parse_from_bytes(claim_event_raw.event())?,
+        )?;
+
+        let mut vouches = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(
+            query_select_vouches_for_claim,
+        )
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            claim_event.system(),
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(
+            claim_event.system(),
+        ))
+        .bind(claim_event.process().bytes())
+        .bind(i64::try_from(*claim_event.logical_clock())?)
         .fetch_all(&mut *transaction)
         .await?
         .iter()
-        .map(|row| event_row_to_store_item(row))
-        .collect::<::anyhow::Result<::std::vec::Vec<store_item::StoreItem>>>()
+        .map(|raw| {
+            crate::model::signed_event::from_proto(
+                &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+            )
+        })
+        .collect::<::anyhow::Result<
+            ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+        >>()?;
+
+        all_vouches.append(&mut vouches);
+    }
+
+    Ok([claims, all_vouches].concat())
+}
+
+pub(crate) async fn load_system_head(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    system: &crate::model::public_key::PublicKey,
+) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
+{
+    let query = "
+        SELECT DISTINCT ON (
+            system_key_type,
+            system_key,
+            process
+        )
+        raw_event
+        FROM events
+        WHERE system_key_type = $1
+        AND system_key = $2
+        ORDER BY system_key_type, system_key, process, logical_clock DESC;
+    ";
+
+    ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            system,
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(system))
+        .fetch_all(&mut *transaction)
+        .await?
+        .iter()
+        .map(|raw| {
+            crate::model::signed_event::from_proto(
+                &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+            )
+        })
+        .collect::<::anyhow::Result<
+            ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+        >>()
+}
+
+pub(crate) async fn load_event_ranges(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    system: &crate::model::public_key::PublicKey,
+    ranges: &crate::protocol::RangesForSystem,
+) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
+{
+    let mut result = vec![];
+
+    for process_ranges in ranges.ranges_for_processes.iter() {
+        let process =
+            crate::model::process::from_vec(&process_ranges.process.process)?;
+
+        for range in process_ranges.ranges.iter() {
+            for logical_clock in range.low..=range.high {
+                let potential_event = load_event(
+                    &mut *transaction,
+                    system,
+                    &process,
+                    logical_clock,
+                )
+                .await?;
+
+                if let Some(event) = potential_event {
+                    result.push(event);
+                }
+            }
+        }
+    }
+
+    Ok(result)
+}
+
+pub(crate) async fn known_ranges_for_system(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    system: &crate::model::public_key::PublicKey,
+) -> ::anyhow::Result<crate::protocol::RangesForSystem> {
+    let query = "
+        SELECT
+            process,
+            MIN(logical_clock) as low,
+            MAX(logical_clock) as high
+        FROM (
+            SELECT
+                *, ROW_NUMBER() OVER(ORDER BY process, logical_clock) as rn
+            FROM (
+                SELECT
+                    process, logical_clock
+                FROM
+                    events
+                WHERE
+                    system_key_type = $1
+                AND
+                    system_key = $2
+                UNION ALL
+                SELECT
+                    process, logical_clock
+                FROM
+                    deletions
+                WHERE
+                    system_key_type = $1
+                AND
+                    system_key = $2
+            ) t2
+        ) t1
+        GROUP BY process, logical_clock - rn;
+    ";
+
+    let ranges = ::sqlx::query_as::<_, RangeRow>(query)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            system,
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(system))
+        .fetch_all(&mut *transaction)
+        .await
+        .map_err(|err| ::anyhow::Error::new(err))?;
+
+    let mut result = crate::protocol::RangesForSystem::new();
+
+    for range in ranges.iter() {
+        let process =
+            ::protobuf::MessageField::some(crate::model::process::to_proto(
+                &crate::model::process::from_vec(&range.process)?,
+            ));
+
+        let mut found: Option<&mut crate::protocol::RangesForProcess> = None;
+
+        for ranges_for_process in result.ranges_for_processes.iter_mut() {
+            if ranges_for_process.process == process {
+                found = Some(ranges_for_process);
+
+                break;
+            }
+        }
+
+        let ranges_for_process = match found {
+            Some(x) => x,
+            None => {
+                let mut next = crate::protocol::RangesForProcess::new();
+                next.process = process;
+                result.ranges_for_processes.push(next);
+                result.ranges_for_processes.last_mut().unwrap()
+            }
+        };
+
+        let mut range_proto = crate::protocol::Range::new();
+        range_proto.low = range.low;
+        range_proto.high = range.high;
+        ranges_for_process.ranges.push(range_proto);
+    }
+
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -783,538 +737,256 @@ pub mod tests {
     }
 
     #[::sqlx::test]
-    async fn ranges_for_writer_none(
-        pool: ::sqlx::PgPool,
-    ) -> ::sqlx::Result<()> {
+    async fn test_persist_event(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let identity_keypair = crate::crypto::tests::make_test_keypair();
-        let writer_keypair = crate::crypto::tests::make_test_keypair();
-
-        let result = crate::postgres::ranges_for_writer(
-            &mut transaction,
-            &identity_keypair.public,
-            &crate::model::WriterId(writer_keypair.public.to_bytes().clone()),
-        )
-        .await?;
-
-        transaction.commit().await?;
-
-        let expected: ::std::vec::Vec<crate::postgres::StartAndEnd> = vec![];
-
-        assert!(result == expected);
-
-        Ok(())
-    }
-
-    #[::sqlx::test]
-    async fn get_item_that_does_not_exist(
-        pool: ::sqlx::PgPool,
-    ) -> ::anyhow::Result<()> {
-        let mut transaction = pool.begin().await?;
-        crate::postgres::prepare_database(&mut transaction).await?;
-
-        let identity_keypair = crate::crypto::tests::make_test_keypair();
-        let writer_keypair = crate::crypto::tests::make_test_keypair();
-
-        let pointer = crate::model::pointer::Pointer::new(
-            identity_keypair.public.clone(),
-            crate::model::WriterId(writer_keypair.public.to_bytes().clone()),
-            5,
-        );
-
-        let loaded =
-            crate::postgres::get_specific_event(&mut transaction, &pointer)
-                .await?;
-
-        transaction.commit().await?;
-
-        assert!(loaded == None);
-
-        Ok(())
-    }
-
-    #[::sqlx::test]
-    async fn load_range_that_does_not_exist(
-        pool: ::sqlx::PgPool,
-    ) -> ::anyhow::Result<()> {
-        let mut transaction = pool.begin().await?;
-        crate::postgres::prepare_database(&mut transaction).await?;
-
-        let identity_keypair = crate::crypto::tests::make_test_keypair();
-        let writer_keypair = crate::crypto::tests::make_test_keypair();
-
-        let loaded = crate::postgres::load_range(
-            &mut transaction,
-            &identity_keypair.public,
-            &crate::model::WriterId(writer_keypair.public.to_bytes().clone()),
-            5,
-            10,
-        )
-        .await?;
-
-        transaction.commit().await?;
-
-        assert!(loaded == vec![]);
-
-        Ok(())
-    }
-
-    #[::sqlx::test]
-    async fn writer_heads_for_identity_that_does_not_exist(
-        pool: ::sqlx::PgPool,
-    ) -> ::anyhow::Result<()> {
-        let mut transaction = pool.begin().await?;
-        crate::postgres::prepare_database(&mut transaction).await?;
-
-        let identity_keypair = crate::crypto::tests::make_test_keypair();
-
-        let loaded = crate::postgres::writer_heads_for_identity(
-            &mut transaction,
-            &identity_keypair.public,
-        )
-        .await?;
-
-        transaction.commit().await?;
-
-        assert!(loaded == vec![]);
-
-        Ok(())
-    }
-
-    fn make_test_event(
-        keypair: &::ed25519_dalek::Keypair,
-        writer: &crate::model::WriterId,
-        sequence_number: u64,
-    ) -> ::anyhow::Result<crate::model::signed_event::SignedEvent> {
-        let event_body_message = crate::protocol::EventBodyMessage::new();
-        let mut event_body = crate::protocol::EventBody::new();
-        event_body.set_message(event_body_message);
-
-        let event = crate::model::event::Event::new(
-            keypair.public.clone(),
-            writer.clone(),
-            sequence_number,
-            100,
-            event_body.write_to_bytes()?,
-            vec![crate::model::event::Clock::new(writer.clone(), 5)],
-        );
+        let keypair = crate::model::tests::make_test_keypair();
+        let process = crate::model::tests::make_test_process();
 
         let signed_event =
-            crate::model::signed_event::SignedEvent::sign(event, &keypair);
+            crate::model::tests::make_test_event(&keypair, &process, 52);
 
-        Ok(signed_event)
-    }
+        crate::ingest::ingest_event(&mut transaction, &signed_event).await?;
 
-    fn generate_writer_id() -> crate::model::WriterId {
-        crate::model::WriterId(
-            crate::crypto::tests::make_test_keypair()
-                .public
-                .to_bytes()
-                .clone(),
-        )
-    }
+        let system = crate::model::public_key::PublicKey::Ed25519(
+            keypair.public.clone(),
+        );
 
-    fn generate_pointer() -> crate::model::pointer::Pointer {
-        crate::model::pointer::Pointer::new(
-            crate::crypto::tests::make_test_keypair().public,
-            generate_writer_id(),
+        let loaded_event = crate::postgres::load_event(
+            &mut transaction,
+            &system,
+            &process,
             52,
         )
-    }
-
-    #[::sqlx::test]
-    async fn load_range(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
-        let mut transaction = pool.begin().await?;
-        crate::postgres::prepare_database(&mut transaction).await?;
-
-        let identity_keypair = crate::crypto::tests::make_test_keypair();
-        let writer = generate_writer_id();
-
-        let e3 = make_test_event(&identity_keypair, &writer, 3)?;
-        let e5 = make_test_event(&identity_keypair, &writer, 5)?;
-        let e7 = make_test_event(&identity_keypair, &writer, 7)?;
-        let e9 = make_test_event(&identity_keypair, &writer, 9)?;
-
-        crate::postgres::persist_event_feed(&mut transaction, &e3).await?;
-        crate::postgres::persist_event_feed(&mut transaction, &e5).await?;
-        crate::postgres::persist_event_feed(&mut transaction, &e7).await?;
-        crate::postgres::persist_event_feed(&mut transaction, &e9).await?;
-
-        let other_identity_keypair = crate::crypto::tests::make_test_keypair();
-        let other_writer = generate_writer_id();
-
-        let o6 = make_test_event(&other_identity_keypair, &other_writer, 6)?;
-        crate::postgres::persist_event_feed(&mut transaction, &o6).await?;
-
-        let result = crate::postgres::load_range(
-            &mut transaction,
-            &identity_keypair.public,
-            &writer,
-            5,
-            7,
-        )
         .await?;
-
-        let expected = vec![
-            crate::postgres::signed_event_to_store_item(e5),
-            crate::postgres::signed_event_to_store_item(e7),
-        ];
 
         transaction.commit().await?;
 
-        assert!(result == expected);
+        assert!(Some(signed_event) == loaded_event);
 
         Ok(())
     }
 
     #[::sqlx::test]
-    async fn writer_heads_for_identity(
-        pool: ::sqlx::PgPool,
-    ) -> ::anyhow::Result<()> {
+    async fn test_head(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let identity_keypair = crate::crypto::tests::make_test_keypair();
-        let writer1 = generate_writer_id();
-        let writer2 = generate_writer_id();
+        let s1 = crate::model::tests::make_test_keypair();
+        let s2 = crate::model::tests::make_test_keypair();
 
-        let w1e3 = make_test_event(&identity_keypair, &writer1, 3)?;
-        let w1e5 = make_test_event(&identity_keypair, &writer1, 5)?;
-        let w2e7 = make_test_event(&identity_keypair, &writer2, 7)?;
+        let s1p1 = crate::model::tests::make_test_process();
+        let s1p2 = crate::model::tests::make_test_process();
+        let s2p1 = crate::model::tests::make_test_process();
 
-        crate::postgres::persist_event_feed(&mut transaction, &w1e3).await?;
-        crate::postgres::persist_event_feed(&mut transaction, &w1e5).await?;
-        crate::postgres::persist_event_feed(&mut transaction, &w2e7).await?;
+        let s1p1e1 = crate::model::tests::make_test_event(&s1, &s1p1, 1);
+        let s1p1e2 = crate::model::tests::make_test_event(&s1, &s1p1, 2);
+        let s1p2e1 = crate::model::tests::make_test_event(&s1, &s1p2, 1);
+        let s2p1e5 = crate::model::tests::make_test_event(&s2, &s2p1, 5);
 
-        let result = crate::postgres::writer_heads_for_identity(
-            &mut transaction,
-            &identity_keypair.public,
-        )
-        .await?;
+        crate::ingest::ingest_event(&mut transaction, &s1p1e1).await?;
+        crate::ingest::ingest_event(&mut transaction, &s1p1e2).await?;
+        crate::ingest::ingest_event(&mut transaction, &s1p2e1).await?;
+        crate::ingest::ingest_event(&mut transaction, &s2p1e5).await?;
 
-        transaction.commit().await?;
+        let system =
+            crate::model::public_key::PublicKey::Ed25519(s1.public.clone());
 
-        let expected = vec![
-            crate::postgres::WriterAndLargest {
-                writer_id: writer2.0.to_vec(),
-                largest_sequence_number: 7,
-            },
-            crate::postgres::WriterAndLargest {
-                writer_id: writer1.0.to_vec(),
-                largest_sequence_number: 5,
-            },
-        ];
-
-        assert!(result == expected);
-
-        Ok(())
-    }
-
-    #[::sqlx::test]
-    async fn ranges_for_writer(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
-        let mut transaction = pool.begin().await?;
-        crate::postgres::prepare_database(&mut transaction).await?;
-
-        let identity_keypair = crate::crypto::tests::make_test_keypair();
-        let writer1 = generate_writer_id();
-        let writer2 = generate_writer_id();
-
-        let w1e3 = make_test_event(&identity_keypair, &writer1, 3)?;
-        let w1e4 = make_test_event(&identity_keypair, &writer1, 4)?;
-        let w1e8 = make_test_event(&identity_keypair, &writer1, 8)?;
-        let w2e7 = make_test_event(&identity_keypair, &writer2, 7)?;
-
-        crate::postgres::persist_event_feed(&mut transaction, &w1e3).await?;
-        crate::postgres::persist_event_feed(&mut transaction, &w1e4).await?;
-        crate::postgres::persist_event_feed(&mut transaction, &w1e8).await?;
-        crate::postgres::persist_event_feed(&mut transaction, &w2e7).await?;
-
-        let result = crate::postgres::ranges_for_writer(
-            &mut transaction,
-            &identity_keypair.public,
-            &writer1,
-        )
-        .await?;
-
-        transaction.commit().await?;
-
-        let expected = vec![
-            crate::postgres::StartAndEnd {
-                start_number: 3,
-                end_number: 4,
-            },
-            crate::postgres::StartAndEnd {
-                start_number: 8,
-                end_number: 8,
-            },
-        ];
-
-        assert!(result == expected);
-
-        Ok(())
-    }
-
-    #[::sqlx::test]
-    async fn store_and_get_item(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
-        let mut transaction = pool.begin().await?;
-        crate::postgres::prepare_database(&mut transaction).await?;
-
-        let identity_keypair = crate::crypto::tests::make_test_keypair();
-        let writer_keypair = crate::crypto::tests::make_test_keypair();
-        let other_writer_keypair = crate::crypto::tests::make_test_keypair();
-
-        let writer =
-            crate::model::WriterId(writer_keypair.public.to_bytes().clone());
-
-        let event_body_message = crate::protocol::EventBodyMessage::new();
-        let mut event_body = crate::protocol::EventBody::new();
-        event_body.set_message(event_body_message);
-
-        let event = crate::model::event::Event::new(
-            identity_keypair.public.clone(),
-            writer.clone(),
-            5,
-            100,
-            event_body.write_to_bytes()?,
-            vec![
-                crate::model::event::Clock::new(writer.clone(), 5),
-                crate::model::event::Clock::new(
-                    crate::model::WriterId(
-                        other_writer_keypair.public.to_bytes().clone(),
-                    ),
-                    12,
-                ),
-            ],
-        );
-
-        let signed_event = crate::model::signed_event::SignedEvent::sign(
-            event,
-            &identity_keypair,
-        );
-
-        crate::postgres::persist_event_feed(&mut transaction, &signed_event)
+        let head = crate::postgres::load_system_head(&mut transaction, &system)
             .await?;
 
-        let pointer = crate::model::pointer::Pointer::new(
-            identity_keypair.public.clone(),
-            writer.clone(),
-            5,
+        transaction.commit().await?;
+
+        let expected = vec![s1p1e2, s1p2e1];
+
+        assert!(expected.len() == head.len());
+
+        for expected_item in expected.iter() {
+            let mut found = false;
+
+            for got_item in head.iter() {
+                if got_item == expected_item {
+                    found = true;
+                    break;
+                }
+            }
+
+            assert!(found);
+        }
+
+        Ok(())
+    }
+
+    #[::sqlx::test]
+    async fn test_known_ranges(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
+        let mut transaction = pool.begin().await?;
+        crate::postgres::prepare_database(&mut transaction).await?;
+
+        let s1 = crate::model::tests::make_test_keypair();
+        let s2 = crate::model::tests::make_test_keypair();
+
+        let s1p1 = crate::model::tests::make_test_process();
+        let s1p2 = crate::model::tests::make_test_process();
+        let s2p1 = crate::model::tests::make_test_process();
+
+        let s1p1e1 = crate::model::tests::make_test_event(&s1, &s1p1, 1);
+        let s1p1e2 = crate::model::tests::make_test_event(&s1, &s1p1, 2);
+        let s1p1e6 = crate::model::tests::make_test_event(&s1, &s1p1, 6);
+        let s1p2e1 = crate::model::tests::make_test_event(&s1, &s1p2, 1);
+        let s2p1e5 = crate::model::tests::make_test_event(&s2, &s2p1, 5);
+
+        let mut delete = crate::protocol::Delete::new();
+        delete.process = ::protobuf::MessageField::some(
+            crate::model::process::to_proto(&s1p1),
+        );
+        delete.logical_clock = 2;
+        delete.indices =
+            ::protobuf::MessageField::some(crate::protocol::Indices::new());
+
+        let s1p1e3 = crate::model::tests::make_test_event_with_content(
+            &s1,
+            &s1p1,
+            3,
+            0,
+            &delete.write_to_bytes()?,
+            vec![],
         );
 
-        let loaded =
-            crate::postgres::get_specific_event(&mut transaction, &pointer)
+        crate::ingest::ingest_event(&mut transaction, &s1p1e1).await?;
+        crate::ingest::ingest_event(&mut transaction, &s1p1e2).await?;
+        crate::ingest::ingest_event(&mut transaction, &s1p1e3).await?;
+        crate::ingest::ingest_event(&mut transaction, &s1p1e6).await?;
+        crate::ingest::ingest_event(&mut transaction, &s1p2e1).await?;
+        crate::ingest::ingest_event(&mut transaction, &s2p1e5).await?;
+
+        let system =
+            crate::model::public_key::PublicKey::Ed25519(s1.public.clone());
+
+        let ranges =
+            crate::postgres::known_ranges_for_system(&mut transaction, &system)
                 .await?;
 
         transaction.commit().await?;
 
-        let expected = Some(crate::postgres::store_item::StoreItem::new(
-            pointer,
-            crate::postgres::store_item::
-                MutationPointerOrSignedEvent::SignedEvent(
-                    signed_event.clone(),
-                ),
-        ));
+        let mut expected = crate::protocol::RangesForSystem::new();
 
-        assert!(loaded == expected);
+        let mut expected_p1 = crate::protocol::RangesForProcess::new();
+        expected_p1.process = ::protobuf::MessageField::some(
+            crate::model::process::to_proto(&s1p1),
+        );
+
+        let mut expected_p1r1 = crate::protocol::Range::new();
+        expected_p1r1.low = 1;
+        expected_p1r1.high = 3;
+
+        let mut expected_p1r2 = crate::protocol::Range::new();
+        expected_p1r2.low = 6;
+        expected_p1r2.high = 6;
+
+        expected_p1.ranges.push(expected_p1r1);
+        expected_p1.ranges.push(expected_p1r2);
+
+        let mut expected_p2 = crate::protocol::RangesForProcess::new();
+        expected_p2.process = ::protobuf::MessageField::some(
+            crate::model::process::to_proto(&s1p2),
+        );
+
+        let mut expected_p2r1 = crate::protocol::Range::new();
+        expected_p2r1.low = 1;
+        expected_p2r1.high = 1;
+
+        expected_p2.ranges.push(expected_p2r1);
+
+        expected.ranges_for_processes.push(expected_p1);
+        expected.ranges_for_processes.push(expected_p2);
+
+        assert!(
+            expected.ranges_for_processes.len()
+                == ranges.ranges_for_processes.len()
+        );
+
+        for expected_item in expected.ranges_for_processes.iter() {
+            let mut found = false;
+
+            for got_item in ranges.ranges_for_processes.iter() {
+                if got_item == expected_item {
+                    found = true;
+                    break;
+                }
+            }
+
+            assert!(found);
+        }
 
         Ok(())
     }
 
     #[::sqlx::test]
-    async fn delete_item_that_does_not_exist(
-        pool: ::sqlx::PgPool,
-    ) -> ::anyhow::Result<()> {
+    async fn test_find_claims(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
         let mut transaction = pool.begin().await?;
+
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let identity_keypair = crate::crypto::tests::make_test_keypair();
-        let writer_keypair = crate::crypto::tests::make_test_keypair();
-        let other_writer_keypair = crate::crypto::tests::make_test_keypair();
+        let mut claim_hacker_news = crate::protocol::ClaimHackerNews::new();
+        claim_hacker_news.username = "hello".to_string();
+        let claim_hacker_news_bytes = claim_hacker_news.write_to_bytes()?;
+        let claim =
+            crate::model::claim::Claim::new(0, &claim_hacker_news_bytes);
 
-        let mut delete_pointer = crate::protocol::Pointer::new();
-        delete_pointer.public_key =
-            identity_keypair.public.to_bytes().to_vec().clone();
-        delete_pointer.writer_id =
-            writer_keypair.public.to_bytes().to_vec().clone();
-        delete_pointer.sequence_number = 3;
+        let s1 = crate::model::tests::make_test_keypair();
+        let s1p1 = crate::model::tests::make_test_process();
 
-        let mut event_body_delete = crate::protocol::EventBodyDelete::new();
-        event_body_delete.pointer =
-            ::protobuf::MessageField::some(delete_pointer);
+        let s1p1e1 = crate::model::tests::make_test_event_with_content(
+            &s1,
+            &s1p1,
+            1,
+            12,
+            &crate::model::claim::to_proto(&claim).write_to_bytes()?,
+            vec![],
+        );
 
-        let mut event_body = crate::protocol::EventBody::new();
-        event_body.set_delete(event_body_delete);
+        crate::ingest::ingest_event(&mut transaction, &s1p1e1).await?;
 
-        let event = crate::model::event::Event::new(
-            identity_keypair.public.clone(),
-            crate::model::WriterId(writer_keypair.public.to_bytes().clone()),
-            5,
-            100,
-            event_body.write_to_bytes()?,
-            vec![
-                crate::model::event::Clock::new(
-                    crate::model::WriterId(
-                        writer_keypair.public.to_bytes().clone(),
+        let s2 = crate::model::tests::make_test_keypair();
+        let s2p1 = crate::model::tests::make_test_process();
+
+        let vouch = crate::protocol::Vouch::new();
+
+        let s2p1e1 = crate::model::tests::make_test_event_with_content(
+            &s2,
+            &s2p1,
+            1,
+            11,
+            &vec![],
+            vec![crate::model::reference::Reference::Pointer(
+                crate::model::pointer::Pointer::new(
+                    crate::model::public_key::PublicKey::Ed25519(
+                        s1.public.clone(),
                     ),
-                    5,
-                ),
-                crate::model::event::Clock::new(
-                    crate::model::WriterId(
-                        other_writer_keypair.public.to_bytes().clone(),
+                    s1p1,
+                    1,
+                    crate::model::digest::Digest::SHA256(
+                        crate::model::hash_event(s1p1e1.event()),
                     ),
-                    12,
                 ),
-            ],
+            )],
         );
 
-        let signed_event = crate::model::signed_event::SignedEvent::sign(
-            event,
-            &identity_keypair,
-        );
+        crate::ingest::ingest_event(&mut transaction, &s2p1e1).await?;
 
-        crate::postgres::persist_event_feed(&mut transaction, &signed_event)
-            .await?;
-
-        let delete_event_pointer = crate::model::pointer::Pointer::new(
-            identity_keypair.public.clone(),
-            crate::model::WriterId(writer_keypair.public.to_bytes().clone()),
-            5,
-        );
-
-        let loaded_delete = crate::postgres::get_specific_event(
+        let result = crate::postgres::find_claims(
             &mut transaction,
-            &delete_event_pointer,
+            &claim,
+            &crate::model::public_key::PublicKey::Ed25519(s2.public.clone()),
         )
         .await?;
 
-        let deleted_event_pointer = crate::model::pointer::Pointer::new(
-            identity_keypair.public.clone(),
-            crate::model::WriterId(writer_keypair.public.to_bytes().clone()),
-            3,
-        );
-
-        let loaded_deleted = crate::postgres::get_specific_event(
-            &mut transaction,
-            &deleted_event_pointer,
-        )
-        .await?;
+        let expected = vec![s1p1e1, s2p1e1];
 
         transaction.commit().await?;
 
-        let expected_delete = Some(crate::postgres::store_item::StoreItem::new(
-            delete_event_pointer.clone(),
-            crate::postgres::store_item::
-                MutationPointerOrSignedEvent::SignedEvent(
-                    signed_event.clone(),
-                ),
-        ));
-
-        let expected_deleted = Some(crate::postgres::store_item::StoreItem::new(
-            deleted_event_pointer,
-            crate::postgres::store_item::
-                MutationPointerOrSignedEvent::MutationPointer(
-                    delete_event_pointer.clone(),
-                ),
-        ));
-
-        assert!(loaded_delete == expected_delete);
-        assert!(loaded_deleted == expected_deleted);
-
-        Ok(())
-    }
-
-    #[::sqlx::test]
-    async fn censor_post(
-        pool: ::sqlx::PgPool,
-    ) -> ::anyhow::Result<()> {
-        let mut transaction = pool.begin().await?;
-        crate::postgres::prepare_database(&mut transaction).await?;
-
-        crate::postgres::censor_post(
-            &mut transaction,
-            &generate_pointer(),
-            crate::postgres::CensorshipType::DoNotRecommend,
-        ).await?;
-
-        transaction.commit().await?;
-
-        Ok(())
-    }
-
-    #[::sqlx::test]
-    async fn censor_identity(
-        pool: ::sqlx::PgPool,
-    ) -> ::anyhow::Result<()> {
-        let mut transaction = pool.begin().await?;
-        crate::postgres::prepare_database(&mut transaction).await?;
-
-        let identity = crate::crypto::tests::make_test_keypair();
-
-        crate::postgres::censor_identity(
-            &mut transaction,
-            &identity.public,
-            crate::postgres::CensorshipType::RefuseStorage,
-        ).await?;
-
-        transaction.commit().await?;
-
-        Ok(())
-    }
-
-    #[::sqlx::test]
-    async fn load_events_before_time(
-        pool: ::sqlx::PgPool,
-    ) -> ::anyhow::Result<()> {
-        let mut transaction = pool.begin().await?;
-        crate::postgres::prepare_database(&mut transaction).await?;
-
-        crate::postgres::load_events_before_time(
-            &mut transaction,
-            None,
-        ).await?;
-
-        crate::postgres::load_events_before_time(
-            &mut transaction,
-            Some(52),
-        ).await?;
-
-        transaction.commit().await?;
-
-        Ok(())
-    }
-
-    #[::sqlx::test]
-    async fn load_random_identities(
-        pool: ::sqlx::PgPool,
-    ) -> ::anyhow::Result<()> {
-        let mut transaction = pool.begin().await?;
-        crate::postgres::prepare_database(&mut transaction).await?;
-
-        crate::postgres::load_random_identities(
-            &mut transaction,
-        ).await?;
-
-        transaction.commit().await?;
-
-        Ok(())
-    }
-
-    #[::sqlx::test]
-    async fn get_events_linking_to(
-        pool: ::sqlx::PgPool,
-    ) -> ::anyhow::Result<()> {
-        let mut transaction = pool.begin().await?;
-        crate::postgres::prepare_database(&mut transaction).await?;
-
-        crate::postgres::get_events_linking_to(
-            &mut transaction,
-            &crate::postgres::LinkType::React,
-            &generate_pointer(),
-        ).await?;
-
-        transaction.commit().await?;
+        assert!(result == expected);
 
         Ok(())
     }

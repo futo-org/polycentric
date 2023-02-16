@@ -160,15 +160,18 @@ export function FeedForThread(props: FeedForThreadProps) {
 
     return (
         <div>
-            {feedItems.map((item) => item.post && (
-                <Post.PostMemo
-                    key={item.key}
-                    state={props.state}
-                    post={item.post}
-                    showBoost={true}
-                    depth={0}
-                />
-            ))}
+            {feedItems.map(
+                (item) =>
+                    item.post && (
+                        <Post.PostMemo
+                            key={item.key}
+                            state={props.state}
+                            post={item.post}
+                            showBoost={true}
+                            depth={0}
+                        />
+                    ),
+            )}
 
             <Paper
                 elevation={4}
@@ -182,15 +185,18 @@ export function FeedForThread(props: FeedForThreadProps) {
                 <Divider>Reactions</Divider>
             </Paper>
 
-            {replyItems.map((item) => item.post && (
-                <Post.PostMemo
-                    key={item.key}
-                    state={props.state}
-                    post={item.post}
-                    showBoost={true}
-                    depth={0}
-                />
-            ))}
+            {replyItems.map(
+                (item) =>
+                    item.post && (
+                        <Post.PostMemo
+                            key={item.key}
+                            state={props.state}
+                            post={item.post}
+                            showBoost={true}
+                            depth={0}
+                        />
+                    ),
+            )}
 
             {loadingReplies === true && (
                 <div

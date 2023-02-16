@@ -1,0 +1,214 @@
+import * as Base64 from '@borderless/base64';
+
+import * as Util from './util';
+import * as Models from './models';
+import * as PersistenceDriver from './persistence-driver';
+import * as Protocol from './protocol';
+
+const ACTIVE_STORE_KEY = Util.encodeText('ACTIVE_STORE');
+
+export type StoreInfo = {
+    system: Models.PublicKey;
+    version: number;
+    ready: boolean;
+};
+
+export function encodeStoreInfo(storeInfo: StoreInfo): Uint8Array {
+    const intermediate = {
+        system: Base64.encode(
+            Protocol.PublicKey.encode(
+                Models.publicKeyToProto(storeInfo.system),
+            ).finish(),
+        ),
+        version: storeInfo.version,
+        ready: storeInfo.ready,
+    };
+
+    return Util.encodeText(JSON.stringify(intermediate));
+}
+
+export function decodeStoreInfo(buffer: Uint8Array): StoreInfo {
+    const text = Util.decodeText(buffer);
+
+    const parsed = JSON.parse(text);
+
+    return {
+        system: Models.publicKeyFromProto(
+            Protocol.PublicKey.decode(Base64.decode(parsed.system)),
+        ),
+        version: parsed.version,
+        ready: parsed.ready,
+    };
+}
+
+export interface IMetaStore {
+    openStore: (
+        system: Models.PublicKey,
+        version: number,
+    ) => Promise<PersistenceDriver.BinaryAbstractLevel>;
+
+    deleteStore: (system: Models.PublicKey, version: number) => Promise<void>;
+
+    listStores: () => Promise<Array<StoreInfo>>;
+
+    setStoreReady: (system: Models.PublicKey, version: number) => Promise<void>;
+
+    setActiveStore: (
+        system: Models.PublicKey,
+        version: number,
+    ) => Promise<void>;
+
+    unsetActiveStore: () => Promise<void>;
+
+    getActiveStore: () => Promise<StoreInfo | undefined>;
+}
+
+function makeStorePath(system: Models.PublicKey, version: number): string {
+    return (
+        system.keyType().toString() +
+        '_' +
+        Base64.encode(system.key()) +
+        '_' +
+        version.toString()
+    );
+}
+
+export async function createMetaStore(
+    persistenceDriver: PersistenceDriver.IPersistenceDriver,
+): Promise<IMetaStore> {
+    const metaStore = await persistenceDriver.openStore('meta');
+
+    const metaStoreStores = metaStore.sublevel('stores', {
+        keyEncoding: 'buffer',
+        valueEncoding: 'buffer',
+    }) as PersistenceDriver.BinaryAbstractLevel;
+
+    const openStore = async (system: Models.PublicKey, version: number) => {
+        const pathString = makeStorePath(system, version);
+        const pathBinary = Util.encodeText(pathString);
+
+        const rawStoreInfo = await PersistenceDriver.tryLoadKey(
+            metaStoreStores,
+            pathBinary,
+        );
+
+        if (rawStoreInfo === undefined) {
+            const storeInfo: StoreInfo = {
+                system: system,
+                version: version,
+                ready: false,
+            };
+
+            metaStoreStores.put(pathBinary, encodeStoreInfo(storeInfo));
+        }
+
+        const store = await persistenceDriver.openStore(pathString);
+
+        return store;
+    };
+
+    const listStores = async () => {
+        const all = await metaStoreStores.values().all();
+
+        const result = [];
+
+        for (const item of all) {
+            result.push(decodeStoreInfo(item));
+        }
+
+        return result;
+    };
+
+    const setStoreReady = async (system: Models.PublicKey, version: number) => {
+        const pathString = makeStorePath(system, version);
+        const pathBinary = Util.encodeText(pathString);
+
+        const rawStoreInfo = await PersistenceDriver.tryLoadKey(
+            metaStoreStores,
+            pathBinary,
+        );
+
+        if (rawStoreInfo === undefined) {
+            throw new Error('store does not exist');
+        }
+
+        const storeInfo = decodeStoreInfo(rawStoreInfo);
+
+        if (storeInfo.ready === true) {
+            throw new Error('store was already ready');
+        }
+
+        storeInfo.ready = true;
+
+        await metaStoreStores.put(pathBinary, encodeStoreInfo(storeInfo));
+    };
+
+    const setActiveStore = async (
+        system: Models.PublicKey,
+        version: number,
+    ) => {
+        const pathString = makeStorePath(system, version);
+        const pathBinary = Util.encodeText(pathString);
+
+        await metaStore.put(ACTIVE_STORE_KEY, pathBinary);
+    };
+
+    const unsetActiveStore = async () => {
+        await metaStore.del(ACTIVE_STORE_KEY);
+    };
+
+    const getActiveStore = async () => {
+        const activeStoreKey = await PersistenceDriver.tryLoadKey(
+            metaStore,
+            ACTIVE_STORE_KEY,
+        );
+
+        if (activeStoreKey === undefined) {
+            return undefined;
+        }
+
+        const activeStoreInfo = await PersistenceDriver.tryLoadKey(
+            metaStoreStores,
+            activeStoreKey,
+        );
+
+        if (activeStoreInfo !== undefined) {
+            return decodeStoreInfo(activeStoreInfo);
+        } else {
+            throw new Error(
+                'active store was set but active store does not exist',
+            );
+        }
+    };
+
+    const deleteStore = async (system: Models.PublicKey, version: number) => {
+        const pathString = makeStorePath(system, version);
+        const pathBinary = Util.encodeText(pathString);
+
+        await metaStoreStores.del(pathBinary);
+        await persistenceDriver.destroyStore(pathString);
+
+        const activeStore = await getActiveStore();
+
+        if (activeStore === undefined) {
+            return;
+        }
+
+        if (
+            activeStore.version === version &&
+            Models.publicKeysEqual(system, activeStore.system)
+        ) {
+            await unsetActiveStore();
+        }
+    };
+
+    return {
+        openStore: openStore,
+        listStores: listStores,
+        setStoreReady: setStoreReady,
+        setActiveStore: setActiveStore,
+        unsetActiveStore: unsetActiveStore,
+        getActiveStore: getActiveStore,
+        deleteStore: deleteStore,
+    };
+}

@@ -1,47 +1,15 @@
 use ::protobuf::Message;
 
-fn deserialize_ed25519_dalek<'de, D>(
-    deserializer: D,
-) -> Result<::ed25519_dalek::PublicKey, D::Error>
-where
-    D: ::serde::Deserializer<'de>,
-{
-    let string: &str = ::serde::Deserialize::deserialize(deserializer)?;
-
-    let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
-        .map_err(::serde::de::Error::custom)?;
-
-    ::ed25519_dalek::PublicKey::from_bytes(
-        &::bytes::Bytes::from(bytes),
-    )
-    .map_err(::serde::de::Error::custom)
-}
-
-fn deserialize_writer_id<'de, D>(
-    deserializer: D,
-) -> Result<crate::model::WriterId, D::Error>
-where
-    D: ::serde::Deserializer<'de>,
-{
-    let string: &str = ::serde::Deserialize::deserialize(deserializer)?;
-
-    let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
-        .map_err(::serde::de::Error::custom)?;
-
-    crate::model::vec_to_writer_id(
-        &bytes,
-    )
-    .map_err(::serde::de::Error::custom)
-}
-
 #[derive(::serde::Deserialize)]
-pub (crate) struct Query {
+pub(crate) struct Query {
     cursor: Option<u64>,
-    #[serde(deserialize_with = "deserialize_ed25519_dalek")]
-    identity: ::ed25519_dalek::PublicKey,
-    #[serde(deserialize_with = "deserialize_writer_id")]
-    writer_id: crate::model::WriterId,
-    sequence_number: u64,
+    #[serde(
+        deserialize_with = "crate::model::public_key::serde_url_deserialize"
+    )]
+    system: crate::model::public_key::PublicKey,
+    #[serde(deserialize_with = "crate::model::process::serde_url_deserialize")]
+    process: crate::model::process::Process,
+    logical_clock: u64,
 }
 
 pub(crate) async fn handler(
@@ -58,7 +26,8 @@ pub(crate) async fn handler(
         }
     };
 
-    let history = match 
+    /*
+    let history = match
         crate::postgres::get_events_linking_to(
             &mut transaction,
             &crate::postgres::LinkType::React,
@@ -88,6 +57,7 @@ pub(crate) async fn handler(
                 )));
             }
         };
+    */
 
     match transaction.commit().await {
         Ok(()) => (),
@@ -102,6 +72,7 @@ pub(crate) async fn handler(
     let mut result =
         crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
 
+    /*
     result
         .related_events
         .append(&mut processed_events.related_events);
@@ -109,6 +80,7 @@ pub(crate) async fn handler(
     result
         .result_events
         .append(&mut processed_events.result_events);
+    */
 
     let result_serialized = match result.write_to_bytes() {
         Ok(a) => a,

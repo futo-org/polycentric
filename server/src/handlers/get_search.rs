@@ -2,10 +2,16 @@ use ::log::*;
 use ::protobuf::Message;
 use ::serde_json::json;
 
+#[derive(::serde::Deserialize)]
+pub(crate) struct Query {
+    search: String,
+}
+
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
-    bytes: ::bytes::Bytes,
-) -> Result<impl ::warp::Reply, ::warp::Rejection> {
+    query: Query,
+) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+    /*
     let request = crate::protocol::Search::parse_from_tokio_bytes(&bytes)
         .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
 
@@ -35,12 +41,19 @@ pub(crate) async fn handler(
         .json::<crate::OpenSearchSearchL0>()
         .await
         .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
+    */
 
-    let mut transaction =
-        state.pool.begin().await.map_err(|e| {
-            crate::RequestError::Anyhow(::anyhow::Error::new(e))
-        })?;
+    let mut transaction = match state.pool.begin().await {
+        Ok(x) => x,
+        Err(err) => {
+            return Ok(Box::new(::warp::reply::with_status(
+                err.to_string().clone(),
+                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            )));
+        }
+    };
 
+    /*
     let mut history: ::std::vec::Vec<crate::postgres::store_item::StoreItem> =
         vec![];
 
@@ -72,9 +85,12 @@ pub(crate) async fn handler(
             history.push(event);
         }
     }
+    */
 
-    let mut result = crate::protocol::ResponseSearch::new();
+    let mut result =
+        crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
 
+    /*
     let mut processed_events =
         crate::process_mutations2(&mut transaction, history)
             .await
@@ -87,18 +103,30 @@ pub(crate) async fn handler(
     result
         .result_events
         .append(&mut processed_events.result_events);
+    */
 
-    transaction
-        .commit()
-        .await
-        .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
+    match transaction.commit().await {
+        Ok(()) => (),
+        Err(err) => {
+            return Ok(Box::new(::warp::reply::with_status(
+                err.to_string().clone(),
+                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            )));
+        }
+    };
 
-    let result_serialized = result
-        .write_to_bytes()
-        .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
+    let result_serialized = match result.write_to_bytes() {
+        Ok(x) => x,
+        Err(err) => {
+            return Ok(Box::new(::warp::reply::with_status(
+                err.to_string().clone(),
+                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+            )));
+        }
+    };
 
-    Ok(::warp::reply::with_status(
+    Ok(Box::new(::warp::reply::with_status(
         result_serialized,
         ::warp::http::StatusCode::OK,
-    ))
+    )))
 }

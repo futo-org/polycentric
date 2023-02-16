@@ -3,22 +3,17 @@ use ::log::*;
 use ::protobuf::Message;
 use ::warp::Filter;
 
-mod crypto;
 mod handlers;
+mod ingest;
 mod model;
 mod postgres;
 mod protocol;
+mod scrapers;
 mod version;
 
 #[derive(Debug)]
 enum RequestError {
     Anyhow(::anyhow::Error),
-}
-
-#[derive(::serde::Serialize, ::serde::Deserialize)]
-struct ClockEntry {
-    writer_id: ::std::vec::Vec<u8>,
-    sequence_number: u64,
 }
 
 impl ::warp::reject::Reject for RequestError {}
@@ -52,162 +47,6 @@ async fn handle_rejection(
         "INTERNAL_SERVER_ERROR",
         ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
     ))
-}
-
-#[derive(::sqlx::Type)]
-#[sqlx(type_name = "pointer")]
-struct Pointer {
-    public_key: ::std::vec::Vec<u8>,
-    writer_id: ::std::vec::Vec<u8>,
-    sequence_number: i64,
-}
-
-#[derive(::sqlx::FromRow)]
-pub struct EventRow {
-    writer_id: ::std::vec::Vec<u8>,
-    author_public_key: ::std::vec::Vec<u8>,
-    sequence_number: i64,
-    unix_milliseconds: i64,
-    content: ::std::vec::Vec<u8>,
-    signature: ::std::vec::Vec<u8>,
-    clocks: String,
-    mutation_pointer: Option<Pointer>,
-}
-
-async fn maybe_add_profile2(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    result: &mut ::std::vec::Vec<crate::protocol::Event>,
-    profile_keys: &mut ::std::collections::HashSet<::std::vec::Vec<u8>>,
-    public_key: &::std::vec::Vec<u8>,
-) -> ::anyhow::Result<()> {
-    if !profile_keys.contains(public_key) {
-        let identity = ::ed25519_dalek::PublicKey::from_bytes(public_key)?;
-
-        let potential_profile =
-            crate::postgres::load_latest_profile(&mut *transaction, &identity)
-                .await?;
-
-        if let Some(event) = potential_profile {
-            let event = crate::model::signed_event_to_protobuf_event(&event);
-            result.push(event);
-        }
-
-        profile_keys.insert(public_key.clone());
-    }
-
-    Ok(())
-}
-
-struct ProcessMutationsResult2 {
-    related_events: ::std::vec::Vec<crate::protocol::Event>,
-    result_events: ::std::vec::Vec<crate::protocol::Event>,
-}
-
-async fn process_mutation(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    result: &mut ProcessMutationsResult2,
-    profile_keys: &mut ::std::collections::HashSet<::std::vec::Vec<u8>>,
-    item: &crate::postgres::store_item::StoreItem,
-) -> ::anyhow::Result<()> {
-    let mut item_ref = item;
-
-    let mut sub_item_holder: Option<crate::postgres::store_item::StoreItem> =
-        None;
-
-    loop {
-        maybe_add_profile2(
-            &mut *transaction,
-            &mut result.related_events,
-            &mut *profile_keys,
-            &item_ref.pointer().identity().to_bytes().to_vec(),
-        )
-        .await?;
-
-        match item_ref.value() {
-            crate::postgres::store_item::
-                MutationPointerOrSignedEvent::MutationPointer(pointer) =>
-            {
-                let mutation = crate::postgres::get_specific_event(
-                    &mut *transaction,
-                    &pointer,
-                )
-                .await?;
-
-                if let Some(sub_item) = mutation {
-                    sub_item_holder = Some(sub_item);
-                    item_ref = sub_item_holder.as_ref().unwrap();
-
-                    continue;
-                }
-
-                break;
-            },
-            crate::postgres::store_item::
-                MutationPointerOrSignedEvent::SignedEvent(event) =>
-            {
-                let protobuf_event =
-                    crate::model::signed_event_to_protobuf_event(&event);
-
-                let event_body =
-                    crate::protocol::EventBody::parse_from_bytes(
-                            event.event().content()
-                        )?;
-
-                if event_body.has_follow() {
-                    maybe_add_profile2(
-                        &mut *transaction,
-                        &mut result.related_events,
-                        &mut *profile_keys,
-                        &event_body.follow().public_key,
-                    )
-                    .await?;
-                } else if event_body.has_message() {
-                    if let Some(pointer) =
-                        event_body.message().boost_pointer.as_ref()
-                    {
-                        maybe_add_profile2(
-                            &mut *transaction,
-                            &mut result.related_events,
-                            &mut *profile_keys,
-                            &pointer.public_key,
-                        )
-                        .await?;
-                    }
-                }
-
-                result.result_events.push(protobuf_event);
-
-                break;
-            }
-        }
-    }
-
-    Ok(())
-}
-
-async fn process_mutations2(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    history: ::std::vec::Vec<crate::postgres::store_item::StoreItem>,
-) -> ::anyhow::Result<ProcessMutationsResult2> {
-    let mut result = ProcessMutationsResult2 {
-        related_events: vec![],
-        result_events: vec![],
-    };
-
-    let mut profile_keys =
-        ::std::collections::HashSet::<::std::vec::Vec<u8>>::new();
-
-    for item in history {
-        process_mutation(
-            &mut *transaction,
-            &mut result,
-            &mut profile_keys,
-            &item,
-        )
-        .await?;
-    }
-
-    Ok(result)
 }
 
 #[derive(::serde::Deserialize, ::serde::Serialize)]
@@ -267,9 +106,7 @@ struct Config {
     )]
     pub opensearch_string: String,
 
-    #[envconfig(
-        from = "ADMIN_TOKEN",
-    )]
+    #[envconfig(from = "ADMIN_TOKEN")]
     pub admin_token: String,
 }
 
@@ -315,118 +152,111 @@ async fn serve_api(
 
     let state_filter = ::warp::any().map(move || state.clone());
 
-    let post_events_route = ::warp::post()
-        .and(::warp::path("post_events"))
+    let route_post_events = ::warp::post()
+        .and(::warp::path("events"))
         .and(::warp::path::end())
         .and(state_filter.clone())
         .and(::warp::body::bytes())
         .and_then(crate::handlers::post_events::handler)
         .with(cors.clone());
 
-    let known_ranges_for_feed_route = ::warp::get()
-        .and(::warp::path("known_ranges_for_feed"))
-        .and(::warp::path::end())
-        .and(::warp::query::<
-            crate::handlers::known_ranges_for_feed
-                ::RequestKnownRangesForFeedQuery
-        >())
-        .and(state_filter.clone())
-        .and_then(crate::handlers::known_ranges_for_feed::handler)
-        .with(cors.clone());
-
-    let known_ranges_route = ::warp::post()
-        .and(::warp::path("known_ranges"))
-        .and(::warp::path::end())
-        .and(state_filter.clone())
-        .and(::warp::body::bytes())
-        .and_then(crate::handlers::known_ranges::handler)
-        .with(cors.clone());
-
-    let request_event_ranges_route = ::warp::get()
-        .and(::warp::path("request_event_ranges"))
-        .and(::warp::path::end())
-        .and(::warp::query::<
-            crate::handlers::request_event_ranges::RequestEventRangesQuery,
-        >())
-        .and(state_filter.clone())
-        .and_then(crate::handlers::request_event_ranges::handler)
-        .with(cors.clone());
-
-    let request_events_head_route = ::warp::post()
+    let route_get_head = ::warp::get()
         .and(::warp::path("head"))
         .and(::warp::path::end())
         .and(state_filter.clone())
-        .and(::warp::body::bytes())
-        .and_then(crate::handlers::head::handler)
+        .and(::warp::query::<crate::handlers::get_head::Query>())
+        .and_then(crate::handlers::get_head::handler)
         .with(cors.clone());
 
-    let request_search_route = ::warp::post()
+    let route_get_events = ::warp::get()
+        .and(::warp::path("events"))
+        .and(::warp::path::end())
+        .and(state_filter.clone())
+        .and(::warp::query::<crate::handlers::get_events::Query>())
+        .and_then(crate::handlers::get_events::handler)
+        .with(cors.clone());
+
+    let route_get_claim_to_system = ::warp::get()
+        .and(::warp::path("resolve_claim"))
+        .and(::warp::path::end())
+        .and(state_filter.clone())
+        .and(::warp::query::<crate::handlers::get_claim_to_system::Query>())
+        .and_then(crate::handlers::get_claim_to_system::handler)
+        .with(cors.clone());
+
+    let route_get_ranges = ::warp::get()
+        .and(::warp::path("ranges"))
+        .and(::warp::path::end())
+        .and(state_filter.clone())
+        .and(::warp::query::<crate::handlers::get_ranges::Query>())
+        .and_then(crate::handlers::get_ranges::handler)
+        .with(cors.clone());
+
+    let route_get_search = ::warp::get()
         .and(::warp::path("search"))
         .and(::warp::path::end())
         .and(state_filter.clone())
-        .and(::warp::body::bytes())
-        .and_then(crate::handlers::search::handler)
+        .and(::warp::query::<crate::handlers::get_search::Query>())
+        .and_then(crate::handlers::get_search::handler)
         .with(cors.clone());
 
-    let request_explore_route = ::warp::post()
+    let route_get_explore = ::warp::get()
         .and(::warp::path("explore"))
         .and(::warp::path::end())
         .and(state_filter.clone())
-        .and(::warp::body::bytes())
-        .and_then(crate::handlers::explore::handler)
+        .and_then(crate::handlers::get_explore::handler)
         .with(cors.clone());
 
-    let request_notifications_route = ::warp::post()
+    let route_get_notifications = ::warp::get()
         .and(::warp::path("notifications"))
         .and(::warp::path::end())
         .and(state_filter.clone())
-        .and(::warp::body::bytes())
-        .and_then(crate::handlers::notifications::handler)
+        .and_then(crate::handlers::get_notifications::handler)
         .with(cors.clone());
 
-    let request_recommend_profiles_route = ::warp::get()
+    let route_get_recommended_profiles = ::warp::get()
         .and(::warp::path("recommended_profiles"))
         .and(::warp::path::end())
         .and(state_filter.clone())
-        .and_then(crate::handlers::recommend_profiles::handler)
+        .and_then(crate::handlers::get_recommend_profiles::handler)
         .with(cors.clone());
 
-    let request_version_route = ::warp::get()
+    let route_get_version = ::warp::get()
         .and(::warp::path("version"))
         .and(::warp::path::end())
-        .then(crate::handlers::version::handler)
+        .then(crate::handlers::get_version::handler)
         .with(cors.clone());
 
-    let censor_route = ::warp::post()
+    let route_post_censor = ::warp::post()
         .and(::warp::path("censor"))
         .and(::warp::path::end())
         .and(state_filter.clone())
         .and(::warp::header::<String>("authorization"))
-        .and(::warp::query::<crate::handlers::censor::Query>())
+        .and(::warp::query::<crate::handlers::post_censor::Query>())
         .and(::warp::body::bytes())
-        .and_then(crate::handlers::censor::handler)
+        .and_then(crate::handlers::post_censor::handler)
         .with(cors.clone());
 
-    let replies_route = ::warp::get()
+    let route_get_replies = ::warp::get()
         .and(::warp::path("replies"))
         .and(::warp::path::end())
         .and(state_filter.clone())
-        .and(::warp::query::<crate::handlers::replies::Query>())
-        .and_then(crate::handlers::replies::handler)
+        .and(::warp::query::<crate::handlers::get_replies::Query>())
+        .and_then(crate::handlers::get_replies::handler)
         .with(cors.clone());
 
-    let routes = post_events_route
-        .or(known_ranges_for_feed_route)
-        .or(request_event_ranges_route)
-        .or(request_events_head_route)
-        .or(known_ranges_route)
-        .or(request_search_route)
-        .or(request_explore_route)
-        .or(request_notifications_route)
-        .or(request_recommend_profiles_route)
-        .or(request_version_route)
-        .or(censor_route)
-        .or(replies_route)
+    let routes = route_post_events
+        .or(route_get_head)
+        .or(route_get_events)
+        .or(route_get_claim_to_system)
+        .or(route_get_ranges)
+        .or(route_get_search)
+        .or(route_get_explore)
+        .or(route_get_notifications)
+        .or(route_get_recommended_profiles)
+        .or(route_get_version)
+        .or(route_post_censor)
+        .or(route_get_replies)
         .recover(handle_rejection);
 
     info!("API server listening on {}", config.http_port_api);
