@@ -29,3 +29,4 @@ reqwest = "0.11.14"
 
 [build-dependencies]
 protobuf-codegen = "3.0.3"
+protoc-bin-vendored = "3.0.0"
