@@ -113,7 +113,7 @@ async function runBot(
         let sleepSeconds = 30;
 
         try {
-            console.log('polling feed', feedURL);
+            console.info('polling feed', feedURL);
 
             const response = await fetch(feedURL, {
                 method: 'GET',
@@ -123,7 +123,7 @@ async function runBot(
                 if (response.headers.has('Retry-After')) {
                     sleepSeconds = Number(response.headers.get('Retry-After'));
                 } else {
-                    console.log('429 but no Retry-After header');
+                    console.warn('429 but no Retry-After header');
                 }
             }
 
@@ -135,12 +135,11 @@ async function runBot(
 
             let feed = await parser.parseString(xml);
 
-            console.log('feed length', feed.items.length);
+            console.info('feed length', feed.items.length);
 
             for (const item of feed.items) {
                 if (item.guid === undefined) {
-                    console.log('no guid');
-
+                    console.warn('no guid');
                     continue;
                 }
 
@@ -149,17 +148,17 @@ async function runBot(
                     continue;
                 } catch (err) {}
 
-                console.log('saving post', item.guid);
+                console.info('saving post', item.guid);
 
                 await handler(state, item);
 
                 await levelRSS.put(item.guid, '0');
             }
         } catch (err) {
-            console.log(err);
+            console.warn(err);
         }
 
-        // console.log("sleeping for", sleepSeconds, "seconds");
+        // console.info("sleeping for", sleepSeconds, "seconds");
         await sleep(1000 * sleepSeconds);
     }
 }
@@ -191,17 +190,17 @@ async function handlerNitter(
     item: any,
 ): Promise<void> {
     if (item.content === undefined) {
-        console.log('item content was empty');
+        console.info('item content was empty');
 
         return;
     }
 
     const parsed = NodeHTMLParser.parse(item.content);
 
-    // console.log(parsed);
+    // console.info(parsed);
 
     if (parsed.childNodes.length === 0) {
-        console.log('no childNodes');
+        console.info('no childNodes');
 
         return;
     }
@@ -213,16 +212,16 @@ async function handlerNitter(
 
     if (textNodes.length > 0) {
         if (textNodes.length > 1) {
-            console.log('more than one text node, using the first one');
+            console.info('more than one text node, using the first one');
         }
 
         const textNode = textNodes[0];
 
         if (textNode.childNodes.length !== 0) {
             message = textNode.childNodes[0].rawText;
-            console.log('text is:', message);
+            console.info('text is:', message);
         } else {
-            console.log('text node had no children');
+            console.info('text node had no children');
         }
     }
 
@@ -230,7 +229,7 @@ async function handlerNitter(
 
     if (imageNodes.length > 0) {
         if (imageNodes.length > 1) {
-            console.log('more than one image node, using last one');
+            console.info('more than one image node, using last one');
         }
 
         const imageNode = imageNodes[imageNodes.length - 1];
@@ -241,19 +240,19 @@ async function handlerNitter(
             return;
         }
 
-        console.log('imgURL is', imgURL);
+        console.info('imgURL is', imgURL);
 
         const imageResponse = await fetch(imgURL, {
             method: 'GET',
         });
 
         if (imageResponse.status !== 200) {
-            console.log('failed downloading image', imageResponse.status);
+            console.warn('failed downloading image', imageResponse.status);
             return;
         }
 
         if (!imageResponse.headers.has('Content-Type')) {
-            console.log('media did not have content type header');
+            console.warn('media did not have content type header');
         }
 
         const mime = imageResponse.headers.get('Content-Type');
@@ -262,7 +261,7 @@ async function handlerNitter(
             mime === undefined ||
             (mime !== 'image/png' && mime !== 'image/jpeg')
         ) {
-            console.log('media unexpected mime', mime);
+            console.warn('media unexpected mime', mime);
             return;
         }
 

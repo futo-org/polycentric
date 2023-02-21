@@ -12,14 +12,14 @@ const registerServiceWorker = async () => {
             },
         );
         if (registration.installing) {
-            console.log('Service worker installing');
+            console.info('Service worker installing');
         } else if (registration.waiting) {
-            console.log('Service worker installed');
+            console.info('Service worker installed');
         } else if (registration.active) {
-            console.log('Service worker active');
+            console.info('Service worker active');
         }
     } catch (error) {
-        console.error(`Registration failed with ${error}`);
+        console.warn(`Registration failed with ${error}`);
     }
 };
 
@@ -56,7 +56,7 @@ function createPersistenceDriverIndexedDB(): PolycentricReact.Core.PersistenceDr
 
             estimate.bytesUsed = storageEstimate.usage;
         } catch (err) {
-            console.log(err);
+            console.warn(err);
         }
 
         return estimate;
@@ -66,7 +66,7 @@ function createPersistenceDriverIndexedDB(): PolycentricReact.Core.PersistenceDr
         try {
             return await navigator.storage.persisted();
         } catch (err) {
-            console.log(err);
+            console.warn(err);
         }
 
         return false;

@@ -118,7 +118,7 @@ function Explore(props: ExploreProps) {
         );
 
         /*
-        console.log(
+        console.info(
             'explore: fetching from server took',
             performance.now() - t1,
         );
@@ -155,7 +155,7 @@ function Explore(props: ExploreProps) {
         }
 
         /*
-        console.log(
+        console.info(
             'explore: saving from server took', performance.now() - t2
         );
         */
@@ -197,7 +197,7 @@ function Explore(props: ExploreProps) {
         }
 
         /*
-        console.log(
+        console.info(
             'explore: loading from storage took',
             performance.now() - t3,
         );
@@ -247,7 +247,7 @@ function Explore(props: ExploreProps) {
 
         if (inView === true || initial === true || scroll >= 80) {
             /*
-            console.log(
+            console.info(
                 "calling load",
                 "inView", inView,
                 "initial", initial,

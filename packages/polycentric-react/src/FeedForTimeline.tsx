@@ -147,7 +147,7 @@ function FeedForTimeline(props: Feed.FeedProps) {
                         progress = true;
                     }
                 } catch (err) {
-                    console.log(err);
+                    console.warn(err);
                 }
             }
         }
@@ -228,7 +228,7 @@ function FeedForTimeline(props: Feed.FeedProps) {
 
         if (inView === true || initial === true || scroll >= 80) {
             /*
-            console.log(
+            console.info(
                 "calling load",
                 "inView", inView,
                 "initial", initial,

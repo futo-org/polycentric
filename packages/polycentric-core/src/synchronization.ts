@@ -143,7 +143,7 @@ export async function backFillServers(
                 });
             }
         } catch (err) {
-            console.log(err);
+            console.warn(err);
         }
     }
 }

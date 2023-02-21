@@ -83,7 +83,7 @@ export function Feed(props: FeedProps) {
 
                 setDecodedFeed(decoded);
             } catch (err) {
-                console.log('failed to decode url');
+                console.warn('failed to decode url');
             }
         } else {
             setDecodedFeed(undefined);
