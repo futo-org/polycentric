@@ -28,7 +28,6 @@ proto: proto/protocol.proto
 		--ts_proto_opt=esModuleInterop=true \
 		--ts_proto_opt=forceLong=long \
 		--ts_proto_out=. \
-		--rust_out=server/src/ \
 		--experimental_allow_proto3_optional \
 		proto/protocol.proto
 	cp proto/protocol.ts packages/polycentric-core/src/protocol.ts
