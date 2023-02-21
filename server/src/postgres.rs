@@ -928,8 +928,8 @@ pub mod tests {
 
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let mut claim_hacker_news = crate::protocol::ClaimHackerNews::new();
-        claim_hacker_news.username = "hello".to_string();
+        let mut claim_hacker_news = crate::protocol::ClaimIdentifier::new();
+        claim_hacker_news.identifier = "hello".to_string();
         let claim_hacker_news_bytes = claim_hacker_news.write_to_bytes()?;
         let claim =
             crate::model::claim::Claim::new(0, &claim_hacker_news_bytes);
