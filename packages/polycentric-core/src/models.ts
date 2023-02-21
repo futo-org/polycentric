@@ -232,7 +232,7 @@ export class PrivateKey {
         }
 
         if (key.length !== 32) {
-            throw new Error('incorrect public key length');
+            throw new Error('incorrect private key length');
         }
 
         this._keyType = keyType;
