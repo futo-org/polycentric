@@ -44,9 +44,9 @@ function FeedForProfile(props: FeedForProfileProps) {
     const doBackfill = async (
         cancelContext: Core.CancelContext.CancelContext,
     ) => {
-        console.log('waiting on backfill');
+        console.info('waiting on backfill');
         await Core.Synchronization.backfillClient(props.state, props.feed);
-        console.log('finished single backfill');
+        console.info('finished single backfill');
     };
 
     const addEvent = async (
@@ -89,7 +89,7 @@ function FeedForProfile(props: FeedForProfileProps) {
     const handleLoad = async (
         cancelContext: Core.CancelContext.CancelContext,
     ) => {
-        console.log('handle load');
+        console.info('handle load');
 
         if (cancelContext.cancelled()) {
             return;
@@ -133,7 +133,7 @@ function FeedForProfile(props: FeedForProfileProps) {
                         progress = true;
                     }
                 } catch (err) {
-                    console.log(err);
+                    console.warn(err);
                 }
             }
         }
@@ -235,7 +235,7 @@ function FeedForProfile(props: FeedForProfileProps) {
 
         if (inView === true || initial === true || scroll >= 80) {
             /*
-            console.log(
+            console.info(
                 "calling load",
                 "inView", inView,
                 "initial", initial,

@@ -17,7 +17,7 @@ export async function postEvents(
     });
 
     if (!response.ok) {
-        console.log('postEvents', response.status, await response.text());
+        console.warn('postEvents', response.status, await response.text());
         throw new Error('postEvents !ok');
     }
 }
@@ -40,7 +40,7 @@ export async function getRanges(
     });
 
     if (!response.ok) {
-        console.log('getRanges', response.status, await response.text());
+        console.warn('getRanges', response.status, await response.text());
         throw new Error('getRanges !ok');
     }
 
@@ -72,7 +72,7 @@ export async function getEvents(
     });
 
     if (!response.ok) {
-        console.log('getEvents', response.status, await response.text());
+        console.warn('getEvents', response.status, await response.text());
         throw new Error('getEvents !ok');
     }
 
@@ -102,7 +102,7 @@ export async function getResolveClaim(
     });
 
     if (!response.ok) {
-        console.log('getResolveClaim', response.status, await response.text());
+        console.warn('getResolveClaim', response.status, await response.text());
         throw new Error('getResolveClaim !ok');
     }
 

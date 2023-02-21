@@ -89,7 +89,7 @@ function PostModal(props: PostModalProps) {
 
             // const buffer = new Uint8Array(await file.arrayBuffer());
 
-            console.log(`File size ${file.size / 1024 / 1024} MB`);
+            console.info(`File size ${file.size / 1024 / 1024} MB`);
 
             const compressed = await imageCompression(file, {
                 maxSizeMB: 1,
@@ -97,7 +97,7 @@ function PostModal(props: PostModalProps) {
                 maxWidthOrHeight: 1920,
             });
 
-            console.log(
+            console.info(
                 `Compressed file size ${compressed.size / 1024 / 1024} MB`,
             );
 

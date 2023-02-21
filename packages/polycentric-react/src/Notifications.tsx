@@ -112,7 +112,7 @@ function Notifications(props: NotificationsProps) {
                     progress = true;
                 }
             } catch (err) {
-                console.log(err);
+                console.warn(err);
                 progress = true;
             }
         }

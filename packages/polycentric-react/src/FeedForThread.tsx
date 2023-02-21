@@ -81,7 +81,7 @@ export function FeedForThread(props: FeedForThreadProps) {
             try {
                 replies = await Core.APIMethods.loadReplies(address, pointer);
             } catch (err) {
-                console.log('failed to load replies from: ' + address);
+                console.warn('failed to load replies from: ' + address);
 
                 continue;
             }

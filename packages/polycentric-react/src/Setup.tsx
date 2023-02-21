@@ -138,7 +138,7 @@ function SetupCreateProfile(props: SetupCreateProfileProps) {
     };
 
     const handleSaveIdentity = async () => {
-        // console.log(await Notification.requestPermission());
+        // console.info(await Notification.requestPermission());
 
         const start = async () => {
             const state = await Core.DB.createStateNewIdentity(
@@ -230,7 +230,7 @@ function SetupLanding(props: SetupLandingProps) {
                 );
 
                 if (bundle.privateKey === undefined) {
-                    console.log('failed to parse bundle');
+                    console.warn('failed to parse bundle');
                     return;
                 }
 
@@ -263,7 +263,7 @@ function SetupLanding(props: SetupLandingProps) {
                 props.handleStart(start);
             }
         } catch (err) {
-            console.log(err);
+            console.warn(err);
         }
     };
 
@@ -385,7 +385,7 @@ function Setup(props: SetupProps) {
     };
 
     if (setupCB !== undefined) {
-        console.log('was persisted5');
+        console.info('was persisted5');
         return <PersistencePage handleStart={setupCB} />;
     } else if (page === 1) {
         return (
