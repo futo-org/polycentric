@@ -7,9 +7,10 @@ mod handlers;
 mod ingest;
 mod model;
 mod postgres;
-mod protocol;
 mod scrapers;
 mod version;
+
+include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 
 #[derive(Debug)]
 enum RequestError {
