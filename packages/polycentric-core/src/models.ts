@@ -314,6 +314,7 @@ export class Event {
     private _lwwElementSet: LWWElementSet | undefined;
     private _lwwElement: LWWElement | undefined;
     private _references: Array<Protocol.Reference>;
+    private _indices: Array<Protocol.Index>;
 
     public constructor(
         system: PublicKey,
@@ -324,6 +325,7 @@ export class Event {
         lwwElementSet: LWWElementSet | undefined,
         lwwElement: LWWElement | undefined,
         references: Array<Protocol.Reference>,
+        indices: Array<Protocol.Index>,
     ) {
         if (!logicalClock.unsigned) {
             throw new Error('expected logical clock to be unsigned');
@@ -341,6 +343,7 @@ export class Event {
         this._lwwElementSet = lwwElementSet;
         this._lwwElement = lwwElement;
         this._references = references;
+        this._indices = indices;
     }
 
     public system(): PublicKey {
@@ -374,6 +377,10 @@ export class Event {
     public references(): Array<Protocol.Reference> {
         return this._references;
     }
+
+    public indices(): Array<Protocol.Index> {
+        return this._indices;
+    }
 }
 
 export function eventFromProto(proto: Protocol.Event): Event {
@@ -383,6 +390,10 @@ export function eventFromProto(proto: Protocol.Event): Event {
 
     if (proto.process === undefined) {
         throw new Error('expected process');
+    }
+
+    if (proto.indices === undefined) {
+        throw new Error('expected indices');
     }
 
     return new Event(
@@ -396,6 +407,7 @@ export function eventFromProto(proto: Protocol.Event): Event {
             : undefined,
         proto.lwwElement ? lwwElementFromProto(proto.lwwElement) : undefined,
         proto.references,
+        proto.indices.indices,
     );
 }
 
@@ -417,7 +429,7 @@ export function eventToProto(event: Event): Protocol.Event {
             logicalClocks: [],
         },
         indices: {
-            indices: [],
+            indices: event.indices(),
         },
         lwwElementSet: lwwElementSet
             ? lwwElementSetToProto(lwwElementSet)

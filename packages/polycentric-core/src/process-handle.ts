@@ -357,6 +357,10 @@ export class ProcessHandle {
             this._processSecret.process(),
         );
 
+        if (processState.indices === undefined) {
+            throw new Error('expected indices');
+        }
+
         const event = new Models.Event(
             this._system,
             this._processSecret.process(),
@@ -366,6 +370,7 @@ export class ProcessHandle {
             lwwElementSet,
             lwwElement,
             references,
+            processState.indices.indices,
         );
 
         const eventBuffer = Protocol.Event.encode(
@@ -547,5 +552,30 @@ function updateProcessState(
         state.logicalClock = event.logicalClock();
     }
 
+    if (state.indices === undefined) {
+        throw new Error("expected indices");
+    }
+
     Ranges.insert(state.ranges, event.logicalClock());
+
+    {
+        let foundIndex = false;
+
+        for (const index of state.indices.indices) {
+            if (index.indexType.equals(event.contentType())) {
+                foundIndex = true;
+
+                if (event.logicalClock().compare(index.logicalClock) == 1) {
+                    index.logicalClock = event.logicalClock();
+                }
+            }
+        }
+
+        if (!foundIndex) {
+            state.indices.indices.push({
+                indexType: event.contentType(),
+                logicalClock: event.logicalClock(),
+            });
+        }
+    }
 }

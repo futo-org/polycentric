@@ -157,8 +157,9 @@ message StorageTypeProcessSecret {
 }
 
 message StorageTypeProcessState {
-             uint64 logical_clock = 1;
-    repeated Range  ranges        = 2;
+             uint64  logical_clock = 1;
+    repeated Range   ranges        = 2;
+             Indices indices       = 3;
 }
 
 message StorageTypeCRDTSetItem {

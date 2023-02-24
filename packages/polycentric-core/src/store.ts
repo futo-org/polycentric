@@ -95,6 +95,7 @@ export class Store {
             return {
                 logicalClock: new Long(0),
                 ranges: [],
+                indices: { indices: [] },
             };
         } else {
             return Protocol.StorageTypeProcessState.decode(attempt);
