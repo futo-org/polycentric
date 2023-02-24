@@ -114,6 +114,17 @@ describe('processHandle', () => {
         await processHandle.vouch(claimPointer);
     });
 
+    test('delete', async () => {
+        const processHandle = await createProcessHandle();
+        
+        const pointer = await processHandle.post('jej');
+
+        await processHandle.delete(
+            pointer.process(),
+            pointer.logicalClock(),
+        );
+    });
+
     test('sync', async () => {
         const s1p1 = await createProcessHandle();
         await s1p1.addServer('http://127.0.0.1:8081');

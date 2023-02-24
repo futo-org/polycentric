@@ -246,6 +246,37 @@ export class ProcessHandle {
         );
     }
 
+    public async delete(
+        process: Models.Process,
+        logicalClock: Long,
+    ): Promise<Models.Pointer | undefined> {
+        const signedEvent = await this._store.getSignedEvent(
+            this._system,
+            process,
+            logicalClock,
+        );
+
+        if (!signedEvent) {
+            return undefined;
+        }
+
+        const event = Models.eventFromProtoBuffer(signedEvent.event);
+
+        return await this.publish(
+            new Long(Models.ContentType.Delete, 0, true),
+            Protocol.Delete.encode({
+                process: Models.processToProto(process),
+                logicalClock: logicalClock,
+                indices: {
+                    indices: event.indices(),
+                },
+            }).finish(),
+            undefined,
+            undefined,
+            [],
+        );
+    }
+
     public async publishBlob(
         mime: string,
         content: Uint8Array,
@@ -398,6 +429,38 @@ export class ProcessHandle {
             event.system(),
             event.process(),
         );
+
+        if (
+            event.contentType().equals(
+                new Long(Models.ContentType.Delete, 0, true)
+            )
+        ) {
+            const deleteProto = Protocol.Delete.decode(event.content());
+
+            if (!deleteProto.process) {
+                throw new Error("delete expected process");
+            }
+
+            const deleteProcess = Models.processFromProto(deleteProto.process);
+
+            let deleteProcessState = processState;
+
+            if (!Models.processesEqual(event.process(), deleteProcess)) {
+                deleteProcessState = await this._store.getProcessState(
+                    event.system(),
+                    deleteProcess,
+                );
+            }
+
+            Ranges.insert(deleteProcessState.ranges, deleteProto.logicalClock);
+
+            await this._store.putTombstone(
+                event.system(),
+                deleteProcess,
+                deleteProto.logicalClock,
+                await Models.signedEventToPointer(signedEvent),
+            );
+        }
 
         updateSystemState(systemState, event);
         updateProcessState(processState, event);

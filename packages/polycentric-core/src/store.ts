@@ -146,6 +146,22 @@ export class Store {
         };
     }
 
+    public putTombstone(
+        system: Models.PublicKey,
+        process: Models.Process,
+        logicalClock: Long,
+        mutationPointer: Models.Pointer,
+    ): PersistenceDriver.BinaryPutLevel {
+        return {
+            type: 'put',
+            key: makeEventKey(system, process, logicalClock),
+            value: Protocol.StorageTypeEvent.encode({
+                mutationPointer: Models.pointerToProto(mutationPointer),
+            }).finish(),
+            sublevel: this.levelEvents,
+        };
+    }
+
     public putEvent(
         system: Models.PublicKey,
         process: Models.Process,
@@ -175,7 +191,23 @@ export class Store {
         if (!attempt) {
             return undefined;
         } else {
-            return Protocol.StorageTypeEvent.decode(attempt).event;
+            const storageEvent = Protocol.StorageTypeEvent.decode(attempt);
+
+            if (storageEvent.event) {
+                return storageEvent.event;
+            } else if (storageEvent.mutationPointer) {
+                const mutationPointer = Models.pointerFromProto(
+                    storageEvent.mutationPointer,
+                );
+
+                return await this.getSignedEvent(
+                    mutationPointer.system(),
+                    mutationPointer.process(),
+                    mutationPointer.logicalClock(),
+                );
+            } else {
+                return undefined;
+            }
         }
     }
 }
