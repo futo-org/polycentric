@@ -1,4 +1,5 @@
 use ::anyhow::Context;
+use ::protobuf::Message;
 
 pub mod digest {
     #[derive(PartialEq, Clone, Debug)]
@@ -246,6 +247,23 @@ pub mod process {
 
         from_proto(&proto).map_err(::serde::de::Error::custom)
     }
+}
+
+pub fn serde_url_deserialize_repeated_uint64<'de, D>(
+    deserializer: D,
+) -> Result<crate::protocol::RepeatedUInt64, D::Error>
+where
+    D: ::serde::Deserializer<'de>,
+{
+    let string: &str = ::serde::Deserialize::deserialize(deserializer)?;
+
+    let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
+        .map_err(::serde::de::Error::custom)?;
+
+    crate::protocol::RepeatedUInt64::parse_from_tokio_bytes(
+        &::bytes::Bytes::from(bytes),
+    )
+    .map_err(::serde::de::Error::custom)
 }
 
 pub mod event {

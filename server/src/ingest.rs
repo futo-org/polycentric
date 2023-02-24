@@ -33,6 +33,16 @@ pub(crate) async fn ingest_event(
         }
     }
 
+    for index in event.indices().indices.iter() {
+        crate::postgres::insert_event_index(
+            &mut *transaction,
+            event_id,
+            index.index_type,
+            index.logical_clock,
+        )
+        .await?;
+    }
+
     if let crate::model::content::Content::Delete(body) = content {
         crate::postgres::delete_event(&mut *transaction, event.system(), &body)
             .await?;

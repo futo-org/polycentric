@@ -135,6 +135,24 @@ pub(crate) async fn prepare_database(
 
     ::sqlx::query(
         "
+        CREATE TABLE IF NOT EXISTS event_indices (
+            id            BIGSERIAL PRIMARY KEY,
+            index_type    INT8      NOT NULL,
+            logical_clock INT8      NOT NULL,
+            event_id      BIGSERIAL NOT NULL,
+
+            CHECK ( index_type    >= 0 ),
+            CHECK ( logical_clock >= 0 ),
+
+            CONSTRAINT FK_event FOREIGN KEY (event_id) REFERENCES events(id)
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
         CREATE TABLE IF NOT EXISTS claims (
             id         BIGSERIAL PRIMARY KEY,
             claim_type INT8      NOT NULL,
@@ -253,6 +271,67 @@ pub(crate) async fn load_event(
         .bind(crate::model::public_key::get_key_bytes(system))
         .bind(&process.bytes())
         .bind(i64::try_from(logical_clock)?)
+        .fetch_optional(&mut *transaction)
+        .await?;
+
+    match potential_raw {
+        Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
+            &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+        )?)),
+        None => Ok(None),
+    }
+}
+
+pub(crate) async fn load_processes_for_system(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    system: &crate::model::public_key::PublicKey,
+) -> ::anyhow::Result<::std::vec::Vec<crate::model::process::Process>> {
+    let query = "
+        SELECT DISTINCT process
+        FROM events
+        WHERE system_key_type = $1
+        AND system_key = $2
+    ";
+
+    ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            system,
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(system))
+        .fetch_all(&mut *transaction)
+        .await?
+        .iter()
+        .map(|raw| {
+            crate::model::process::from_vec(&raw)
+        })
+        .collect::<::anyhow::Result<
+            ::std::vec::Vec<crate::model::process::Process>,
+        >>()
+}
+
+pub(crate) async fn load_latest_event_by_type(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    system: &crate::model::public_key::PublicKey,
+    process: &crate::model::process::Process,
+    content_type: u64,
+) -> ::anyhow::Result<Option<crate::model::signed_event::SignedEvent>> {
+    let query = "
+        SELECT raw_event FROM events
+        WHERE system_key_type = $1
+        AND   system_key      = $2
+        AND   process         = $3
+        AND   content_type    = $4
+        ORDER BY logical_clock DESC
+        LIMIT 1;
+    ";
+
+    let potential_raw = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            system,
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(system))
+        .bind(&process.bytes())
+        .bind(i64::try_from(content_type)?)
         .fetch_optional(&mut *transaction)
         .await?;
 
@@ -423,6 +502,37 @@ pub(crate) async fn insert_event_link(
         .bind(&pointer.process().bytes())
         .bind(i64::try_from(*pointer.logical_clock())?)
         .bind(i64::try_from(link_content_type)?)
+        .bind(i64::try_from(event_id)?)
+        .execute(&mut *transaction)
+        .await?;
+
+    Ok(())
+}
+
+pub(crate) async fn insert_event_index(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    event_id: u64,
+    index_type: u64,
+    logical_clock: u64,
+) -> ::anyhow::Result<()> {
+    let query = "
+        INSERT INTO event_indices
+        (
+            index_type,
+            logical_clock,
+            event_id
+        )
+        VALUES (
+            $1,
+            $2,
+            $3
+        )
+        ON CONFLICT DO NOTHING;
+    ";
+
+    ::sqlx::query(query)
+        .bind(i64::try_from(index_type)?)
+        .bind(i64::try_from(logical_clock)?)
         .bind(i64::try_from(event_id)?)
         .execute(&mut *transaction)
         .await?;

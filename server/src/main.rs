@@ -169,6 +169,14 @@ async fn serve_api(
         .and_then(crate::handlers::get_head::handler)
         .with(cors.clone());
 
+    let route_get_query_index = ::warp::get()
+        .and(::warp::path("query_index"))
+        .and(::warp::path::end())
+        .and(state_filter.clone())
+        .and(::warp::query::<crate::handlers::get_query_index::Query>())
+        .and_then(crate::handlers::get_query_index::handler)
+        .with(cors.clone());
+
     let route_get_events = ::warp::get()
         .and(::warp::path("events"))
         .and(::warp::path::end())
@@ -248,6 +256,7 @@ async fn serve_api(
 
     let routes = route_post_events
         .or(route_get_head)
+        .or(route_get_query_index)
         .or(route_get_events)
         .or(route_get_claim_to_system)
         .or(route_get_ranges)

@@ -1,3 +1,4 @@
+import Long from 'long';
 import fetch, { Headers } from 'cross-fetch';
 import * as Base64 from '@borderless/base64';
 
@@ -110,3 +111,35 @@ export async function getResolveClaim(
 
     return Protocol.Events.decode(rawBody);
 }
+
+export async function getQueryIndex(
+    server: string,
+    system: Models.PublicKey,
+    eventTypes: Array<Long>,
+): Promise<Protocol.Events> {
+    const systemQuery = Base64.encodeUrl(
+        Protocol.PublicKey.encode(Models.publicKeyToProto(system)).finish(),
+    );
+
+    const eventTypesQuery = Base64.encodeUrl(Protocol.RepeatedUInt64.encode({
+        numbers: eventTypes,
+    }).finish());
+
+    const path = `/query_index?system=${systemQuery}&event_types=${eventTypesQuery}`;
+    const response = await fetch(server + path, {
+        method: 'GET',
+        headers: new Headers({
+            'content-type': 'application/octet-stream',
+        }),
+    });
+
+    if (!response.ok) {
+        console.warn('getQueryIndex', response.status, await response.text());
+        throw new Error('getQueryIndex !ok');
+    }
+
+    const rawBody = new Uint8Array(await response.arrayBuffer());
+
+    return Protocol.Events.decode(rawBody);
+}
+

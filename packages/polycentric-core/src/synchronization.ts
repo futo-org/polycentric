@@ -32,7 +32,7 @@ async function loadRanges(
     return result;
 }
 
-async function saveBatch(
+export async function saveBatch(
     processHandle: ProcessHandle.ProcessHandle,
     events: Protocol.Events,
 ): Promise<void> {
