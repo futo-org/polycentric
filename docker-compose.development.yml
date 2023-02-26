@@ -38,7 +38,10 @@ services:
         tmpfs:
             - /tmp:exec
         ports:
+            # polycentric web
             - "127.0.0.1:3000:3000"
+            # harbor social
+            - "127.0.0.1:3001:3001"
             # retype port
             - "127.0.0.1:8083:8083"
             # wrangler port

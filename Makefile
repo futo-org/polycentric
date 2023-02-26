@@ -47,7 +47,8 @@ link:
 		/app/packages/polycentric-bot/node_modules \
 		/app/packages/polycentric-web/node_modules \
 		/app/packages/polycentric-desktop/node_modules \
-		/app/packages/polycentric-leveldb/node_modules
+		/app/packages/polycentric-leveldb/node_modules \
+		/app/packages/harbor-web/node_modules
 
 	rm -f \
 		/app/packages/polycentric-react/node_modules/polycentric-core \
@@ -56,7 +57,8 @@ link:
 		/app/packages/polycentric-leveldb/node_modules/polycentric-core \
 		/app/packages/polycentric-web/node_modules/polycentric-react \
 		/app/packages/polycentric-desktop/node_modules/polycentric-react \
-		/app/packages/polycentric-desktop/node_modules/polycentric-leveldb
+		/app/packages/polycentric-desktop/node_modules/polycentric-leveldb \
+		/app/packages/harbor-web/node_modules/polycentric-core \
 
 	ln -s \
 		/app/packages/polycentric-core \
@@ -69,6 +71,10 @@ link:
 	ln -s \
 		/app/packages/polycentric-core \
 		/app/packages/polycentric-leveldb/node_modules/polycentric-core
+
+	ln -s \
+		/app/packages/polycentric-core \
+		/app/packages/harbor-web/node_modules/polycentric-core
 
 	ln -s \
 		/app/packages/polycentric-react \
@@ -127,6 +133,8 @@ clean:
 		packages/polycentric-desktop/build \
 		packages/polycentric-desktop/dist \
 		packages/polycentric-leveldb/dist \
+		packages/harbor-web/node_modules \
+		packages/harbor-web/dist \
 		server/target
 
 build-doc-site:

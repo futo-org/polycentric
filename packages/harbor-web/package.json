@@ -1,0 +1,58 @@
+{
+  "name": "harbor-web",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "abstract-level": "^1.0.3",
+    "browser-detect": "^0.2.28",
+    "browser-level": "^1.0.1",
+    "memory-level": "^1.0.0",
+    "polycentric-core": "../polycentric-core",
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
+  },
+  "scripts": {
+    "start": "webpack serve --mode=development",
+    "build": "webpack --mode=development",
+    "build:production": "webpack --mode=production"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "homepage": "./",
+  "build": {
+    "extends": null,
+    "files": [
+      "build/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    }
+  },
+  "browserslist": {
+    "production": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "copy-webpack-plugin": "^11.0.0",
+    "css-loader": "^6.7.1",
+    "prettier": "2.7.1",
+    "style-loader": "^3.3.1",
+    "ts-loader": "^9.3.1",
+    "webpack": "^5.74.0",
+    "webpack-cli": "^4.10.0",
+    "webpack-dev-server": "^4.11.1"
+  }
+}
