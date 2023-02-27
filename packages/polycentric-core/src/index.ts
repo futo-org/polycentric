@@ -7,3 +7,4 @@ export * as ProcessHandle from './process-handle';
 export * as Ranges from './ranges';
 export * as APIMethods from './api-methods';
 export * as Synchronization from './synchronization';
+export * as Protocol from './protocol';

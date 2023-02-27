@@ -38,7 +38,7 @@ export function claimHackerNews(username: string): Protocol.Claim {
     };
 }
 
-export function claimYoutube(username: string): Protocol.Claim {
+export function claimYouTube(username: string): Protocol.Claim {
     return {
         claimType: new Long(ClaimType.YouTube, 0, true),
         claim: Protocol.ClaimIdentifier.encode({

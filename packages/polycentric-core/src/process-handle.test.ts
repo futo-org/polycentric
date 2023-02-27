@@ -201,6 +201,7 @@ describe('processHandle', () => {
 
         expect(resolved.events.length).toStrictEqual(2);
     });
+    */
 
     test('resolveAndQuery', async () => {
         const s1p1 = await createProcessHandle();
@@ -211,7 +212,7 @@ describe('processHandle', () => {
 
         console.log("system:" + Base64.encodeUrl(s1p1.system().key()))
 
-        const claim = Models.claimHackerNews('fake_user');
+        const claim = Models.claimYouTube('@rossmanngroup');
 
         const claimPointer = await s1p1.claim(claim);
         await s1p1.vouch(claimPointer);
@@ -249,5 +250,4 @@ describe('processHandle', () => {
             resolvedClaim!.system(),
         );
     });
-    */
 });

@@ -11,7 +11,7 @@ const avatar = "https://pbs.twimg.com/profile_images/1382846958159663105/ltolfDy
 
 const system = new Core.Models.PublicKey(
     Long.UONE,
-    Base64.decode('ipzwb0XssGBUtVhyJx46EDRrdVkCi5IifR0l1JkF1Ck'),
+    Base64.decode('3RdWh8zPrK49DYyxBCpuL4M54jAfag0e8I_o8tzceXc'),
 );
 
 type ProfileProps = {
@@ -119,11 +119,38 @@ export function App() {
                 [
                     new Long(Core.Models.ContentType.Description),
                     new Long(Core.Models.ContentType.Username),
+                    new Long(Core.Models.ContentType.Claim),
                 ]
             )
         );
 
         const systemState = await processHandle.loadSystemState(system);
+
+        const [claimEvents, _] = await processHandle.store().queryClaimIndex(
+            system,
+            10,
+            undefined,
+        );
+
+        const claims = [];
+
+        for (const protoSignedEvent of claimEvents) {
+            const event = Core.Models.eventFromProtoBuffer(
+                Core.Models.signedEventFromProto(protoSignedEvent).event(),
+            )
+
+            if (
+                !event.contentType().equals(
+                    new Long(Core.Models.ContentType.Claim)
+                )
+            ) {
+                throw new Error("event content type was not claim");
+            }
+
+            claims.push(
+                Core.Protocol.Claim.decode(event.content()),
+            );
+        }
 
         setProps({
             description: systemState.description(),
