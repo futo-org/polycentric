@@ -26,11 +26,30 @@ export enum ClaimType {
     YouTube = 2,
     Odysee = 3,
     Rumble = 4,
+    Twitter = 5,
 }
 
 export function claimHackerNews(username: string): Protocol.Claim {
     return {
         claimType: new Long(ClaimType.HackerNews, 0, true),
+        claim: Protocol.ClaimIdentifier.encode({
+            identifier: username,
+        }).finish(),
+    };
+}
+
+export function claimYoutube(username: string): Protocol.Claim {
+    return {
+        claimType: new Long(ClaimType.YouTube, 0, true),
+        claim: Protocol.ClaimIdentifier.encode({
+            identifier: username,
+        }).finish(),
+    };
+}
+
+export function claimTwitter(username: string): Protocol.Claim {
+    return {
+        claimType: new Long(ClaimType.Twitter, 0, true),
         claim: Protocol.ClaimIdentifier.encode({
             identifier: username,
         }).finish(),
