@@ -169,6 +169,36 @@ export class Store {
         };
     }
 
+    public async queryClaimIndex(
+        system: Models.PublicKey,
+        limit: number,
+        iterator: Uint8Array | undefined,
+    ): Promise<[Array<Protocol.SignedEvent>, Uint8Array | undefined]> {
+        const key = iterator ? iterator : makeSystemStateKey(system);
+
+        const indices = await this.levelIndexClaims
+            .iterator({
+                lt: key,
+                limit: limit,
+            })
+            .all();
+
+        let position = undefined;
+        let result = [];
+
+        for (const [k, v] of indices) {
+            const signedEvent = await this.getSignedEventByKey(k);
+
+            if (signedEvent) {
+                result.push(signedEvent);
+            }
+
+            position = k;
+        }
+
+        return [result, position];
+    }
+
     public putSystemState(
         system: Models.PublicKey,
         state: Protocol.StorageTypeSystemState,
@@ -211,6 +241,37 @@ export class Store {
             }).finish(),
             sublevel: this.levelEvents,
         };
+    }
+
+    public async getSignedEventByKey(
+        key: Uint8Array,
+    ): Promise<Protocol.SignedEvent | undefined> {
+        const attempt = await PersistenceDriver.tryLoadKey(
+            this.levelEvents,
+            key,
+        );
+
+        if (!attempt) {
+            return undefined;
+        } else {
+            const storageEvent = Protocol.StorageTypeEvent.decode(attempt);
+
+            if (storageEvent.event) {
+                return storageEvent.event;
+            } else if (storageEvent.mutationPointer) {
+                const mutationPointer = Models.pointerFromProto(
+                    storageEvent.mutationPointer,
+                );
+
+                return await this.getSignedEvent(
+                    mutationPointer.system(),
+                    mutationPointer.process(),
+                    mutationPointer.logicalClock(),
+                );
+            } else {
+                return undefined;
+            }
+        }
     }
 
     public async getSignedEvent(
