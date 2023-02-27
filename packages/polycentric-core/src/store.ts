@@ -8,6 +8,12 @@ import * as PersistenceDriver from './persistence-driver';
 
 const PROCESS_SECRET_KEY: Uint8Array = Util.encodeText('PROCESS_SECRET');
 
+export const MIN_8BYTE_KEY = new Uint8Array(8).fill(0);
+export const MAX_8BYTE_KEY = new Uint8Array(8).fill(255);
+
+export const MIN_32BYTE_KEY = new Uint8Array(32).fill(0);
+export const MAX_32BYTE_KEY = new Uint8Array(32).fill(255);
+
 function makeSystemStateKey(system: Models.PublicKey): Uint8Array {
     return Util.encodeText(
         system.keyType().toString() + Base64.encode(system.key()),
@@ -177,18 +183,16 @@ export class Store {
         const key = iterator ? iterator : makeSystemStateKey(system);
 
         const indices = await this.levelIndexClaims
-            .iterator({
-                lt: key,
+            .keys({
+                gt: key,
                 limit: limit,
             })
             .all();
 
-        console.log("indices", indices);
-
         let position = undefined;
         let result = [];
 
-        for (const [k, v] of indices) {
+        for (const k of indices) {
             const signedEvent = await this.getSignedEventByKey(k);
 
             if (signedEvent) {

@@ -158,6 +158,14 @@ describe('processHandle', () => {
         );
 
         expect(batch2[0].length).toStrictEqual(7);
+
+        expect(
+            await processHandle.store().queryClaimIndex(
+                processHandle.system(),
+                10,
+                batch2[1],
+            ),
+        ).toStrictEqual([[], undefined]);
     });
 
     /*
