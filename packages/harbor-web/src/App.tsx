@@ -14,9 +14,59 @@ const system = new Core.Models.PublicKey(
     Base64.decode('3RdWh8zPrK49DYyxBCpuL4M54jAfag0e8I_o8tzceXc'),
 );
 
+type ClaimProps = {
+    claim: Core.Protocol.Claim,
+}
+
+function Claim(props: ClaimProps) {
+    function getClaimInfo(claimType: Long) {
+        if (
+            claimType.equals(new Long(Core.Models.ClaimType.Twitter, 0, true))
+        ) {
+            return [(<TwitterIcon />), "Twitter"];
+        } else if (
+            claimType.equals(new Long(Core.Models.ClaimType.YouTube, 0, true))
+        ) {
+            return [(<YouTubeIcon />), "YouTube"];
+        } else {
+            return undefined;
+        }
+    }
+
+    const claimInfo = getClaimInfo(props.claim.claimType);
+
+    if (!claimInfo) {
+        return (<div />);
+    }
+
+    return (
+        <MUI.Paper
+            elevation={3}
+            style={{
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingLeft: '10px',
+            }}
+        >
+            {claimInfo[0]}
+            <p
+                style={{
+                    flex: '1',
+                    textAlign: 'center',
+                }}
+            >
+                {claimInfo[1]}
+            </p>
+        </MUI.Paper>
+    );
+}
+
 type ProfileProps = {
     name: string,
     description: string,
+    claims: Array<Core.Protocol.Claim>,
 };
 
 function Profile(props: ProfileProps) {
@@ -47,48 +97,11 @@ function Profile(props: ProfileProps) {
                 {props.description}
             </p>
 
-            <MUI.Paper
-                elevation={3}
-                style={{
-                    width: '100%',
-                    display: 'flex',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    marginBottom: '20px',
-                    paddingLeft: '10px',
-                }}
-            >
-                <YouTubeIcon />
-                <p
-                    style={{
-                        flex: '1',
-                        textAlign: 'center',
-                    }}
-                >
-                    YouTube
-                </p>
-            </MUI.Paper>
-
-            <MUI.Paper
-                elevation={3}
-                style={{
-                    width: '100%',
-                    display: 'flex',
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingLeft: '10px',
-                }}
-            >
-                <TwitterIcon />
-                <p
-                    style={{
-                        flex: '1',
-                        textAlign: 'center',
-                    }}
-                >
-                    Twitter
-                </p>
-            </MUI.Paper>
+            {props.claims.map((claim, _) => (
+                <Claim
+                    claim={claim}
+                />
+            ))}
         </div>
     );
 }
@@ -155,6 +168,7 @@ export function App() {
         setProps({
             description: systemState.description(),
             name: systemState.username(),
+            claims: claims,
         });
     };
 
@@ -178,6 +192,7 @@ export function App() {
                 <Profile
                     name={props.name}
                     description={props.description}
+                    claims={props.claims}
                 />
             )}
         </div>
