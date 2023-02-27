@@ -6,7 +6,7 @@ import * as FastSHA256 from 'fast-sha256';
 
 import * as Util from './util';
 
-export const enum ContentType {
+export enum ContentType {
     Delete = 1,
     SystemProcesses = 2,
     Post = 3,

@@ -3,17 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@borderless/base64": "^1.0.1",
+    "@emotion/react": "^11.9.0",
+    "@emotion/styled": "^11.10.4",
+    "@mui/icons-material": "^5.8.4",
+    "@mui/material": "^5.10.11",
     "abstract-level": "^1.0.3",
     "browser-detect": "^0.2.28",
     "browser-level": "^1.0.1",
+    "long": "^5.2.1",
     "memory-level": "^1.0.0",
     "polycentric-core": "../polycentric-core",
     "react": "^18.1.0",
-    "react-dom": "^18.1.0",
-    "@mui/material": "^5.10.11",
-    "@mui/icons-material": "^5.8.4",
-    "@emotion/react": "^11.9.0",
-    "@emotion/styled": "^11.10.4"
+    "react-dom": "^18.1.0"
   },
   "scripts": {
     "start": "webpack serve --mode=development",
