@@ -430,6 +430,8 @@ export class ProcessHandle {
             event.process(),
         );
 
+        const actions = [];
+
         if (
             event.contentType().equals(
                 new Long(Models.ContentType.Delete, 0, true)
@@ -454,18 +456,38 @@ export class ProcessHandle {
 
             Ranges.insert(deleteProcessState.ranges, deleteProto.logicalClock);
 
-            await this._store.putTombstone(
-                event.system(),
-                deleteProcess,
-                deleteProto.logicalClock,
-                await Models.signedEventToPointer(signedEvent),
+            actions.push(
+                this._store.putTombstone(
+                    event.system(),
+                    deleteProcess,
+                    deleteProto.logicalClock,
+                    await Models.signedEventToPointer(signedEvent),
+                ),
+            );
+
+            actions.push(
+                this._store.deleteIndexClaim(
+                    event.system(),
+                    event.process(),
+                    event.logicalClock(),
+                ),
+            );
+         } else if (
+            event.contentType().equals(
+                new Long(Models.ContentType.Claim, 0, true)
+            )
+        ) {
+            actions.push(
+                this._store.putIndexClaim(
+                    event.system(),
+                    event.process(),
+                    event.logicalClock(),
+                ),
             );
         }
 
         updateSystemState(systemState, event);
         updateProcessState(processState, event);
-
-        const actions = [];
 
         actions.push(this._store.putSystemState(event.system(), systemState));
 

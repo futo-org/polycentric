@@ -43,6 +43,7 @@ export class Store {
     levelSystemStates: PersistenceDriver.BinaryAbstractSubLevel;
     levelProcessStates: PersistenceDriver.BinaryAbstractSubLevel;
     levelEvents: PersistenceDriver.BinaryAbstractSubLevel;
+    levelIndexClaims: PersistenceDriver.BinaryAbstractSubLevel;
 
     constructor(level: PersistenceDriver.BinaryAbstractLevel) {
         this.level = level;
@@ -58,6 +59,11 @@ export class Store {
         }) as PersistenceDriver.BinaryAbstractSubLevel;
 
         this.levelEvents = this.level.sublevel('events', {
+            keyEncoding: 'buffer',
+            valueEncoding: 'buffer',
+        }) as PersistenceDriver.BinaryAbstractSubLevel;
+
+        this.levelIndexClaims = this.level.sublevel('indexClaims', {
             keyEncoding: 'buffer',
             valueEncoding: 'buffer',
         }) as PersistenceDriver.BinaryAbstractSubLevel;
@@ -132,6 +138,35 @@ export class Store {
         } else {
             return Protocol.StorageTypeSystemState.decode(attempt);
         }
+    }
+
+    public deleteIndexClaim(
+        system: Models.PublicKey,
+        process: Models.Process,
+        logicalClock: Long,
+    ): PersistenceDriver.BinaryDelLevel {
+        const key = makeEventKey(system, process, logicalClock);
+
+        return {
+            type: 'del',
+            key: key,
+            sublevel: this.levelIndexClaims,
+        };
+    }
+
+    public putIndexClaim(
+        system: Models.PublicKey,
+        process: Models.Process,
+        logicalClock: Long,
+    ): PersistenceDriver.BinaryPutLevel {
+        const key = makeEventKey(system, process, logicalClock);
+
+        return {
+            type: 'put',
+            key: key,
+            value: new Uint8Array(),
+            sublevel: this.levelIndexClaims,
+        };
     }
 
     public putSystemState(

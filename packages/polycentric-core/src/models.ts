@@ -21,7 +21,7 @@ export enum ContentType {
     Claim = 12,
 }
 
-export const enum ClaimType {
+export enum ClaimType {
     HackerNews = 1,
     YouTube = 2,
     Odysee = 3,

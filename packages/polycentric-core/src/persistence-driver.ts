@@ -20,6 +20,13 @@ export type BinaryPutLevel = AbstractLevel.AbstractBatchPutOperation<
     Uint8Array
 >;
 
+export type BinaryDelLevel = AbstractLevel.AbstractBatchDelOperation<
+    BinaryAbstractLevel,
+    Uint8Array
+>;
+
+export type BinaryUpdateLevel = BinaryPutLevel | BinaryDelLevel;
+
 export async function tryLoadKey(
     table: BinaryAbstractLevel,
     key: Uint8Array,
