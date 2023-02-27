@@ -183,6 +183,8 @@ export class Store {
             })
             .all();
 
+        console.log("indices", indices);
+
         let position = undefined;
         let result = [];
 

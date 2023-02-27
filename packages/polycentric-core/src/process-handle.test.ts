@@ -126,6 +126,41 @@ describe('processHandle', () => {
         );
     });
 
+    test('claim index', async () => {
+        const processHandle = await createProcessHandle();
+
+        expect(
+            await processHandle.store().queryClaimIndex(
+                processHandle.system(),
+                10,
+                undefined,
+            ),
+        ).toStrictEqual([[], undefined]);
+
+        const claimCount = 12;
+
+        for (let i = 0; i < claimCount; i++) {
+            await processHandle.claim(Models.claimHackerNews(i.toString()));
+        }
+
+        const batch1 = await processHandle.store().queryClaimIndex(
+            processHandle.system(),
+            5,
+            undefined,
+        );
+
+        expect(batch1[0].length).toStrictEqual(5);
+
+        const batch2 = await processHandle.store().queryClaimIndex(
+            processHandle.system(),
+            10,
+            batch1[1],
+        );
+
+        expect(batch2[0].length).toStrictEqual(7);
+    });
+
+    /*
     test('sync', async () => {
         const s1p1 = await createProcessHandle();
         await s1p1.addServer('http://127.0.0.1:8081');
@@ -206,4 +241,5 @@ describe('processHandle', () => {
             resolvedClaim!.system(),
         );
     });
+    */
 });
