@@ -19,21 +19,36 @@ type ClaimProps = {
 }
 
 function Claim(props: ClaimProps) {
-    function getClaimInfo(claimType: Long) {
+    const identifier = Core.Protocol.ClaimIdentifier.decode(
+        props.claim.claim,
+    ).identifier;
+
+    function getClaimInfo(
+        claimType: Long,
+        identifier: string,
+    ): [React.ReactElement, string, string] | undefined {
         if (
             claimType.equals(new Long(Core.Models.ClaimType.Twitter, 0, true))
         ) {
-            return [(<TwitterIcon />), "Twitter"];
+            return [
+                (<TwitterIcon />),
+                "Twitter",
+                `https://twitter.com/${identifier}`,
+            ];
         } else if (
             claimType.equals(new Long(Core.Models.ClaimType.YouTube, 0, true))
         ) {
-            return [(<YouTubeIcon />), "YouTube"];
+            return [
+                (<YouTubeIcon />),
+                "YouTube",
+                `https://youtube.com/${identifier}`,
+            ];
         } else {
             return undefined;
         }
     }
 
-    const claimInfo = getClaimInfo(props.claim.claimType);
+    const claimInfo = getClaimInfo(props.claim.claimType, identifier);
 
     if (!claimInfo) {
         return (<div />);
@@ -44,21 +59,35 @@ function Claim(props: ClaimProps) {
             elevation={3}
             style={{
                 width: '100%',
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingLeft: '10px',
+           }}
+            sx={{
+                ':hover': {
+                    backgroundColor: '#ADD8E6',
+                },
             }}
         >
-            {claimInfo[0]}
-            <p
+            <a
                 style={{
-                    flex: '1',
-                    textAlign: 'center',
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingLeft: '10px',
+                    color: 'black',
+                    textDecoration: 'none',
                 }}
+                href={claimInfo[2]}
+                target={"_blank"}
             >
-                {claimInfo[1]}
-            </p>
+                {claimInfo[0]}
+                <p
+                    style={{
+                        flex: '1',
+                        textAlign: 'center',
+                    }}
+                >
+                    {claimInfo[1]}
+                </p>
+            </a>
         </MUI.Paper>
     );
 }
