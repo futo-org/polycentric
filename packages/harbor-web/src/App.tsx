@@ -162,6 +162,7 @@ export function App() {
                 [
                     new Long(Core.Models.ContentType.Description),
                     new Long(Core.Models.ContentType.Username),
+                    new Long(Core.Models.ContentType.Avatar),
                 ],
                 undefined,
             )

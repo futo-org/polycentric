@@ -95,8 +95,9 @@ describe('integration', () => {
                 resolvedClaim!.system(),
                 [
                     new Long(Models.ContentType.Description),
-                ]
-            )
+                ],
+                undefined,
+            ),
         );
 
         const systemState = await s2p1.loadSystemState(
