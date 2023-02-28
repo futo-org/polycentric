@@ -7,11 +7,11 @@ import Long from 'long';
 
 import * as Core from 'polycentric-core';
 
-const avatar = "https://pbs.twimg.com/profile_images/1382846958159663105/ltolfDyQ_400x400.jpg";
+const avatarFallback = "https://pbs.twimg.com/profile_images/1382846958159663105/ltolfDyQ_400x400.jpg";
 
 const system = new Core.Models.PublicKey(
     Long.UONE,
-    Base64.decode('USo0Lh7XFH5B_yeTpK5ztdzWWD56-l6gnE8BOGznscU'),
+    Base64.decode('DtJnI6Vd0QiQGuuW_G85Jhhpe3XvPidS39tnl_0zfNU'),
 );
 
 type ClaimProps = {
@@ -208,6 +208,26 @@ export function App() {
                 Core.Protocol.Claim.decode(event.content()),
             );
         }
+
+        const avatar = await (async () => {
+            const avatarPointer = systemState.avatar();
+
+            if (avatarPointer) {
+                const image = await processHandle.loadBlob(avatarPointer);
+
+                if (image) {
+                    const blob = new Blob([image.content()], {
+                        type: image.mime(),
+                    });
+
+                    return URL.createObjectURL(blob);
+                }
+
+                console.log("failed to load blob");
+            }
+
+            return avatarFallback;
+        })();
 
         setProps({
             description: systemState.description(),

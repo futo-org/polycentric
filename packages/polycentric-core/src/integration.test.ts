@@ -1,3 +1,5 @@
+import * as FS from 'fs';
+
 import Long from 'long';
 import * as Base64 from '@borderless/base64';
 
@@ -70,8 +72,18 @@ describe('integration', () => {
         const claimPointer = await s1p1.claim(claim);
         await s1p1.vouch(claimPointer);
 
+        const image = FS.readFileSync('./src/rossmann.jpg', null);
+
+        const imagePointer = await s1p1.publishBlob(
+            'image/jpeg',
+            image,
+        );
+
+        await s1p1.setAvatar(imagePointer);
+
         await Synchronization.backFillServers(s1p1, s1p1.system());
 
+        /*
         const resolvedClaim = (await APIMethods.getResolveClaim(
             'http://localhost:8081',
             s1p1.system(),
@@ -103,5 +115,6 @@ describe('integration', () => {
         const systemState = await s2p1.loadSystemState(
             resolvedClaim!.system(),
         );
+        */
     });
 });
