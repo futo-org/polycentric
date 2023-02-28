@@ -64,6 +64,8 @@ describe('integration', () => {
         console.log("system:" + Base64.encodeUrl(s1p1.system().key()))
 
         const claim = Models.claimYouTube('@rossmanngroup');
+        
+        await s1p1.claim(Models.claimTwitter('fighttorepair'));
 
         const claimPointer = await s1p1.claim(claim);
         await s1p1.vouch(claimPointer);

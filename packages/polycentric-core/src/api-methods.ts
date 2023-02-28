@@ -116,6 +116,7 @@ export async function getQueryIndex(
     server: string,
     system: Models.PublicKey,
     eventTypes: Array<Long>,
+    limit: number | undefined,
 ): Promise<Protocol.Events> {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(Models.publicKeyToProto(system)).finish(),
@@ -125,7 +126,11 @@ export async function getQueryIndex(
         numbers: eventTypes,
     }).finish());
 
-    const path = `/query_index?system=${systemQuery}&event_types=${eventTypesQuery}`;
+    const path = 
+        `/query_index?system=${systemQuery}` +
+        `&event_types=${eventTypesQuery}` +
+        (limit ? `&limit=${limit.toString()}` : '');
+
     const response = await fetch(server + path, {
         method: 'GET',
         headers: new Headers({

@@ -11,7 +11,7 @@ const avatar = "https://pbs.twimg.com/profile_images/1382846958159663105/ltolfDy
 
 const system = new Core.Models.PublicKey(
     Long.UONE,
-    Base64.decode('3RdWh8zPrK49DYyxBCpuL4M54jAfag0e8I_o8tzceXc'),
+    Base64.decode('USo0Lh7XFH5B_yeTpK5ztdzWWD56-l6gnE8BOGznscU'),
 );
 
 type ClaimProps = {
@@ -59,6 +59,7 @@ function Claim(props: ClaimProps) {
             elevation={3}
             style={{
                 width: '100%',
+                marginBottom: '10px',
            }}
             sx={{
                 ':hover': {
@@ -161,8 +162,20 @@ export function App() {
                 [
                     new Long(Core.Models.ContentType.Description),
                     new Long(Core.Models.ContentType.Username),
+                ],
+                undefined,
+            )
+        );
+
+        await Core.Synchronization.saveBatch(
+            processHandle,
+            await Core.APIMethods.getQueryIndex(
+                'http://localhost:8081',
+                system,
+                [
                     new Long(Core.Models.ContentType.Claim),
-                ]
+                ],
+                10,
             )
         );
 
@@ -203,7 +216,7 @@ export function App() {
 
     React.useEffect(() => {
         load();
-    });
+    }, []);
 
     return (
         <div

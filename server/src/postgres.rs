@@ -314,7 +314,9 @@ pub(crate) async fn load_latest_event_by_type(
     system: &crate::model::public_key::PublicKey,
     process: &crate::model::process::Process,
     content_type: u64,
-) -> ::anyhow::Result<Option<crate::model::signed_event::SignedEvent>> {
+    limit: u64,
+) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
+{
     let query = "
         SELECT raw_event FROM events
         WHERE system_key_type = $1
@@ -322,25 +324,28 @@ pub(crate) async fn load_latest_event_by_type(
         AND   process         = $3
         AND   content_type    = $4
         ORDER BY logical_clock DESC
-        LIMIT 1;
+        LIMIT $5;
     ";
 
-    let potential_raw = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
+    ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
         .bind(i64::try_from(crate::model::public_key::get_key_type(
             system,
         ))?)
         .bind(crate::model::public_key::get_key_bytes(system))
         .bind(&process.bytes())
         .bind(i64::try_from(content_type)?)
-        .fetch_optional(&mut *transaction)
-        .await?;
-
-    match potential_raw {
-        Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
-            &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
-        )?)),
-        None => Ok(None),
-    }
+        .bind(i64::try_from(limit)?)
+        .fetch_all(&mut *transaction)
+        .await?
+        .iter()
+        .map(|raw| {
+            crate::model::signed_event::from_proto(
+                &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+            )
+        })
+        .collect::<::anyhow::Result<
+            ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+        >>()
 }
 
 pub(crate) async fn is_event_deleted(

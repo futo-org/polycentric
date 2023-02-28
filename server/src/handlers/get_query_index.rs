@@ -10,6 +10,7 @@ pub(crate) struct Query {
         deserialize_with = "crate::model::serde_url_deserialize_repeated_uint64"
     )]
     event_types: crate::protocol::RepeatedUInt64,
+    limit: ::core::option::Option<u64>,
 }
 
 pub(crate) async fn handler(
@@ -43,11 +44,12 @@ pub(crate) async fn handler(
 
     for process in processes.iter() {
         for event_type in query.event_types.numbers.iter() {
-            let maybe_event = match crate::postgres::load_latest_event_by_type(
+            let batch = match crate::postgres::load_latest_event_by_type(
                 &mut transaction,
                 &query.system,
                 process,
-                *event_type
+                *event_type,
+                query.limit.unwrap_or(1),
             ).await {
                 Ok(x) => x,
                 Err(err) => {
@@ -58,9 +60,9 @@ pub(crate) async fn handler(
                 }
             };
 
-            if let Some(event) = maybe_event {
+            for event in batch.iter() {
                 result.events.push(
-                    crate::model::signed_event::to_proto(&event),
+                    crate::model::signed_event::to_proto(event),
                 );
             }
         }
