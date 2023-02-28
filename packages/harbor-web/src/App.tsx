@@ -97,6 +97,7 @@ type ProfileProps = {
     name: string,
     description: string,
     claims: Array<Core.Protocol.Claim>,
+    avatar: string,
 };
 
 function Profile(props: ProfileProps) {
@@ -111,7 +112,7 @@ function Profile(props: ProfileProps) {
             }}
         >
             <MUI.Avatar
-                src={avatar}
+                src={props.avatar}
                 style={{
                     display: 'block',
                     width: '100px',
@@ -212,6 +213,7 @@ export function App() {
             description: systemState.description(),
             name: systemState.username(),
             claims: claims,
+            avatar: avatar,
         });
     };
 
@@ -236,6 +238,7 @@ export function App() {
                     name={props.name}
                     description={props.description}
                     claims={props.claims}
+                    avatar={props.avatar}
                 />
             )}
         </div>
