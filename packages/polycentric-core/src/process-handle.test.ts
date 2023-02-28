@@ -10,7 +10,9 @@ import * as Util from './util';
 import * as Protocol from './protocol';
 import * as APIMethods from './api-methods';
 
-async function createProcessHandle(): Promise<ProcessHandle.ProcessHandle> {
+export async function createProcessHandle():
+    Promise<ProcessHandle.ProcessHandle>
+{
     return await ProcessHandle.createProcessHandle(
         await MetaStore.createMetaStore(
             PersistenceDriver.createPersistenceDriverMemory(),
@@ -167,41 +169,6 @@ describe('processHandle', () => {
             ),
         ).toStrictEqual([[], undefined]);
     });
-
-    /*
-    test('sync', async () => {
-        const s1p1 = await createProcessHandle();
-        await s1p1.addServer('http://127.0.0.1:8081');
-        await s1p1.setDescription('hello');
-
-        const claim = Models.claimHackerNews('pg');
-
-        const claimPointer = await s1p1.claim(claim);
-        await s1p1.vouch(claimPointer);
-
-        await Synchronization.backFillServers(s1p1, s1p1.system());
-
-        const s2p1 = await createProcessHandle();
-
-        await Synchronization.backfillClient(
-            s2p1,
-            s1p1.system(),
-            'http://127.0.0.1:8081',
-        );
-
-        const s1State = await s2p1.loadSystemState(s1p1.system());
-
-        expect(s1State.description()).toStrictEqual('hello');
-
-        const resolved = await APIMethods.getResolveClaim(
-            'http://localhost:8081',
-            s1p1.system(),
-            claim,
-        );
-
-        expect(resolved.events.length).toStrictEqual(2);
-    });
-    */
 
     test('resolveAndQuery', async () => {
         const s1p1 = await createProcessHandle();
