@@ -5,6 +5,16 @@ import * as Base64 from '@borderless/base64';
 import * as Protocol from './protocol';
 import * as Models from './models';
 
+async function checkResponse(
+    name: string,
+    response: Response,
+): Promise<void> {
+    if (!response.ok) {
+        console.warn(name, response.status, await response.text());
+        throw new Error(name + ' !ok');
+    }
+}
+
 export async function postEvents(
     server: string,
     events: Protocol.Events,
@@ -17,10 +27,7 @@ export async function postEvents(
         body: Protocol.Events.encode(events).finish(),
     });
 
-    if (!response.ok) {
-        console.warn('postEvents', response.status, await response.text());
-        throw new Error('postEvents !ok');
-    }
+    await checkResponse('postEvents', response);
 }
 
 export async function getRanges(
@@ -40,10 +47,7 @@ export async function getRanges(
         }),
     });
 
-    if (!response.ok) {
-        console.warn('getRanges', response.status, await response.text());
-        throw new Error('getRanges !ok');
-    }
+    await checkResponse('getRanges', response);
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
@@ -72,10 +76,7 @@ export async function getEvents(
         }),
     });
 
-    if (!response.ok) {
-        console.warn('getEvents', response.status, await response.text());
-        throw new Error('getEvents !ok');
-    }
+    await checkResponse('getEvents', response);
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
@@ -103,10 +104,7 @@ export async function getResolveClaim(
         }),
     });
 
-    if (!response.ok) {
-        console.warn('getResolveClaim', response.status, await response.text());
-        throw new Error('getResolveClaim !ok');
-    }
+    await checkResponse('getResolveClaim', response);
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
@@ -141,10 +139,7 @@ export async function getQueryIndex(
         }),
     });
 
-    if (!response.ok) {
-        console.warn('getQueryIndex', response.status, await response.text());
-        throw new Error('getQueryIndex !ok');
-    }
+    await checkResponse('getQueryIndex', response);
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
