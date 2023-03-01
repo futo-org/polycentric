@@ -68,6 +68,9 @@ describe('integration', () => {
         const claim = Models.claimYouTube('@rossmanngroup');
         
         await s1p1.claim(Models.claimTwitter('fighttorepair'));
+        await s1p1.claim(
+            Models.claimBitcoin('1EaEv8DBeFfg6fE6BimEmvEFbYLkhpcvhj')
+        );
 
         const claimPointer = await s1p1.claim(claim);
         await s1p1.vouch(claimPointer);

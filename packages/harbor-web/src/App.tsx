@@ -1,5 +1,6 @@
 import * as MUI from '@mui/material';
 import YouTubeIcon from '@mui/icons-material/YouTube';
+import BitcoinIcon from '@mui/icons-material/CurrencyBitcoin';
 import TwitterIcon from '@mui/icons-material/Twitter';
 import * as React from 'react';
 import * as Base64 from '@borderless/base64';
@@ -11,7 +12,7 @@ const avatarFallback = "https://pbs.twimg.com/profile_images/1382846958159663105
 
 const system = new Core.Models.PublicKey(
     Long.UONE,
-    Base64.decode('DtJnI6Vd0QiQGuuW_G85Jhhpe3XvPidS39tnl_0zfNU'),
+    Base64.decode('-cVD8Xm8lpcvihvAXbg7UVQdkF2L_7xsujhYOv3kBF0'),
 );
 
 type ClaimProps = {
@@ -42,6 +43,15 @@ function Claim(props: ClaimProps) {
                 (<YouTubeIcon />),
                 "YouTube",
                 `https://youtube.com/${identifier}`,
+            ];
+        } else if (
+            claimType.equals(new Long(Core.Models.ClaimType.Bitcoin, 0, true))
+        ) {
+            return [
+                (<BitcoinIcon />),
+                "Bitcoin",
+                'https://www.blockchain.com/explorer/addresses/btc/' +
+                `${identifier}`,
             ];
         } else {
             return undefined;

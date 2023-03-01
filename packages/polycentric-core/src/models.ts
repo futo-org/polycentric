@@ -27,6 +27,7 @@ export enum ClaimType {
     Odysee = 3,
     Rumble = 4,
     Twitter = 5,
+    Bitcoin = 6,
 }
 
 export function claimHackerNews(username: string): Protocol.Claim {
@@ -50,6 +51,15 @@ export function claimYouTube(username: string): Protocol.Claim {
 export function claimTwitter(username: string): Protocol.Claim {
     return {
         claimType: new Long(ClaimType.Twitter, 0, true),
+        claim: Protocol.ClaimIdentifier.encode({
+            identifier: username,
+        }).finish(),
+    };
+}
+
+export function claimBitcoin(username: string): Protocol.Claim {
+    return {
+        claimType: new Long(ClaimType.Bitcoin, 0, true),
         claim: Protocol.ClaimIdentifier.encode({
             identifier: username,
         }).finish(),
