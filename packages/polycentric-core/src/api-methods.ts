@@ -93,8 +93,8 @@ export async function getResolveClaim(
 
     const claimQuery = Base64.encodeUrl(Protocol.Claim.encode(claim).finish());
 
-    const path = `/resolve_claim?claim=${claimQuery}' 
-        + &trust_root=${trustRootQuery}`;
+    const path = `/resolve_claim?claim=${claimQuery}` 
+        + `&trust_root=${trustRootQuery}`;
 
     const response = await fetch(server + path, {
         method: 'GET',
