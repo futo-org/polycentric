@@ -10,9 +10,7 @@ import * as Util from './util';
 import * as Protocol from './protocol';
 import * as APIMethods from './api-methods';
 
-export async function createProcessHandle():
-    Promise<ProcessHandle.ProcessHandle>
-{
+export async function createProcessHandle(): Promise<ProcessHandle.ProcessHandle> {
     return await ProcessHandle.createProcessHandle(
         await MetaStore.createMetaStore(
             PersistenceDriver.createPersistenceDriverMemory(),
@@ -119,24 +117,19 @@ describe('processHandle', () => {
 
     test('delete', async () => {
         const processHandle = await createProcessHandle();
-        
+
         const pointer = await processHandle.post('jej');
 
-        await processHandle.delete(
-            pointer.process(),
-            pointer.logicalClock(),
-        );
+        await processHandle.delete(pointer.process(), pointer.logicalClock());
     });
 
     test('claim index', async () => {
         const processHandle = await createProcessHandle();
 
         expect(
-            await processHandle.store().queryClaimIndex(
-                processHandle.system(),
-                10,
-                undefined,
-            ),
+            await processHandle
+                .store()
+                .queryClaimIndex(processHandle.system(), 10, undefined),
         ).toStrictEqual([[], undefined]);
 
         const claimCount = 12;
@@ -145,28 +138,22 @@ describe('processHandle', () => {
             await processHandle.claim(Models.claimHackerNews(i.toString()));
         }
 
-        const batch1 = await processHandle.store().queryClaimIndex(
-            processHandle.system(),
-            5,
-            undefined,
-        );
+        const batch1 = await processHandle
+            .store()
+            .queryClaimIndex(processHandle.system(), 5, undefined);
 
         expect(batch1[0].length).toStrictEqual(5);
 
-        const batch2 = await processHandle.store().queryClaimIndex(
-            processHandle.system(),
-            10,
-            batch1[1],
-        );
+        const batch2 = await processHandle
+            .store()
+            .queryClaimIndex(processHandle.system(), 10, batch1[1]);
 
         expect(batch2[0].length).toStrictEqual(7);
 
         expect(
-            await processHandle.store().queryClaimIndex(
-                processHandle.system(),
-                10,
-                batch2[1],
-            ),
+            await processHandle
+                .store()
+                .queryClaimIndex(processHandle.system(), 10, batch2[1]),
         ).toStrictEqual([[], undefined]);
     });
 });

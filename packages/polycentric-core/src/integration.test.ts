@@ -12,9 +12,7 @@ import * as Util from './util';
 import * as Protocol from './protocol';
 import * as APIMethods from './api-methods';
 
-export async function createProcessHandle():
-    Promise<ProcessHandle.ProcessHandle>
-{
+export async function createProcessHandle(): Promise<ProcessHandle.ProcessHandle> {
     return await ProcessHandle.createProcessHandle(
         await MetaStore.createMetaStore(
             PersistenceDriver.createPersistenceDriverMemory(),
@@ -60,16 +58,16 @@ describe('integration', () => {
         const s1p1 = await createProcessHandle();
         await s1p1.addServer('http://127.0.0.1:8081');
 
-        await s1p1.setUsername("Louis Rossmann");
+        await s1p1.setUsername('Louis Rossmann');
         await s1p1.setDescription('Apple and Apple accesories');
 
-        console.log("system:" + Base64.encodeUrl(s1p1.system().key()))
+        console.log('system:' + Base64.encodeUrl(s1p1.system().key()));
 
         const claim = Models.claimYouTube('@rossmanngroup');
-        
+
         await s1p1.claim(Models.claimTwitter('fighttorepair'));
         await s1p1.claim(
-            Models.claimBitcoin('1EaEv8DBeFfg6fE6BimEmvEFbYLkhpcvhj')
+            Models.claimBitcoin('1EaEv8DBeFfg6fE6BimEmvEFbYLkhpcvhj'),
         );
 
         const claimPointer = await s1p1.claim(claim);
@@ -77,10 +75,7 @@ describe('integration', () => {
 
         const image = FS.readFileSync('./src/rossmann.jpg', null);
 
-        const imagePointer = await s1p1.publishBlob(
-            'image/jpeg',
-            image,
-        );
+        const imagePointer = await s1p1.publishBlob('image/jpeg', image);
 
         await s1p1.setAvatar(imagePointer);
 

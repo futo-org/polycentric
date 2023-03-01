@@ -27,4 +27,3 @@ export function buffersEqual(x: Uint8Array, y: Uint8Array): boolean {
 
     return true;
 }
-

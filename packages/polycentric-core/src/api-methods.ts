@@ -123,11 +123,13 @@ export async function getQueryIndex(
         Protocol.PublicKey.encode(Models.publicKeyToProto(system)).finish(),
     );
 
-    const eventTypesQuery = Base64.encodeUrl(Protocol.RepeatedUInt64.encode({
-        numbers: eventTypes,
-    }).finish());
+    const eventTypesQuery = Base64.encodeUrl(
+        Protocol.RepeatedUInt64.encode({
+            numbers: eventTypes,
+        }).finish(),
+    );
 
-    const path = 
+    const path =
         `/query_index?system=${systemQuery}` +
         `&event_types=${eventTypesQuery}` +
         (limit ? `&limit=${limit.toString()}` : '');
@@ -148,4 +150,3 @@ export async function getQueryIndex(
 
     return Protocol.Events.decode(rawBody);
 }
-

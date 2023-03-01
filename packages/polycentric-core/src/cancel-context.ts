@@ -13,4 +13,3 @@ export class CancelContext {
         this._cancelled = true;
     }
 }
-

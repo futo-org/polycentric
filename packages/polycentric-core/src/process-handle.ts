@@ -433,14 +433,14 @@ export class ProcessHandle {
         const actions = [];
 
         if (
-            event.contentType().equals(
-                new Long(Models.ContentType.Delete, 0, true)
-            )
+            event
+                .contentType()
+                .equals(new Long(Models.ContentType.Delete, 0, true))
         ) {
             const deleteProto = Protocol.Delete.decode(event.content());
 
             if (!deleteProto.process) {
-                throw new Error("delete expected process");
+                throw new Error('delete expected process');
             }
 
             const deleteProcess = Models.processFromProto(deleteProto.process);
@@ -472,10 +472,10 @@ export class ProcessHandle {
                     event.logicalClock(),
                 ),
             );
-         } else if (
-            event.contentType().equals(
-                new Long(Models.ContentType.Claim, 0, true)
-            )
+        } else if (
+            event
+                .contentType()
+                .equals(new Long(Models.ContentType.Claim, 0, true))
         ) {
             actions.push(
                 this._store.putIndexClaim(
@@ -638,7 +638,7 @@ function updateProcessState(
     }
 
     if (state.indices === undefined) {
-        throw new Error("expected indices");
+        throw new Error('expected indices');
     }
 
     Ranges.insert(state.ranges, event.logicalClock());
