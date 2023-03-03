@@ -12,7 +12,7 @@ const avatarFallback = "https://pbs.twimg.com/profile_images/1382846958159663105
 
 const system = new Core.Models.PublicKey(
     Long.UONE,
-    Base64.decode('-cVD8Xm8lpcvihvAXbg7UVQdkF2L_7xsujhYOv3kBF0'),
+    Base64.decode('ZPmjTvIUjvNSfcrPyvg-I1LQnhr1KwL_U5EeTtjbdHo'),
 );
 
 type ClaimProps = {
@@ -162,7 +162,9 @@ export function App() {
         undefined
     );
 
-    const load = async () => {
+    const load = async (
+        cancelContext: Core.CancelContext.CancelContext,
+    ) => {
         const processHandle = await createProcessHandle();
 
         await Core.Synchronization.saveBatch(
@@ -239,6 +241,8 @@ export function App() {
             return avatarFallback;
         })();
 
+        if (cancelContext.cancelled()) { return; }
+
         setProps({
             description: systemState.description(),
             name: systemState.username(),
@@ -248,7 +252,13 @@ export function App() {
     };
 
     React.useEffect(() => {
-        load();
+        const cancelContext = new Core.CancelContext.CancelContext();
+
+        load(cancelContext);
+
+        return () => {
+            cancelContext.cancel();
+        };
     }, []);
 
     return (
