@@ -69,6 +69,7 @@ describe('integration', () => {
         await s1p1.claim(
             Models.claimBitcoin('1EaEv8DBeFfg6fE6BimEmvEFbYLkhpcvhj'),
         );
+        await s1p1.claim(Models.claimGeneric('I Can Lift 4pl8'));
 
         const claimPointer = await s1p1.claim(claim);
         await s1p1.vouch(claimPointer);

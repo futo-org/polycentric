@@ -2,6 +2,7 @@ import * as MUI from '@mui/material';
 import YouTubeIcon from '@mui/icons-material/YouTube';
 import BitcoinIcon from '@mui/icons-material/CurrencyBitcoin';
 import TwitterIcon from '@mui/icons-material/Twitter';
+import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
 import * as React from 'react';
 import * as Base64 from '@borderless/base64';
 import Long from 'long';
@@ -12,7 +13,7 @@ const avatarFallback = "https://pbs.twimg.com/profile_images/1382846958159663105
 
 const system = new Core.Models.PublicKey(
     Long.UONE,
-    Base64.decode('ZPmjTvIUjvNSfcrPyvg-I1LQnhr1KwL_U5EeTtjbdHo'),
+    Base64.decode('4s9js_u0cOo21CcXBZ-IZiP7spIr18bXQEJsnnhBjvU'),
 );
 
 type ClaimProps = {
@@ -52,6 +53,14 @@ function Claim(props: ClaimProps) {
                 "Bitcoin",
                 'https://www.blockchain.com/explorer/addresses/btc/' +
                 `${identifier}`,
+            ];
+        } else if (
+            claimType.equals(new Long(Core.Models.ClaimType.Generic, 0, true))
+        ) {
+            return [
+                (<FormatQuoteIcon />),
+                identifier,
+                '',
             ];
         } else {
             return undefined;
