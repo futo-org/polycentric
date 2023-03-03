@@ -11,11 +11,6 @@ import * as Core from 'polycentric-core';
 
 const avatarFallback = "https://pbs.twimg.com/profile_images/1382846958159663105/ltolfDyQ_400x400.jpg";
 
-const system = new Core.Models.PublicKey(
-    Long.UONE,
-    Base64.decode('4s9js_u0cOo21CcXBZ-IZiP7spIr18bXQEJsnnhBjvU'),
-);
-
 type ClaimProps = {
     claim: Core.Protocol.Claim,
 }
@@ -60,7 +55,7 @@ function Claim(props: ClaimProps) {
             return [
                 (<FormatQuoteIcon />),
                 identifier,
-                '',
+                '/',
             ];
         } else {
             return undefined;
@@ -147,8 +142,9 @@ function Profile(props: ProfileProps) {
                 {props.description}
             </p>
 
-            {props.claims.map((claim, _) => (
+            {props.claims.map((claim, idx) => (
                 <Claim
+                    key={idx}
                     claim={claim}
                 />
             ))}
@@ -174,6 +170,11 @@ export function App() {
     const load = async (
         cancelContext: Core.CancelContext.CancelContext,
     ) => {
+        const system = new Core.Models.PublicKey(
+            Long.UONE,
+            Base64.decode(document.location.pathname.substr(1)),
+        );
+
         const processHandle = await createProcessHandle();
 
         await Core.Synchronization.saveBatch(
@@ -263,7 +264,11 @@ export function App() {
     React.useEffect(() => {
         const cancelContext = new Core.CancelContext.CancelContext();
 
-        load(cancelContext);
+        try {
+            load(cancelContext);
+        } catch (err) {
+            console.error(err);
+        }
 
         return () => {
             cancelContext.cancel();
