@@ -28,6 +28,7 @@ export enum ClaimType {
     Rumble = 4,
     Twitter = 5,
     Bitcoin = 6,
+    Generic = 7,
 }
 
 export function claimHackerNews(username: string): Protocol.Claim {
@@ -62,6 +63,15 @@ export function claimBitcoin(username: string): Protocol.Claim {
         claimType: new Long(ClaimType.Bitcoin, 0, true),
         claim: Protocol.ClaimIdentifier.encode({
             identifier: username,
+        }).finish(),
+    };
+}
+
+export function claimGeneric(text: string): Protocol.Claim {
+    return {
+        claimType: new Long(ClaimType.Generic, 0, true),
+        claim: Protocol.ClaimIdentifier.encode({
+            identifier: text,
         }).finish(),
     };
 }
