@@ -11,3 +11,4 @@ pub(crate) mod get_version;
 pub(crate) mod post_censor;
 pub(crate) mod post_events;
 pub(crate) mod get_query_index;
+pub(crate) mod get_query_references;

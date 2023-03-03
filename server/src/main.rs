@@ -177,6 +177,14 @@ async fn serve_api(
         .and_then(crate::handlers::get_query_index::handler)
         .with(cors.clone());
 
+    let route_get_query_references= ::warp::get()
+        .and(::warp::path("query_references"))
+        .and(::warp::path::end())
+        .and(state_filter.clone())
+        .and(::warp::query::<crate::handlers::get_query_references::Query>())
+        .and_then(crate::handlers::get_query_references::handler)
+        .with(cors.clone());
+
     let route_get_events = ::warp::get()
         .and(::warp::path("events"))
         .and(::warp::path::end())

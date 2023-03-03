@@ -567,6 +567,60 @@ pub(crate) async fn insert_claim(
     Ok(())
 }
 
+pub(crate) async fn find_references(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    system: &crate::model::public_key::PublicKey,
+    process: &crate::model::process::Process,
+    logical_clock: u64,
+    from_type: u64,
+) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
+{
+    let query = "
+        SELECT
+            raw_event
+        FROM
+            events
+        WHERE
+            id
+        AND
+            content_type = $5
+        IN (
+            SELECT
+                event_id as id
+            FROM
+                event_links
+            WHERE
+                subject_system_key_type = $1
+            AND
+                subject_system_key = $2
+            AND
+                subject_process = $3
+            AND
+                subject_logical_clock = $4
+        );
+    ";
+
+    ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            system,
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(system))
+        .bind(process.bytes())
+        .bind(i64::try_from(logical_clock)?)
+        .bind(i64::try_from(from_type)?)
+        .fetch_all(&mut *transaction)
+        .await?
+        .iter()
+        .map(|raw| {
+            crate::model::signed_event::from_proto(
+                &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+            )
+        })
+        .collect::<::anyhow::Result<
+            ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+        >>()
+}
+
 pub(crate) async fn find_claims(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     claim: &crate::model::claim::Claim,
