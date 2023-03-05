@@ -145,3 +145,39 @@ export async function getQueryIndex(
 
     return Protocol.Events.decode(rawBody);
 }
+
+export async function getQueryReferences(
+    server: string,
+    system: Models.PublicKey,
+    process: Models.Process,
+    logicalClock: Long,
+    fromType: Long,
+): Promise<Protocol.Events> {
+    const systemQuery = Base64.encodeUrl(
+        Protocol.PublicKey.encode(Models.publicKeyToProto(system)).finish(),
+    );
+
+    const processQuery = Base64.encodeUrl(
+        Protocol.Process.encode(Models.processToProto(process)).finish(),
+    );
+
+    const path = '/query_references' +
+        `?system=${systemQuery}` +
+        `&process=${processQuery}` +
+        `&logical_clock=${logicalClock.toString()}` +
+        `&from_type=${logicalClock.toString()}`;
+
+    const response = await fetch(server + path, {
+        method: 'GET',
+        headers: new Headers({
+            'content-type': 'application/octet-stream',
+        }),
+    });
+
+    await checkResponse('getQueryIndex', response);
+
+    const rawBody = new Uint8Array(await response.arrayBuffer());
+
+    return Protocol.Events.decode(rawBody);
+}
+
