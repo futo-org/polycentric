@@ -174,7 +174,7 @@ export async function getQueryReferences(
         }),
     });
 
-    await checkResponse('getQueryIndex', response);
+    await checkResponse('getQueryReferences', response);
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
