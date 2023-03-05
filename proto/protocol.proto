@@ -141,7 +141,7 @@ message Post {
 }
 
 message Claim {
-    uint64 claim_type = 1;
+    string claim_type = 1;
     bytes  claim      = 2;
 }
 

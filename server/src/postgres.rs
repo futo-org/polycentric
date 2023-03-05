@@ -155,10 +155,8 @@ pub(crate) async fn prepare_database(
         "
         CREATE TABLE IF NOT EXISTS claims (
             id         BIGSERIAL PRIMARY KEY,
-            claim_type INT8      NOT NULL,
+            claim_type TEXT      NOT NULL,
             event_id   BIGSERIAL NOT NULL,
-
-            CHECK ( claim_type >= 0  ),
 
             CONSTRAINT FK_event FOREIGN KEY (event_id) REFERENCES events(id)
         );
@@ -547,7 +545,7 @@ pub(crate) async fn insert_event_index(
 
 pub(crate) async fn insert_claim(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    claim_type: u64,
+    claim_type: &::std::string::String,
 ) -> ::anyhow::Result<()> {
     let query_insert_claim = "
         INSERT INTO claims
@@ -560,7 +558,7 @@ pub(crate) async fn insert_claim(
     ";
 
     ::sqlx::query(query_insert_claim)
-        .bind(i64::try_from(claim_type)?)
+        .bind(claim_type)
         .execute(&mut *transaction)
         .await?;
 
@@ -1100,8 +1098,10 @@ pub mod tests {
         let mut claim_hacker_news = crate::protocol::ClaimIdentifier::new();
         claim_hacker_news.identifier = "hello".to_string();
         let claim_hacker_news_bytes = claim_hacker_news.write_to_bytes()?;
-        let claim =
-            crate::model::claim::Claim::new(0, &claim_hacker_news_bytes);
+        let claim = crate::model::claim::Claim::new(
+            &"HackerNews".to_string(),
+            &claim_hacker_news_bytes,
+        );
 
         let s1 = crate::model::tests::make_test_keypair();
         let s1p1 = crate::model::tests::make_test_process();

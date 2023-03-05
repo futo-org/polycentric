@@ -22,18 +22,18 @@ export enum ContentType {
 }
 
 export enum ClaimType {
-    HackerNews = 1,
-    YouTube = 2,
-    Odysee = 3,
-    Rumble = 4,
-    Twitter = 5,
-    Bitcoin = 6,
-    Generic = 7,
+    HackerNews = "HackerNews",
+    YouTube = "YouTube",
+    Odysee = "Odysee",
+    Rumble = "Rumble",
+    Twitter = "Twitter",
+    Bitcoin = "Bitcoin",
+    Generic = "Generic",
 }
 
 export function claimHackerNews(username: string): Protocol.Claim {
     return {
-        claimType: new Long(ClaimType.HackerNews, 0, true),
+        claimType: ClaimType.HackerNews,
         claim: Protocol.ClaimIdentifier.encode({
             identifier: username,
         }).finish(),
@@ -42,7 +42,7 @@ export function claimHackerNews(username: string): Protocol.Claim {
 
 export function claimYouTube(username: string): Protocol.Claim {
     return {
-        claimType: new Long(ClaimType.YouTube, 0, true),
+        claimType: ClaimType.YouTube,
         claim: Protocol.ClaimIdentifier.encode({
             identifier: username,
         }).finish(),
@@ -51,7 +51,7 @@ export function claimYouTube(username: string): Protocol.Claim {
 
 export function claimTwitter(username: string): Protocol.Claim {
     return {
-        claimType: new Long(ClaimType.Twitter, 0, true),
+        claimType: ClaimType.Twitter,
         claim: Protocol.ClaimIdentifier.encode({
             identifier: username,
         }).finish(),
@@ -60,7 +60,7 @@ export function claimTwitter(username: string): Protocol.Claim {
 
 export function claimBitcoin(username: string): Protocol.Claim {
     return {
-        claimType: new Long(ClaimType.Bitcoin, 0, true),
+        claimType: ClaimType.Bitcoin,
         claim: Protocol.ClaimIdentifier.encode({
             identifier: username,
         }).finish(),
@@ -69,7 +69,7 @@ export function claimBitcoin(username: string): Protocol.Claim {
 
 export function claimGeneric(text: string): Protocol.Claim {
     return {
-        claimType: new Long(ClaimType.Generic, 0, true),
+        claimType: ClaimType.Generic,
         claim: Protocol.ClaimIdentifier.encode({
             identifier: text,
         }).finish(),

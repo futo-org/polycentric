@@ -21,11 +21,11 @@ function Claim(props: ClaimProps) {
     ).identifier;
 
     function getClaimInfo(
-        claimType: Long,
+        claimType: string,
         identifier: string,
     ): [React.ReactElement, string, string] | undefined {
         if (
-            claimType.equals(new Long(Core.Models.ClaimType.Twitter, 0, true))
+            claimType == Core.Models.ClaimType.Twitter
         ) {
             return [
                 (<TwitterIcon />),
@@ -33,7 +33,7 @@ function Claim(props: ClaimProps) {
                 `https://twitter.com/${identifier}`,
             ];
         } else if (
-            claimType.equals(new Long(Core.Models.ClaimType.YouTube, 0, true))
+            claimType == Core.Models.ClaimType.YouTube
         ) {
             return [
                 (<YouTubeIcon />),
@@ -41,7 +41,7 @@ function Claim(props: ClaimProps) {
                 `https://youtube.com/${identifier}`,
             ];
         } else if (
-            claimType.equals(new Long(Core.Models.ClaimType.Bitcoin, 0, true))
+            claimType == Core.Models.ClaimType.Bitcoin
         ) {
             return [
                 (<BitcoinIcon />),
@@ -50,7 +50,7 @@ function Claim(props: ClaimProps) {
                 `${identifier}`,
             ];
         } else if (
-            claimType.equals(new Long(Core.Models.ClaimType.Generic, 0, true))
+            claimType == Core.Models.ClaimType.Generic
         ) {
             return [
                 (<FormatQuoteIcon />),
