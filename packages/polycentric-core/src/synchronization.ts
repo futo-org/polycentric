@@ -128,7 +128,7 @@ export async function backFillServers(
 
                 const batch = Ranges.takeRangesMaxItems(
                     serverNeeds,
-                    new Long(10, 0, true),
+                    new Long(20, 0, true),
                 );
 
                 const events = await loadRanges(

@@ -46,6 +46,12 @@ pub(crate) async fn handler(
         }
     };
 
+    for event in batch.iter() {
+        result.events.push(
+            crate::model::signed_event::to_proto(event),
+        );
+    }
+
     match transaction.commit().await {
         Ok(()) => (),
         Err(err) => {

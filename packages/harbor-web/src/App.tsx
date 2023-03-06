@@ -9,8 +9,15 @@ import Long from 'long';
 
 import * as Core from 'polycentric-core';
 
+const server = 'http://localhost:8081';
+
+type Profile = {
+    avatar: string;
+}
+
 type ClaimProps = {
     claim: Core.Protocol.Claim,
+    vouchedBy: Array<Profile>,
 }
 
 function Claim(props: ClaimProps) {
@@ -83,24 +90,41 @@ function Claim(props: ClaimProps) {
             <a
                 style={{
                     display: 'flex',
-                    flexDirection: 'row',
-                    alignItems: 'center',
+                    flexDirection: 'column',
                     paddingLeft: '10px',
+                    paddingBottom: '10px',
                     color: 'black',
                     textDecoration: 'none',
                 }}
                 href={claimInfo[2]}
                 target={"_blank"}
             >
-                {claimInfo[0]}
-                <p
+                <div
                     style={{
-                        flex: '1',
-                        textAlign: 'center',
+                        display: 'flex',
+                        flexDirection: 'row',
+                        alignItems: 'center',
                     }}
                 >
-                    {claimInfo[1]}
-                </p>
+                    {claimInfo[0]}
+                    <p
+                        style={{
+                            flex: '1',
+                            textAlign: 'center',
+                        }}
+                    >
+                        {claimInfo[1]}
+                    </p>
+                </div>
+
+                <p> Verified By: </p>
+
+                {props.vouchedBy.map((vouchedBy, idx) => (
+                    <MUI.Avatar
+                        key={idx}
+                        src={vouchedBy.avatar}
+                    />
+                ))}
             </a>
         </MUI.Paper>
     );
@@ -109,7 +133,7 @@ function Claim(props: ClaimProps) {
 type ProfileProps = {
     name: string,
     description: string,
-    claims: Array<Core.Protocol.Claim>,
+    claims: Array<ClaimProps>,
     avatar: string,
 };
 
@@ -144,7 +168,8 @@ function Profile(props: ProfileProps) {
             {props.claims.map((claim, idx) => (
                 <Claim
                     key={idx}
-                    claim={claim}
+                    claim={claim.claim}
+                    vouchedBy={claim.vouchedBy}
                 />
             ))}
         </div>
@@ -161,6 +186,82 @@ async function createProcessHandle():
     );
 }
 
+async function loadImageFromPointer(
+    processHandle: Core.ProcessHandle.ProcessHandle,
+    pointer: Core.Models.Pointer,
+) {
+    await Core.Synchronization.saveBatch(
+        processHandle,
+        await Core.APIMethods.getEvents(server, pointer.system(), {
+            rangesForProcesses: [
+                {
+                    process: Core.Models.processToProto(
+                        pointer.process(),
+                    ),
+                    ranges: [
+                        {
+                            low: pointer.logicalClock(),
+                            high: pointer.logicalClock().add(Long.UONE),
+                        },
+                    ],
+                },
+            ],
+        }),
+    );
+
+    const image = await processHandle.loadBlob(pointer);
+
+    if (image) {
+        const blob = new Blob([image.content()], {
+            type: image.mime(),
+        });
+
+        return URL.createObjectURL(blob);
+    }
+
+    console.log("failed to load blob");
+
+    return '';
+}
+
+async function loadMinimalProfile(
+    processHandle: Core.ProcessHandle.ProcessHandle,
+    system: Core.Models.PublicKey,
+): Promise<Profile> {
+    await Core.Synchronization.saveBatch(
+        processHandle,
+        await Core.APIMethods.getQueryIndex(
+            server,
+            system,
+            [
+                new Long(Core.Models.ContentType.Description),
+                new Long(Core.Models.ContentType.Username),
+                new Long(Core.Models.ContentType.Avatar),
+            ],
+            undefined,
+        )
+    );
+
+    const systemState = await processHandle.loadSystemState(system);
+
+    const avatar = await (async () => {
+        const pointer = systemState.avatar();
+
+        if (pointer) {
+            return await loadImageFromPointer(
+                processHandle,
+                pointer,
+            );
+        }
+
+        return '';
+    })();
+
+    return {
+        avatar: avatar,
+    };
+}
+
 export function App() {
     const [props, setProps] = React.useState<ProfileProps | undefined>(
         undefined
@@ -169,8 +270,6 @@ export function App() {
     const load = async (
         cancelContext: Core.CancelContext.CancelContext,
     ) => {
-        const server = 'http://localhost:8081';
-
         const system = new Core.Models.PublicKey(
             Long.UONE,
             Base64.decode(document.location.pathname.substr(1)),
@@ -212,6 +311,19 @@ export function App() {
             undefined,
         );
 
+        const avatar = await (async () => {
+            const pointer = systemState.avatar();
+
+            if (pointer) {
+                return await loadImageFromPointer(
+                    processHandle,
+                    pointer,
+                );
+            }
+
+            return '';
+        })();
+
         const claims = [];
 
         for (const protoSignedEvent of claimEvents) {
@@ -227,50 +339,36 @@ export function App() {
                 throw new Error("event content type was not claim");
             }
 
+            const references = await Core.APIMethods.getQueryReferences(
+                server,
+                system,
+                event.process(),
+                event.logicalClock(),
+                new Long(Core.Models.ContentType.Vouch, 0, true),
+            );
+
+            console.log("got references count", references.events.length);
+
+            const vouchedBy = [];
+
+            for (const reference of references.events) {
+                const event = Core.Models.eventFromProtoBuffer(
+                    Core.Models.signedEventFromProto(reference).event(),
+                )
+
+                vouchedBy.push(await loadMinimalProfile(
+                    processHandle,
+                    event.system(),
+                ));
+            };
+
             claims.push(
-                Core.Protocol.Claim.decode(event.content()),
+                {
+                    claim: Core.Protocol.Claim.decode(event.content()),
+                    vouchedBy: vouchedBy,
+                }
             );
         }
-
-        const avatar = await (async () => {
-            const avatarPointer = systemState.avatar();
-
-            if (avatarPointer) {
-                await Core.Synchronization.saveBatch(
-                    processHandle,
-                    await Core.APIMethods.getEvents(server, system, {
-                        rangesForProcesses: [
-                            {
-                                process: Core.Models.processToProto(
-                                    avatarPointer.process(),
-                                ),
-                                ranges: [
-                                    {
-                                        low: avatarPointer.logicalClock(),
-                                        high: avatarPointer.logicalClock()
-                                            .add(Long.UONE),
-                                    },
-                                ],
-                            },
-                        ],
-                    }),
-                );
-
-                const image = await processHandle.loadBlob(avatarPointer);
-
-                if (image) {
-                    const blob = new Blob([image.content()], {
-                        type: image.mime(),
-                    });
-
-                    return URL.createObjectURL(blob);
-                }
-
-                console.log("failed to load blob");
-            }
-
-            return '';
-        })();
 
         if (cancelContext.cancelled()) { return; }
 

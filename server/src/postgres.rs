@@ -580,8 +580,6 @@ pub(crate) async fn find_references(
             events
         WHERE
             id
-        AND
-            content_type = $5
         IN (
             SELECT
                 event_id as id

@@ -265,6 +265,7 @@ async fn serve_api(
     let routes = route_post_events
         .or(route_get_head)
         .or(route_get_query_index)
+        .or(route_get_query_references)
         .or(route_get_events)
         .or(route_get_claim_to_system)
         .or(route_get_ranges)
