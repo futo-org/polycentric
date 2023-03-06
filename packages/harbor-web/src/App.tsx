@@ -75,9 +75,10 @@ function Claim(props: ClaimProps) {
                 width: '100%',
                 marginBottom: '10px',
            }}
-            sx={{
+           sx={{
+                backgroundColor: '#eeca97',
                 ':hover': {
-                    backgroundColor: '#ADD8E6',
+                    backgroundColor: '#eec385',
                 },
             }}
         >
@@ -282,9 +283,11 @@ export function App() {
                 left: '0px',
                 top: '0px',
                 width: '100%',
+                height: '100%',
                 display: 'flex',
                 alignItems: 'center',
                 flexDirection: 'column',
+                backgroundColor: '#f9e8d0',
             }}
         >
             { props && (
