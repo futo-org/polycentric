@@ -9,8 +9,6 @@ import Long from 'long';
 
 import * as Core from 'polycentric-core';
 
-const avatarFallback = "https://pbs.twimg.com/profile_images/1382846958159663105/ltolfDyQ_400x400.jpg";
-
 type ClaimProps = {
     claim: Core.Protocol.Claim,
 }
@@ -171,6 +169,8 @@ export function App() {
     const load = async (
         cancelContext: Core.CancelContext.CancelContext,
     ) => {
+        const server = 'http://localhost:8081';
+
         const system = new Core.Models.PublicKey(
             Long.UONE,
             Base64.decode(document.location.pathname.substr(1)),
@@ -181,7 +181,7 @@ export function App() {
         await Core.Synchronization.saveBatch(
             processHandle,
             await Core.APIMethods.getQueryIndex(
-                'http://localhost:8081',
+                server,
                 system,
                 [
                     new Long(Core.Models.ContentType.Description),
@@ -195,7 +195,7 @@ export function App() {
         await Core.Synchronization.saveBatch(
             processHandle,
             await Core.APIMethods.getQueryIndex(
-                'http://localhost:8081',
+                server,
                 system,
                 [
                     new Long(Core.Models.ContentType.Claim),
@@ -236,6 +236,26 @@ export function App() {
             const avatarPointer = systemState.avatar();
 
             if (avatarPointer) {
+                await Core.Synchronization.saveBatch(
+                    processHandle,
+                    await Core.APIMethods.getEvents(server, system, {
+                        rangesForProcesses: [
+                            {
+                                process: Core.Models.processToProto(
+                                    avatarPointer.process(),
+                                ),
+                                ranges: [
+                                    {
+                                        low: avatarPointer.logicalClock(),
+                                        high: avatarPointer.logicalClock()
+                                            .add(Long.UONE),
+                                    },
+                                ],
+                            },
+                        ],
+                    }),
+                );
+
                 const image = await processHandle.loadBlob(avatarPointer);
 
                 if (image) {
@@ -249,7 +269,7 @@ export function App() {
                 console.log("failed to load blob");
             }
 
-            return avatarFallback;
+            return '';
         })();
 
         if (cancelContext.cancelled()) { return; }
