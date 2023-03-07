@@ -6,6 +6,7 @@ import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
 import * as React from 'react';
 import * as Base64 from '@borderless/base64';
 import Long from 'long';
+import * as ReactRouterDOM from 'react-router-dom';
 
 import * as Core from 'polycentric-core';
 
@@ -13,6 +14,8 @@ const server = 'http://localhost:8081';
 
 type Profile = {
     avatar: string;
+    username: string;
+    link: string;
 }
 
 type ClaimProps = {
@@ -21,6 +24,8 @@ type ClaimProps = {
 }
 
 function Claim(props: ClaimProps) {
+    const navigate = ReactRouterDOM.useNavigate();
+
     const identifier = Core.Protocol.ClaimIdentifier.decode(
         props.claim.claim,
     ).identifier;
@@ -87,7 +92,7 @@ function Claim(props: ClaimProps) {
                 },
             }}
         >
-            <a
+            <div
                 style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -96,8 +101,6 @@ function Claim(props: ClaimProps) {
                     color: 'black',
                     textDecoration: 'none',
                 }}
-                href={claimInfo[2]}
-                target={"_blank"}
             >
                 <div
                     style={{
@@ -117,15 +120,31 @@ function Claim(props: ClaimProps) {
                     </p>
                 </div>
 
-                <p> Verified By: </p>
+                { props.vouchedBy.length > 0 && (
+                    <React.Fragment>
+                        <p> Verified By: </p>
 
-                {props.vouchedBy.map((vouchedBy, idx) => (
-                    <MUI.Avatar
-                        key={idx}
-                        src={vouchedBy.avatar}
-                    />
-                ))}
-            </a>
+                        <div
+                            style={{
+                                display: 'flex',
+                                flexDirection: 'row',
+                                gap: '8px',
+                            }}
+                        >
+                            {props.vouchedBy.map((vouchedBy, idx) => (
+                                <MUI.Avatar
+                                    key={idx}
+                                    src={vouchedBy.avatar}
+                                    alt={vouchedBy.username}
+                                    onClick={() => {
+                                        navigate('/' + vouchedBy.link);
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    </React.Fragment>
+                )}
+            </div>
         </MUI.Paper>
     );
 }
@@ -259,10 +278,20 @@ async function loadMinimalProfile(
 
     return {
         avatar: avatar,
+        username: systemState.username(),
+        link: Base64.encodeUrl(
+            Core.Protocol.PublicKey.encode(
+                Core.Models.publicKeyToProto(
+                    system,
+                ),
+            ).finish(),
+        ),
     };
 }
 
-export function App() {
+export function MainPage() {
+    const { systema } = ReactRouterDOM.useParams();
+
     const [props, setProps] = React.useState<ProfileProps | undefined>(
         undefined
     );
@@ -270,9 +299,10 @@ export function App() {
     const load = async (
         cancelContext: Core.CancelContext.CancelContext,
     ) => {
-        const system = new Core.Models.PublicKey(
-            Long.UONE,
-            Base64.decode(document.location.pathname.substr(1)),
+        const system = Core.Models.publicKeyFromProto(
+            Core.Protocol.PublicKey.decode(
+                Base64.decode(systema!),
+            ),
         );
 
         const processHandle = await createProcessHandle();
@@ -392,7 +422,7 @@ export function App() {
         return () => {
             cancelContext.cancel();
         };
-    }, []);
+    }, [systema]);
 
     return (
         <div
@@ -417,5 +447,22 @@ export function App() {
                 />
             )}
         </div>
+    );
+}
+
+export function App() {
+    const Routes = () => (
+        <ReactRouterDOM.Routes>
+            <ReactRouterDOM.Route
+                path="/:systema"
+                element={<MainPage />}
+            />
+        </ReactRouterDOM.Routes>
+    );
+
+    return (
+        <ReactRouterDOM.BrowserRouter>
+            <Routes />
+        </ReactRouterDOM.BrowserRouter>
     );
 }

@@ -61,26 +61,53 @@ describe('integration', () => {
         await s1p1.setUsername('Louis Rossmann');
         await s1p1.setDescription('Apple and Apple accesories');
 
-        console.log('system:' + Base64.encodeUrl(s1p1.system().key()));
+        function systemToBase64(system: Models.PublicKey): string {
+            return Base64.encodeUrl(
+                Protocol.PublicKey.encode(
+                    Models.publicKeyToProto(system),
+                ).finish(),
+            );
+        }
 
-        const claim = Models.claimYouTube('@rossmanngroup');
+        console.log('rossmann system:' + systemToBase64(s1p1.system()));
 
+        const claimPointer = await s1p1.claim(
+            Models.claimGeneric('I Can Lift 4pl8'),
+        );
+
+        await s1p1.vouch(claimPointer);
+
+        await s1p1.claim(Models.claimYouTube('@rossmanngroup'));
         await s1p1.claim(Models.claimTwitter('fighttorepair'));
         await s1p1.claim(
             Models.claimBitcoin('1EaEv8DBeFfg6fE6BimEmvEFbYLkhpcvhj'),
         );
-        await s1p1.claim(Models.claimGeneric('I Can Lift 4pl8'));
 
-        const claimPointer = await s1p1.claim(claim);
-        await s1p1.vouch(claimPointer);
-
-        const image = FS.readFileSync('./src/rossmann.jpg', null);
-
-        const imagePointer = await s1p1.publishBlob('image/jpeg', image);
-
-        await s1p1.setAvatar(imagePointer);
+        {
+            const image = FS.readFileSync('./src/rossmann.jpg', null);
+            const imagePointer = await s1p1.publishBlob('image/jpeg', image);
+            await s1p1.setAvatar(imagePointer);
+        }
 
         await Synchronization.backFillServers(s1p1, s1p1.system());
+
+        const s2p1 = await createProcessHandle();
+        await s2p1.addServer('http://127.0.0.1:8081');
+
+        await s2p1.setUsername('Futo');
+        await s2p1.setDescription('Tech Freedom');
+
+        await s2p1.vouch(claimPointer);
+
+        {
+            const image = FS.readFileSync('./src/futo.jpg', null);
+            const imagePointer = await s2p1.publishBlob('image/jpeg', image);
+            await s2p1.setAvatar(imagePointer);
+        }
+
+        await Synchronization.backFillServers(s2p1, s2p1.system());
+
+        console.log('futo system:' + systemToBase64(s2p1.system()));
 
         /*
         const resolvedClaim = (await APIMethods.getResolveClaim(

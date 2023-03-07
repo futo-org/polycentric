@@ -15,7 +15,8 @@
     "memory-level": "^1.0.0",
     "polycentric-core": "../polycentric-core",
     "react": "^18.1.0",
-    "react-dom": "^18.1.0"
+    "react-dom": "^18.1.0",
+    "react-router-dom": "^6.3.0"
   },
   "scripts": {
     "start": "webpack serve --mode=development",

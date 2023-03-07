@@ -603,7 +603,6 @@ pub(crate) async fn find_references(
         .bind(crate::model::public_key::get_key_bytes(system))
         .bind(process.bytes())
         .bind(i64::try_from(logical_clock)?)
-        .bind(i64::try_from(from_type)?)
         .fetch_all(&mut *transaction)
         .await?
         .iter()
