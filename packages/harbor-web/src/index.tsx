@@ -1,18 +1,30 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
-import * as PolycentricCore from 'polycentric-core';
+import * as Core from 'polycentric-core';
 
 import * as App from './App';
+
+async function createProcessHandle():
+    Promise<Core.ProcessHandle.ProcessHandle>
+{
+    return await Core.ProcessHandle.createProcessHandle(
+        await Core.MetaStore.createMetaStore(
+            Core.PersistenceDriver.createPersistenceDriverMemory(),
+        ),
+    );
+}
 
 async function main() {
     const root = ReactDOM.createRoot(
         document.getElementById('root') as HTMLElement,
     );
 
+    const processHandle = await createProcessHandle();
+
     root.render(
         <React.StrictMode>
-            <App.App/>
+            <App.App processHandle={processHandle} />
         </React.StrictMode>,
     );
 }

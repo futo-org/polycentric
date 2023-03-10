@@ -195,16 +195,6 @@ function Profile(props: ProfileProps) {
     );
 }
 
-async function createProcessHandle():
-    Promise<Core.ProcessHandle.ProcessHandle>
-{
-    return await Core.ProcessHandle.createProcessHandle(
-        await Core.MetaStore.createMetaStore(
-            Core.PersistenceDriver.createPersistenceDriverMemory(),
-        ),
-    );
-}
-
 async function loadImageFromPointer(
     processHandle: Core.ProcessHandle.ProcessHandle,
     pointer: Core.Models.Pointer,
@@ -289,12 +279,15 @@ async function loadMinimalProfile(
     };
 }
 
-export function MainPage() {
+type MainPageProps = {
+    processHandle: Core.ProcessHandle.ProcessHandle,
+}
+
+export function MainPage(props: MainPageProps) {
     const { systema } = ReactRouterDOM.useParams();
 
-    const [props, setProps] = React.useState<ProfileProps | undefined>(
-        undefined
-    );
+    const [profileProps, setProfileProps] =
+        React.useState<ProfileProps | undefined>(undefined);
 
     const load = async (
         cancelContext: Core.CancelContext.CancelContext,
@@ -305,7 +298,7 @@ export function MainPage() {
             ),
         );
 
-        const processHandle = await createProcessHandle();
+        const processHandle = props.processHandle;
 
         await Core.Synchronization.saveBatch(
             processHandle,
@@ -402,7 +395,7 @@ export function MainPage() {
 
         if (cancelContext.cancelled()) { return; }
 
-        setProps({
+        setProfileProps({
             description: systemState.description(),
             name: systemState.username(),
             claims: claims,
@@ -438,24 +431,29 @@ export function MainPage() {
                 backgroundColor: '#f9e8d0',
             }}
         >
-            { props && (
+            { profileProps && (
                 <Profile
-                    name={props.name}
-                    description={props.description}
-                    claims={props.claims}
-                    avatar={props.avatar}
+                    {...profileProps}
                 />
             )}
         </div>
     );
 }
 
-export function App() {
+type AppProps = {
+    processHandle: Core.ProcessHandle.ProcessHandle,
+}
+
+export function App(props: AppProps) {
     const Routes = () => (
         <ReactRouterDOM.Routes>
             <ReactRouterDOM.Route
                 path="/:systema"
-                element={<MainPage />}
+                element={
+                    <MainPage
+                        processHandle={props.processHandle}
+                    />
+                }
             />
         </ReactRouterDOM.Routes>
     );
