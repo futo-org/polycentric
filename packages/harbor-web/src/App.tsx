@@ -284,7 +284,7 @@ type MainPageProps = {
 }
 
 export function MainPage(props: MainPageProps) {
-    const { systema } = ReactRouterDOM.useParams();
+    const { system: systemQuery } = ReactRouterDOM.useParams();
 
     const [profileProps, setProfileProps] =
         React.useState<ProfileProps | undefined>(undefined);
@@ -294,14 +294,12 @@ export function MainPage(props: MainPageProps) {
     ) => {
         const system = Core.Models.publicKeyFromProto(
             Core.Protocol.PublicKey.decode(
-                Base64.decode(systema!),
+                Base64.decode(systemQuery!),
             ),
         );
 
-        const processHandle = props.processHandle;
-
         await Core.Synchronization.saveBatch(
-            processHandle,
+            props.processHandle,
             await Core.APIMethods.getQueryIndex(
                 server,
                 system,
@@ -315,7 +313,7 @@ export function MainPage(props: MainPageProps) {
         );
 
         await Core.Synchronization.saveBatch(
-            processHandle,
+            props.processHandle,
             await Core.APIMethods.getQueryIndex(
                 server,
                 system,
@@ -326,20 +324,21 @@ export function MainPage(props: MainPageProps) {
             )
         );
 
-        const systemState = await processHandle.loadSystemState(system);
+        const systemState = await props.processHandle.loadSystemState(system);
 
-        const [claimEvents, _] = await processHandle.store().queryClaimIndex(
-            system,
-            10,
-            undefined,
-        );
+        const [claimEvents, _] =
+            await props.processHandle.store().queryClaimIndex(
+                system,
+                10,
+                undefined,
+            );
 
         const avatar = await (async () => {
             const pointer = systemState.avatar();
 
             if (pointer) {
                 return await loadImageFromPointer(
-                    processHandle,
+                    props.processHandle,
                     pointer,
                 );
             }
@@ -380,7 +379,7 @@ export function MainPage(props: MainPageProps) {
                 )
 
                 vouchedBy.push(await loadMinimalProfile(
-                    processHandle,
+                    props.processHandle,
                     event.system(),
                 ));
             };
@@ -415,7 +414,7 @@ export function MainPage(props: MainPageProps) {
         return () => {
             cancelContext.cancel();
         };
-    }, [systema]);
+    }, [props.processHandle, systemQuery]);
 
     return (
         <div
@@ -448,7 +447,7 @@ export function App(props: AppProps) {
     const Routes = () => (
         <ReactRouterDOM.Routes>
             <ReactRouterDOM.Route
-                path="/:systema"
+                path="/:system"
                 element={
                     <MainPage
                         processHandle={props.processHandle}

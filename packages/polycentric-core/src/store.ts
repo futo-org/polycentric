@@ -26,8 +26,8 @@ function makeProcessStateKey(
 ): Uint8Array {
     return Util.encodeText(
         system.keyType().toString() +
-            Base64.encode(system.key()) +
-            Base64.encode(process.process()),
+        Base64.encode(system.key()) +
+        Base64.encode(process.process()),
     );
 }
 
@@ -38,9 +38,9 @@ function makeEventKey(
 ): Uint8Array {
     return Util.encodeText(
         system.keyType().toString() +
-            Base64.encode(system.key()) +
-            Base64.encode(process.process()) +
-            logicalClock.toString(),
+        Base64.encode(system.key()) +
+        Base64.encode(process.process()) +
+        logicalClock.toString(),
     );
 }
 
@@ -193,6 +193,10 @@ export class Store {
         let result = [];
 
         for (const k of indices) {
+            if (!Util.bufferSuffixMatch(k, key)) {
+                continue;
+            }
+
             const signedEvent = await this.getSignedEventByKey(k);
 
             if (signedEvent) {

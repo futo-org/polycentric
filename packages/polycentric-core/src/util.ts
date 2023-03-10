@@ -27,3 +27,20 @@ export function buffersEqual(x: Uint8Array, y: Uint8Array): boolean {
 
     return true;
 }
+
+export function bufferSuffixMatch(
+    buffer: Uint8Array,
+    suffix: Uint8Array,
+): boolean {
+    if (buffer.length < suffix.length) {
+        return false;
+    }
+
+    for (let i = 0; i < suffix.byteLength; i++) {
+        if (buffer[i] !== suffix[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
