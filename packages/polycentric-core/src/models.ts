@@ -7,7 +7,8 @@ import * as FastSHA256 from 'fast-sha256';
 import * as Util from './util';
 
 export namespace ContentType {
-    export type ContentType = Long & { readonly __tag: unique symbol };
+    export type ContentType =
+        Readonly<Long> & { readonly __tag: unique symbol };
 
     function makeContentType(x: number): ContentType {
         return new Long(x, 0, true) as ContentType;
@@ -25,6 +26,29 @@ export namespace ContentType {
     export const ContentTypeServer = makeContentType(10);
     export const ContentTypeVouch = makeContentType(11);
     export const ContentTypeClaim = makeContentType(12);
+}
+
+export namespace Process {
+    export type Process =
+        Readonly<Protocol.Process> & { readonly __tag: unique symbol };
+
+    export function fromProto(proto: Protocol.Process): Process {
+        if (proto.process.length !== 16) {
+            throw new Error('incorrect process size');
+        }
+
+        return proto as Process;
+    }
+
+    export function equal(a: Process, b: Process): boolean {
+        return Util.buffersEqual(a.process, b.process);
+    }
+
+    export function random(): Process {
+        return {
+            process: Ed.utils.randomPrivateKey().slice(0, 16),
+        } as Process;
+    }
 }
 
 export enum ClaimType {
@@ -145,13 +169,13 @@ export async function hash(bytes: Uint8Array): Promise<Digest> {
 
 export class Pointer {
     private _system: PublicKey;
-    private _process: Process;
+    private _process: Process.Process;
     private _logicalClock: Long;
     private _digest: Digest;
 
     public constructor(
         system: PublicKey,
-        process: Process,
+        process: Process.Process,
         logicalClock: Long,
         digest: Digest,
     ) {
@@ -165,7 +189,7 @@ export class Pointer {
         return this._system;
     }
 
-    public process(): Process {
+    public process(): Process.Process {
         return this._process;
     }
 
@@ -193,7 +217,7 @@ export function pointerFromProto(proto: Protocol.Pointer): Pointer {
 
     return new Pointer(
         publicKeyFromProto(proto.system),
-        processFromProto(proto.process),
+        Process.fromProto(proto.process),
         proto.logicalClock,
         digestFromProto(proto.eventDigest),
     );
@@ -202,7 +226,7 @@ export function pointerFromProto(proto: Protocol.Pointer): Pointer {
 export function pointerToProto(pointer: Pointer): Protocol.Pointer {
     return {
         system: publicKeyToProto(pointer.system()),
-        process: processToProto(pointer.process()),
+        process: pointer.process(),
         logicalClock: pointer.logicalClock(),
         eventDigest: digestToProto(pointer.digest()),
     };
@@ -316,43 +340,9 @@ export function generateRandomPrivateKey(): PrivateKey {
     return new PrivateKey(Long.UONE, Ed.utils.randomPrivateKey());
 }
 
-export class Process {
-    private _process: Uint8Array;
-
-    public constructor(process: Uint8Array) {
-        if (process.length !== 16) {
-            throw new Error('incorrect process size');
-        }
-
-        this._process = process;
-    }
-
-    public process(): Uint8Array {
-        return this._process;
-    }
-}
-
-export function processFromProto(proto: Protocol.Process): Process {
-    return new Process(proto.process);
-}
-
-export function processToProto(process: Process): Protocol.Process {
-    return {
-        process: process.process(),
-    };
-}
-
-export function processesEqual(a: Process, b: Process): boolean {
-    return Util.buffersEqual(a.process(), b.process());
-}
-
-export function generateRandomProcess(): Process {
-    return new Process(Ed.utils.randomPrivateKey().slice(0, 16));
-}
-
 export class Event {
     private _system: PublicKey;
-    private _process: Process;
+    private _process: Process.Process;
     private _logicalClock: Long;
     private _contentType: ContentType.ContentType;
     private _content: Uint8Array;
@@ -363,7 +353,7 @@ export class Event {
 
     public constructor(
         system: PublicKey,
-        process: Process,
+        process: Process.Process,
         logicalClock: Long,
         contentType: ContentType.ContentType,
         content: Uint8Array,
@@ -395,7 +385,7 @@ export class Event {
         return this._system;
     }
 
-    public process(): Process {
+    public process(): Process.Process {
         return this._process;
     }
 
@@ -443,7 +433,7 @@ export function eventFromProto(proto: Protocol.Event): Event {
 
     return new Event(
         publicKeyFromProto(proto.system),
-        processFromProto(proto.process),
+        Process.fromProto(proto.process),
         proto.logicalClock,
         proto.contentType as ContentType.ContentType,
         proto.content,
@@ -466,7 +456,7 @@ export function eventToProto(event: Event): Protocol.Event {
 
     return {
         system: publicKeyToProto(event.system()),
-        process: processToProto(event.process()),
+        process: event.process(),
         logicalClock: event.logicalClock(),
         contentType: event.contentType(),
         content: event.content(),
@@ -535,9 +525,9 @@ export async function signedEventToPointer(
 
 export class ProcessSecret {
     private _system: PrivateKey;
-    private _process: Process;
+    private _process: Process.Process;
 
-    constructor(system: PrivateKey, process: Process) {
+    constructor(system: PrivateKey, process: Process.Process) {
         this._system = system;
         this._process = process;
     }
@@ -546,7 +536,7 @@ export class ProcessSecret {
         return this._system;
     }
 
-    public process(): Process {
+    public process(): Process.Process {
         return this._process;
     }
 }
@@ -564,7 +554,7 @@ export function processSecretFromProto(
 
     return new ProcessSecret(
         privateKeyFromProto(proto.system),
-        processFromProto(proto.process),
+        Process.fromProto(proto.process),
     );
 }
 
@@ -573,7 +563,7 @@ export function processSecretToProto(
 ): Protocol.StorageTypeProcessSecret {
     return {
         system: privateKeyToProto(processSecret.system()),
-        process: processToProto(processSecret.process()),
+        process: processSecret.process(),
     };
 }
 

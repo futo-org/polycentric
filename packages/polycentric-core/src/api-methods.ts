@@ -149,7 +149,7 @@ export async function getQueryIndex(
 export async function getQueryReferences(
     server: string,
     system: Models.PublicKey,
-    process: Models.Process,
+    process: Models.Process.Process,
     logicalClock: Long,
     fromType: Long,
 ): Promise<Protocol.Events> {
@@ -158,7 +158,7 @@ export async function getQueryReferences(
     );
 
     const processQuery = Base64.encodeUrl(
-        Protocol.Process.encode(Models.processToProto(process)).finish(),
+        Protocol.Process.encode(process).finish(),
     );
 
     const path = '/query_references' +

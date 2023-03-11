@@ -22,24 +22,24 @@ function makeSystemStateKey(system: Models.PublicKey): Uint8Array {
 
 function makeProcessStateKey(
     system: Models.PublicKey,
-    process: Models.Process,
+    process: Models.Process.Process,
 ): Uint8Array {
     return Util.encodeText(
         system.keyType().toString() +
         Base64.encode(system.key()) +
-        Base64.encode(process.process()),
+        Base64.encode(process.process),
     );
 }
 
 function makeEventKey(
     system: Models.PublicKey,
-    process: Models.Process,
+    process: Models.Process.Process,
     logicalClock: Long,
 ): Uint8Array {
     return Util.encodeText(
         system.keyType().toString() +
         Base64.encode(system.key()) +
-        Base64.encode(process.process()) +
+        Base64.encode(process.process) +
         logicalClock.toString(),
     );
 }
@@ -96,7 +96,7 @@ export class Store {
 
     public async getProcessState(
         system: Models.PublicKey,
-        process: Models.Process,
+        process: Models.Process.Process,
     ): Promise<Protocol.StorageTypeProcessState> {
         const attempt = await PersistenceDriver.tryLoadKey(
             this.levelProcessStates,
@@ -116,7 +116,7 @@ export class Store {
 
     public putProcessState(
         system: Models.PublicKey,
-        process: Models.Process,
+        process: Models.Process.Process,
         state: Protocol.StorageTypeProcessState,
     ): PersistenceDriver.BinaryPutLevel {
         return {
@@ -148,7 +148,7 @@ export class Store {
 
     public deleteIndexClaim(
         system: Models.PublicKey,
-        process: Models.Process,
+        process: Models.Process.Process,
         logicalClock: Long,
     ): PersistenceDriver.BinaryDelLevel {
         const key = makeEventKey(system, process, logicalClock);
@@ -162,7 +162,7 @@ export class Store {
 
     public putIndexClaim(
         system: Models.PublicKey,
-        process: Models.Process,
+        process: Models.Process.Process,
         logicalClock: Long,
     ): PersistenceDriver.BinaryPutLevel {
         const key = makeEventKey(system, process, logicalClock);
@@ -225,7 +225,7 @@ export class Store {
 
     public putTombstone(
         system: Models.PublicKey,
-        process: Models.Process,
+        process: Models.Process.Process,
         logicalClock: Long,
         mutationPointer: Models.Pointer,
     ): PersistenceDriver.BinaryPutLevel {
@@ -241,7 +241,7 @@ export class Store {
 
     public putEvent(
         system: Models.PublicKey,
-        process: Models.Process,
+        process: Models.Process.Process,
         logicalClock: Long,
         signedEvent: Models.SignedEvent,
     ): PersistenceDriver.BinaryPutLevel {
@@ -288,7 +288,7 @@ export class Store {
 
     public async getSignedEvent(
         system: Models.PublicKey,
-        process: Models.Process,
+        process: Models.Process.Process,
         logicalClock: Long,
     ): Promise<Protocol.SignedEvent | undefined> {
         const attempt = await PersistenceDriver.tryLoadKey(

@@ -10,7 +10,7 @@ import * as Protocol from './protocol';
 async function loadRanges(
     store: Store.Store,
     system: Models.PublicKey,
-    process: Models.Process,
+    process: Models.Process.Process,
     ranges: Array<Ranges.IRange>,
 ): Promise<Array<Protocol.SignedEvent>> {
     const result: Array<Protocol.SignedEvent> = [];
@@ -55,7 +55,7 @@ export async function backfillClient(
 
         const processState = await processHandle
             .store()
-            .getProcessState(system, Models.processFromProto(item.process));
+            .getProcessState(system, Models.Process.fromProto(item.process));
 
         const clientNeeds = Ranges.subtractRange(
             item.ranges,
@@ -103,8 +103,8 @@ export async function backFillServers(
                     }
 
                     if (
-                        Models.processesEqual(
-                            Models.processFromProto(item.process),
+                        Models.Process.equal(
+                            Models.Process.fromProto(item.process),
                             process,
                         )
                     ) {

@@ -204,9 +204,7 @@ async function loadImageFromPointer(
         await Core.APIMethods.getEvents(server, pointer.system(), {
             rangesForProcesses: [
                 {
-                    process: Core.Models.processToProto(
-                        pointer.process(),
-                    ),
+                    process: pointer.process(), 
                     ranges: [
                         {
                             low: pointer.logicalClock(),

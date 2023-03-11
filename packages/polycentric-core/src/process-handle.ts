@@ -13,14 +13,14 @@ import * as Ranges from './ranges';
 
 export class SystemState {
     private _servers: Array<string>;
-    private _processes: Array<Models.Process>;
+    private _processes: Array<Models.Process.Process>;
     private _username: string;
     private _description: string;
     private _avatar: Models.Pointer | undefined;
 
     public constructor(
         servers: Array<string>,
-        processes: Array<Models.Process>,
+        processes: Array<Models.Process.Process>,
         username: string,
         description: string,
         avatar: Models.Pointer | undefined,
@@ -36,7 +36,7 @@ export class SystemState {
         return this._servers;
     }
 
-    public processes(): Array<Models.Process> {
+    public processes(): Array<Models.Process.Process> {
         return this._processes;
     }
 
@@ -72,7 +72,7 @@ function protoSystemStateToSystemState(
     const processes = [];
 
     for (const process of proto.processes) {
-        processes.push(Models.processFromProto(process));
+        processes.push(Models.Process.fromProto(process));
     }
 
     let username = '';
@@ -247,7 +247,7 @@ export class ProcessHandle {
     }
 
     public async delete(
-        process: Models.Process,
+        process: Models.Process.Process,
         logicalClock: Long,
     ): Promise<Models.Pointer | undefined> {
         const signedEvent = await this._store.getSignedEvent(
@@ -265,7 +265,7 @@ export class ProcessHandle {
         return await this.publish(
             Models.ContentType.ContentTypeDelete,
             Protocol.Delete.encode({
-                process: Models.processToProto(process),
+                process: process, 
                 logicalClock: logicalClock,
                 indices: {
                     indices: event.indices(),
@@ -443,11 +443,11 @@ export class ProcessHandle {
                 throw new Error('delete expected process');
             }
 
-            const deleteProcess = Models.processFromProto(deleteProto.process);
+            const deleteProcess = Models.Process.fromProto(deleteProto.process);
 
             let deleteProcessState = processState;
 
-            if (!Models.processesEqual(event.process(), deleteProcess)) {
+            if (!Models.Process.equal(event.process(), deleteProcess)) {
                 deleteProcessState = await this._store.getProcessState(
                     event.system(),
                     deleteProcess,
@@ -523,7 +523,7 @@ export async function createProcessHandle(
 ): Promise<ProcessHandle> {
     const privateKey = Models.generateRandomPrivateKey();
     const publicKey = await privateKey.derivePublicKey();
-    const process = Models.generateRandomProcess();
+    const process = Models.Process.random();
 
     const level = await metaStore.openStore(publicKey, 0);
 
@@ -613,8 +613,8 @@ function updateSystemState(
 
         for (const rawProcess of state.processes) {
             if (
-                Models.processesEqual(
-                    Models.processFromProto(rawProcess),
+                Models.Process.equal(
+                    Models.Process.fromProto(rawProcess),
                     event.process(),
                 )
             ) {
@@ -624,7 +624,7 @@ function updateSystemState(
         }
 
         if (!foundProcess) {
-            state.processes.push(Models.processToProto(event.process()));
+            state.processes.push(event.process());
         }
     }
 }
