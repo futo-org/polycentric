@@ -61,7 +61,7 @@ function protoSystemStateToSystemState(
     for (const item of proto.crdtSetItems) {
         if (
             item.contentType.equals(
-                new Long(Models.ContentType.Server, 0, true),
+                Models.ContentType.ContentTypeServer,
             ) &&
             item.operation == Protocol.LWWElementSet_Operation.ADD
         ) {
@@ -82,19 +82,19 @@ function protoSystemStateToSystemState(
     for (const item of proto.crdtItems) {
         if (
             item.contentType.equals(
-                new Long(Models.ContentType.Username, 0, true),
+                Models.ContentType.ContentTypeUsername,
             )
         ) {
             username = Util.decodeText(item.value);
         } else if (
             item.contentType.equals(
-                new Long(Models.ContentType.Description, 0, true),
+                Models.ContentType.ContentTypeDescription,
             )
         ) {
             description = Util.decodeText(item.value);
         } else if (
             item.contentType.equals(
-                new Long(Models.ContentType.Avatar, 0, true),
+                Models.ContentType.ContentTypeAvatar,
             )
         ) {
             avatar = Models.pointerFromProto(
@@ -149,7 +149,7 @@ export class ProcessHandle {
 
     public async post(content: string): Promise<Models.Pointer> {
         return await this.publish(
-            new Long(Models.ContentType.Post, 0, true),
+            Models.ContentType.ContentTypePost,
             Protocol.Post.encode({
                 content: content,
             }).finish(),
@@ -161,7 +161,7 @@ export class ProcessHandle {
 
     public async setUsername(username: string): Promise<Models.Pointer> {
         return await this.publish(
-            new Long(Models.ContentType.Username, 0, true),
+            Models.ContentType.ContentTypeUsername,
             new Uint8Array(),
             undefined,
             new Models.LWWElement(
@@ -174,7 +174,7 @@ export class ProcessHandle {
 
     public async setDescription(description: string): Promise<Models.Pointer> {
         return await this.publish(
-            new Long(Models.ContentType.Description, 0, true),
+            Models.ContentType.ContentTypeDescription,
             new Uint8Array(),
             undefined,
             new Models.LWWElement(
@@ -187,7 +187,7 @@ export class ProcessHandle {
 
     public async setAvatar(avatar: Models.Pointer): Promise<Models.Pointer> {
         return await this.publish(
-            new Long(Models.ContentType.Avatar, 0, true),
+            Models.ContentType.ContentTypeAvatar,
             new Uint8Array(),
             undefined,
             new Models.LWWElement(
@@ -200,7 +200,7 @@ export class ProcessHandle {
 
     public async addServer(server: string): Promise<Models.Pointer> {
         return await this.publish(
-            new Long(Models.ContentType.Server, 0, true),
+            Models.ContentType.ContentTypeServer,
             new Uint8Array(),
             new Models.LWWElementSet(
                 Models.LWWElementSetOperation.Add,
@@ -214,7 +214,7 @@ export class ProcessHandle {
 
     public async removeServer(server: string): Promise<Models.Pointer> {
         return await this.publish(
-            new Long(Models.ContentType.Server, 0, true),
+            Models.ContentType.ContentTypeServer,
             new Uint8Array(),
             new Models.LWWElementSet(
                 Models.LWWElementSetOperation.Remove,
@@ -228,7 +228,7 @@ export class ProcessHandle {
 
     public async vouch(pointer: Models.Pointer): Promise<Models.Pointer> {
         return await this.publish(
-            new Long(Models.ContentType.Vouch, 0, true),
+            Models.ContentType.ContentTypeVouch,
             new Uint8Array(),
             undefined,
             undefined,
@@ -238,7 +238,7 @@ export class ProcessHandle {
 
     public async claim(claimValue: Protocol.Claim): Promise<Models.Pointer> {
         return await this.publish(
-            new Long(Models.ContentType.Claim, 0, true),
+            Models.ContentType.ContentTypeClaim,
             Protocol.Claim.encode(claimValue).finish(),
             undefined,
             undefined,
@@ -263,7 +263,7 @@ export class ProcessHandle {
         const event = Models.eventFromProtoBuffer(signedEvent.event);
 
         return await this.publish(
-            new Long(Models.ContentType.Delete, 0, true),
+            Models.ContentType.ContentTypeDelete,
             Protocol.Delete.encode({
                 process: Models.processToProto(process),
                 logicalClock: logicalClock,
@@ -282,7 +282,7 @@ export class ProcessHandle {
         content: Uint8Array,
     ): Promise<Models.Pointer> {
         const meta = await this.publish(
-            new Long(Models.ContentType.BlobMeta, 0, true),
+            Models.ContentType.ContentTypeBlobMeta,
             Protocol.BlobMeta.encode({
                 sectionCount: new Long(1, 0, true),
                 mime: mime,
@@ -293,7 +293,7 @@ export class ProcessHandle {
         );
 
         await this.publish(
-            new Long(Models.ContentType.BlobSection, 0, true),
+            Models.ContentType.ContentTypeBlobSection,
             Protocol.BlobSection.encode({
                 metaPointer: meta.logicalClock(),
                 content: content,
@@ -325,7 +325,7 @@ export class ProcessHandle {
             if (
                 !event
                     .contentType()
-                    .equals(new Long(Models.ContentType.BlobMeta, 0, true))
+                    .equals(Models.ContentType.ContentTypeBlobMeta)
             ) {
                 return undefined;
             }
@@ -353,7 +353,7 @@ export class ProcessHandle {
             if (
                 !event
                     .contentType()
-                    .equals(new Long(Models.ContentType.BlobSection, 0, true))
+                    .equals(Models.ContentType.ContentTypeBlobSection)
             ) {
                 return undefined;
             }
@@ -377,7 +377,7 @@ export class ProcessHandle {
     }
 
     async publish(
-        contentType: Long,
+        contentType: Models.ContentType.ContentType,
         content: Uint8Array,
         lwwElementSet: Models.LWWElementSet | undefined,
         lwwElement: Models.LWWElement | undefined,
@@ -435,7 +435,7 @@ export class ProcessHandle {
         if (
             event
                 .contentType()
-                .equals(new Long(Models.ContentType.Delete, 0, true))
+                .equals(Models.ContentType.ContentTypeDelete)
         ) {
             const deleteProto = Protocol.Delete.decode(event.content());
 
@@ -475,7 +475,7 @@ export class ProcessHandle {
         } else if (
             event
                 .contentType()
-                .equals(new Long(Models.ContentType.Claim, 0, true))
+                .equals(Models.ContentType.ContentTypeClaim)
         ) {
             actions.push(
                 this._store.putIndexClaim(

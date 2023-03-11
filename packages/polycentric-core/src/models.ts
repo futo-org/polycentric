@@ -6,19 +6,25 @@ import * as FastSHA256 from 'fast-sha256';
 
 import * as Util from './util';
 
-export enum ContentType {
-    Delete = 1,
-    SystemProcesses = 2,
-    Post = 3,
-    Follow = 4,
-    Username = 5,
-    Description = 6,
-    BlobMeta = 7,
-    BlobSection = 8,
-    Avatar = 9,
-    Server = 10,
-    Vouch = 11,
-    Claim = 12,
+export namespace ContentType {
+    export type ContentType = Long & { readonly __tag: unique symbol };
+
+    function makeContentType(x: number): ContentType {
+        return new Long(x, 0, true) as ContentType;
+    }
+
+    export const ContentTypeDelete = makeContentType(1);
+    export const ContentTypeSystemProcesses = makeContentType(2);
+    export const ContentTypePost = makeContentType(3);
+    export const ContentTypeFollow = makeContentType(4);
+    export const ContentTypeUsername = makeContentType(5);
+    export const ContentTypeDescription = makeContentType(6);
+    export const ContentTypeBlobMeta = makeContentType(7);
+    export const ContentTypeBlobSection = makeContentType(8);
+    export const ContentTypeAvatar = makeContentType(9);
+    export const ContentTypeServer = makeContentType(10);
+    export const ContentTypeVouch = makeContentType(11);
+    export const ContentTypeClaim = makeContentType(12);
 }
 
 export enum ClaimType {
@@ -348,7 +354,7 @@ export class Event {
     private _system: PublicKey;
     private _process: Process;
     private _logicalClock: Long;
-    private _contentType: Long;
+    private _contentType: ContentType.ContentType;
     private _content: Uint8Array;
     private _lwwElementSet: LWWElementSet | undefined;
     private _lwwElement: LWWElement | undefined;
@@ -359,7 +365,7 @@ export class Event {
         system: PublicKey,
         process: Process,
         logicalClock: Long,
-        contentType: Long,
+        contentType: ContentType.ContentType,
         content: Uint8Array,
         lwwElementSet: LWWElementSet | undefined,
         lwwElement: LWWElement | undefined,
@@ -397,7 +403,7 @@ export class Event {
         return this._logicalClock;
     }
 
-    public contentType(): Long {
+    public contentType(): ContentType.ContentType {
         return this._contentType;
     }
 
@@ -439,7 +445,7 @@ export function eventFromProto(proto: Protocol.Event): Event {
         publicKeyFromProto(proto.system),
         processFromProto(proto.process),
         proto.logicalClock,
-        proto.contentType,
+        proto.contentType as ContentType.ContentType,
         proto.content,
         proto.lwwElementSet
             ? lwwElementSetFromProto(proto.lwwElementSet)

@@ -243,9 +243,9 @@ async function loadMinimalProfile(
             server,
             system,
             [
-                new Long(Core.Models.ContentType.Description),
-                new Long(Core.Models.ContentType.Username),
-                new Long(Core.Models.ContentType.Avatar),
+                Core.Models.ContentType.ContentTypeDescription,
+                Core.Models.ContentType.ContentTypeUsername,
+                Core.Models.ContentType.ContentTypeAvatar,
             ],
             undefined,
         )
@@ -304,9 +304,9 @@ export function MainPage(props: MainPageProps) {
                 server,
                 system,
                 [
-                    new Long(Core.Models.ContentType.Description),
-                    new Long(Core.Models.ContentType.Username),
-                    new Long(Core.Models.ContentType.Avatar),
+                    Core.Models.ContentType.ContentTypeDescription,
+                    Core.Models.ContentType.ContentTypeUsername,
+                    Core.Models.ContentType.ContentTypeAvatar,
                 ],
                 undefined,
             )
@@ -318,7 +318,7 @@ export function MainPage(props: MainPageProps) {
                 server,
                 system,
                 [
-                    new Long(Core.Models.ContentType.Claim),
+                    Core.Models.ContentType.ContentTypeClaim,
                 ],
                 10,
             )
@@ -355,7 +355,7 @@ export function MainPage(props: MainPageProps) {
 
             if (
                 !event.contentType().equals(
-                    new Long(Core.Models.ContentType.Claim)
+                    Core.Models.ContentType.ContentTypeClaim,
                 )
             ) {
                 throw new Error("event content type was not claim");
@@ -366,7 +366,7 @@ export function MainPage(props: MainPageProps) {
                 system,
                 event.process(),
                 event.logicalClock(),
-                new Long(Core.Models.ContentType.Vouch, 0, true),
+                Core.Models.ContentType.ContentTypeVouch,
             );
 
             console.log("got references count", references.events.length);

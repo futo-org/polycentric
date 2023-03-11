@@ -114,7 +114,7 @@ export async function getResolveClaim(
 export async function getQueryIndex(
     server: string,
     system: Models.PublicKey,
-    eventTypes: Array<Long>,
+    eventTypes: Array<Models.ContentType.ContentType>,
     limit: number | undefined,
 ): Promise<Protocol.Events> {
     const systemQuery = Base64.encodeUrl(

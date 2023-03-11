@@ -180,7 +180,9 @@ export class Store {
         limit: number,
         iterator: Uint8Array | undefined,
     ): Promise<[Array<Protocol.SignedEvent>, Uint8Array | undefined]> {
-        const key = iterator ? iterator : makeSystemStateKey(system);
+        const systemStateKey = makeSystemStateKey(system);
+
+        const key = iterator ? iterator : systemStateKey;
 
         const indices = await this.levelIndexClaims
             .keys({
@@ -193,7 +195,7 @@ export class Store {
         let result = [];
 
         for (const k of indices) {
-            if (!Util.bufferSuffixMatch(k, key)) {
+            if (!Util.bufferSuffixMatch(k, systemStateKey)) {
                 continue;
             }
 
