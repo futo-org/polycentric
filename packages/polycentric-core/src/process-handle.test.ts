@@ -33,11 +33,11 @@ describe('processHandle', () => {
         expect(events.length).toStrictEqual(2);
 
         expect(
-            Models.eventFromProtoBuffer(events[0].event).logicalClock(),
+            Models.Event.fromBuffer(events[0].event).logicalClock,
         ).toStrictEqual(new Long(1, 0, true));
 
         expect(
-            Models.eventFromProtoBuffer(events[1].event).logicalClock(),
+            Models.Event.fromBuffer(events[1].event).logicalClock,
         ).toStrictEqual(new Long(2, 0, true));
     });
 

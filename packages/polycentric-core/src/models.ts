@@ -200,7 +200,6 @@ export namespace ProcessSecret {
     }
 }
 
-/*
 export namespace Event {
     interface EventI{
         system: PublicKey.PublicKey;
@@ -208,9 +207,11 @@ export namespace Event {
         logicalClock: Long;
         contentType: ContentType.ContentType,
         content: Uint8Array,
+        vectorClock: Protocol.VectorClock,
         lwwElementSet: Protocol.LWWElementSet | undefined,
+        lwwElement: Protocol.LWWElement | undefined,
         references: Array<Protocol.Reference>,
-        indices: Array<Protocol.Indices>,
+        indices: Protocol.Indices,
     }
 
     export type Event =
@@ -225,23 +226,33 @@ export namespace Event {
             throw new Error('expected process');
         }
 
+        if (proto.vectorClock === undefined) {
+            throw new Error('expected vector clock');
+        }
+
+        if (proto.indices === undefined) {
+            throw new Error('expected indices');
+        }
+
         PublicKey.fromProto(proto.system);
         Process.fromProto(proto.process);
-        Digest.fromProto(proto.eventDigest);
 
         return proto as Event ;
     }
+
+    export function fromBuffer(buffer: Uint8Array): Event {
+        return fromProto(Protocol.Event.decode(buffer));
+    }
 }
-*/
 
 export namespace SignedEvent {
     export type SignedEvent =
         Readonly<Protocol.SignedEvent> & { readonly __tag: unique symbol };
 
     export function fromProto(proto: Protocol.SignedEvent): SignedEvent {
-        const event = eventFromProto(Protocol.Event.decode(proto.event));
+        const event = Event.fromProto(Protocol.Event.decode(proto.event));
 
-        if (!PublicKey.verify(event.system(), proto.signature, proto.event)) {
+        if (!PublicKey.verify(event.system, proto.signature, proto.event)) {
             throw new Error('signature verification failed');
         }
 
@@ -340,141 +351,14 @@ export function pointerToReference(
     };
 }
 
-export class Event {
-    private _system: PublicKey.PublicKey;
-    private _process: Process.Process;
-    private _logicalClock: Long;
-    private _contentType: ContentType.ContentType;
-    private _content: Uint8Array;
-    private _lwwElementSet: Protocol.LWWElementSet | undefined;
-    private _lwwElement: Protocol.LWWElement | undefined;
-    private _references: Array<Protocol.Reference>;
-    private _indices: Array<Protocol.Index>;
-
-    public constructor(
-        system: PublicKey.PublicKey,
-        process: Process.Process,
-        logicalClock: Long,
-        contentType: ContentType.ContentType,
-        content: Uint8Array,
-        lwwElementSet: Protocol.LWWElementSet | undefined,
-        lwwElement: Protocol.LWWElement | undefined,
-        references: Array<Protocol.Reference>,
-        indices: Array<Protocol.Index>,
-    ) {
-        if (!logicalClock.unsigned) {
-            throw new Error('expected logical clock to be unsigned');
-        }
-
-        if (!contentType.unsigned) {
-            throw new Error('expected content type to be unsigned');
-        }
-
-        this._system = system;
-        this._process = process;
-        this._logicalClock = logicalClock;
-        this._contentType = contentType;
-        this._content = content;
-        this._lwwElementSet = lwwElementSet;
-        this._lwwElement = lwwElement;
-        this._references = references;
-        this._indices = indices;
-    }
-
-    public system(): PublicKey.PublicKey {
-        return this._system;
-    }
-
-    public process(): Process.Process {
-        return this._process;
-    }
-
-    public logicalClock(): Long {
-        return this._logicalClock;
-    }
-
-    public contentType(): ContentType.ContentType {
-        return this._contentType;
-    }
-
-    public content(): Uint8Array {
-        return this._content;
-    }
-
-    public lwwElementSet(): Protocol.LWWElementSet | undefined {
-        return this._lwwElementSet;
-    }
-
-    public lwwElement(): Protocol.LWWElement | undefined {
-        return this._lwwElement;
-    }
-
-    public references(): Array<Protocol.Reference> {
-        return this._references;
-    }
-
-    public indices(): Array<Protocol.Index> {
-        return this._indices;
-    }
-}
-
-export function eventFromProto(proto: Protocol.Event): Event {
-    if (proto.system === undefined) {
-        throw new Error('expected system');
-    }
-
-    if (proto.process === undefined) {
-        throw new Error('expected process');
-    }
-
-    if (proto.indices === undefined) {
-        throw new Error('expected indices');
-    }
-
-    return new Event(
-        PublicKey.fromProto(proto.system),
-        Process.fromProto(proto.process),
-        proto.logicalClock,
-        proto.contentType as ContentType.ContentType,
-        proto.content,
-        proto.lwwElementSet,
-        proto.lwwElement, 
-        proto.references,
-        proto.indices.indices,
-    );
-}
-
-export function eventFromProtoBuffer(proto: Uint8Array): Event {
-    return eventFromProto(Protocol.Event.decode(proto));
-}
-
-export function eventToProto(event: Event): Protocol.Event {
-    return {
-        system: event.system(),
-        process: event.process(),
-        logicalClock: event.logicalClock(),
-        contentType: event.contentType(),
-        content: event.content(),
-        vectorClock: {
-            logicalClocks: [],
-        },
-        indices: {
-            indices: event.indices(),
-        },
-        lwwElementSet: event.lwwElementSet(), 
-        lwwElement: event.lwwElement(), 
-        references: event.references(),
-    };
-}
-
 export async function signedEventToPointer(
     signedEvent: SignedEvent.SignedEvent,
 ): Promise<Pointer.Pointer> {
-    const event = eventFromProtoBuffer(signedEvent.event);
+    const event = Event.fromBuffer(signedEvent.event);
     return Pointer.fromProto({
-        system: event.system(),
-        process: event.process(),
-        logicalClock: event.logicalClock(),
+        system: event.system,
+        process: event.process,
+        logicalClock: event.logicalClock,
         eventDigest: await hash(signedEvent.event),
     });
 }

@@ -345,12 +345,12 @@ export function MainPage(props: MainPageProps) {
         const claims = [];
 
         for (const protoSignedEvent of claimEvents) {
-            const event = Core.Models.eventFromProtoBuffer(
+            const event = Core.Models.Event.fromBuffer(
                 Core.Models.SignedEvent.fromProto(protoSignedEvent).event,
             )
 
             if (
-                !event.contentType().equals(
+                !event.contentType.equals(
                     Core.Models.ContentType.ContentTypeClaim,
                 )
             ) {
@@ -360,8 +360,8 @@ export function MainPage(props: MainPageProps) {
             const references = await Core.APIMethods.getQueryReferences(
                 server,
                 system,
-                event.process(),
-                event.logicalClock(),
+                event.process,
+                event.logicalClock,
                 Core.Models.ContentType.ContentTypeVouch,
             );
 
@@ -370,19 +370,19 @@ export function MainPage(props: MainPageProps) {
             const vouchedBy = [];
 
             for (const reference of references.events) {
-                const event = Core.Models.eventFromProtoBuffer(
+                const event = Core.Models.Event.fromBuffer(
                     Core.Models.SignedEvent.fromProto(reference).event,
                 )
 
                 vouchedBy.push(await loadMinimalProfile(
                     props.processHandle,
-                    event.system(),
+                    event.system,
                 ));
             };
 
             claims.push(
                 {
-                    claim: Core.Protocol.Claim.decode(event.content()),
+                    claim: Core.Protocol.Claim.decode(event.content),
                     vouchedBy: vouchedBy,
                 }
             );
