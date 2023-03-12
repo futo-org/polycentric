@@ -167,10 +167,10 @@ export class ProcessHandle {
             Models.ContentType.ContentTypeUsername,
             new Uint8Array(),
             undefined,
-            new Models.LWWElement(
-                Util.encodeText(username),
-                Long.fromNumber(Date.now(), true),
-            ),
+            {
+                value: Util.encodeText(username),
+                unixMilliseconds: Long.fromNumber(Date.now(), true),
+            },
             [],
         );
     }
@@ -182,10 +182,10 @@ export class ProcessHandle {
             Models.ContentType.ContentTypeDescription,
             new Uint8Array(),
             undefined,
-            new Models.LWWElement(
-                Util.encodeText(description),
-                Long.fromNumber(Date.now(), true),
-            ),
+            {
+                value: Util.encodeText(description),
+                unixMilliseconds: Long.fromNumber(Date.now(), true),
+            },
             [],
         );
     }
@@ -197,10 +197,10 @@ export class ProcessHandle {
             Models.ContentType.ContentTypeAvatar,
             new Uint8Array(),
             undefined,
-            new Models.LWWElement(
-                Protocol.Pointer.encode(avatar).finish(),
-                Long.fromNumber(Date.now(), true),
-            ),
+            {
+                value: Protocol.Pointer.encode(avatar).finish(),
+                unixMilliseconds: Long.fromNumber(Date.now(), true),
+            },
             [],
         );
     }
@@ -209,11 +209,11 @@ export class ProcessHandle {
         return await this.publish(
             Models.ContentType.ContentTypeServer,
             new Uint8Array(),
-            new Models.LWWElementSet(
-                Models.LWWElementSetOperation.Add,
-                Util.encodeText(server),
-                Long.fromNumber(Date.now(), true),
-            ),
+            {
+                operation: Protocol.LWWElementSet_Operation.ADD,
+                value: Util.encodeText(server),
+                unixMilliseconds: Long.fromNumber(Date.now(), true),
+            },
             undefined,
             [],
         );
@@ -223,11 +223,11 @@ export class ProcessHandle {
         return await this.publish(
             Models.ContentType.ContentTypeServer,
             new Uint8Array(),
-            new Models.LWWElementSet(
-                Models.LWWElementSetOperation.Remove,
-                Util.encodeText(server),
-                Long.fromNumber(Date.now(), true),
-            ),
+            {
+                operation: Protocol.LWWElementSet_Operation.REMOVE,
+                value: Util.encodeText(server),
+                unixMilliseconds: Long.fromNumber(Date.now(), true),
+            },
             undefined,
             [],
         );
@@ -390,8 +390,8 @@ export class ProcessHandle {
     async publish(
         contentType: Models.ContentType.ContentType,
         content: Uint8Array,
-        lwwElementSet: Models.LWWElementSet | undefined,
-        lwwElement: Models.LWWElement | undefined,
+        lwwElementSet: Protocol.LWWElementSet | undefined,
+        lwwElement: Protocol.LWWElement | undefined,
         references: Array<Protocol.Reference>,
     ): Promise<Models.Pointer.Pointer> {
         const processState = await this._store.getProcessState(
@@ -568,7 +568,7 @@ function updateSystemState(
             for (const item of state.crdtSetItems) {
                 if (
                     item.contentType.equals(event.contentType()) &&
-                    Util.buffersEqual(item.value, lwwElementSet.value())
+                    Util.buffersEqual(item.value, lwwElementSet.value)
                 ) {
                     found = item;
                     break;
@@ -577,20 +577,16 @@ function updateSystemState(
 
             if (
                 found &&
-                found.unixMilliseconds < lwwElementSet.unixMilliseconds()
+                found.unixMilliseconds < lwwElementSet.unixMilliseconds
             ) {
-                found.unixMilliseconds = lwwElementSet.unixMilliseconds();
-                found.operation = Models.lwwElementSetOperationToProto(
-                    lwwElementSet.operation(),
-                );
+                found.unixMilliseconds = lwwElementSet.unixMilliseconds;
+                found.operation = lwwElementSet.operation;
             } else {
                 state.crdtSetItems.push({
                     contentType: event.contentType(),
-                    value: lwwElementSet.value(),
-                    unixMilliseconds: lwwElementSet.unixMilliseconds(),
-                    operation: Models.lwwElementSetOperationToProto(
-                        lwwElementSet.operation(),
-                    ),
+                    value: lwwElementSet.value,
+                    unixMilliseconds: lwwElementSet.unixMilliseconds,
+                    operation: lwwElementSet.operation,
                 });
             }
         }
@@ -611,15 +607,15 @@ function updateSystemState(
 
             if (
                 found &&
-                found.unixMilliseconds < lwwElement.unixMilliseconds()
+                found.unixMilliseconds < lwwElement.unixMilliseconds
             ) {
-                found.unixMilliseconds = lwwElement.unixMilliseconds();
-                found.value = lwwElement.value();
+                found.unixMilliseconds = lwwElement.unixMilliseconds;
+                found.value = lwwElement.value;
             } else {
                 state.crdtItems.push({
                     contentType: event.contentType(),
-                    value: lwwElement.value(),
-                    unixMilliseconds: lwwElement.unixMilliseconds(),
+                    value: lwwElement.value,
+                    unixMilliseconds: lwwElement.unixMilliseconds,
                 });
             }
         }

@@ -346,8 +346,8 @@ export class Event {
     private _logicalClock: Long;
     private _contentType: ContentType.ContentType;
     private _content: Uint8Array;
-    private _lwwElementSet: LWWElementSet | undefined;
-    private _lwwElement: LWWElement | undefined;
+    private _lwwElementSet: Protocol.LWWElementSet | undefined;
+    private _lwwElement: Protocol.LWWElement | undefined;
     private _references: Array<Protocol.Reference>;
     private _indices: Array<Protocol.Index>;
 
@@ -357,8 +357,8 @@ export class Event {
         logicalClock: Long,
         contentType: ContentType.ContentType,
         content: Uint8Array,
-        lwwElementSet: LWWElementSet | undefined,
-        lwwElement: LWWElement | undefined,
+        lwwElementSet: Protocol.LWWElementSet | undefined,
+        lwwElement: Protocol.LWWElement | undefined,
         references: Array<Protocol.Reference>,
         indices: Array<Protocol.Index>,
     ) {
@@ -401,11 +401,11 @@ export class Event {
         return this._content;
     }
 
-    public lwwElementSet(): LWWElementSet | undefined {
+    public lwwElementSet(): Protocol.LWWElementSet | undefined {
         return this._lwwElementSet;
     }
 
-    public lwwElement(): LWWElement | undefined {
+    public lwwElement(): Protocol.LWWElement | undefined {
         return this._lwwElement;
     }
 
@@ -437,10 +437,8 @@ export function eventFromProto(proto: Protocol.Event): Event {
         proto.logicalClock,
         proto.contentType as ContentType.ContentType,
         proto.content,
-        proto.lwwElementSet
-            ? lwwElementSetFromProto(proto.lwwElementSet)
-            : undefined,
-        proto.lwwElement ? lwwElementFromProto(proto.lwwElement) : undefined,
+        proto.lwwElementSet,
+        proto.lwwElement, 
         proto.references,
         proto.indices.indices,
     );
@@ -451,9 +449,6 @@ export function eventFromProtoBuffer(proto: Uint8Array): Event {
 }
 
 export function eventToProto(event: Event): Protocol.Event {
-    const lwwElementSet = event.lwwElementSet();
-    const lwwElement = event.lwwElement();
-
     return {
         system: event.system(),
         process: event.process(),
@@ -466,10 +461,8 @@ export function eventToProto(event: Event): Protocol.Event {
         indices: {
             indices: event.indices(),
         },
-        lwwElementSet: lwwElementSet
-            ? lwwElementSetToProto(lwwElementSet)
-            : undefined,
-        lwwElement: lwwElement ? lwwElementToProto(lwwElement) : undefined,
+        lwwElementSet: event.lwwElementSet(), 
+        lwwElement: event.lwwElement(), 
         references: event.references(),
     };
 }
@@ -486,106 +479,3 @@ export async function signedEventToPointer(
     });
 }
 
-export class LWWElement {
-    private _value: Uint8Array;
-    private _unixMilliseconds: Long;
-
-    public constructor(value: Uint8Array, unixMilliseconds: Long) {
-        this._value = value;
-        this._unixMilliseconds = unixMilliseconds;
-    }
-
-    public value(): Uint8Array {
-        return this._value;
-    }
-
-    public unixMilliseconds(): Long {
-        return this._unixMilliseconds;
-    }
-}
-
-export function lwwElementToProto(model: LWWElement): Protocol.LWWElement {
-    return {
-        value: model.value(),
-        unixMilliseconds: model.unixMilliseconds(),
-    };
-}
-
-export function lwwElementFromProto(proto: Protocol.LWWElement): LWWElement {
-    return new LWWElement(proto.value, proto.unixMilliseconds);
-}
-
-export enum LWWElementSetOperation {
-    Add = 0,
-    Remove = 1,
-}
-
-export class LWWElementSet {
-    private _operation: LWWElementSetOperation;
-    private _value: Uint8Array;
-    private _unixMilliseconds: Long;
-
-    public constructor(
-        operation: LWWElementSetOperation,
-        value: Uint8Array,
-        unixMilliseconds: Long,
-    ) {
-        this._operation = operation;
-        this._value = value;
-        this._unixMilliseconds = unixMilliseconds;
-    }
-
-    public operation(): LWWElementSetOperation {
-        return this._operation;
-    }
-
-    public value(): Uint8Array {
-        return this._value;
-    }
-
-    public unixMilliseconds(): Long {
-        return this._unixMilliseconds;
-    }
-}
-
-export function lwwElementSetOperationToProto(
-    model: LWWElementSetOperation,
-): Protocol.LWWElementSet_Operation {
-    if (model === LWWElementSetOperation.Add) {
-        return Protocol.LWWElementSet_Operation.ADD;
-    } else {
-        return Protocol.LWWElementSet_Operation.REMOVE;
-    }
-}
-
-function lwwElementSetOperationFromProto(
-    proto: Protocol.LWWElementSet_Operation,
-): LWWElementSetOperation {
-    if (proto === Protocol.LWWElementSet_Operation.ADD) {
-        return LWWElementSetOperation.Add;
-    } else if (proto === Protocol.LWWElementSet_Operation.REMOVE) {
-        return LWWElementSetOperation.Remove;
-    } else {
-        throw new Error('unknown LWWElementSetOperation');
-    }
-}
-
-export function lwwElementSetToProto(
-    model: LWWElementSet,
-): Protocol.LWWElementSet {
-    return {
-        operation: lwwElementSetOperationToProto(model.operation()),
-        value: model.value(),
-        unixMilliseconds: model.unixMilliseconds(),
-    };
-}
-
-export function lwwElementSetFromProto(
-    proto: Protocol.LWWElementSet,
-): LWWElementSet {
-    return new LWWElementSet(
-        lwwElementSetOperationFromProto(proto.operation),
-        proto.value,
-        proto.unixMilliseconds,
-    );
-}
