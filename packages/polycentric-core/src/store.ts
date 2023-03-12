@@ -243,13 +243,13 @@ export class Store {
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
         logicalClock: Long,
-        signedEvent: Models.SignedEvent,
+        signedEvent: Models.SignedEvent.SignedEvent,
     ): PersistenceDriver.BinaryPutLevel {
         return {
             type: 'put',
             key: makeEventKey(system, process, logicalClock),
             value: Protocol.StorageTypeEvent.encode({
-                event: Models.signedEventToProto(signedEvent),
+                event: signedEvent,
             }).finish(),
             sublevel: this.levelEvents,
         };

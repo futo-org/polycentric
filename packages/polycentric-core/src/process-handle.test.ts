@@ -22,8 +22,8 @@ describe('processHandle', () => {
     test('basic post', async () => {
         const processHandle = await createProcessHandle();
 
-        const events: Array<Models.SignedEvent> = [];
-        processHandle.setListener((event: Models.SignedEvent) => {
+        const events: Array<Models.SignedEvent.SignedEvent> = [];
+        processHandle.setListener((event: Models.SignedEvent.SignedEvent) => {
             events.push(event);
         });
 
@@ -33,11 +33,11 @@ describe('processHandle', () => {
         expect(events.length).toStrictEqual(2);
 
         expect(
-            Models.eventFromProtoBuffer(events[0].event()).logicalClock(),
+            Models.eventFromProtoBuffer(events[0].event).logicalClock(),
         ).toStrictEqual(new Long(1, 0, true));
 
         expect(
-            Models.eventFromProtoBuffer(events[1].event()).logicalClock(),
+            Models.eventFromProtoBuffer(events[1].event).logicalClock(),
         ).toStrictEqual(new Long(2, 0, true));
     });
 

@@ -110,7 +110,8 @@ export class ProcessHandle {
     private _processSecret: Models.ProcessSecret;
     private _store: Store.Store;
     private _system: Models.PublicKey.PublicKey;
-    private _listener: ((signedEvent: Models.SignedEvent) => void) | undefined;
+    private _listener:
+        ((signedEvent: Models.SignedEvent.SignedEvent) => void) | undefined;
 
     private constructor(
         store: Store.Store,
@@ -132,7 +133,7 @@ export class ProcessHandle {
     }
 
     public setListener(
-        listener: (signedEvent: Models.SignedEvent) => void,
+        listener: (signedEvent: Models.SignedEvent.SignedEvent) => void,
     ): void {
         this._listener = listener;
     }
@@ -418,22 +419,22 @@ export class ProcessHandle {
             Models.eventToProto(event),
         ).finish();
 
-        const signedEvent = new Models.SignedEvent(
-            await Models.PrivateKey.sign(
+        const signedEvent = Models.SignedEvent.fromProto({
+            signature: await Models.PrivateKey.sign(
                 this._processSecret.system(),
                 eventBuffer,
             ),
-            eventBuffer,
-        );
+            event: eventBuffer,
+        });
 
         return await this.ingest(signedEvent);
     }
 
     public async ingest(
-        signedEvent: Models.SignedEvent,
+        signedEvent: Models.SignedEvent.SignedEvent,
     ): Promise<Models.Pointer.Pointer> {
         const event = Models.eventFromProto(
-            Protocol.Event.decode(signedEvent.event()),
+            Protocol.Event.decode(signedEvent.event),
         );
 
         const systemState = await this._store.getSystemState(event.system());

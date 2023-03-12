@@ -173,6 +173,21 @@ export namespace Pointer {
     }
 }
 
+export namespace SignedEvent {
+    export type SignedEvent =
+        Readonly<Protocol.SignedEvent> & { readonly __tag: unique symbol };
+
+    export function fromProto(proto: Protocol.SignedEvent): SignedEvent {
+        const event = eventFromProto(Protocol.Event.decode(proto.event));
+
+        if (!PublicKey.verify(event.system(), proto.signature, proto.event)) {
+            throw new Error('signature verification failed');
+        }
+
+        return proto as SignedEvent;
+    }
+}
+
 export enum ClaimType {
     HackerNews = "HackerNews",
     YouTube = "YouTube",
@@ -398,52 +413,15 @@ export function eventToProto(event: Event): Protocol.Event {
     };
 }
 
-export class SignedEvent {
-    private _signature: Uint8Array;
-    private _event: Uint8Array;
-
-    public constructor(signature: Uint8Array, rawEvent: Uint8Array) {
-        const event = eventFromProto(Protocol.Event.decode(rawEvent));
-
-        if (!PublicKey.verify(event.system(), signature, rawEvent)) {
-            throw new Error('signature verification failed');
-        }
-
-        this._signature = signature;
-        this._event = rawEvent;
-    }
-
-    public signature(): Uint8Array {
-        return this._signature;
-    }
-
-    public event(): Uint8Array {
-        return this._event;
-    }
-}
-
-export function signedEventFromProto(proto: Protocol.SignedEvent): SignedEvent {
-    return new SignedEvent(proto.signature, proto.event);
-}
-
-export function signedEventToProto(
-    signedEvent: SignedEvent,
-): Protocol.SignedEvent {
-    return {
-        signature: signedEvent.signature(),
-        event: signedEvent.event(),
-    };
-}
-
 export async function signedEventToPointer(
-    signedEvent: SignedEvent,
+    signedEvent: SignedEvent.SignedEvent,
 ): Promise<Pointer.Pointer> {
-    const event = eventFromProtoBuffer(signedEvent.event());
+    const event = eventFromProtoBuffer(signedEvent.event);
     return Pointer.fromProto({
         system: event.system(),
         process: event.process(),
         logicalClock: event.logicalClock(),
-        eventDigest: await hash(signedEvent.event()),
+        eventDigest: await hash(signedEvent.event),
     });
 }
 

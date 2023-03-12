@@ -346,7 +346,7 @@ export function MainPage(props: MainPageProps) {
 
         for (const protoSignedEvent of claimEvents) {
             const event = Core.Models.eventFromProtoBuffer(
-                Core.Models.signedEventFromProto(protoSignedEvent).event(),
+                Core.Models.SignedEvent.fromProto(protoSignedEvent).event,
             )
 
             if (
@@ -371,7 +371,7 @@ export function MainPage(props: MainPageProps) {
 
             for (const reference of references.events) {
                 const event = Core.Models.eventFromProtoBuffer(
-                    Core.Models.signedEventFromProto(reference).event(),
+                    Core.Models.SignedEvent.fromProto(reference).event,
                 )
 
                 vouchedBy.push(await loadMinimalProfile(

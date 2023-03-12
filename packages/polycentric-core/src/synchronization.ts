@@ -37,7 +37,7 @@ export async function saveBatch(
     events: Protocol.Events,
 ): Promise<void> {
     for (const rawEvent of events.events) {
-        await processHandle.ingest(Models.signedEventFromProto(rawEvent));
+        await processHandle.ingest(Models.SignedEvent.fromProto(rawEvent));
     }
 }
 
