@@ -28,6 +28,81 @@ export namespace ContentType {
     export const ContentTypeClaim = makeContentType(12);
 }
 
+export namespace PublicKey2 {
+    export type PublicKey =
+        Readonly<Protocol.PublicKey> & { readonly __tag: unique symbol };
+
+    export function fromProto(proto: Protocol.PublicKey): PublicKey {
+        if (!proto.keyType.equals(Long.UONE)) {
+            throw new Error('unknown key type');
+        }
+
+        if (proto.key.length !== 32) {
+            throw new Error('incorrect public key length');
+        }
+
+        return proto as PublicKey;
+    }
+
+    export function equal(a: PublicKey, b: PublicKey): boolean {
+        if (!a.keyType.equals(b.keyType)) {
+            return false;
+        }
+
+        return Util.buffersEqual(a.key, b.key);
+    }
+}
+
+export namespace PrivateKey2 {
+    export type PrivateKey =
+        Readonly<Protocol.PrivateKey> & { readonly __tag: unique symbol };
+
+    export function fromProto(proto: Protocol.PrivateKey): PrivateKey {
+        if (!proto.keyType.equals(Long.UONE)) {
+            throw new Error('unknown key type');
+        }
+
+        if (proto.key.length !== 32) {
+            throw new Error('incorrect public key length');
+        }
+
+        return proto as PrivateKey;
+    }
+
+    export function random(): PrivateKey {
+        return {
+            keyType: Long.UONE,
+            key: Ed.utils.randomPrivateKey(),
+        } as PrivateKey;
+    }
+
+    export async function derivePublicKey(
+        privateKey: PrivateKey,
+    ): Promise<PublicKey2.PublicKey> {
+        return PublicKey2.fromProto({ 
+            keyType: privateKey.keyType,
+            key: await Ed.getPublicKey(privateKey.key),
+        });
+    }
+}
+
+export namespace Digest2 {
+    export type Digest =
+        Readonly<Protocol.Digest> & { readonly __tag: unique symbol };
+
+    export function fromProto(proto: Protocol.Digest): Digest {
+        if (!proto.digestType.equals(Long.UONE)) {
+            throw new Error('unknown digest type');
+        }
+
+        if (proto.digest.length !== 32) {
+            throw new Error('incorrect digest length');
+        }
+
+        return proto as Digest;
+    }
+}
+
 export namespace Process {
     export type Process =
         Readonly<Protocol.Process> & { readonly __tag: unique symbol };
@@ -48,6 +123,38 @@ export namespace Process {
         return {
             process: Ed.utils.randomPrivateKey().slice(0, 16),
         } as Process;
+    }
+}
+
+export namespace Pointer2 {
+    interface PointerI {
+        system: PublicKey2.PublicKey;
+        process: Process.Process;
+        logicalClock: Long;
+        eventDigest: Digest2.Digest;
+    }
+
+    export type Pointer =
+        Readonly<PointerI> & { readonly __tag: unique symbol };
+
+    export function fromProto(proto: Protocol.Pointer): Pointer {
+        if (proto.system === undefined) {
+            throw new Error('expected system');
+        }
+
+        if (proto.process === undefined) {
+            throw new Error('expected process');
+        }
+
+        if (proto.eventDigest === undefined) {
+            throw new Error('expected digest');
+        }
+
+        PublicKey2.fromProto(proto.system);
+        Process.fromProto(proto.process);
+        Digest2.fromProto(proto.eventDigest);
+
+        return proto as Pointer;
     }
 }
 
