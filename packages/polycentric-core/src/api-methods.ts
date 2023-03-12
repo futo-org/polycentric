@@ -32,10 +32,10 @@ export async function postEvents(
 
 export async function getRanges(
     server: string,
-    system: Models.PublicKey,
+    system: Models.PublicKey.PublicKey,
 ): Promise<Protocol.RangesForSystem> {
     const systemQuery = Base64.encodeUrl(
-        Protocol.PublicKey.encode(Models.publicKeyToProto(system)).finish(),
+        Protocol.PublicKey.encode(system).finish(),
     );
 
     const path = `/ranges?system=${systemQuery}`;
@@ -56,11 +56,11 @@ export async function getRanges(
 
 export async function getEvents(
     server: string,
-    system: Models.PublicKey,
+    system: Models.PublicKey.PublicKey,
     ranges: Protocol.RangesForSystem,
 ): Promise<Protocol.Events> {
     const systemQuery = Base64.encodeUrl(
-        Protocol.PublicKey.encode(Models.publicKeyToProto(system)).finish(),
+        Protocol.PublicKey.encode(system).finish(),
     );
 
     const rangesQuery = Base64.encodeUrl(
@@ -85,11 +85,11 @@ export async function getEvents(
 
 export async function getResolveClaim(
     server: string,
-    trustRoot: Models.PublicKey,
+    trustRoot: Models.PublicKey.PublicKey,
     claim: Protocol.Claim,
 ): Promise<Protocol.Events> {
     const trustRootQuery = Base64.encodeUrl(
-        Protocol.PublicKey.encode(Models.publicKeyToProto(trustRoot)).finish(),
+        Protocol.PublicKey.encode(trustRoot).finish(),
     );
 
     const claimQuery = Base64.encodeUrl(Protocol.Claim.encode(claim).finish());
@@ -113,12 +113,12 @@ export async function getResolveClaim(
 
 export async function getQueryIndex(
     server: string,
-    system: Models.PublicKey,
+    system: Models.PublicKey.PublicKey,
     eventTypes: Array<Models.ContentType.ContentType>,
     limit: number | undefined,
 ): Promise<Protocol.Events> {
     const systemQuery = Base64.encodeUrl(
-        Protocol.PublicKey.encode(Models.publicKeyToProto(system)).finish(),
+        Protocol.PublicKey.encode(system).finish(),
     );
 
     const eventTypesQuery = Base64.encodeUrl(
@@ -148,13 +148,13 @@ export async function getQueryIndex(
 
 export async function getQueryReferences(
     server: string,
-    system: Models.PublicKey,
+    system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
     logicalClock: Long,
     fromType: Long,
 ): Promise<Protocol.Events> {
     const systemQuery = Base64.encodeUrl(
-        Protocol.PublicKey.encode(Models.publicKeyToProto(system)).finish(),
+        Protocol.PublicKey.encode(system).finish(),
     );
 
     const processQuery = Base64.encodeUrl(

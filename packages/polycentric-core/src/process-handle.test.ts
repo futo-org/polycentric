@@ -120,7 +120,7 @@ describe('processHandle', () => {
 
         const pointer = await processHandle.post('jej');
 
-        await processHandle.delete(pointer.process(), pointer.logicalClock());
+        await processHandle.delete(pointer.process, pointer.logicalClock);
     });
 
     test('claim index', async () => {

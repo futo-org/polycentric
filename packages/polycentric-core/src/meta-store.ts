@@ -8,7 +8,7 @@ import * as Protocol from './protocol';
 const ACTIVE_STORE_KEY = Util.encodeText('ACTIVE_STORE');
 
 export type StoreInfo = {
-    system: Models.PublicKey;
+    system: Models.PublicKey.PublicKey;
     version: number;
     ready: boolean;
 };
@@ -17,7 +17,7 @@ export function encodeStoreInfo(storeInfo: StoreInfo): Uint8Array {
     const intermediate = {
         system: Base64.encode(
             Protocol.PublicKey.encode(
-                Models.publicKeyToProto(storeInfo.system),
+                storeInfo.system,
             ).finish(),
         ),
         version: storeInfo.version,
@@ -33,7 +33,7 @@ export function decodeStoreInfo(buffer: Uint8Array): StoreInfo {
     const parsed = JSON.parse(text);
 
     return {
-        system: Models.publicKeyFromProto(
+        system: Models.PublicKey.fromProto(
             Protocol.PublicKey.decode(Base64.decode(parsed.system)),
         ),
         version: parsed.version,
@@ -43,18 +43,24 @@ export function decodeStoreInfo(buffer: Uint8Array): StoreInfo {
 
 export interface IMetaStore {
     openStore: (
-        system: Models.PublicKey,
+        system: Models.PublicKey.PublicKey,
         version: number,
     ) => Promise<PersistenceDriver.BinaryAbstractLevel>;
 
-    deleteStore: (system: Models.PublicKey, version: number) => Promise<void>;
+    deleteStore: (
+        system: Models.PublicKey.PublicKey,
+        version: number,
+    ) => Promise<void>;
 
     listStores: () => Promise<Array<StoreInfo>>;
 
-    setStoreReady: (system: Models.PublicKey, version: number) => Promise<void>;
+    setStoreReady: (
+        system: Models.PublicKey.PublicKey,
+        version: number,
+    ) => Promise<void>;
 
     setActiveStore: (
-        system: Models.PublicKey,
+        system: Models.PublicKey.PublicKey,
         version: number,
     ) => Promise<void>;
 
@@ -63,11 +69,14 @@ export interface IMetaStore {
     getActiveStore: () => Promise<StoreInfo | undefined>;
 }
 
-function makeStorePath(system: Models.PublicKey, version: number): string {
+function makeStorePath(
+    system: Models.PublicKey.PublicKey,
+    version: number,
+): string {
     return (
-        system.keyType().toString() +
+        system.keyType.toString() +
         '_' +
-        Base64.encode(system.key()) +
+        Base64.encode(system.key) +
         '_' +
         version.toString()
     );
@@ -83,7 +92,10 @@ export async function createMetaStore(
         valueEncoding: 'buffer',
     }) as PersistenceDriver.BinaryAbstractLevel;
 
-    const openStore = async (system: Models.PublicKey, version: number) => {
+    const openStore = async (
+        system: Models.PublicKey.PublicKey,
+        version: number,
+    ) => {
         const pathString = makeStorePath(system, version);
         const pathBinary = Util.encodeText(pathString);
 
@@ -119,7 +131,10 @@ export async function createMetaStore(
         return result;
     };
 
-    const setStoreReady = async (system: Models.PublicKey, version: number) => {
+    const setStoreReady = async (
+        system: Models.PublicKey.PublicKey,
+        version: number,
+    ) => {
         const pathString = makeStorePath(system, version);
         const pathBinary = Util.encodeText(pathString);
 
@@ -144,7 +159,7 @@ export async function createMetaStore(
     };
 
     const setActiveStore = async (
-        system: Models.PublicKey,
+        system: Models.PublicKey.PublicKey,
         version: number,
     ) => {
         const pathString = makeStorePath(system, version);
@@ -181,7 +196,10 @@ export async function createMetaStore(
         }
     };
 
-    const deleteStore = async (system: Models.PublicKey, version: number) => {
+    const deleteStore = async (
+        system: Models.PublicKey.PublicKey,
+        version: number,
+    ) => {
         const pathString = makeStorePath(system, version);
         const pathBinary = Util.encodeText(pathString);
 
@@ -196,7 +214,7 @@ export async function createMetaStore(
 
         if (
             activeStore.version === version &&
-            Models.publicKeysEqual(system, activeStore.system)
+            Models.PublicKey.equal(system, activeStore.system)
         ) {
             await unsetActiveStore();
         }

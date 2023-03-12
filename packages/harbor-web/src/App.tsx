@@ -197,18 +197,18 @@ function Profile(props: ProfileProps) {
 
 async function loadImageFromPointer(
     processHandle: Core.ProcessHandle.ProcessHandle,
-    pointer: Core.Models.Pointer,
+    pointer: Core.Models.Pointer.Pointer,
 ) {
     await Core.Synchronization.saveBatch(
         processHandle,
-        await Core.APIMethods.getEvents(server, pointer.system(), {
+        await Core.APIMethods.getEvents(server, pointer.system, {
             rangesForProcesses: [
                 {
-                    process: pointer.process(), 
+                    process: pointer.process, 
                     ranges: [
                         {
-                            low: pointer.logicalClock(),
-                            high: pointer.logicalClock().add(Long.UONE),
+                            low: pointer.logicalClock,
+                            high: pointer.logicalClock.add(Long.UONE),
                         },
                     ],
                 },
@@ -233,7 +233,7 @@ async function loadImageFromPointer(
 
 async function loadMinimalProfile(
     processHandle: Core.ProcessHandle.ProcessHandle,
-    system: Core.Models.PublicKey,
+    system: Core.Models.PublicKey.PublicKey,
 ): Promise<Profile> {
     await Core.Synchronization.saveBatch(
         processHandle,
@@ -269,9 +269,7 @@ async function loadMinimalProfile(
         username: systemState.username(),
         link: Base64.encodeUrl(
             Core.Protocol.PublicKey.encode(
-                Core.Models.publicKeyToProto(
-                    system,
-                ),
+                system,
             ).finish(),
         ),
     };
@@ -290,7 +288,7 @@ export function MainPage(props: MainPageProps) {
     const load = async (
         cancelContext: Core.CancelContext.CancelContext,
     ) => {
-        const system = Core.Models.publicKeyFromProto(
+        const system = Core.Models.PublicKey.fromProto(
             Core.Protocol.PublicKey.decode(
                 Base64.decode(systemQuery!),
             ),

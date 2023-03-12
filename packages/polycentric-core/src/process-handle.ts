@@ -16,14 +16,14 @@ export class SystemState {
     private _processes: Array<Models.Process.Process>;
     private _username: string;
     private _description: string;
-    private _avatar: Models.Pointer | undefined;
+    private _avatar: Models.Pointer.Pointer | undefined;
 
     public constructor(
         servers: Array<string>,
         processes: Array<Models.Process.Process>,
         username: string,
         description: string,
-        avatar: Models.Pointer | undefined,
+        avatar: Models.Pointer.Pointer | undefined,
     ) {
         this._servers = servers;
         this._processes = processes;
@@ -48,7 +48,7 @@ export class SystemState {
         return this._description;
     }
 
-    public avatar(): Models.Pointer | undefined {
+    public avatar(): Models.Pointer.Pointer | undefined {
         return this._avatar;
     }
 }
@@ -97,7 +97,7 @@ function protoSystemStateToSystemState(
                 Models.ContentType.ContentTypeAvatar,
             )
         ) {
-            avatar = Models.pointerFromProto(
+            avatar = Models.Pointer.fromProto(
                 Protocol.Pointer.decode(item.value),
             );
         }
@@ -109,13 +109,13 @@ function protoSystemStateToSystemState(
 export class ProcessHandle {
     private _processSecret: Models.ProcessSecret;
     private _store: Store.Store;
-    private _system: Models.PublicKey;
+    private _system: Models.PublicKey.PublicKey;
     private _listener: ((signedEvent: Models.SignedEvent) => void) | undefined;
 
     private constructor(
         store: Store.Store,
         processSecret: Models.ProcessSecret,
-        system: Models.PublicKey,
+        system: Models.PublicKey.PublicKey,
     ) {
         this._store = store;
         this._processSecret = processSecret;
@@ -123,7 +123,7 @@ export class ProcessHandle {
         this._listener = undefined;
     }
 
-    public system(): Models.PublicKey {
+    public system(): Models.PublicKey.PublicKey {
         return this._system;
     }
 
@@ -143,11 +143,11 @@ export class ProcessHandle {
         return new ProcessHandle(
             store,
             processSecret,
-            await processSecret.system().derivePublicKey(),
+            await Models.PrivateKey.derivePublicKey(processSecret.system()),
         );
     }
 
-    public async post(content: string): Promise<Models.Pointer> {
+    public async post(content: string): Promise<Models.Pointer.Pointer> {
         return await this.publish(
             Models.ContentType.ContentTypePost,
             Protocol.Post.encode({
@@ -159,7 +159,9 @@ export class ProcessHandle {
         );
     }
 
-    public async setUsername(username: string): Promise<Models.Pointer> {
+    public async setUsername(
+        username: string,
+    ): Promise<Models.Pointer.Pointer> {
         return await this.publish(
             Models.ContentType.ContentTypeUsername,
             new Uint8Array(),
@@ -172,7 +174,9 @@ export class ProcessHandle {
         );
     }
 
-    public async setDescription(description: string): Promise<Models.Pointer> {
+    public async setDescription(
+        description: string,
+    ): Promise<Models.Pointer.Pointer> {
         return await this.publish(
             Models.ContentType.ContentTypeDescription,
             new Uint8Array(),
@@ -185,20 +189,22 @@ export class ProcessHandle {
         );
     }
 
-    public async setAvatar(avatar: Models.Pointer): Promise<Models.Pointer> {
+    public async setAvatar(
+        avatar: Models.Pointer.Pointer
+    ): Promise<Models.Pointer.Pointer> {
         return await this.publish(
             Models.ContentType.ContentTypeAvatar,
             new Uint8Array(),
             undefined,
             new Models.LWWElement(
-                Protocol.Pointer.encode(Models.pointerToProto(avatar)).finish(),
+                Protocol.Pointer.encode(avatar).finish(),
                 Long.fromNumber(Date.now(), true),
             ),
             [],
         );
     }
 
-    public async addServer(server: string): Promise<Models.Pointer> {
+    public async addServer(server: string): Promise<Models.Pointer.Pointer> {
         return await this.publish(
             Models.ContentType.ContentTypeServer,
             new Uint8Array(),
@@ -212,7 +218,7 @@ export class ProcessHandle {
         );
     }
 
-    public async removeServer(server: string): Promise<Models.Pointer> {
+    public async removeServer(server: string): Promise<Models.Pointer.Pointer> {
         return await this.publish(
             Models.ContentType.ContentTypeServer,
             new Uint8Array(),
@@ -226,7 +232,9 @@ export class ProcessHandle {
         );
     }
 
-    public async vouch(pointer: Models.Pointer): Promise<Models.Pointer> {
+    public async vouch(
+        pointer: Models.Pointer.Pointer,
+    ): Promise<Models.Pointer.Pointer> {
         return await this.publish(
             Models.ContentType.ContentTypeVouch,
             new Uint8Array(),
@@ -236,7 +244,9 @@ export class ProcessHandle {
         );
     }
 
-    public async claim(claimValue: Protocol.Claim): Promise<Models.Pointer> {
+    public async claim(
+        claimValue: Protocol.Claim,
+    ): Promise<Models.Pointer.Pointer> {
         return await this.publish(
             Models.ContentType.ContentTypeClaim,
             Protocol.Claim.encode(claimValue).finish(),
@@ -249,7 +259,7 @@ export class ProcessHandle {
     public async delete(
         process: Models.Process.Process,
         logicalClock: Long,
-    ): Promise<Models.Pointer | undefined> {
+    ): Promise<Models.Pointer.Pointer | undefined> {
         const signedEvent = await this._store.getSignedEvent(
             this._system,
             process,
@@ -280,7 +290,7 @@ export class ProcessHandle {
     public async publishBlob(
         mime: string,
         content: Uint8Array,
-    ): Promise<Models.Pointer> {
+    ): Promise<Models.Pointer.Pointer> {
         const meta = await this.publish(
             Models.ContentType.ContentTypeBlobMeta,
             Protocol.BlobMeta.encode({
@@ -295,7 +305,7 @@ export class ProcessHandle {
         await this.publish(
             Models.ContentType.ContentTypeBlobSection,
             Protocol.BlobSection.encode({
-                metaPointer: meta.logicalClock(),
+                metaPointer: meta.logicalClock,
                 content: content,
             }).finish(),
             undefined,
@@ -307,13 +317,13 @@ export class ProcessHandle {
     }
 
     public async loadBlob(
-        pointer: Models.Pointer,
+        pointer: Models.Pointer.Pointer,
     ): Promise<Models.Blob | undefined> {
         const meta = await (async () => {
             const signedEvent = await this._store.getSignedEvent(
-                pointer.system(),
-                pointer.process(),
-                pointer.logicalClock(),
+                pointer.system,
+                pointer.process,
+                pointer.logicalClock,
             );
 
             if (!signedEvent) {
@@ -339,9 +349,9 @@ export class ProcessHandle {
 
         const section = await (async () => {
             const signedEvent = await this._store.getSignedEvent(
-                pointer.system(),
-                pointer.process(),
-                pointer.logicalClock().add(Long.UONE),
+                pointer.system,
+                pointer.process,
+                pointer.logicalClock.add(Long.UONE),
             );
 
             if (!signedEvent) {
@@ -369,7 +379,7 @@ export class ProcessHandle {
     }
 
     public async loadSystemState(
-        system: Models.PublicKey,
+        system: Models.PublicKey.PublicKey,
     ): Promise<SystemState> {
         const systemState = await this._store.getSystemState(system);
 
@@ -382,7 +392,7 @@ export class ProcessHandle {
         lwwElementSet: Models.LWWElementSet | undefined,
         lwwElement: Models.LWWElement | undefined,
         references: Array<Protocol.Reference>,
-    ): Promise<Models.Pointer> {
+    ): Promise<Models.Pointer.Pointer> {
         const processState = await this._store.getProcessState(
             this._system,
             this._processSecret.process(),
@@ -409,7 +419,10 @@ export class ProcessHandle {
         ).finish();
 
         const signedEvent = new Models.SignedEvent(
-            await this._processSecret.system().sign(eventBuffer),
+            await Models.PrivateKey.sign(
+                this._processSecret.system(),
+                eventBuffer,
+            ),
             eventBuffer,
         );
 
@@ -418,7 +431,7 @@ export class ProcessHandle {
 
     public async ingest(
         signedEvent: Models.SignedEvent,
-    ): Promise<Models.Pointer> {
+    ): Promise<Models.Pointer.Pointer> {
         const event = Models.eventFromProto(
             Protocol.Event.decode(signedEvent.event()),
         );
@@ -521,8 +534,8 @@ export class ProcessHandle {
 export async function createProcessHandle(
     metaStore: MetaStore.IMetaStore,
 ): Promise<ProcessHandle> {
-    const privateKey = Models.generateRandomPrivateKey();
-    const publicKey = await privateKey.derivePublicKey();
+    const privateKey = Models.PrivateKey.random();
+    const publicKey = await Models.PrivateKey.derivePublicKey(privateKey);
     const process = Models.Process.random();
 
     const level = await metaStore.openStore(publicKey, 0);

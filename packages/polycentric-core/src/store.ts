@@ -14,31 +14,31 @@ export const MAX_8BYTE_KEY = new Uint8Array(8).fill(255);
 export const MIN_32BYTE_KEY = new Uint8Array(32).fill(0);
 export const MAX_32BYTE_KEY = new Uint8Array(32).fill(255);
 
-function makeSystemStateKey(system: Models.PublicKey): Uint8Array {
+function makeSystemStateKey(system: Models.PublicKey.PublicKey): Uint8Array {
     return Util.encodeText(
-        system.keyType().toString() + Base64.encode(system.key()),
+        system.keyType.toString() + Base64.encode(system.key),
     );
 }
 
 function makeProcessStateKey(
-    system: Models.PublicKey,
+    system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
 ): Uint8Array {
     return Util.encodeText(
-        system.keyType().toString() +
-        Base64.encode(system.key()) +
+        system.keyType.toString() +
+        Base64.encode(system.key) +
         Base64.encode(process.process),
     );
 }
 
 function makeEventKey(
-    system: Models.PublicKey,
+    system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
     logicalClock: Long,
 ): Uint8Array {
     return Util.encodeText(
-        system.keyType().toString() +
-        Base64.encode(system.key()) +
+        system.keyType.toString() +
+        Base64.encode(system.key) +
         Base64.encode(process.process) +
         logicalClock.toString(),
     );
@@ -95,7 +95,7 @@ export class Store {
     }
 
     public async getProcessState(
-        system: Models.PublicKey,
+        system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
     ): Promise<Protocol.StorageTypeProcessState> {
         const attempt = await PersistenceDriver.tryLoadKey(
@@ -115,7 +115,7 @@ export class Store {
     }
 
     public putProcessState(
-        system: Models.PublicKey,
+        system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
         state: Protocol.StorageTypeProcessState,
     ): PersistenceDriver.BinaryPutLevel {
@@ -128,7 +128,7 @@ export class Store {
     }
 
     public async getSystemState(
-        system: Models.PublicKey,
+        system: Models.PublicKey.PublicKey,
     ): Promise<Protocol.StorageTypeSystemState> {
         const attempt = await PersistenceDriver.tryLoadKey(
             this.levelSystemStates,
@@ -147,7 +147,7 @@ export class Store {
     }
 
     public deleteIndexClaim(
-        system: Models.PublicKey,
+        system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
         logicalClock: Long,
     ): PersistenceDriver.BinaryDelLevel {
@@ -161,7 +161,7 @@ export class Store {
     }
 
     public putIndexClaim(
-        system: Models.PublicKey,
+        system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
         logicalClock: Long,
     ): PersistenceDriver.BinaryPutLevel {
@@ -176,7 +176,7 @@ export class Store {
     }
 
     public async queryClaimIndex(
-        system: Models.PublicKey,
+        system: Models.PublicKey.PublicKey,
         limit: number,
         iterator: Uint8Array | undefined,
     ): Promise<[Array<Protocol.SignedEvent>, Uint8Array | undefined]> {
@@ -212,7 +212,7 @@ export class Store {
     }
 
     public putSystemState(
-        system: Models.PublicKey,
+        system: Models.PublicKey.PublicKey,
         state: Protocol.StorageTypeSystemState,
     ): PersistenceDriver.BinaryPutLevel {
         return {
@@ -224,23 +224,23 @@ export class Store {
     }
 
     public putTombstone(
-        system: Models.PublicKey,
+        system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
         logicalClock: Long,
-        mutationPointer: Models.Pointer,
+        mutationPointer: Models.Pointer.Pointer,
     ): PersistenceDriver.BinaryPutLevel {
         return {
             type: 'put',
             key: makeEventKey(system, process, logicalClock),
             value: Protocol.StorageTypeEvent.encode({
-                mutationPointer: Models.pointerToProto(mutationPointer),
+                mutationPointer: mutationPointer,
             }).finish(),
             sublevel: this.levelEvents,
         };
     }
 
     public putEvent(
-        system: Models.PublicKey,
+        system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
         logicalClock: Long,
         signedEvent: Models.SignedEvent,
@@ -271,14 +271,14 @@ export class Store {
             if (storageEvent.event) {
                 return storageEvent.event;
             } else if (storageEvent.mutationPointer) {
-                const mutationPointer = Models.pointerFromProto(
+                const mutationPointer = Models.Pointer.fromProto(
                     storageEvent.mutationPointer,
                 );
 
                 return await this.getSignedEvent(
-                    mutationPointer.system(),
-                    mutationPointer.process(),
-                    mutationPointer.logicalClock(),
+                    mutationPointer.system,
+                    mutationPointer.process,
+                    mutationPointer.logicalClock,
                 );
             } else {
                 return undefined;
@@ -287,7 +287,7 @@ export class Store {
     }
 
     public async getSignedEvent(
-        system: Models.PublicKey,
+        system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
         logicalClock: Long,
     ): Promise<Protocol.SignedEvent | undefined> {
@@ -304,14 +304,14 @@ export class Store {
             if (storageEvent.event) {
                 return storageEvent.event;
             } else if (storageEvent.mutationPointer) {
-                const mutationPointer = Models.pointerFromProto(
+                const mutationPointer = Models.Pointer.fromProto(
                     storageEvent.mutationPointer,
                 );
 
                 return await this.getSignedEvent(
-                    mutationPointer.system(),
-                    mutationPointer.process(),
-                    mutationPointer.logicalClock(),
+                    mutationPointer.system,
+                    mutationPointer.process,
+                    mutationPointer.logicalClock,
                 );
             } else {
                 return undefined;

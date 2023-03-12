@@ -61,10 +61,10 @@ describe('integration', () => {
         await s1p1.setUsername('Louis Rossmann');
         await s1p1.setDescription('Apple and Apple accesories');
 
-        function systemToBase64(system: Models.PublicKey): string {
+        function systemToBase64(system: Models.PublicKey.PublicKey): string {
             return Base64.encodeUrl(
                 Protocol.PublicKey.encode(
-                    Models.publicKeyToProto(system),
+                    system,
                 ).finish(),
             );
         }

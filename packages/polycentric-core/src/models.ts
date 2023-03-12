@@ -28,7 +28,7 @@ export namespace ContentType {
     export const ContentTypeClaim = makeContentType(12);
 }
 
-export namespace PublicKey2 {
+export namespace PublicKey {
     export type PublicKey =
         Readonly<Protocol.PublicKey> & { readonly __tag: unique symbol };
 
@@ -51,9 +51,17 @@ export namespace PublicKey2 {
 
         return Util.buffersEqual(a.key, b.key);
     }
+
+    export async function verify(
+        key: PublicKey,
+        signature: Uint8Array,
+        bytes: Uint8Array,
+    ): Promise<boolean> {
+        return await Ed.verify(signature, bytes, key.key);
+    }
 }
 
-export namespace PrivateKey2 {
+export namespace PrivateKey {
     export type PrivateKey =
         Readonly<Protocol.PrivateKey> & { readonly __tag: unique symbol };
 
@@ -78,15 +86,22 @@ export namespace PrivateKey2 {
 
     export async function derivePublicKey(
         privateKey: PrivateKey,
-    ): Promise<PublicKey2.PublicKey> {
-        return PublicKey2.fromProto({ 
+    ): Promise<PublicKey.PublicKey> {
+        return PublicKey.fromProto({ 
             keyType: privateKey.keyType,
             key: await Ed.getPublicKey(privateKey.key),
         });
     }
+
+    export async function sign(
+        privateKey: PrivateKey,
+        bytes: Uint8Array,
+    ): Promise<Uint8Array> {
+        return await Ed.sign(bytes, privateKey.key);
+    }
 }
 
-export namespace Digest2 {
+export namespace Digest {
     export type Digest =
         Readonly<Protocol.Digest> & { readonly __tag: unique symbol };
 
@@ -126,12 +141,12 @@ export namespace Process {
     }
 }
 
-export namespace Pointer2 {
+export namespace Pointer {
     interface PointerI {
-        system: PublicKey2.PublicKey;
+        system: PublicKey.PublicKey;
         process: Process.Process;
         logicalClock: Long;
-        eventDigest: Digest2.Digest;
+        eventDigest: Digest.Digest;
     }
 
     export type Pointer =
@@ -150,9 +165,9 @@ export namespace Pointer2 {
             throw new Error('expected digest');
         }
 
-        PublicKey2.fromProto(proto.system);
+        PublicKey.fromProto(proto.system);
         Process.fromProto(proto.process);
-        Digest2.fromProto(proto.eventDigest);
+        Digest.fromProto(proto.eventDigest);
 
         return proto as Pointer;
     }
@@ -231,224 +246,26 @@ export class Blob {
     }
 }
 
-export class Digest {
-    private _digestType: Long;
-    private _digest: Uint8Array;
-
-    public constructor(digestType: Long, digest: Uint8Array) {
-        if (!digestType.equals(Long.UONE)) {
-            throw new Error('unknown digest type');
-        }
-
-        if (digest.length !== 32) {
-            throw new Error('incorrect digest length');
-        }
-
-        this._digestType = digestType;
-        this._digest = digest;
-    }
-
-    public digestType(): Long {
-        return this._digestType;
-    }
-
-    public digest(): Uint8Array {
-        return this._digest;
-    }
-}
-
-export function digestFromProto(proto: Protocol.Digest): Digest {
-    return new Digest(proto.digestType, proto.digest);
-}
-
-export function digestToProto(digest: Digest): Protocol.Digest {
-    return {
-        digestType: digest.digestType(),
-        digest: digest.digest(),
-    };
-}
-
-export async function hash(bytes: Uint8Array): Promise<Digest> {
+export async function hash(bytes: Uint8Array): Promise<Digest.Digest> {
     const context = new FastSHA256.Hash();
     context.update(bytes);
-    return new Digest(Long.UONE, await context.digest());
+    return Digest.fromProto({
+        digestType: Long.UONE,
+        digest: await context.digest(),
+    });
 }
 
-export class Pointer {
-    private _system: PublicKey;
-    private _process: Process.Process;
-    private _logicalClock: Long;
-    private _digest: Digest;
-
-    public constructor(
-        system: PublicKey,
-        process: Process.Process,
-        logicalClock: Long,
-        digest: Digest,
-    ) {
-        this._system = system;
-        this._process = process;
-        this._logicalClock = logicalClock;
-        this._digest = digest;
-    }
-
-    public system(): PublicKey {
-        return this._system;
-    }
-
-    public process(): Process.Process {
-        return this._process;
-    }
-
-    public logicalClock(): Long {
-        return this._logicalClock;
-    }
-
-    public digest(): Digest {
-        return this._digest;
-    }
-}
-
-export function pointerFromProto(proto: Protocol.Pointer): Pointer {
-    if (proto.system === undefined) {
-        throw new Error('expected system');
-    }
-
-    if (proto.process === undefined) {
-        throw new Error('expected process');
-    }
-
-    if (proto.eventDigest === undefined) {
-        throw new Error('expected digest');
-    }
-
-    return new Pointer(
-        publicKeyFromProto(proto.system),
-        Process.fromProto(proto.process),
-        proto.logicalClock,
-        digestFromProto(proto.eventDigest),
-    );
-}
-
-export function pointerToProto(pointer: Pointer): Protocol.Pointer {
-    return {
-        system: publicKeyToProto(pointer.system()),
-        process: pointer.process(),
-        logicalClock: pointer.logicalClock(),
-        eventDigest: digestToProto(pointer.digest()),
-    };
-}
-
-export function pointerToReference(pointer: Pointer): Protocol.Reference {
+export function pointerToReference(
+    pointer: Pointer.Pointer,
+): Protocol.Reference {
     return {
         referenceType: new Long(2, 0, true),
-        reference: Protocol.Pointer.encode(pointerToProto(pointer)).finish(),
+        reference: Protocol.Pointer.encode(pointer).finish(),
     };
-}
-
-export class PublicKey {
-    private _keyType: Long;
-    private _key: Uint8Array;
-
-    public constructor(keyType: Long, key: Uint8Array) {
-        if (!keyType.equals(Long.UONE)) {
-            throw new Error('unknown key type');
-        }
-
-        if (key.length !== 32) {
-            throw new Error('incorrect public key length');
-        }
-
-        this._keyType = keyType;
-        this._key = key;
-    }
-
-    public async verify(
-        signature: Uint8Array,
-        bytes: Uint8Array,
-    ): Promise<boolean> {
-        return await Ed.verify(signature, bytes, this._key);
-    }
-
-    public keyType(): Long {
-        return this._keyType;
-    }
-
-    public key(): Uint8Array {
-        return this._key;
-    }
-}
-
-export function publicKeyFromProto(proto: Protocol.PublicKey): PublicKey {
-    return new PublicKey(proto.keyType, proto.key);
-}
-
-export function publicKeyToProto(publicKey: PublicKey): Protocol.PublicKey {
-    return {
-        keyType: publicKey.keyType(),
-        key: publicKey.key(),
-    };
-}
-
-export function publicKeysEqual(a: PublicKey, b: PublicKey): boolean {
-    if (!a.keyType().equals(b.keyType())) {
-        return false;
-    }
-
-    return Util.buffersEqual(a.key(), b.key());
-}
-
-export class PrivateKey {
-    private _keyType: Long;
-    private _key: Uint8Array;
-
-    public constructor(keyType: Long, key: Uint8Array) {
-        if (!keyType.equals(Long.UONE)) {
-            throw new Error('unknown key type');
-        }
-
-        if (key.length !== 32) {
-            throw new Error('incorrect private key length');
-        }
-
-        this._keyType = keyType;
-        this._key = key;
-    }
-
-    public async sign(bytes: Uint8Array): Promise<Uint8Array> {
-        return await Ed.sign(bytes, this._key);
-    }
-
-    public async derivePublicKey(): Promise<PublicKey> {
-        return new PublicKey(this._keyType, await Ed.getPublicKey(this._key));
-    }
-
-    public keyType(): Long {
-        return this._keyType;
-    }
-
-    public key(): Uint8Array {
-        return this._key;
-    }
-}
-
-function privateKeyFromProto(proto: Protocol.PrivateKey): PrivateKey {
-    return new PrivateKey(proto.keyType, proto.key);
-}
-
-export function privateKeyToProto(privateKey: PrivateKey): Protocol.PrivateKey {
-    return {
-        keyType: privateKey.keyType(),
-        key: privateKey.key(),
-    };
-}
-
-export function generateRandomPrivateKey(): PrivateKey {
-    return new PrivateKey(Long.UONE, Ed.utils.randomPrivateKey());
 }
 
 export class Event {
-    private _system: PublicKey;
+    private _system: PublicKey.PublicKey;
     private _process: Process.Process;
     private _logicalClock: Long;
     private _contentType: ContentType.ContentType;
@@ -459,7 +276,7 @@ export class Event {
     private _indices: Array<Protocol.Index>;
 
     public constructor(
-        system: PublicKey,
+        system: PublicKey.PublicKey,
         process: Process.Process,
         logicalClock: Long,
         contentType: ContentType.ContentType,
@@ -488,7 +305,7 @@ export class Event {
         this._indices = indices;
     }
 
-    public system(): PublicKey {
+    public system(): PublicKey.PublicKey {
         return this._system;
     }
 
@@ -539,7 +356,7 @@ export function eventFromProto(proto: Protocol.Event): Event {
     }
 
     return new Event(
-        publicKeyFromProto(proto.system),
+        PublicKey.fromProto(proto.system),
         Process.fromProto(proto.process),
         proto.logicalClock,
         proto.contentType as ContentType.ContentType,
@@ -562,7 +379,7 @@ export function eventToProto(event: Event): Protocol.Event {
     const lwwElement = event.lwwElement();
 
     return {
-        system: publicKeyToProto(event.system()),
+        system: event.system(),
         process: event.process(),
         logicalClock: event.logicalClock(),
         contentType: event.contentType(),
@@ -588,7 +405,7 @@ export class SignedEvent {
     public constructor(signature: Uint8Array, rawEvent: Uint8Array) {
         const event = eventFromProto(Protocol.Event.decode(rawEvent));
 
-        if (!event.system().verify(signature, rawEvent)) {
+        if (!PublicKey.verify(event.system(), signature, rawEvent)) {
             throw new Error('signature verification failed');
         }
 
@@ -620,26 +437,26 @@ export function signedEventToProto(
 
 export async function signedEventToPointer(
     signedEvent: SignedEvent,
-): Promise<Pointer> {
+): Promise<Pointer.Pointer> {
     const event = eventFromProtoBuffer(signedEvent.event());
-    return new Pointer(
-        event.system(),
-        event.process(),
-        event.logicalClock(),
-        await hash(signedEvent.event()),
-    );
+    return Pointer.fromProto({
+        system: event.system(),
+        process: event.process(),
+        logicalClock: event.logicalClock(),
+        eventDigest: await hash(signedEvent.event()),
+    });
 }
 
 export class ProcessSecret {
-    private _system: PrivateKey;
+    private _system: PrivateKey.PrivateKey;
     private _process: Process.Process;
 
-    constructor(system: PrivateKey, process: Process.Process) {
+    constructor(system: PrivateKey.PrivateKey, process: Process.Process) {
         this._system = system;
         this._process = process;
     }
 
-    public system(): PrivateKey {
+    public system(): PrivateKey.PrivateKey {
         return this._system;
     }
 
@@ -660,7 +477,7 @@ export function processSecretFromProto(
     }
 
     return new ProcessSecret(
-        privateKeyFromProto(proto.system),
+        PrivateKey.fromProto(proto.system),
         Process.fromProto(proto.process),
     );
 }
@@ -669,7 +486,7 @@ export function processSecretToProto(
     processSecret: ProcessSecret,
 ): Protocol.StorageTypeProcessSecret {
     return {
-        system: privateKeyToProto(processSecret.system()),
+        system: processSecret.system(),
         process: processSecret.process(),
     };
 }

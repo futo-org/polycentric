@@ -9,7 +9,7 @@ import * as Protocol from './protocol';
 
 async function loadRanges(
     store: Store.Store,
-    system: Models.PublicKey,
+    system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
     ranges: Array<Ranges.IRange>,
 ): Promise<Array<Protocol.SignedEvent>> {
@@ -43,7 +43,7 @@ export async function saveBatch(
 
 export async function backfillClient(
     processHandle: ProcessHandle.ProcessHandle,
-    system: Models.PublicKey,
+    system: Models.PublicKey.PublicKey,
     server: string,
 ): Promise<void> {
     const rangesForSystem = await APIMethods.getRanges(server, system);
@@ -86,7 +86,7 @@ export async function backfillClient(
 
 export async function backFillServers(
     processHandle: ProcessHandle.ProcessHandle,
-    system: Models.PublicKey,
+    system: Models.PublicKey.PublicKey,
 ): Promise<void> {
     const systemState = await processHandle.loadSystemState(system);
 
