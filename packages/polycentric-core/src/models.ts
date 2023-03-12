@@ -173,6 +173,67 @@ export namespace Pointer {
     }
 }
 
+export namespace ProcessSecret {
+   interface ProcessSecretI {
+        system: PrivateKey.PrivateKey;
+        process: Process.Process;
+    }
+
+    export type ProcessSecret =
+        Readonly<ProcessSecretI> & { readonly __tag: unique symbol };
+
+    export function fromProto(
+        proto: Protocol.StorageTypeProcessSecret,
+    ): ProcessSecret {
+        if (proto.system === undefined) {
+            throw new Error('expected system');
+        }
+
+        if (proto.process === undefined) {
+            throw new Error('expected process');
+        }
+
+        PrivateKey.fromProto(proto.system);
+        Process.fromProto(proto.process);
+
+        return proto as ProcessSecret;
+    }
+}
+
+/*
+export namespace Event {
+    interface EventI{
+        system: PublicKey.PublicKey;
+        process: Process.Process;
+        logicalClock: Long;
+        contentType: ContentType.ContentType,
+        content: Uint8Array,
+        lwwElementSet: Protocol.LWWElementSet | undefined,
+        references: Array<Protocol.Reference>,
+        indices: Array<Protocol.Indices>,
+    }
+
+    export type Event =
+        Readonly<EventI> & { readonly __tag: unique symbol };
+
+    export function fromProto(proto: Protocol.Event): Event {
+        if (proto.system === undefined) {
+            throw new Error('expected system');
+        }
+
+        if (proto.process === undefined) {
+            throw new Error('expected process');
+        }
+
+        PublicKey.fromProto(proto.system);
+        Process.fromProto(proto.process);
+        Digest.fromProto(proto.eventDigest);
+
+        return proto as Event ;
+    }
+}
+*/
+
 export namespace SignedEvent {
     export type SignedEvent =
         Readonly<Protocol.SignedEvent> & { readonly __tag: unique symbol };
@@ -423,50 +484,6 @@ export async function signedEventToPointer(
         logicalClock: event.logicalClock(),
         eventDigest: await hash(signedEvent.event),
     });
-}
-
-export class ProcessSecret {
-    private _system: PrivateKey.PrivateKey;
-    private _process: Process.Process;
-
-    constructor(system: PrivateKey.PrivateKey, process: Process.Process) {
-        this._system = system;
-        this._process = process;
-    }
-
-    public system(): PrivateKey.PrivateKey {
-        return this._system;
-    }
-
-    public process(): Process.Process {
-        return this._process;
-    }
-}
-
-export function processSecretFromProto(
-    proto: Protocol.StorageTypeProcessSecret,
-): ProcessSecret {
-    if (proto.system === undefined) {
-        throw new Error('expected system');
-    }
-
-    if (proto.process === undefined) {
-        throw new Error('expected process');
-    }
-
-    return new ProcessSecret(
-        PrivateKey.fromProto(proto.system),
-        Process.fromProto(proto.process),
-    );
-}
-
-export function processSecretToProto(
-    processSecret: ProcessSecret,
-): Protocol.StorageTypeProcessSecret {
-    return {
-        system: processSecret.system(),
-        process: processSecret.process(),
-    };
 }
 
 export class LWWElement {

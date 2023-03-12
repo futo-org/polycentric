@@ -107,7 +107,7 @@ function protoSystemStateToSystemState(
 }
 
 export class ProcessHandle {
-    private _processSecret: Models.ProcessSecret;
+    private _processSecret: Models.ProcessSecret.ProcessSecret;
     private _store: Store.Store;
     private _system: Models.PublicKey.PublicKey;
     private _listener:
@@ -115,7 +115,7 @@ export class ProcessHandle {
 
     private constructor(
         store: Store.Store,
-        processSecret: Models.ProcessSecret,
+        processSecret: Models.ProcessSecret.ProcessSecret,
         system: Models.PublicKey.PublicKey,
     ) {
         this._store = store;
@@ -144,7 +144,7 @@ export class ProcessHandle {
         return new ProcessHandle(
             store,
             processSecret,
-            await Models.PrivateKey.derivePublicKey(processSecret.system()),
+            await Models.PrivateKey.derivePublicKey(processSecret.system),
         );
     }
 
@@ -396,7 +396,7 @@ export class ProcessHandle {
     ): Promise<Models.Pointer.Pointer> {
         const processState = await this._store.getProcessState(
             this._system,
-            this._processSecret.process(),
+            this._processSecret.process,
         );
 
         if (processState.indices === undefined) {
@@ -405,7 +405,7 @@ export class ProcessHandle {
 
         const event = new Models.Event(
             this._system,
-            this._processSecret.process(),
+            this._processSecret.process,
             processState.logicalClock.add(Long.UONE).toUnsigned(),
             contentType,
             content,
@@ -421,7 +421,7 @@ export class ProcessHandle {
 
         const signedEvent = Models.SignedEvent.fromProto({
             signature: await Models.PrivateKey.sign(
-                this._processSecret.system(),
+                this._processSecret.system,
                 eventBuffer,
             ),
             event: eventBuffer,
@@ -541,7 +541,10 @@ export async function createProcessHandle(
 
     const level = await metaStore.openStore(publicKey, 0);
 
-    const processSecret = new Models.ProcessSecret(privateKey, process);
+    const processSecret = Models.ProcessSecret.fromProto({
+        system: privateKey,
+        process: process,
+    });
 
     const store = new Store.Store(level);
 

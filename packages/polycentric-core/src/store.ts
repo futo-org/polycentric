@@ -76,18 +76,20 @@ export class Store {
     }
 
     public async setProcessSecret(
-        processSecret: Models.ProcessSecret,
+        processSecret: Models.ProcessSecret.ProcessSecret,
     ): Promise<void> {
         await this.level.put(
             PROCESS_SECRET_KEY,
             Protocol.StorageTypeProcessSecret.encode(
-                Models.processSecretToProto(processSecret),
+                processSecret,
             ).finish(),
         );
     }
 
-    public async getProcessSecret(): Promise<Models.ProcessSecret> {
-        return Models.processSecretFromProto(
+    public async getProcessSecret():
+        Promise<Models.ProcessSecret.ProcessSecret>
+    {
+        return Models.ProcessSecret.fromProto(
             Protocol.StorageTypeProcessSecret.decode(
                 await this.level.get(PROCESS_SECRET_KEY),
             ),
