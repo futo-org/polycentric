@@ -19,6 +19,7 @@ export enum ContentType {
     Server = 10,
     Vouch = 11,
     Claim = 12,
+    Banner = 13
 }
 
 export enum ClaimType {

@@ -180,6 +180,7 @@ Corresponding to `content_type`:
 10: Server
 11: Vouch
 12: Claim
+13: Banner
 ```
 
 ### Delete Message
