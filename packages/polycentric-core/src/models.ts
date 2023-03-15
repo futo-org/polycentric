@@ -258,6 +258,22 @@ export namespace SignedEvent {
 
         return proto as SignedEvent;
     }
+=======
+export enum ContentType {
+    Delete = 1,
+    SystemProcesses = 2,
+    Post = 3,
+    Follow = 4,
+    Username = 5,
+    Description = 6,
+    BlobMeta = 7,
+    BlobSection = 8,
+    Avatar = 9,
+    Server = 10,
+    Vouch = 11,
+    Claim = 12,
+    Banner = 13
+>>>>>>> master
 }
 
 export enum ClaimType {
