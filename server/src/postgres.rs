@@ -346,6 +346,32 @@ pub(crate) async fn load_latest_event_by_type(
         >>()
 }
 
+pub(crate) async fn does_event_exist(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    event: &crate::model::event::Event,
+) -> ::anyhow::Result<bool> {
+    let query_select_deleted = "
+        SELECT 1 FROM events
+        WHERE system_key_type = $1
+        AND system_key = $2
+        AND process = $3
+        AND logical_clock = $4
+        LIMIT 1;
+    ";
+
+    let does_exist = ::sqlx::query_scalar::<_, i64>(query_select_deleted)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            &event.system(),
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(&event.system()))
+        .bind(&event.process().bytes())
+        .bind(i64::try_from(*event.logical_clock())?)
+        .fetch_optional(&mut *transaction)
+        .await?;
+
+    Ok(does_exist.is_some())
+}
+
 pub(crate) async fn is_event_deleted(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event: &crate::model::event::Event,

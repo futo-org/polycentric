@@ -8,6 +8,10 @@ pub(crate) async fn ingest_event(
         &crate::protocol::Event::parse_from_bytes(&signed_event.event())?,
     )?;
 
+    if crate::postgres::does_event_exist(&mut *transaction, &event).await? {
+        return Ok(());
+    }
+
     if crate::postgres::is_event_deleted(&mut *transaction, &event).await? {
         return Ok(());
     }
