@@ -359,7 +359,7 @@ pub(crate) async fn does_event_exist(
         LIMIT 1;
     ";
 
-    let does_exist = ::sqlx::query_scalar::<_, i64>(query_select_deleted)
+    let does_exist = ::sqlx::query_scalar::<_, i32>(query_select_deleted)
         .bind(i64::try_from(crate::model::public_key::get_key_type(
             &event.system(),
         ))?)
@@ -385,7 +385,7 @@ pub(crate) async fn is_event_deleted(
         LIMIT 1;
     ";
 
-    let is_deleted = ::sqlx::query_scalar::<_, i64>(query_select_deleted)
+    let is_deleted = ::sqlx::query_scalar::<_, i32>(query_select_deleted)
         .bind(i64::try_from(crate::model::public_key::get_key_type(
             &event.system(),
         ))?)
