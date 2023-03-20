@@ -269,6 +269,7 @@ export enum ClaimType {
     Twitter = "Twitter",
     Bitcoin = "Bitcoin",
     Generic = "Generic",
+    URL = "URL",
 }
 
 export function claimHackerNews(username: string): Protocol.Claim {
@@ -310,6 +311,15 @@ export function claimBitcoin(username: string): Protocol.Claim {
 export function claimGeneric(text: string): Protocol.Claim {
     return {
         claimType: ClaimType.Generic,
+        claim: Protocol.ClaimIdentifier.encode({
+            identifier: text,
+        }).finish(),
+    };
+}
+
+export function claimURL(text: string): Protocol.Claim {
+    return {
+        claimType: ClaimType.URL,
         claim: Protocol.ClaimIdentifier.encode({
             identifier: text,
         }).finish(),

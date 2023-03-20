@@ -263,7 +263,7 @@ Message type `Vouch` uses an empty `content` field with a single `reference` val
 
 ```protobuf
 message Claim {
-    uint64 claim_type = 1;
+    string claim_type = 1;
     bytes  claim      = 2;
 }
 ```
@@ -271,10 +271,14 @@ message Claim {
 #### Claim Types
 
 ```
-1 = HackerNews (ClaimIdentifier)
-2 = YouTube    (ClaimIdentifier)
-3 = Odysee     (ClaimIdentifier)
-4 = Rumble     (ClaimIdentifier)
+HackerNews (ClaimIdentifier)
+YouTube    (ClaimIdentifier)
+Odysee     (ClaimIdentifier)
+Rumble     (ClaimIdentifier)
+Twitter    (ClaimIdentifier)
+Bitcoin    (ClaimIdentifier)
+Generic    (ClaimIdentifier)
+URL        (ClaimIdentifier)
 ```
 
 #### Claim Identifier
