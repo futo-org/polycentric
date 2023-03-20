@@ -165,7 +165,7 @@ export async function getQueryReferences(
         `?system=${systemQuery}` +
         `&process=${processQuery}` +
         `&logical_clock=${logicalClock.toString()}` +
-        `&from_type=${logicalClock.toString()}`;
+        `&from_type=${fromType.toString()}`;
 
     const response = await fetch(server + path, {
         method: 'GET',
