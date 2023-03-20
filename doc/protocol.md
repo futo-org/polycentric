@@ -279,6 +279,10 @@ Twitter    (ClaimIdentifier)
 Bitcoin    (ClaimIdentifier)
 Generic    (ClaimIdentifier)
 URL        (ClaimIdentifier)
+Patreon    (ClaimIdentifier)
+Discord    (ClaimIdentifier)
+Instagram  (ClaimIdentifier)
+Twitch     (ClaimIdentifier)
 ```
 
 #### Claim Identifier
