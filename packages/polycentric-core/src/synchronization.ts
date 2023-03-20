@@ -45,8 +45,10 @@ export async function backfillClient(
     processHandle: ProcessHandle.ProcessHandle,
     system: Models.PublicKey.PublicKey,
     server: string,
-): Promise<void> {
+): Promise<boolean> {
     const rangesForSystem = await APIMethods.getRanges(server, system);
+
+    let progress = false;
 
     for (const item of rangesForSystem.rangesForProcesses) {
         if (!item.process) {
@@ -80,8 +82,14 @@ export async function backfillClient(
             ],
         });
 
+        if (events.events.length > 0) {
+            progress = true;
+        }
+
         await saveBatch(processHandle, events);
     }
+
+    return progress;
 }
 
 export async function backFillServers(
