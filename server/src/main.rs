@@ -12,6 +12,21 @@ mod version;
 
 include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 
+#[macro_export]
+macro_rules! warp_try_err_500 {
+    ($expr:expr) => {
+        match $expr {
+            Ok(x) => x,
+            Err(err) => {
+                return Ok(Box::new(::warp::reply::with_status(
+                    err.to_string().clone(),
+                    ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
+                )));
+            }
+        }
+    };
+}
+
 #[derive(Debug)]
 enum RequestError {
     Anyhow(::anyhow::Error),

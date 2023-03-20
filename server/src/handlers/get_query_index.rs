@@ -17,48 +17,28 @@ pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
-    let mut transaction = match state.pool.begin().await {
-        Ok(x) => x,
-        Err(err) => {
-            return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
-                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )));
-        }
-    };
+    let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
 
-    let processes = match crate::postgres::load_processes_for_system(
-        &mut transaction,
-        &query.system,
-    ).await {
-        Ok(x) => x,
-        Err(err) => {
-            return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
-                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )));
-        }
-    };
+    let processes = crate::warp_try_err_500!(
+        crate::postgres::load_processes_for_system(
+            &mut transaction,
+            &query.system,
+        ).await
+    );
 
     let mut result = crate::protocol::Events::new();
 
     for process in processes.iter() {
         for event_type in query.event_types.numbers.iter() {
-            let batch = match crate::postgres::load_latest_event_by_type(
-                &mut transaction,
-                &query.system,
-                process,
-                *event_type,
-                query.limit.unwrap_or(1),
-            ).await {
-                Ok(x) => x,
-                Err(err) => {
-                    return Ok(Box::new(::warp::reply::with_status(
-                        err.to_string().clone(),
-                        ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-                    )));
-                }
-            };
+            let batch = crate::warp_try_err_500!(
+                crate::postgres::load_latest_event_by_type(
+                    &mut transaction,
+                    &query.system,
+                    process,
+                    *event_type,
+                    query.limit.unwrap_or(1),
+                ).await
+            );
 
             for event in batch.iter() {
                 result.events.push(
@@ -68,25 +48,11 @@ pub(crate) async fn handler(
         }
     }
 
-    match transaction.commit().await {
-        Ok(()) => (),
-        Err(err) => {
-            return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
-                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )));
-        }
-    };
+    crate::warp_try_err_500!(transaction.commit().await);
 
-    let result_serialized = match result.write_to_bytes() {
-        Ok(a) => a,
-        Err(err) => {
-            return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
-                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )));
-        }
-    };
+    let result_serialized = crate::warp_try_err_500!(
+        result.write_to_bytes()
+    );
 
     Ok(Box::new(::warp::reply::with_header(
         ::warp::reply::with_status(

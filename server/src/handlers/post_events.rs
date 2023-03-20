@@ -16,15 +16,7 @@ pub(crate) async fn handler(
         }
     };
 
-    let mut transaction = match state.pool.begin().await {
-        Ok(x) => x,
-        Err(err) => {
-            return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
-                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )));
-        }
-    };
+    let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
 
     for event in &events.events {
         let validated_event =
@@ -38,17 +30,13 @@ pub(crate) async fn handler(
                 }
             };
 
-        match crate::ingest::ingest_event(&mut transaction, &validated_event)
+        crate::warp_try_err_500!(
+            crate::ingest::ingest_event(
+                &mut transaction,
+                &validated_event,
+            )
             .await
-        {
-            Ok(()) => (),
-            Err(err) => {
-                return Ok(Box::new(::warp::reply::with_status(
-                    err.to_string().clone(),
-                    ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-                )));
-            }
-        }
+        );
 
         /*
         persist_event_notification(&mut transaction, &event, &event_body)
@@ -58,15 +46,7 @@ pub(crate) async fn handler(
         */
     }
 
-    match transaction.commit().await {
-        Ok(()) => (),
-        Err(err) => {
-            return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
-                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )));
-        }
-    };
+    crate::warp_try_err_500!(transaction.commit().await);
 
     Ok(Box::new(::warp::reply::with_status(
         "",
