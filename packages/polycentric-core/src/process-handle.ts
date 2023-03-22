@@ -552,6 +552,22 @@ export async function createProcessHandle(
     return ProcessHandle.load(store);
 }
 
+export async function createProcessHandleFromKey(metaStore: MetaStore.IMetaStore, privateKey: Models.PrivateKey.PrivateKey): Promise<ProcessHandle> {
+    const publicKey = await Models.PrivateKey.derivePublicKey(privateKey);
+    const process = Models.Process.random();
+    const level = await metaStore.openStore(publicKey, 0);
+
+    const processSecret = Models.ProcessSecret.fromProto({
+        system: privateKey,
+        process: process,
+    });
+
+    const store = new Store.Store(level);
+    await store.setProcessSecret(processSecret);
+    await metaStore.setStoreReady(publicKey, 0);
+    return ProcessHandle.load(store);
+}
+
 function updateSystemState(
     state: Protocol.StorageTypeSystemState,
     event: Models.Event.Event,
