@@ -2,5 +2,8 @@
   "dependencies": {
     "ts-proto": "^1.126.1",
     "prettier": "2.7.1"
+  },
+  "devDependencies": {
+    "protoc": "^1.1.3"
   }
 }
