@@ -6,7 +6,7 @@ import * as Core from 'polycentric-core';
 
 export function createPersistenceDriverLevelDB(
     directory: string,
-): Core.PersistenceDriver.PersistenceDriver {
+): Core.PersistenceDriver.IPersistenceDriver {
     const getImplementationName = () => {
         return 'LevelDB';
     };
@@ -18,7 +18,7 @@ export function createPersistenceDriverLevelDB(
                 keyEncoding: 'buffer',
                 valueEncoding: 'buffer',
             },
-        ) as any as Core.DB.BinaryAbstractLevel;
+        ) as any as Core.PersistenceDriver.BinaryAbstractLevel;
 
         await level.open();
 
