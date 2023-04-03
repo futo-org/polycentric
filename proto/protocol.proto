@@ -149,6 +149,12 @@ message ClaimIdentifier {
     string identifier = 1;
 }
 
+message ClaimOccupation {
+    string organization = 1;
+    string role         = 2;
+    string location     = 3;
+}
+
 message Vouch {}
 
 message StorageTypeProcessSecret {
