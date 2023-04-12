@@ -171,7 +171,7 @@ Corresponding to `content_type`:
 1: Delete
 2: SystemProcesses
 3: Post
-4: Folow
+4: Follow
 5: Username
 6: Description
 7: BlobMeta
