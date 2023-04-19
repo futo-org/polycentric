@@ -126,7 +126,10 @@ pub(crate) async fn prepare_database(
             CHECK ( subject_logical_clock   >= 0  ),
             CHECK ( link_content_type       >= 0  ),
 
-            CONSTRAINT FK_event FOREIGN KEY (event_id) REFERENCES events(id)
+            CONSTRAINT FK_event
+                FOREIGN KEY (event_id)
+                REFERENCES events(id)
+                ON DELETE CASCADE
         );
     ",
     )
@@ -144,7 +147,10 @@ pub(crate) async fn prepare_database(
             CHECK ( index_type    >= 0 ),
             CHECK ( logical_clock >= 0 ),
 
-            CONSTRAINT FK_event FOREIGN KEY (event_id) REFERENCES events(id)
+            CONSTRAINT FK_event
+                FOREIGN KEY (event_id)
+                REFERENCES events(id)
+                ON DELETE CASCADE
         );
     ",
     )
@@ -158,7 +164,10 @@ pub(crate) async fn prepare_database(
             claim_type TEXT      NOT NULL,
             event_id   BIGSERIAL NOT NULL,
 
-            CONSTRAINT FK_event FOREIGN KEY (event_id) REFERENCES events(id)
+            CONSTRAINT FK_event
+                FOREIGN KEY (event_id)
+                REFERENCES events(id)
+                ON DELETE CASCADE
         );
     ",
     )
@@ -199,7 +208,10 @@ pub(crate) async fn prepare_database(
             CHECK ( LENGTH(process) =  16 ),
             CHECK ( logical_clock   >= 0  ),
             
-            CONSTRAINT FK_event FOREIGN KEY (event_id) REFERENCES events(id)
+            CONSTRAINT FK_event
+                FOREIGN KEY (event_id)
+                REFERENCES events(id)
+                ON DELETE CASCADE
         );
     ",
     )
