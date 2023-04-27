@@ -118,9 +118,15 @@ message PrivateKey {
     bytes  key      = 2;
 }
 
+message KeyPair {
+    uint64 key_type    = 1;
+    bytes  private_key = 2;
+    bytes  public_key  = 3;
+}
+
 message ExportBundle {
-    PrivateKey system_private_key = 1;
-    Events     events             = 2;
+    KeyPair key_pair = 1;
+    Events  events   = 2;
 }
 
 message ResultEventsAndRelatedEventsAndCursor {
