@@ -26,13 +26,6 @@ macro_rules! warp_try_err_500 {
     };
 }
 
-#[derive(Debug)]
-enum RequestError {
-    Anyhow(::anyhow::Error),
-}
-
-impl ::warp::reject::Reject for RequestError {}
-
 struct State {
     pool: ::sqlx::PgPool,
     search: ::opensearch::OpenSearch,
@@ -54,8 +47,6 @@ async fn handle_rejection(
             "Method Not Allowed",
             ::warp::http::StatusCode::BAD_REQUEST,
         ));
-    } else if let Some(err) = err.find::<RequestError>() {
-        info!("rejection B: {:?}", err);
     }
 
     Ok(::warp::reply::with_status(
