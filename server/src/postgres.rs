@@ -699,44 +699,6 @@ pub(crate) async fn find_references_pointer(
         >>()
 }
 
-pub(crate) async fn find_references_bytes(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    bytes: &::std::vec::Vec<u8>,
-    from_type: &::std::option::Option<u64>,
-) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
-{
-    let query = "
-        SELECT
-            raw_event
-        FROM
-            events
-        WHERE
-            id
-        IN (
-            SELECT
-                event_id as id
-            FROM
-                event_references_bytes
-            WHERE
-                subject_bytes = $1
-        );
-    ";
-
-    ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
-        .bind(bytes)
-        .fetch_all(&mut *transaction)
-        .await?
-        .iter()
-        .map(|raw| {
-            crate::model::signed_event::from_proto(
-                &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
-            )
-        })
-        .collect::<::anyhow::Result<
-            ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
-        >>()
-}
-
 pub(crate) async fn find_claims(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     claim: &crate::model::claim::Claim,

@@ -5,7 +5,6 @@ pub(crate) mod get_head;
 pub(crate) mod get_notifications;
 pub(crate) mod get_ranges;
 pub(crate) mod get_recommend_profiles;
-pub(crate) mod get_replies;
 pub(crate) mod get_search;
 pub(crate) mod get_version;
 pub(crate) mod post_censor;
