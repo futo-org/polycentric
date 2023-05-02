@@ -143,7 +143,6 @@ message Reference {
 message Post {
     optional string  content = 1;
     optional Pointer image   = 2;
-    optional Pointer boost   = 3;
 }
 
 message Claim {
@@ -200,4 +199,33 @@ message StorageTypeEvent {
 
 message RepeatedUInt64 {
     repeated uint64 numbers = 1;
+}
+
+// used with event.lwwElementSet and event.references
+message Opinion {
+    Pointer subject = 1;
+    bool    like    = 2;
+}
+
+
+message QueryReferencesRequest {
+             Reference reference           = 1;
+    optional bytes     cursor              = 2;
+    optional uint64    from_type           = 3;
+    optional bool      include_dislikes    = 4;
+    optional bool      include_likes       = 5;
+    optional bool      include_reply_count = 6;
+}
+
+message QueryReferencesResponseItem {
+             SignedEvent event       = 1;
+    optional uint64      dislikes    = 2;
+    optional uint64      likes       = 3;
+    optional uint64      reply_count = 4;
+}
+
+message QueryReferencesResponse {
+    repeated QueryReferencesResponseItem items          = 1;
+    repeated SignedEvent                 related_events = 2;
+    optional bytes                       cursor         = 3;
 }

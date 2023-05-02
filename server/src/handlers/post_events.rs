@@ -1,6 +1,4 @@
-use ::log::*;
 use ::protobuf::Message;
-use ::serde_json::json;
 
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,

@@ -268,6 +268,7 @@ where
 
 pub mod event {
     use ::anyhow::Context;
+    use ::protobuf::Message;
 
     #[derive(PartialEq, Clone, Debug)]
     pub struct Event {
@@ -366,6 +367,12 @@ pub mod event {
                     ::std::vec::Vec<crate::model::reference::Reference>,
                 >>()?,
         ))
+    }
+
+    pub fn from_vec(
+        vec: &::std::vec::Vec<u8>,
+    ) -> ::anyhow::Result<Event> {
+        from_proto(&crate::protocol::Event::parse_from_bytes(vec)?)
     }
 
     pub(crate) fn to_proto(
@@ -543,6 +550,7 @@ pub mod reference {
     pub enum Reference {
         System(crate::model::public_key::PublicKey),
         Pointer(crate::model::pointer::Pointer),
+        Bytes(::std::vec::Vec<u8>),
     }
 
     pub fn to_proto(
@@ -562,6 +570,10 @@ pub mod reference {
                 result.reference = crate::model::pointer::to_proto(&pointer)
                     .write_to_bytes()
                     .map_err(|e| ::anyhow::Error::new(e))?;
+            }
+            Reference::Bytes(bytes) => {
+                result.reference_type = 3;
+                result.reference = bytes.clone();
             }
         }
 
@@ -591,6 +603,9 @@ pub mod reference {
                 Ok(Reference::Pointer(crate::model::pointer::from_proto(
                     &proto,
                 )?))
+            }
+            3 => {
+                Ok(Reference::Bytes(reference.reference.clone()))
             }
             _ => ::anyhow::bail!("unknown_reference_type"),
         }

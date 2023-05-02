@@ -138,6 +138,23 @@ pub(crate) async fn prepare_database(
 
     ::sqlx::query(
         "
+        CREATE TABLE IF NOT EXISTS event_references_bytes (
+            id                      BIGSERIAL PRIMARY KEY,
+            subject_bytes           BYTEA     NOT NULL,
+            event_id                BIGSERIAL NOT NULL,
+
+            CONSTRAINT FK_event
+                FOREIGN KEY (event_id)
+                REFERENCES events(id)
+                ON DELETE CASCADE
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
         CREATE TABLE IF NOT EXISTS event_indices (
             id            BIGSERIAL PRIMARY KEY,
             index_type    INT8      NOT NULL,
@@ -550,6 +567,34 @@ pub(crate) async fn insert_event_link(
     Ok(())
 }
 
+pub(crate) async fn insert_event_reference_bytes(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    bytes: &::std::vec::Vec<u8>,
+    event_id: u64,
+) -> ::anyhow::Result<()> {
+    let query_insert_event_link = "
+        INSERT INTO event_links
+        (
+            subject_bytes,
+            event_id
+        )
+        VALUES (
+            $1,
+            $2,
+        )
+        ON CONFLICT DO NOTHING;
+    ";
+
+    ::sqlx::query(query_insert_event_link)
+        .bind(bytes)
+        .bind(i64::try_from(event_id)?)
+        .execute(&mut *transaction)
+        .await?;
+
+    Ok(())
+}
+
+
 pub(crate) async fn insert_event_index(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event_id: u64,
@@ -603,12 +648,12 @@ pub(crate) async fn insert_claim(
     Ok(())
 }
 
-pub(crate) async fn find_references(
+pub(crate) async fn find_references_pointer(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     system: &crate::model::public_key::PublicKey,
     process: &crate::model::process::Process,
     logical_clock: u64,
-    from_type: u64,
+    from_type: &::std::option::Option<u64>,
 ) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
 {
     let query = "
@@ -641,6 +686,44 @@ pub(crate) async fn find_references(
         .bind(crate::model::public_key::get_key_bytes(system))
         .bind(process.bytes())
         .bind(i64::try_from(logical_clock)?)
+        .fetch_all(&mut *transaction)
+        .await?
+        .iter()
+        .map(|raw| {
+            crate::model::signed_event::from_proto(
+                &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+            )
+        })
+        .collect::<::anyhow::Result<
+            ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+        >>()
+}
+
+pub(crate) async fn find_references_bytes(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    bytes: &::std::vec::Vec<u8>,
+    from_type: &::std::option::Option<u64>,
+) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
+{
+    let query = "
+        SELECT
+            raw_event
+        FROM
+            events
+        WHERE
+            id
+        IN (
+            SELECT
+                event_id as id
+            FROM
+                event_references_bytes
+            WHERE
+                subject_bytes = $1
+        );
+    ";
+
+    ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
+        .bind(bytes)
         .fetch_all(&mut *transaction)
         .await?
         .iter()

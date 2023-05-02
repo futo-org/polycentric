@@ -25,15 +25,25 @@ pub(crate) async fn ingest_event(
     )?;
 
     for reference in event.references().iter() {
-        if let crate::model::reference::Reference::Pointer(pointer) = reference
-        {
-            crate::postgres::insert_event_link(
-                &mut *transaction,
-                event_id,
-                *event.content_type(),
-                &pointer,
-            )
-            .await?;
+        match reference {
+            crate::model::reference::Reference::Pointer(pointer) => {
+                crate::postgres::insert_event_link(
+                    &mut *transaction,
+                    event_id,
+                    *event.content_type(),
+                    &pointer,
+                )
+                .await?;
+            },
+            crate::model::reference::Reference::Bytes(bytes) => {
+                crate::postgres::insert_event_reference_bytes(
+                    &mut *transaction,
+                    bytes,
+                    event_id,
+                )
+                .await?;
+            },
+            _ => {},
         }
     }
 

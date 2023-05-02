@@ -8,6 +8,7 @@ mod ingest;
 mod model;
 mod postgres;
 mod version;
+mod queries;
 
 include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 
