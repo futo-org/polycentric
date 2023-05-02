@@ -42,9 +42,6 @@ pub(crate) async fn handler(
 
     let mut result = crate::protocol::QueryReferencesResponse::new();
 
-    let mut batch:
-        ::std::vec::Vec<crate::model::signed_event::SignedEvent> = vec![];
-
     let query_cursor = if let Some(cursor) = query.query.cursor {
         Some(u64::from_be_bytes(
             crate::warp_try_err_500!(
@@ -90,16 +87,14 @@ pub(crate) async fn handler(
         if let Some(true) = query.query.include_reply_count {
             item.reply_count = Some(
                 crate::warp_try_err_500!(
-                    crate::warp_try_err_500!(
-                        crate::postgres::find_references_pointer(
-                            &mut transaction,
-                            &event.system(),
-                            &event.process(),
-                            *event.logical_clock(),
-                            &query.query.from_type,
-                        ).await
-                    ).len().try_into()
-                ),
+                    crate::queries::count_references::count_references_pointer(
+                        &mut transaction,
+                        &event.system(),
+                        &event.process(),
+                        *event.logical_clock(),
+                        &query.query.from_type,
+                    ).await
+                )
             );
         }
 
