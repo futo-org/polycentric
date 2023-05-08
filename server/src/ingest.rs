@@ -58,11 +58,18 @@ pub(crate) async fn ingest_event(
     }
 
     if let crate::model::content::Content::Delete(body) = content {
-        crate::postgres::delete_event(&mut *transaction, event.system(), &body)
-            .await?;
+        crate::postgres::delete_event(
+            &mut *transaction,
+            event_id,
+            event.system(),
+            &body
+        ).await?;
     } else if let crate::model::content::Content::Claim(body) = content {
-        crate::postgres::insert_claim(&mut *transaction, body.claim_type())
-            .await?;
+        crate::postgres::insert_claim(
+            &mut *transaction,
+            event_id,
+            body.claim_type()
+        ).await?;
     }
 
     Ok(())

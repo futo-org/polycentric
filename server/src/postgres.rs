@@ -429,6 +429,7 @@ pub(crate) async fn is_event_deleted(
 
 pub(crate) async fn delete_event(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    event_id: u64,
     system: &crate::model::public_key::PublicKey,
     delete: &crate::model::delete::Delete,
 ) -> ::anyhow::Result<()> {
@@ -442,7 +443,7 @@ pub(crate) async fn delete_event(
             event_id
         )
         VALUES (
-            $1, $2, $3, $4, currval(pg_get_serial_sequence('events', 'id'))
+            $1, $2, $3, $4, $5
         );
     ";
 
@@ -461,6 +462,7 @@ pub(crate) async fn delete_event(
         .bind(crate::model::public_key::get_key_bytes(system))
         .bind(delete.process().bytes())
         .bind(i64::try_from(*delete.logical_clock())?)
+        .bind(i64::try_from(event_id)?)
         .execute(&mut *transaction)
         .await?;
 
@@ -628,6 +630,7 @@ pub(crate) async fn insert_event_index(
 
 pub(crate) async fn insert_claim(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    event_id: u64,
     claim_type: &::std::string::String,
 ) -> ::anyhow::Result<()> {
     let query_insert_claim = "
@@ -636,12 +639,13 @@ pub(crate) async fn insert_claim(
             claim_type,
             event_id
         )
-        VALUES ($1, currval(pg_get_serial_sequence('events', 'id')))
+        VALUES ($1, $2)
         ON CONFLICT DO NOTHING;
     ";
 
     ::sqlx::query(query_insert_claim)
         .bind(claim_type)
+        .bind(i64::try_from(event_id)?)
         .execute(&mut *transaction)
         .await?;
 
