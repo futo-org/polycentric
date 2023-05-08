@@ -72,5 +72,13 @@ pub(crate) async fn ingest_event(
         ).await?;
     }
 
+    if let Some(lww_element) = event.lww_element() {
+        crate::postgres::insert_lww_element(
+            &mut *transaction,
+            event_id,
+            lww_element,
+        ).await?;
+    }
+
     Ok(())
 }

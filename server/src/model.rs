@@ -280,6 +280,7 @@ pub mod event {
         vector_clock: crate::protocol::VectorClock,
         indices: crate::protocol::Indices,
         references: ::std::vec::Vec<crate::model::reference::Reference>,
+        lww_element: ::std::option::Option<crate::protocol::LWWElement>,
     }
 
     impl Event {
@@ -292,6 +293,7 @@ pub mod event {
             vector_clock: crate::protocol::VectorClock,
             indices: crate::protocol::Indices,
             references: ::std::vec::Vec<crate::model::reference::Reference>,
+            lww_element: ::std::option::Option<crate::protocol::LWWElement>,
         ) -> Event {
             Event {
                 system: system,
@@ -302,6 +304,7 @@ pub mod event {
                 vector_clock: vector_clock,
                 indices: indices,
                 references: references,
+                lww_element: lww_element,
             }
         }
 
@@ -338,6 +341,12 @@ pub mod event {
         ) -> &::std::vec::Vec<crate::model::reference::Reference> {
             &self.references
         }
+
+        pub fn lww_element(
+            &self,
+        ) -> &::std::option::Option<crate::protocol::LWWElement> {
+            &self.lww_element
+        }
     }
 
     pub fn from_proto(
@@ -366,6 +375,7 @@ pub mod event {
                 .collect::<::anyhow::Result<
                     ::std::vec::Vec<crate::model::reference::Reference>,
                 >>()?,
+            proto.lww_element.clone().into_option(),
         ))
     }
 
@@ -398,6 +408,9 @@ pub mod event {
             .collect::<::anyhow::Result<
                 ::std::vec::Vec<crate::protocol::Reference>
             >>()?;
+        result.lww_element = ::protobuf::MessageField::from_option(
+            event.lww_element().clone(),
+        );
 
         Ok(result)
     }
@@ -766,6 +779,7 @@ pub mod tests {
             vector_clock,
             indices,
             references,
+            None,
         );
 
         crate::model::signed_event::SignedEvent::sign(
@@ -798,6 +812,7 @@ pub mod tests {
             vector_clock,
             indices,
             vec![],
+            None,
         );
 
         crate::model::signed_event::SignedEvent::sign(

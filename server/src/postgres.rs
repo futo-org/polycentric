@@ -193,6 +193,26 @@ pub(crate) async fn prepare_database(
 
     ::sqlx::query(
         "
+        CREATE TABLE IF NOT EXISTS lww_elements (
+            id                BIGSERIAL PRIMARY KEY,
+            unix_milliseconds INT8      NOT NULL,
+            value             BYTEA     NOT NULL,
+            event_id          BIGSERIAL NOT NULL,
+
+            CHECK ( unix_milliseconds >= 0 ),
+
+            CONSTRAINT FK_event
+                FOREIGN KEY (event_id)
+                REFERENCES events(id)
+                ON DELETE CASCADE
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
         CREATE TABLE IF NOT EXISTS process_state (
             id              BIGSERIAL PRIMARY KEY,
             system_key_type INT8      NOT NULL,
@@ -645,6 +665,32 @@ pub(crate) async fn insert_claim(
 
     ::sqlx::query(query_insert_claim)
         .bind(claim_type)
+        .bind(i64::try_from(event_id)?)
+        .execute(&mut *transaction)
+        .await?;
+
+    Ok(())
+}
+
+pub(crate) async fn insert_lww_element(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    event_id: u64,
+    lww_element: &crate::protocol::LWWElement,
+) -> ::anyhow::Result<()> {
+    let query = "
+        INSERT INTO lww_elements 
+        (
+            value,
+            unix_milliseconds,
+            event_id
+        )
+        VALUES ($1, $2, $3)
+        ON CONFLICT DO NOTHING;
+    ";
+
+    ::sqlx::query(query)
+        .bind(&lww_element.value)
+        .bind(i64::try_from(lww_element.unix_milliseconds)?)
         .bind(i64::try_from(event_id)?)
         .execute(&mut *transaction)
         .await?;
