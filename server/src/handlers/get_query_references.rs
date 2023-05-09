@@ -76,8 +76,8 @@ pub(crate) async fn handler(
             crate::model::signed_event::to_proto(signed_event)
         );
 
-        if let Some(true) = query.query.include_dislikes {
-            item.dislikes = Some(
+        for params in query.query.count_lww_element_references.iter() {
+            item.counts.push(
                 crate::warp_try_err_500!(
                     crate::queries::count_lww_element_references::
                         count_lww_element_references(
@@ -85,38 +85,22 @@ pub(crate) async fn handler(
                             &event.system(),
                             &event.process(),
                             *event.logical_clock(),
-                            &vec![0],
-                            &Some(14),
+                            &params.value,
+                            &params.from_type,
                         ).await
                 )
             );
         }
 
-        if let Some(true) = query.query.include_likes {
-            item.likes = Some(
-                crate::warp_try_err_500!(
-                    crate::queries::count_lww_element_references::
-                        count_lww_element_references(
-                            &mut transaction,
-                            &event.system(),
-                            &event.process(),
-                            *event.logical_clock(),
-                            &vec![1],
-                            &Some(14),
-                        ).await
-                )
-            );
-        }
-
-        if let Some(true) = query.query.include_reply_count {
-            item.reply_count = Some(
+        for params in query.query.count_references.iter() {
+            item.counts.push(
                 crate::warp_try_err_500!(
                     crate::queries::count_references::count_references_pointer(
                         &mut transaction,
                         &event.system(),
                         &event.process(),
                         *event.logical_clock(),
-                        &Some(3),
+                        &params.from_type,
                     ).await
                 )
             );
