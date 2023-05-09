@@ -201,13 +201,6 @@ message RepeatedUInt64 {
     repeated uint64 numbers = 1;
 }
 
-// used with event.lwwElementSet and event.references
-message Opinion {
-    Pointer subject = 1;
-    bool    like    = 2;
-}
-
-
 message QueryReferencesRequest {
              Reference reference           = 1;
     optional bytes     cursor              = 2;
