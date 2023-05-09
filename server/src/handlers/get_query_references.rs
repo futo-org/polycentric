@@ -77,11 +77,35 @@ pub(crate) async fn handler(
         );
 
         if let Some(true) = query.query.include_dislikes {
-            item.dislikes = Some(0);
+            item.dislikes = Some(
+                crate::warp_try_err_500!(
+                    crate::queries::count_lww_element_references::
+                        count_lww_element_references(
+                            &mut transaction,
+                            &event.system(),
+                            &event.process(),
+                            *event.logical_clock(),
+                            &vec![0],
+                            &Some(5),
+                        ).await
+                )
+            );
         }
 
         if let Some(true) = query.query.include_likes {
-            item.likes = Some(0);
+            item.likes = Some(
+                crate::warp_try_err_500!(
+                    crate::queries::count_lww_element_references::
+                        count_lww_element_references(
+                            &mut transaction,
+                            &event.system(),
+                            &event.process(),
+                            *event.logical_clock(),
+                            &vec![0],
+                            &Some(5),
+                        ).await
+                )
+            );
         }
 
         if let Some(true) = query.query.include_reply_count {
