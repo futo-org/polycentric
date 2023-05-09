@@ -86,7 +86,7 @@ pub(crate) async fn handler(
                             &event.process(),
                             *event.logical_clock(),
                             &vec![0],
-                            &Some(5),
+                            &Some(14),
                         ).await
                 )
             );
@@ -101,8 +101,8 @@ pub(crate) async fn handler(
                             &event.system(),
                             &event.process(),
                             *event.logical_clock(),
-                            &vec![0],
-                            &Some(5),
+                            &vec![1],
+                            &Some(14),
                         ).await
                 )
             );
@@ -116,7 +116,7 @@ pub(crate) async fn handler(
                         &event.system(),
                         &event.process(),
                         *event.logical_clock(),
-                        &query.query.from_type,
+                        &Some(3),
                     ).await
                 )
             );
