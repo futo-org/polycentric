@@ -172,6 +172,10 @@ export namespace Pointer {
 
         return proto as Pointer;
     }
+
+    export function fromBuffer(buffer: Uint8Array): Pointer {
+        return fromProto(Protocol.Pointer.decode(buffer));
+    }
 }
 
 export namespace ProcessSecret {
@@ -198,6 +202,35 @@ export namespace ProcessSecret {
         Process.fromProto(proto.process);
 
         return proto as ProcessSecret;
+    }
+}
+
+export namespace Delete {
+    interface DeleteI {
+        process: Process.Process;
+        logicalClock: Long;
+        indices: Protocol.Indices;
+    }
+
+    export type Delete =
+        Readonly<DeleteI> & { readonly __tag: unique symbol };
+
+    export function fromProto(
+        proto: Protocol.Delete,
+    ): Delete {
+        if (proto.process === undefined) {
+            throw new Error('expected process');
+        }
+
+        Process.fromProto(proto.process);
+
+        return proto as Delete;
+    }
+
+    export function fromBuffer(
+        buffer: Uint8Array,
+    ): Delete {
+        return fromProto(Protocol.Delete.decode(buffer));
     }
 }
 

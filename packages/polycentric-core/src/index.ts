@@ -9,3 +9,5 @@ export * as APIMethods from './api-methods';
 export * as Synchronization from './synchronization';
 export * as Protocol from './protocol';
 export * as CancelContext from './cancel-context';
+export * as View from './view';
+export * as Util from './util';

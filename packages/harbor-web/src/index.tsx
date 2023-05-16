@@ -21,10 +21,11 @@ async function main() {
     );
 
     const processHandle = await createProcessHandle();
+    const view = new Core.View.View(processHandle);
 
     root.render(
         <React.StrictMode>
-            <App.App processHandle={processHandle} />
+            <App.App processHandle={processHandle} view={view} />
         </React.StrictMode>,
     );
 }
