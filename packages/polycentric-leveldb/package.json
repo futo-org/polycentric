@@ -1,5 +1,5 @@
 {
-  "name": "polycentric-leveldb",
+  "name": "@polycentric/polycentric-leveldb",
   "version": "0.1.0",
   "private": true,
   "main": "dist/index.js",
@@ -8,7 +8,7 @@
     "/dist"
   ],
   "dependencies": {
-    "polycentric-core": "../polycentric-core",
+    "@polycentric/polycentric-core": "@polycentric/polycentric-core",
     "abstract-level": "^1.0.3",
     "classic-level": "^1.2.0"
   },
@@ -18,8 +18,7 @@
   },
   "homepage": "./",
   "devDependencies": {
-    "ts-loader": "^9.3.1",
-    "ts-node": "^10.9.1",
+    "ts-loader": "^9.4.2",
     "typescript": "^4.8.3",
     "webpack": "^5.74.0",
     "webpack-cli": "^4.10.0"

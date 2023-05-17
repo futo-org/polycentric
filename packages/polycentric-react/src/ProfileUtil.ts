@@ -1,6 +1,6 @@
 import * as Base64 from '@borderless/base64';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 
 function profileToLink(profile: Core.Protocol.StorageTypeProfile): string {
     const username = encodeURIComponent(

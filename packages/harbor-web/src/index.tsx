@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 
 import * as App from './App';
 

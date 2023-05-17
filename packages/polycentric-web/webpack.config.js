@@ -33,7 +33,7 @@ const mainConfig = {
         libraryTarget: 'commonjs'
     },
     plugins: [
-        new CopyPlugin({patterns: [{ from: 'public' }]})
+        new CopyPlugin({ patterns: [{ from: 'public' }] })
     ],
     devServer: {
         static: {
@@ -59,7 +59,7 @@ const workerConfig = {
                 test: /\.(ts|tsx)$/,
                 use: 'ts-loader',
                 exclude: /node_modules/
-            }
+            },
         ],
     },
     resolve: {
@@ -73,4 +73,4 @@ const workerConfig = {
 
 
 
-module.exports = [ mainConfig, workerConfig ];
+module.exports = [mainConfig, workerConfig];

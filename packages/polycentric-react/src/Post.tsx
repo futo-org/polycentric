@@ -27,7 +27,7 @@ import * as Lodash from 'lodash';
 import getYouTubeID from 'get-youtube-id';
 import Modal from 'react-modal';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import * as Feed from './Feed';
 import * as Explore from './Explore';
 import PostModal from './PostModal';

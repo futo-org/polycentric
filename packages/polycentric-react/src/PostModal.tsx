@@ -5,7 +5,7 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import CloseIcon from '@mui/icons-material/Close';
 import imageCompression from 'browser-image-compression';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 
 const customStyles = {
     content: {

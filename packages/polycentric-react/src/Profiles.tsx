@@ -4,7 +4,7 @@ import * as Base64 from '@borderless/base64';
 import { Button } from '@mui/material';
 
 import ProfileHeader from './ProfileHeader';
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import './Standard.css';
 
 export const ProfilesMemo = memo(Profiles);

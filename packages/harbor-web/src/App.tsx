@@ -4,14 +4,14 @@ import * as Base64 from '@borderless/base64';
 import Long from 'long';
 import * as ReactRouterDOM from 'react-router-dom';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 
 import * as Profile from './Profile';
 import * as VouchedBy from './VouchedBy';
 import * as Claim from './Claim';
 
-// export const server = 'http://localhost:8081';
-export const server = 'https://srv1-stg.polycentric.io';
+export const server = 'http://localhost:8081';
+// export const server = 'https://srv1-stg.polycentric.io';
 
 export class ParsedEvent<T> {
     signedEvent: Core.Models.SignedEvent.SignedEvent;

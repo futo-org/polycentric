@@ -1,4 +1,4 @@
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import * as Post from './Post';
 import * as Explore from './Explore';
 import * as Feed from './Feed';

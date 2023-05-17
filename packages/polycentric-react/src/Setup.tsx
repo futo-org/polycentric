@@ -5,7 +5,7 @@ import * as Base64 from '@borderless/base64';
 import * as Ed from '@noble/ed25519';
 import browser from 'browser-detect';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import './Standard.css';
 
 type PersistencePageProps = {

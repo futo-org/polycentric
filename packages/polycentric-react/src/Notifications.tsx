@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom';
 import * as Lodash from 'lodash';
 import InfiniteScroll from 'react-infinite-scroll-component';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import * as Feed from './Feed';
 import * as PostMod from './Post';
 import Post from './Post';

@@ -5,7 +5,7 @@ import { useInView } from 'react-intersection-observer';
 import * as SortedArrayFunctions from 'sorted-array-functions';
 
 import * as Feed from './Feed';
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import * as Post from './Post';
 import * as ProfileUtil from './ProfileUtil';
 import * as Explore from './Explore';

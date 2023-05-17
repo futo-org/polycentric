@@ -4,10 +4,10 @@ import Modal from 'react-modal';
 
 import './index.css';
 import reportWebVitals from './reportWebVitals';
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import * as PolycentricRoutes from './Routes';
 
-export * as Core from 'polycentric-core';
+export * as Core from '@polycentric/polycentric-core';
 
 export async function createApp(
     persistenceDriver: Core.PersistenceDriver.PersistenceDriver,
