@@ -9,7 +9,7 @@ import {
 import { useEffect, useState, Fragment } from 'react';
 import prettyBytes from 'pretty-bytes';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 
 export type AboutProps = {
     state: Core.DB.PolycentricState;

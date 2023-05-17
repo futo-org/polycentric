@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import * as Base64 from '@borderless/base64';
 import { Divider, Paper, LinearProgress } from '@mui/material';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import * as Post from './Post';
 import * as ProfileUtil from './ProfileUtil';
 import * as Feed from './Feed';

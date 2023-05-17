@@ -16,9 +16,7 @@ export type StoreInfo = {
 export function encodeStoreInfo(storeInfo: StoreInfo): Uint8Array {
     const intermediate = {
         system: Base64.encode(
-            Protocol.PublicKey.encode(
-                storeInfo.system,
-            ).finish(),
+            Protocol.PublicKey.encode(storeInfo.system).finish(),
         ),
         version: storeInfo.version,
         ready: storeInfo.ready,

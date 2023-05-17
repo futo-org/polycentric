@@ -41,70 +41,19 @@ pretty:
 		packages/polycentric-desktop/electron/ \
 		packages/polycentric-bot/src/
 
-link:
-	mkdir -p \
-		/app/packages/polycentric-react/node_modules \
-		/app/packages/polycentric-bot/node_modules \
-		/app/packages/polycentric-web/node_modules \
-		/app/packages/polycentric-desktop/node_modules \
-		/app/packages/polycentric-leveldb/node_modules \
-		/app/packages/harbor-web/node_modules
-
-	rm -f \
-		/app/packages/polycentric-react/node_modules/polycentric-core \
-		/app/packages/polycentric-bot/node_modules/polycentric-core \
-		/app/packages/polycentric-bot/node_modules/polycentric-leveldb \
-		/app/packages/polycentric-leveldb/node_modules/polycentric-core \
-		/app/packages/polycentric-web/node_modules/polycentric-react \
-		/app/packages/polycentric-desktop/node_modules/polycentric-react \
-		/app/packages/polycentric-desktop/node_modules/polycentric-leveldb \
-		/app/packages/harbor-web/node_modules/polycentric-core \
-
-	ln -s \
-		/app/packages/polycentric-core \
-		/app/packages/polycentric-react/node_modules/polycentric-core
-
-	ln -s \
-		/app/packages/polycentric-core \
-		/app/packages/polycentric-bot/node_modules/polycentric-core
-
-	ln -s \
-		/app/packages/polycentric-core \
-		/app/packages/polycentric-leveldb/node_modules/polycentric-core
-
-	ln -s \
-		/app/packages/polycentric-core \
-		/app/packages/harbor-web/node_modules/polycentric-core
-
-	ln -s \
-		/app/packages/polycentric-react \
-		/app/packages/polycentric-web/node_modules/polycentric-react
-
-	ln -s \
-		/app/packages/polycentric-react \
-		/app/packages/polycentric-desktop/node_modules/polycentric-react
-
-	ln -s \
-		/app/packages/polycentric-leveldb \
-		/app/packages/polycentric-desktop/node_modules/polycentric-leveldb
-
-	ln -s \
-		/app/packages/polycentric-leveldb \
-		/app/packages/polycentric-bot/node_modules/polycentric-leveldb
-
 build-production: proto
 	./version.sh
 
+# NPM automatically installs and resolves (co)dependencies for all packages 
+	npm install
+
 	cd packages/polycentric-core && \
-		npm install && \
 		npm run build:production
 
 	cd packages/polycentric-react && \
-		npm install && \
 		npm run build:production
 
 	cd packages/polycentric-web && \
-		npm install && \
 		npm run build:production
 
 	cd server && \

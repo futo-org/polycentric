@@ -10,7 +10,7 @@ import Cropper, { Area } from 'react-easy-crop';
 import imageCompression from 'browser-image-compression';
 import * as FileSaver from 'file-saver';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import './EditProfile.css';
 import './Standard.css';
 

@@ -60,9 +60,7 @@ function protoSystemStateToSystemState(
 
     for (const item of proto.crdtSetItems) {
         if (
-            item.contentType.equals(
-                Models.ContentType.ContentTypeServer,
-            ) &&
+            item.contentType.equals(Models.ContentType.ContentTypeServer) &&
             item.operation == Protocol.LWWElementSet_Operation.ADD
         ) {
             servers.push(Util.decodeText(item.value));
@@ -80,22 +78,14 @@ function protoSystemStateToSystemState(
     let avatar = undefined;
 
     for (const item of proto.crdtItems) {
-        if (
-            item.contentType.equals(
-                Models.ContentType.ContentTypeUsername,
-            )
-        ) {
+        if (item.contentType.equals(Models.ContentType.ContentTypeUsername)) {
             username = Util.decodeText(item.value);
         } else if (
-            item.contentType.equals(
-                Models.ContentType.ContentTypeDescription,
-            )
+            item.contentType.equals(Models.ContentType.ContentTypeDescription)
         ) {
             description = Util.decodeText(item.value);
         } else if (
-            item.contentType.equals(
-                Models.ContentType.ContentTypeAvatar,
-            )
+            item.contentType.equals(Models.ContentType.ContentTypeAvatar)
         ) {
             avatar = Models.Pointer.fromProto(
                 Protocol.Pointer.decode(item.value),
@@ -111,7 +101,8 @@ export class ProcessHandle {
     private _store: Store.Store;
     private _system: Models.PublicKey.PublicKey;
     private _listener:
-        ((signedEvent: Models.SignedEvent.SignedEvent) => void) | undefined;
+        | ((signedEvent: Models.SignedEvent.SignedEvent) => void)
+        | undefined;
 
     private constructor(
         store: Store.Store,
@@ -191,7 +182,7 @@ export class ProcessHandle {
     }
 
     public async setAvatar(
-        avatar: Models.Pointer.Pointer
+        avatar: Models.Pointer.Pointer,
     ): Promise<Models.Pointer.Pointer> {
         return await this.publish(
             Models.ContentType.ContentTypeAvatar,
@@ -276,7 +267,7 @@ export class ProcessHandle {
         return await this.publish(
             Models.ContentType.ContentTypeDelete,
             Protocol.Delete.encode({
-                process: process, 
+                process: process,
                 logicalClock: logicalClock,
                 indices: event.indices,
             }).finish(),
@@ -332,9 +323,9 @@ export class ProcessHandle {
             const event = Models.Event.fromBuffer(signedEvent.event);
 
             if (
-                !event
-                    .contentType
-                    .equals(Models.ContentType.ContentTypeBlobMeta)
+                !event.contentType.equals(
+                    Models.ContentType.ContentTypeBlobMeta,
+                )
             ) {
                 return undefined;
             }
@@ -360,9 +351,9 @@ export class ProcessHandle {
             const event = Models.Event.fromBuffer(signedEvent.event);
 
             if (
-                !event
-                    .contentType
-                    .equals(Models.ContentType.ContentTypeBlobSection)
+                !event.contentType.equals(
+                    Models.ContentType.ContentTypeBlobSection,
+                )
             ) {
                 return undefined;
             }
@@ -443,11 +434,7 @@ export class ProcessHandle {
 
         const actions = [];
 
-        if (
-            event
-                .contentType
-                .equals(Models.ContentType.ContentTypeDelete)
-        ) {
+        if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
             const deleteProto = Protocol.Delete.decode(event.content);
 
             if (!deleteProto.process) {
@@ -484,9 +471,7 @@ export class ProcessHandle {
                 ),
             );
         } else if (
-            event
-                .contentType
-                .equals(Models.ContentType.ContentTypeClaim)
+            event.contentType.equals(Models.ContentType.ContentTypeClaim)
         ) {
             actions.push(
                 this._store.putIndexClaim(
@@ -552,7 +537,10 @@ export async function createProcessHandle(
     return ProcessHandle.load(store);
 }
 
-export async function createProcessHandleFromKey(metaStore: MetaStore.IMetaStore, privateKey: Models.PrivateKey.PrivateKey): Promise<ProcessHandle> {
+export async function createProcessHandleFromKey(
+    metaStore: MetaStore.IMetaStore,
+    privateKey: Models.PrivateKey.PrivateKey,
+): Promise<ProcessHandle> {
     const publicKey = await Models.PrivateKey.derivePublicKey(privateKey);
     const process = Models.Process.random();
     const level = await metaStore.openStore(publicKey, 0);
@@ -618,10 +606,7 @@ function updateSystemState(
                 }
             }
 
-            if (
-                found &&
-                found.unixMilliseconds < lwwElement.unixMilliseconds
-            ) {
+            if (found && found.unixMilliseconds < lwwElement.unixMilliseconds) {
                 found.unixMilliseconds = lwwElement.unixMilliseconds;
                 found.value = lwwElement.value;
             } else {

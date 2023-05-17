@@ -4,7 +4,7 @@ import * as Base64 from '@borderless/base64';
 import { useParams } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import * as Feed from './Feed';
 import * as PostMod from './Post';
 import './Standard.css';

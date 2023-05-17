@@ -2,7 +2,7 @@ import { useState, useEffect, memo, ReactNode } from 'react';
 import * as Base64 from '@borderless/base64';
 import * as Lodash from 'lodash';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import * as ProfileUtil from './ProfileUtil';
 import * as Feed from './Feed';
 import * as Post from './Post';

@@ -1,6 +1,6 @@
 import * as MUI from '@mui/material';
 import * as React from 'react';
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 
 import * as App from './App';
 import * as VouchedBy from './VouchedBy';

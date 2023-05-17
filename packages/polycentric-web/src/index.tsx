@@ -1,7 +1,7 @@
 import * as BrowserLevel from 'browser-level';
 import browser from 'browser-detect';
 
-import * as PolycentricReact from 'polycentric-react';
+import * as PolycentricReact from '@polycentric/polycentric-react';
 
 const registerServiceWorker = async () => {
     try {

@@ -12,7 +12,10 @@ const mainConfig = {
             },
             {
                 test: /\.css$/i,
-                use: ['style-loader', 'css-loader']
+                use: [
+                    'style-loader',
+                    'css-loader'
+                ]
             },
             {
                 test: /\.(png|svg|jpg|jpeg|gif)$/i,
@@ -33,7 +36,7 @@ const mainConfig = {
         libraryTarget: 'commonjs'
     },
     plugins: [
-        new CopyPlugin({patterns: [{ from: 'public' }]})
+        new CopyPlugin({ patterns: [{ from: 'public' }] })
     ],
     devServer: {
         static: {
@@ -51,4 +54,4 @@ const mainConfig = {
     },
 };
 
-module.exports = [ mainConfig ];
+module.exports = [mainConfig];

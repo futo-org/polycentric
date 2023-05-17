@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, ReactNode } from 'react';
 import * as Base64 from '@borderless/base64';
 import { useParams } from 'react-router-dom';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import * as Feed from './Feed';
 import * as PostMod from './Post';
 import Post from './Post';

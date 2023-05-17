@@ -3,11 +3,10 @@ import * as ClassicLevel from 'classic-level';
 import Parser from 'rss-parser';
 import fetch from 'node-fetch';
 import * as FS from 'fs';
-import * as XML2JS from 'xml2js';
 import * as NodeHTMLParser from 'node-html-parser';
 
-import * as Core from 'polycentric-core';
-import * as PolycentricLevelDB from 'polycentric-leveldb';
+import * as Core from '@polycentric/polycentric-core';
+import * as PolycentricLevelDB from '@polycentric/polycentric-leveldb';
 
 function sleep(ms: number) {
     return new Promise((resolve) => {

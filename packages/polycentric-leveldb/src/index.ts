@@ -2,7 +2,7 @@ import * as Path from 'path';
 import * as AbstractLevel from 'abstract-level';
 import * as ClassicLevel from 'classic-level';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 
 export function createPersistenceDriverLevelDB(
     directory: string,

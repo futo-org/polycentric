@@ -7,7 +7,7 @@ import TwitterIcon from '@mui/icons-material/Twitter';
 import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
 
 import * as App from './App';
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import * as VouchedBy from './VouchedBy';
 
 export type ClaimProps = {

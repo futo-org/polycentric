@@ -35,11 +35,13 @@ describe('integration', () => {
 
         const s2p1 = await createProcessHandle();
 
-        while (await Synchronization.backfillClient(
-            s2p1,
-            s1p1.system(),
-            'http://127.0.0.1:8081',
-        )) {}
+        while (
+            await Synchronization.backfillClient(
+                s2p1,
+                s1p1.system(),
+                'http://127.0.0.1:8081',
+            )
+        ) {}
 
         const s1State = await s2p1.loadSystemState(s1p1.system());
 
@@ -62,11 +64,7 @@ describe('integration', () => {
         await s1p1.setDescription('Apple and Apple accesories');
 
         function systemToBase64(system: Models.PublicKey.PublicKey): string {
-            return Base64.encodeUrl(
-                Protocol.PublicKey.encode(
-                    system,
-                ).finish(),
-            );
+            return Base64.encodeUrl(Protocol.PublicKey.encode(system).finish());
         }
 
         console.log('rossmann system:' + systemToBase64(s1p1.system()));

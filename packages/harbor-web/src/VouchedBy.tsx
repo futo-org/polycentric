@@ -4,7 +4,7 @@ import * as React from 'react';
 import * as Base64 from '@borderless/base64';
 
 import * as App from './App';
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 
 function loadVouchedByState(
     cancelContext: Core.CancelContext.CancelContext,

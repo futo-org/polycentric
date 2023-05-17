@@ -3,7 +3,7 @@ import { Avatar, Button, Paper } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import ImageViewer from 'react-simple-image-viewer';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import './ProfileHeader.css';
 import * as ProfileUtil from './ProfileUtil';
 

@@ -24,7 +24,7 @@ import NotificationsIcon from '@mui/icons-material/Notifications';
 import EditIcon from '@mui/icons-material/Edit';
 import ImageViewer from 'react-simple-image-viewer';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import PostModal from './PostModal';
 import * as ProfileUtil from './ProfileUtil';
 import './App.css';

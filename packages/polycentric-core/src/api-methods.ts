@@ -5,10 +5,7 @@ import * as Base64 from '@borderless/base64';
 import * as Protocol from './protocol';
 import * as Models from './models';
 
-async function checkResponse(
-    name: string,
-    response: Response,
-): Promise<void> {
+async function checkResponse(name: string, response: Response): Promise<void> {
     if (!response.ok) {
         console.warn(name, response.status, await response.text());
         throw new Error(name + ' !ok');
@@ -94,8 +91,8 @@ export async function getResolveClaim(
 
     const claimQuery = Base64.encodeUrl(Protocol.Claim.encode(claim).finish());
 
-    const path = `/resolve_claim?claim=${claimQuery}` 
-        + `&trust_root=${trustRootQuery}`;
+    const path =
+        `/resolve_claim?claim=${claimQuery}` + `&trust_root=${trustRootQuery}`;
 
     const response = await fetch(server + path, {
         method: 'GET',
@@ -161,7 +158,8 @@ export async function getQueryReferences(
         Protocol.Process.encode(process).finish(),
     );
 
-    const path = '/query_references' +
+    const path =
+        '/query_references' +
         `?system=${systemQuery}` +
         `&process=${processQuery}` +
         `&logical_clock=${logicalClock.toString()}` +
@@ -180,4 +178,3 @@ export async function getQueryReferences(
 
     return Protocol.Events.decode(rawBody);
 }
-

@@ -17,7 +17,7 @@ import Notifications from './Notifications';
 import { Feed } from './Feed';
 import * as Explore from './Explore';
 import * as About from './About';
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import * as Profiles from './Profiles';
 
 export const PolycentricRoutesMemo = memo(PolycentricRoutes);

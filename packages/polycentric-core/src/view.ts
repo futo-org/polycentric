@@ -4,8 +4,9 @@ import * as Base64 from '@borderless/base64';
 import * as ProcessHandle from './process-handle';
 import * as Models from './models';
 
-export type EventQueryCallback
-    = (signedEvent: Models.SignedEvent.SignedEvent) => void;
+export type EventQueryCallback = (
+    signedEvent: Models.SignedEvent.SignedEvent,
+) => void;
 
 export type CRDTQueryCallback = (value: Uint8Array) => void;
 
@@ -16,20 +17,20 @@ function makeEventKey(
     process: Models.Process.Process,
     logicalClock: Long,
 ): string {
-    return system.keyType.toString() +
+    return (
+        system.keyType.toString() +
         Base64.encode(system.key) +
         Base64.encode(process.process) +
-        logicalClock.toString();
+        logicalClock.toString()
+    );
 }
 
-function makeSystemKey(
-    system: Models.PublicKey.PublicKey,
-): string {
+function makeSystemKey(system: Models.PublicKey.PublicKey): string {
     return system.keyType.toString() + Base64.encode(system.key);
 }
 
 function makeContentTypeKey(
-    contentType: Models.ContentType.ContentType
+    contentType: Models.ContentType.ContentType,
 ): string {
     return contentType.toString();
 }
@@ -43,20 +44,18 @@ type StateCRDTQuery = {
     value: Uint8Array;
     unixMilliseconds: Long;
     callbacks: Set<CRDTQueryCallback>;
-}
+};
 
 type StateCRDTQuerySystem = {
     queries: Map<string, StateCRDTQuery>;
-}
+};
 
 export class View {
     private _eventQueryState: Map<string, EventQueryState>;
     private _stateCRDTQuerySystem: Map<string, StateCRDTQuerySystem>;
     private _processHandle: ProcessHandle.ProcessHandle;
 
-    constructor(
-        processHandle: ProcessHandle.ProcessHandle,
-    ) {
+    constructor(processHandle: ProcessHandle.ProcessHandle) {
         this._eventQueryState = new Map();
         this._stateCRDTQuerySystem = new Map();
         this._processHandle = processHandle;
@@ -68,11 +67,11 @@ export class View {
 
     public assertClean(): void {
         if (this._eventQueryState.size != 0) {
-            throw new Error("eventQueryState not unregistered");
+            throw new Error('eventQueryState not unregistered');
         }
 
         if (this._stateCRDTQuerySystem.size != 0) {
-            throw new Error("stateCRDTQuerySystem not unregistered");
+            throw new Error('stateCRDTQuerySystem not unregistered');
         }
     }
 
@@ -127,7 +126,7 @@ export class View {
                 }
             } else {
                 systemState.queries.set(contentTypeKey, {
-                    value: new Uint8Array,
+                    value: new Uint8Array(),
                     unixMilliseconds: Long.UZERO,
                     callbacks: new Set([callback]),
                 });
@@ -143,7 +142,7 @@ export class View {
                 const contentTypeKey = makeContentTypeKey(contentType);
 
                 systemState.queries.set(contentTypeKey, {
-                    value: new Uint8Array,
+                    value: new Uint8Array(),
                     unixMilliseconds: Long.UZERO,
                     callbacks: new Set([callback]),
                 });
@@ -152,7 +151,8 @@ export class View {
             this._stateCRDTQuerySystem.set(systemKey, systemState);
 
             (async () => {
-                const systemStateStore = await this._processHandle.store()
+                const systemStateStore = await this._processHandle
+                    .store()
                     .getSystemState(system);
 
                 for (const item of systemStateStore.crdtItems) {
@@ -236,17 +236,13 @@ export class View {
             this._eventQueryState.set(key, state);
 
             (async () => {
-                const signedEvent =
-                    await this._processHandle.store().getSignedEvent(
-                        system,
-                        process,
-                        logicalClock,
-                    );
+                const signedEvent = await this._processHandle
+                    .store()
+                    .getSignedEvent(system, process, logicalClock);
 
                 if (signedEvent) {
-                    const modelSignedEvent = Models.SignedEvent.fromProto(
-                        signedEvent,
-                    );
+                    const modelSignedEvent =
+                        Models.SignedEvent.fromProto(signedEvent);
 
                     state.signedEvent = modelSignedEvent;
 
@@ -260,9 +256,7 @@ export class View {
         }
     }
 
-    public update(
-        signedEvent: Models.SignedEvent.SignedEvent,
-    ): void {
+    public update(signedEvent: Models.SignedEvent.SignedEvent): void {
         const event = Models.Event.fromBuffer(signedEvent.event);
 
         const key = makeEventKey(
@@ -279,11 +273,7 @@ export class View {
             });
         }
 
-        if (
-            event
-                .contentType
-                .equals(Models.ContentType.ContentTypeDelete)
-        ) {
+        if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
             const deleteModel = Models.Delete.fromBuffer(event.content);
 
             const key = makeEventKey(
@@ -316,7 +306,7 @@ export class View {
                 if (
                     queryState &&
                     queryState.unixMilliseconds <
-                    event.lwwElement.unixMilliseconds
+                        event.lwwElement.unixMilliseconds
                 ) {
                     queryState.unixMilliseconds =
                         event.lwwElement.unixMilliseconds;

@@ -1,4 +1,4 @@
-import * as PolycentricReact from 'polycentric-react';
+import * as PolycentricReact from '@polycentric/polycentric-react';
 
 const cacheKey = 'polycentric-cache4';
 

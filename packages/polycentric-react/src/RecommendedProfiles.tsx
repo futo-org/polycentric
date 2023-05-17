@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as Base64 from '@borderless/base64';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import ProfileHeader from './ProfileHeader';
 import './Standard.css';
 

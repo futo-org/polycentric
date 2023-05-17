@@ -26,8 +26,8 @@ function makeProcessStateKey(
 ): Uint8Array {
     return Util.encodeText(
         system.keyType.toString() +
-        Base64.encode(system.key) +
-        Base64.encode(process.process),
+            Base64.encode(system.key) +
+            Base64.encode(process.process),
     );
 }
 
@@ -38,9 +38,9 @@ function makeEventKey(
 ): Uint8Array {
     return Util.encodeText(
         system.keyType.toString() +
-        Base64.encode(system.key) +
-        Base64.encode(process.process) +
-        logicalClock.toString(),
+            Base64.encode(system.key) +
+            Base64.encode(process.process) +
+            logicalClock.toString(),
     );
 }
 
@@ -80,15 +80,11 @@ export class Store {
     ): Promise<void> {
         await this.level.put(
             PROCESS_SECRET_KEY,
-            Protocol.StorageTypeProcessSecret.encode(
-                processSecret,
-            ).finish(),
+            Protocol.StorageTypeProcessSecret.encode(processSecret).finish(),
         );
     }
 
-    public async getProcessSecret():
-        Promise<Models.ProcessSecret.ProcessSecret>
-    {
+    public async getProcessSecret(): Promise<Models.ProcessSecret.ProcessSecret> {
         return Models.ProcessSecret.fromProto(
             Protocol.StorageTypeProcessSecret.decode(
                 await this.level.get(PROCESS_SECRET_KEY),

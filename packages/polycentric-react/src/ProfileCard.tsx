@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button, Paper } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
-import * as Core from 'polycentric-core';
+import * as Core from '@polycentric/polycentric-core';
 import './ProfileHeader.css';
 import * as ProfileUtil from './ProfileUtil';
 

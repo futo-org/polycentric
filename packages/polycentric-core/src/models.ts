@@ -7,8 +7,9 @@ import * as FastSHA256 from 'fast-sha256';
 import * as Util from './util';
 
 export namespace ContentType {
-    export type ContentType =
-        Readonly<Long> & { readonly __tag: unique symbol };
+    export type ContentType = Readonly<Long> & {
+        readonly __tag: unique symbol;
+    };
 
     function makeContentType(x: number): ContentType {
         return new Long(x, 0, true) as ContentType;
@@ -30,8 +31,9 @@ export namespace ContentType {
 }
 
 export namespace PublicKey {
-    export type PublicKey =
-        Readonly<Protocol.PublicKey> & { readonly __tag: unique symbol };
+    export type PublicKey = Readonly<Protocol.PublicKey> & {
+        readonly __tag: unique symbol;
+    };
 
     export function fromProto(proto: Protocol.PublicKey): PublicKey {
         if (!proto.keyType.equals(Long.UONE)) {
@@ -63,8 +65,9 @@ export namespace PublicKey {
 }
 
 export namespace PrivateKey {
-    export type PrivateKey =
-        Readonly<Protocol.PrivateKey> & { readonly __tag: unique symbol };
+    export type PrivateKey = Readonly<Protocol.PrivateKey> & {
+        readonly __tag: unique symbol;
+    };
 
     export function fromProto(proto: Protocol.PrivateKey): PrivateKey {
         if (!proto.keyType.equals(Long.UONE)) {
@@ -88,7 +91,7 @@ export namespace PrivateKey {
     export async function derivePublicKey(
         privateKey: PrivateKey,
     ): Promise<PublicKey.PublicKey> {
-        return PublicKey.fromProto({ 
+        return PublicKey.fromProto({
             keyType: privateKey.keyType,
             key: await Ed.getPublicKey(privateKey.key),
         });
@@ -103,8 +106,9 @@ export namespace PrivateKey {
 }
 
 export namespace Digest {
-    export type Digest =
-        Readonly<Protocol.Digest> & { readonly __tag: unique symbol };
+    export type Digest = Readonly<Protocol.Digest> & {
+        readonly __tag: unique symbol;
+    };
 
     export function fromProto(proto: Protocol.Digest): Digest {
         if (!proto.digestType.equals(Long.UONE)) {
@@ -120,8 +124,9 @@ export namespace Digest {
 }
 
 export namespace Process {
-    export type Process =
-        Readonly<Protocol.Process> & { readonly __tag: unique symbol };
+    export type Process = Readonly<Protocol.Process> & {
+        readonly __tag: unique symbol;
+    };
 
     export function fromProto(proto: Protocol.Process): Process {
         if (proto.process.length !== 16) {
@@ -150,8 +155,9 @@ export namespace Pointer {
         eventDigest: Digest.Digest;
     }
 
-    export type Pointer =
-        Readonly<PointerI> & { readonly __tag: unique symbol };
+    export type Pointer = Readonly<PointerI> & {
+        readonly __tag: unique symbol;
+    };
 
     export function fromProto(proto: Protocol.Pointer): Pointer {
         if (proto.system === undefined) {
@@ -179,13 +185,14 @@ export namespace Pointer {
 }
 
 export namespace ProcessSecret {
-   interface ProcessSecretI {
+    interface ProcessSecretI {
         system: PrivateKey.PrivateKey;
         process: Process.Process;
     }
 
-    export type ProcessSecret =
-        Readonly<ProcessSecretI> & { readonly __tag: unique symbol };
+    export type ProcessSecret = Readonly<ProcessSecretI> & {
+        readonly __tag: unique symbol;
+    };
 
     export function fromProto(
         proto: Protocol.StorageTypeProcessSecret,
@@ -212,12 +219,9 @@ export namespace Delete {
         indices: Protocol.Indices;
     }
 
-    export type Delete =
-        Readonly<DeleteI> & { readonly __tag: unique symbol };
+    export type Delete = Readonly<DeleteI> & { readonly __tag: unique symbol };
 
-    export function fromProto(
-        proto: Protocol.Delete,
-    ): Delete {
+    export function fromProto(proto: Protocol.Delete): Delete {
         if (proto.process === undefined) {
             throw new Error('expected process');
         }
@@ -227,29 +231,26 @@ export namespace Delete {
         return proto as Delete;
     }
 
-    export function fromBuffer(
-        buffer: Uint8Array,
-    ): Delete {
+    export function fromBuffer(buffer: Uint8Array): Delete {
         return fromProto(Protocol.Delete.decode(buffer));
     }
 }
 
 export namespace Event {
-    interface EventI{
+    interface EventI {
         system: PublicKey.PublicKey;
         process: Process.Process;
         logicalClock: Long;
-        contentType: ContentType.ContentType,
-        content: Uint8Array,
-        vectorClock: Protocol.VectorClock,
-        lwwElementSet: Protocol.LWWElementSet | undefined,
-        lwwElement: Protocol.LWWElement | undefined,
-        references: Array<Protocol.Reference>,
-        indices: Protocol.Indices,
+        contentType: ContentType.ContentType;
+        content: Uint8Array;
+        vectorClock: Protocol.VectorClock;
+        lwwElementSet: Protocol.LWWElementSet | undefined;
+        lwwElement: Protocol.LWWElement | undefined;
+        references: Array<Protocol.Reference>;
+        indices: Protocol.Indices;
     }
 
-    export type Event =
-        Readonly<EventI> & { readonly __tag: unique symbol };
+    export type Event = Readonly<EventI> & { readonly __tag: unique symbol };
 
     export function fromProto(proto: Protocol.Event): Event {
         if (proto.system === undefined) {
@@ -271,7 +272,7 @@ export namespace Event {
         PublicKey.fromProto(proto.system);
         Process.fromProto(proto.process);
 
-        return proto as Event ;
+        return proto as Event;
     }
 
     export function fromBuffer(buffer: Uint8Array): Event {
@@ -280,8 +281,9 @@ export namespace Event {
 }
 
 export namespace SignedEvent {
-    export type SignedEvent =
-        Readonly<Protocol.SignedEvent> & { readonly __tag: unique symbol };
+    export type SignedEvent = Readonly<Protocol.SignedEvent> & {
+        readonly __tag: unique symbol;
+    };
 
     export function fromProto(proto: Protocol.SignedEvent): SignedEvent {
         const event = Event.fromProto(Protocol.Event.decode(proto.event));
@@ -295,14 +297,14 @@ export namespace SignedEvent {
 }
 
 export enum ClaimType {
-    HackerNews = "HackerNews",
-    YouTube = "YouTube",
-    Odysee = "Odysee",
-    Rumble = "Rumble",
-    Twitter = "Twitter",
-    Bitcoin = "Bitcoin",
-    Generic = "Generic",
-    URL = "URL",
+    HackerNews = 'HackerNews',
+    YouTube = 'YouTube',
+    Odysee = 'Odysee',
+    Rumble = 'Rumble',
+    Twitter = 'Twitter',
+    Bitcoin = 'Bitcoin',
+    Generic = 'Generic',
+    URL = 'URL',
 }
 
 export function claimHackerNews(username: string): Protocol.Claim {
@@ -406,4 +408,3 @@ export async function signedEventToPointer(
         eventDigest: await hash(signedEvent.event),
     });
 }
-
