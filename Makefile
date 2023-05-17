@@ -44,16 +44,16 @@ pretty:
 build-production: proto
 	./version.sh
 
+# NPM automatically installs and resolves (co)dependencies for all packages 
+	npm install
+
 	cd packages/polycentric-core && \
-		npm install && \
 		npm run build:production
 
 	cd packages/polycentric-react && \
-		npm install && \
 		npm run build:production
 
 	cd packages/polycentric-web && \
-		npm install && \
 		npm run build:production
 
 	cd server && \
