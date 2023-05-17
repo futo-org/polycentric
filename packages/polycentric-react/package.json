@@ -37,7 +37,7 @@
   "scripts": {
     "build": "webpack --mode=development",
     "build:production": "webpack --mode=production",
-    "watch": "webpack --watch --mode=development",
+    "dev": "webpack --watch --mode=development",
     "test": "jest"
   },
   "eslintConfig": {
