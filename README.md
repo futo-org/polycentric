@@ -30,7 +30,7 @@ make join-sandbox
 make build-production
 # start the web ui
 cd packages/polycentric-web
-npm run start
+npm run dev
 
 # open another shell
 # join the existing sandbox with your new shell
