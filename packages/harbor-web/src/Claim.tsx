@@ -41,13 +41,14 @@ export function Claim(props: ClaimProps) {
                 Core.Models.ContentType.ContentTypeVouch,
             );
 
-            console.log("got references count", references.relatedEvents.length);
+            console.log("got references count", references.items.length);
 
-            const vouchedBy = references.relatedEvents.map((reference) => {
-                return Core.Models.Event.fromBuffer(
-                    Core.Models.SignedEvent.fromProto(reference).event,
-                ).system;
-            });
+            const vouchedBy = references.items
+                .map((reference: Core.Protocol.QueryReferencesResponseItem) => {
+                    return Core.Models.Event.fromBuffer(
+                        Core.Models.SignedEvent.fromProto(reference.event!).event,
+                    ).system;
+                });
 
             if (cancelContext.cancelled()) { return; }
 
