@@ -6,7 +6,6 @@ import * as FS from 'fs';
 import * as NodeHTMLParser from 'node-html-parser';
 
 import * as Core from '@polycentric/polycentric-core';
-import * as PolycentricLevelDB from '@polycentric/polycentric-leveldb';
 
 function sleep(ms: number) {
     return new Promise((resolve) => {
@@ -20,12 +19,12 @@ async function runBot(
     username: string,
     description: string,
     feedURL: string,
-    handler: (a: Core.DB.PolycentricState, b: any) => Promise<void>,
+    handler: (a: Core.ProcessHandle.ProcessHandle, b: any) => Promise<void>,
 ) {
     const persistenceDriver =
-        PolycentricLevelDB.createPersistenceDriverLevelDB(stateDirectoryPath);
+        Core.PersistenceDriver.createPersistenceDriverMemory();
 
-    const metaStore = await Core.PersistenceDriver.createMetaStore(
+    const metaStore = await Core.MetaStore.createMetaStore(
         persistenceDriver,
     );
 
@@ -37,73 +36,21 @@ async function runBot(
         },
     );
 
-    const state = await (async () => {
-        let levelInfo = await metaStore.getActiveStore();
-
-        if (levelInfo !== undefined) {
-            const level = await metaStore.openStore(
-                levelInfo.publicKey,
-                levelInfo.version,
-            );
-
-            const state = new Core.DB.PolycentricState(
-                level,
-                persistenceDriver,
-                'bot',
-            );
-
-            await Core.DB.startIdentity(state);
-
-            return state;
-        } else {
-            const state = await Core.DB.createStateNewIdentity(
-                metaStore,
-                persistenceDriver,
-                'username',
-            );
-
-            await Core.DB.startIdentity(state);
-
-            await metaStore.setStoreReady(
-                state.identity!.publicKey,
-                Core.DB.STORAGE_VERSION,
-            );
-
-            await metaStore.setActiveStore(
-                state.identity!.publicKey,
-                Core.DB.STORAGE_VERSION,
-            );
-
-            return state;
-        }
-    })();
+    const processHandle = await Core.ProcessHandle.createProcessHandle(metaStore);
 
     {
-        const message = Core.DB.makeDefaultEventBody();
-        message.profile = {
-            profileName: new TextEncoder().encode(username),
-            profileDescription: new TextEncoder().encode(description),
-            profileServers: [],
-            profileImagePointer: undefined,
-        };
-
-        const servers = ['https://srv1.polycentric.io'];
-
-        for (const server of servers) {
-            message.profile?.profileServers.push(
-                new TextEncoder().encode(server),
-            );
-        }
+        const servers = process.env.POLYCENTRIC_SERVERS?.split(',') ?? [];
 
         const image = FS.readFileSync(profilePicturePath, null);
+        const imagePointer = await processHandle.publishBlob('image/jpeg', image);
 
-        message.profile!.profileImagePointer = await Core.DB.saveBlob(
-            state,
-            'image/jpeg',
-            image,
-        );
+        processHandle.setUsername(username);
+        processHandle.setDescription(description);
+        processHandle.setAvatar(imagePointer);
+        for (const server of servers) {
+            processHandle.addServer(server);
+        }
 
-        await Core.DB.levelSavePost(state, message);
     }
 
     let parser = new Parser();
@@ -118,6 +65,7 @@ async function runBot(
                 method: 'GET',
             });
 
+
             if (response.status === 429) {
                 if (response.headers.has('Retry-After')) {
                     sleepSeconds = Number(response.headers.get('Retry-After'));
@@ -127,7 +75,7 @@ async function runBot(
             }
 
             if (response.status !== 200) {
-                throw new Error('status' + response.status.toString());
+                throw new Error(`status ${response.status.toString()} for ${feedURL}: ${await response.text()}`);
             }
 
             const xml = await response.text();
@@ -145,11 +93,11 @@ async function runBot(
                 try {
                     await levelRSS.get(item.guid);
                     continue;
-                } catch (err) {}
+                } catch (err) { }
 
                 console.info('saving post', item.guid);
 
-                await handler(state, item);
+                await handler(processHandle, item);
 
                 await levelRSS.put(item.guid, '0');
             }
@@ -163,7 +111,7 @@ async function runBot(
 }
 
 async function handlerHackerNews(
-    state: Core.DB.PolycentricState,
+    processHandle: Core.ProcessHandle.ProcessHandle,
     item: any,
 ): Promise<void> {
     const post =
@@ -175,17 +123,11 @@ async function handlerHackerNews(
         'comments: ' +
         item.comments;
 
-    const event = Core.DB.makeDefaultEventBody();
-    event.message = {
-        message: new TextEncoder().encode(post),
-        boostPointer: undefined,
-    };
-
-    await Core.DB.levelSavePost(state, event);
+    await processHandle.post(post);
 }
 
 async function handlerNitter(
-    state: Core.DB.PolycentricState,
+    processHandle: Core.ProcessHandle.ProcessHandle,
     item: any,
 ): Promise<void> {
     if (item.content === undefined) {
@@ -266,47 +208,44 @@ async function handlerNitter(
 
         const imageRaw = new Uint8Array(await imageResponse.arrayBuffer());
 
-        imagePointer = await Core.DB.saveBlob(state, mime!, imageRaw);
+        imagePointer = await processHandle.publishBlob(
+            mime,
+            imageRaw,
+        );
     }
 
     if (imagePointer === undefined && message === '') {
         return;
     }
 
-    const event = Core.DB.makeDefaultEventBody();
-    event.message = {
-        message: new TextEncoder().encode(message),
-        boostPointer: undefined,
-        image: imagePointer,
-    };
+    processHandle.post(message, imagePointer);
 
-    await Core.DB.levelSavePost(state, event);
 }
 
 runBot(
     'state/ap',
-    'ap.jpg',
+    'ap.png',
     'The Associated Press',
     'Advancing the power of facts, globally.',
-    'https://nitter.net/ap/rss',
+    'https://nitter.pw/ap/rss',
     handlerNitter,
 );
 
 runBot(
     'state/biden',
-    'biden.jpg',
+    'biden.jpeg',
     'President Biden',
     '46th President of the United States',
-    'https://nitter.net/potus/rss',
+    'https://nitter.pw/potus/rss',
     handlerNitter,
 );
 
 runBot(
     'state/dril',
-    'dril.jpg',
+    'dril.jpeg',
     'wint',
     'Societary Fact Whisperer || alienPiss',
-    'https://nitter.net/dril/rss',
+    'https://nitter.pw/dril/rss',
     handlerNitter,
 );
 
@@ -324,6 +263,6 @@ runBot(
     'archillectlogo.jpg',
     'Archillect',
     'The ocular engine.',
-    'https://nitter.net/archillect/rss',
+    'https://nitter.pw/archillect/rss',
     handlerNitter,
 );

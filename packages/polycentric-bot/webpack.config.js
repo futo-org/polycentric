@@ -1,4 +1,5 @@
 const path = require('path');
+const Dotenv = require('dotenv-webpack');
 
 module.exports = {
     entry: './src/index.ts',
@@ -22,5 +23,13 @@ module.exports = {
     },
     externals: {
         "classic-level": "require('classic-level')"
-    }
+    },
+    plugins: [
+        new Dotenv(
+            {
+                // use .env.development file instead of .env in development (webpack --mode=development)
+                path: process.env.NODE_ENV === 'development' ? './.env.development' : './.env',
+            }
+        )
+    ]
 };
