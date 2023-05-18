@@ -21,6 +21,10 @@ join-sandbox:
 	docker-compose -f docker-compose.development.yml \
 		exec development /bin/bash
 
+start-gdbserver:
+	docker-compose -f docker-compose.development.yml \
+		exec development gdbserver 0.0.0.0:2345 ./server/target/debug/server
+
 proto: proto/protocol.proto
 	npm install
 	npx protoc \
