@@ -76,7 +76,7 @@ export function loadProfileProps(
         setProfileProps((state) => {
             return {
                 ...state,
-                avatar: link, 
+                avatar: link,
             };
         });
     };
@@ -91,7 +91,7 @@ export function loadProfileProps(
 
         const pointer = Core.Models.Pointer.fromBuffer(buffer);
 
-        if (avatarCancelContext!= undefined) {
+        if (avatarCancelContext != undefined) {
             avatarCancelContext.cancel();
         }
 
@@ -170,7 +170,7 @@ export function loadProfileProps(
         setProfileProps((state) => {
             return {
                 ...state,
-                claims: parsedEvents, 
+                claims: parsedEvents,
             };
         });
     })();
@@ -225,31 +225,23 @@ export function Profile(props: ProfileProps) {
 
 
     return (
-        <div
-            style={{
-                marginTop: '20px',
-                width: '33%',
-                display: 'flex',
-                alignItems: 'center',
-                flexDirection: 'column',
-            }}
+        <div className="bg-white rounded-lg shadow-lg p-4 max-w-screen w-96 h-[38.4rem]"
         >
-            <MUI.Avatar
-                src={state.avatar}
-                style={{
-                    display: 'block',
-                    width: '100px',
-                    height: '100px',
-                }}
-            />
+            <div className="flex justify-between items-center w-full">
+                <img
+                    className="rounded-full w-32 h-32"
+                    src={state.avatar} />
+                <div className='flex flex-col pl-3'>
+                    <h1 className="text-4xl font-bold text-gray-800">
+                        {state.name}
+                    </h1>
 
-            <p>
-                {state.name}
-            </p>
-
-            <p>
-                {state.description}
-            </p>
+                    <h2 className="">
+                        {state.description}
+                    </h2> 
+                </div>
+            </div>
+            <br/>
 
             {state.claims.map((claim, idx) => (
                 <Claim.Claim
