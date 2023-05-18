@@ -40,7 +40,7 @@ services:
         privileged: true
         ports:
             # gdbserver
-            - "127.0.0.1:3345:2345"
+            - "127.0.0.1:3345:3345"
             # polycentric web
             - "127.0.0.1:3000:3000"
             # harbor social
