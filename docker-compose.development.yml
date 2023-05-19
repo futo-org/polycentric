@@ -51,7 +51,6 @@ services:
         command: tail -F wait_forever
     grafana:
         image: grafana/grafana:9.5.2
-        container_name: grafana-server
         restart: always
         depends_on:
             - influxdb
@@ -68,7 +67,6 @@ services:
             - ./monitoring/provisioning:/etc/grafana/provisioning
     influxdb:
         image: influxdb:2.7-alpine
-        container_name: influxdb
         restart: always
         environment:
             - DOCKER_INFLUXDB_INIT_MODE=setup
@@ -83,7 +81,6 @@ services:
             - influxdb_data:/var/lib/influxdb2
     telegraf:
         image: telegraf:1.26.2-alpine
-        container_name: telegraf
         restart: always
         user: "telegraf:${DOCKER_GID}"
         volumes:
