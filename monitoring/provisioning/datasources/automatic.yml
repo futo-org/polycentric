@@ -1,0 +1,35 @@
+apiVersion: 1
+
+datasources:
+- orgId: 1
+  version: 2
+  name: Influx DB
+  type: influxdb
+  access: proxy
+  url: http://influxdb:8086
+  basicAuth: true
+  jsonData:
+    defaultBucket: polycentric
+    httpMode: GET
+    organization: polycentric
+    tlsAuth: false
+    tlsAuthWithCACert: false
+    version: Flux
+  secureJsonData:
+    token: admin 
+
+- orgId: 1
+  version: 2
+  name: PostgreSQL
+  type: postgres
+  access: proxy
+  url: postgres
+  user: postgres
+  jsonData:
+    connMaxLifetime: 14400
+    maxIdleConns: 10
+    maxIdleConnsAuto: true
+    maxOpenConns: 10
+    sslmode: disable
+  secureJsonData:
+    password: testing
