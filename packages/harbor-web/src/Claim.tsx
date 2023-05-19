@@ -32,21 +32,29 @@ export function Claim(props: ClaimProps) {
         const cancelContext = new Core.CancelContext.CancelContext();
 
         (async () => {
+            const pointer = await Core.Models.signedEventToPointer(props.parsedEvent.signedEvent);
+            const reference = Core.Models.pointerToReference(pointer);
+
             const references = await Core.APIMethods.getQueryReferences(
                 App.server,
-                props.parsedEvent.event.system,
-                props.parsedEvent.event.process,
-                props.parsedEvent.event.logicalClock,
+                reference,
                 Core.Models.ContentType.ContentTypeVouch,
             );
 
-            console.log("got references count", references.events.length);
+            console.log("got references count", references.items.length);
 
-            const vouchedBy = references.events.map((reference) => {
-                return Core.Models.Event.fromBuffer(
-                    Core.Models.SignedEvent.fromProto(reference).event,
-                ).system;
-            });
+            const vouchedBy = references.items
+                .filter((reference: Core.Protocol.QueryReferencesResponseItem) => {
+                    if (reference.event == undefined) {
+                        throw new Error("reference query event is undefined");
+                    }
+                    return true;
+                })
+                .map((reference: Core.Protocol.QueryReferencesResponseItem) => {
+                    return Core.Models.Event.fromBuffer(
+                        Core.Models.SignedEvent.fromProto(reference.event!).event,
+                    ).system;
+                });
 
             if (cancelContext.cancelled()) { return; }
 
@@ -117,72 +125,48 @@ export function Claim(props: ClaimProps) {
         return (<div />);
     }
 
+    const [icon, claimType, url] = claimInfo;
+
     return (
-        <MUI.Paper
-            elevation={3}
-            style={{
-                width: '100%',
-                marginBottom: '10px',
-           }}
-           sx={{
-                backgroundColor: '#eeca97',
-                ':hover': {
-                    backgroundColor: '#eec385',
-                },
-            }}
+
+        <div
+        // Slightly rounded rectangle with logo on left and claim type in center of remaining space
+        // Slim blue border around the whole thing (not just the icon)
+        // Using tailwind
         >
-            <div
-                style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    paddingLeft: '10px',
-                    paddingBottom: '10px',
-                    color: 'black',
-                    textDecoration: 'none',
-                }}
-            >
-                <div
-                    style={{
-                        display: 'flex',
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                    }}
-                >
-                    {claimInfo[0]}
-                    <p
+            <div className="flex flex-row justify-around w-full border border-gray-200 rounded-md my-2 py-1.5">
+                <div className="flex flex-row items-center justify-center w-1/6">
+                    {icon}
+                </div>
+                <div className="flex flex-col items-center justify-center w-5/6">
+                    <p className="text-lg font-bold">{claimType}</p>
+                    <p className="text-sm">{identifier}</p>
+                </div>
+            </div>
+
+            {vouchedBy.length > 0 && (
+                <React.Fragment>
+                    <p> Verified By: </p>
+
+                    <div
                         style={{
-                            flex: '1',
-                            textAlign: 'center',
+                            display: 'flex',
+                            flexDirection: 'row',
+                            gap: '8px',
                         }}
                     >
-                        {claimInfo[1]}
-                    </p>
-                </div>
-
-                { vouchedBy.length > 0 && (
-                    <React.Fragment>
-                        <p> Verified By: </p>
-
-                        <div
-                            style={{
-                                display: 'flex',
-                                flexDirection: 'row',
-                                gap: '8px',
-                            }}
-                        >
-                            {vouchedBy.map((system, idx) => (
-                                <VouchedBy.VouchedBy
-                                    key={idx}
-                                    processHandle={props.processHandle}
-                                    system={system}
-                                    view={props.view}
-                                />
-                            ))}
-                        </div>
-                    </React.Fragment>
-                )}
-            </div>
-        </MUI.Paper>
+                        {vouchedBy.map((system, idx) => (
+                            <VouchedBy.VouchedBy
+                                key={idx}
+                                processHandle={props.processHandle}
+                                system={system}
+                                view={props.view}
+                            />
+                        ))}
+                    </div>
+                </React.Fragment>
+            )}
+        </div>
     );
 }
 

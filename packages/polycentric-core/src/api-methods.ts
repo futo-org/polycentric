@@ -145,25 +145,26 @@ export async function getQueryIndex(
 
 export async function getQueryReferences(
     server: string,
-    system: Models.PublicKey.PublicKey,
-    process: Models.Process.Process,
-    logicalClock: Long,
-    fromType: Long,
-): Promise<Protocol.Events> {
-    const systemQuery = Base64.encodeUrl(
-        Protocol.PublicKey.encode(system).finish(),
+    reference: Protocol.Reference,
+    fromType?: Long,
+    cursor?: Uint8Array,
+    countLwwElementReferences?: Protocol.CountLWWElementReferences[],
+    countReferences?: Protocol.CountReferences[],
+): Promise<Protocol.QueryReferencesResponse> {
+
+    const query: Protocol.QueryReferencesRequest = {
+        reference: reference,
+        fromType: fromType,
+        cursor: cursor,
+        countLwwElementReferences: countLwwElementReferences ?? [],
+        countReferences: countReferences ?? [],
+    };
+
+    const encodedQuery = Base64.encodeUrl(
+        Protocol.QueryReferencesRequest.encode(query).finish(),
     );
 
-    const processQuery = Base64.encodeUrl(
-        Protocol.Process.encode(process).finish(),
-    );
-
-    const path =
-        '/query_references' +
-        `?system=${systemQuery}` +
-        `&process=${processQuery}` +
-        `&logical_clock=${logicalClock.toString()}` +
-        `&from_type=${fromType.toString()}`;
+    const path = `/query_references?query=${encodedQuery}`
 
     const response = await fetch(server + path, {
         method: 'GET',
@@ -176,5 +177,5 @@ export async function getQueryReferences(
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
-    return Protocol.Events.decode(rawBody);
+    return Protocol.QueryReferencesResponse.decode(rawBody);
 }
