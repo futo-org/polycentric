@@ -44,6 +44,12 @@ export function Claim(props: ClaimProps) {
             console.log("got references count", references.items.length);
 
             const vouchedBy = references.items
+                .filter((reference: Core.Protocol.QueryReferencesResponseItem) => {
+                    if (reference.event == undefined) {
+                        throw new Error("reference query event is undefined");
+                    }
+                    return true;
+                })
                 .map((reference: Core.Protocol.QueryReferencesResponseItem) => {
                     return Core.Models.Event.fromBuffer(
                         Core.Models.SignedEvent.fromProto(reference.event!).event,
