@@ -1,7 +1,9 @@
 use ::envconfig::Envconfig;
 use ::log::*;
 use ::protobuf::Message;
+use std::net::UdpSocket;
 use ::warp::Filter;
+use cadence::{StatsdClient, UdpMetricSink, DEFAULT_PORT};
 
 mod handlers;
 mod ingest;
@@ -148,6 +150,15 @@ async fn serve_api(
         admin_token: config.admin_token.clone(),
     });
 
+    info!("Connecting to StatsD");
+
+    let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
+    socket.set_nonblocking(true).unwrap();
+    let host = ("telegraf", DEFAULT_PORT);
+    let sink = UdpMetricSink::from(host, socket).unwrap();
+    let client = StatsdClient::from_sink("polycentric-server", sink);
+    ::cadence_macros::set_global_default(client);
+    
     let cors = ::warp::cors()
         .allow_any_origin()
         .max_age(::std::time::Duration::from_secs(60 * 5))
@@ -286,7 +297,7 @@ async fn serve_api(
 #[::tokio::main]
 async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
     ::env_logger::init();
-
+    
     let config = Config::init_from_env().unwrap();
 
     serve_api(&config).await?;

@@ -1,4 +1,5 @@
 use ::protobuf::Message;
+use cadence_macros::statsd_count;
 
 pub(crate) async fn ingest_event(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
@@ -18,6 +19,8 @@ pub(crate) async fn ingest_event(
 
     let event_id =
         crate::postgres::insert_event(&mut *transaction, signed_event).await?;
+
+    statsd_count!("events", 1);
 
     let content = crate::model::content::decode_content(
         *event.content_type(),

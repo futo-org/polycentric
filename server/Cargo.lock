@@ -171,6 +171,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0b3de4a0c5e67e16066a0715723abd91edc2f9001d09c46e1dca929351e130e"
 
 [[package]]
+name = "cadence"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb681a7408f21c9d9dcb6638e340913ea260cc587518b5976510d2341f085a19"
+dependencies = [
+ "crossbeam-channel",
+]
+
+[[package]]
+name = "cadence-macros"
+version = "0.29.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e71b4c708e7d12eefbad3d3f76d380873825741be3fbc20000f9d5c0e51d0d8"
+dependencies = [
+ "cadence",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -229,6 +247,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b540bd8bc810d3885c6ea91e2018302f68baba2129ab3e88f32389ee9370880d"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.5.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a33c2bf77f2df06183c3aa30d1e96c0695a313d4f9c453cc3762a6db39f99200"
+dependencies = [
+ "cfg-if",
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -1803,6 +1831,8 @@ dependencies = [
  "anyhow",
  "base64 0.13.0",
  "bytes",
+ "cadence",
+ "cadence-macros",
  "ed25519-dalek",
  "env_logger",
  "envconfig",
