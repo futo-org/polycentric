@@ -3,7 +3,7 @@ use ::log::*;
 use ::protobuf::Message;
 use std::net::UdpSocket;
 use ::warp::Filter;
-use cadence::{StatsdClient, UdpMetricSink, DEFAULT_PORT};
+use cadence::{StatsdClient, UdpMetricSink};
 
 mod handlers;
 mod ingest;
@@ -33,6 +33,7 @@ struct State {
     pool: ::sqlx::PgPool,
     search: ::opensearch::OpenSearch,
     admin_token: String,
+    statsd_client: ::cadence::StatsdClient
 }
 
 async fn handle_rejection(
@@ -117,6 +118,18 @@ struct Config {
 
     #[envconfig(from = "ADMIN_TOKEN")]
     pub admin_token: String,
+
+    #[envconfig(
+        from = "STATSD_ADDRESS",
+        default = "telegraf"
+    )]
+    pub statsd_address: String,
+
+    #[envconfig(
+        from = "STATSD_ADDRESS",
+        default = "8125"
+    )]
+    pub statsd_port: u16,
 }
 
 async fn serve_api(
@@ -144,21 +157,21 @@ async fn serve_api(
 
     transaction.commit().await?;
 
+    info!("Connecting to StatsD");
+
+    let socket = UdpSocket::bind("0.0.0.0:0")?;
+    socket.set_nonblocking(true)?;
+    let host = (config.statsd_address.to_owned(), config.statsd_port);
+    let sink = UdpMetricSink::from(host, socket)?;
+    let statsd_client = StatsdClient::from_sink("polycentric-server", sink);
+
     let state = ::std::sync::Arc::new(State {
         pool,
         search: opensearch_client,
         admin_token: config.admin_token.clone(),
+        statsd_client: statsd_client
     });
 
-    info!("Connecting to StatsD");
-
-    let socket = UdpSocket::bind("0.0.0.0:0").unwrap();
-    socket.set_nonblocking(true).unwrap();
-    let host = ("telegraf", DEFAULT_PORT);
-    let sink = UdpMetricSink::from(host, socket).unwrap();
-    let client = StatsdClient::from_sink("polycentric-server", sink);
-    ::cadence_macros::set_global_default(client);
-    
     let cors = ::warp::cors()
         .allow_any_origin()
         .max_age(::std::time::Duration::from_secs(60 * 5))

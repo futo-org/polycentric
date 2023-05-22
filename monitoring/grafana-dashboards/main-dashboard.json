@@ -549,7 +549,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(DISTINCT system_key) FROM events;",
+          "rawSql": "SELECT COUNT(DISTINCT (system_key, system_key_type)) FROM events;",
           "refId": "A",
           "sql": {
             "columns": [
