@@ -20,6 +20,9 @@ Edit `Caddyfile` replacing `srv1.polycentric.io` with your domain name. Go to yo
 
 Edit `docker-compose.production.yml` replacing the value of `ADMIN_TOKEN` with a strong passphrase.
 
+Edit `docker-compose.production.yml` replacing the value of `${DOCKER_GID}` with the group id of the `docker` group on your system (or any group that has permission
+to access the docker socket). You can find this id by running `stat -c '%g' /var/run/docker.sock`.
+
 ### Start the server
 
 ```bash
@@ -67,3 +70,9 @@ curl \
     https://my-server.com/censor?censorship_type=DO_NOT_RECOMMEND \
     -d 'https://polycentric.io/feed/a/CiA_zaEPAlQ2H7hmNbT'
 ```
+
+## Monitoring & Dashboards
+
+Polycentric comes equipped with monitoring to let server operators monitor the health and overall metrics of their node. By default, you can find a grafana
+dashboard at `localhost:8090`. The default login is `username: admin` `password: admin`, we recommend changing this upon first sign in. If you wish to
+edit the grafana dashboard, you should modify the json file located at `monitoring/grafana-dashboards/main-dashboard.json`.

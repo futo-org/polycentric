@@ -12,6 +12,7 @@ Polycentric is split into a variety of Typescript packages, and a Rust backend. 
 - Bot client `./packages/polycentric-bot` which depends on `polycentric-core`
 - Core logic `./packages/polycentric-core`
 - Server implementation `./server`
+- Monitoring tools `./monitoring`
 
 ## Development quickstart
 

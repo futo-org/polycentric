@@ -157,7 +157,7 @@
             "type": "influxdb",
             "uid": "P7BBDCCC34984BAD9"
           },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_cpu\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"cpu\"] == \"cpu-total\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"development\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
+          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_cpu\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"cpu\"] == \"cpu-total\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"server\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
           "refId": "A"
         }
       ],
@@ -288,7 +288,7 @@
             "type": "influxdb",
             "uid": "P7BBDCCC34984BAD9"
           },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_mem\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"development\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
+          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_mem\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"server\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
           "refId": "A"
         }
       ],
@@ -410,11 +410,11 @@
             "type": "influxdb",
             "uid": "P7BBDCCC34984BAD9"
           },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_log\")\n  |> filter(fn: (r) => r[\"container_image\"] == \"polycentric-development\")\n  |> filter(fn: (r) => r[\"_field\"] == \"message\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> drop(columns:[\"_measurement\", \"_field\"])",
+          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_log\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"server\")\n  |> filter(fn: (r) => r[\"_field\"] == \"message\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> drop(columns:[\"_measurement\", \"_field\"])",
           "refId": "A"
         }
       ],
-      "title": "Logs (Placeholder)",
+      "title": "Logs",
       "type": "logs"
     },
     {
@@ -428,6 +428,7 @@
             "mode": "thresholds"
           },
           "mappings": [],
+          "noValue": "No data/Uninitialized Database",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -506,6 +507,7 @@
             "mode": "thresholds"
           },
           "mappings": [],
+          "noValue": "No data/Uninitialized Database",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -584,6 +586,7 @@
             "mode": "thresholds"
           },
           "mappings": [],
+          "noValue": "No data/Uninitialized Database",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1880,6 +1883,6 @@
   "timezone": "",
   "title": "Main Dashboard",
   "uid": "bb874d58-6f7b-4686-9718-6a1f4dbaf942",
-  "version": 1,
+  "version": 7,
   "weekStart": ""
 }
