@@ -34,7 +34,7 @@ pub(crate) async fn ingest_event(
                     &pointer,
                 )
                 .await?;
-            },
+            }
             crate::model::reference::Reference::Bytes(bytes) => {
                 crate::postgres::insert_event_reference_bytes(
                     &mut *transaction,
@@ -42,8 +42,8 @@ pub(crate) async fn ingest_event(
                     event_id,
                 )
                 .await?;
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 
@@ -62,14 +62,16 @@ pub(crate) async fn ingest_event(
             &mut *transaction,
             event_id,
             event.system(),
-            &body
-        ).await?;
+            &body,
+        )
+        .await?;
     } else if let crate::model::content::Content::Claim(body) = content {
         crate::postgres::insert_claim(
             &mut *transaction,
             event_id,
-            body.claim_type()
-        ).await?;
+            body.claim_type(),
+        )
+        .await?;
     }
 
     if let Some(lww_element) = event.lww_element() {
@@ -77,7 +79,8 @@ pub(crate) async fn ingest_event(
             &mut *transaction,
             event_id,
             lww_element,
-        ).await?;
+        )
+        .await?;
     }
 
     Ok(())

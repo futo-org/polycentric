@@ -379,9 +379,7 @@ pub mod event {
         ))
     }
 
-    pub fn from_vec(
-        vec: &::std::vec::Vec<u8>,
-    ) -> ::anyhow::Result<Event> {
+    pub fn from_vec(vec: &::std::vec::Vec<u8>) -> ::anyhow::Result<Event> {
         from_proto(&crate::protocol::Event::parse_from_bytes(vec)?)
     }
 
@@ -408,9 +406,8 @@ pub mod event {
             .collect::<::anyhow::Result<
                 ::std::vec::Vec<crate::protocol::Reference>
             >>()?;
-        result.lww_element = ::protobuf::MessageField::from_option(
-            event.lww_element().clone(),
-        );
+        result.lww_element =
+            ::protobuf::MessageField::from_option(event.lww_element().clone());
 
         Ok(result)
     }
@@ -617,9 +614,7 @@ pub mod reference {
                     &proto,
                 )?))
             }
-            3 => {
-                Ok(Reference::Bytes(reference.reference.clone()))
-            }
+            3 => Ok(Reference::Bytes(reference.reference.clone())),
             _ => ::anyhow::bail!("unknown_reference_type"),
         }
     }

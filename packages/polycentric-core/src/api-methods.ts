@@ -151,7 +151,6 @@ export async function getQueryReferences(
     countLwwElementReferences?: Protocol.CountLWWElementReferences[],
     countReferences?: Protocol.CountReferences[],
 ): Promise<Protocol.QueryReferencesResponse> {
-
     const query: Protocol.QueryReferencesRequest = {
         reference: reference,
         fromType: fromType,
@@ -164,7 +163,7 @@ export async function getQueryReferences(
         Protocol.QueryReferencesRequest.encode(query).finish(),
     );
 
-    const path = `/query_references?query=${encodedQuery}`
+    const path = `/query_references?query=${encodedQuery}`;
 
     const response = await fetch(server + path, {
         method: 'GET',

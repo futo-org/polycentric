@@ -7,8 +7,8 @@ mod handlers;
 mod ingest;
 mod model;
 mod postgres;
-mod version;
 mod queries;
+mod version;
 
 include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 
@@ -183,7 +183,7 @@ async fn serve_api(
         .and_then(crate::handlers::get_query_index::handler)
         .with(cors.clone());
 
-    let route_get_query_references= ::warp::get()
+    let route_get_query_references = ::warp::get()
         .and(::warp::path("query_references"))
         .and(::warp::path::end())
         .and(state_filter.clone())

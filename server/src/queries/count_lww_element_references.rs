@@ -1,4 +1,4 @@
-pub (crate) async fn count_lww_element_references(
+pub(crate) async fn count_lww_element_references(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     system: &crate::model::public_key::PublicKey,
     process: &crate::model::process::Process,

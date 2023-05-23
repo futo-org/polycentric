@@ -23,7 +23,8 @@ pub(crate) async fn handler(
         crate::postgres::load_processes_for_system(
             &mut transaction,
             &query.system,
-        ).await
+        )
+        .await
     );
 
     let mut result = crate::protocol::Events::new();
@@ -37,22 +38,21 @@ pub(crate) async fn handler(
                     process,
                     *event_type,
                     query.limit.unwrap_or(1),
-                ).await
+                )
+                .await
             );
 
             for event in batch.iter() {
-                result.events.push(
-                    crate::model::signed_event::to_proto(event),
-                );
+                result
+                    .events
+                    .push(crate::model::signed_event::to_proto(event));
             }
         }
     }
 
     crate::warp_try_err_500!(transaction.commit().await);
 
-    let result_serialized = crate::warp_try_err_500!(
-        result.write_to_bytes()
-    );
+    let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
 
     Ok(Box::new(::warp::reply::with_header(
         ::warp::reply::with_status(

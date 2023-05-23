@@ -616,7 +616,6 @@ pub(crate) async fn insert_event_reference_bytes(
     Ok(())
 }
 
-
 pub(crate) async fn insert_event_index(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event_id: u64,

@@ -139,7 +139,11 @@ export class ProcessHandle {
         );
     }
 
-    public async post(content: string, image?: Protocol.Pointer, boost?: Protocol.Pointer): Promise<Models.Pointer.Pointer> {
+    public async post(
+        content: string,
+        image?: Protocol.Pointer,
+        boost?: Protocol.Pointer,
+    ): Promise<Models.Pointer.Pointer> {
         return await this.publish(
             Models.ContentType.ContentTypePost,
             Protocol.Post.encode({

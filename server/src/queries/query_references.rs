@@ -16,7 +16,7 @@ pub(crate) struct QueryResult {
 fn process_rows(
     rows: std::vec::Vec<QueryRow>,
 ) -> ::anyhow::Result<QueryResult> {
-    let mut result = QueryResult{
+    let mut result = QueryResult {
         cursor: None,
         events: vec![],
     };
@@ -166,22 +166,17 @@ pub(crate) async fn query_references(
                 *pointer.logical_clock(),
                 from_type,
                 cursor,
-            ).await
+            )
+            .await
         }
         crate::model::reference::Reference::Bytes(bytes) => {
-            query_bytes(
-                &mut *transaction,
-                &bytes,
-                from_type,
-                cursor,
-            ).await
+            query_bytes(&mut *transaction, &bytes, from_type, cursor).await
         }
         _ => {
             unimplemented!("query identity not implemented");
         }
     }
 }
-
 
 #[cfg(test)]
 pub mod tests {
@@ -206,11 +201,12 @@ pub mod tests {
             5,
             &None,
             &None,
-        ).await?;
+        )
+        .await?;
 
         transaction.commit().await?;
 
-        let expected = crate::queries::query_references::QueryResult{
+        let expected = crate::queries::query_references::QueryResult {
             cursor: None,
             events: vec![],
         };

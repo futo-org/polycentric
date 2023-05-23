@@ -1,4 +1,4 @@
-pub (crate) async fn count_references_pointer(
+pub(crate) async fn count_references_pointer(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     system: &crate::model::public_key::PublicKey,
     process: &crate::model::process::Process,
@@ -66,13 +66,15 @@ pub mod tests {
             keypair.public.clone(),
         );
 
-        let result = crate::queries::count_references::count_references_pointer(
-            &mut transaction,
-            &system,
-            &process,
-            5,
-            &None,
-        ).await?;
+        let result =
+            crate::queries::count_references::count_references_pointer(
+                &mut transaction,
+                &system,
+                &process,
+                5,
+                &None,
+            )
+            .await?;
 
         transaction.commit().await?;
 

@@ -24,9 +24,7 @@ async function runBot(
     const persistenceDriver =
         Core.PersistenceDriver.createPersistenceDriverMemory();
 
-    const metaStore = await Core.MetaStore.createMetaStore(
-        persistenceDriver,
-    );
+    const metaStore = await Core.MetaStore.createMetaStore(persistenceDriver);
 
     const levelRSS = new ClassicLevel.ClassicLevel<string, string>(
         stateDirectoryPath + '/rss',
@@ -36,13 +34,18 @@ async function runBot(
         },
     );
 
-    const processHandle = await Core.ProcessHandle.createProcessHandle(metaStore);
+    const processHandle = await Core.ProcessHandle.createProcessHandle(
+        metaStore,
+    );
 
     {
         const servers = process.env.POLYCENTRIC_SERVERS?.split(',') ?? [];
 
         const image = FS.readFileSync(profilePicturePath, null);
-        const imagePointer = await processHandle.publishBlob('image/jpeg', image);
+        const imagePointer = await processHandle.publishBlob(
+            'image/jpeg',
+            image,
+        );
 
         processHandle.setUsername(username);
         processHandle.setDescription(description);
@@ -50,7 +53,6 @@ async function runBot(
         for (const server of servers) {
             processHandle.addServer(server);
         }
-
     }
 
     let parser = new Parser();
@@ -65,7 +67,6 @@ async function runBot(
                 method: 'GET',
             });
 
-
             if (response.status === 429) {
                 if (response.headers.has('Retry-After')) {
                     sleepSeconds = Number(response.headers.get('Retry-After'));
@@ -75,7 +76,9 @@ async function runBot(
             }
 
             if (response.status !== 200) {
-                throw new Error(`status ${response.status.toString()} for ${feedURL}: ${await response.text()}`);
+                throw new Error(
+                    `status ${response.status.toString()} for ${feedURL}: ${await response.text()}`,
+                );
             }
 
             const xml = await response.text();
@@ -93,7 +96,7 @@ async function runBot(
                 try {
                     await levelRSS.get(item.guid);
                     continue;
-                } catch (err) { }
+                } catch (err) {}
 
                 console.info('saving post', item.guid);
 
@@ -208,10 +211,7 @@ async function handlerNitter(
 
         const imageRaw = new Uint8Array(await imageResponse.arrayBuffer());
 
-        imagePointer = await processHandle.publishBlob(
-            mime,
-            imageRaw,
-        );
+        imagePointer = await processHandle.publishBlob(mime, imageRaw);
     }
 
     if (imagePointer === undefined && message === '') {
@@ -219,7 +219,6 @@ async function handlerNitter(
     }
 
     processHandle.post(message, imagePointer);
-
 }
 
 runBot(

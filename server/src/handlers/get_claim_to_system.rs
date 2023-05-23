@@ -33,9 +33,7 @@ pub(crate) async fn handler(
 
     crate::warp_try_err_500!(transaction.commit().await);
 
-    let result_serialized = crate::warp_try_err_500!(
-        result.write_to_bytes()
-    );
+    let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
 
     Ok(Box::new(::warp::reply::with_header(
         ::warp::reply::with_status(
