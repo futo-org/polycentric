@@ -1,7 +1,9 @@
 use ::envconfig::Envconfig;
 use ::log::*;
 use ::protobuf::Message;
+use std::net::UdpSocket;
 use ::warp::Filter;
+use cadence::{StatsdClient, UdpMetricSink};
 
 mod handlers;
 mod ingest;
@@ -31,6 +33,7 @@ struct State {
     pool: ::sqlx::PgPool,
     search: ::opensearch::OpenSearch,
     admin_token: String,
+    statsd_client: ::cadence::StatsdClient
 }
 
 async fn handle_rejection(
@@ -115,6 +118,18 @@ struct Config {
 
     #[envconfig(from = "ADMIN_TOKEN")]
     pub admin_token: String,
+
+    #[envconfig(
+        from = "STATSD_ADDRESS",
+        default = "telegraf"
+    )]
+    pub statsd_address: String,
+
+    #[envconfig(
+        from = "STATSD_PORT",
+        default = "8125"
+    )]
+    pub statsd_port: u16,
 }
 
 async fn serve_api(
@@ -142,10 +157,19 @@ async fn serve_api(
 
     transaction.commit().await?;
 
+    info!("Connecting to StatsD");
+
+    let socket = UdpSocket::bind("0.0.0.0:0")?;
+    socket.set_nonblocking(true)?;
+    let host = (config.statsd_address.to_owned(), config.statsd_port);
+    let sink = UdpMetricSink::from(host, socket)?;
+    let statsd_client = StatsdClient::from_sink("polycentric-server", sink);
+
     let state = ::std::sync::Arc::new(State {
         pool,
         search: opensearch_client,
         admin_token: config.admin_token.clone(),
+        statsd_client: statsd_client
     });
 
     let cors = ::warp::cors()
@@ -286,7 +310,7 @@ async fn serve_api(
 #[::tokio::main]
 async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
     ::env_logger::init();
-
+    
     let config = Config::init_from_env().unwrap();
 
     serve_api(&config).await?;
