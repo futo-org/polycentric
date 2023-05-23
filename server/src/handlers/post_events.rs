@@ -36,8 +36,10 @@ pub(crate) async fn handler(
         );
 
         match state.statsd_client.count("events", 1) {
-            Ok(_) => {},
-            Err(err) => {warn!("Unable to log event metric due to: {}", err)}
+            Ok(_) => {}
+            Err(err) => {
+                warn!("Unable to log event metric due to: {}", err)
+            }
         };
 
         /*
