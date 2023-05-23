@@ -1,4 +1,6 @@
 use ::protobuf::Message;
+use cadence::{Counted, MetricError};
+use log::warn;
 
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
@@ -35,6 +37,11 @@ pub(crate) async fn handler(
             )
             .await
         );
+
+        match state.statsd_client.count("events", 1) {
+            Ok(_) => {},
+            Err(err) => {warn!("Unable to log event metric due to: {}", err)}
+        };
 
         /*
         persist_event_notification(&mut transaction, &event, &event_body)
