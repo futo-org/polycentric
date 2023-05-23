@@ -126,7 +126,7 @@ struct Config {
     pub statsd_address: String,
 
     #[envconfig(
-        from = "STATSD_ADDRESS",
+        from = "STATSD_PORT",
         default = "8125"
     )]
     pub statsd_port: u16,
