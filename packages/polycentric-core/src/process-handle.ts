@@ -1,12 +1,7 @@
 import * as Store from './store';
-
-import * as Base64 from '@borderless/base64';
 import Long from 'long';
-
 import * as Protocol from './protocol';
 import * as Models from './models';
-import * as PersistenceDriver from './persistence-driver';
-import * as Ed from '@noble/ed25519';
 import * as MetaStore from './meta-store';
 import * as Util from './util';
 import * as Ranges from './ranges';
@@ -61,7 +56,7 @@ function protoSystemStateToSystemState(
     for (const item of proto.crdtSetItems) {
         if (
             item.contentType.equals(Models.ContentType.ContentTypeServer) &&
-            item.operation == Protocol.LWWElementSet_Operation.ADD
+            item.operation === Protocol.LWWElementSet_Operation.ADD
         ) {
             servers.push(Util.decodeText(item.value));
         }
@@ -649,7 +644,7 @@ function updateProcessState(
     state: Protocol.StorageTypeProcessState,
     event: Models.Event.Event,
 ): void {
-    if (event.logicalClock.compare(state.logicalClock) == 1) {
+    if (event.logicalClock.compare(state.logicalClock) === 1) {
         state.logicalClock = event.logicalClock;
     }
 
@@ -666,7 +661,7 @@ function updateProcessState(
             if (index.indexType.equals(event.contentType)) {
                 foundIndex = true;
 
-                if (event.logicalClock.compare(index.logicalClock) == 1) {
+                if (event.logicalClock.compare(index.logicalClock) === 1) {
                     index.logicalClock = event.logicalClock;
                 }
             }

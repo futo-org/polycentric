@@ -66,11 +66,11 @@ export class View {
     }
 
     public assertClean(): void {
-        if (this._eventQueryState.size != 0) {
+        if (this._eventQueryState.size !== 0) {
             throw new Error('eventQueryState not unregistered');
         }
 
-        if (this._stateCRDTQuerySystem.size != 0) {
+        if (this._stateCRDTQuerySystem.size !== 0) {
             throw new Error('stateCRDTQuerySystem not unregistered');
         }
     }
@@ -92,7 +92,7 @@ export class View {
                 if (queryState) {
                     queryState.callbacks.delete(callback);
 
-                    if (queryState.callbacks.size == 0) {
+                    if (queryState.callbacks.size === 0) {
                         systemState.queries.delete(contentTypeKey);
                     }
                 }
@@ -162,7 +162,7 @@ export class View {
 
                     let queryState = systemState.queries.get(contentTypeKey);
 
-                    if (queryState == undefined) {
+                    if (queryState === undefined) {
                         queryState = {
                             value: item.value,
                             unixMilliseconds: item.unixMilliseconds,
@@ -213,7 +213,7 @@ export class View {
             return () => {
                 state.callbacks.delete(callback);
 
-                if (state.callbacks.size == 0) {
+                if (state.callbacks.size === 0) {
                     this._eventQueryState.delete(key);
                 }
             };
