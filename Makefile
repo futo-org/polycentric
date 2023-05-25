@@ -2,25 +2,26 @@
 
 CURRENT_UID := $(shell id -u)
 CURRENT_GID := $(shell id -g)
-DOCKER_GID := $(shell stat -c '%g' /var/run/docker.sock)
+DOCKER_GID := $(shell stat -c '%g' /var/run/docker.sock 2> /dev/null)
 
 export CURRENT_UID
 export CURRENT_GID
 export DOCKER_GID
-
-ifndef DOCKER_GID
-$(error It seems that no groups on your system have permisison to use docker (do you have docker installed?))
-endif
-
 
 build-sandbox:
 	docker-compose -f docker-compose.development.yml pull
 	docker-compose -f docker-compose.development.yml build
 
 start-sandbox:
+ifndef DOCKER_GID
+	$(error It seems that no groups on your system have permisison to use docker (do you have docker installed?))
+endif
 	docker-compose -f docker-compose.development.yml up -d
 
 stop-sandbox:
+ifndef $DOCKER_GID
+	$(error It seems that no groups on your system have permisison to use docker (do you have docker installed?))
+endif
 	docker-compose -f docker-compose.development.yml down
 	docker-compose -f docker-compose.development.yml rm
 
