@@ -1,7 +1,6 @@
 import Long from 'long';
 import fetch, { Headers } from 'cross-fetch';
 import * as Base64 from '@borderless/base64';
-
 import * as Protocol from './protocol';
 import * as Models from './models';
 
@@ -92,7 +91,7 @@ export async function getResolveClaim(
     const claimQuery = Base64.encodeUrl(Protocol.Claim.encode(claim).finish());
 
     const path =
-        `/resolve_claim?claim=${claimQuery}` + `&trust_root=${trustRootQuery}`;
+        `/resolve_claim?claim=${claimQuery}&trust_root=${trustRootQuery}`;
 
     const response = await fetch(server + path, {
         method: 'GET',

@@ -1,16 +1,7 @@
-import * as MUI from '@mui/material';
 import * as React from 'react';
 import * as Core from '@polycentric/polycentric-core';
-
 import * as App from './App';
-import * as VouchedBy from './VouchedBy';
 import * as Claim from './Claim';
-
-type Profile = {
-    avatar: string;
-    username: string;
-    link: string;
-}
 
 export function loadProfileProps(
     cancelContext: Core.CancelContext.CancelContext,
@@ -91,7 +82,7 @@ export function loadProfileProps(
 
         const pointer = Core.Models.Pointer.fromBuffer(buffer);
 
-        if (avatarCancelContext != undefined) {
+        if (avatarCancelContext !== undefined) {
             avatarCancelContext.cancel();
         }
 
@@ -137,7 +128,7 @@ export function loadProfileProps(
             )
         );
 
-        const [claimEvents, _] =
+        const [claimEvents] =
             await processHandle.store().queryClaimIndex(
                 system,
                 10,
@@ -193,13 +184,15 @@ type State = {
     claims: Array<App.ParsedEvent<Core.Protocol.Claim>>,
 };
 
+const initialState = {
+    name: "loading",
+    description: "loading",
+    claims: [],
+    avatar: "",
+};
+
 export function Profile(props: ProfileProps) {
-    const initialState = {
-        name: "loading",
-        description: "loading",
-        claims: [],
-        avatar: "",
-    };
+    
 
     const [state, setState] = React.useState<State>(initialState);
 
@@ -230,7 +223,8 @@ export function Profile(props: ProfileProps) {
             <div className="flex justify-between items-center w-full">
                 <img
                     className="rounded-full w-32 h-32"
-                    src={state.avatar} />
+                    src={state.avatar} 
+                    alt={`The avatar for ${state.name}`}/>
                 <div className='flex flex-col pl-3'>
                     <h1 className="text-4xl font-bold text-gray-800">
                         {state.name}

@@ -1,11 +1,8 @@
-import * as MUI from '@mui/material';
-import * as ReactRouterDOM from 'react-router-dom';
 import * as React from 'react';
 import YouTubeIcon from '@mui/icons-material/YouTube';
 import BitcoinIcon from '@mui/icons-material/CurrencyBitcoin';
 import TwitterIcon from '@mui/icons-material/Twitter';
 import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
-
 import * as App from './App';
 import * as Core from '@polycentric/polycentric-core';
 import * as VouchedBy from './VouchedBy';
@@ -17,7 +14,6 @@ export type ClaimProps = {
 }
 
 export function Claim(props: ClaimProps) {
-    const navigate = ReactRouterDOM.useNavigate();
 
     const [vouchedBy, setVouchedBy] =
         React.useState<Array<Core.Models.PublicKey.PublicKey>>([]);
@@ -45,7 +41,7 @@ export function Claim(props: ClaimProps) {
 
             const vouchedBy = references.items
                 .filter((reference: Core.Protocol.QueryReferencesResponseItem) => {
-                    if (reference.event == undefined) {
+                    if (reference.event === undefined) {
                         throw new Error("reference query event is undefined");
                     }
                     return true;
@@ -71,7 +67,7 @@ export function Claim(props: ClaimProps) {
         identifier: string,
     ): [React.ReactElement, string, string] | undefined {
         if (
-            claimType == Core.Models.ClaimType.Twitter
+            claimType === Core.Models.ClaimType.Twitter
         ) {
             return [
                 (<TwitterIcon />),
@@ -79,7 +75,7 @@ export function Claim(props: ClaimProps) {
                 `https://twitter.com/${identifier}`,
             ];
         } else if (
-            claimType == Core.Models.ClaimType.YouTube
+            claimType === Core.Models.ClaimType.YouTube
         ) {
             return [
                 (<YouTubeIcon />),
@@ -87,7 +83,7 @@ export function Claim(props: ClaimProps) {
                 `https://youtube.com/${identifier}`,
             ];
         } else if (
-            claimType == Core.Models.ClaimType.Rumble
+            claimType === Core.Models.ClaimType.Rumble
         ) {
             return [
                 (<YouTubeIcon />),
@@ -95,7 +91,7 @@ export function Claim(props: ClaimProps) {
                 `https://youtube.com/${identifier}`,
             ];
         } else if (
-            claimType == Core.Models.ClaimType.Bitcoin
+            claimType === Core.Models.ClaimType.Bitcoin
         ) {
             return [
                 (<BitcoinIcon />),
@@ -104,7 +100,7 @@ export function Claim(props: ClaimProps) {
                 `${identifier}`,
             ];
         } else if (
-            claimType == Core.Models.ClaimType.Generic
+            claimType === Core.Models.ClaimType.Generic
         ) {
             return [
                 (<FormatQuoteIcon />),
@@ -125,7 +121,7 @@ export function Claim(props: ClaimProps) {
         return (<div />);
     }
 
-    const [icon, claimType, url] = claimInfo;
+    const [icon, claimType] = claimInfo;
 
     return (
 

@@ -66,7 +66,7 @@ function loadVouchedByState(
 
         const pointer = Core.Models.Pointer.fromBuffer(buffer);
 
-        if (avatarCancelContext!= undefined) {
+        if (avatarCancelContext!== undefined) {
             avatarCancelContext.cancel();
         }
 
