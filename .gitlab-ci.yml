@@ -125,6 +125,7 @@ build-core-harbor:
     - npm run build
     - cd ../harbor-web
     - npm run build
+  needs: ["check"]
   artifacts:
       name: "artifacts"
       expire_in: 10 mins
