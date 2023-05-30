@@ -8,7 +8,7 @@ export function loadProfileProps(
     processHandle: Core.ProcessHandle.ProcessHandle,
     view: Core.View.View,
     system: Core.Models.PublicKey.PublicKey,
-    setProfileProps: (f: ((state: State) => State)) => void,
+    setProfileProps: (f: (state: State) => State) => void,
 ): Core.View.UnregisterCallback {
     const queries: Array<Core.View.UnregisterCallback> = [];
 
@@ -18,7 +18,7 @@ export function loadProfileProps(
             Core.Models.ContentType.ContentTypeUsername,
             (buffer: Uint8Array) => {
                 if (!cancelContext.cancelled()) {
-                    console.log("setting username");
+                    console.log('setting username');
                     setProfileProps((state) => {
                         return {
                             ...state,
@@ -36,7 +36,7 @@ export function loadProfileProps(
             Core.Models.ContentType.ContentTypeDescription,
             (buffer: Uint8Array) => {
                 if (!cancelContext.cancelled()) {
-                    console.log("setting description");
+                    console.log('setting description');
                     setProfileProps((state) => {
                         return {
                             ...state,
@@ -53,16 +53,13 @@ export function loadProfileProps(
         avatarCancelContext: Core.CancelContext.CancelContext,
         pointer: Core.Models.Pointer.Pointer,
     ): Promise<void> => {
-        const link = await App.loadImageFromPointer(
-            processHandle,
-            pointer,
-        );
+        const link = await App.loadImageFromPointer(processHandle, pointer);
 
         if (cancelContext.cancelled() || avatarCancelContext.cancelled()) {
             return;
         }
 
-        console.log("setting avatar");
+        console.log('setting avatar');
 
         setProfileProps((state) => {
             return {
@@ -72,8 +69,8 @@ export function loadProfileProps(
         });
     };
 
-    let avatarCancelContext: Core.CancelContext.CancelContext | undefined
-        = undefined;
+    let avatarCancelContext: Core.CancelContext.CancelContext | undefined =
+        undefined;
 
     const avatarCallback = (buffer: Uint8Array) => {
         if (cancelContext.cancelled()) {
@@ -96,7 +93,7 @@ export function loadProfileProps(
             system,
             Core.Models.ContentType.ContentTypeAvatar,
             avatarCallback,
-        )
+        ),
     );
 
     (async () => {
@@ -111,7 +108,7 @@ export function loadProfileProps(
                     Core.Models.ContentType.ContentTypeAvatar,
                 ],
                 undefined,
-            )
+            ),
         );
     })();
 
@@ -121,19 +118,14 @@ export function loadProfileProps(
             await Core.APIMethods.getQueryIndex(
                 App.server,
                 system,
-                [
-                    Core.Models.ContentType.ContentTypeClaim,
-                ],
+                [Core.Models.ContentType.ContentTypeClaim],
                 10,
-            )
+            ),
         );
 
-        const [claimEvents] =
-            await processHandle.store().queryClaimIndex(
-                system,
-                10,
-                undefined,
-            );
+        const [claimEvents] = await processHandle
+            .store()
+            .queryClaimIndex(system, 10, undefined);
 
         const parsedEvents = claimEvents.map((raw) => {
             const signedEvent = Core.Models.SignedEvent.fromProto(raw);
@@ -144,19 +136,23 @@ export function loadProfileProps(
                     Core.Models.ContentType.ContentTypeClaim,
                 )
             ) {
-                throw new Error("event content type was not claim");
+                throw new Error('event content type was not claim');
             }
 
             const claim = Core.Protocol.Claim.decode(event.content);
 
             return new App.ParsedEvent<Core.Protocol.Claim>(
-                signedEvent, event, claim
+                signedEvent,
+                event,
+                claim,
             );
         });
 
-        if (cancelContext.cancelled()) { return; }
+        if (cancelContext.cancelled()) {
+            return;
+        }
 
-        console.log("setting claims");
+        console.log('setting claims');
 
         setProfileProps((state) => {
             return {
@@ -167,33 +163,31 @@ export function loadProfileProps(
     })();
 
     return () => {
-        queries.forEach(f => f());
+        queries.forEach((f) => f());
     };
 }
 
 export type ProfileProps = {
-    processHandle: Core.ProcessHandle.ProcessHandle,
-    view: Core.View.View,
-    system: Core.Models.PublicKey.PublicKey,
+    processHandle: Core.ProcessHandle.ProcessHandle;
+    view: Core.View.View;
+    system: Core.Models.PublicKey.PublicKey;
 };
 
 type State = {
-    name: string,
-    description: string,
-    avatar: string,
-    claims: Array<App.ParsedEvent<Core.Protocol.Claim>>,
+    name: string;
+    description: string;
+    avatar: string;
+    claims: Array<App.ParsedEvent<Core.Protocol.Claim>>;
 };
 
 const initialState = {
-    name: "loading",
-    description: "loading",
+    name: 'loading',
+    description: 'loading',
     claims: [],
-    avatar: "",
+    avatar: '',
 };
 
 export function Profile(props: ProfileProps) {
-    
-
     const [state, setState] = React.useState<State>(initialState);
 
     React.useEffect(() => {
@@ -216,26 +210,23 @@ export function Profile(props: ProfileProps) {
         };
     }, [props.processHandle, props.view, props.system]);
 
-
     return (
-        <div className="bg-white rounded-lg shadow-lg p-4 max-w-screen w-96 h-[38.4rem]"
-        >
+        <div className="bg-white rounded-lg shadow-lg p-4 max-w-screen w-96 h-[38.4rem]">
             <div className="flex justify-between items-center w-full">
                 <img
                     className="rounded-full w-32 h-32"
-                    src={state.avatar} 
-                    alt={`The avatar for ${state.name}`}/>
-                <div className='flex flex-col pl-3'>
+                    src={state.avatar}
+                    alt={`The avatar for ${state.name}`}
+                />
+                <div className="flex flex-col pl-3">
                     <h1 className="text-4xl font-bold text-gray-800">
                         {state.name}
                     </h1>
 
-                    <h2 className="">
-                        {state.description}
-                    </h2> 
+                    <h2 className="">{state.description}</h2>
                 </div>
             </div>
-            <br/>
+            <br />
 
             {state.claims.map((claim, idx) => (
                 <Claim.Claim
@@ -248,5 +239,3 @@ export function Profile(props: ProfileProps) {
         </div>
     );
 }
-
-

@@ -23,5 +23,7 @@ RUN apt-get update -y && \
 	cargo install protobuf-codegen@3.1.0 --root /opt/protobuf-codegen && \
 	npm install --global \
 		retypeapp \
-		wrangler
+		wrangler \
+		prettier \
+		eslint
 

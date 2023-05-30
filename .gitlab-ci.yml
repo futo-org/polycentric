@@ -1,0 +1,188 @@
+variables: 
+  DOCKERFILE_MD5: 24b07e65b0e5b5ba0b6a4fce72d0c0e7
+  POSTGRES_IMAGE: "postgres:14"
+  FF_USE_FASTZIP: "true"
+  ARTIFACT_COMPRESSION_LEVEL: "fast"
+  CACHE_COMPRESSION_LEVEL: "fast"
+  CARGO_HOME: ${CI_PROJECT_DIR}/.cargo
+  GIT_DEPTH: 1
+
+.node-cache-config: &node-cache-config
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - ~/.npm/
+    - ./node_modules/
+    - ./packages/polycentric-core/node_modules/
+    - ./packages/harbor-web/node_modules/
+  policy: pull-push
+
+.rust-cache-config: &rust-cache-config
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - ./.cargo/
+    - ./server/target/
+  policy: pull-push
+
+stages:
+  - check
+  - format
+  - build
+  - lint
+  - test
+
+check:
+  stage: check
+  script:
+    - |- 
+            NEW_DOCKERFILE_MD5=`cat Dockerfile | md5sum`
+
+            echo "EXPECTED MD5: $DOCKERFILE_MD5 -"
+            echo "ACTUAL   MD5: $NEW_DOCKERFILE_MD5"
+
+            if [[ $NEW_DOCKERFILE_MD5 != "$DOCKERFILE_MD5  -" ]]; then
+                echo "Dockerfile has been updated. Please ensure that the dev container has been pushed, then update the .gitlab-ci.yml file. You can do this by running ./update-dev-container.sh"
+                exit 1
+            else
+                echo "MD5s match. If you are still encountering errors, ensure you pushed the dockerfile with the correct tags!"
+            fi
+
+            echo 
+
+            if grep -q "$POSTGRES_IMAGE" docker-compose.development.yml
+            then 
+                echo "Postgres version matches in docker-compose.development.yml"
+            else 
+                echo "Postgres version mismatch in docker-compose.development.yml!"
+                exit 1
+            fi
+
+            if grep -q "$POSTGRES_IMAGE" docker-compose.production.yml
+            then 
+                echo "Postgres version matches in docker-compose.production.yml"
+            else 
+                echo "Postgres version mismatch in docker-compose.production.yml!"
+                exit 1
+            fi
+
+format-server: 
+  stage: format
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  script: 
+    - ./version.sh
+    - cd server
+    - cargo-fmt --check
+
+format-core:
+  stage: format
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  script:
+    - ./version.sh
+    - npx prettier ./packages/polycentric-core/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-core/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
+
+format-harbor:
+  stage: format
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  script:
+    - ./version.sh
+    - npx prettier ./packages/harbor-web/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/harbor-web/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
+
+build-server: 
+  stage: build
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  cache: *rust-cache-config
+  script:
+    - ./version.sh
+    - mkdir build-artifacts
+    - cd server
+    - echo "Building server binary"
+    - cargo build --locked
+    - echo "Building test binary"
+    - cargo test --no-run --frozen --locked &> out.txt
+    - TEST_BIN=`cat out.txt | grep target/debug/deps/server | grep -oP '(?<=\()[^\)]+'` 
+    - echo "Test binary built at $TEST_BIN"
+    - mv ./$TEST_BIN ../build-artifacts/server-test
+    - mv ./target/debug/server ../build-artifacts/server
+  artifacts:
+      name: "artifacts"
+      expire_in: 10 mins
+      paths:
+        - ./build-artifacts
+
+build-core-harbor: 
+  stage: build
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  cache: *node-cache-config
+  script:
+    - ./version.sh
+    - make proto
+    - cd packages/polycentric-core
+    - npm run build
+    - cd ../harbor-web
+    - npm run build
+  artifacts:
+      name: "artifacts"
+      expire_in: 10 mins
+      paths:
+        - ./packages/harbor-web/dist/
+        - ./packages/polycentric-core/dist/
+
+lint-server: 
+  stage: lint
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  cache: *rust-cache-config
+  allow_failure: true
+  script: 
+    - ./version.sh
+    - cd server
+    - cargo-clippy --no-deps --locked -- -D warnings
+
+lint-core:
+  stage: lint
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  script:
+    - ./version.sh
+    - cd packages/polycentric-core
+    - npm i eslint-config-react-app
+    - npx eslint ./src --max-warnings=0
+
+lint-harbor:
+  stage: lint
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  script:
+    - ./version.sh
+    - cd packages/harbor-web
+    - npm i eslint-config-react-app
+    - npx eslint ./src --max-warnings=0
+
+test: 
+  stage: test
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  services: 
+    - name: $POSTGRES_IMAGE
+      alias: postgres
+    - name: statsd/statsd:v0.10.1
+      alias: telegraf
+  variables: 
+      POSTGRES_PASSWORD: "testing"
+      DATABASE_URL: "postgres://postgres:testing@postgres"
+      ADMIN_TOKEN: "123"
+  cache:
+    - <<: *node-cache-config
+      policy: pull
+  script:
+    - make proto
+    - ./build-artifacts/server-test -Z unstable-options --format junit > junit-server.xml
+    - ./build-artifacts/server &
+    - cd ./packages/polycentric-core && npm run test:ci
+  dependencies: 
+    - build-server
+    - build-core-harbor
+  artifacts:
+    when: always
+    paths:
+      - packages/polycentric-core/junit.xml
+      - junit-server.xml
+    reports:
+      junit: 
+        - packages/polycentric-core/junit.xml
+        - junit-server.xml

@@ -8,15 +8,15 @@ import * as Core from '@polycentric/polycentric-core';
 import * as VouchedBy from './VouchedBy';
 
 export type ClaimProps = {
-    processHandle: Core.ProcessHandle.ProcessHandle,
-    parsedEvent: App.ParsedEvent<Core.Protocol.Claim>,
-    view: Core.View.View,
-}
+    processHandle: Core.ProcessHandle.ProcessHandle;
+    parsedEvent: App.ParsedEvent<Core.Protocol.Claim>;
+    view: Core.View.View;
+};
 
 export function Claim(props: ClaimProps) {
-
-    const [vouchedBy, setVouchedBy] =
-        React.useState<Array<Core.Models.PublicKey.PublicKey>>([]);
+    const [vouchedBy, setVouchedBy] = React.useState<
+        Array<Core.Models.PublicKey.PublicKey>
+    >([]);
 
     const identifier = Core.Protocol.ClaimIdentifier.decode(
         props.parsedEvent.value.claim,
@@ -28,7 +28,9 @@ export function Claim(props: ClaimProps) {
         const cancelContext = new Core.CancelContext.CancelContext();
 
         (async () => {
-            const pointer = await Core.Models.signedEventToPointer(props.parsedEvent.signedEvent);
+            const pointer = await Core.Models.signedEventToPointer(
+                props.parsedEvent.signedEvent,
+            );
             const reference = Core.Models.pointerToReference(pointer);
 
             const references = await Core.APIMethods.getQueryReferences(
@@ -37,22 +39,29 @@ export function Claim(props: ClaimProps) {
                 Core.Models.ContentType.ContentTypeVouch,
             );
 
-            console.log("got references count", references.items.length);
+            console.log('got references count', references.items.length);
 
             const vouchedBy = references.items
-                .filter((reference: Core.Protocol.QueryReferencesResponseItem) => {
-                    if (reference.event === undefined) {
-                        throw new Error("reference query event is undefined");
-                    }
-                    return true;
-                })
+                .filter(
+                    (reference: Core.Protocol.QueryReferencesResponseItem) => {
+                        if (reference.event === undefined) {
+                            throw new Error(
+                                'reference query event is undefined',
+                            );
+                        }
+                        return true;
+                    },
+                )
                 .map((reference: Core.Protocol.QueryReferencesResponseItem) => {
                     return Core.Models.Event.fromBuffer(
-                        Core.Models.SignedEvent.fromProto(reference.event!).event,
+                        Core.Models.SignedEvent.fromProto(reference.event!)
+                            .event,
                     ).system;
                 });
 
-            if (cancelContext.cancelled()) { return; }
+            if (cancelContext.cancelled()) {
+                return;
+            }
 
             setVouchedBy(vouchedBy);
         })();
@@ -66,47 +75,33 @@ export function Claim(props: ClaimProps) {
         claimType: string,
         identifier: string,
     ): [React.ReactElement, string, string] | undefined {
-        if (
-            claimType === Core.Models.ClaimType.Twitter
-        ) {
+        if (claimType === Core.Models.ClaimType.Twitter) {
             return [
-                (<TwitterIcon />),
-                "Twitter",
+                <TwitterIcon />,
+                'Twitter',
                 `https://twitter.com/${identifier}`,
             ];
-        } else if (
-            claimType === Core.Models.ClaimType.YouTube
-        ) {
+        } else if (claimType === Core.Models.ClaimType.YouTube) {
             return [
-                (<YouTubeIcon />),
-                "YouTube",
+                <YouTubeIcon />,
+                'YouTube',
                 `https://youtube.com/${identifier}`,
             ];
-        } else if (
-            claimType === Core.Models.ClaimType.Rumble
-        ) {
+        } else if (claimType === Core.Models.ClaimType.Rumble) {
             return [
-                (<YouTubeIcon />),
-                "Rumble",
+                <YouTubeIcon />,
+                'Rumble',
                 `https://youtube.com/${identifier}`,
             ];
-        } else if (
-            claimType === Core.Models.ClaimType.Bitcoin
-        ) {
+        } else if (claimType === Core.Models.ClaimType.Bitcoin) {
             return [
-                (<BitcoinIcon />),
-                "Bitcoin",
+                <BitcoinIcon />,
+                'Bitcoin',
                 'https://www.blockchain.com/explorer/addresses/btc/' +
-                `${identifier}`,
+                    `${identifier}`,
             ];
-        } else if (
-            claimType === Core.Models.ClaimType.Generic
-        ) {
-            return [
-                (<FormatQuoteIcon />),
-                identifier,
-                '/',
-            ];
+        } else if (claimType === Core.Models.ClaimType.Generic) {
+            return [<FormatQuoteIcon />, identifier, '/'];
         } else {
             return undefined;
         }
@@ -118,13 +113,12 @@ export function Claim(props: ClaimProps) {
     );
 
     if (!claimInfo) {
-        return (<div />);
+        return <div />;
     }
 
     const [icon, claimType] = claimInfo;
 
     return (
-
         <div
         // Slightly rounded rectangle with logo on left and claim type in center of remaining space
         // Slim blue border around the whole thing (not just the icon)
@@ -165,5 +159,3 @@ export function Claim(props: ClaimProps) {
         </div>
     );
 }
-
-
