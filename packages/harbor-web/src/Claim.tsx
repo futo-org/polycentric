@@ -159,7 +159,7 @@ export function Claim(props: ClaimProps) {
     );
 
     if (!claimInfo) {
-        return (<div />);
+        return (<></>);
     }
 
     const { Icon, name } = claimInfo;
