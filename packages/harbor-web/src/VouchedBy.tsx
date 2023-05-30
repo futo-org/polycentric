@@ -24,7 +24,7 @@ function loadVouchedByState(
                     setProps((state) => {
                         return {
                             ...state,
-                            name: Core.Util.decodeText(buffer),
+                            username: Core.Util.decodeText(buffer),
                         };
                     });
                 }
@@ -51,7 +51,7 @@ function loadVouchedByState(
         setProps((state) => {
             return {
                 ...state,
-                avatar: link, 
+                avatar: link,
             };
         });
     };
@@ -66,7 +66,7 @@ function loadVouchedByState(
 
         const pointer = Core.Models.Pointer.fromBuffer(buffer);
 
-        if (avatarCancelContext!== undefined) {
+        if (avatarCancelContext !== undefined) {
             avatarCancelContext.cancel();
         }
 
@@ -155,13 +155,15 @@ export function VouchedBy(props: VouchedByProps) {
     }, [props.system, props.view, props.processHandle]);
 
     return (
-        <MUI.Avatar
-            src={state.avatar}
-            alt={state.username}
-            onClick={() => {
-                navigate('/' + state.link);
-            }}
-        />
+        <div>
+            <a href={"/" + state.link}>
+                <img src={state.avatar} alt={state.username} 
+                className="border rounded-full w-20 h-20" />
+            </a>
+            <p className="leading-4 w-20 text-center py-2">
+               {state.username}
+            </p>
+        </div>
     );
 }
 
