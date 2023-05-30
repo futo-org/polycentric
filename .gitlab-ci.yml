@@ -26,8 +26,8 @@ variables:
 stages:
   - check
   - format
-  - build
   - lint
+  - build
   - test
 
 check:
@@ -71,6 +71,7 @@ format-server:
     - ./version.sh
     - cd server
     - cargo-fmt --check
+  needs: ["check"]
 
 format-core:
   stage: format
@@ -78,6 +79,7 @@ format-core:
   script:
     - ./version.sh
     - npx prettier ./packages/polycentric-core/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-core/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
+  needs: ["check"]
 
 format-harbor:
   stage: format
@@ -85,6 +87,7 @@ format-harbor:
   script:
     - ./version.sh
     - npx prettier ./packages/harbor-web/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/harbor-web/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
+  needs: ["check"]
 
 build-server: 
   stage: build
@@ -104,6 +107,7 @@ build-server:
     - echo "Test binary built at $TEST_BIN"
     - mv ./$TEST_BIN ../build-artifacts/server-test
     - mv ./target/debug/server ../build-artifacts/server
+  needs: ["check"]
   artifacts:
       name: "artifacts"
       expire_in: 10 mins
@@ -139,6 +143,7 @@ lint-server:
     - ./version.sh
     - cd server
     - cargo-clippy --no-deps --locked #-- -D warnings
+  needs: ["check"]
 
 lint-core:
   stage: lint
@@ -148,6 +153,7 @@ lint-core:
     - cd packages/polycentric-core
     - npm i eslint-config-react-app
     - npx eslint ./src --max-warnings=0
+  needs: ["check"]
 
 lint-harbor:
   stage: lint
@@ -157,6 +163,7 @@ lint-harbor:
     - cd packages/harbor-web
     - npm i eslint-config-react-app
     - npx eslint ./src --max-warnings=0
+  needs: ["check"]
 
 test: 
   stage: test
@@ -178,6 +185,7 @@ test:
     - ./build-artifacts/server-test -Z unstable-options --format junit > junit-server.xml
     - ./build-artifacts/server &
     - cd ./packages/polycentric-core && npm run test:ci
+  needs: ["build-server", "build-core-harbor"]
   dependencies: 
     - build-server
     - build-core-harbor
