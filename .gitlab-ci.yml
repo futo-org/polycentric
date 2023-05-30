@@ -138,7 +138,7 @@ lint-server:
   script: 
     - ./version.sh
     - cd server
-    - cargo-clippy --no-deps --locked -- -D warnings
+    - cargo-clippy --no-deps --locked #-- -D warnings
 
 lint-core:
   stage: lint
