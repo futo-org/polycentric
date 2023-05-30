@@ -74,7 +74,7 @@ function makeStorePath(
     return (
         system.keyType.toString() +
         '_' +
-        Base64.encode(system.key) +
+        Base64.encodeUrl(system.key) +
         '_' +
         version.toString()
     );
