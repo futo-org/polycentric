@@ -86,7 +86,7 @@ export function SocialClaim(props: ClaimProps) {
     );
 
     if (!claimInfo) {
-        return (<div />);
+        return (<></>);
     }
 
     const { Icon, name, URL } = claimInfo;
