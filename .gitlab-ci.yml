@@ -8,7 +8,7 @@ variables:
   GIT_DEPTH: 1
 
 .node-cache-config: &node-cache-config
-  key: ${CI_COMMIT_REF_SLUG}
+  key: ${CI_COMMIT_REF_SLUG}-js
   paths:
     - ~/.npm/
     - ./node_modules/
@@ -89,7 +89,9 @@ format-harbor:
 build-server: 
   stage: build
   image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
-  cache: *rust-cache-config
+  cache: 
+   - <<: *rust-cache-config
+     key: ${CI_COMMIT_REF_SLUG}-rs-build
   script:
     - ./version.sh
     - mkdir build-artifacts
@@ -129,7 +131,9 @@ build-core-harbor:
 lint-server: 
   stage: lint
   image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
-  cache: *rust-cache-config
+  cache: 
+    - <<: *rust-cache-config
+      key: ${CI_COMMIT_REF_SLUG}-rs-lint
   allow_failure: true
   script: 
     - ./version.sh
