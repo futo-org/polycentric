@@ -1,4 +1,3 @@
-import * as MUI from '@mui/material';
 import * as ReactRouterDOM from 'react-router-dom';
 import * as React from 'react';
 import * as Base64 from '@borderless/base64';
@@ -128,8 +127,6 @@ function makeInitialState(
 }
 
 export function VouchedBy(props: VouchedByProps) {
-    const navigate = ReactRouterDOM.useNavigate();
-
     const [state, setState] = React.useState<VouchedByState>(
         makeInitialState(props.system),
     );
@@ -156,10 +153,10 @@ export function VouchedBy(props: VouchedByProps) {
 
     return (
         <div>
-            <a href={"/" + state.link}>
+            <ReactRouterDOM.Link to={"/" + state.link}>
                 <img src={state.avatar} alt={state.username} 
                 className="border rounded-full w-20 h-20" />
-            </a>
+            </ReactRouterDOM.Link>
             <p className="leading-4 w-20 text-center py-2">
                {state.username}
             </p>
