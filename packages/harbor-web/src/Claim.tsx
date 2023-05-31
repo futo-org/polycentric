@@ -165,28 +165,25 @@ export function Claim(props: ClaimProps) {
     const { Icon, name } = claimInfo;
 
     return (
-
-        <div>
-            <div className="flex">
-                <img className="h-24 w-24 object-cover mt-0" alt="image here" src={"/placeholder.jpg"}></img>
-                <div className="flex flex-col px-4">
-                    <h3 className="text-3xl font-bold text-gray-900 dark:text-white">
-                        {identifier}
-                    </h3>
-                    <p className="italic">Verified by:</p>
-                    <div className="flex flex-row gap-5 pt-3">
-                        {vouchedBy.map((vouchedBy: Core.Models.PublicKey.PublicKey) => {
-                            return (
-                                <VouchedBy.VouchedBy
-                                    key={vouchedBy.toString()}
-                                    processHandle={props.processHandle}
-                                    view={props.view}
-                                    system={vouchedBy}
-                                />
-                            );
-                        }
-                        )}
-                    </div>
+        <div className="flex">
+            <img className="h-24 w-24 object-cover mt-0" alt="image here" src={"/placeholder.jpg"}></img>
+            <div className="flex flex-col px-4">
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-white">
+                    {identifier}
+                </h3>
+                <p className="italic">Verified by:</p>
+                <div className="flex flex-row gap-5 pt-3">
+                    {vouchedBy.map((vouchedBy: Core.Models.PublicKey.PublicKey) => {
+                        return (
+                            <VouchedBy.VouchedBy
+                                key={vouchedBy.toString()}
+                                processHandle={props.processHandle}
+                                view={props.view}
+                                system={vouchedBy}
+                            />
+                        );
+                    }
+                    )}
                 </div>
             </div>
         </div>
