@@ -19,7 +19,7 @@ endif
 	docker-compose -f docker-compose.development.yml up -d
 
 stop-sandbox:
-ifndef $DOCKER_GID
+ifndef DOCKER_GID
 	$(error It seems that no groups on your system have permisison to use docker (do you have docker installed?))
 endif
 	docker-compose -f docker-compose.development.yml down

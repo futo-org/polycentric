@@ -1,11 +1,13 @@
 variables: 
-  DOCKERFILE_MD5: 24b07e65b0e5b5ba0b6a4fce72d0c0e7
+  DOCKERFILE_MD5: 3d8dc1a5808e614f4e56ea1367ffd1e9
   POSTGRES_IMAGE: "postgres:14"
   FF_USE_FASTZIP: "true"
   ARTIFACT_COMPRESSION_LEVEL: "fast"
   CACHE_COMPRESSION_LEVEL: "fast"
   CARGO_HOME: ${CI_PROJECT_DIR}/.cargo
   GIT_DEPTH: 1
+  SCCACHE_DIR: ${CI_PROJECT_DIR}/.sccache
+  RUSTC_WRAPPER: /opt/sccache/sccache
 
 .node-cache-config: &node-cache-config
   key: ${CI_COMMIT_REF_SLUG}-js
@@ -19,6 +21,7 @@ variables:
 .rust-cache-config: &rust-cache-config
   key: ${CI_COMMIT_REF_SLUG}
   paths:
+    - ${CI_PROJECT_DIR}/.sccache/
     - ${CI_PROJECT_DIR}/.cargo/
     - ${CI_PROJECT_DIR}/server/target/
   policy: pull-push
