@@ -1,4 +1,3 @@
-import * as MUI from '@mui/material';
 import * as ReactRouterDOM from 'react-router-dom';
 import * as React from 'react';
 import * as Base64 from '@borderless/base64';
@@ -24,7 +23,7 @@ function loadVouchedByState(
                     setProps((state) => {
                         return {
                             ...state,
-                            name: Core.Util.decodeText(buffer),
+                            username: Core.Util.decodeText(buffer),
                         };
                     });
                 }
@@ -51,7 +50,7 @@ function loadVouchedByState(
         setProps((state) => {
             return {
                 ...state,
-                avatar: link, 
+                avatar: link,
             };
         });
     };
@@ -66,7 +65,7 @@ function loadVouchedByState(
 
         const pointer = Core.Models.Pointer.fromBuffer(buffer);
 
-        if (avatarCancelContext!== undefined) {
+        if (avatarCancelContext !== undefined) {
             avatarCancelContext.cancel();
         }
 
@@ -128,8 +127,6 @@ function makeInitialState(
 }
 
 export function VouchedBy(props: VouchedByProps) {
-    const navigate = ReactRouterDOM.useNavigate();
-
     const [state, setState] = React.useState<VouchedByState>(
         makeInitialState(props.system),
     );
@@ -155,13 +152,15 @@ export function VouchedBy(props: VouchedByProps) {
     }, [props.system, props.view, props.processHandle]);
 
     return (
-        <MUI.Avatar
-            src={state.avatar}
-            alt={state.username}
-            onClick={() => {
-                navigate('/' + state.link);
-            }}
-        />
+        <div>
+            <ReactRouterDOM.Link to={"/" + state.link}>
+                <img src={state.avatar} alt={state.username} 
+                className="border rounded-full w-20 h-20" />
+            </ReactRouterDOM.Link>
+            <p className="leading-4 w-20 text-center py-2">
+               {state.username}
+            </p>
+        </div>
     );
 }
 

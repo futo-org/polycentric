@@ -93,17 +93,7 @@ export function MainPage(props: MainPageProps) {
 
     return (
         <div
-            style={{
-                position: 'absolute',
-                left: '0px',
-                top: '0px',
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                flexDirection: 'column',
-                backgroundColor: '#f9e8d0',
-            }}
+        className="flex justify-center bg-gray min-h-screen dark:bg-zinc-800"
         >
             { system
                 ? 

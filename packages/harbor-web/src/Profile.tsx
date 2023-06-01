@@ -192,8 +192,6 @@ const initialState = {
 };
 
 export function Profile(props: ProfileProps) {
-    
-
     const [state, setState] = React.useState<State>(initialState);
 
     React.useEffect(() => {
@@ -217,34 +215,69 @@ export function Profile(props: ProfileProps) {
     }, [props.processHandle, props.view, props.system]);
 
 
+    const isSocialProp = (claim: App.ParsedEvent<Core.Protocol.Claim>) => {
+        return claim.value.claimType === Core.Models.ClaimType.Twitter
+            || claim.value.claimType === Core.Models.ClaimType.YouTube
+            || claim.value.claimType === Core.Models.ClaimType.Rumble
+            || claim.value.claimType === Core.Models.ClaimType.Bitcoin
+    }
+
+    const socialClaims = state.claims.filter((claim) => isSocialProp(claim) === true);
+    const otherClaims = state.claims.filter((claim) => isSocialProp(claim) === false);
+
+
     return (
-        <div className="bg-white rounded-lg shadow-lg p-4 max-w-screen w-96 h-[38.4rem]"
+        <div className="bg-white dark:bg-zinc-900 px-11 py-20 w-full max-w-4xl dark:text-white"
         >
-            <div className="flex justify-between items-center w-full">
+            <div className="flex flex-col items-center justify-center text-center gap-5">
                 <img
-                    className="rounded-full w-32 h-32"
-                    src={state.avatar} 
-                    alt={`The avatar for ${state.name}`}/>
-                <div className='flex flex-col pl-3'>
-                    <h1 className="text-4xl font-bold text-gray-800">
-                        {state.name}
-                    </h1>
+                    className="rounded-full w-20 h-20"
+                    src={state.avatar}
+                    alt={`The avatar for ${state.name}`} />
+                <h1 className="text-3xl font-medium text-gray-800 dark:text-white">
+                    {state.name}
+                </h1>
 
-                    <h2 className="">
-                        {state.description}
-                    </h2> 
-                </div>
+                <h2 className="text-2xl italic font-serif dark:font-light">
+                    {state.description}
+                </h2>
+                {
+                    socialClaims.length > 0 &&
+                    <div>
+                        <h3 className="text-2xl">Follow & Subscribe:</h3>
+                        <div className="flex flex-row justify-center px-7 gap-5">
+                            {
+                                socialClaims.map((claim, idx) => (
+                                    <Claim.SocialClaim
+                                        key={idx}
+                                        parsedEvent={claim}
+                                        processHandle={props.processHandle}
+                                        view={props.view}
+                                    />
+                                ))
+                            }
+                        </div>
+                    </div>
+                }
+
             </div>
-            <br/>
+            <br />
+            <br />
 
-            {state.claims.map((claim, idx) => (
-                <Claim.Claim
-                    key={idx}
-                    parsedEvent={claim}
-                    processHandle={props.processHandle}
-                    view={props.view}
-                />
-            ))}
+            <div className="p-6 bg-gray-50 dark:bg-zinc-800">
+                <h2 className="text-3xl font-demibold text-gray-800 dark:text-white pb-4">
+                    Claims
+                </h2>
+
+                {otherClaims.map((claim, idx) => (
+                    <Claim.Claim
+                        key={idx}
+                        parsedEvent={claim}
+                        processHandle={props.processHandle}
+                        view={props.view}
+                    />
+                ))}
+            </div>
         </div>
     );
 }
