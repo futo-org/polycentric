@@ -2,7 +2,13 @@
 
 CURRENT_UID := $(shell id -u)
 CURRENT_GID := $(shell id -g)
-DOCKER_GID := $(shell stat -c '%g' /var/run/docker.sock 2> /dev/null)
+UNAME_S := $(shell uname -s)
+
+ifeq ($(UNAME_S),Darwin)
+	DOCKER_GID := $(shell stat -f '%g' /var/run/docker.sock 2> /dev/null)
+else
+	DOCKER_GID := $(shell stat -c '%g' /var/run/docker.sock 2> /dev/null)
+endif
 
 export CURRENT_UID
 export CURRENT_GID
