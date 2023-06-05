@@ -14,68 +14,57 @@ export type ClaimProps = {
 };
 
 type ImplementsFontSxProp = {
-    sx?: any,
-}
+    sx?: any;
+};
 
 type ClaimInfo = {
-    Icon: React.ComponentType<ImplementsFontSxProp>,
-    name: string,
-    URL: string,
-}
+    Icon: React.ComponentType<ImplementsFontSxProp>;
+    name: string;
+    URL: string;
+};
 
 function getClaimInfo(
     claimType: string,
     identifier: string,
 ): ClaimInfo | undefined {
-    if (
-        claimType === Core.Models.ClaimType.Twitter
-    ) {
+    if (claimType === Core.Models.ClaimType.Twitter) {
         return {
             Icon: TwitterIcon,
-            name: "Twitter",
+            name: 'Twitter',
             URL: `https://twitter.com/${identifier}`,
-        }
-    } else if (
-        claimType === Core.Models.ClaimType.YouTube
-    ) {
+        };
+    } else if (claimType === Core.Models.ClaimType.YouTube) {
         return {
             Icon: YouTubeIcon,
-            name: "YouTube",
+            name: 'YouTube',
             URL: `https://youtube.com/${identifier}`,
-        }
-    } else if (
-        claimType === Core.Models.ClaimType.Rumble
-    ) {
+        };
+    } else if (claimType === Core.Models.ClaimType.Rumble) {
         return {
             Icon: YouTubeIcon,
-            name: "Rumble",
+            name: 'Rumble',
             URL: `https://youtube.com/${identifier}`,
-        }
-
-    } else if (
-        claimType === Core.Models.ClaimType.Bitcoin
-    ) {
+        };
+    } else if (claimType === Core.Models.ClaimType.Bitcoin) {
         return {
             Icon: BitcoinIcon,
-            name: "Bitcoin",
-            URL: 'https://www.blockchain.com/explorer/addresses/btc/' +
+            name: 'Bitcoin',
+            URL:
+                'https://www.blockchain.com/explorer/addresses/btc/' +
                 `${identifier}`,
-        }
-    } else if (
-        claimType === Core.Models.ClaimType.Generic
-    ) {
+        };
+    } else if (claimType === Core.Models.ClaimType.Generic) {
         return {
             Icon: FormatQuoteIcon,
-            name: "Generic",
+            name: 'Generic',
             URL: identifier,
-        }
+        };
     } else {
         return undefined;
     }
 }
 
 export function SocialClaim(props: ClaimProps) {
-
     const identifier = Core.Protocol.ClaimIdentifier.decode(
         props.parsedEvent.value.claim,
     ).identifier;
@@ -86,23 +75,23 @@ export function SocialClaim(props: ClaimProps) {
     );
 
     if (!claimInfo) {
-        return (<></>);
+        return <></>;
     }
 
     const { Icon, name, URL } = claimInfo;
 
     return (
         <a href={URL} target="_blank" rel="noreferrer">
-            <Icon sx={{
-                // size
-                width: "2em",
-                height: "2em",
-            }} />
+            <Icon
+                sx={{
+                    // size
+                    width: '2em',
+                    height: '2em',
+                }}
+            />
         </a>
     );
 }
-
-
 
 export function Claim(props: ClaimProps) {
     const [vouchedBy, setVouchedBy] = React.useState<
@@ -168,30 +157,35 @@ export function Claim(props: ClaimProps) {
     );
 
     if (!claimInfo) {
-        return (<></>);
+        return <></>;
     }
 
     const { Icon, name } = claimInfo;
 
     return (
         <div className="flex">
-            <img className="h-24 w-24 object-cover mt-0" alt="image here" src={"/placeholder.jpg"}></img>
+            <img
+                className="h-24 w-24 object-cover mt-0"
+                alt="image here"
+                src={'/placeholder.jpg'}
+            ></img>
             <div className="flex flex-col px-4">
                 <h3 className="text-3xl font-bold text-gray-900 dark:text-white">
                     {identifier}
                 </h3>
                 <p className="italic">Verified by:</p>
                 <div className="flex flex-row gap-5 pt-3">
-                    {vouchedBy.map((vouchedBy: Core.Models.PublicKey.PublicKey) => {
-                        return (
-                            <VouchedBy.VouchedBy
-                                key={vouchedBy.toString()}
-                                processHandle={props.processHandle}
-                                view={props.view}
-                                system={vouchedBy}
-                            />
-                        );
-                    }
+                    {vouchedBy.map(
+                        (vouchedBy: Core.Models.PublicKey.PublicKey) => {
+                            return (
+                                <VouchedBy.VouchedBy
+                                    key={vouchedBy.toString()}
+                                    processHandle={props.processHandle}
+                                    view={props.view}
+                                    system={vouchedBy}
+                                />
+                            );
+                        },
                     )}
                 </div>
             </div>

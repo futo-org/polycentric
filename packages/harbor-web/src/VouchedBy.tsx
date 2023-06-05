@@ -148,13 +148,14 @@ export function VouchedBy(props: VouchedByProps) {
 
     return (
         <div>
-            <ReactRouterDOM.Link to={"/" + state.link}>
-                <img src={state.avatar} alt={state.username} 
-                className="border rounded-full w-20 h-20" />
+            <ReactRouterDOM.Link to={'/' + state.link}>
+                <img
+                    src={state.avatar}
+                    alt={state.username}
+                    className="border rounded-full w-20 h-20"
+                />
             </ReactRouterDOM.Link>
-            <p className="leading-4 w-20 text-center py-2">
-               {state.username}
-            </p>
+            <p className="leading-4 w-20 text-center py-2">{state.username}</p>
         </div>
     );
 }
