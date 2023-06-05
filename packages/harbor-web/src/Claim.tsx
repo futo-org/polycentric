@@ -78,7 +78,7 @@ export function SocialClaim(props: ClaimProps) {
         return <></>;
     }
 
-    const { Icon, name, URL } = claimInfo;
+    const { Icon, URL } = claimInfo;
 
     return (
         <a href={URL} target="_blank" rel="noreferrer">
@@ -160,13 +160,11 @@ export function Claim(props: ClaimProps) {
         return <></>;
     }
 
-    const { Icon, name } = claimInfo;
-
     return (
         <div className="flex">
             <img
                 className="h-24 w-24 object-cover mt-0"
-                alt="image here"
+                alt="placeholder"
                 src={'/placeholder.jpg'}
             ></img>
             <div className="flex flex-col px-4">
