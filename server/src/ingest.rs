@@ -1,6 +1,7 @@
-use crate::model::{known_message_types, pointer};
+use std::fmt::Error;
+
+use crate::{model::{known_message_types, pointer}, protocol::Post};
 use ::protobuf::Message;
-use base64::encode;
 use opensearch::IndexParts;
 use serde_json::json;
 
@@ -9,9 +10,7 @@ pub(crate) async fn ingest_event(
     signed_event: &crate::model::signed_event::SignedEvent,
     state: &::std::sync::Arc<crate::State>,
 ) -> ::anyhow::Result<()> {
-    let event = crate::model::event::from_proto(
-        &crate::protocol::Event::parse_from_bytes(&signed_event.event())?,
-    )?;
+    let event = crate::model::event::from_vec(&signed_event.event())?;
 
     if crate::postgres::does_event_exist(&mut *transaction, &event).await? {
         return Ok(());
@@ -30,38 +29,30 @@ pub(crate) async fn ingest_event(
         || event_type == known_message_types::DESCRIPTION
         || event_type == known_message_types::USERNAME
     {
-        let key_b64 =
-            encode(crate::model::public_key::get_key_bytes(event.system()));
-        let process_b64 = encode(event.process().bytes());
         let index_name: &str;
         let index_id: String;
         let content_str: String;
+        let version: u64;
 
         if event_type == known_message_types::POST {
             index_name = "messages";
-            let pointer = pointer::from_event(&event).unwrap();
-
-            index_id = pointer::to_base64(&pointer);
-            content_str = String::from_utf8(event.content().to_vec())?;
+            let pointer = pointer::from_event(&event)?;
+            index_id = pointer::to_base64(&pointer)?;
+            version = *event.logical_clock();
+            content_str = Post::parse_from_bytes(event.content())?.content.ok_or(Error)?;
         } else {
             index_name = if event_type == known_message_types::USERNAME {
                 "profile_names"
             } else {
                 "profile_descriptions"
             };
-
-            index_id = key_b64.clone();
-            content_str =
-                String::from_utf8(event.lww_element().clone().unwrap().value)?;
+            let lww_element = event.lww_element().clone().ok_or({ println!("LWW Element had no content"); Error})?;                    
+            version = lww_element.unix_milliseconds;
+            index_id = crate::model::public_key::to_base64(event.system())?; 
+            content_str = String::from_utf8(lww_element.value)?;
         }
 
         let body = json!({
-            "key_type": i64::try_from(crate::model::public_key::get_key_type(
-                                        event.system(),
-                                    ))?,
-            "key_bytes": key_b64,
-            "process": process_b64,
-            "clock": *event.logical_clock(),
             "message_content": content_str,
         });
 
@@ -69,11 +60,10 @@ pub(crate) async fn ingest_event(
             .search
             .index(IndexParts::IndexId(index_name, &index_id))
             .version_type(opensearch::params::VersionType::External)
-            .version(*event.logical_clock() as i64)
+            .version(i64::try_from(version)?)
             .body(body)
             .send()
-            .await
-            .unwrap();
+            .await?;
     }
 
     let content = crate::model::content::decode_content(

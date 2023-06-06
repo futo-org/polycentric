@@ -54,6 +54,8 @@ pub mod digest {
 }
 
 pub mod pointer {
+    use protobuf::Message;
+
     #[derive(PartialEq, Clone, Debug)]
     pub struct Pointer {
         system: crate::model::public_key::PublicKey,
@@ -133,9 +135,11 @@ pub mod pointer {
         result
     }
 
-    pub fn to_base64(pointer: &Pointer) -> String {
+    pub fn to_base64(pointer: &Pointer) -> ::anyhow::Result<String> {
         let protocol_ptr = to_proto(pointer);
-        return base64::encode(protocol_ptr.to_string());
+        let mut bytes = vec![];
+        protocol_ptr.write_to_vec(&mut bytes)?;
+        return Ok(base64::encode(bytes));
     }
 }
 
@@ -208,6 +212,13 @@ pub mod public_key {
         }
 
         proto
+    }
+
+    pub fn to_base64(key: &PublicKey) -> ::anyhow::Result<String> {
+        let protocol_ptr = to_proto(key);
+        let mut bytes = vec![];
+        protocol_ptr.write_to_vec(&mut bytes)?;
+        return Ok(base64::encode(bytes));
     }
 
     pub fn serde_url_deserialize<'de, D>(
