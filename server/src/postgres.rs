@@ -992,7 +992,8 @@ pub mod tests {
         let signed_event =
             crate::model::tests::make_test_event(&keypair, &process, 52);
 
-        crate::ingest::ingest_event(&mut transaction, &signed_event).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &signed_event)
+            .await?;
 
         let system = crate::model::public_key::PublicKey::Ed25519(
             keypair.public.clone(),
@@ -1030,10 +1031,10 @@ pub mod tests {
         let s1p2e1 = crate::model::tests::make_test_event(&s1, &s1p2, 1);
         let s2p1e5 = crate::model::tests::make_test_event(&s2, &s2p1, 5);
 
-        crate::ingest::ingest_event(&mut transaction, &s1p1e1).await?;
-        crate::ingest::ingest_event(&mut transaction, &s1p1e2).await?;
-        crate::ingest::ingest_event(&mut transaction, &s1p2e1).await?;
-        crate::ingest::ingest_event(&mut transaction, &s2p1e5).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e1).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e2).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p2e1).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s2p1e5).await?;
 
         let system =
             crate::model::public_key::PublicKey::Ed25519(s1.public.clone());
@@ -1098,12 +1099,12 @@ pub mod tests {
             vec![],
         );
 
-        crate::ingest::ingest_event(&mut transaction, &s1p1e1).await?;
-        crate::ingest::ingest_event(&mut transaction, &s1p1e2).await?;
-        crate::ingest::ingest_event(&mut transaction, &s1p1e3).await?;
-        crate::ingest::ingest_event(&mut transaction, &s1p1e6).await?;
-        crate::ingest::ingest_event(&mut transaction, &s1p2e1).await?;
-        crate::ingest::ingest_event(&mut transaction, &s2p1e5).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e1).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e2).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e3).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e6).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p2e1).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s2p1e5).await?;
 
         let system =
             crate::model::public_key::PublicKey::Ed25519(s1.public.clone());
@@ -1193,7 +1194,7 @@ pub mod tests {
             vec![],
         );
 
-        crate::ingest::ingest_event(&mut transaction, &s1p1e1).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e1).await?;
 
         let s2 = crate::model::tests::make_test_keypair();
         let s2p1 = crate::model::tests::make_test_process();
@@ -1220,7 +1221,7 @@ pub mod tests {
             )],
         );
 
-        crate::ingest::ingest_event(&mut transaction, &s2p1e1).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s2p1e1).await?;
 
         let result = crate::postgres::find_claims(
             &mut transaction,

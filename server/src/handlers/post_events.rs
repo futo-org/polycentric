@@ -31,8 +31,12 @@ pub(crate) async fn handler(
             };
 
         crate::warp_try_err_500!(
-            crate::ingest::ingest_event(&mut transaction, &validated_event,)
-                .await
+            crate::ingest::ingest_event(
+                &mut transaction,
+                &validated_event,
+                &state
+            )
+            .await
         );
 
         match state.statsd_client.count("events", 1) {

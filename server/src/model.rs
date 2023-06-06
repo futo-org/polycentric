@@ -1,5 +1,22 @@
-use ::anyhow::Context;
-use ::protobuf::Message;
+use anyhow::Context;
+use base64::encode;
+use protobuf::Message;
+
+pub mod known_message_types {
+    pub const DELETE: u64 = 1;
+    pub const SYSTEM_PROCESS: u64 = 2;
+    pub const POST: u64 = 3;
+    pub const FOLLOW: u64 = 4;
+    pub const USERNAME: u64 = 5;
+    pub const DESCRIPTION: u64 = 6;
+    pub const BLOB_META: u64 = 7;
+    pub const BLOB_SECTION: u64 = 8;
+    pub const AVATAR: u64 = 9;
+    pub const SERVER: u64 = 10;
+    pub const VOUCH: u64 = 11;
+    pub const CLAIM: u64 = 12;
+    pub const BANNER: u64 = 13;
+}
 
 pub mod digest {
     #[derive(PartialEq, Clone, Debug)]
@@ -37,6 +54,8 @@ pub mod digest {
 }
 
 pub mod pointer {
+    use protobuf::Message;
+
     #[derive(PartialEq, Clone, Debug)]
     pub struct Pointer {
         system: crate::model::public_key::PublicKey,
@@ -77,6 +96,19 @@ pub mod pointer {
         }
     }
 
+    pub fn from_event(
+        event: &crate::model::event::Event,
+    ) -> ::anyhow::Result<Pointer> {
+        Ok(Pointer::new(
+            event.system().clone(),
+            event.process().clone(),
+            *event.logical_clock(),
+            crate::model::digest::Digest::SHA256(crate::model::hash_event(
+                event.content(),
+            )),
+        ))
+    }
+
     pub fn from_proto(
         proto: &crate::protocol::Pointer,
     ) -> ::anyhow::Result<Pointer> {
@@ -102,11 +134,18 @@ pub mod pointer {
         );
         result
     }
+
+    pub fn to_base64(pointer: &Pointer) -> ::anyhow::Result<String> {
+        let protocol_ptr = to_proto(pointer);
+        let mut bytes = vec![];
+        protocol_ptr.write_to_vec(&mut bytes)?;
+        return Ok(base64::encode(bytes));
+    }
 }
 
 pub mod public_key {
-    use ::ed25519_dalek::Verifier;
-    use ::protobuf::Message;
+    use ed25519_dalek::Verifier;
+    use protobuf::Message;
 
     #[derive(PartialEq, Clone, Debug)]
     pub enum PublicKey {
@@ -175,6 +214,13 @@ pub mod public_key {
         proto
     }
 
+    pub fn to_base64(key: &PublicKey) -> ::anyhow::Result<String> {
+        let protocol_ptr = to_proto(key);
+        let mut bytes = vec![];
+        protocol_ptr.write_to_vec(&mut bytes)?;
+        return Ok(base64::encode(bytes));
+    }
+
     pub fn serde_url_deserialize<'de, D>(
         deserializer: D,
     ) -> Result<PublicKey, D::Error>
@@ -196,7 +242,7 @@ pub mod public_key {
 }
 
 pub mod process {
-    use ::protobuf::Message;
+    use protobuf::Message;
 
     #[derive(PartialEq, Clone, Debug)]
     pub struct Process {
@@ -267,8 +313,8 @@ where
 }
 
 pub mod event {
-    use ::anyhow::Context;
-    use ::protobuf::Message;
+    use anyhow::Context;
+    use protobuf::Message;
 
     #[derive(PartialEq, Clone, Debug)]
     pub struct Event {
@@ -414,10 +460,10 @@ pub mod event {
 }
 
 pub mod signed_event {
-    use ::anyhow::Context;
-    use ::ed25519_dalek::Signer;
-    use ::ed25519_dalek::Verifier;
-    use ::protobuf::Message;
+    use anyhow::Context;
+    use ed25519_dalek::Signer;
+    use ed25519_dalek::Verifier;
+    use protobuf::Message;
 
     #[derive(PartialEq, Clone, Debug)]
     pub struct SignedEvent {
@@ -493,7 +539,7 @@ pub(crate) fn hash_event(event: &::std::vec::Vec<u8>) -> [u8; 32] {
 }
 
 pub mod delete {
-    use ::anyhow::Context;
+    use anyhow::Context;
 
     #[derive(PartialEq, Clone, Debug)]
     pub struct Delete {
@@ -554,7 +600,7 @@ pub mod delete {
 }
 
 pub mod reference {
-    use ::protobuf::Message;
+    use protobuf::Message;
 
     #[derive(PartialEq, Clone, Debug)]
     pub enum Reference {
@@ -621,7 +667,7 @@ pub mod reference {
 }
 
 pub mod claim {
-    use ::protobuf::Message;
+    use protobuf::Message;
 
     #[derive(PartialEq, Clone, Debug)]
     pub struct Claim {
@@ -681,7 +727,7 @@ pub mod claim {
 }
 
 pub mod content {
-    use ::protobuf::Message;
+    use protobuf::Message;
 
     #[derive(PartialEq, Clone, Debug)]
     pub enum Content {
@@ -736,9 +782,9 @@ pub mod content {
 
 #[cfg(test)]
 pub mod tests {
-    use ::ed25519_dalek::Signer;
-    use ::protobuf::Message;
-    use ::rand::Rng;
+    use ed25519_dalek::Signer;
+    use protobuf::Message;
+    use rand::Rng;
 
     pub fn make_test_keypair() -> ::ed25519_dalek::Keypair {
         ::ed25519_dalek::Keypair::generate(&mut ::rand::thread_rng())
