@@ -38,7 +38,7 @@ pub(crate) async fn ingest_event(
             index_name = "messages";
             let pointer = pointer::from_event(&event)?;
             index_id = pointer::to_base64(&pointer)?;
-            version = *event.logical_clock();
+            version = 0;
             content_str = Post::parse_from_bytes(event.content())?.content.ok_or(Error)?;
         } else {
             index_name = if event_type == known_message_types::USERNAME {
