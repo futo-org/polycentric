@@ -1,6 +1,7 @@
 variables: 
   DOCKERFILE_MD5: 3d8dc1a5808e614f4e56ea1367ffd1e9
   POSTGRES_IMAGE: "postgres:14"
+  SEARCH_IMAGE: "opensearchproject/opensearch:2.1.0"
   FF_USE_FASTZIP: "true"
   ARTIFACT_COMPRESSION_LEVEL: "fast"
   CACHE_COMPRESSION_LEVEL: "fast"
@@ -64,6 +65,22 @@ check:
                 echo "Postgres version matches in docker-compose.production.yml"
             else 
                 echo "Postgres version mismatch in docker-compose.production.yml!"
+                exit 1
+            fi
+            
+            if grep -q "$SEARCH_IMAGE" docker-compose.development.yml
+            then 
+                echo "Search version matches in docker-compose.development.yml"
+            else 
+                echo "Search version mismatch in docker-compose.development.yml!"
+                exit 1
+            fi
+
+            if grep -q "$SEARCH_IMAGE" docker-compose.production.yml
+            then 
+                echo "Search version matches in docker-compose.production.yml"
+            else 
+                echo "Search version mismatch in docker-compose.production.yml!"
                 exit 1
             fi
 
@@ -175,12 +192,21 @@ test:
   services: 
     - name: $POSTGRES_IMAGE
       alias: postgres
+    - name: $SEARCH_IMAGE
+      alias: opensearch-node1
     - name: statsd/statsd:v0.10.1
       alias: telegraf
   variables: 
       POSTGRES_PASSWORD: "testing"
       DATABASE_URL: "postgres://postgres:testing@postgres"
       ADMIN_TOKEN: "123"
+      cluster.name: "opensearch-cluster"
+      node.name: "opensearch-node1"
+      bootstrap.memory_lock: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      DISABLE_SECURITY_PLUGIN: "true"
+      discovery.type: "single-node"
   cache:
     - <<: *node-cache-config
       policy: pull
