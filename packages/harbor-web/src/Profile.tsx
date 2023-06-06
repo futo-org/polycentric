@@ -8,7 +8,7 @@ export function loadProfileProps(
     processHandle: Core.ProcessHandle.ProcessHandle,
     view: Core.View.View,
     system: Core.Models.PublicKey.PublicKey,
-    setProfileProps: (f: ((state: State) => State)) => void,
+    setProfileProps: (f: (state: State) => State) => void,
 ): Core.View.UnregisterCallback {
     const queries: Array<Core.View.UnregisterCallback> = [];
 
@@ -18,7 +18,7 @@ export function loadProfileProps(
             Core.Models.ContentType.ContentTypeUsername,
             (buffer: Uint8Array) => {
                 if (!cancelContext.cancelled()) {
-                    console.log("setting username");
+                    console.log('setting username');
                     setProfileProps((state) => {
                         return {
                             ...state,
@@ -36,7 +36,7 @@ export function loadProfileProps(
             Core.Models.ContentType.ContentTypeDescription,
             (buffer: Uint8Array) => {
                 if (!cancelContext.cancelled()) {
-                    console.log("setting description");
+                    console.log('setting description');
                     setProfileProps((state) => {
                         return {
                             ...state,
@@ -53,16 +53,13 @@ export function loadProfileProps(
         avatarCancelContext: Core.CancelContext.CancelContext,
         pointer: Core.Models.Pointer.Pointer,
     ): Promise<void> => {
-        const link = await App.loadImageFromPointer(
-            processHandle,
-            pointer,
-        );
+        const link = await App.loadImageFromPointer(processHandle, pointer);
 
         if (cancelContext.cancelled() || avatarCancelContext.cancelled()) {
             return;
         }
 
-        console.log("setting avatar");
+        console.log('setting avatar');
 
         setProfileProps((state) => {
             return {
@@ -72,8 +69,8 @@ export function loadProfileProps(
         });
     };
 
-    let avatarCancelContext: Core.CancelContext.CancelContext | undefined
-        = undefined;
+    let avatarCancelContext: Core.CancelContext.CancelContext | undefined =
+        undefined;
 
     const avatarCallback = (buffer: Uint8Array) => {
         if (cancelContext.cancelled()) {
@@ -96,7 +93,7 @@ export function loadProfileProps(
             system,
             Core.Models.ContentType.ContentTypeAvatar,
             avatarCallback,
-        )
+        ),
     );
 
     (async () => {
@@ -111,7 +108,7 @@ export function loadProfileProps(
                     Core.Models.ContentType.ContentTypeAvatar,
                 ],
                 undefined,
-            )
+            ),
         );
     })();
 
@@ -121,19 +118,14 @@ export function loadProfileProps(
             await Core.APIMethods.getQueryIndex(
                 App.server,
                 system,
-                [
-                    Core.Models.ContentType.ContentTypeClaim,
-                ],
+                [Core.Models.ContentType.ContentTypeClaim],
                 10,
-            )
+            ),
         );
 
-        const [claimEvents] =
-            await processHandle.store().queryClaimIndex(
-                system,
-                10,
-                undefined,
-            );
+        const [claimEvents] = await processHandle
+            .store()
+            .queryClaimIndex(system, 10, undefined);
 
         const parsedEvents = claimEvents.map((raw) => {
             const signedEvent = Core.Models.SignedEvent.fromProto(raw);
@@ -144,19 +136,23 @@ export function loadProfileProps(
                     Core.Models.ContentType.ContentTypeClaim,
                 )
             ) {
-                throw new Error("event content type was not claim");
+                throw new Error('event content type was not claim');
             }
 
             const claim = Core.Protocol.Claim.decode(event.content);
 
             return new App.ParsedEvent<Core.Protocol.Claim>(
-                signedEvent, event, claim
+                signedEvent,
+                event,
+                claim,
             );
         });
 
-        if (cancelContext.cancelled()) { return; }
+        if (cancelContext.cancelled()) {
+            return;
+        }
 
-        console.log("setting claims");
+        console.log('setting claims');
 
         setProfileProps((state) => {
             return {
@@ -167,28 +163,28 @@ export function loadProfileProps(
     })();
 
     return () => {
-        queries.forEach(f => f());
+        queries.forEach((f) => f());
     };
 }
 
 export type ProfileProps = {
-    processHandle: Core.ProcessHandle.ProcessHandle,
-    view: Core.View.View,
-    system: Core.Models.PublicKey.PublicKey,
+    processHandle: Core.ProcessHandle.ProcessHandle;
+    view: Core.View.View;
+    system: Core.Models.PublicKey.PublicKey;
 };
 
 type State = {
-    name: string,
-    description: string,
-    avatar: string,
-    claims: Array<App.ParsedEvent<Core.Protocol.Claim>>,
+    name: string;
+    description: string;
+    avatar: string;
+    claims: Array<App.ParsedEvent<Core.Protocol.Claim>>;
 };
 
 const initialState = {
-    name: "loading",
-    description: "loading",
+    name: 'loading',
+    description: 'loading',
     claims: [],
-    avatar: "",
+    avatar: '',
 };
 
 export function Profile(props: ProfileProps) {
@@ -214,26 +210,30 @@ export function Profile(props: ProfileProps) {
         };
     }, [props.processHandle, props.view, props.system]);
 
-
     const isSocialProp = (claim: App.ParsedEvent<Core.Protocol.Claim>) => {
-        return claim.value.claimType === Core.Models.ClaimType.Twitter
-            || claim.value.claimType === Core.Models.ClaimType.YouTube
-            || claim.value.claimType === Core.Models.ClaimType.Rumble
-            || claim.value.claimType === Core.Models.ClaimType.Bitcoin
-    }
+        return (
+            claim.value.claimType === Core.Models.ClaimType.Twitter ||
+            claim.value.claimType === Core.Models.ClaimType.YouTube ||
+            claim.value.claimType === Core.Models.ClaimType.Rumble ||
+            claim.value.claimType === Core.Models.ClaimType.Bitcoin
+        );
+    };
 
-    const socialClaims = state.claims.filter((claim) => isSocialProp(claim) === true);
-    const otherClaims = state.claims.filter((claim) => isSocialProp(claim) === false);
-
+    const socialClaims = state.claims.filter(
+        (claim) => isSocialProp(claim) === true,
+    );
+    const otherClaims = state.claims.filter(
+        (claim) => isSocialProp(claim) === false,
+    );
 
     return (
-        <div className="bg-white dark:bg-zinc-900 px-11 py-20 w-full max-w-4xl dark:text-white"
-        >
+        <div className="bg-white dark:bg-zinc-900 px-11 py-20 w-full max-w-4xl dark:text-white">
             <div className="flex flex-col items-center justify-center text-center gap-5">
                 <img
                     className="rounded-full w-20 h-20"
                     src={state.avatar}
-                    alt={`The avatar for ${state.name}`} />
+                    alt={`The avatar for ${state.name}`}
+                />
                 <h1 className="text-3xl font-medium text-gray-800 dark:text-white">
                     {state.name}
                 </h1>
@@ -241,25 +241,21 @@ export function Profile(props: ProfileProps) {
                 <h2 className="text-2xl italic font-serif dark:font-light">
                     {state.description}
                 </h2>
-                {
-                    socialClaims.length > 0 &&
+                {socialClaims.length > 0 && (
                     <div>
                         <h3 className="text-2xl">Follow & Subscribe:</h3>
                         <div className="flex flex-row justify-center px-7 gap-5">
-                            {
-                                socialClaims.map((claim, idx) => (
-                                    <Claim.SocialClaim
-                                        key={idx}
-                                        parsedEvent={claim}
-                                        processHandle={props.processHandle}
-                                        view={props.view}
-                                    />
-                                ))
-                            }
+                            {socialClaims.map((claim, idx) => (
+                                <Claim.SocialClaim
+                                    key={idx}
+                                    parsedEvent={claim}
+                                    processHandle={props.processHandle}
+                                    view={props.view}
+                                />
+                            ))}
                         </div>
                     </div>
-                }
-
+                )}
             </div>
             <br />
             <br />
@@ -281,5 +277,3 @@ export function Profile(props: ProfileProps) {
         </div>
     );
 }
-
-

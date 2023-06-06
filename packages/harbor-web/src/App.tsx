@@ -33,7 +33,7 @@ export async function loadImageFromPointer(
         await Core.APIMethods.getEvents(server, pointer.system, {
             rangesForProcesses: [
                 {
-                    process: pointer.process, 
+                    process: pointer.process,
                     ranges: [
                         {
                             low: pointer.logicalClock,
@@ -55,29 +55,28 @@ export async function loadImageFromPointer(
         return URL.createObjectURL(blob);
     }
 
-    console.log("failed to load blob");
+    console.log('failed to load blob');
 
     return '';
 }
 
 type MainPageProps = {
-    processHandle: Core.ProcessHandle.ProcessHandle,
-    view: Core.View.View,
-}
+    processHandle: Core.ProcessHandle.ProcessHandle;
+    view: Core.View.View;
+};
 
 const decodeSystemQuery = (raw: string) => {
     return Core.Models.PublicKey.fromProto(
-        Core.Protocol.PublicKey.decode(
-            Base64.decode(raw),
-        ),
+        Core.Protocol.PublicKey.decode(Base64.decode(raw)),
     );
 };
 
 export function MainPage(props: MainPageProps) {
     const { system: systemQuery } = ReactRouterDOM.useParams();
 
-    const [system, setSystem] =
-        React.useState<Core.Models.PublicKey.PublicKey | undefined>();
+    const [system, setSystem] = React.useState<
+        Core.Models.PublicKey.PublicKey | undefined
+    >();
 
     React.useEffect(() => {
         if (systemQuery) {
@@ -92,27 +91,24 @@ export function MainPage(props: MainPageProps) {
     }, [systemQuery]);
 
     return (
-        <div
-        className="flex justify-center bg-gray min-h-screen dark:bg-zinc-800"
-        >
-            { system
-                ? 
-                    <Profile.Profile
-                        processHandle={props.processHandle}
-                        view={props.view}
-                        system={system}
-                    />
-                :
-                    <h1>Failed to decode URL</h1>
-            }
+        <div className="flex justify-center bg-gray min-h-screen dark:bg-zinc-800">
+            {system ? (
+                <Profile.Profile
+                    processHandle={props.processHandle}
+                    view={props.view}
+                    system={system}
+                />
+            ) : (
+                <h1>Failed to decode URL</h1>
+            )}
         </div>
     );
 }
 
 type AppProps = {
-    processHandle: Core.ProcessHandle.ProcessHandle,
-    view: Core.View.View,
-}
+    processHandle: Core.ProcessHandle.ProcessHandle;
+    view: Core.View.View;
+};
 
 export function App(props: AppProps) {
     const Routes = () => (
