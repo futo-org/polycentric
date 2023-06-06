@@ -46,7 +46,7 @@ pub(crate) async fn ingest_event(
             } else {
                 "profile_descriptions"
             };
-            let lww_element = event.lww_element().clone().ok_or({ println!("LWW Element had no content"); Error})?;                    
+            let lww_element = event.lww_element().clone().ok_or_else(|| { println!("LWW Element had no content"); Error})?;
             version = lww_element.unix_milliseconds;
             index_id = crate::model::public_key::to_base64(event.system())?; 
             content_str = String::from_utf8(lww_element.value)?;
