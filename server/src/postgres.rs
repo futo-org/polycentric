@@ -992,7 +992,8 @@ pub mod tests {
         let signed_event =
             crate::model::tests::make_test_event(&keypair, &process, 52);
 
-        crate::ingest::ingest_event_postgres(&mut transaction, &signed_event).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &signed_event)
+            .await?;
 
         let system = crate::model::public_key::PublicKey::Ed25519(
             keypair.public.clone(),

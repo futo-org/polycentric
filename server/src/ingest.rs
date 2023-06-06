@@ -1,6 +1,9 @@
 use std::fmt::Error;
 
-use crate::{model::{known_message_types, pointer}, protocol::Post};
+use crate::{
+    model::{known_message_types, pointer},
+    protocol::Post,
+};
 use ::protobuf::Message;
 use opensearch::IndexParts;
 use serde_json::json;
@@ -89,14 +92,11 @@ pub(crate) async fn ingest_event_postgres(
     Ok(())
 }
 
-
 pub(crate) async fn ingest_event_search(
     signed_event: &crate::model::signed_event::SignedEvent,
     state: &::std::sync::Arc<crate::State>,
 ) -> ::anyhow::Result<()> {
-
     let event = crate::model::event::from_vec(&signed_event.event())?;
-
 
     let event_type = *event.content_type();
     if event_type == known_message_types::POST
@@ -113,16 +113,21 @@ pub(crate) async fn ingest_event_search(
             let pointer = pointer::from_event(&event)?;
             index_id = pointer::to_base64(&pointer)?;
             version = 0;
-            content_str = Post::parse_from_bytes(event.content())?.content.ok_or(Error)?;
+            content_str = Post::parse_from_bytes(event.content())?
+                .content
+                .ok_or(Error)?;
         } else {
             index_name = if event_type == known_message_types::USERNAME {
                 "profile_names"
             } else {
                 "profile_descriptions"
             };
-            let lww_element = event.lww_element().clone().ok_or_else(|| { println!("LWW Element had no content"); Error})?;
+            let lww_element = event.lww_element().clone().ok_or_else(|| {
+                println!("LWW Element had no content");
+                Error
+            })?;
             version = lww_element.unix_milliseconds;
-            index_id = crate::model::public_key::to_base64(event.system())?; 
+            index_id = crate::model::public_key::to_base64(event.system())?;
             content_str = String::from_utf8(lww_element.value)?;
         }
 
@@ -143,13 +148,13 @@ pub(crate) async fn ingest_event_search(
     Ok(())
 }
 
-pub(crate) async fn ingest_event( 
+pub(crate) async fn ingest_event(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     signed_event: &crate::model::signed_event::SignedEvent,
     state: &::std::sync::Arc<crate::State>,
-    ) -> ::anyhow::Result<()> {
+) -> ::anyhow::Result<()> {
     ingest_event_postgres(transaction, signed_event).await?;
     ingest_event_search(signed_event, state).await?;
-    
+
     Ok(())
 }
