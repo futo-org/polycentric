@@ -9,6 +9,7 @@
     "@mui/icons-material": "^5.8.4",
     "@mui/material": "^5.10.11",
     "@polycentric/polycentric-core": "*",
+    "eslint-config-react-app": "^7.0.1",
     "long": "^5.2.1",
     "react": "^18.1.0",
     "react-dom": "^18.1.0",

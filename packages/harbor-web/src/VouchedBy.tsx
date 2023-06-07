@@ -1,4 +1,3 @@
-import * as MUI from '@mui/material';
 import * as ReactRouterDOM from 'react-router-dom';
 import * as React from 'react';
 import * as Base64 from '@borderless/base64';
@@ -11,7 +10,7 @@ function loadVouchedByState(
     processHandle: Core.ProcessHandle.ProcessHandle,
     view: Core.View.View,
     system: Core.Models.PublicKey.PublicKey,
-    setProps: (f: ((state: VouchedByState) => VouchedByState)) => void,
+    setProps: (f: (state: VouchedByState) => VouchedByState) => void,
 ): Core.View.UnregisterCallback {
     const queries: Array<Core.View.UnregisterCallback> = [];
 
@@ -24,7 +23,7 @@ function loadVouchedByState(
                     setProps((state) => {
                         return {
                             ...state,
-                            name: Core.Util.decodeText(buffer),
+                            username: Core.Util.decodeText(buffer),
                         };
                     });
                 }
@@ -37,27 +36,24 @@ function loadVouchedByState(
         avatarCancelContext: Core.CancelContext.CancelContext,
         pointer: Core.Models.Pointer.Pointer,
     ): Promise<void> => {
-        const link = await App.loadImageFromPointer(
-            processHandle,
-            pointer,
-        );
+        const link = await App.loadImageFromPointer(processHandle, pointer);
 
         if (cancelContext.cancelled() || avatarCancelContext.cancelled()) {
             return;
         }
 
-        console.log("setting avatar");
+        console.log('setting avatar');
 
         setProps((state) => {
             return {
                 ...state,
-                avatar: link, 
+                avatar: link,
             };
         });
     };
 
-    let avatarCancelContext: Core.CancelContext.CancelContext | undefined
-        = undefined;
+    let avatarCancelContext: Core.CancelContext.CancelContext | undefined =
+        undefined;
 
     const avatarCallback = (buffer: Uint8Array) => {
         if (cancelContext.cancelled()) {
@@ -66,7 +62,7 @@ function loadVouchedByState(
 
         const pointer = Core.Models.Pointer.fromBuffer(buffer);
 
-        if (avatarCancelContext!== undefined) {
+        if (avatarCancelContext !== undefined) {
             avatarCancelContext.cancel();
         }
 
@@ -80,7 +76,7 @@ function loadVouchedByState(
             system,
             Core.Models.ContentType.ContentTypeAvatar,
             avatarCallback,
-        )
+        ),
     );
 
     (async () => {
@@ -94,19 +90,19 @@ function loadVouchedByState(
                     Core.Models.ContentType.ContentTypeUsername,
                 ],
                 undefined,
-            )
+            ),
         );
     })();
 
     return () => {
-        queries.forEach(f => f());
+        queries.forEach((f) => f());
     };
 }
 
 export type VouchedByProps = {
-    processHandle: Core.ProcessHandle.ProcessHandle,
-    view: Core.View.View,
-    system: Core.Models.PublicKey.PublicKey,
+    processHandle: Core.ProcessHandle.ProcessHandle;
+    view: Core.View.View;
+    system: Core.Models.PublicKey.PublicKey;
 };
 
 export type VouchedByState = {
@@ -119,17 +115,13 @@ function makeInitialState(
     system: Core.Models.PublicKey.PublicKey,
 ): VouchedByState {
     return {
-        avatar: "",
-        username: "",
-        link: Base64.encodeUrl(Core.Protocol.PublicKey.encode(
-            system
-        ).finish()),
+        avatar: '',
+        username: '',
+        link: Base64.encodeUrl(Core.Protocol.PublicKey.encode(system).finish()),
     };
 }
 
 export function VouchedBy(props: VouchedByProps) {
-    const navigate = ReactRouterDOM.useNavigate();
-
     const [state, setState] = React.useState<VouchedByState>(
         makeInitialState(props.system),
     );
@@ -155,13 +147,15 @@ export function VouchedBy(props: VouchedByProps) {
     }, [props.system, props.view, props.processHandle]);
 
     return (
-        <MUI.Avatar
-            src={state.avatar}
-            alt={state.username}
-            onClick={() => {
-                navigate('/' + state.link);
-            }}
-        />
+        <div>
+            <ReactRouterDOM.Link to={'/' + state.link}>
+                <img
+                    src={state.avatar}
+                    alt={state.username}
+                    className="border rounded-full w-20 h-20"
+                />
+            </ReactRouterDOM.Link>
+            <p className="leading-4 w-20 text-center py-2">{state.username}</p>
+        </div>
     );
 }
-
