@@ -78,15 +78,15 @@ struct OpenSearchSearchDocumentProfile {
 }
 
 #[derive(::serde::Deserialize)]
-struct OpenSearchPointer {
-    author_public_key: String,
-    writer_id: String,
-    sequence_number: i64,
+struct OpenSearchContent {
+    message_content: String,
 }
 
 #[derive(::serde::Deserialize)]
 struct OpenSearchSearchL2 {
-    _source: OpenSearchPointer,
+    _source: OpenSearchContent,
+    _id: String,
+    _index: String,
 }
 
 #[derive(::serde::Deserialize)]
