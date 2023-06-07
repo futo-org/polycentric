@@ -14,30 +14,33 @@ pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
-    let response = crate::warp_try_err_500!(state
-        .search
-        .search(SearchParts::Index(&[
-            "messages",
-            "profile_names",
-            "profile_descriptions",
-        ]))
-        .from(0)
-        .size(10)
-        .body(json!({
-            "query": {
-                "match": {
-                    "message_content": {
-                        "query": query.search,
-                        "fuzziness": 2
+    let response = crate::warp_try_err_500!(
+        state
+            .search
+            .search(SearchParts::Index(&[
+                "messages",
+                "profile_names",
+                "profile_descriptions",
+            ]))
+            .from(0)
+            .size(10)
+            .body(json!({
+                "query": {
+                    "match": {
+                        "message_content": {
+                            "query": query.search,
+                            "fuzziness": 2
+                        }
                     }
                 }
-            }
-        }))
-        .send()
-        .await);
+            }))
+            .send()
+            .await
+    );
 
-    let response_body =
-        crate::warp_try_err_500!(response.json::<crate::OpenSearchSearchL0>().await);
+    let response_body = crate::warp_try_err_500!(
+        response.json::<crate::OpenSearchSearchL0>().await
+    );
 
     let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
 
