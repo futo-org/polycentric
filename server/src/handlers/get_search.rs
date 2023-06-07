@@ -40,15 +40,7 @@ pub(crate) async fn handler(
     let response_body =
         response.json::<crate::OpenSearchSearchL0>().await.unwrap();
 
-    let mut transaction = match state.pool.begin().await {
-        Ok(x) => x,
-        Err(err) => {
-            return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
-                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )));
-        }
-    };
+    let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
 
     let mut result_events: Events = Events::new();
 
@@ -120,25 +112,9 @@ pub(crate) async fn handler(
 
     result.result_events = MessageField::some(result_events);
 
-    match transaction.commit().await {
-        Ok(()) => (),
-        Err(err) => {
-            return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
-                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )));
-        }
-    };
+    crate::warp_try_err_500!(transaction.commit().await);
 
-    let result_serialized = match result.write_to_bytes() {
-        Ok(x) => x,
-        Err(err) => {
-            return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
-                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )));
-        }
-    };
+    let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
 
     Ok(Box::new(::warp::reply::with_status(
         result_serialized,

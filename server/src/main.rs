@@ -78,13 +78,13 @@ struct OpenSearchSearchDocumentProfile {
 }
 
 #[derive(::serde::Deserialize)]
-struct OpenSearchPointer {
+struct OpenSearchContent {
     message_content: String,
 }
 
 #[derive(::serde::Deserialize)]
 struct OpenSearchSearchL2 {
-    _source: OpenSearchPointer,
+    _source: OpenSearchContent,
     _id: String,
     _index: String,
 }
