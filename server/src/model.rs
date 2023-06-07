@@ -121,9 +121,8 @@ pub mod pointer {
     }
 
     pub fn from_base64(string: &String) -> ::anyhow::Result<Pointer> {
-        let bytes = base64::decode(string).unwrap();
-        let protocol_ptr =
-            crate::protocol::Pointer::parse_from_bytes(&bytes).unwrap();
+        let bytes = base64::decode(string)?;
+        let protocol_ptr = crate::protocol::Pointer::parse_from_bytes(&bytes)?;
         return from_proto(&protocol_ptr);
     }
 

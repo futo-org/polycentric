@@ -14,7 +14,7 @@ pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
-    let response = state
+    let response = crate::warp_try_err_500!(state
         .search
         .search(SearchParts::Index(&[
             "messages",
@@ -34,11 +34,10 @@ pub(crate) async fn handler(
             }
         }))
         .send()
-        .await
-        .unwrap();
+        .await);
 
     let response_body =
-        response.json::<crate::OpenSearchSearchL0>().await.unwrap();
+        crate::warp_try_err_500!(response.json::<crate::OpenSearchSearchL0>().await);
 
     let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
 
