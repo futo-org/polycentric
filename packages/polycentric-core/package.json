@@ -2,7 +2,7 @@
   "name": "@polycentric/polycentric-core",
   "version": "0.1.0",
   "private": true,
-  "main": "dist/node.js",
+  "main": "src/index.ts",
   "browser": "dist/browser.js",
   "types": "dist/index.d.ts",
   "dependencies": {
