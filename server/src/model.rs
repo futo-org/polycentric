@@ -120,6 +120,13 @@ pub mod pointer {
         ))
     }
 
+    pub fn from_base64(string: &String) -> ::anyhow::Result<Pointer> {
+        let bytes = base64::decode(string).unwrap();
+        let protocol_ptr =
+            crate::protocol::Pointer::parse_from_bytes(&bytes).unwrap();
+        return from_proto(&protocol_ptr);
+    }
+
     pub fn to_proto(pointer: &Pointer) -> crate::protocol::Pointer {
         let mut result = crate::protocol::Pointer::new();
         result.system = ::protobuf::MessageField::some(
@@ -219,6 +226,14 @@ pub mod public_key {
         let mut bytes = vec![];
         protocol_ptr.write_to_vec(&mut bytes)?;
         return Ok(base64::encode(bytes));
+    }
+
+    pub fn from_base64(string: &String) -> ::anyhow::Result<PublicKey> {
+        let bytes = base64::decode(string)?;
+        let protocol_obj =
+            crate::protocol::PublicKey::parse_from_bytes(&bytes)?;
+        let pub_key = from_proto(&protocol_obj)?;
+        return Ok(pub_key);
     }
 
     pub fn serde_url_deserialize<'de, D>(

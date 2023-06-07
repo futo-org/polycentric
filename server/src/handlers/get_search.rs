@@ -1,6 +1,9 @@
-use ::log::*;
 use ::protobuf::Message;
 use ::serde_json::json;
+use opensearch::SearchParts;
+use protobuf::MessageField;
+
+use crate::{model::known_message_types, protocol::Events};
 
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
@@ -11,37 +14,31 @@ pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
-    /*
-    let request = crate::protocol::Search::parse_from_tokio_bytes(&bytes)
-        .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
-
-    info!("searching for {}", request.search);
-
     let response = state
         .search
-        .search(::opensearch::SearchParts::Index(&["posts", "profiles"]))
+        .search(SearchParts::Index(&[
+            "messages",
+            "profile_names",
+            "profile_descriptions",
+        ]))
+        .from(0)
+        .size(10)
         .body(json!({
             "query": {
-                "multi_match": {
-                    "query": request.search,
-                    "fuzziness": 2,
-                    "fields": [
-                        "message",
-                        "profile_description",
-                        "profile_name"
-                    ]
+                "match": {
+                    "message_content": {
+                        "query": query.search,
+                        "fuzziness": 2
+                    }
                 }
             }
         }))
         .send()
         .await
-        .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
+        .unwrap();
 
-    let response_body = response
-        .json::<crate::OpenSearchSearchL0>()
-        .await
-        .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
-    */
+    let response_body =
+        response.json::<crate::OpenSearchSearchL0>().await.unwrap();
 
     let mut transaction = match state.pool.begin().await {
         Ok(x) => x,
@@ -53,39 +50,59 @@ pub(crate) async fn handler(
         }
     };
 
-    /*
-    let mut history: ::std::vec::Vec<crate::postgres::store_item::StoreItem> =
-        vec![];
+    let mut result_events: Events = Events::new();
 
     for hit in response_body.hits.hits {
-        let identity = ::ed25519_dalek::PublicKey::from_bytes(
-            &::base64::decode(hit._source.author_public_key).unwrap(),
-        )
-        .map_err(|e| crate::RequestError::Anyhow(::anyhow::Error::new(e)))?;
+        let id = hit._id;
+        if hit._index == "messages" {
+            let pointer = crate::warp_try_err_500!(
+                crate::model::pointer::from_base64(&id)
+            );
 
-        let writer = crate::model::vec_to_writer_id(
-            &::base64::decode(hit._source.writer_id).unwrap(),
-        )
-        .map_err(|e| crate::RequestError::Anyhow(e))?;
+            let event_result = crate::warp_try_err_500!(
+                crate::postgres::load_event(
+                    &mut transaction,
+                    pointer.system(),
+                    pointer.process(),
+                    *pointer.logical_clock()
+                )
+                .await
+            );
 
-        let sequence_number = hit._source.sequence_number;
+            if let Some(event_result) = event_result {
+                result_events
+                    .events
+                    .push(crate::model::signed_event::to_proto(&event_result));
+            };
+        } else {
+            let system = crate::warp_try_err_500!(
+                crate::model::public_key::from_base64(&id)
+            );
 
-        let store_item = crate::postgres::get_specific_event(
-            &mut transaction,
-            &crate::model::pointer::Pointer::new(
-                identity,
-                writer,
-                sequence_number.try_into().unwrap(),
-            ),
-        )
-        .await
-        .map_err(|e| crate::RequestError::Anyhow(e))?;
+            let content_type = if hit._index == "profile_names" {
+                known_message_types::USERNAME
+            } else {
+                known_message_types::DESCRIPTION
+            };
 
-        if let Some(event) = store_item {
-            history.push(event);
+            let event_list_result =
+                &crate::postgres::load_latest_system_wide_lww_event_by_type(
+                    &mut transaction,
+                    &system,
+                    content_type,
+                    1,
+                )
+                .await;
+
+            let event_list = crate::warp_try_err_500!(event_list_result);
+
+            if event_list.len() > 0 {
+                result_events
+                    .events
+                    .push(crate::model::signed_event::to_proto(&event_list[0]));
+            }
         }
     }
-    */
 
     let mut result =
         crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
@@ -99,11 +116,9 @@ pub(crate) async fn handler(
     result
         .related_events
         .append(&mut processed_events.related_events);
-
-    result
-        .result_events
-        .append(&mut processed_events.result_events);
     */
+
+    result.result_events = MessageField::some(result_events);
 
     match transaction.commit().await {
         Ok(()) => (),

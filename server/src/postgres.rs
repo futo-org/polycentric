@@ -395,6 +395,44 @@ pub(crate) async fn load_latest_event_by_type(
         >>()
 }
 
+pub(crate) async fn load_latest_system_wide_lww_event_by_type(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    system: &crate::model::public_key::PublicKey,
+    content_type: u64,
+    limit: u64,
+) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
+{
+    let query = "
+        SELECT events.raw_event FROM events 
+        INNER JOIN lww_elements 
+        ON events.id = lww_elements.event_id 
+        WHERE events.system_key_type = $1
+        AND   events.system_key      = $2
+        AND   events.content_type    = $3
+        ORDER BY lww_elements.unix_milliseconds DESC
+        LIMIT $4;
+    ";
+
+    ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            system,
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(system))
+        .bind(i64::try_from(content_type)?)
+        .bind(i64::try_from(limit)?)
+        .fetch_all(&mut *transaction)
+        .await?
+        .iter()
+        .map(|raw| {
+            crate::model::signed_event::from_proto(
+                &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+            )
+        })
+        .collect::<::anyhow::Result<
+            ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+        >>()
+}
+
 pub(crate) async fn does_event_exist(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event: &crate::model::event::Event,
