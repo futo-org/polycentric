@@ -91,18 +91,10 @@ clean:
 		node_modules \
 		packages/polycentric-core/src/protocol.ts \
 		server/src/protocol.rs \
-		packages/polycentric-core/node_modules \
-		packages/polycentric-core/dist \
-		packages/polycentric-react/node_modules \
-		packages/polycentric-react/dist \
-		packages/polycentric-web/node_modules \
+		packages/*/node_modules \
+		packages/*/dist \
 		packages/polycentric-web/build \
-		packages/polycentric-desktop/node_modules \
-		packages/polycentric-desktop/build \
-		packages/polycentric-desktop/dist \
-		packages/polycentric-leveldb/dist \
-		packages/harbor-web/node_modules \
-		packages/harbor-web/dist \
+		packages/polycentric-web-legacy/build \
 		server/target
 
 build-doc-site:
