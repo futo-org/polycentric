@@ -181,7 +181,7 @@ export async function getSearch(
     server: string,
     searchQuery: string,
 ): Promise<Protocol.ResultEventsAndRelatedEventsAndCursor> {
-    const path = `/search?search=${escape(searchQuery)}`;
+    const path = `/search?search=${encodeURIComponent(searchQuery)}`;
 
     const response = await fetch(server + path, {
         method: 'GET',
