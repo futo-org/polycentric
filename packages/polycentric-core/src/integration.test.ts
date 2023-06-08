@@ -138,12 +138,12 @@ describe('integration', () => {
         */
     });
 
-    test('search', async (done) => {
+    test('search', async () => {
         function eventToContent(event: Uint8Array): string {
             let decodedEvent = Models.Event.fromBuffer(event);
             let post = Protocol.Post.decode(decodedEvent.content);
             if (post.content === undefined) {
-                done.fail('Post content was undefined');
+                throw new Error('Post content was undefined');
             }
             return post.content;
         }
@@ -151,7 +151,7 @@ describe('integration', () => {
         function lwwEventToContent(event: Uint8Array): string {
             let decodedEvent = Models.Event.fromBuffer(event);
             if (decodedEvent.lwwElement === undefined) {
-                done.fail('LWW Element was undefined');
+                throw new Error('LWW Element was undefined');
             }
             return new TextDecoder().decode(decodedEvent.lwwElement.value);
         }
@@ -161,7 +161,7 @@ describe('integration', () => {
         ): Uint8Array {
             let resultEvents = searchResults.resultEvents;
             if (resultEvents === undefined) {
-                done.fail('ResultEvents was undefined');
+                throw new Error('ResultEvents was undefined');
             }
             let events = resultEvents.events;
             expect(events.length).toBeGreaterThan(0);
