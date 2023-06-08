@@ -20,6 +20,9 @@ pub(crate) async fn handler(
     } else {
         0
     };
+
+    let step = 10;
+
     let response = crate::warp_try_err_500!(
         state
             .search
@@ -29,7 +32,7 @@ pub(crate) async fn handler(
                 "profile_descriptions",
             ]))
             .from(crate::warp_try_err_500!(i64::try_from(start_count)))
-            .size(10)
+            .size(step)
             .body(json!({
                 "query": {
                     "match": {
@@ -119,7 +122,7 @@ pub(crate) async fn handler(
     */
 
     result.result_events = MessageField::some(result_events);
-    result.cursor = start_count;
+    result.cursor = start_count + step;
     crate::warp_try_err_500!(transaction.commit().await);
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
