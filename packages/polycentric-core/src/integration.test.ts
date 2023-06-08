@@ -7,6 +7,7 @@ import * as Models from './models';
 import * as Synchronization from './synchronization';
 import * as Protocol from './protocol';
 import * as APIMethods from './api-methods';
+import { Util } from '.';
 
 export async function createProcessHandle(): Promise<ProcessHandle.ProcessHandle> {
     return await ProcessHandle.createProcessHandle(
@@ -153,7 +154,7 @@ describe('integration', () => {
             if (decodedEvent.lwwElement === undefined) {
                 throw new Error('LWW Element was undefined');
             }
-            return new TextDecoder().decode(decodedEvent.lwwElement.value);
+            return Util.decodeText(decodedEvent.lwwElement.value);
         }
 
         function getAndCheckFirstEvent(
