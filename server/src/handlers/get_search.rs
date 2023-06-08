@@ -8,12 +8,18 @@ use crate::{model::known_message_types, protocol::Events};
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
     search: String,
+    cursor: ::std::option::Option<u64>,
 }
 
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+    let start_count = if let Some(cursor) = query.cursor {
+        cursor
+    } else {
+        0
+    };
     let response = crate::warp_try_err_500!(
         state
             .search
@@ -22,7 +28,7 @@ pub(crate) async fn handler(
                 "profile_names",
                 "profile_descriptions",
             ]))
-            .from(0)
+            .from(crate::warp_try_err_500!(i64::try_from(start_count)))
             .size(10)
             .body(json!({
                 "query": {
@@ -113,7 +119,7 @@ pub(crate) async fn handler(
     */
 
     result.result_events = MessageField::some(result_events);
-
+    result.cursor = start_count;
     crate::warp_try_err_500!(transaction.commit().await);
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
