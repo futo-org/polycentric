@@ -7,6 +7,7 @@ import * as Models from './models';
 import * as Synchronization from './synchronization';
 import * as Protocol from './protocol';
 import * as APIMethods from './api-methods';
+import * as Util from './util';
 
 export async function createProcessHandle(): Promise<ProcessHandle.ProcessHandle> {
     return await ProcessHandle.createProcessHandle(
@@ -137,4 +138,98 @@ describe('integration', () => {
         );
         */
     });
+
+    test('search', async () => {
+        function eventToContent(event: Uint8Array): string {
+            let decodedEvent = Models.Event.fromBuffer(event);
+            let post = Protocol.Post.decode(decodedEvent.content);
+            if (post.content === undefined) {
+                throw new Error('Post content was undefined');
+            }
+            return post.content;
+        }
+
+        function lwwEventToContent(event: Uint8Array): string {
+            let decodedEvent = Models.Event.fromBuffer(event);
+            if (decodedEvent.lwwElement === undefined) {
+                throw new Error('LWW Element was undefined');
+            }
+            return Util.decodeText(decodedEvent.lwwElement.value);
+        }
+
+        function getAndCheckFirstEvent(
+            searchResults: Protocol.ResultEventsAndRelatedEventsAndCursor,
+        ): Uint8Array {
+            let resultEvents = searchResults.resultEvents;
+            if (resultEvents === undefined) {
+                throw new Error('ResultEvents was undefined');
+            }
+            let events = resultEvents.events;
+            expect(events.length).toBeGreaterThan(0);
+            let signedEvent = events[0];
+            return signedEvent.event;
+        }
+
+        const s1p1 = await createProcessHandle();
+        await s1p1.addServer('http://127.0.0.1:8081');
+
+        let username = Math.random() * 100000 + '';
+        let description = 'Alerts for many rail lines';
+        let newUsername = 'South Eastern Pennsylvania Transportation Authority';
+        await s1p1.setDescription(description);
+        await s1p1.setUsername(newUsername);
+
+        let post1Content =
+            'The Manayunk/Norristown line is delayed 15 minutes due to trackwork';
+        let post2Content =
+            'All trains are on a reduced schedule due to single-tracking at Jefferson station';
+        await s1p1.post(post1Content);
+        await s1p1.post(post2Content);
+        await Synchronization.backFillServers(s1p1, s1p1.system());
+
+        // give opensearch time to index everything
+        await new Promise((r) => setTimeout(r, 5000));
+
+        let post1SearchResults = await APIMethods.getSearch(
+            'http://127.0.0.1:8081',
+            'Manayunk',
+        );
+        let post1SearchContent = eventToContent(
+            getAndCheckFirstEvent(post1SearchResults),
+        );
+        expect(post1SearchContent).toBe(post1Content);
+
+        let post2SearchResults = await APIMethods.getSearch(
+            'http://127.0.0.1:8081',
+            'Thomas Jefferson',
+        );
+        let post2SearchContent = eventToContent(
+            getAndCheckFirstEvent(post2SearchResults),
+        );
+        expect(post2SearchContent).toBe(post2Content);
+
+        let usernameSearchResults = await APIMethods.getSearch(
+            'http://127.0.0.1:8081',
+            'Pennsylvania',
+        );
+        let usernameSearchContent = lwwEventToContent(
+            getAndCheckFirstEvent(usernameSearchResults),
+        );
+        expect(usernameSearchContent).toBe(newUsername);
+
+        let oldUsernameSearchResults = await APIMethods.getSearch(
+            'http://127.0.0.1:8081',
+            username,
+        );
+        expect(oldUsernameSearchResults.resultEvents?.events.length).toBe(0);
+
+        let descriptionSearchResults = await APIMethods.getSearch(
+            'http://127.0.0.1:8081',
+            'Alerts',
+        );
+        let descriptionSearchContent = lwwEventToContent(
+            getAndCheckFirstEvent(descriptionSearchResults),
+        );
+        expect(descriptionSearchContent).toBe(description);
+    }, 10000);
 });
