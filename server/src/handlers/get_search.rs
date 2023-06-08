@@ -8,7 +8,7 @@ use crate::{model::known_message_types, protocol::Events};
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
     search: String,
-    cursor: ::std::option::Option<u64>,
+    cursor: ::std::option::Option<String>,
 }
 
 pub(crate) async fn handler(
@@ -16,12 +16,14 @@ pub(crate) async fn handler(
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
     let start_count = if let Some(cursor) = query.cursor {
-        cursor
+        u64::from_le_bytes(crate::warp_try_err_500!(crate::warp_try_err_500!(
+            base64::decode(cursor)
+        )
+        .as_slice()
+        .try_into()))
     } else {
         0
     };
-
-    let step = 10;
 
     let response = crate::warp_try_err_500!(
         state
@@ -32,7 +34,7 @@ pub(crate) async fn handler(
                 "profile_descriptions",
             ]))
             .from(crate::warp_try_err_500!(i64::try_from(start_count)))
-            .size(step)
+            .size(10)
             .body(json!({
                 "query": {
                     "match": {
@@ -120,9 +122,12 @@ pub(crate) async fn handler(
         .related_events
         .append(&mut processed_events.related_events);
     */
-
+    let returned_event_count =
+        crate::warp_try_err_500!(u64::try_from(result_events.events.len()));
     result.result_events = MessageField::some(result_events);
-    result.cursor = start_count + step;
+    result.cursor =
+        Some(u64::to_le_bytes(start_count + returned_event_count).to_vec());
+
     crate::warp_try_err_500!(transaction.commit().await);
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());

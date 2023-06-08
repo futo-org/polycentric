@@ -3,6 +3,7 @@ import fetch, { Headers } from 'cross-fetch';
 import * as Base64 from '@borderless/base64';
 import * as Protocol from './protocol';
 import * as Models from './models';
+import * as Util from './util';
 
 async function checkResponse(name: string, response: Response): Promise<void> {
     if (!response.ok) {
@@ -180,11 +181,13 @@ export async function getQueryReferences(
 export async function getSearch(
     server: string,
     searchQuery: string,
-    cursor?: number,
+    cursor?: Uint8Array,
 ): Promise<Protocol.ResultEventsAndRelatedEventsAndCursor> {
-    const path = `/search?search=${encodeURIComponent(searchQuery)}&cursor=${
-        cursor ?? 0
-    }`;
+    let path = `/search?search=${encodeURIComponent(searchQuery)}`;
+
+    if (cursor !== undefined) {
+        path += `&cursor=${encodeURIComponent(btoa(Util.decodeText(cursor)))}`;
+    }
 
     const response = await fetch(server + path, {
         method: 'GET',
