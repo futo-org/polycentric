@@ -7,7 +7,7 @@ import * as Models from './models';
 import * as Synchronization from './synchronization';
 import * as Protocol from './protocol';
 import * as APIMethods from './api-methods';
-import { Util } from '.';
+import * as Util  from './util';
 
 export async function createProcessHandle(): Promise<ProcessHandle.ProcessHandle> {
     return await ProcessHandle.createProcessHandle(
