@@ -176,3 +176,23 @@ export async function getQueryReferences(
 
     return Protocol.QueryReferencesResponse.decode(rawBody);
 }
+
+export async function getSearch(
+    server: string,
+    searchQuery: string,
+): Promise<Protocol.ResultEventsAndRelatedEventsAndCursor> {
+    const path = `/search?search=${searchQuery}`;
+
+    const response = await fetch(server + path, {
+        method: 'GET',
+        headers: new Headers({
+            'content-type': 'application/octet-stream',
+        }),
+    });
+
+    await checkResponse('getSearch', response);
+
+    const rawBody = new Uint8Array(await response.arrayBuffer());
+
+    return Protocol.ResultEventsAndRelatedEventsAndCursor.decode(rawBody);
+}
