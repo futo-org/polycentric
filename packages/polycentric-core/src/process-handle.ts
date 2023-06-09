@@ -136,8 +136,8 @@ export class ProcessHandle {
 
     public async post(
         content: string,
-        image?: Protocol.Pointer,
-        boost?: Protocol.Pointer,
+        image?: Models.Pointer.Pointer,
+        reference?: Protocol.Reference,
     ): Promise<Models.Pointer.Pointer> {
         return await this.publish(
             Models.ContentType.ContentTypePost,
@@ -147,7 +147,23 @@ export class ProcessHandle {
             }).finish(),
             undefined,
             undefined,
-            [],
+            reference ? [reference] : [],
+        );
+    }
+
+    public async opinion(
+        subject: Models.Pointer.Pointer,
+        opinion: Models.Opinion.Opinion,
+    ): Promise<Models.Pointer.Pointer> {
+        return await this.publish(
+            Models.ContentType.ContentTypeOpinion,
+            new Uint8Array(),
+            undefined,
+            {
+                value: opinion,
+                unixMilliseconds: Long.fromNumber(Date.now(), true),
+            },
+            [Models.pointerToReference(subject)],
         );
     }
 

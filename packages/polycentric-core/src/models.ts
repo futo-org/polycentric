@@ -28,6 +28,20 @@ export namespace ContentType {
     export const ContentTypeVouch = makeContentType(11);
     export const ContentTypeClaim = makeContentType(12);
     export const ContentTypeBanner = makeContentType(13);
+    export const ContentTypeOpinion = makeContentType(14);
+}
+
+export namespace Opinion {
+    export type Opinion = Readonly<Uint8Array> & {
+        readonly __tag: unique symbol;
+    };
+
+    function makeOpinion(x: number): Opinion {
+        return new Uint8Array([x]) as Opinion;
+    }
+
+    export const OpinionLike = makeOpinion(1);
+    export const OpinionDislike = makeOpinion(2);
 }
 
 export namespace PublicKey {
@@ -294,6 +308,10 @@ export namespace SignedEvent {
 
         return proto as SignedEvent;
     }
+
+    export function fromBuffer(buffer: Uint8Array): SignedEvent {
+        return fromProto(Protocol.SignedEvent.decode(buffer));
+    }
 }
 
 export enum ClaimType {
@@ -394,6 +412,13 @@ export function pointerToReference(
     return {
         referenceType: new Long(2, 0, true),
         reference: Protocol.Pointer.encode(pointer).finish(),
+    };
+}
+
+export function bufferToReference(buffer: Uint8Array): Protocol.Reference {
+    return {
+        referenceType: new Long(3, 0, true),
+        reference: buffer,
     };
 }
 

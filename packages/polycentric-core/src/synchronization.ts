@@ -95,8 +95,10 @@ export async function backfillClient(
 export async function backFillServers(
     processHandle: ProcessHandle.ProcessHandle,
     system: Models.PublicKey.PublicKey,
-): Promise<void> {
+): Promise<boolean> {
     const systemState = await processHandle.loadSystemState(system);
+
+    let progress = false;
 
     for (const server of systemState.servers()) {
         try {
@@ -149,9 +151,13 @@ export async function backFillServers(
                 await APIMethods.postEvents(server, {
                     events: events,
                 });
+
+                progress = true;
             }
         } catch (err) {
             console.warn(err);
         }
     }
+
+    return progress;
 }

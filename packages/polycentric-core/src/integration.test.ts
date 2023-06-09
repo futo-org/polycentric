@@ -1,3 +1,5 @@
+import Long from 'long';
+
 import * as FS from 'fs';
 import * as Base64 from '@borderless/base64';
 import * as ProcessHandle from './process-handle';
@@ -8,6 +10,8 @@ import * as Synchronization from './synchronization';
 import * as Protocol from './protocol';
 import * as APIMethods from './api-methods';
 import * as Util from './util';
+
+const TEST_SERVER = 'http://127.0.0.1:8081';
 
 export async function createProcessHandle(): Promise<ProcessHandle.ProcessHandle> {
     return await ProcessHandle.createProcessHandle(
@@ -20,7 +24,7 @@ export async function createProcessHandle(): Promise<ProcessHandle.ProcessHandle
 describe('integration', () => {
     test('sync', async () => {
         const s1p1 = await createProcessHandle();
-        await s1p1.addServer('http://127.0.0.1:8081');
+        await s1p1.addServer(TEST_SERVER);
         await s1p1.setDescription('hello');
 
         const claim = Models.claimHackerNews('pg');
@@ -36,7 +40,7 @@ describe('integration', () => {
             await Synchronization.backfillClient(
                 s2p1,
                 s1p1.system(),
-                'http://127.0.0.1:8081',
+                TEST_SERVER,
             )
         ) {}
 
@@ -45,7 +49,7 @@ describe('integration', () => {
         expect(s1State.description()).toStrictEqual('hello');
 
         const resolved = await APIMethods.getResolveClaim(
-            'http://localhost:8081',
+            TEST_SERVER,
             s1p1.system(),
             claim,
         );
@@ -55,16 +59,18 @@ describe('integration', () => {
 
     test('resolveAndQuery', async () => {
         const s1p1 = await createProcessHandle();
-        await s1p1.addServer('http://127.0.0.1:8081');
+        await s1p1.addServer(TEST_SERVER);
 
         await s1p1.setUsername('Louis Rossmann');
         await s1p1.setDescription('Apple and Apple accesories');
 
+        /*
         function systemToBase64(system: Models.PublicKey.PublicKey): string {
             return Base64.encodeUrl(Protocol.PublicKey.encode(system).finish());
         }
+        */
 
-        console.log('rossmann system:' + systemToBase64(s1p1.system()));
+        // console.log('rossmann system:' + systemToBase64(s1p1.system()));
 
         const claimPointer = await s1p1.claim(
             Models.claimGeneric('I Can Lift 4pl8'),
@@ -102,41 +108,145 @@ describe('integration', () => {
 
         await Synchronization.backFillServers(s2p1, s2p1.system());
 
-        console.log('futo system:' + systemToBase64(s2p1.system()));
+        // console.log('futo system:' + systemToBase64(s2p1.system()));
+    });
 
-        /*
-        const resolvedClaim = (await APIMethods.getResolveClaim(
-            'http://localhost:8081',
-            s1p1.system(),
-            claim,
-        )).events.map((proto) =>
-            Models.eventFromProtoBuffer(
-                Models.signedEventFromProto(proto).event()
-            )
-        ).find((event) =>
-            event.contentType().equals(new Long(Models.ContentType.Claim))
+    test('comment', async () => {
+        const subject = Models.bufferToReference(
+            Util.encodeText('https://fake.com/' + Math.random().toString()),
         );
 
-        expect(resolvedClaim).toBeDefined();
+        async function createHandle(username: string) {
+            const s1p1 = await createProcessHandle();
+            await s1p1.addServer(TEST_SERVER);
+            await s1p1.setUsername(username);
+            await Synchronization.backFillServers(s1p1, s1p1.system());
+            return s1p1;
+        }
 
-        const s2p1 = await createProcessHandle();
+        const vonNeumann = await createHandle('Von Neumann');
+        const godel = await createHandle('Godel');
+        const babbage = await createHandle('Babbage');
+        const turing = await createHandle('Turing');
 
-        await Synchronization.saveBatch(
-            s2p1,
-            await APIMethods.getQueryIndex(
-                'http://localhost:8081',
-                resolvedClaim!.system(),
-                [
-                    new Long(Models.ContentType.Description),
-                ],
+        let rootPosts: Array<Models.Pointer.Pointer> = [];
+
+        // von neumann comments 5 times
+        for (let i = 0; i < 5; i++) {
+            rootPosts.push(
+                await vonNeumann.post(i.toString(), undefined, subject),
+            );
+        }
+
+        // godel comments 10 times
+        for (let i = 0; i < 10; i++) {
+            rootPosts.push(await godel.post(i.toString(), undefined, subject));
+        }
+
+        // babbage likes the first three comments
+        for (let i = 0; i < 3; i++) {
+            await babbage.opinion(rootPosts[i], Models.Opinion.OpinionLike);
+        }
+
+        // babbage dislikes the last two comments
+        for (let i = rootPosts.length - 2; i < rootPosts.length; i++) {
+            await babbage.opinion(rootPosts[i], Models.Opinion.OpinionDislike);
+        }
+
+        // godel likes the first two comments
+        for (let i = 0; i < 2; i++) {
+            await godel.opinion(rootPosts[i], Models.Opinion.OpinionLike);
+        }
+
+        // godel dislikes the third comment
+        await godel.opinion(rootPosts[2], Models.Opinion.OpinionDislike);
+
+        // turing replies von neumanns comment three times
+        for (let i = 0; i < 3; i++) {
+            await turing.post(
+                i.toString(),
                 undefined,
-            ),
+                Models.pointerToReference(rootPosts[1]),
+            );
+        }
+
+        async function fullSync(handle: ProcessHandle.ProcessHandle) {
+            while (
+                await Synchronization.backFillServers(handle, handle.system())
+            ) {}
+        }
+
+        await fullSync(vonNeumann);
+        await fullSync(godel);
+        await fullSync(babbage);
+        await fullSync(turing);
+
+        // query comments from a server
+        const queryReferences = await APIMethods.getQueryReferences(
+            TEST_SERVER,
+            subject,
+            Models.ContentType.ContentTypePost,
+            undefined,
+            [
+                {
+                    fromType: Models.ContentType.ContentTypeOpinion,
+                    value: Models.Opinion.OpinionLike,
+                },
+                {
+                    fromType: Models.ContentType.ContentTypeOpinion,
+                    value: Models.Opinion.OpinionDislike,
+                },
+            ],
+            [
+                {
+                    fromType: Models.ContentType.ContentTypePost,
+                },
+            ],
         );
 
-        const systemState = await s2p1.loadSystemState(
-            resolvedClaim!.system(),
-        );
-        */
+        expect(queryReferences.items).toHaveLength(rootPosts.length);
+
+        function pointerToString(pointer: Models.Pointer.Pointer): string {
+            return Base64.encode(Protocol.Pointer.encode(pointer).finish());
+        }
+
+        // API result order is not guaranteed so put items in a map
+        const pointerToItem = new Map<
+            string,
+            Protocol.QueryReferencesResponseItem
+        >();
+
+        for (const item of queryReferences.items) {
+            if (item.event === undefined) {
+                throw new Error('expected event');
+            }
+            const signedEvent = Models.SignedEvent.fromProto(item.event);
+            const pointer = await Models.signedEventToPointer(signedEvent);
+            pointerToItem.set(pointerToString(pointer), item);
+        }
+
+        function checkResult(
+            i: number,
+            likes: number,
+            dislikes: number,
+            replies: number,
+        ) {
+            const item = pointerToItem.get(pointerToString(rootPosts[i]));
+            expect(item).toBeDefined();
+            expect(item!.counts[0]).toStrictEqual(new Long(likes, 0, true));
+            expect(item!.counts[1]).toStrictEqual(new Long(dislikes, 0, true));
+            expect(item!.counts[2]).toStrictEqual(new Long(replies, 0, true));
+        }
+
+        // Ensure the API has the expected counts and events
+        checkResult(0, 2, 0, 0);
+        checkResult(1, 2, 0, 3);
+        checkResult(2, 1, 1, 0);
+        for (let i = 3; i < 13; i++) {
+            checkResult(i, 0, 0, 0);
+        }
+        checkResult(13, 0, 1, 0);
+        checkResult(14, 0, 1, 0);
     });
 
     test('search', async () => {
@@ -171,7 +281,7 @@ describe('integration', () => {
         }
 
         const s1p1 = await createProcessHandle();
-        await s1p1.addServer('http://127.0.0.1:8081');
+        await s1p1.addServer(TEST_SERVER);
 
         let username = Math.random() * 100000 + '';
         let description = 'Alerts for many rail lines';
@@ -188,10 +298,10 @@ describe('integration', () => {
         await Synchronization.backFillServers(s1p1, s1p1.system());
 
         // give opensearch time to index everything
-        await new Promise((r) => setTimeout(r, 5000));
+        await new Promise((r) => setTimeout(r, 500));
 
         let post1SearchResults = await APIMethods.getSearch(
-            'http://127.0.0.1:8081',
+            TEST_SERVER,
             'Manayunk',
         );
         let post1SearchContent = eventToContent(
@@ -200,7 +310,7 @@ describe('integration', () => {
         expect(post1SearchContent).toBe(post1Content);
 
         let post2SearchResults = await APIMethods.getSearch(
-            'http://127.0.0.1:8081',
+            TEST_SERVER,
             'Thomas Jefferson',
         );
         let post2SearchContent = eventToContent(
@@ -209,7 +319,7 @@ describe('integration', () => {
         expect(post2SearchContent).toBe(post2Content);
 
         let usernameSearchResults = await APIMethods.getSearch(
-            'http://127.0.0.1:8081',
+            TEST_SERVER,
             'Pennsylvania',
         );
         let usernameSearchContent = lwwEventToContent(
@@ -218,13 +328,13 @@ describe('integration', () => {
         expect(usernameSearchContent).toBe(newUsername);
 
         let oldUsernameSearchResults = await APIMethods.getSearch(
-            'http://127.0.0.1:8081',
+            TEST_SERVER,
             username,
         );
         expect(oldUsernameSearchResults.resultEvents?.events.length).toBe(0);
 
         let descriptionSearchResults = await APIMethods.getSearch(
-            'http://127.0.0.1:8081',
+            TEST_SERVER,
             'Alerts',
         );
         let descriptionSearchContent = lwwEventToContent(

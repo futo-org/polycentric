@@ -124,9 +124,9 @@ pub(crate) async fn query_bytes(
                 subject_bytes = $1
         )
         AND
-            ($5 IS NULL OR content_type = $2)
+            ($2 IS NULL OR content_type = $2)
         AND
-            ($6 IS NULL OR id < $3)
+            ($3 IS NULL OR id < $3)
     ";
 
     let from_type_query = if let Some(x) = from_type {
