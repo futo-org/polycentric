@@ -301,7 +301,7 @@ describe('integration', () => {
         await Synchronization.backFillServers(s1p1, s1p1.system());
 
         // give opensearch time to index everything
-        await new Promise((r) => setTimeout(r, 500));
+        await new Promise((r) => setTimeout(r, 5000));
 
         let post1SearchResults = await APIMethods.getSearch(
             TEST_SERVER,
