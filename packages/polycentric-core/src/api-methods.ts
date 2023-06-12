@@ -180,8 +180,13 @@ export async function getQueryReferences(
 export async function getSearch(
     server: string,
     searchQuery: string,
+    cursor?: Uint8Array,
 ): Promise<Protocol.ResultEventsAndRelatedEventsAndCursor> {
-    const path = `/search?search=${encodeURIComponent(searchQuery)}`;
+    let path = `/search?search=${encodeURIComponent(searchQuery)}`;
+
+    if (cursor !== undefined) {
+        path += `&cursor=${Base64.encodeUrl(cursor)}`;
+    }
 
     const response = await fetch(server + path, {
         method: 'GET',

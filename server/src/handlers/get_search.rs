@@ -8,12 +8,23 @@ use crate::{model::known_message_types, protocol::Events};
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
     search: String,
+    cursor: ::std::option::Option<String>,
 }
 
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+    let start_count = if let Some(cursor) = query.cursor {
+        u64::from_le_bytes(crate::warp_try_err_500!(crate::warp_try_err_500!(
+            base64::decode(cursor)
+        )
+        .as_slice()
+        .try_into()))
+    } else {
+        0
+    };
+
     let response = crate::warp_try_err_500!(
         state
             .search
@@ -22,7 +33,7 @@ pub(crate) async fn handler(
                 "profile_names",
                 "profile_descriptions",
             ]))
-            .from(0)
+            .from(crate::warp_try_err_500!(i64::try_from(start_count)))
             .size(10)
             .body(json!({
                 "query": {
@@ -111,8 +122,11 @@ pub(crate) async fn handler(
         .related_events
         .append(&mut processed_events.related_events);
     */
-
+    let returned_event_count =
+        crate::warp_try_err_500!(u64::try_from(result_events.events.len()));
     result.result_events = MessageField::some(result_events);
+    result.cursor =
+        Some(u64::to_le_bytes(start_count + returned_event_count).to_vec());
 
     crate::warp_try_err_500!(transaction.commit().await);
 

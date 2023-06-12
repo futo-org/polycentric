@@ -124,9 +124,9 @@ message ExportBundle {
 }
 
 message ResultEventsAndRelatedEventsAndCursor {
-    Events result_events  = 1;
-    Events related_events = 2;
-    uint64 cursor         = 3;
+    Events          result_events  = 1;
+    Events          related_events = 2;
+    optional bytes  cursor         = 3;
 }
 
 message Reference {

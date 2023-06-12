@@ -290,12 +290,18 @@ describe('integration', () => {
             'The Manayunk/Norristown line is delayed 15 minutes due to trackwork';
         let post2Content =
             'All trains are on a reduced schedule due to single-tracking at Jefferson station';
+        let post3Content = Math.random() * 100000 + '';
         await s1p1.post(post1Content);
         await s1p1.post(post2Content);
+
+        for (let i = 0; i < 11; i++) {
+            await s1p1.post(post3Content);
+        }
+
         await Synchronization.backFillServers(s1p1, s1p1.system());
 
         // give opensearch time to index everything
-        await new Promise((r) => setTimeout(r, 500));
+        await new Promise((r) => setTimeout(r, 5000));
 
         let post1SearchResults = await APIMethods.getSearch(
             TEST_SERVER,
@@ -314,6 +320,27 @@ describe('integration', () => {
             getAndCheckFirstEvent(post2SearchResults),
         );
         expect(post2SearchContent).toBe(post2Content);
+
+        let post3SearchResults = await APIMethods.getSearch(
+            'http://127.0.0.1:8081',
+            post3Content,
+        );
+        let post3SearchContent = eventToContent(
+            getAndCheckFirstEvent(post3SearchResults),
+        );
+        expect(post3SearchContent).toBe(post3Content);
+        expect(post3SearchResults.resultEvents?.events.length).toBe(10);
+
+        if (post3SearchResults.cursor === undefined) {
+            throw new Error('post3SearchResults.cursor is undefined');
+        }
+
+        let post3ReSearchResults = await APIMethods.getSearch(
+            'http://127.0.0.1:8081',
+            post3Content,
+            post3SearchResults.cursor,
+        );
+        expect(post3ReSearchResults.resultEvents?.events.length).toBe(1);
 
         let usernameSearchResults = await APIMethods.getSearch(
             TEST_SERVER,
