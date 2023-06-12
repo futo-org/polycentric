@@ -55,6 +55,7 @@ pretty:
 		packages/polycentric-core/src/ \
 		packages/polycentric-react/src/ \
 		packages/polycentric-web/src/ \
+		packages/harbor-web/src/ \
 		packages/polycentric-desktop/src/ \
 		packages/polycentric-desktop/electron/ \
 		packages/polycentric-bot/src/

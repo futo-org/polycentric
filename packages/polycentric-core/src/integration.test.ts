@@ -64,13 +64,10 @@ describe('integration', () => {
         await s1p1.setUsername('Louis Rossmann');
         await s1p1.setDescription('Apple and Apple accesories');
 
-        /*
-        function systemToBase64(system: Models.PublicKey.PublicKey): string {
-            return Base64.encodeUrl(Protocol.PublicKey.encode(system).finish());
-        }
-        */
-
-        // console.log('rossmann system:' + systemToBase64(s1p1.system()));
+        console.log(
+            'rossmann system:' +
+                (await ProcessHandle.makeSystemLink(s1p1, s1p1.system())),
+        );
 
         const claimPointer = await s1p1.claim(
             Models.claimGeneric('I Can Lift 4pl8'),

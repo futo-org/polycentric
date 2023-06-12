@@ -1,3 +1,5 @@
+import * as Base64 from '@borderless/base64';
+
 import * as Store from './store';
 import Long from 'long';
 import * as Protocol from './protocol';
@@ -690,4 +692,28 @@ function updateProcessState(
             });
         }
     }
+}
+
+export async function makeSystemLink(
+    handle: ProcessHandle,
+    system: Models.PublicKey.PublicKey,
+): Promise<string> {
+    const state = await handle.loadSystemState(system);
+
+    return makeSystemLinkSync(system, state.servers());
+}
+
+export function makeSystemLinkSync(
+    system: Models.PublicKey.PublicKey,
+    servers: Array<string>,
+): string {
+    return Base64.encodeUrl(
+        Protocol.URLInfo.encode({
+            urlType: Models.URLInfo.URLInfoTypeSystemLink,
+            body: Protocol.URLInfoSystemLink.encode({
+                system: system,
+                servers: servers,
+            }).finish(),
+        }).finish(),
+    );
 }

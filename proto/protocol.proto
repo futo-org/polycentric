@@ -106,13 +106,6 @@ message RangesForSystem {
     repeated RangesForProcess ranges_for_processes = 1;
 }
 
-message URLInfo {
-             PublicKey system        = 1;
-    optional Process   process       = 2;
-    optional uint64    logical_clock = 3;
-    repeated string    servers       = 4;
-}
-
 message PrivateKey {
     uint64 key_type = 1;
     bytes  key      = 2;
@@ -227,4 +220,24 @@ message QueryReferencesResponse {
     repeated QueryReferencesResponseItem items          = 1;
     repeated SignedEvent                 related_events = 2;
     optional bytes                       cursor         = 3;
+}
+
+message URLInfo {
+    // url_type 1 = URLInfoSystemLink
+    // url_type 2 = URLInfoEventLink
+    // url_type 3 = ExportBundle
+    uint64 url_type = 1;
+    bytes  body     = 2;
+}
+
+message URLInfoSystemLink {
+             PublicKey system  = 1;
+    repeated string    servers = 2;
+}
+
+message URLInfoEventLink {
+             PublicKey system        = 1;
+             Process   process       = 2;
+             uint64    logical_clock = 3;
+    repeated string    servers       = 4;
 }
