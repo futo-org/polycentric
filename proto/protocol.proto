@@ -58,16 +58,17 @@ message BlobSection {
 }
 
 message Event {
-             PublicKey     system          = 1;
-             Process       process         = 2;
-             uint64        logical_clock   = 3;
-             uint64        content_type    = 4;
-             bytes         content         = 5;
-             VectorClock   vector_clock    = 6;
-             Indices       indices         = 7;
-    optional LWWElementSet lww_element_set = 8;
-    optional LWWElement    lww_element     = 9;
-    repeated Reference     references      = 10;
+             PublicKey     system            = 1;
+             Process       process           = 2;
+             uint64        logical_clock     = 3;
+             uint64        content_type      = 4;
+             bytes         content           = 5;
+             VectorClock   vector_clock      = 6;
+             Indices       indices           = 7;
+    optional LWWElementSet lww_element_set   = 8;
+    optional LWWElement    lww_element       = 9;
+    repeated Reference     references        = 10;
+    optional uint64        unix_milliseconds = 11;
 }
 
 message Digest {

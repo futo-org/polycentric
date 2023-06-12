@@ -421,6 +421,7 @@ export class ProcessHandle {
             lwwElement: lwwElement,
             references: references,
             indices: processState.indices,
+            unixMilliseconds: Long.fromNumber(Date.now(), true),
         });
 
         const eventBuffer = Protocol.Event.encode(event).finish();

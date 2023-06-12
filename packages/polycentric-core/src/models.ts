@@ -262,6 +262,7 @@ export namespace Event {
         lwwElement: Protocol.LWWElement | undefined;
         references: Array<Protocol.Reference>;
         indices: Protocol.Indices;
+        unixMilliseconds: Long | undefined;
     }
 
     export type Event = Readonly<EventI> & { readonly __tag: unique symbol };
