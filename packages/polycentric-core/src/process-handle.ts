@@ -1,3 +1,5 @@
+import * as Base64 from '@borderless/base64';
+
 import * as Store from './store';
 import Long from 'long';
 import * as Protocol from './protocol';
@@ -136,8 +138,8 @@ export class ProcessHandle {
 
     public async post(
         content: string,
-        image?: Protocol.Pointer,
-        boost?: Protocol.Pointer,
+        image?: Models.Pointer.Pointer,
+        reference?: Protocol.Reference,
     ): Promise<Models.Pointer.Pointer> {
         return await this.publish(
             Models.ContentType.ContentTypePost,
@@ -147,7 +149,23 @@ export class ProcessHandle {
             }).finish(),
             undefined,
             undefined,
-            [],
+            reference ? [reference] : [],
+        );
+    }
+
+    public async opinion(
+        subject: Models.Pointer.Pointer,
+        opinion: Models.Opinion.Opinion,
+    ): Promise<Models.Pointer.Pointer> {
+        return await this.publish(
+            Models.ContentType.ContentTypeOpinion,
+            new Uint8Array(),
+            undefined,
+            {
+                value: opinion,
+                unixMilliseconds: Long.fromNumber(Date.now(), true),
+            },
+            [Models.pointerToReference(subject)],
         );
     }
 
@@ -403,6 +421,7 @@ export class ProcessHandle {
             lwwElement: lwwElement,
             references: references,
             indices: processState.indices,
+            unixMilliseconds: Long.fromNumber(Date.now(), true),
         });
 
         const eventBuffer = Protocol.Event.encode(event).finish();
@@ -674,4 +693,28 @@ function updateProcessState(
             });
         }
     }
+}
+
+export async function makeSystemLink(
+    handle: ProcessHandle,
+    system: Models.PublicKey.PublicKey,
+): Promise<string> {
+    const state = await handle.loadSystemState(system);
+
+    return makeSystemLinkSync(system, state.servers());
+}
+
+export function makeSystemLinkSync(
+    system: Models.PublicKey.PublicKey,
+    servers: Array<string>,
+): string {
+    return Base64.encodeUrl(
+        Protocol.URLInfo.encode({
+            urlType: Models.URLInfo.URLInfoTypeSystemLink,
+            body: Protocol.URLInfoSystemLink.encode({
+                system: system,
+                servers: servers,
+            }).finish(),
+        }).finish(),
+    );
 }

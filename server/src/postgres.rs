@@ -633,14 +633,14 @@ pub(crate) async fn insert_event_reference_bytes(
     event_id: u64,
 ) -> ::anyhow::Result<()> {
     let query_insert_event_link = "
-        INSERT INTO event_links
+        INSERT INTO event_references_bytes
         (
             subject_bytes,
             event_id
         )
         VALUES (
             $1,
-            $2,
+            $2
         )
         ON CONFLICT DO NOTHING;
     ";

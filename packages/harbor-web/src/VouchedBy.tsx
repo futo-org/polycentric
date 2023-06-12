@@ -1,6 +1,5 @@
 import * as ReactRouterDOM from 'react-router-dom';
 import * as React from 'react';
-import * as Base64 from '@borderless/base64';
 
 import * as App from './App';
 import * as Core from '@polycentric/polycentric-core';
@@ -92,6 +91,24 @@ function loadVouchedByState(
                 undefined,
             ),
         );
+
+        const link = await Core.ProcessHandle.makeSystemLink(
+            processHandle,
+            system,
+        );
+
+        if (cancelContext.cancelled()) {
+            return;
+        }
+
+        console.log('setting link');
+
+        setProps((state) => {
+            return {
+                ...state,
+                link: link,
+            };
+        });
     })();
 
     return () => {
@@ -117,7 +134,7 @@ function makeInitialState(
     return {
         avatar: '',
         username: '',
-        link: Base64.encodeUrl(Core.Protocol.PublicKey.encode(system).finish()),
+        link: Core.ProcessHandle.makeSystemLinkSync(system, []),
     };
 }
 

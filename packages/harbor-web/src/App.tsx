@@ -66,8 +66,8 @@ type MainPageProps = {
 };
 
 const decodeSystemQuery = (raw: string) => {
-    return Core.Models.PublicKey.fromProto(
-        Core.Protocol.PublicKey.decode(Base64.decode(raw)),
+    return Core.Models.URLInfo.getSystemLink(
+        Core.Protocol.URLInfo.decode(Base64.decode(raw)),
     );
 };
 
@@ -75,7 +75,7 @@ export function MainPage(props: MainPageProps) {
     const { system: systemQuery } = ReactRouterDOM.useParams();
 
     const [system, setSystem] = React.useState<
-        Core.Models.PublicKey.PublicKey | undefined
+        Core.Models.URLInfoSystemLink.URLInfoSystemLink | undefined
     >();
 
     React.useEffect(() => {
@@ -96,7 +96,7 @@ export function MainPage(props: MainPageProps) {
                 <Profile.Profile
                     processHandle={props.processHandle}
                     view={props.view}
-                    system={system}
+                    system={system.system}
                 />
             ) : (
                 <h1>Failed to decode URL</h1>

@@ -28,6 +28,20 @@ export namespace ContentType {
     export const ContentTypeVouch = makeContentType(11);
     export const ContentTypeClaim = makeContentType(12);
     export const ContentTypeBanner = makeContentType(13);
+    export const ContentTypeOpinion = makeContentType(14);
+}
+
+export namespace Opinion {
+    export type Opinion = Readonly<Uint8Array> & {
+        readonly __tag: unique symbol;
+    };
+
+    function makeOpinion(x: number): Opinion {
+        return new Uint8Array([x]) as Opinion;
+    }
+
+    export const OpinionLike = makeOpinion(1);
+    export const OpinionDislike = makeOpinion(2);
 }
 
 export namespace PublicKey {
@@ -248,6 +262,7 @@ export namespace Event {
         lwwElement: Protocol.LWWElement | undefined;
         references: Array<Protocol.Reference>;
         indices: Protocol.Indices;
+        unixMilliseconds: Long | undefined;
     }
 
     export type Event = Readonly<EventI> & { readonly __tag: unique symbol };
@@ -293,6 +308,10 @@ export namespace SignedEvent {
         }
 
         return proto as SignedEvent;
+    }
+
+    export function fromBuffer(buffer: Uint8Array): SignedEvent {
+        return fromProto(Protocol.SignedEvent.decode(buffer));
     }
 }
 
@@ -397,6 +416,13 @@ export function pointerToReference(
     };
 }
 
+export function bufferToReference(buffer: Uint8Array): Protocol.Reference {
+    return {
+        referenceType: new Long(3, 0, true),
+        reference: buffer,
+    };
+}
+
 export async function signedEventToPointer(
     signedEvent: SignedEvent.SignedEvent,
 ): Promise<Pointer.Pointer> {
@@ -407,4 +433,109 @@ export async function signedEventToPointer(
         logicalClock: event.logicalClock,
         eventDigest: await hash(signedEvent.event),
     });
+}
+
+export namespace URLInfoSystemLink {
+    interface URLInfoSystemLinkI {
+        system: PublicKey.PublicKey;
+        servers: Array<string>;
+    }
+
+    export type URLInfoSystemLink = Readonly<URLInfoSystemLinkI> & {
+        readonly __tag: unique symbol;
+    };
+
+    export function fromProto(
+        proto: Protocol.URLInfoSystemLink,
+    ): URLInfoSystemLink {
+        if (proto.system === undefined) {
+            throw new Error('expected system');
+        }
+
+        PublicKey.fromProto(proto.system);
+
+        return proto as URLInfoSystemLink;
+    }
+
+    export function fromBuffer(buffer: Uint8Array): URLInfoSystemLink {
+        return fromProto(Protocol.URLInfoSystemLink.decode(buffer));
+    }
+}
+
+export namespace URLInfoEventLink {
+    interface URLInfoEventLinkI {
+        system: PublicKey.PublicKey;
+        process: Process.Process;
+        logicalClock: Long;
+        servers: Array<string>;
+    }
+
+    export type URLInfoEventLink = Readonly<URLInfoEventLinkI> & {
+        readonly __tag: unique symbol;
+    };
+
+    export function fromProto(
+        proto: Protocol.URLInfoEventLink,
+    ): URLInfoEventLink {
+        if (proto.system === undefined) {
+            throw new Error('expected system');
+        }
+
+        if (proto.process === undefined) {
+            throw new Error('expected process');
+        }
+
+        PublicKey.fromProto(proto.system);
+        Process.fromProto(proto.process);
+
+        return proto as URLInfoEventLink;
+    }
+
+    export function fromBuffer(buffer: Uint8Array): URLInfoEventLink {
+        return fromProto(Protocol.URLInfoEventLink.decode(buffer));
+    }
+}
+
+export namespace URLInfo {
+    export type URLInfoType = Readonly<Long> & {
+        readonly __tag: unique symbol;
+    };
+
+    function makeURLInfoType(x: number): URLInfoType {
+        return new Long(x, 0, true) as URLInfoType;
+    }
+
+    export const URLInfoTypeSystemLink = makeURLInfoType(1);
+    export const URLInfoTypeEventLink = makeURLInfoType(2);
+    export const URLInfoTypeExportBundle = makeURLInfoType(3);
+
+    export function getSystemLink(
+        proto: Protocol.URLInfo,
+    ): URLInfoSystemLink.URLInfoSystemLink {
+        if (!proto.urlType.equals(URLInfoTypeSystemLink)) {
+            throw new Error('expected URLInfoTypeSystemLink');
+        }
+
+        return URLInfoSystemLink.fromBuffer(proto.body);
+    }
+
+    export function getEventLink(
+        proto: Protocol.URLInfo,
+    ): URLInfoEventLink.URLInfoEventLink {
+        if (!proto.urlType.equals(URLInfoTypeEventLink)) {
+            throw new Error('expected URLInfoTypeEventLink');
+        }
+
+        return URLInfoEventLink.fromBuffer(proto.body);
+    }
+
+    export function getExportBundle(
+        proto: Protocol.URLInfo,
+    ): Protocol.ExportBundle {
+        if (!proto.urlType.equals(URLInfoTypeExportBundle)) {
+            throw new Error('expected URLInfoTypeExportBundle');
+        }
+
+        return Protocol.ExportBundle.decode(proto.body);
+    }
 }
