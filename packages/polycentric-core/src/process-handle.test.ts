@@ -118,6 +118,27 @@ describe('processHandle', () => {
         await processHandle.delete(pointer.process, pointer.logicalClock);
     });
 
+    test('deleteEventTest', async () => {
+        const processHandle = await createProcessHandle();
+
+        await processHandle.setUsername('alice');
+        const setUsernameBob = await processHandle.setUsername('bob');
+
+        const serverState1 = await processHandle.loadSystemState(
+            processHandle.system(),
+        );
+
+        expect(serverState1.username()).toStrictEqual('bob');
+
+        await processHandle.delete(setUsernameBob.process, setUsernameBob.logicalClock);
+
+        const serverState2 = await processHandle.loadSystemState(
+            processHandle.system(),
+        );
+
+        expect(serverState2.username()).toStrictEqual('alice');
+    });
+
     test('claim index', async () => {
         const processHandle = await createProcessHandle();
 
