@@ -12,6 +12,7 @@ import * as APIMethods from './api-methods';
 import * as Util from './util';
 
 const TEST_SERVER = 'http://127.0.0.1:8081';
+// const TEST_SERVER = 'https://srv1-stg.polycentric.io';
 
 export async function createProcessHandle(): Promise<ProcessHandle.ProcessHandle> {
     return await ProcessHandle.createProcessHandle(
@@ -90,7 +91,7 @@ describe('integration', () => {
         await Synchronization.backFillServers(s1p1, s1p1.system());
 
         const s2p1 = await createProcessHandle();
-        await s2p1.addServer('http://127.0.0.1:8081');
+        await s2p1.addServer(TEST_SERVER);
 
         await s2p1.setUsername('Futo');
         await s2p1.setDescription('Tech Freedom');
@@ -244,7 +245,7 @@ describe('integration', () => {
         }
         checkResult(13, 0, 1, 0);
         checkResult(14, 0, 1, 0);
-    });
+    }, 10000);
 
     test('search', async () => {
         function eventToContent(event: Uint8Array): string {
@@ -322,7 +323,7 @@ describe('integration', () => {
         expect(post2SearchContent).toBe(post2Content);
 
         let post3SearchResults = await APIMethods.getSearch(
-            'http://127.0.0.1:8081',
+            TEST_SERVER,
             post3Content,
         );
         let post3SearchContent = eventToContent(
@@ -336,7 +337,7 @@ describe('integration', () => {
         }
 
         let post3ReSearchResults = await APIMethods.getSearch(
-            'http://127.0.0.1:8081',
+            TEST_SERVER,
             post3Content,
             post3SearchResults.cursor,
         );
