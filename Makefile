@@ -115,3 +115,7 @@ deploy-doc-site:
 deploy-spa:
 	wrangler pages publish --project-name polycentric-spa \
 		./packages/polycentric-web/dist/
+
+deploy-harbor-spa:
+	wrangler pages publish --project-name harbor-spa \
+		./packages/harbor-web/dist/
