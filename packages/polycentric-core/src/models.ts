@@ -42,6 +42,7 @@ export namespace Opinion {
 
     export const OpinionLike = makeOpinion(1);
     export const OpinionDislike = makeOpinion(2);
+    export const OpinionNeutral = makeOpinion(3);
 }
 
 export namespace PublicKey {
