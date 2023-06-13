@@ -73,6 +73,7 @@ pub(crate) async fn query_pointer(
             ($5 IS NULL OR content_type = $5)
         AND
             ($6 IS NULL OR id < $6)
+        LIMIT 20
     ";
 
     let from_type_query = if let Some(x) = from_type {
@@ -127,6 +128,7 @@ pub(crate) async fn query_bytes(
             ($2 IS NULL OR content_type = $2)
         AND
             ($3 IS NULL OR id < $3)
+        LIMIT 20
     ";
 
     let from_type_query = if let Some(x) = from_type {
