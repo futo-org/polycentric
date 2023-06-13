@@ -572,6 +572,12 @@ pub mod signed_event {
         )?)
     }
 
+    pub fn from_vec(
+        vec: &::std::vec::Vec<u8>,
+    ) -> ::anyhow::Result<SignedEvent> {
+        from_proto(&crate::protocol::SignedEvent::parse_from_bytes(vec)?)
+    }
+
     pub(crate) fn to_proto(
         event: &SignedEvent,
     ) -> crate::protocol::SignedEvent {

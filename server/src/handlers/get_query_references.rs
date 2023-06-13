@@ -52,6 +52,7 @@ pub(crate) async fn handler(
             &reference,
             &query.query.from_type,
             &query_cursor,
+            20,
         )
         .await
     );
