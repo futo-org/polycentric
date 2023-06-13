@@ -173,18 +173,16 @@ export function Claim(props: ClaimProps) {
                 </h3>
                 <p className="italic">Verified by:</p>
                 <div className="flex flex-row gap-5 pt-3">
-                    {vouchedBy.map(
-                        (vouchedBy: Core.Models.PublicKey.PublicKey) => {
-                            return (
-                                <VouchedBy.VouchedBy
-                                    key={vouchedBy.toString()}
-                                    processHandle={props.processHandle}
-                                    view={props.view}
-                                    system={vouchedBy}
-                                />
-                            );
-                        },
-                    )}
+                    {vouchedBy.map((system, idx) => {
+                        return (
+                            <VouchedBy.VouchedBy
+                                key={idx}
+                                processHandle={props.processHandle}
+                                view={props.view}
+                                system={system}
+                            />
+                        );
+                    })}
                 </div>
             </div>
         </div>
