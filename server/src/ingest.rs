@@ -40,6 +40,8 @@ fn trace_event(
             content_str = "LIKE".to_string();
         } else if lww_element.value == vec![2] {
             content_str = "DISLIKE".to_string();
+        } else if lww_element.value == vec![3] {
+            content_str = "NEUTRAL".to_string();
         }
     }
 
