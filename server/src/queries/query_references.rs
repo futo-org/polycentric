@@ -23,7 +23,7 @@ fn process_rows(
 
     for row in rows.iter() {
         if let Some(cursor) = result.cursor {
-            if cursor < row.id {
+            if cursor > row.id {
                 result.cursor = Some(row.id)
             }
         } else {
@@ -73,6 +73,8 @@ pub(crate) async fn query_pointer(
             ($5 IS NULL OR content_type = $5)
         AND
             ($6 IS NULL OR id < $6)
+        ORDER BY
+            id DESC
         LIMIT 20
     ";
 
@@ -128,6 +130,8 @@ pub(crate) async fn query_bytes(
             ($2 IS NULL OR content_type = $2)
         AND
             ($3 IS NULL OR id < $3)
+        ORDER BY
+            id DESC
         LIMIT 20
     ";
 
