@@ -1012,7 +1012,7 @@ pub(crate) async fn censor_event(
     censor_type: CensorshipType,
     system: &crate::model::public_key::PublicKey,
     process: &crate::model::process::Process,
-    logical_clock: u64
+    logical_clock: u64,
 ) -> ::anyhow::Result<()> {
     let query = "
         INSERT INTO censored_events (

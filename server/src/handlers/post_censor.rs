@@ -44,7 +44,9 @@ pub(crate) async fn handler(
                 &url_info.body
             )
         );
-        let system = crate::warp_try_err_500!(crate::model::public_key::from_url_proto(&body_system)); 
+        let system = crate::warp_try_err_500!(
+            crate::model::public_key::from_url_proto(&body_system)
+        );
         crate::warp_try_err_500!(
             crate::postgres::censor_system(
                 &mut transaction,
@@ -58,8 +60,12 @@ pub(crate) async fn handler(
             crate::protocol::URLInfoEventLink::parse_from_bytes(&url_info.body)
         );
 
-        let system = crate::warp_try_err_500!(crate::model::public_key::from_proto(&body_proto.system));
-        let process = crate::warp_try_err_500!(crate::model::process::from_proto(&body_proto.process));
+        let system = crate::warp_try_err_500!(
+            crate::model::public_key::from_proto(&body_proto.system)
+        );
+        let process = crate::warp_try_err_500!(
+            crate::model::process::from_proto(&body_proto.process)
+        );
         let logical_clock = body_proto.logical_clock;
 
         crate::warp_try_err_500!(
