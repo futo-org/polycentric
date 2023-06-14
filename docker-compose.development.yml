@@ -29,7 +29,7 @@ services:
         working_dir: /app
         environment:
             HOME: "/tmp/home"
-            RUST_LOG: "server=info"
+            RUST_LOG: "server=debug"
             DATABASE_URL: "postgres://postgres:testing@postgres"
             ADMIN_TOKEN: "123"
         user: "${CURRENT_UID}:${CURRENT_GID}"

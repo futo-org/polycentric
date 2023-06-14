@@ -38,68 +38,94 @@ pub(crate) async fn handler(
 
     let mut result = crate::protocol::QueryReferencesResponse::new();
 
-    let query_cursor = if let Some(cursor) = query.query.cursor {
-        Some(u64::from_be_bytes(crate::warp_try_err_500!(cursor
-            .as_slice()
-            .try_into())))
-    } else {
-        None
-    };
+    if let Some(request_events) = query.query.request_events.0 {
+        let query_cursor = if let Some(cursor) = query.query.cursor {
+            Some(u64::from_be_bytes(crate::warp_try_err_500!(cursor
+                .as_slice()
+                .try_into())))
+        } else {
+            None
+        };
 
-    let query_result = crate::warp_try_err_500!(
-        crate::queries::query_references::query_references(
-            &mut transaction,
-            &reference,
-            &query.query.from_type,
-            &query_cursor,
-            20,
-        )
-        .await
-    );
-
-    if let Some(query_result_cursor) = query_result.cursor {
-        result.cursor = Some(query_result_cursor.to_be_bytes().to_vec());
-    }
-
-    for signed_event in query_result.events.iter() {
-        let event = crate::warp_try_err_500!(crate::model::event::from_vec(
-            signed_event.event()
-        ));
-
-        let mut item = crate::protocol::QueryReferencesResponseItem::new();
-
-        item.event = ::protobuf::MessageField::some(
-            crate::model::signed_event::to_proto(signed_event),
+        let query_result = crate::warp_try_err_500!(
+            crate::queries::query_references::query_references(
+                &mut transaction,
+                &reference,
+                &request_events.from_type,
+                &query_cursor,
+                20,
+            )
+            .await
         );
 
-        for params in query.query.count_lww_element_references.iter() {
-            item.counts.push(crate::warp_try_err_500!(
-                    crate::queries::count_lww_element_references::
-                        count_lww_element_references(
-                            &mut transaction,
-                            &event.system(),
-                            &event.process(),
-                            *event.logical_clock(),
-                            &params.value,
-                            &params.from_type,
-                        ).await
+        if let Some(query_result_cursor) = query_result.cursor {
+            result.cursor = Some(query_result_cursor.to_be_bytes().to_vec());
+        }
+
+        for signed_event in query_result.events.iter() {
+            let event = crate::warp_try_err_500!(
+                crate::model::event::from_vec(signed_event.event())
+            );
+
+            let mut item =
+                crate::protocol::QueryReferencesResponseEventItem::new();
+
+            item.event = ::protobuf::MessageField::some(
+                crate::model::signed_event::to_proto(signed_event),
+            );
+
+            for params in request_events.count_lww_element_references.iter() {
+                item.counts.push(crate::warp_try_err_500!(
+                        crate::queries::count_lww_element_references::
+                            count_lww_element_references_pointer(
+                                &mut transaction,
+                                &event.system(),
+                                &event.process(),
+                                *event.logical_clock(),
+                                &params.value,
+                                &params.from_type,
+                            ).await
+                    ));
+            }
+
+            for params in request_events.count_references.iter() {
+                item.counts.push(crate::warp_try_err_500!(
+                    crate::queries::count_references::count_references_pointer(
+                        &mut transaction,
+                        &event.system(),
+                        &event.process(),
+                        *event.logical_clock(),
+                        &params.from_type,
+                    )
+                    .await
                 ));
-        }
+            }
 
-        for params in query.query.count_references.iter() {
-            item.counts.push(crate::warp_try_err_500!(
-                crate::queries::count_references::count_references_pointer(
-                    &mut transaction,
-                    &event.system(),
-                    &event.process(),
-                    *event.logical_clock(),
-                    &params.from_type,
-                )
-                .await
+            result.items.push(item);
+        }
+    }
+
+    for params in query.query.count_lww_element_references.iter() {
+        result.counts.push(crate::warp_try_err_500!(
+                crate::queries::count_lww_element_references::
+                    count_lww_element_references(
+                        &mut transaction,
+                        &reference,
+                        &params.value,
+                        &params.from_type,
+                    ).await
             ));
-        }
+    }
 
-        result.items.push(item);
+    for params in query.query.count_references.iter() {
+        result.counts.push(crate::warp_try_err_500!(
+            crate::queries::count_references::count_references(
+                &mut transaction,
+                &reference,
+                &params.from_type,
+            )
+            .await
+        ));
     }
 
     crate::warp_try_err_500!(transaction.commit().await);

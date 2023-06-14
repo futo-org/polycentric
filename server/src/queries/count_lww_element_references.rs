@@ -1,4 +1,4 @@
-pub(crate) async fn count_lww_element_references(
+pub(crate) async fn count_lww_element_references_pointer(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     system: &crate::model::public_key::PublicKey,
     process: &crate::model::process::Process,
@@ -36,6 +36,7 @@ pub(crate) async fn count_lww_element_references(
                 events.system_key_type,
                 events.system_key,
                 lww_elements.unix_milliseconds
+            DESC
         )
         SELECT
             COUNT(*)
@@ -68,6 +69,97 @@ pub(crate) async fn count_lww_element_references(
     Ok(u64::try_from(count)?)
 }
 
+pub(crate) async fn count_lww_element_references_bytes(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    bytes: &::std::vec::Vec<u8>,
+    value: &::std::vec::Vec<u8>,
+    from_type: &::std::option::Option<u64>,
+) -> ::anyhow::Result<u64> {
+    let query = "
+        WITH latest_values AS (
+            SELECT DISTINCT ON (
+                events.system_key_type,
+                events.system_key
+            )
+                lww_elements.value as value,
+                events.content_type as content_type
+            FROM
+                events
+            INNER JOIN
+                lww_elements
+            ON
+                events.id = lww_elements.event_id
+            INNER JOIN
+                event_references_bytes
+            ON
+                events.id = event_references_bytes.event_id
+            WHERE
+                event_references_bytes.subject_bytes = $1
+            ORDER BY
+                events.system_key_type,
+                events.system_key,
+                lww_elements.unix_milliseconds
+            DESC
+        )
+        SELECT
+            COUNT(*)
+        FROM
+            latest_values
+        WHERE
+            latest_values.value = $2
+        AND
+            ($3 IS NULL OR latest_values.content_type = $3)
+    ";
+
+    let from_type_query = if let Some(x) = from_type {
+        Some(i64::try_from(*x)?)
+    } else {
+        None
+    };
+
+    let count = ::sqlx::query_scalar::<_, i64>(query)
+        .bind(bytes)
+        .bind(value)
+        .bind(from_type_query)
+        .fetch_one(&mut *transaction)
+        .await?;
+
+    Ok(u64::try_from(count)?)
+}
+
+pub(crate) async fn count_lww_element_references(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    reference: &crate::model::reference::Reference,
+    value: &::std::vec::Vec<u8>,
+    from_type: &::std::option::Option<u64>,
+) -> ::anyhow::Result<u64> {
+    match reference {
+        crate::model::reference::Reference::Pointer(pointer) => {
+            count_lww_element_references_pointer(
+                &mut *transaction,
+                &pointer.system(),
+                &pointer.process(),
+                *pointer.logical_clock(),
+                value,
+                from_type,
+            )
+            .await
+        }
+        crate::model::reference::Reference::Bytes(bytes) => {
+            count_lww_element_references_bytes(
+                &mut *transaction,
+                &bytes,
+                value,
+                from_type,
+            )
+            .await
+        }
+        _ => {
+            unimplemented!("count_lww_element_references case not implemented");
+        }
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use ::protobuf::Message;
@@ -85,7 +177,7 @@ pub mod tests {
         );
 
         let result = crate::queries::count_lww_element_references::
-            count_lww_element_references(
+            count_lww_element_references_pointer(
                 &mut transaction,
                 &system,
                 &process,
