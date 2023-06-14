@@ -19,7 +19,7 @@ pub(crate) async fn handler(
         )));
     }
 
-    let url_str = String::from_utf8(bytes.to_vec()).unwrap();
+    let url_str = crate::warp_try_err_500!(String::from_utf8(bytes.to_vec()));
 
     let url = crate::warp_try_err_500!(::url::Url::parse(&url_str));
     let end_base64 = crate::warp_try_err_500!(url
@@ -44,11 +44,12 @@ pub(crate) async fn handler(
                 &url_info.body
             )
         );
+        let system = crate::warp_try_err_500!(crate::model::public_key::from_url_proto(&body_system)); 
         crate::warp_try_err_500!(
             crate::postgres::censor_system(
                 &mut transaction,
                 query.censorship_type,
-                body_system
+                system
             )
             .await
         );
@@ -56,11 +57,18 @@ pub(crate) async fn handler(
         let body_proto = crate::warp_try_err_500!(
             crate::protocol::URLInfoEventLink::parse_from_bytes(&url_info.body)
         );
+
+        let system = crate::warp_try_err_500!(crate::model::public_key::from_proto(&body_proto.system));
+        let process = crate::warp_try_err_500!(crate::model::process::from_proto(&body_proto.process));
+        let logical_clock = body_proto.logical_clock;
+
         crate::warp_try_err_500!(
             crate::postgres::censor_event(
                 &mut transaction,
                 query.censorship_type,
-                body_proto
+                &system,
+                &process,
+                logical_clock
             )
             .await
         );

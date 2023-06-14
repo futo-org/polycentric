@@ -1010,7 +1010,9 @@ pub(crate) async fn known_ranges_for_system(
 pub(crate) async fn censor_event(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     censor_type: CensorshipType,
-    event: crate::protocol::URLInfoEventLink,
+    system: &crate::model::public_key::PublicKey,
+    process: &crate::model::process::Process,
+    logical_clock: u64
 ) -> ::anyhow::Result<()> {
     let query = "
         INSERT INTO censored_events (
@@ -1022,15 +1024,13 @@ pub(crate) async fn censor_event(
         )
         VALUES ($1, $2, $3, $4, $5);
         ";
-    let system = &crate::model::public_key::from_proto(&event.system)?;
-    let process = &crate::model::process::from_proto(&event.process)?;
     ::sqlx::query(query)
         .bind(i64::try_from(crate::model::public_key::get_key_type(
             system,
         ))?)
-        .bind(crate::model::public_key::get_key_bytes(&system))
+        .bind(crate::model::public_key::get_key_bytes(system))
         .bind(process.bytes())
-        .bind(i64::try_from(event.logical_clock)?)
+        .bind(i64::try_from(logical_clock)?)
         .bind(censor_type)
         .execute(&mut *transaction)
         .await?;
@@ -1040,7 +1040,7 @@ pub(crate) async fn censor_event(
 pub(crate) async fn censor_system(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     censor_type: CensorshipType,
-    event: crate::protocol::URLInfoSystemLink,
+    system: crate::model::public_key::PublicKey,
 ) -> ::anyhow::Result<()> {
     let query = "
         INSERT INTO censored_systems (
@@ -1050,10 +1050,9 @@ pub(crate) async fn censor_system(
         )
         VALUES ($1, $2, $3);
         ";
-    let system = &crate::model::public_key::from_proto(&event.system)?;
     ::sqlx::query(query)
         .bind(i64::try_from(crate::model::public_key::get_key_type(
-            system,
+            &system,
         ))?)
         .bind(crate::model::public_key::get_key_bytes(&system))
         .bind(censor_type)
