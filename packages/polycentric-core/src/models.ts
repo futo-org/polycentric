@@ -31,6 +31,11 @@ export namespace ContentType {
     export const ContentTypeOpinion = makeContentType(14);
 }
 
+export namespace CensorshipType {
+    export const RefuseStorage = 'refuse_storage';
+    export const DoNotRecommend = 'do_not_recommend';
+}
+
 export namespace Opinion {
     export type Opinion = Readonly<Uint8Array> & {
         readonly __tag: unique symbol;

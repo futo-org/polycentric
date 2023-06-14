@@ -26,6 +26,27 @@ export async function postEvents(
     await checkResponse('postEvents', response);
 }
 
+export async function postCensor(
+    server: string,
+    censorshipType: string,
+    urlInfo: string,
+    authorization: string,
+): Promise<void> {
+    const response = await fetch(
+        `${server}/censor?censorship_type=${censorshipType}`,
+        {
+            method: 'POST',
+            headers: new Headers({
+                'content-type': 'application/octet-stream',
+                authorization: authorization,
+            }),
+            body: urlInfo,
+        },
+    );
+
+    await checkResponse('postCensor', response);
+}
+
 export async function getRanges(
     server: string,
     system: Models.PublicKey.PublicKey,
