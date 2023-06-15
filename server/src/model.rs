@@ -1,5 +1,3 @@
-use anyhow::Context;
-use base64::encode;
 use protobuf::Message;
 
 pub mod known_message_types {
@@ -166,7 +164,7 @@ pub mod pointer {
         let protocol_ptr = to_proto(pointer);
         let mut bytes = vec![];
         protocol_ptr.write_to_vec(&mut bytes)?;
-        return Ok(base64::encode(bytes));
+        return Ok(::base64::encode(bytes));
     }
 }
 
@@ -516,10 +514,8 @@ pub mod event {
 }
 
 pub mod signed_event {
-    use anyhow::Context;
-    use ed25519_dalek::Signer;
-    use ed25519_dalek::Verifier;
-    use protobuf::Message;
+    use ::ed25519_dalek::Signer;
+    use ::protobuf::Message;
 
     #[derive(PartialEq, Clone, Debug)]
     pub struct SignedEvent {

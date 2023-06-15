@@ -1,4 +1,3 @@
-use ::anyhow::Context;
 use ::protobuf::Message;
 
 #[derive(::serde::Deserialize)]

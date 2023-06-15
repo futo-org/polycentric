@@ -1,5 +1,3 @@
-use ::protobuf::Message;
-
 #[derive(::sqlx::FromRow)]
 struct QueryRow {
     #[sqlx(try_from = "i64")]

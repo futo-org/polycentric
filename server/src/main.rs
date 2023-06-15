@@ -1,9 +1,8 @@
+use ::cadence::{StatsdClient, UdpMetricSink};
 use ::envconfig::Envconfig;
 use ::log::*;
-use ::protobuf::Message;
+use ::std::net::UdpSocket;
 use ::warp::Filter;
-use cadence::{StatsdClient, UdpMetricSink};
-use std::net::UdpSocket;
 
 mod handlers;
 mod ingest;
