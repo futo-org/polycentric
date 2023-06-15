@@ -228,51 +228,51 @@ export function Profile(props: ProfileProps) {
 
     return (
         <div className="bg-white dark:bg-zinc-900 px-11 py-20 w-full max-w-4xl dark:text-white">
-            <div className="flex flex-col items-center justify-center text-center gap-5">
-                <img
-                    className="rounded-full w-20 h-20"
-                    src={state.avatar}
-                    alt={`The avatar for ${state.name}`}
-                />
-                <h1 className="text-3xl font-medium text-gray-800 dark:text-white">
-                    {state.name}
-                </h1>
-
-                <h2 className="text-2xl italic font-serif dark:font-light">
-                    {state.description}
-                </h2>
-                {socialClaims.length > 0 && (
-                    <div>
-                        <h3 className="text-2xl">Follow & Subscribe:</h3>
-                        <div className="flex flex-row justify-center px-7 gap-5">
-                            {socialClaims.map((claim, idx) => (
-                                <Claim.SocialClaim
-                                    key={idx}
-                                    parsedEvent={claim}
-                                    processHandle={props.processHandle}
-                                    view={props.view}
-                                />
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
-            <br />
-            <br />
-
-            <div className="p-6 bg-gray-50 dark:bg-zinc-800">
-                <h2 className="text-3xl font-demibold text-gray-800 dark:text-white pb-4">
-                    Claims
-                </h2>
-
-                {otherClaims.map((claim, idx) => (
-                    <Claim.Claim
-                        key={idx}
-                        parsedEvent={claim}
-                        processHandle={props.processHandle}
-                        view={props.view}
+            <div className="bg-slate-200 dark:bg-zinc-800 py-28 px-9 rounded-3xl">
+                <div className="flex flex-col items-center justify-center text-center gap-5">
+                    <img
+                        className="rounded-full w-20 h-20"
+                        src={state.avatar}
+                        alt={`The avatar for ${state.name}`}
                     />
-                ))}
+                    <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
+                        {state.name}
+                    </h1>
+
+                    <h2 className="text-2xl font-serif dark:font-light">
+                        {state.description}
+                    </h2>
+                    {socialClaims.length > 0 && (
+                        <div>
+                            <div className="flex flex-row justify-center px-7 gap-5 bg-gray-50 dark:bg-zinc-900 rounded-full py-4">
+                                {socialClaims.map((claim, idx) => (
+                                    <Claim.SocialClaim
+                                        key={idx}
+                                        parsedEvent={claim}
+                                        processHandle={props.processHandle}
+                                        view={props.view}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+                <br />
+
+                <div className="px-6 py-5 bg-gray-50 dark:bg-zinc-900 rounded-lg">
+                    <h2 className="text-3xl font-demibold text-gray-800 dark:text-white pb-4">
+                        Claims
+                    </h2>
+
+                    {otherClaims.map((claim, idx) => (
+                        <Claim.Claim
+                            key={idx}
+                            parsedEvent={claim}
+                            processHandle={props.processHandle}
+                            view={props.view}
+                        />
+                    ))}
+                </div>
             </div>
         </div>
     );
