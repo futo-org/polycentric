@@ -91,7 +91,7 @@ export function MainPage(props: MainPageProps) {
     }, [systemQuery]);
 
     return (
-        <div className="flex justify-center bg-gray min-h-screen dark:bg-zinc-800">
+        <div className="flex justify-center bg-gray min-h-screen dark:bg-zinc-900">
             {system ? (
                 <Profile.Profile
                     processHandle={props.processHandle}
