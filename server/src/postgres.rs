@@ -1020,7 +1020,7 @@ pub(crate) async fn censor_event(
     censor_type: CensorshipType,
     system: &crate::model::public_key::PublicKey,
     process: &crate::model::process::Process,
-    logical_clock: u64
+    logical_clock: u64,
 ) -> ::anyhow::Result<()> {
     let query = "
         INSERT INTO censored_events (
@@ -1101,7 +1101,10 @@ pub(crate) async fn load_random_profiles(
 
     let mut result_set = vec![];
     for sys_row in sys_rows.iter() {
-        let sys = crate::model::public_key::from_type_and_bytes(sys_row.system_key_type, &sys_row.system_key)?;
+        let sys = crate::model::public_key::from_type_and_bytes(
+            sys_row.system_key_type,
+            &sys_row.system_key,
+        )?;
         result_set.push(sys);
     }
 
