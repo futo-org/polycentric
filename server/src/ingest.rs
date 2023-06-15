@@ -1,3 +1,4 @@
+use ::log::*;
 use std::fmt::Error;
 
 use crate::{
@@ -7,6 +8,52 @@ use crate::{
 use ::protobuf::Message;
 use opensearch::IndexParts;
 use serde_json::json;
+
+fn trace_event(
+    signed_event: &crate::model::signed_event::SignedEvent,
+) -> ::anyhow::Result<()> {
+    let event = crate::model::event::from_vec(&signed_event.event())?;
+
+    let mut content_str: String = "unknown".to_string();
+
+    let content_type = *event.content_type();
+
+    if content_type == crate::model::known_message_types::POST {
+        content_str = Post::parse_from_bytes(event.content())?
+            .content
+            .ok_or(Error)?;
+    } else if content_type == crate::model::known_message_types::USERNAME
+        || content_type == crate::model::known_message_types::DESCRIPTION
+    {
+        let lww_element = event.lww_element().clone().ok_or_else(|| Error)?;
+
+        content_str = String::from_utf8(lww_element.value)?;
+    } else if content_type == crate::model::known_message_types::SERVER {
+        let lww_element_set =
+            event.lww_element_set().clone().ok_or_else(|| Error)?;
+
+        content_str = String::from_utf8(lww_element_set.value)?;
+    } else if content_type == crate::model::known_message_types::OPINION {
+        let lww_element = event.lww_element().clone().ok_or_else(|| Error)?;
+
+        if lww_element.value == vec![1] {
+            content_str = "LIKE".to_string();
+        } else if lww_element.value == vec![2] {
+            content_str = "DISLIKE".to_string();
+        } else if lww_element.value == vec![3] {
+            content_str = "NEUTRAL".to_string();
+        }
+    }
+
+    debug!(
+        "ingesting logical_clock: {} event_type: {} details: {}",
+        *event.logical_clock(),
+        crate::model::content_type_to_string(*event.content_type()),
+        content_str,
+    );
+
+    Ok(())
+}
 
 pub(crate) async fn ingest_event_postgres(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
@@ -153,6 +200,8 @@ pub(crate) async fn ingest_event(
     signed_event: &crate::model::signed_event::SignedEvent,
     state: &::std::sync::Arc<crate::State>,
 ) -> ::anyhow::Result<()> {
+    trace_event(signed_event)?;
+
     ingest_event_postgres(transaction, signed_event).await?;
     ingest_event_search(signed_event, state).await?;
 

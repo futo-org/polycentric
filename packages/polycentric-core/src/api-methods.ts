@@ -1,4 +1,3 @@
-import Long from 'long';
 import fetch, { Headers } from 'cross-fetch';
 import * as Base64 from '@borderless/base64';
 import * as Protocol from './protocol';
@@ -165,15 +164,15 @@ export async function getQueryIndex(
 export async function getQueryReferences(
     server: string,
     reference: Protocol.Reference,
-    fromType?: Long,
     cursor?: Uint8Array,
-    countLwwElementReferences?: Protocol.CountLWWElementReferences[],
-    countReferences?: Protocol.CountReferences[],
+    requestEvents?: Protocol.QueryReferencesRequestEvents,
+    countLwwElementReferences?: Protocol.QueryReferencesRequestCountLWWElementReferences[],
+    countReferences?: Protocol.QueryReferencesRequestCountReferences[],
 ): Promise<Protocol.QueryReferencesResponse> {
     const query: Protocol.QueryReferencesRequest = {
         reference: reference,
-        fromType: fromType,
         cursor: cursor,
+        requestEvents: requestEvents,
         countLwwElementReferences: countLwwElementReferences ?? [],
         countReferences: countReferences ?? [],
     };

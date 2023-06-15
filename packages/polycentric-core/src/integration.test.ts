@@ -12,6 +12,7 @@ import * as APIMethods from './api-methods';
 import * as Util from './util';
 
 const TEST_SERVER = 'http://127.0.0.1:8081';
+// const TEST_SERVER = 'https://srv1-stg.polycentric.io';
 
 export async function createProcessHandle(): Promise<ProcessHandle.ProcessHandle> {
     return await ProcessHandle.createProcessHandle(
@@ -19,6 +20,18 @@ export async function createProcessHandle(): Promise<ProcessHandle.ProcessHandle
             PersistenceDriver.createPersistenceDriverMemory(),
         ),
     );
+}
+
+async function fullSync(handle: ProcessHandle.ProcessHandle) {
+    while (await Synchronization.backFillServers(handle, handle.system())) {}
+}
+
+async function createHandleWithName(username: string) {
+    const s1p1 = await createProcessHandle();
+    await s1p1.addServer(TEST_SERVER);
+    await s1p1.setUsername(username);
+    await Synchronization.backFillServers(s1p1, s1p1.system());
+    return s1p1;
 }
 
 describe('integration', () => {
@@ -90,7 +103,7 @@ describe('integration', () => {
         await Synchronization.backFillServers(s1p1, s1p1.system());
 
         const s2p1 = await createProcessHandle();
-        await s2p1.addServer('http://127.0.0.1:8081');
+        await s2p1.addServer(TEST_SERVER);
 
         await s2p1.setUsername('Futo');
         await s2p1.setDescription('Tech Freedom');
@@ -107,36 +120,114 @@ describe('integration', () => {
         // console.log('futo system:' + systemToBase64(s2p1.system()));
     });
 
+    test('like', async () => {
+        const subject = Models.bufferToReference(
+            Util.encodeText('https://fake2.com/' + Math.random().toString()),
+        );
+
+        const shamir = await createHandleWithName('shamir');
+        const bernstein = await createHandleWithName('bernstein');
+
+        // query likes / dislikes from a server
+        const getLikesAndDislikes = async () => {
+            const queryReferences = await APIMethods.getQueryReferences(
+                TEST_SERVER,
+                subject,
+                undefined,
+                {
+                    fromType: Models.ContentType.ContentTypePost,
+                    countLwwElementReferences: [],
+                    countReferences: [],
+                },
+                [
+                    {
+                        fromType: Models.ContentType.ContentTypeOpinion,
+                        value: Models.Opinion.OpinionLike,
+                    },
+                    {
+                        fromType: Models.ContentType.ContentTypeOpinion,
+                        value: Models.Opinion.OpinionDislike,
+                    },
+                ],
+            );
+
+            expect(queryReferences.counts).toHaveLength(2);
+
+            return {
+                likes: queryReferences.counts[0].toNumber(),
+                dislikes: queryReferences.counts[1].toNumber(),
+            };
+        };
+
+        expect(await getLikesAndDislikes()).toStrictEqual({
+            likes: 0,
+            dislikes: 0,
+        });
+
+        await bernstein.opinion(subject, Models.Opinion.OpinionLike);
+        await fullSync(bernstein);
+
+        expect(await getLikesAndDislikes()).toStrictEqual({
+            likes: 1,
+            dislikes: 0,
+        });
+
+        await shamir.opinion(subject, Models.Opinion.OpinionLike);
+        await fullSync(shamir);
+
+        expect(await getLikesAndDislikes()).toStrictEqual({
+            likes: 2,
+            dislikes: 0,
+        });
+
+        await bernstein.opinion(subject, Models.Opinion.OpinionDislike);
+        await fullSync(bernstein);
+
+        expect(await getLikesAndDislikes()).toStrictEqual({
+            likes: 1,
+            dislikes: 1,
+        });
+
+        await bernstein.opinion(subject, Models.Opinion.OpinionNeutral);
+        await fullSync(bernstein);
+
+        await shamir.opinion(subject, Models.Opinion.OpinionNeutral);
+        await fullSync(shamir);
+
+        expect(await getLikesAndDislikes()).toStrictEqual({
+            likes: 0,
+            dislikes: 0,
+        });
+    });
+
     test('comment', async () => {
         const subject = Models.bufferToReference(
             Util.encodeText('https://fake.com/' + Math.random().toString()),
         );
 
-        async function createHandle(username: string) {
-            const s1p1 = await createProcessHandle();
-            await s1p1.addServer(TEST_SERVER);
-            await s1p1.setUsername(username);
-            await Synchronization.backFillServers(s1p1, s1p1.system());
-            return s1p1;
-        }
+        const vonNeumann = await createHandleWithName('Von Neumann');
+        const godel = await createHandleWithName('Godel');
+        const babbage = await createHandleWithName('Babbage');
+        const turing = await createHandleWithName('Turing');
 
-        const vonNeumann = await createHandle('Von Neumann');
-        const godel = await createHandle('Godel');
-        const babbage = await createHandle('Babbage');
-        const turing = await createHandle('Turing');
-
-        let rootPosts: Array<Models.Pointer.Pointer> = [];
+        let rootPosts: Array<Protocol.Reference> = [];
 
         // von neumann comments 5 times
         for (let i = 0; i < 5; i++) {
             rootPosts.push(
-                await vonNeumann.post(i.toString(), undefined, subject),
+                Models.pointerToReference(
+                    await vonNeumann.post(i.toString(), undefined, subject),
+                ),
             );
         }
 
         // godel comments 10 times
         for (let i = 0; i < 10; i++) {
-            rootPosts.push(await godel.post(i.toString(), undefined, subject));
+            rootPosts.push(
+                Models.pointerToReference(
+                    await godel.post(i.toString(), undefined, subject),
+                ),
+            );
         }
 
         // babbage likes the first three comments
@@ -159,17 +250,7 @@ describe('integration', () => {
 
         // turing replies von neumanns comment three times
         for (let i = 0; i < 3; i++) {
-            await turing.post(
-                i.toString(),
-                undefined,
-                Models.pointerToReference(rootPosts[1]),
-            );
-        }
-
-        async function fullSync(handle: ProcessHandle.ProcessHandle) {
-            while (
-                await Synchronization.backFillServers(handle, handle.system())
-            ) {}
+            await turing.post(i.toString(), undefined, rootPosts[1]);
         }
 
         await fullSync(vonNeumann);
@@ -181,35 +262,37 @@ describe('integration', () => {
         const queryReferences = await APIMethods.getQueryReferences(
             TEST_SERVER,
             subject,
-            Models.ContentType.ContentTypePost,
             undefined,
-            [
-                {
-                    fromType: Models.ContentType.ContentTypeOpinion,
-                    value: Models.Opinion.OpinionLike,
-                },
-                {
-                    fromType: Models.ContentType.ContentTypeOpinion,
-                    value: Models.Opinion.OpinionDislike,
-                },
-            ],
-            [
-                {
-                    fromType: Models.ContentType.ContentTypePost,
-                },
-            ],
+            {
+                fromType: Models.ContentType.ContentTypePost,
+                countLwwElementReferences: [
+                    {
+                        fromType: Models.ContentType.ContentTypeOpinion,
+                        value: Models.Opinion.OpinionLike,
+                    },
+                    {
+                        fromType: Models.ContentType.ContentTypeOpinion,
+                        value: Models.Opinion.OpinionDislike,
+                    },
+                ],
+                countReferences: [
+                    {
+                        fromType: Models.ContentType.ContentTypePost,
+                    },
+                ],
+            },
         );
 
         expect(queryReferences.items).toHaveLength(rootPosts.length);
 
-        function pointerToString(pointer: Models.Pointer.Pointer): string {
-            return Base64.encode(Protocol.Pointer.encode(pointer).finish());
+        function referenceToString(reference: Protocol.Reference): string {
+            return Base64.encode(Protocol.Reference.encode(reference).finish());
         }
 
         // API result order is not guaranteed so put items in a map
-        const pointerToItem = new Map<
+        const referenceToItem = new Map<
             string,
-            Protocol.QueryReferencesResponseItem
+            Protocol.QueryReferencesResponseEventItem
         >();
 
         for (const item of queryReferences.items) {
@@ -218,7 +301,8 @@ describe('integration', () => {
             }
             const signedEvent = Models.SignedEvent.fromProto(item.event);
             const pointer = await Models.signedEventToPointer(signedEvent);
-            pointerToItem.set(pointerToString(pointer), item);
+            const reference = Models.pointerToReference(pointer);
+            referenceToItem.set(referenceToString(reference), item);
         }
 
         function checkResult(
@@ -227,7 +311,7 @@ describe('integration', () => {
             dislikes: number,
             replies: number,
         ) {
-            const item = pointerToItem.get(pointerToString(rootPosts[i]));
+            const item = referenceToItem.get(referenceToString(rootPosts[i]));
             expect(item).toBeDefined();
             expect(item!.counts[0]).toStrictEqual(new Long(likes, 0, true));
             expect(item!.counts[1]).toStrictEqual(new Long(dislikes, 0, true));
@@ -243,7 +327,7 @@ describe('integration', () => {
         }
         checkResult(13, 0, 1, 0);
         checkResult(14, 0, 1, 0);
-    });
+    }, 10000);
 
     test('censor', async () => {
         const s1p1 = await createProcessHandle();
@@ -353,7 +437,7 @@ describe('integration', () => {
         expect(post2SearchContent).toBe(post2Content);
 
         let post3SearchResults = await APIMethods.getSearch(
-            'http://127.0.0.1:8081',
+            TEST_SERVER,
             post3Content,
         );
         let post3SearchContent = eventToContent(
@@ -367,7 +451,7 @@ describe('integration', () => {
         }
 
         let post3ReSearchResults = await APIMethods.getSearch(
-            'http://127.0.0.1:8081',
+            TEST_SERVER,
             post3Content,
             post3SearchResults.cursor,
         );

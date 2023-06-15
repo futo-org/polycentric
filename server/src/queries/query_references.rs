@@ -15,29 +15,25 @@ pub(crate) struct QueryResult {
 
 fn process_rows(
     rows: std::vec::Vec<QueryRow>,
+    limit: u64,
 ) -> ::anyhow::Result<QueryResult> {
-    let mut result = QueryResult {
-        cursor: None,
-        events: vec![],
-    };
-
-    for row in rows.iter() {
-        if let Some(cursor) = result.cursor {
-            if cursor < row.id {
-                result.cursor = Some(row.id)
+    Ok(QueryResult {
+        cursor: if let Some(last) = rows.last() {
+            if rows.len() == TryInto::<usize>::try_into(limit)? {
+                Some(last.id)
+            } else {
+                None
             }
         } else {
-            result.cursor = Some(row.id)
-        }
-
-        let event = crate::model::signed_event::from_proto(
-            &crate::protocol::SignedEvent::parse_from_bytes(&row.raw_event)?,
-        )?;
-
-        result.events.push(event);
-    }
-
-    Ok(result)
+            None
+        },
+        events: rows
+            .iter()
+            .map(|row| crate::model::signed_event::from_vec(&row.raw_event))
+            .collect::<::anyhow::Result<
+                ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+            >>()?,
+    })
 }
 
 pub(crate) async fn query_pointer(
@@ -47,6 +43,7 @@ pub(crate) async fn query_pointer(
     logical_clock: u64,
     from_type: &::std::option::Option<u64>,
     cursor: &::std::option::Option<u64>,
+    limit: u64,
 ) -> ::anyhow::Result<QueryResult> {
     let query = "
         SELECT
@@ -73,6 +70,9 @@ pub(crate) async fn query_pointer(
             ($5 IS NULL OR content_type = $5)
         AND
             ($6 IS NULL OR id < $6)
+        ORDER BY
+            id DESC
+        LIMIT $7
     ";
 
     let from_type_query = if let Some(x) = from_type {
@@ -96,10 +96,11 @@ pub(crate) async fn query_pointer(
         .bind(i64::try_from(logical_clock)?)
         .bind(from_type_query)
         .bind(cursor_query)
+        .bind(i64::try_from(limit)?)
         .fetch_all(&mut *transaction)
         .await?;
 
-    process_rows(rows)
+    process_rows(rows, limit)
 }
 
 pub(crate) async fn query_bytes(
@@ -107,6 +108,7 @@ pub(crate) async fn query_bytes(
     bytes: &::std::vec::Vec<u8>,
     from_type: &::std::option::Option<u64>,
     cursor: &::std::option::Option<u64>,
+    limit: u64,
 ) -> ::anyhow::Result<QueryResult> {
     let query = "
         SELECT
@@ -127,6 +129,9 @@ pub(crate) async fn query_bytes(
             ($2 IS NULL OR content_type = $2)
         AND
             ($3 IS NULL OR id < $3)
+        ORDER BY
+            id DESC
+        LIMIT $4
     ";
 
     let from_type_query = if let Some(x) = from_type {
@@ -145,10 +150,11 @@ pub(crate) async fn query_bytes(
         .bind(bytes)
         .bind(from_type_query)
         .bind(cursor_query)
+        .bind(i64::try_from(limit)?)
         .fetch_all(&mut *transaction)
         .await?;
 
-    process_rows(rows)
+    process_rows(rows, 20)
 }
 
 pub(crate) async fn query_references(
@@ -156,6 +162,7 @@ pub(crate) async fn query_references(
     reference: &crate::model::reference::Reference,
     from_type: &::std::option::Option<u64>,
     cursor: &::std::option::Option<u64>,
+    limit: u64,
 ) -> ::anyhow::Result<QueryResult> {
     match reference {
         crate::model::reference::Reference::Pointer(pointer) => {
@@ -166,11 +173,13 @@ pub(crate) async fn query_references(
                 *pointer.logical_clock(),
                 from_type,
                 cursor,
+                limit,
             )
             .await
         }
         crate::model::reference::Reference::Bytes(bytes) => {
-            query_bytes(&mut *transaction, &bytes, from_type, cursor).await
+            query_bytes(&mut *transaction, &bytes, from_type, cursor, limit)
+                .await
         }
         _ => {
             unimplemented!("query identity not implemented");
@@ -201,6 +210,7 @@ pub mod tests {
             5,
             &None,
             &None,
+            20,
         )
         .await?;
 

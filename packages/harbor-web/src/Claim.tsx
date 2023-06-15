@@ -116,14 +116,21 @@ export function Claim(props: ClaimProps) {
             const references = await Core.APIMethods.getQueryReferences(
                 App.server,
                 reference,
-                Core.Models.ContentType.ContentTypeVouch,
+                undefined,
+                {
+                    fromType: Core.Models.ContentType.ContentTypeVouch,
+                    countLwwElementReferences: [],
+                    countReferences: [],
+                },
             );
 
             console.log('got references count', references.items.length);
 
             const vouchedBy = references.items
                 .filter(
-                    (reference: Core.Protocol.QueryReferencesResponseItem) => {
+                    (
+                        reference: Core.Protocol.QueryReferencesResponseEventItem,
+                    ) => {
                         if (reference.event === undefined) {
                             throw new Error(
                                 'reference query event is undefined',
@@ -132,12 +139,16 @@ export function Claim(props: ClaimProps) {
                         return true;
                     },
                 )
-                .map((reference: Core.Protocol.QueryReferencesResponseItem) => {
-                    return Core.Models.Event.fromBuffer(
-                        Core.Models.SignedEvent.fromProto(reference.event!)
-                            .event,
-                    ).system;
-                });
+                .map(
+                    (
+                        reference: Core.Protocol.QueryReferencesResponseEventItem,
+                    ) => {
+                        return Core.Models.Event.fromBuffer(
+                            Core.Models.SignedEvent.fromProto(reference.event!)
+                                .event,
+                        ).system;
+                    },
+                );
 
             if (cancelContext.cancelled()) {
                 return;
@@ -173,18 +184,16 @@ export function Claim(props: ClaimProps) {
                 </h3>
                 <p className="italic">Verified by:</p>
                 <div className="flex flex-row gap-5 pt-3">
-                    {vouchedBy.map(
-                        (vouchedBy: Core.Models.PublicKey.PublicKey) => {
-                            return (
-                                <VouchedBy.VouchedBy
-                                    key={vouchedBy.toString()}
-                                    processHandle={props.processHandle}
-                                    view={props.view}
-                                    system={vouchedBy}
-                                />
-                            );
-                        },
-                    )}
+                    {vouchedBy.map((system, idx) => {
+                        return (
+                            <VouchedBy.VouchedBy
+                                key={idx}
+                                processHandle={props.processHandle}
+                                view={props.view}
+                                system={system}
+                            />
+                        );
+                    })}
                 </div>
             </div>
         </div>

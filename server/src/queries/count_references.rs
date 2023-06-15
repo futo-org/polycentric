@@ -50,6 +50,70 @@ pub(crate) async fn count_references_pointer(
     Ok(u64::try_from(count)?)
 }
 
+pub(crate) async fn count_references_bytes(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    bytes: &::std::vec::Vec<u8>,
+    from_type: &::std::option::Option<u64>,
+) -> ::anyhow::Result<u64> {
+    let query = "
+        SELECT
+            COUNT(*)
+        FROM
+            events
+        WHERE
+            id
+        IN (
+            SELECT
+                event_id as id
+            FROM
+                event_references_bytes
+            WHERE
+                subject_bytes = $1
+        )
+        AND
+            ($2 IS NULL OR content_type = $2)
+    ";
+
+    let from_type_query = if let Some(x) = from_type {
+        Some(i64::try_from(*x)?)
+    } else {
+        None
+    };
+
+    let count = ::sqlx::query_scalar::<_, i64>(query)
+        .bind(bytes)
+        .bind(from_type_query)
+        .fetch_one(&mut *transaction)
+        .await?;
+
+    Ok(u64::try_from(count)?)
+}
+
+pub(crate) async fn count_references(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    reference: &crate::model::reference::Reference,
+    from_type: &::std::option::Option<u64>,
+) -> ::anyhow::Result<u64> {
+    match reference {
+        crate::model::reference::Reference::Pointer(pointer) => {
+            count_references_pointer(
+                &mut *transaction,
+                &pointer.system(),
+                &pointer.process(),
+                *pointer.logical_clock(),
+                from_type,
+            )
+            .await
+        }
+        crate::model::reference::Reference::Bytes(bytes) => {
+            count_references_bytes(&mut *transaction, &bytes, from_type).await
+        }
+        _ => {
+            unimplemented!("count_references case not implemented");
+        }
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use ::protobuf::Message;
