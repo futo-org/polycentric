@@ -3,59 +3,24 @@ use ::protobuf::Message;
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
-    let mut result = crate::protocol::Events::new();
+    let mut result = crate::protocol::PublicKeys::new();
 
-    let mut transaction = match state.pool.begin().await {
-        Ok(x) => x,
-        Err(err) => {
-            return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
-                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )));
-        }
-    };
+    let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
 
-    /*
+    
     let random_identities =
-        crate::postgres::load_random_identities(&mut transaction)
-            .await
-            .map_err(|e| crate::RequestError::Anyhow(e))?;
+        crate::warp_try_err_500!(crate::postgres::load_random_profiles(&mut transaction)
+            .await);
 
-    for random_identity in &random_identities {
-        let potential_profile = crate::postgres::load_latest_profile(
-            &mut transaction,
-            &random_identity,
-        )
-        .await
-        .map_err(|e| crate::RequestError::Anyhow(e))?;
+    crate::warp_try_err_500!(transaction.commit().await);
 
-        if let Some(event) = potential_profile {
-            let event = crate::model::signed_event_to_protobuf_event(&event);
-            result.events.push(event);
-        }
+   
+    for identity in random_identities.iter() {
+        result.systems.push(crate::model::public_key::to_proto(identity));
     }
-    */
 
-    match transaction.commit().await {
-        Ok(()) => (),
-        Err(err) => {
-            return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
-                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )));
-        }
-    };
-
-    let result_serialized = match result.write_to_bytes() {
-        Ok(a) => a,
-        Err(err) => {
-            return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
-                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )));
-        }
-    };
-
+    let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
+    
     Ok(Box::new(::warp::reply::with_header(
         ::warp::reply::with_status(
             result_serialized,

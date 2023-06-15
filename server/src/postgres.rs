@@ -50,6 +50,14 @@ struct RangeRow {
     high: u64,
 }
 
+#[allow(dead_code)]
+#[derive(PartialEq, Debug, ::sqlx::FromRow)]
+struct SystemRow {
+    system_key: ::std::vec::Vec<u8>,
+    #[sqlx(try_from = "i64")]
+    system_key_type: u64,
+}
+
 pub(crate) async fn prepare_database(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
 ) -> ::sqlx::Result<()> {
@@ -1061,6 +1069,45 @@ pub(crate) async fn censor_system(
 
     Ok(())
 }
+
+pub(crate) async fn load_random_profiles(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+) -> ::anyhow::Result<Vec<crate::model::public_key::PublicKey>> {
+    let query = "
+    SELECT 
+      system_key_type, 
+      system_key 
+    FROM 
+      (
+        SELECT 
+          DISTINCT events.system_key_type, 
+          events.system_key 
+        FROM 
+          events 
+          LEFT JOIN censored_systems ON events.system_key_type = censored_systems.system_key_type 
+          AND events.system_key = censored_systems.system_key 
+        WHERE 
+          censored_systems.system_key IS NULL
+      ) AS systems 
+    ORDER BY 
+      RANDOM() 
+    LIMIT 
+      10;
+    ";
+
+    let sys_rows = ::sqlx::query_as::<_, SystemRow>(query)
+        .fetch_all(&mut *transaction)
+        .await?;
+
+    let mut result_set = vec![];
+    for sys_row in sys_rows.iter() {
+        let sys = crate::model::public_key::from_type_and_bytes(sys_row.system_key_type, &sys_row.system_key)?;
+        result_set.push(sys);
+    }
+
+    return Ok(result_set);
+}
+
 #[cfg(test)]
 pub mod tests {
     use ::protobuf::Message;
