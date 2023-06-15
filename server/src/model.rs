@@ -228,6 +228,12 @@ pub mod public_key {
         from_type_and_bytes(proto.key_type, &proto.key)
     }
 
+    pub fn from_url_proto(
+        proto: &crate::protocol::URLInfoSystemLink,
+    ) -> ::anyhow::Result<PublicKey> {
+        from_proto(&proto.system)
+    }
+
     pub fn to_proto(public_key: &PublicKey) -> crate::protocol::PublicKey {
         let mut proto = crate::protocol::PublicKey::new();
 

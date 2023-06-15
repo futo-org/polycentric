@@ -107,7 +107,6 @@ describe('integration', () => {
 
         await s2p1.setUsername('Futo');
         await s2p1.setDescription('Tech Freedom');
-
         await s2p1.vouch(claimPointer);
 
         {
@@ -329,6 +328,38 @@ describe('integration', () => {
         checkResult(13, 0, 1, 0);
         checkResult(14, 0, 1, 0);
     }, 10000);
+
+    test('censor', async () => {
+        const s1p1 = await createProcessHandle();
+        await s1p1.addServer(TEST_SERVER);
+
+        let postContent = 'I fought the law, and the law won';
+        await s1p1.post(postContent);
+
+        let post = await s1p1.post(postContent);
+        let censorSystem = await ProcessHandle.makeSystemLink(
+            s1p1,
+            s1p1.system(),
+        );
+        await APIMethods.postCensor(
+            TEST_SERVER,
+            Models.CensorshipType.DoNotRecommend,
+            `https://localhost:8081/profile/${censorSystem}`,
+            '123',
+        );
+
+        let censorEvent = await ProcessHandle.makeEventLink(
+            s1p1,
+            s1p1.system(),
+            post,
+        );
+        await APIMethods.postCensor(
+            TEST_SERVER,
+            Models.CensorshipType.DoNotRecommend,
+            `https://localhost:8081/post/${censorEvent}`,
+            '123',
+        );
+    });
 
     test('search', async () => {
         function eventToContent(event: Uint8Array): string {

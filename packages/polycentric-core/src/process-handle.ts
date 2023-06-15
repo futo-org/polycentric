@@ -695,6 +695,33 @@ function updateProcessState(
     }
 }
 
+export async function makeEventLink(
+    handle: ProcessHandle,
+    system: Models.PublicKey.PublicKey,
+    event: Models.Pointer.Pointer,
+): Promise<string> {
+    const state = await handle.loadSystemState(system);
+
+    return makeEventLinkSync(event, state.servers());
+}
+
+export function makeEventLinkSync(
+    event: Models.Pointer.Pointer,
+    servers: Array<string>,
+): string {
+    return Base64.encodeUrl(
+        Protocol.URLInfo.encode({
+            urlType: Models.URLInfo.URLInfoTypeEventLink,
+            body: Protocol.URLInfoEventLink.encode({
+                system: event.system,
+                process: event.process,
+                logicalClock: event.logicalClock,
+                servers: servers,
+            }).finish(),
+        }).finish(),
+    );
+}
+
 export async function makeSystemLink(
     handle: ProcessHandle,
     system: Models.PublicKey.PublicKey,
