@@ -1,72 +1,55 @@
-use ::protobuf::Message;
+use std::time::SystemTime;
+use ::protobuf::{Message, MessageField};
+use crate::protocol::Events;
+
+#[derive(::serde::Deserialize)]
+pub(crate) struct Query {
+    cursor: ::std::option::Option<String>,
+}
+
+pub(crate) struct EventsAndServerTime {
+    pub events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+    pub server_time: u64
+}
+
 
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
+    query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
-    /*
-    let request =
-        crate::protocol::RequestExplore::parse_from_tokio_bytes(&bytes)
-            .map_err(|e| {
-                crate::RequestError::Anyhow(::anyhow::Error::new(e))
-            })?;
-    */
-
-    let mut transaction = match state.pool.begin().await {
-        Ok(x) => x,
-        Err(err) => {
-            return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
-                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )));
-        }
+    let start_time = if let Some(cursor) = query.cursor {
+        u64::from_le_bytes(crate::warp_try_err_500!(crate::warp_try_err_500!(
+            base64::decode(cursor)
+        )
+        .as_slice()
+        .try_into()))
+    } else {
+       crate::warp_try_err_500!(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)).as_secs() 
     };
 
-    /*
-    let history = crate::postgres::load_events_before_time(
+    let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
+    
+    let db_result = crate::warp_try_err_500!(crate::postgres::load_posts_before_time(
         &mut transaction,
-        request.before_time,
+        start_time,
     )
-    .await
-    .map_err(|e| crate::RequestError::Anyhow(e))?;
+    .await);
 
-    let mut processed_events =
-        crate::process_mutations2(&mut transaction, history)
-            .await
-            .map_err(|e| crate::RequestError::Anyhow(e))?;
-    */
+    let mut events = Events::new();
+    
+    for event in db_result.events.iter() {
+        events.events.push(crate::model::signed_event::to_proto(event));
+    }
 
     let mut result =
         crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
+    result.result_events = MessageField::some(events);
+    result.cursor =
+        Some(u64::to_le_bytes(db_result.server_time).to_vec());
 
-    /*
-    result
-        .related_events
-        .append(&mut processed_events.related_events);
+    crate::warp_try_err_500!(transaction.commit().await);
 
-    result
-        .result_events
-        .append(&mut processed_events.result_events);
-    */
-
-    match transaction.commit().await {
-        Ok(()) => (),
-        Err(err) => {
-            return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
-                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )));
-        }
-    };
-
-    let result_serialized = match result.write_to_bytes() {
-        Ok(a) => a,
-        Err(err) => {
-            return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
-                ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-            )));
-        }
-    };
+    let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
 
     Ok(Box::new(::warp::reply::with_header(
         ::warp::reply::with_status(
