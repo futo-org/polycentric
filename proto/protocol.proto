@@ -1,4 +1,5 @@
 syntax = "proto3";
+
 package userpackage;
 
 message PublicKey {
@@ -91,6 +92,10 @@ message Delete {
 
 message Events {
     repeated SignedEvent events = 1;
+}
+
+message PublicKeys {
+    repeated PublicKey systems = 1;
 }
 
 message Range {
