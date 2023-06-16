@@ -201,6 +201,7 @@ test:
       POSTGRES_PASSWORD: "testing"
       DATABASE_URL: "postgres://postgres:testing@postgres"
       ADMIN_TOKEN: "123"
+      RUSTC_BOOTSTRAP: "1"
   cache:
     - <<: *node-cache-config
       policy: pull
