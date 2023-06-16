@@ -1,9 +1,8 @@
+use ::cadence::{StatsdClient, UdpMetricSink};
 use ::envconfig::Envconfig;
 use ::log::*;
-use ::protobuf::Message;
+use ::std::net::UdpSocket;
 use ::warp::Filter;
-use cadence::{StatsdClient, UdpMetricSink};
-use std::net::UdpSocket;
 
 mod handlers;
 mod ingest;
@@ -248,13 +247,6 @@ async fn serve_api(
         .and_then(crate::handlers::get_explore::handler)
         .with(cors.clone());
 
-    let route_get_notifications = ::warp::get()
-        .and(::warp::path("notifications"))
-        .and(::warp::path::end())
-        .and(state_filter.clone())
-        .and_then(crate::handlers::get_notifications::handler)
-        .with(cors.clone());
-
     let route_get_recommended_profiles = ::warp::get()
         .and(::warp::path("recommended_profiles"))
         .and(::warp::path::end())
@@ -287,7 +279,6 @@ async fn serve_api(
         .or(route_get_ranges)
         .or(route_get_search)
         .or(route_get_explore)
-        .or(route_get_notifications)
         .or(route_get_recommended_profiles)
         .or(route_get_version)
         .or(route_post_censor)

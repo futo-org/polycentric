@@ -1,5 +1,3 @@
-use anyhow::Context;
-use base64::encode;
 use protobuf::Message;
 
 pub mod known_message_types {
@@ -16,6 +14,27 @@ pub mod known_message_types {
     pub const VOUCH: u64 = 11;
     pub const CLAIM: u64 = 12;
     pub const BANNER: u64 = 13;
+    pub const OPINION: u64 = 14;
+}
+
+pub fn content_type_to_string(content_type: u64) -> String {
+    match content_type {
+        known_message_types::DELETE => "DELETE".to_string(),
+        known_message_types::SYSTEM_PROCESS => "SYSTEM_PROCESS".to_string(),
+        known_message_types::POST => "POST".to_string(),
+        known_message_types::FOLLOW => "FOLLOW".to_string(),
+        known_message_types::USERNAME => "USERNAME".to_string(),
+        known_message_types::DESCRIPTION => "DESCRIPTION".to_string(),
+        known_message_types::BLOB_META => "BLOB_META".to_string(),
+        known_message_types::BLOB_SECTION => "BLOB_SECTION".to_string(),
+        known_message_types::AVATAR => "AVATAR".to_string(),
+        known_message_types::SERVER => "SERVER".to_string(),
+        known_message_types::VOUCH => "VOUCH".to_string(),
+        known_message_types::CLAIM => "CLAIM".to_string(),
+        known_message_types::BANNER => "BANNER".to_string(),
+        known_message_types::OPINION => "OPINION".to_string(),
+        _ => content_type.to_string(),
+    }
 }
 
 pub mod digest {
@@ -145,7 +164,7 @@ pub mod pointer {
         let protocol_ptr = to_proto(pointer);
         let mut bytes = vec![];
         protocol_ptr.write_to_vec(&mut bytes)?;
-        return Ok(base64::encode(bytes));
+        return Ok(::base64::encode(bytes));
     }
 }
 
@@ -347,6 +366,7 @@ pub mod event {
         indices: crate::protocol::Indices,
         references: ::std::vec::Vec<crate::model::reference::Reference>,
         lww_element: ::std::option::Option<crate::protocol::LWWElement>,
+        lww_element_set: ::std::option::Option<crate::protocol::LWWElementSet>,
     }
 
     impl Event {
@@ -360,6 +380,9 @@ pub mod event {
             indices: crate::protocol::Indices,
             references: ::std::vec::Vec<crate::model::reference::Reference>,
             lww_element: ::std::option::Option<crate::protocol::LWWElement>,
+            lww_element_set: ::std::option::Option<
+                crate::protocol::LWWElementSet,
+            >,
         ) -> Event {
             Event {
                 system: system,
@@ -371,6 +394,7 @@ pub mod event {
                 indices: indices,
                 references: references,
                 lww_element: lww_element,
+                lww_element_set: lww_element_set,
             }
         }
 
@@ -413,6 +437,12 @@ pub mod event {
         ) -> &::std::option::Option<crate::protocol::LWWElement> {
             &self.lww_element
         }
+
+        pub fn lww_element_set(
+            &self,
+        ) -> &::std::option::Option<crate::protocol::LWWElementSet> {
+            &self.lww_element_set
+        }
     }
 
     pub fn from_proto(
@@ -442,6 +472,7 @@ pub mod event {
                     ::std::vec::Vec<crate::model::reference::Reference>,
                 >>()?,
             proto.lww_element.clone().into_option(),
+            proto.lww_element_set.clone().into_option(),
         ))
     }
 
@@ -474,16 +505,17 @@ pub mod event {
             >>()?;
         result.lww_element =
             ::protobuf::MessageField::from_option(event.lww_element().clone());
+        result.lww_element_set = ::protobuf::MessageField::from_option(
+            event.lww_element_set().clone(),
+        );
 
         Ok(result)
     }
 }
 
 pub mod signed_event {
-    use anyhow::Context;
-    use ed25519_dalek::Signer;
-    use ed25519_dalek::Verifier;
-    use protobuf::Message;
+    use ::ed25519_dalek::Signer;
+    use ::protobuf::Message;
 
     #[derive(PartialEq, Clone, Debug)]
     pub struct SignedEvent {
@@ -540,6 +572,12 @@ pub mod signed_event {
             proto.event.clone(),
             proto.signature.clone(),
         )?)
+    }
+
+    pub fn from_vec(
+        vec: &::std::vec::Vec<u8>,
+    ) -> ::anyhow::Result<SignedEvent> {
+        from_proto(&crate::protocol::SignedEvent::parse_from_bytes(vec)?)
     }
 
     pub(crate) fn to_proto(
@@ -841,6 +879,7 @@ pub mod tests {
             indices,
             references,
             None,
+            None,
         );
 
         crate::model::signed_event::SignedEvent::sign(
@@ -873,6 +912,7 @@ pub mod tests {
             vector_clock,
             indices,
             vec![],
+            None,
             None,
         );
 

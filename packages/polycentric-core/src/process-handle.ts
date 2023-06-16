@@ -154,7 +154,7 @@ export class ProcessHandle {
     }
 
     public async opinion(
-        subject: Models.Pointer.Pointer,
+        subject: Protocol.Reference,
         opinion: Models.Opinion.Opinion,
     ): Promise<Models.Pointer.Pointer> {
         return await this.publish(
@@ -165,7 +165,7 @@ export class ProcessHandle {
                 value: opinion,
                 unixMilliseconds: Long.fromNumber(Date.now(), true),
             },
-            [Models.pointerToReference(subject)],
+            [subject],
         );
     }
 

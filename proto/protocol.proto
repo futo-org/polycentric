@@ -200,33 +200,44 @@ message RepeatedUInt64 {
     repeated uint64 numbers = 1;
 }
 
-message CountLWWElementReferences {
+// start /query_references API
+
+message QueryReferencesRequest {
+             Reference                                       reference                    = 1;
+    optional bytes                                           cursor                       = 2;
+    optional QueryReferencesRequestEvents                    request_events               = 3;
+    repeated QueryReferencesRequestCountLWWElementReferences count_lww_element_references = 4;
+    repeated QueryReferencesRequestCountReferences           count_references             = 5;
+}
+
+message QueryReferencesRequestEvents {
+    optional uint64                                          from_type                    = 1;
+    repeated QueryReferencesRequestCountLWWElementReferences count_lww_element_references = 2;
+    repeated QueryReferencesRequestCountReferences           count_references             = 3;
+}
+
+message QueryReferencesRequestCountLWWElementReferences {
              bytes  value     = 1;
     optional uint64 from_type = 2;
 }
 
-message CountReferences {
+message QueryReferencesRequestCountReferences {
     optional uint64 from_type = 1;
 }
 
-message QueryReferencesRequest {
-             Reference                 reference                    = 1;
-    optional bytes                     cursor                       = 2;
-    optional uint64                    from_type                    = 3;
-    repeated CountLWWElementReferences count_lww_element_references = 4;
-    repeated CountReferences           count_references             = 5;
-}
-
-message QueryReferencesResponseItem {
+message QueryReferencesResponseEventItem {
              SignedEvent event  = 1;
     repeated uint64      counts = 2;
 }
 
 message QueryReferencesResponse {
-    repeated QueryReferencesResponseItem items          = 1;
-    repeated SignedEvent                 related_events = 2;
-    optional bytes                       cursor         = 3;
+    repeated QueryReferencesResponseEventItem items          = 1;
+    repeated SignedEvent                      related_events = 2;
+    optional bytes                            cursor         = 3;
+    repeated uint64                           counts         = 4;
 }
+
+// end /query_references API
 
 message URLInfo {
     // url_type 1 = URLInfoSystemLink

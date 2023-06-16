@@ -1,6 +1,6 @@
+use ::cadence::Counted;
+use ::log::warn;
 use ::protobuf::Message;
-use cadence::{Counted, MetricError};
-use log::warn;
 
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
