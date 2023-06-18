@@ -105,13 +105,6 @@ clean:
 		packages/harbor-web/dist \
 		server/target
 
-build-doc-site:
-	cd doc && retype build
-
-deploy-doc-site:
-	wrangler pages publish --project-name polycentric-docs \
-		./doc/.retype/
-
 deploy-spa:
 	wrangler pages publish --project-name polycentric-spa \
 		./packages/polycentric-web/dist/
