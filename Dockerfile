@@ -6,7 +6,7 @@ ENV PATH="${PATH}:/opt/sccache"
 
 RUN apt-get update -y && \
 	apt-get install -y curl && \
-	curl -sL https://deb.nodesource.com/setup_16.x | bash && \
+	curl -sL https://deb.nodesource.com/setup_18.x | bash && \
 	apt-get install -y \
 		make \
 		libicu70 \
