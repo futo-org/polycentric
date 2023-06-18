@@ -33,7 +33,7 @@ endif
 
 join-sandbox:
 	docker-compose -f docker-compose.development.yml \
-		exec development /bin/bash
+		exec development /bin/bash --rcfile /app/.docker-bashrc 
 
 start-gdbserver:
 	docker-compose -f docker-compose.development.yml \
