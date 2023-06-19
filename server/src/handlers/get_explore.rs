@@ -2,7 +2,7 @@ use ::protobuf::Message;
 
 pub(crate) async fn handler(
     _state: ::std::sync::Arc<crate::State>,
-) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let result = crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());

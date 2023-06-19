@@ -14,7 +14,7 @@ pub(crate) struct Query {
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
-) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let start_count = if let Some(cursor) = query.cursor {
         u64::from_le_bytes(crate::warp_try_err_500!(crate::warp_try_err_500!(
             base64::decode(cursor)

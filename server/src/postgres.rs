@@ -251,7 +251,7 @@ pub(crate) async fn prepare_database(
             CHECK ( system_key_type >= 0  ),
             CHECK ( LENGTH(process) =  16 ),
             CHECK ( logical_clock   >= 0  ),
-            
+
             CONSTRAINT FK_event
                 FOREIGN KEY (event_id)
                 REFERENCES events(id)

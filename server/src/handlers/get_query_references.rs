@@ -29,7 +29,7 @@ where
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
-) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let reference = crate::warp_try_err_500!(
         crate::model::reference::from_proto(&query.query.reference,)
     );

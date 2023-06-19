@@ -5,7 +5,7 @@ use ::protobuf::Message;
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     bytes: ::bytes::Bytes,
-) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let events = match crate::protocol::Events::parse_from_tokio_bytes(&bytes) {
         Ok(x) => x,
         Err(err) => {
