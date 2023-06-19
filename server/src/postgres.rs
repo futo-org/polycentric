@@ -379,7 +379,7 @@ pub(crate) async fn load_posts_before_id(
 
     let result = EventsAndCursor {
         events: result_set,
-        cursor: rows.last().map(|last_elem| last_elem.id)
+        cursor: rows.last().map(|last_elem| last_elem.id),
     };
 
     Ok(result)

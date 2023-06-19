@@ -38,8 +38,10 @@ pub(crate) async fn handler(
     let mut result =
         crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
     result.result_events = MessageField::some(events);
-    
-    result.cursor = db_result.cursor.map(|cursor| u64::to_le_bytes(cursor).to_vec());
+
+    result.cursor = db_result
+        .cursor
+        .map(|cursor| u64::to_le_bytes(cursor).to_vec());
     crate::warp_try_err_500!(transaction.commit().await);
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
