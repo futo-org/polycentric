@@ -11,7 +11,7 @@ pub(crate) async fn handler(
     authorization: String,
     query: Query,
     bytes: ::bytes::Bytes,
-) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     if authorization != state.admin_token {
         return Ok(Box::new(::warp::reply::with_status(
             String::from(""),

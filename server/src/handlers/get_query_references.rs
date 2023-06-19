@@ -29,7 +29,7 @@ where
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
-) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let reference = crate::warp_try_err_500!(
         crate::model::reference::from_proto(&query.query.reference,)
     );
@@ -79,8 +79,8 @@ pub(crate) async fn handler(
                         crate::queries::count_lww_element_references::
                             count_lww_element_references_pointer(
                                 &mut transaction,
-                                &event.system(),
-                                &event.process(),
+                                event.system(),
+                                event.process(),
                                 *event.logical_clock(),
                                 &params.value,
                                 &params.from_type,
@@ -92,8 +92,8 @@ pub(crate) async fn handler(
                 item.counts.push(crate::warp_try_err_500!(
                     crate::queries::count_references::count_references_pointer(
                         &mut transaction,
-                        &event.system(),
-                        &event.process(),
+                        event.system(),
+                        event.process(),
                         *event.logical_clock(),
                         &params.from_type,
                     )

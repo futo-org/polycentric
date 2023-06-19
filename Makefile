@@ -33,7 +33,7 @@ endif
 
 join-sandbox:
 	docker-compose -f docker-compose.development.yml \
-		exec development /bin/bash
+		exec development /bin/bash --rcfile /app/.docker-bashrc 
 
 start-gdbserver:
 	docker-compose -f docker-compose.development.yml \
@@ -104,13 +104,6 @@ clean:
 		packages/harbor-web/node_modules \
 		packages/harbor-web/dist \
 		server/target
-
-build-doc-site:
-	cd doc && retype build
-
-deploy-doc-site:
-	wrangler pages publish --project-name polycentric-docs \
-		./doc/.retype/
 
 deploy-spa:
 	wrangler pages publish --project-name polycentric-spa \

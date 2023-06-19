@@ -32,7 +32,7 @@ pub(crate) struct Query {
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
-) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
 
     let mut result = crate::protocol::Events::new();
@@ -46,7 +46,7 @@ pub(crate) async fn handler(
         .await
     )
     .iter()
-    .map(|x| crate::model::signed_event::to_proto(x))
+    .map(crate::model::signed_event::to_proto)
     .collect();
 
     crate::warp_try_err_500!(transaction.commit().await);

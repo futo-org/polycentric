@@ -5,12 +5,12 @@ use ::protobuf::Message;
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     bytes: ::bytes::Bytes,
-) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let events = match crate::protocol::Events::parse_from_tokio_bytes(&bytes) {
         Ok(x) => x,
         Err(err) => {
             return Ok(Box::new(::warp::reply::with_status(
-                err.to_string().clone(),
+                err.to_string(),
                 ::warp::http::StatusCode::BAD_REQUEST,
             )));
         }
@@ -24,7 +24,7 @@ pub(crate) async fn handler(
                 Ok(x) => x,
                 Err(err) => {
                     return Ok(Box::new(::warp::reply::with_status(
-                        err.to_string().clone(),
+                        err.to_string(),
                         ::warp::http::StatusCode::BAD_REQUEST,
                     )));
                 }
@@ -45,13 +45,6 @@ pub(crate) async fn handler(
                 warn!("Unable to log event metric due to: {}", err)
             }
         };
-
-        /*
-        persist_event_notification(&mut transaction, &event, &event_body)
-            .await?;
-
-        persist_event_search(state.clone(), &event, &event_body).await?;
-        */
     }
 
     crate::warp_try_err_500!(transaction.commit().await);

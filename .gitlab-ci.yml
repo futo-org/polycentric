@@ -1,5 +1,5 @@
 variables: 
-  DOCKERFILE_MD5: 3d8dc1a5808e614f4e56ea1367ffd1e9
+  DOCKERFILE_MD5: 6a5f9dcbe8f7e2a792eac2e1b86234c1
   POSTGRES_IMAGE: "postgres:14"
   SEARCH_IMAGE: "opensearchproject/opensearch:2.1.0"
   FF_USE_FASTZIP: "true"
@@ -201,12 +201,13 @@ test:
       POSTGRES_PASSWORD: "testing"
       DATABASE_URL: "postgres://postgres:testing@postgres"
       ADMIN_TOKEN: "123"
+      RUSTC_BOOTSTRAP: "1"
   cache:
     - <<: *node-cache-config
       policy: pull
   script:
     - make proto
-    - ./build-artifacts/server-test -Z unstable-options --format junit > junit-server.xml
+    - RUSTC_BOOTSTRAP=1 ./build-artifacts/server-test -Z unstable-options --format junit > junit-server.xml
     - ./build-artifacts/server &
     - cd ./packages/polycentric-core && npm run test:ci
   needs: ["build-server", "build-core-harbor"]

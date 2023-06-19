@@ -14,7 +14,7 @@ pub(crate) struct Query {
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
-) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let start_count = if let Some(cursor) = query.cursor {
         u64::from_le_bytes(crate::warp_try_err_500!(crate::warp_try_err_500!(
             base64::decode(cursor)
@@ -101,7 +101,7 @@ pub(crate) async fn handler(
 
             let event_list = crate::warp_try_err_500!(event_list_result);
 
-            if event_list.len() > 0 {
+            if !event_list.is_empty() {
                 result_events
                     .events
                     .push(crate::model::signed_event::to_proto(&event_list[0]));

@@ -19,6 +19,7 @@ macro_rules! warp_try_err_500 {
         match $expr {
             Ok(x) => x,
             Err(err) => {
+                ::log::warn!("HTTP 500 {}", err.to_string().clone());
                 return Ok(Box::new(::warp::reply::with_status(
                     err.to_string().clone(),
                     ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
@@ -45,7 +46,7 @@ async fn handle_rejection(
             "Not Found",
             ::warp::http::StatusCode::NOT_FOUND,
         ));
-    } else if let Some(_) = err.find::<::warp::reject::MethodNotAllowed>() {
+    } else if err.find::<::warp::reject::MethodNotAllowed>().is_some() {
         return Ok(::warp::reply::with_status(
             "Method Not Allowed",
             ::warp::http::StatusCode::BAD_REQUEST,
@@ -76,7 +77,7 @@ struct OpenSearchSearchDocumentProfile {
     unix_milliseconds: u64,
 }
 
-#[derive(::serde::Deserialize)]
+#[derive(::serde::Deserialize, ::serde::Serialize)]
 struct OpenSearchContent {
     message_content: String,
 }
@@ -162,7 +163,7 @@ async fn serve_api(
         pool,
         search: opensearch_client,
         admin_token: config.admin_token.clone(),
-        statsd_client: statsd_client,
+        statsd_client,
     });
 
     let cors = ::warp::cors()

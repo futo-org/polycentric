@@ -267,7 +267,7 @@ pub(crate) async fn prepare_database(
             CHECK ( system_key_type >= 0  ),
             CHECK ( LENGTH(process) =  16 ),
             CHECK ( logical_clock   >= 0  ),
-            
+
             CONSTRAINT FK_event
                 FOREIGN KEY (event_id)
                 REFERENCES events(id)
@@ -339,7 +339,7 @@ pub(crate) async fn load_event(
             system,
         ))?)
         .bind(crate::model::public_key::get_key_bytes(system))
-        .bind(&process.bytes())
+        .bind(process.bytes())
         .bind(i64::try_from(logical_clock)?)
         .fetch_optional(&mut *transaction)
         .await?;
@@ -409,7 +409,7 @@ pub(crate) async fn load_processes_for_system(
         .await?
         .iter()
         .map(|raw| {
-            crate::model::process::from_vec(&raw)
+            crate::model::process::from_vec(raw)
         })
         .collect::<::anyhow::Result<
             ::std::vec::Vec<crate::model::process::Process>,
@@ -439,7 +439,7 @@ pub(crate) async fn load_latest_event_by_type(
             system,
         ))?)
         .bind(crate::model::public_key::get_key_bytes(system))
-        .bind(&process.bytes())
+        .bind(process.bytes())
         .bind(i64::try_from(content_type)?)
         .bind(i64::try_from(limit)?)
         .fetch_all(&mut *transaction)
@@ -447,7 +447,7 @@ pub(crate) async fn load_latest_event_by_type(
         .iter()
         .map(|raw| {
             crate::model::signed_event::from_proto(
-                &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+                &crate::protocol::SignedEvent::parse_from_bytes(raw)?,
             )
         })
         .collect::<::anyhow::Result<
@@ -485,7 +485,7 @@ pub(crate) async fn load_latest_system_wide_lww_event_by_type(
         .iter()
         .map(|raw| {
             crate::model::signed_event::from_proto(
-                &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+                &crate::protocol::SignedEvent::parse_from_bytes(raw)?,
             )
         })
         .collect::<::anyhow::Result<
@@ -508,10 +508,10 @@ pub(crate) async fn does_event_exist(
 
     let does_exist = ::sqlx::query_scalar::<_, i32>(query_select_deleted)
         .bind(i64::try_from(crate::model::public_key::get_key_type(
-            &event.system(),
+            event.system(),
         ))?)
-        .bind(crate::model::public_key::get_key_bytes(&event.system()))
-        .bind(&event.process().bytes())
+        .bind(crate::model::public_key::get_key_bytes(event.system()))
+        .bind(event.process().bytes())
         .bind(i64::try_from(*event.logical_clock())?)
         .fetch_optional(&mut *transaction)
         .await?;
@@ -534,10 +534,10 @@ pub(crate) async fn is_event_deleted(
 
     let is_deleted = ::sqlx::query_scalar::<_, i32>(query_select_deleted)
         .bind(i64::try_from(crate::model::public_key::get_key_type(
-            &event.system(),
+            event.system(),
         ))?)
-        .bind(crate::model::public_key::get_key_bytes(&event.system()))
-        .bind(&event.process().bytes())
+        .bind(crate::model::public_key::get_key_bytes(event.system()))
+        .bind(event.process().bytes())
         .bind(i64::try_from(*event.logical_clock())?)
         .fetch_optional(&mut *transaction)
         .await?;
@@ -626,20 +626,20 @@ pub(crate) async fn insert_event(
     )?;
 
     let serialized =
-        crate::model::signed_event::to_proto(&signed_event).write_to_bytes()?;
+        crate::model::signed_event::to_proto(signed_event).write_to_bytes()?;
 
     let id = ::sqlx::query_scalar::<_, i64>(query_insert_event)
         .bind(i64::try_from(crate::model::public_key::get_key_type(
-            &event.system(),
+            event.system(),
         ))?)
-        .bind(crate::model::public_key::get_key_bytes(&event.system()))
-        .bind(&event.process().bytes())
+        .bind(crate::model::public_key::get_key_bytes(event.system()))
+        .bind(event.process().bytes())
         .bind(i64::try_from(*event.logical_clock())?)
         .bind(i64::try_from(*event.content_type())?)
-        .bind(&event.content())
+        .bind(event.content())
         .bind(event.vector_clock().write_to_bytes()?)
         .bind(event.indices().write_to_bytes()?)
-        .bind(&signed_event.signature())
+        .bind(signed_event.signature())
         .bind(&serialized)
         .bind(i64::try_from(server_time)?)
         .fetch_one(&mut *transaction)
@@ -677,10 +677,10 @@ pub(crate) async fn insert_event_link(
 
     ::sqlx::query(query_insert_event_link)
         .bind(i64::try_from(crate::model::public_key::get_key_type(
-            &pointer.system(),
+            pointer.system(),
         ))?)
-        .bind(crate::model::public_key::get_key_bytes(&pointer.system()))
-        .bind(&pointer.process().bytes())
+        .bind(crate::model::public_key::get_key_bytes(pointer.system()))
+        .bind(pointer.process().bytes())
         .bind(i64::try_from(*pointer.logical_clock())?)
         .bind(i64::try_from(link_content_type)?)
         .bind(i64::try_from(event_id)?)
@@ -806,7 +806,7 @@ pub(crate) async fn find_claims(
 {
     let proto = crate::model::claim::to_proto(claim)
         .write_to_bytes()
-        .map_err(|e| ::anyhow::Error::new(e))?;
+        .map_err(::anyhow::Error::new)?;
 
     let query_select_claims = "
         SELECT
@@ -878,7 +878,7 @@ pub(crate) async fn find_claims(
             .iter()
             .map(|raw| {
                 crate::model::signed_event::from_proto(
-                    &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+                    &crate::protocol::SignedEvent::parse_from_bytes(raw)?,
                 )
             })
             .collect::<::anyhow::Result<
@@ -908,7 +908,7 @@ pub(crate) async fn find_claims(
         .iter()
         .map(|raw| {
             crate::model::signed_event::from_proto(
-                &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+                &crate::protocol::SignedEvent::parse_from_bytes(raw)?,
             )
         })
         .collect::<::anyhow::Result<
@@ -949,7 +949,7 @@ pub(crate) async fn load_system_head(
         .iter()
         .map(|raw| {
             crate::model::signed_event::from_proto(
-                &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+                &crate::protocol::SignedEvent::parse_from_bytes(raw)?,
             )
         })
         .collect::<::anyhow::Result<
@@ -1031,7 +1031,7 @@ pub(crate) async fn known_ranges_for_system(
         .bind(crate::model::public_key::get_key_bytes(system))
         .fetch_all(&mut *transaction)
         .await
-        .map_err(|err| ::anyhow::Error::new(err))?;
+        .map_err(::anyhow::Error::new)?;
 
     let mut result = crate::protocol::RangesForSystem::new();
 
@@ -1139,7 +1139,8 @@ pub(crate) async fn load_random_profiles(
           events.system_key 
         FROM 
           events 
-          LEFT JOIN censored_systems ON events.system_key_type = censored_systems.system_key_type 
+          LEFT JOIN censored_systems
+          ON events.system_key_type = censored_systems.system_key_type 
           AND events.system_key = censored_systems.system_key 
         WHERE 
           censored_systems.system_key IS NULL
@@ -1163,7 +1164,7 @@ pub(crate) async fn load_random_profiles(
         result_set.push(sys);
     }
 
-    return Ok(result_set);
+    Ok(result_set)
 }
 
 #[cfg(test)]
@@ -1395,8 +1396,6 @@ pub mod tests {
 
         let s2 = crate::model::tests::make_test_keypair();
         let s2p1 = crate::model::tests::make_test_process();
-
-        let vouch = crate::protocol::Vouch::new();
 
         let s2p1e1 = crate::model::tests::make_test_event_with_content(
             &s2,

@@ -137,8 +137,8 @@ pub(crate) async fn count_lww_element_references(
         crate::model::reference::Reference::Pointer(pointer) => {
             count_lww_element_references_pointer(
                 &mut *transaction,
-                &pointer.system(),
-                &pointer.process(),
+                pointer.system(),
+                pointer.process(),
                 *pointer.logical_clock(),
                 value,
                 from_type,
@@ -148,7 +148,7 @@ pub(crate) async fn count_lww_element_references(
         crate::model::reference::Reference::Bytes(bytes) => {
             count_lww_element_references_bytes(
                 &mut *transaction,
-                &bytes,
+                bytes,
                 value,
                 from_type,
             )
@@ -162,8 +162,6 @@ pub(crate) async fn count_lww_element_references(
 
 #[cfg(test)]
 pub mod tests {
-    use ::protobuf::Message;
-
     #[::sqlx::test]
     async fn test_no_references(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
         let mut transaction = pool.begin().await?;
