@@ -1,6 +1,8 @@
 use ::protobuf::Message;
 use ::std::convert::TryFrom;
 
+use crate::handlers::get_explore::EventsAndCursor;
+
 #[derive(::sqlx::Type)]
 #[sqlx(type_name = "censorship_type")]
 #[sqlx(rename_all = "snake_case")]
@@ -42,6 +44,8 @@ struct EventRow {
 #[allow(dead_code)]
 #[derive(::sqlx::FromRow)]
 struct ExploreRow {
+    #[sqlx(try_from = "i64")]
+    id: u64,
     #[sqlx(try_from = "i64")]
     server_time: u64,
     raw_event: ::std::vec::Vec<u8>,
@@ -345,39 +349,36 @@ pub(crate) async fn load_event(
     }
 }
 
-pub(crate) async fn load_posts_before_time(
+pub(crate) async fn load_posts_before_id(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    start_time: u64,
-) -> ::anyhow::Result<crate::handlers::get_explore::EventsAndServerTime> {
+    start_id: u64,
+) -> ::anyhow::Result<crate::handlers::get_explore::EventsAndCursor> {
     let query = "
-        SELECT raw_event, server_time FROM events
-        WHERE server_time < $1
+        SELECT id, raw_event, server_time FROM events
+        WHERE id < $1
         AND content_type = $2
+        ORDER BY id DESC
         LIMIT 10;
     ";
 
     let rows = ::sqlx::query_as::<_, ExploreRow>(query)
-        .bind(i64::try_from(start_time)?)
+        .bind(i64::try_from(start_id)?)
         .bind(i64::try_from(crate::model::known_message_types::POST)?)
         .fetch_all(&mut *transaction)
         .await?;
 
     let mut result_set = vec![];
-    let mut oldest_time = start_time;
 
     for row in rows.iter() {
         let event = crate::model::signed_event::from_proto(
                 &crate::protocol::SignedEvent::parse_from_bytes(&row.raw_event)?,
             )?;
-        if row.server_time < oldest_time {
-            oldest_time = row.server_time;
-        }
         result_set.push(event);
     }
 
-    let result = crate::handlers::get_explore::EventsAndServerTime {
+    let result = EventsAndCursor {
         events: result_set,
-        server_time: oldest_time
+        cursor: rows.last().unwrap().id
     };
 
     return Ok(result);

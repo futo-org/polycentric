@@ -1,4 +1,3 @@
-use std::time::SystemTime;
 use ::protobuf::{Message, MessageField};
 use crate::protocol::Events;
 
@@ -7,31 +6,30 @@ pub(crate) struct Query {
     cursor: ::std::option::Option<String>,
 }
 
-pub(crate) struct EventsAndServerTime {
+pub(crate) struct EventsAndCursor {
     pub events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
-    pub server_time: u64
+    pub cursor: u64,
 }
-
 
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
-    let start_time = if let Some(cursor) = query.cursor {
+    let start_id = if let Some(cursor) = query.cursor {
         u64::from_le_bytes(crate::warp_try_err_500!(crate::warp_try_err_500!(
             base64::decode(cursor)
         )
         .as_slice()
         .try_into()))
     } else {
-       crate::warp_try_err_500!(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)).as_secs() 
+        crate::warp_try_err_500!(u64::try_from(i64::max_value()))
     };
 
     let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
     
-    let db_result = crate::warp_try_err_500!(crate::postgres::load_posts_before_time(
+    let db_result = crate::warp_try_err_500!(crate::postgres::load_posts_before_id(
         &mut transaction,
-        start_time,
+        start_id,
     )
     .await);
 
@@ -45,7 +43,7 @@ pub(crate) async fn handler(
         crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
     result.result_events = MessageField::some(events);
     result.cursor =
-        Some(u64::to_le_bytes(db_result.server_time).to_vec());
+        Some(u64::to_le_bytes(db_result.cursor).to_vec());
 
     crate::warp_try_err_500!(transaction.commit().await);
 
