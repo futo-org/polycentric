@@ -159,7 +159,6 @@ lint-server:
   cache: 
     - <<: *rust-cache-config
       key: ${CI_COMMIT_REF_SLUG}-rs-lint
-  allow_failure: true
   script: 
     - ./version.sh
     - cd server
