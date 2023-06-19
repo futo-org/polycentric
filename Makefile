@@ -33,7 +33,13 @@ endif
 
 join-sandbox:
 	docker-compose -f docker-compose.development.yml \
-		exec development /bin/bash --rcfile /app/.docker-bashrc 
+		exec development /bin/bash --rcfile /app/.docker-bashrc
+
+join-postgres:
+	export PGHOST=$$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' polycentric-postgres-1) && \
+		export PGPASSWORD=testing && \
+		export PGUSER=postgres && \
+		psql
 
 start-gdbserver:
 	docker-compose -f docker-compose.development.yml \
