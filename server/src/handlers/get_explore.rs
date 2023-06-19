@@ -1,5 +1,5 @@
-use ::protobuf::{Message, MessageField};
 use crate::protocol::Events;
+use ::protobuf::{Message, MessageField};
 
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
@@ -21,17 +21,18 @@ pub(crate) async fn handler(
     };
 
     let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
-    
-    let db_result = crate::warp_try_err_500!(crate::postgres::load_posts_before_id(
-        &mut transaction,
-        start_id,
-    )
-    .await);
+
+    let db_result = crate::warp_try_err_500!(
+        crate::postgres::load_posts_before_id(&mut transaction, start_id,)
+            .await
+    );
 
     let mut events = Events::new();
-    
+
     for event in db_result.events.iter() {
-        events.events.push(crate::model::signed_event::to_proto(event));
+        events
+            .events
+            .push(crate::model::signed_event::to_proto(event));
     }
 
     let mut result =

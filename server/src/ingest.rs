@@ -1,13 +1,13 @@
-use ::log::*;
-use std::fmt::Error;
-use std::time::SystemTime;
 use crate::{
     model::{known_message_types, pointer},
     protocol::Post,
 };
+use ::log::*;
 use ::protobuf::Message;
 use opensearch::IndexParts;
 use serde_json::json;
+use std::fmt::Error;
+use std::time::SystemTime;
 
 fn trace_event(
     signed_event: &crate::model::signed_event::SignedEvent,
@@ -69,10 +69,16 @@ pub(crate) async fn ingest_event_postgres(
         return Ok(());
     }
 
-    let server_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_secs(); 
+    let server_time = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)?
+        .as_secs();
 
-    let event_id =
-        crate::postgres::insert_event(&mut *transaction, signed_event, server_time).await?;
+    let event_id = crate::postgres::insert_event(
+        &mut *transaction,
+        signed_event,
+        server_time,
+    )
+    .await?;
 
     let content = crate::model::content::decode_content(
         *event.content_type(),

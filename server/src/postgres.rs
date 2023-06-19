@@ -379,7 +379,11 @@ pub(crate) async fn load_posts_before_id(
 
     let result = EventsAndCursor {
         events: result_set,
-        cursor: if let Some(last_elem) = rows.last() {Some(last_elem.id)} else {None}
+        cursor: if let Some(last_elem) = rows.last() {
+            Some(last_elem.id)
+        } else {
+            None
+        },
     };
 
     return Ok(result);
