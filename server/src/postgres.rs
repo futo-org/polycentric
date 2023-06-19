@@ -379,14 +379,10 @@ pub(crate) async fn load_posts_before_id(
 
     let result = EventsAndCursor {
         events: result_set,
-        cursor: if let Some(last_elem) = rows.last() {
-            Some(last_elem.id)
-        } else {
-            None
-        },
+        cursor: rows.last().map(|last_elem| last_elem.id)
     };
 
-    return Ok(result);
+    Ok(result)
 }
 
 pub(crate) async fn load_processes_for_system(

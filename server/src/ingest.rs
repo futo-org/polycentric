@@ -5,7 +5,6 @@ use crate::{
 use ::log::*;
 use ::protobuf::Message;
 use opensearch::IndexParts;
-use serde_json::json;
 use std::fmt::Error;
 use std::time::SystemTime;
 
