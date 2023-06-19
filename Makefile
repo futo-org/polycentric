@@ -1,4 +1,4 @@
-.PHONY: proto pretty clean sandbox build-sandbox join-sandbox stop-sandbox
+.PHONY: proto pretty clean sandbox build-sandbox join-sandbox stop-sandbox join-postgres
 
 CURRENT_UID := $(shell id -u)
 CURRENT_GID := $(shell id -g)
@@ -36,10 +36,8 @@ join-sandbox:
 		exec development /bin/bash --rcfile /app/.docker-bashrc
 
 join-postgres:
-	export PGHOST=$$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' polycentric-postgres-1) && \
-		export PGPASSWORD=testing && \
-		export PGUSER=postgres && \
-		psql
+	docker-compose -f docker-compose.development.yml \
+		exec -e PGPASSWORD=testing postgres psql -U postgres 
 
 start-gdbserver:
 	docker-compose -f docker-compose.development.yml \
