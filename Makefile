@@ -1,4 +1,4 @@
-.PHONY: proto pretty clean sandbox build-sandbox join-sandbox stop-sandbox
+.PHONY: proto pretty clean sandbox build-sandbox join-sandbox stop-sandbox join-postgres
 
 CURRENT_UID := $(shell id -u)
 CURRENT_GID := $(shell id -g)
@@ -33,7 +33,11 @@ endif
 
 join-sandbox:
 	docker-compose -f docker-compose.development.yml \
-		exec development /bin/bash --rcfile /app/.docker-bashrc 
+		exec development /bin/bash --rcfile /app/.docker-bashrc
+
+join-postgres:
+	docker-compose -f docker-compose.development.yml \
+		exec postgres psql -U postgres 
 
 start-gdbserver:
 	docker-compose -f docker-compose.development.yml \
