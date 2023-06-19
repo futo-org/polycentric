@@ -19,6 +19,7 @@ macro_rules! warp_try_err_500 {
         match $expr {
             Ok(x) => x,
             Err(err) => {
+                ::log::warn!("HTTP 500 {}", err.to_string().clone());
                 return Ok(Box::new(::warp::reply::with_status(
                     err.to_string().clone(),
                     ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
