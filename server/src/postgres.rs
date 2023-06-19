@@ -378,7 +378,7 @@ pub(crate) async fn load_posts_before_id(
 
     let result = EventsAndCursor {
         events: result_set,
-        cursor: rows.last().unwrap().id
+        cursor: rows.last().ok_or(::std::fmt::Error)?.id
     };
 
     return Ok(result);
