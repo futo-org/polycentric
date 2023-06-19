@@ -7,12 +7,11 @@ use crate::{
 };
 use ::protobuf::Message;
 use opensearch::IndexParts;
-use serde_json::json;
 
 fn trace_event(
     signed_event: &crate::model::signed_event::SignedEvent,
 ) -> ::anyhow::Result<()> {
-    let event = crate::model::event::from_vec(&signed_event.event())?;
+    let event = crate::model::event::from_vec(signed_event.event())?;
 
     let mut content_str: String = "unknown".to_string();
 
@@ -25,16 +24,15 @@ fn trace_event(
     } else if content_type == crate::model::known_message_types::USERNAME
         || content_type == crate::model::known_message_types::DESCRIPTION
     {
-        let lww_element = event.lww_element().clone().ok_or_else(|| Error)?;
+        let lww_element = event.lww_element().clone().ok_or(Error)?;
 
         content_str = String::from_utf8(lww_element.value)?;
     } else if content_type == crate::model::known_message_types::SERVER {
-        let lww_element_set =
-            event.lww_element_set().clone().ok_or_else(|| Error)?;
+        let lww_element_set = event.lww_element_set().clone().ok_or(Error)?;
 
         content_str = String::from_utf8(lww_element_set.value)?;
     } else if content_type == crate::model::known_message_types::OPINION {
-        let lww_element = event.lww_element().clone().ok_or_else(|| Error)?;
+        let lww_element = event.lww_element().clone().ok_or(Error)?;
 
         if lww_element.value == vec![1] {
             content_str = "LIKE".to_string();
@@ -59,7 +57,7 @@ pub(crate) async fn ingest_event_postgres(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     signed_event: &crate::model::signed_event::SignedEvent,
 ) -> ::anyhow::Result<()> {
-    let event = crate::model::event::from_vec(&signed_event.event())?;
+    let event = crate::model::event::from_vec(signed_event.event())?;
 
     if crate::postgres::does_event_exist(&mut *transaction, &event).await? {
         return Ok(());
@@ -84,7 +82,7 @@ pub(crate) async fn ingest_event_postgres(
                     &mut *transaction,
                     event_id,
                     *event.content_type(),
-                    &pointer,
+                    pointer,
                 )
                 .await?;
             }
@@ -143,7 +141,7 @@ pub(crate) async fn ingest_event_search(
     signed_event: &crate::model::signed_event::SignedEvent,
     state: &::std::sync::Arc<crate::State>,
 ) -> ::anyhow::Result<()> {
-    let event = crate::model::event::from_vec(&signed_event.event())?;
+    let event = crate::model::event::from_vec(signed_event.event())?;
 
     let event_type = *event.content_type();
     if event_type == known_message_types::POST
@@ -178,10 +176,9 @@ pub(crate) async fn ingest_event_search(
             content_str = String::from_utf8(lww_element.value)?;
         }
 
-        let body = json!({
-            "message_content": content_str,
-        });
-
+        let body = crate::OpenSearchContent {
+            message_content: content_str,
+        };
         state
             .search
             .index(IndexParts::IndexId(index_name, &index_id))

@@ -101,7 +101,7 @@ pub(crate) async fn handler(
 
             let event_list = crate::warp_try_err_500!(event_list_result);
 
-            if event_list.len() > 0 {
+            if !event_list.is_empty() {
                 result_events
                     .events
                     .push(crate::model::signed_event::to_proto(&event_list[0]));

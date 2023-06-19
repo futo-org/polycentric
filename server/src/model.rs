@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use protobuf::Message;
 
 pub mod known_message_types {
@@ -60,7 +62,7 @@ pub mod digest {
 
     pub fn get_digest_bytes(digest: &Digest) -> ::std::vec::Vec<u8> {
         match digest {
-            Digest::SHA256(bytes) => bytes.to_vec().clone(),
+            Digest::SHA256(bytes) => bytes.to_vec(),
         }
     }
 
@@ -91,10 +93,10 @@ pub mod pointer {
             event_digest: crate::model::digest::Digest,
         ) -> Pointer {
             Pointer {
-                system: system,
-                process: process,
-                logical_clock: logical_clock,
-                event_digest: event_digest,
+                system,
+                process,
+                logical_clock,
+                event_digest,
             }
         }
 
@@ -142,7 +144,7 @@ pub mod pointer {
     pub fn from_base64(string: &String) -> ::anyhow::Result<Pointer> {
         let bytes = base64::decode(string)?;
         let protocol_ptr = crate::protocol::Pointer::parse_from_bytes(&bytes)?;
-        return from_proto(&protocol_ptr);
+        from_proto(&protocol_ptr)
     }
 
     pub fn to_proto(pointer: &Pointer) -> crate::protocol::Pointer {
@@ -164,7 +166,7 @@ pub mod pointer {
         let protocol_ptr = to_proto(pointer);
         let mut bytes = vec![];
         protocol_ptr.write_to_vec(&mut bytes)?;
-        return Ok(::base64::encode(bytes));
+        Ok(::base64::encode(bytes))
     }
 }
 
@@ -185,13 +187,13 @@ pub mod public_key {
 
     pub fn get_key_bytes(public_key: &PublicKey) -> ::std::vec::Vec<u8> {
         match public_key {
-            PublicKey::Ed25519(x) => x.to_bytes().to_vec().clone(),
+            PublicKey::Ed25519(x) => x.to_bytes().to_vec(),
         }
     }
 
     pub fn from_type_and_bytes(
         key_type: u64,
-        key: &::std::vec::Vec<u8>,
+        key: &[u8],
     ) -> ::anyhow::Result<PublicKey> {
         match key_type {
             1 => Ok(PublicKey::Ed25519(
@@ -205,17 +207,15 @@ pub mod public_key {
 
     pub fn validate_signature(
         public_key: &PublicKey,
-        signature: &::std::vec::Vec<u8>,
-        digest: &::std::vec::Vec<u8>,
+        signature: &[u8],
+        digest: &[u8],
     ) -> ::anyhow::Result<()> {
         match public_key {
             PublicKey::Ed25519(key) => {
-                let signature =
-                    ::ed25519_dalek::Signature::try_from(&signature[..])
-                        .map_err(|e| ::anyhow::Error::new(e))?;
+                let signature = ::ed25519_dalek::Signature::try_from(signature)
+                    .map_err(::anyhow::Error::new)?;
 
-                key.verify(digest, &signature)
-                    .map_err(|e| ::anyhow::Error::new(e))
+                key.verify(digest, &signature).map_err(::anyhow::Error::new)
             }
         }
     }
@@ -238,7 +238,7 @@ pub mod public_key {
         match public_key {
             PublicKey::Ed25519(key) => {
                 proto.key_type = 1;
-                proto.key = key.as_bytes().to_vec().clone();
+                proto.key = key.as_bytes().to_vec();
             }
         }
 
@@ -249,7 +249,7 @@ pub mod public_key {
         let protocol_ptr = to_proto(key);
         let mut bytes = vec![];
         protocol_ptr.write_to_vec(&mut bytes)?;
-        return Ok(base64::encode(bytes));
+        Ok(base64::encode(bytes))
     }
 
     pub fn from_base64(string: &String) -> ::anyhow::Result<PublicKey> {
@@ -257,7 +257,7 @@ pub mod public_key {
         let protocol_obj =
             crate::protocol::PublicKey::parse_from_bytes(&bytes)?;
         let pub_key = from_proto(&protocol_obj)?;
-        return Ok(pub_key);
+        Ok(pub_key)
     }
 
     pub fn serde_url_deserialize<'de, D>(
@@ -290,7 +290,7 @@ pub mod process {
 
     impl Process {
         pub fn new(process: [u8; 16]) -> Process {
-            Process { process: process }
+            Process { process }
         }
 
         pub fn bytes(&self) -> &[u8; 16] {
@@ -310,7 +310,7 @@ pub mod process {
 
     pub fn to_proto(process: &Process) -> crate::protocol::Process {
         let mut proto = crate::protocol::Process::new();
-        proto.process = process.bytes().to_vec().clone();
+        proto.process = process.bytes().to_vec();
         proto
     }
 
@@ -369,6 +369,7 @@ pub mod event {
         lww_element_set: ::std::option::Option<crate::protocol::LWWElementSet>,
     }
 
+    #[allow(clippy::too_many_arguments)]
     impl Event {
         pub fn new(
             system: crate::model::public_key::PublicKey,
@@ -385,16 +386,16 @@ pub mod event {
             >,
         ) -> Event {
             Event {
-                system: system,
-                process: process,
-                logical_clock: logical_clock,
-                content_type: content_type,
-                content: content,
-                vector_clock: vector_clock,
-                indices: indices,
-                references: references,
-                lww_element: lww_element,
-                lww_element_set: lww_element_set,
+                system,
+                process,
+                logical_clock,
+                content_type,
+                content,
+                vector_clock,
+                indices,
+                references,
+                lww_element,
+                lww_element_set,
             }
         }
 
@@ -451,8 +452,8 @@ pub mod event {
         Ok(Event::new(
             crate::model::public_key::from_proto(&proto.system)?,
             crate::model::process::from_proto(&proto.process)?,
-            proto.logical_clock.clone(),
-            proto.content_type.clone(),
+            proto.logical_clock,
+            proto.content_type,
             proto.content.clone(),
             proto
                 .vector_clock
@@ -467,7 +468,7 @@ pub mod event {
             proto
                 .references
                 .iter()
-                .map(|x| crate::model::reference::from_proto(&x))
+                .map(crate::model::reference::from_proto)
                 .collect::<::anyhow::Result<
                     ::std::vec::Vec<crate::model::reference::Reference>,
                 >>()?,
@@ -476,7 +477,7 @@ pub mod event {
         ))
     }
 
-    pub fn from_vec(vec: &::std::vec::Vec<u8>) -> ::anyhow::Result<Event> {
+    pub fn from_vec(vec: &[u8]) -> ::anyhow::Result<Event> {
         from_proto(&crate::protocol::Event::parse_from_bytes(vec)?)
     }
 
@@ -491,15 +492,15 @@ pub mod event {
         result.process = ::protobuf::MessageField::some(
             crate::model::process::to_proto(event.process()),
         );
-        result.logical_clock = event.logical_clock().clone();
-        result.content_type = event.content_type().clone();
+        result.logical_clock = *event.logical_clock();
+        result.content_type = *event.content_type();
         result.content = event.content().clone();
         result.vector_clock =
             ::protobuf::MessageField::some(event.vector_clock().clone());
         result.indices =
             ::protobuf::MessageField::some(event.indices().clone());
         result.references = event.references().iter()
-            .map(|x| crate::model::reference::to_proto(&x))
+            .map(crate::model::reference::to_proto)
             .collect::<::anyhow::Result<
                 ::std::vec::Vec<crate::protocol::Reference>
             >>()?;
@@ -538,10 +539,7 @@ pub mod signed_event {
                 &event,
             )?;
 
-            Ok(SignedEvent {
-                event: event,
-                signature: signature,
-            })
+            Ok(SignedEvent { event, signature })
         }
 
         pub fn sign(
@@ -551,7 +549,7 @@ pub mod signed_event {
             let signature = keypair.sign(&event);
 
             SignedEvent {
-                event: event,
+                event,
                 signature: signature.to_bytes().to_vec(),
             }
         }
@@ -568,15 +566,10 @@ pub mod signed_event {
     pub fn from_proto(
         proto: &crate::protocol::SignedEvent,
     ) -> ::anyhow::Result<SignedEvent> {
-        Ok(SignedEvent::new(
-            proto.event.clone(),
-            proto.signature.clone(),
-        )?)
+        SignedEvent::new(proto.event.clone(), proto.signature.clone())
     }
 
-    pub fn from_vec(
-        vec: &::std::vec::Vec<u8>,
-    ) -> ::anyhow::Result<SignedEvent> {
+    pub fn from_vec(vec: &[u8]) -> ::anyhow::Result<SignedEvent> {
         from_proto(&crate::protocol::SignedEvent::parse_from_bytes(vec)?)
     }
 
@@ -613,9 +606,9 @@ pub mod delete {
             indices: crate::protocol::Indices,
         ) -> Delete {
             Delete {
-                process: process,
-                logical_clock: logical_clock,
-                indices: indices,
+                process,
+                logical_clock,
+                indices,
             }
         }
 
@@ -675,15 +668,15 @@ pub mod reference {
         match reference {
             Reference::System(system) => {
                 result.reference_type = 1;
-                result.reference = crate::model::public_key::to_proto(&system)
+                result.reference = crate::model::public_key::to_proto(system)
                     .write_to_bytes()
-                    .map_err(|e| ::anyhow::Error::new(e))?;
+                    .map_err(::anyhow::Error::new)?;
             }
             Reference::Pointer(pointer) => {
                 result.reference_type = 2;
-                result.reference = crate::model::pointer::to_proto(&pointer)
+                result.reference = crate::model::pointer::to_proto(pointer)
                     .write_to_bytes()
-                    .map_err(|e| ::anyhow::Error::new(e))?;
+                    .map_err(::anyhow::Error::new)?;
             }
             Reference::Bytes(bytes) => {
                 result.reference_type = 3;
@@ -702,7 +695,7 @@ pub mod reference {
                 let proto = crate::protocol::PublicKey::parse_from_bytes(
                     &reference.reference,
                 )
-                .map_err(|e| ::anyhow::Error::new(e))?;
+                .map_err(::anyhow::Error::new)?;
 
                 Ok(Reference::System(crate::model::public_key::from_proto(
                     &proto,
@@ -712,7 +705,7 @@ pub mod reference {
                 let proto = crate::protocol::Pointer::parse_from_bytes(
                     &reference.reference,
                 )
-                .map_err(|e| ::anyhow::Error::new(e))?;
+                .map_err(::anyhow::Error::new)?;
 
                 Ok(Reference::Pointer(crate::model::pointer::from_proto(
                     &proto,
@@ -734,13 +727,10 @@ pub mod claim {
     }
 
     impl Claim {
-        pub fn new(
-            claim_type: &::std::string::String,
-            claim: &::std::vec::Vec<u8>,
-        ) -> Claim {
+        pub fn new(claim_type: &str, claim: &[u8]) -> Claim {
             Claim {
-                claim_type: claim_type.clone(),
-                claim: claim.clone(),
+                claim_type: claim_type.to_owned(),
+                claim: claim.to_owned(),
             }
         }
 
@@ -796,22 +786,22 @@ pub mod content {
 
     pub fn decode_content(
         content_type: u64,
-        content: &::std::vec::Vec<u8>,
+        content: &[u8],
     ) -> ::anyhow::Result<Content> {
         match content_type {
             1 => {
                 let proto = crate::protocol::Delete::parse_from_bytes(content)
-                    .map_err(|e| ::anyhow::Error::new(e))?;
+                    .map_err(::anyhow::Error::new)?;
 
                 Ok(Content::Delete(crate::model::delete::from_proto(&proto)?))
             }
             12 => {
                 let proto = crate::protocol::Claim::parse_from_bytes(content)
-                    .map_err(|e| ::anyhow::Error::new(e))?;
+                    .map_err(::anyhow::Error::new)?;
 
                 Ok(Content::Claim(crate::model::claim::from_proto(&proto)))
             }
-            _ => Ok(Content::Unknown(content_type, content.clone())),
+            _ => Ok(Content::Unknown(content_type, content.to_owned())),
         }
     }
 
@@ -819,7 +809,7 @@ pub mod content {
         match content {
             Content::Delete(_) => 1,
             Content::Claim(_) => 12,
-            Content::Unknown(content_type, _) => content_type.clone(),
+            Content::Unknown(content_type, _) => *content_type,
         }
     }
 
@@ -829,10 +819,10 @@ pub mod content {
         match content {
             Content::Delete(body) => crate::model::delete::to_proto(body)
                 .write_to_bytes()
-                .map_err(|e| ::anyhow::Error::new(e)),
+                .map_err(::anyhow::Error::new),
             Content::Claim(body) => crate::model::claim::to_proto(body)
                 .write_to_bytes()
-                .map_err(|e| ::anyhow::Error::new(e)),
+                .map_err(::anyhow::Error::new),
             Content::Unknown(_, body) => Ok(body.clone()),
         }
     }
@@ -840,7 +830,6 @@ pub mod content {
 
 #[cfg(test)]
 pub mod tests {
-    use ed25519_dalek::Signer;
     use protobuf::Message;
     use rand::Rng;
 

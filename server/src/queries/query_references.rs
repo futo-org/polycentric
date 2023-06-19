@@ -166,8 +166,8 @@ pub(crate) async fn query_references(
         crate::model::reference::Reference::Pointer(pointer) => {
             query_pointer(
                 &mut *transaction,
-                &pointer.system(),
-                &pointer.process(),
+                pointer.system(),
+                pointer.process(),
                 *pointer.logical_clock(),
                 from_type,
                 cursor,
@@ -176,7 +176,7 @@ pub(crate) async fn query_references(
             .await
         }
         crate::model::reference::Reference::Bytes(bytes) => {
-            query_bytes(&mut *transaction, &bytes, from_type, cursor, limit)
+            query_bytes(&mut *transaction, bytes, from_type, cursor, limit)
                 .await
         }
         _ => {
@@ -187,8 +187,6 @@ pub(crate) async fn query_references(
 
 #[cfg(test)]
 pub mod tests {
-    use ::protobuf::Message;
-
     #[::sqlx::test]
     async fn test_no_references(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
         let mut transaction = pool.begin().await?;

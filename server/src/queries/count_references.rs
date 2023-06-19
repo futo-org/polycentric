@@ -98,15 +98,15 @@ pub(crate) async fn count_references(
         crate::model::reference::Reference::Pointer(pointer) => {
             count_references_pointer(
                 &mut *transaction,
-                &pointer.system(),
-                &pointer.process(),
+                pointer.system(),
+                pointer.process(),
                 *pointer.logical_clock(),
                 from_type,
             )
             .await
         }
         crate::model::reference::Reference::Bytes(bytes) => {
-            count_references_bytes(&mut *transaction, &bytes, from_type).await
+            count_references_bytes(&mut *transaction, bytes, from_type).await
         }
         _ => {
             unimplemented!("count_references case not implemented");
@@ -116,8 +116,6 @@ pub(crate) async fn count_references(
 
 #[cfg(test)]
 pub mod tests {
-    use ::protobuf::Message;
-
     #[::sqlx::test]
     async fn test_no_references(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
         let mut transaction = pool.begin().await?;
