@@ -37,7 +37,7 @@ join-sandbox:
 
 join-postgres:
 	docker-compose -f docker-compose.development.yml \
-		exec -e PGPASSWORD=testing postgres psql -U postgres 
+		exec postgres psql -U postgres 
 
 start-gdbserver:
 	docker-compose -f docker-compose.development.yml \
