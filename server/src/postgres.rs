@@ -1,8 +1,6 @@
 use ::protobuf::Message;
 use ::std::convert::TryFrom;
 
-use crate::handlers::get_explore::EventsAndCursor;
-
 #[derive(::sqlx::Type)]
 #[sqlx(type_name = "censorship_type")]
 #[sqlx(rename_all = "snake_case")]
@@ -67,6 +65,11 @@ struct SystemRow {
     system_key: ::std::vec::Vec<u8>,
     #[sqlx(try_from = "i64")]
     system_key_type: u64,
+}
+
+pub(crate) struct EventsAndCursor {
+    pub events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+    pub cursor: Option<u64>,
 }
 
 pub(crate) async fn prepare_database(
@@ -352,7 +355,7 @@ pub(crate) async fn load_event(
 pub(crate) async fn load_posts_before_id(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     start_id: u64,
-) -> ::anyhow::Result<crate::handlers::get_explore::EventsAndCursor> {
+) -> ::anyhow::Result<EventsAndCursor> {
     let query = "
         SELECT id, raw_event, server_time FROM events
         WHERE id < $1
@@ -370,15 +373,13 @@ pub(crate) async fn load_posts_before_id(
     let mut result_set = vec![];
 
     for row in rows.iter() {
-        let event = crate::model::signed_event::from_proto(
-                &crate::protocol::SignedEvent::parse_from_bytes(&row.raw_event)?,
-            )?;
+        let event = crate::model::signed_event::from_vec(&row.raw_event)?;
         result_set.push(event);
     }
 
     let result = EventsAndCursor {
         events: result_set,
-        cursor: rows.last().ok_or(::std::fmt::Error)?.id
+        cursor: if let Some(last_elem) = rows.last() {Some(last_elem.id)} else {None}
     };
 
     return Ok(result);
