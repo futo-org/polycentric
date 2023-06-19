@@ -163,7 +163,7 @@ lint-server:
   script: 
     - ./version.sh
     - cd server
-    - cargo-clippy --no-deps --locked #-- -D warnings (uncomment to do werror)
+    - cargo-clippy --no-deps --locked -- -D warnings
   needs: ["check"]
 
 lint-core:
