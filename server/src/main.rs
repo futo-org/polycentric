@@ -245,6 +245,7 @@ async fn serve_api(
         .and(::warp::path("explore"))
         .and(::warp::path::end())
         .and(state_filter.clone())
+        .and(::warp::query::<crate::handlers::get_explore::Query>())
         .and_then(crate::handlers::get_explore::handler)
         .with(cors.clone());
 

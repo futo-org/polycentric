@@ -1,9 +1,48 @@
-use ::protobuf::Message;
+use crate::protocol::Events;
+use ::protobuf::{Message, MessageField};
+
+#[derive(::serde::Deserialize)]
+pub(crate) struct Query {
+    cursor: ::std::option::Option<String>,
+}
 
 pub(crate) async fn handler(
-    _state: ::std::sync::Arc<crate::State>,
-) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
-    let result = crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
+    state: ::std::sync::Arc<crate::State>,
+    query: Query,
+) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+    let start_id = if let Some(cursor) = query.cursor {
+        u64::from_le_bytes(crate::warp_try_err_500!(crate::warp_try_err_500!(
+            base64::decode(cursor)
+        )
+        .as_slice()
+        .try_into()))
+    } else {
+        crate::warp_try_err_500!(u64::try_from(i64::max_value()))
+    };
+
+    let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
+
+    let db_result = crate::warp_try_err_500!(
+        crate::postgres::load_posts_before_id(&mut transaction, start_id,)
+            .await
+    );
+
+    let mut events = Events::new();
+
+    for event in db_result.events.iter() {
+        events
+            .events
+            .push(crate::model::signed_event::to_proto(event));
+    }
+
+    let mut result =
+        crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
+    result.result_events = MessageField::some(events);
+
+    result.cursor = db_result
+        .cursor
+        .map(|cursor| u64::to_le_bytes(cursor).to_vec());
+    crate::warp_try_err_500!(transaction.commit().await);
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
 

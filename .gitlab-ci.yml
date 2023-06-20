@@ -159,11 +159,10 @@ lint-server:
   cache: 
     - <<: *rust-cache-config
       key: ${CI_COMMIT_REF_SLUG}-rs-lint
-  allow_failure: true
   script: 
     - ./version.sh
     - cd server
-    - cargo-clippy --no-deps --locked #-- -D warnings (uncomment to do werror)
+    - cargo-clippy --no-deps --locked -- -D warnings
   needs: ["check"]
 
 lint-core:

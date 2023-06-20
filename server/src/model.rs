@@ -515,8 +515,8 @@ pub mod event {
 }
 
 pub mod signed_event {
-    use ::ed25519_dalek::Signer;
-    use ::protobuf::Message;
+    use ed25519_dalek::Signer;
+    use protobuf::Message;
 
     #[derive(PartialEq, Clone, Debug)]
     pub struct SignedEvent {

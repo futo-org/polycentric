@@ -40,6 +40,16 @@ struct EventRow {
 }
 
 #[allow(dead_code)]
+#[derive(::sqlx::FromRow)]
+struct ExploreRow {
+    #[sqlx(try_from = "i64")]
+    id: u64,
+    #[sqlx(try_from = "i64")]
+    server_time: u64,
+    raw_event: ::std::vec::Vec<u8>,
+}
+
+#[allow(dead_code)]
 #[derive(PartialEq, Debug, ::sqlx::FromRow)]
 struct RangeRow {
     process: ::std::vec::Vec<u8>,
@@ -55,6 +65,11 @@ struct SystemRow {
     system_key: ::std::vec::Vec<u8>,
     #[sqlx(try_from = "i64")]
     system_key_type: u64,
+}
+
+pub(crate) struct EventsAndCursor {
+    pub events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+    pub cursor: Option<u64>,
 }
 
 pub(crate) async fn prepare_database(
@@ -104,6 +119,7 @@ pub(crate) async fn prepare_database(
             indices         BYTEA     NOT NULL,
             signature       BYTEA     NOT NULL,
             raw_event       BYTEA     NOT NULL,
+            server_time     INT8      NOT NULL,
 
             CHECK ( system_key_type >= 0  ),
             CHECK ( LENGTH(process) =  16 ),
@@ -336,6 +352,39 @@ pub(crate) async fn load_event(
     }
 }
 
+pub(crate) async fn load_posts_before_id(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    start_id: u64,
+) -> ::anyhow::Result<EventsAndCursor> {
+    let query = "
+        SELECT id, raw_event, server_time FROM events
+        WHERE id < $1
+        AND content_type = $2
+        ORDER BY id DESC
+        LIMIT 10;
+    ";
+
+    let rows = ::sqlx::query_as::<_, ExploreRow>(query)
+        .bind(i64::try_from(start_id)?)
+        .bind(i64::try_from(crate::model::known_message_types::POST)?)
+        .fetch_all(&mut *transaction)
+        .await?;
+
+    let mut result_set = vec![];
+
+    for row in rows.iter() {
+        let event = crate::model::signed_event::from_vec(&row.raw_event)?;
+        result_set.push(event);
+    }
+
+    let result = EventsAndCursor {
+        events: result_set,
+        cursor: rows.last().map(|last_elem| last_elem.id),
+    };
+
+    Ok(result)
+}
+
 pub(crate) async fn load_processes_for_system(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     system: &crate::model::public_key::PublicKey,
@@ -547,6 +596,7 @@ pub(crate) async fn delete_event(
 pub(crate) async fn insert_event(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     signed_event: &crate::model::signed_event::SignedEvent,
+    server_time: u64,
 ) -> ::anyhow::Result<u64> {
     let query_insert_event = "
         INSERT INTO events
@@ -560,9 +610,10 @@ pub(crate) async fn insert_event(
             vector_clock,
             indices,
             signature,
-            raw_event
+            raw_event,
+            server_time
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING id;
     ";
 
@@ -586,6 +637,7 @@ pub(crate) async fn insert_event(
         .bind(event.indices().write_to_bytes()?)
         .bind(signed_event.signature())
         .bind(&serialized)
+        .bind(i64::try_from(server_time)?)
         .fetch_one(&mut *transaction)
         .await?;
 
