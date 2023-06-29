@@ -65,7 +65,7 @@ export async function backfillClient(
         );
 
         if (clientNeeds.length === 0) {
-            break;
+            continue;
         }
 
         const batch = Ranges.takeRangesMaxItems(
@@ -133,7 +133,7 @@ export async function backFillServers(
                 );
 
                 if (serverNeeds.length === 0) {
-                    break;
+                    continue;
                 }
 
                 const batch = Ranges.takeRangesMaxItems(

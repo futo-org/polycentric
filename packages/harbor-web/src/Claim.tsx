@@ -9,8 +9,8 @@ import * as VouchedBy from './VouchedBy';
 
 export type ClaimProps = {
     processHandle: Core.ProcessHandle.ProcessHandle;
+    queryManager: Core.Queries.QueryManager.QueryManager;
     parsedEvent: App.ParsedEvent<Core.Protocol.Claim>;
-    view: Core.View.View;
 };
 
 type ImplementsFontSxProp = {
@@ -160,7 +160,7 @@ export function Claim(props: ClaimProps) {
         return () => {
             cancelContext.cancel();
         };
-    }, [props.processHandle, props.view, props.parsedEvent]);
+    }, [props.processHandle, props.queryManager, props.parsedEvent]);
 
     const claimInfo = getClaimInfo(
         props.parsedEvent.value.claimType,
@@ -189,7 +189,7 @@ export function Claim(props: ClaimProps) {
                             <VouchedBy.VouchedBy
                                 key={idx}
                                 processHandle={props.processHandle}
-                                view={props.view}
+                                queryManager={props.queryManager}
                                 system={system}
                             />
                         );

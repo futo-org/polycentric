@@ -6,14 +6,14 @@ import * as Claim from './Claim';
 export function loadProfileProps(
     cancelContext: Core.CancelContext.CancelContext,
     processHandle: Core.ProcessHandle.ProcessHandle,
-    view: Core.View.View,
+    queryManager: Core.Queries.QueryManager.QueryManager,
     system: Core.Models.PublicKey.PublicKey,
     setProfileProps: (f: (state: State) => State) => void,
-): Core.View.UnregisterCallback {
-    const queries: Array<Core.View.UnregisterCallback> = [];
+): Core.Queries.Shared.UnregisterCallback {
+    const queries: Array<Core.Queries.Shared.UnregisterCallback> = [];
 
     queries.push(
-        view.registerCRDTQuery(
+        queryManager.queryCRDT.query(
             system,
             Core.Models.ContentType.ContentTypeUsername,
             (buffer: Uint8Array) => {
@@ -31,7 +31,7 @@ export function loadProfileProps(
     );
 
     queries.push(
-        view.registerCRDTQuery(
+        queryManager.queryCRDT.query(
             system,
             Core.Models.ContentType.ContentTypeDescription,
             (buffer: Uint8Array) => {
@@ -89,78 +89,60 @@ export function loadProfileProps(
     };
 
     queries.push(
-        view.registerCRDTQuery(
+        queryManager.queryCRDT.query(
             system,
             Core.Models.ContentType.ContentTypeAvatar,
             avatarCallback,
         ),
     );
 
-    (async () => {
-        await Core.Synchronization.saveBatch(
-            processHandle,
-            await Core.APIMethods.getQueryIndex(
-                App.server,
-                system,
-                [
-                    Core.Models.ContentType.ContentTypeDescription,
-                    Core.Models.ContentType.ContentTypeUsername,
-                    Core.Models.ContentType.ContentTypeAvatar,
-                ],
-                undefined,
-            ),
-        );
-    })();
+    {
+        const cb = (value: Core.Queries.QueryIndex.CallbackParameters) => {
+            const parsedEvents = value.add.map((raw) => {
+                const signedEvent = Core.Models.SignedEvent.fromProto(raw);
+                const event = Core.Models.Event.fromBuffer(signedEvent.event);
 
-    (async () => {
-        await Core.Synchronization.saveBatch(
-            processHandle,
-            await Core.APIMethods.getQueryIndex(
-                App.server,
-                system,
-                [Core.Models.ContentType.ContentTypeClaim],
-                10,
-            ),
-        );
+                if (
+                    !event.contentType.equals(
+                        Core.Models.ContentType.ContentTypeClaim,
+                    )
+                ) {
+                    throw new Error('event content type was not claim');
+                }
 
-        const [claimEvents] = await processHandle
-            .store()
-            .queryClaimIndex(system, 10, undefined);
+                const claim = Core.Protocol.Claim.decode(event.content);
 
-        const parsedEvents = claimEvents.map((raw) => {
-            const signedEvent = Core.Models.SignedEvent.fromProto(raw);
-            const event = Core.Models.Event.fromBuffer(signedEvent.event);
+                return new App.ParsedEvent<Core.Protocol.Claim>(
+                    signedEvent,
+                    event,
+                    claim,
+                );
+            });
 
-            if (
-                !event.contentType.equals(
-                    Core.Models.ContentType.ContentTypeClaim,
-                )
-            ) {
-                throw new Error('event content type was not claim');
+            if (cancelContext.cancelled()) {
+                return;
             }
 
-            const claim = Core.Protocol.Claim.decode(event.content);
+            console.log('setting claims');
 
-            return new App.ParsedEvent<Core.Protocol.Claim>(
-                signedEvent,
-                event,
-                claim,
-            );
-        });
+            setProfileProps((state) => {
+                return {
+                    ...state,
+                    claims: parsedEvents,
+                };
+            });
+        };
 
-        if (cancelContext.cancelled()) {
-            return;
-        }
+        queries.push(
+            queryManager.queryIndex.query(
+                system,
+                Core.Models.ContentType.ContentTypeClaim,
+                cb,
+            ),
+        );
 
-        console.log('setting claims');
-
-        setProfileProps((state) => {
-            return {
-                ...state,
-                claims: parsedEvents,
-            };
-        });
-    })();
+        queryManager.queryIndex.advance(system, cb, 10);
+    }
 
     return () => {
         queries.forEach((f) => f());
@@ -169,7 +151,7 @@ export function loadProfileProps(
 
 export type ProfileProps = {
     processHandle: Core.ProcessHandle.ProcessHandle;
-    view: Core.View.View;
+    queryManager: Core.Queries.QueryManager.QueryManager;
     system: Core.Models.PublicKey.PublicKey;
 };
 
@@ -198,7 +180,7 @@ export function Profile(props: ProfileProps) {
         const cleanupView = loadProfileProps(
             cancelContext,
             props.processHandle,
-            props.view,
+            props.queryManager,
             props.system,
             setState,
         );
@@ -208,7 +190,7 @@ export function Profile(props: ProfileProps) {
 
             cleanupView();
         };
-    }, [props.processHandle, props.view, props.system]);
+    }, [props.processHandle, props.queryManager, props.system]);
 
     const isSocialProp = (claim: App.ParsedEvent<Core.Protocol.Claim>) => {
         return (
@@ -250,7 +232,7 @@ export function Profile(props: ProfileProps) {
                                         key={idx}
                                         parsedEvent={claim}
                                         processHandle={props.processHandle}
-                                        view={props.view}
+                                        queryManager={props.queryManager}
                                     />
                                 ))}
                             </div>
@@ -269,7 +251,7 @@ export function Profile(props: ProfileProps) {
                             key={idx}
                             parsedEvent={claim}
                             processHandle={props.processHandle}
-                            view={props.view}
+                            queryManager={props.queryManager}
                         />
                     ))}
                 </div>

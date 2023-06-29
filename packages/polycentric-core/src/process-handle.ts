@@ -7,6 +7,7 @@ import * as Models from './models';
 import * as MetaStore from './meta-store';
 import * as Util from './util';
 import * as Ranges from './ranges';
+import * as PersistenceDriver from './persistence-driver';
 
 export class SystemState {
     private _servers: Array<string>;
@@ -100,6 +101,7 @@ export class ProcessHandle {
     private _listener:
         | ((signedEvent: Models.SignedEvent.SignedEvent) => void)
         | undefined;
+    private _addressHints: Map<Models.PublicKey.PublicKeyString, Set<string>>;
 
     private constructor(
         store: Store.Store,
@@ -110,6 +112,40 @@ export class ProcessHandle {
         this._processSecret = processSecret;
         this._system = system;
         this._listener = undefined;
+        this._addressHints = new Map();
+    }
+
+    public addAddressHint(
+        system: Models.PublicKey.PublicKey,
+        server: string,
+    ): void {
+        const systemString = Models.PublicKey.toString(system);
+
+        let hintsForSystem = this._addressHints.get(systemString);
+
+        if (hintsForSystem === undefined) {
+            hintsForSystem = new Set();
+
+            this._addressHints.set(systemString, hintsForSystem);
+        }
+
+        hintsForSystem.add(server);
+    }
+
+    public getAddressHints(system: Models.PublicKey.PublicKey): Set<string> {
+        const systemString = Models.PublicKey.toString(system);
+
+        const hintsForSystem = this._addressHints.get(systemString);
+
+        if (hintsForSystem === undefined) {
+            return new Set();
+        }
+
+        return hintsForSystem;
+    }
+
+    public processSecret(): Models.ProcessSecret.ProcessSecret {
+        return this._processSecret;
     }
 
     public system(): Models.PublicKey.PublicKey {
@@ -389,9 +425,28 @@ export class ProcessHandle {
     public async loadSystemState(
         system: Models.PublicKey.PublicKey,
     ): Promise<SystemState> {
-        const systemState = await this._store.getSystemState(system);
+        const protoSystemState = await this._store.getSystemState(system);
 
-        return protoSystemStateToSystemState(systemState);
+        const systemState = protoSystemStateToSystemState(protoSystemState);
+
+        const addressHints = this.getAddressHints(system);
+
+        for (const address1 of addressHints) {
+            let found = false;
+
+            for (const address2 of systemState.servers()) {
+                if (address1 === address2) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (found === false) {
+                systemState.servers().push(address1);
+            }
+        }
+
+        return systemState;
     }
 
     async publish(
@@ -743,5 +798,13 @@ export function makeSystemLinkSync(
                 servers: servers,
             }).finish(),
         }).finish(),
+    );
+}
+
+export async function createTestProcessHandle(): Promise<ProcessHandle> {
+    return await createProcessHandle(
+        await MetaStore.createMetaStore(
+            PersistenceDriver.createPersistenceDriverMemory(),
+        ),
     );
 }

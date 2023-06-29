@@ -221,3 +221,27 @@ export async function getSearch(
 
     return Protocol.ResultEventsAndRelatedEventsAndCursor.decode(rawBody);
 }
+
+export async function getHead(
+    server: string,
+    system: Models.PublicKey.PublicKey,
+): Promise<Protocol.Events> {
+    const systemQuery = Base64.encodeUrl(
+        Protocol.PublicKey.encode(system).finish(),
+    );
+
+    const path = `/head?system=${systemQuery}`;
+
+    const response = await fetch(server + path, {
+        method: 'GET',
+        headers: new Headers({
+            'content-type': 'application/octet-stream',
+        }),
+    });
+
+    await checkResponse('getHead', response);
+
+    const rawBody = new Uint8Array(await response.arrayBuffer());
+
+    return Protocol.Events.decode(rawBody);
+}

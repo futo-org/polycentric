@@ -7,14 +7,14 @@ import * as Core from '@polycentric/polycentric-core';
 function loadVouchedByState(
     cancelContext: Core.CancelContext.CancelContext,
     processHandle: Core.ProcessHandle.ProcessHandle,
-    view: Core.View.View,
+    queryManager: Core.Queries.QueryManager.QueryManager,
     system: Core.Models.PublicKey.PublicKey,
     setProps: (f: (state: VouchedByState) => VouchedByState) => void,
-): Core.View.UnregisterCallback {
-    const queries: Array<Core.View.UnregisterCallback> = [];
+): Core.Queries.Shared.UnregisterCallback {
+    const queries: Array<Core.Queries.Shared.UnregisterCallback> = [];
 
     queries.push(
-        view.registerCRDTQuery(
+        queryManager.queryCRDT.query(
             system,
             Core.Models.ContentType.ContentTypeUsername,
             (buffer: Uint8Array) => {
@@ -71,7 +71,7 @@ function loadVouchedByState(
     };
 
     queries.push(
-        view.registerCRDTQuery(
+        queryManager.queryCRDT.query(
             system,
             Core.Models.ContentType.ContentTypeAvatar,
             avatarCallback,
@@ -79,19 +79,6 @@ function loadVouchedByState(
     );
 
     (async () => {
-        await Core.Synchronization.saveBatch(
-            processHandle,
-            await Core.APIMethods.getQueryIndex(
-                App.server,
-                system,
-                [
-                    Core.Models.ContentType.ContentTypeAvatar,
-                    Core.Models.ContentType.ContentTypeUsername,
-                ],
-                undefined,
-            ),
-        );
-
         const link = await Core.ProcessHandle.makeSystemLink(
             processHandle,
             system,
@@ -118,7 +105,7 @@ function loadVouchedByState(
 
 export type VouchedByProps = {
     processHandle: Core.ProcessHandle.ProcessHandle;
-    view: Core.View.View;
+    queryManager: Core.Queries.QueryManager.QueryManager;
     system: Core.Models.PublicKey.PublicKey;
 };
 
@@ -151,7 +138,7 @@ export function VouchedBy(props: VouchedByProps) {
         const cleanupView = loadVouchedByState(
             cancelContext,
             props.processHandle,
-            props.view,
+            props.queryManager,
             props.system,
             setState,
         );
@@ -161,7 +148,7 @@ export function VouchedBy(props: VouchedByProps) {
 
             cleanupView();
         };
-    }, [props.system, props.view, props.processHandle]);
+    }, [props.system, props.queryManager, props.processHandle]);
 
     return (
         <div>

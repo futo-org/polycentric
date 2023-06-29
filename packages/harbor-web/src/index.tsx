@@ -19,11 +19,16 @@ async function main() {
     );
 
     const processHandle = await createProcessHandle();
-    const view = new Core.View.View(processHandle);
+    const queryManager = new Core.Queries.QueryManager.QueryManager(
+        processHandle,
+    );
 
     root.render(
         <React.StrictMode>
-            <App.App processHandle={processHandle} view={view} />
+            <App.App
+                processHandle={processHandle}
+                queryManager={queryManager}
+            />
         </React.StrictMode>,
     );
 }

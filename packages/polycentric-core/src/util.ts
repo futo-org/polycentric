@@ -44,3 +44,16 @@ export function bufferSuffixMatch(
 
     return true;
 }
+
+export function concatBuffers(buffers: Array<Uint8Array>): Uint8Array {
+    const result = new Uint8Array(
+        buffers.reduce((acc, x) => acc + x.length, 0),
+    );
+
+    buffers.reduce((acc, x) => {
+        result.set(x, acc);
+        return (acc += x.length);
+    }, 0);
+
+    return result;
+}

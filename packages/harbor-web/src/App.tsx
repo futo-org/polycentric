@@ -5,8 +5,8 @@ import * as ReactRouterDOM from 'react-router-dom';
 import * as Core from '@polycentric/polycentric-core';
 import * as Profile from './Profile';
 
-export const server = 'http://localhost:8081';
-// export const server = 'https://srv1-stg.polycentric.io';
+// export const server = 'http://localhost:8081';
+export const server = 'https://srv1-stg.polycentric.io';
 
 export class ParsedEvent<T> {
     signedEvent: Core.Models.SignedEvent.SignedEvent;
@@ -62,7 +62,7 @@ export async function loadImageFromPointer(
 
 type MainPageProps = {
     processHandle: Core.ProcessHandle.ProcessHandle;
-    view: Core.View.View;
+    queryManager: Core.Queries.QueryManager.QueryManager;
 };
 
 const decodeSystemQuery = (raw: string) => {
@@ -81,21 +81,30 @@ export function MainPage(props: MainPageProps) {
     React.useEffect(() => {
         if (systemQuery) {
             try {
-                setSystem(decodeSystemQuery(systemQuery));
+                const decodedSystemQuery = decodeSystemQuery(systemQuery);
+
+                for (const server of decodedSystemQuery.servers) {
+                    props.processHandle.addAddressHint(
+                        decodedSystemQuery.system,
+                        server,
+                    );
+                }
+
+                setSystem(decodedSystemQuery);
             } catch (_) {
                 setSystem(undefined);
             }
         } else {
             setSystem(undefined);
         }
-    }, [systemQuery]);
+    }, [systemQuery, props.processHandle]);
 
     return (
         <div className="flex justify-center bg-gray min-h-screen dark:bg-zinc-900">
             {system ? (
                 <Profile.Profile
                     processHandle={props.processHandle}
-                    view={props.view}
+                    queryManager={props.queryManager}
                     system={system.system}
                 />
             ) : (
@@ -107,7 +116,7 @@ export function MainPage(props: MainPageProps) {
 
 type AppProps = {
     processHandle: Core.ProcessHandle.ProcessHandle;
-    view: Core.View.View;
+    queryManager: Core.Queries.QueryManager.QueryManager;
 };
 
 export function App(props: AppProps) {
@@ -118,7 +127,7 @@ export function App(props: AppProps) {
                 element={
                     <MainPage
                         processHandle={props.processHandle}
-                        view={props.view}
+                        queryManager={props.queryManager}
                     />
                 }
             />

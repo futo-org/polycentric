@@ -11,13 +11,18 @@ const PROCESS_SECRET_KEY: Uint8Array = Util.encodeText('PROCESS_SECRET');
 export const MIN_8BYTE_KEY = new Uint8Array(8).fill(0);
 export const MAX_8BYTE_KEY = new Uint8Array(8).fill(255);
 
+export const MAX_16BYTE_KEY = new Uint8Array(16).fill(255);
+
 export const MIN_32BYTE_KEY = new Uint8Array(32).fill(0);
 export const MAX_32BYTE_KEY = new Uint8Array(32).fill(255);
 
-function makeSystemStateKey(system: Models.PublicKey.PublicKey): Uint8Array {
-    return Util.encodeText(
-        system.keyType.toString() + Base64.encode(system.key),
-    );
+export function makeSystemStateKey(
+    system: Models.PublicKey.PublicKey,
+): Uint8Array {
+    return Util.concatBuffers([
+        new Uint8Array(system.keyType.toBytesBE()),
+        system.key,
+    ]);
 }
 
 function makeProcessStateKey(
@@ -36,12 +41,12 @@ function makeEventKey(
     process: Models.Process.Process,
     logicalClock: Long,
 ): Uint8Array {
-    return Util.encodeText(
-        system.keyType.toString() +
-            Base64.encode(system.key) +
-            Base64.encode(process.process) +
-            logicalClock.toString(),
-    );
+    return Util.concatBuffers([
+        new Uint8Array(system.keyType.toBytesBE()),
+        system.key,
+        process.process,
+        new Uint8Array(logicalClock.toBytesBE()),
+    ]);
 }
 
 export class Store {

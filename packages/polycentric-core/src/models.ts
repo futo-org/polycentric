@@ -3,6 +3,7 @@ import * as Protocol from './protocol';
 import * as Ed from '@noble/ed25519';
 import Long from 'long';
 import * as FastSHA256 from 'fast-sha256';
+import * as Base64 from '@borderless/base64';
 
 import * as Util from './util';
 
@@ -55,6 +56,10 @@ export namespace PublicKey {
         readonly __tag: unique symbol;
     };
 
+    export type PublicKeyString = Readonly<string> & {
+        readonly __tag: unique symbol;
+    };
+
     export function fromProto(proto: Protocol.PublicKey): PublicKey {
         if (!proto.keyType.equals(Long.UONE)) {
             throw new Error('unknown key type');
@@ -65,6 +70,12 @@ export namespace PublicKey {
         }
 
         return proto as PublicKey;
+    }
+
+    export function toString(key: PublicKey): PublicKeyString {
+        return Base64.encode(
+            Protocol.PublicKey.encode(key).finish(),
+        ) as PublicKeyString;
     }
 
     export function equal(a: PublicKey, b: PublicKey): boolean {
@@ -148,12 +159,22 @@ export namespace Process {
         readonly __tag: unique symbol;
     };
 
+    export type ProcessString = Readonly<string> & {
+        readonly __tag: unique symbol;
+    };
+
     export function fromProto(proto: Protocol.Process): Process {
         if (proto.process.length !== 16) {
             throw new Error('incorrect process size');
         }
 
         return proto as Process;
+    }
+
+    export function toString(process: Process): ProcessString {
+        return Base64.encode(
+            Protocol.Process.encode(process).finish(),
+        ) as ProcessString;
     }
 
     export function equal(a: Process, b: Process): boolean {
