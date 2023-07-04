@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Storybook
+storybook-static
+
+# Testing
+coverage
