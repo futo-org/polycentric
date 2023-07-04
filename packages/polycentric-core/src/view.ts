@@ -53,12 +53,12 @@ type StateCRDTQuerySystem = {
 export class View {
     private _eventQueryState: Map<string, EventQueryState>;
     private _stateCRDTQuerySystem: Map<string, StateCRDTQuerySystem>;
-    private _processHandle: ProcessHandle.ProcessHandle;
+    processHandle: ProcessHandle.ProcessHandle;
 
     constructor(processHandle: ProcessHandle.ProcessHandle) {
         this._eventQueryState = new Map();
         this._stateCRDTQuerySystem = new Map();
-        this._processHandle = processHandle;
+        this.processHandle = processHandle;
 
         processHandle.setListener((signedEvent) => {
             this.update(signedEvent);
@@ -151,7 +151,7 @@ export class View {
             this._stateCRDTQuerySystem.set(systemKey, systemState);
 
             (async () => {
-                const systemStateStore = await this._processHandle
+                const systemStateStore = await this.processHandle
                     .store()
                     .getSystemState(system);
 
@@ -236,7 +236,7 @@ export class View {
             this._eventQueryState.set(key, state);
 
             (async () => {
-                const signedEvent = await this._processHandle
+                const signedEvent = await this.processHandle
                     .store()
                     .getSignedEvent(system, process, logicalClock);
 
