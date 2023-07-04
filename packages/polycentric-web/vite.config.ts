@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
-    include: ['@polycentric/polycentric-react'],
-  },
+    exclude: ["@polycentric/polycentric-react"]
+  }
+  // Currently not using tailwindcss because it's prepackaged with polycentric-react
 })
