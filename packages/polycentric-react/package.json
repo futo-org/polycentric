@@ -11,7 +11,8 @@
       "require": "./dist/polycentric-react.umd.js",
       "types": "./dist/index.d.ts"
     },
-    "./dist/style.css": "./dist/style.css"
+    "./dist/style.css": "./dist/style.css",
+    "./tailwind.config.js": "./tailwind.config.js"
   },
   "scripts": {
     "storybook": "storybook dev -p 6006 --disable-telemetry",

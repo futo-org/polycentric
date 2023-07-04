@@ -15,7 +15,7 @@ import { useView, ViewContext } from '../../hooks/viewHooks.js';
 
 const TestPage = () => {
     const view = useView();
-    return <p>{JSON.stringify(view.processHandle.system())}</p>
+    return <p className="bold italic">{JSON.stringify(view.processHandle.system())}</p>
 }
 
 // Check if we're in electron or not
