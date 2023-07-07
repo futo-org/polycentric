@@ -101,6 +101,31 @@ format-core:
     - npx prettier ./packages/polycentric-core/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-core/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
   needs: ["check"]
 
+format-react:
+  stage: format
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  script:
+    - ./version.sh
+    - npx prettier ./packages/polycentric-react/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-react/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
+  needs: ["check"]
+
+format-web:
+  stage: format
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  script:
+    - ./version.sh
+    - npx prettier ./packages/polycentric-web/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-web/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
+  needs: ["check"]
+
+
+format-desktop:
+  stage: format
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  script:
+    - ./version.sh
+    - npx prettier ./packages/polycentric-desktop/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-desktop/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
+  needs: ["check"]
+
 format-harbor:
   stage: format
   image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
@@ -153,6 +178,51 @@ build-core-harbor:
         - ./packages/harbor-web/dist/
         - ./packages/polycentric-core/dist/
 
+build-core-react-web: 
+  stage: build
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  cache: *node-cache-config
+  script:
+    - ./version.sh
+    - make proto
+    - cd packages/polycentric-core
+    - npm run build
+    - cd ../polycentric-react
+    - npm run build
+    - cd ../polycentric-web
+    - npm run build
+  needs: ["check"]
+  artifacts:
+      name: "artifacts"
+      expire_in: 10 mins
+      paths:
+        - ./packages/polycentric-web/dist/
+        - ./packages/polycentric-react/dist/
+
+build-core-react-leveldb-desktop: 
+  stage: build
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  cache: *node-cache-config
+  script:
+    - ./version.sh
+    - make proto
+    - cd packages/polycentric-core
+    - npm run build
+    - cd ../polycentric-react
+    - npm run build
+    - cd ../polycentric-leveldb
+    - npm run build
+    - cd ../polycentric-desktop
+    - npm run build
+  needs: ["check"]
+  artifacts:
+      name: "artifacts"
+      expire_in: 10 mins
+      paths:
+        - ./packages/polycentric-leveldb/dist/
+        - ./packages/polycentric-desktop/dist/
+
+
 lint-server: 
   stage: lint
   image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
@@ -181,6 +251,26 @@ lint-harbor:
   script:
     - ./version.sh
     - cd packages/harbor-web
+    - npm i eslint-config-react-app
+    - npx eslint ./src --max-warnings=0
+  needs: ["check"]
+
+lint-react:
+  stage: lint
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  script:
+    - ./version.sh
+    - cd packages/polycentric-react
+    - npm i eslint-config-react-app
+    - npx eslint ./src --max-warnings=0
+  needs: ["check"]
+
+lint-web:
+  stage: lint
+  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  script:
+    - ./version.sh
+    - cd packages/polycentric-web
     - npm i eslint-config-react-app
     - npx eslint ./src --max-warnings=0
   needs: ["check"]
