@@ -149,7 +149,7 @@ async function handlerNitter(
         return;
     }
 
-    let imagePointer: Core.Protocol.Pointer | undefined;
+    let imagePointer: Core.Models.Pointer.Pointer | undefined;
     let message = '';
 
     const textNodes = parsed.getElementsByTagName('p');

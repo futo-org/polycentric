@@ -7,7 +7,7 @@ import * as QueryEvent from './query-event';
 import * as QueryCRDT from './query-crdt';
 
 export class QueryManager {
-    private _processHandle: ProcessHandle.ProcessHandle;
+    processHandle: ProcessHandle.ProcessHandle;
 
     public queryHead: QueryHead.QueryManager;
     public queryIndex: QueryIndex.QueryManager;
@@ -15,7 +15,7 @@ export class QueryManager {
     public queryCRDT: QueryCRDT.QueryManager;
 
     public constructor(processHandle: ProcessHandle.ProcessHandle) {
-        this._processHandle = processHandle;
+        this.processHandle = processHandle;
 
         this.queryHead = new QueryHead.QueryManager(processHandle);
         this.queryIndex = new QueryIndex.QueryManager(processHandle);

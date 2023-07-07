@@ -8,7 +8,7 @@
     "/dist"
   ],
   "dependencies": {
-    "@polycentric/polycentric-core": "@polycentric/polycentric-core",
+    "@polycentric/polycentric-core": "*",
     "abstract-level": "^1.0.3",
     "classic-level": "^1.2.0"
   },
@@ -18,6 +18,7 @@
   },
   "homepage": "./",
   "devDependencies": {
+    "@types/node": "^20.3.3",
     "ts-loader": "^9.4.2",
     "typescript": "^4.8.3",
     "webpack": "^5.74.0",

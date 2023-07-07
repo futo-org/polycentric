@@ -20,7 +20,12 @@ export function createPersistenceDriverLevelDB(
             },
         ) as any as Core.PersistenceDriver.BinaryAbstractLevel;
 
-        await level.open();
+        await level.open((e) => {
+            if (e != null) {
+                console.error(e);
+                console.error("cause " + e.cause)
+            }
+        });
 
         return level;
     };
@@ -36,7 +41,7 @@ export function createPersistenceDriverLevelDB(
         return true;
     };
 
-    const destroyStore = async (path: string) => {};
+    const destroyStore = async (path: string) => { };
 
     return {
         getImplementationName: getImplementationName,
