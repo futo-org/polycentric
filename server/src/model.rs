@@ -367,6 +367,7 @@ pub mod event {
         references: ::std::vec::Vec<crate::model::reference::Reference>,
         lww_element: ::std::option::Option<crate::protocol::LWWElement>,
         lww_element_set: ::std::option::Option<crate::protocol::LWWElementSet>,
+        unix_milliseconds: ::std::option::Option<u64>,
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -384,6 +385,7 @@ pub mod event {
             lww_element_set: ::std::option::Option<
                 crate::protocol::LWWElementSet,
             >,
+            unix_milliseconds: ::std::option::Option<u64>,
         ) -> Event {
             Event {
                 system,
@@ -396,6 +398,7 @@ pub mod event {
                 references,
                 lww_element,
                 lww_element_set,
+                unix_milliseconds,
             }
         }
 
@@ -444,6 +447,10 @@ pub mod event {
         ) -> &::std::option::Option<crate::protocol::LWWElementSet> {
             &self.lww_element_set
         }
+
+        pub fn unix_milliseconds(&self) -> &::std::option::Option<u64> {
+            &self.unix_milliseconds
+        }
     }
 
     pub fn from_proto(
@@ -474,6 +481,7 @@ pub mod event {
                 >>()?,
             proto.lww_element.clone().into_option(),
             proto.lww_element_set.clone().into_option(),
+            proto.unix_milliseconds,
         ))
     }
 
@@ -509,6 +517,7 @@ pub mod event {
         result.lww_element_set = ::protobuf::MessageField::from_option(
             event.lww_element_set().clone(),
         );
+        result.unix_milliseconds = *event.unix_milliseconds();
 
         Ok(result)
     }
@@ -843,6 +852,12 @@ pub mod tests {
         )
     }
 
+    pub fn make_test_process_from_number(
+        n: u8,
+    ) -> crate::model::process::Process {
+        crate::model::process::Process::new([n; 16])
+    }
+
     pub fn make_test_event_with_content(
         keypair: &::ed25519_dalek::Keypair,
         process: &crate::model::process::Process,
@@ -867,6 +882,7 @@ pub mod tests {
             vector_clock,
             indices,
             references,
+            None,
             None,
             None,
         );
@@ -903,6 +919,43 @@ pub mod tests {
             vec![],
             None,
             None,
+            None,
+        );
+
+        crate::model::signed_event::SignedEvent::sign(
+            crate::model::event::to_proto(&event)
+                .unwrap()
+                .write_to_bytes()
+                .unwrap(),
+            &keypair,
+        )
+    }
+
+    pub fn make_test_event_with_time(
+        keypair: &::ed25519_dalek::Keypair,
+        process: &crate::model::process::Process,
+        logical_clock: u64,
+        unix_milliseconds: u64,
+    ) -> crate::model::signed_event::SignedEvent {
+        let system = crate::model::public_key::PublicKey::Ed25519(
+            keypair.public.clone(),
+        );
+
+        let vector_clock = crate::protocol::VectorClock::new();
+        let indices = crate::protocol::Indices::new();
+
+        let event = crate::model::event::Event::new(
+            system,
+            process.clone(),
+            logical_clock,
+            crate::model::known_message_types::POST,
+            vec![0, 1, 2, 3],
+            vector_clock,
+            indices,
+            vec![],
+            None,
+            None,
+            Some(unix_milliseconds),
         );
 
         crate::model::signed_event::SignedEvent::sign(

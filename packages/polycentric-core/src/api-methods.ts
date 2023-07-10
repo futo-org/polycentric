@@ -126,11 +126,10 @@ export async function getResolveClaim(
     return Protocol.Events.decode(rawBody);
 }
 
-export async function getQueryIndex(
+export async function getQueryLatest(
     server: string,
     system: Models.PublicKey.PublicKey,
     eventTypes: Array<Models.ContentType.ContentType>,
-    limit: number | undefined,
 ): Promise<Protocol.Events> {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
@@ -143,8 +142,38 @@ export async function getQueryIndex(
     );
 
     const path =
+        `/query_latest?system=${systemQuery}` +
+        `&event_types=${eventTypesQuery}`;
+
+    const response = await fetch(server + path, {
+        method: 'GET',
+        headers: new Headers({
+            'content-type': 'application/octet-stream',
+        }),
+    });
+
+    await checkResponse('getQueryLatest', response);
+
+    const rawBody = new Uint8Array(await response.arrayBuffer());
+
+    return Protocol.Events.decode(rawBody);
+}
+
+export async function getQueryIndex(
+    server: string,
+    system: Models.PublicKey.PublicKey,
+    contentType: Models.ContentType.ContentType,
+    after?: Long,
+    limit?: Long,
+): Promise<Protocol.Events> {
+    const systemQuery = Base64.encodeUrl(
+        Protocol.PublicKey.encode(system).finish(),
+    );
+
+    const path =
         `/query_index?system=${systemQuery}` +
-        `&event_types=${eventTypesQuery}` +
+        `&content_type=${contentType.toString()}` +
+        (after ? `&after=${after.toString()}` : '') +
         (limit ? `&limit=${limit.toString()}` : '');
 
     const response = await fetch(server + path, {

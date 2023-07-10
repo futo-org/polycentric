@@ -49,12 +49,42 @@ function makeEventKey(
     ]);
 }
 
+function indexSystemContentTypeUnixMillisecondsProcessKeySuffix(
+    system: Models.PublicKey.PublicKey,
+    contentType: Models.ContentType.ContentType,
+): Uint8Array {
+    return Util.concatBuffers([
+        new Uint8Array(system.keyType.toBytesBE()),
+        system.key,
+        new Uint8Array(contentType.toBytesBE()),
+    ]);
+}
+
+function indexSystemContentTypeUnixMillisecondsProcessKey(
+    system: Models.PublicKey.PublicKey,
+    contentType: Models.ContentType.ContentType,
+    unixMilliseconds: Long | undefined,
+    process: Models.Process.Process | undefined,
+): Uint8Array {
+    return Util.concatBuffers([
+        new Uint8Array(system.keyType.toBytesBE()),
+        system.key,
+        new Uint8Array(contentType.toBytesBE()),
+        unixMilliseconds
+            ? new Uint8Array(unixMilliseconds.toBytesBE())
+            : MAX_8BYTE_KEY,
+        process ? process.process : MAX_16BYTE_KEY,
+    ]);
+}
+
 export class Store {
     level: PersistenceDriver.BinaryAbstractLevel;
     levelSystemStates: PersistenceDriver.BinaryAbstractSubLevel;
     levelProcessStates: PersistenceDriver.BinaryAbstractSubLevel;
     levelEvents: PersistenceDriver.BinaryAbstractSubLevel;
     levelIndexClaims: PersistenceDriver.BinaryAbstractSubLevel;
+
+    levelIndexSystemContentTypeUnixMillisecondsProcess: PersistenceDriver.BinaryAbstractSubLevel;
 
     constructor(level: PersistenceDriver.BinaryAbstractLevel) {
         this.level = level;
@@ -78,6 +108,15 @@ export class Store {
             keyEncoding: 'buffer',
             valueEncoding: 'buffer',
         }) as PersistenceDriver.BinaryAbstractSubLevel;
+
+        this.levelIndexSystemContentTypeUnixMillisecondsProcess =
+            this.level.sublevel(
+                'indexSystemContentTypeUnixMillisecondsProcess',
+                {
+                    keyEncoding: 'buffer',
+                    valueEncoding: 'buffer',
+                },
+            ) as PersistenceDriver.BinaryAbstractSubLevel;
     }
 
     public async setProcessSecret(
@@ -149,69 +188,96 @@ export class Store {
         }
     }
 
-    public deleteIndexClaim(
-        system: Models.PublicKey.PublicKey,
-        process: Models.Process.Process,
-        logicalClock: Long,
+    public deleteIndexSystemContentTypeUnixMillisecondsProcess(
+        event: Models.Event.Event,
     ): PersistenceDriver.BinaryDelLevel {
-        const key = makeEventKey(system, process, logicalClock);
+        if (event.unixMilliseconds === undefined) {
+            throw Error('expected unixMilliseconds');
+        }
+
+        const indexKey = indexSystemContentTypeUnixMillisecondsProcessKey(
+            event.system,
+            event.contentType,
+            event.unixMilliseconds,
+            event.process,
+        );
 
         return {
             type: 'del',
-            key: key,
-            sublevel: this.levelIndexClaims,
+            key: indexKey,
+            sublevel: this.levelIndexSystemContentTypeUnixMillisecondsProcess,
         };
     }
 
-    public putIndexClaim(
-        system: Models.PublicKey.PublicKey,
-        process: Models.Process.Process,
-        logicalClock: Long,
+    public putIndexSystemContentTypeUnixMillisecondsProcess(
+        event: Models.Event.Event,
     ): PersistenceDriver.BinaryPutLevel {
-        const key = makeEventKey(system, process, logicalClock);
+        if (event.unixMilliseconds === undefined) {
+            throw Error('expected unixMilliseconds');
+        }
+
+        const indexKey = indexSystemContentTypeUnixMillisecondsProcessKey(
+            event.system,
+            event.contentType,
+            event.unixMilliseconds,
+            event.process,
+        );
+
+        const eventKey = makeEventKey(
+            event.system,
+            event.process,
+            event.logicalClock,
+        );
 
         return {
             type: 'put',
-            key: key,
-            value: new Uint8Array(),
-            sublevel: this.levelIndexClaims,
+            key: indexKey,
+            value: eventKey,
+            sublevel: this.levelIndexSystemContentTypeUnixMillisecondsProcess,
         };
     }
 
-    public async queryClaimIndex(
+    public async queryIndexSystemContentTypeUnixMillisecondsProcess(
         system: Models.PublicKey.PublicKey,
+        contentType: Models.ContentType.ContentType,
+        unixMilliseconds: Long | undefined,
         limit: number,
-        iterator: Uint8Array | undefined,
-    ): Promise<[Array<Protocol.SignedEvent>, Uint8Array | undefined]> {
-        const systemStateKey = makeSystemStateKey(system);
+    ): Promise<Array<Protocol.SignedEvent>> {
+        const suffix = indexSystemContentTypeUnixMillisecondsProcessKeySuffix(
+            system,
+            contentType,
+        );
 
-        const key = iterator ? iterator : systemStateKey;
+        const key = indexSystemContentTypeUnixMillisecondsProcessKey(
+            system,
+            contentType,
+            unixMilliseconds,
+            undefined,
+        );
 
-        const indices = await this.levelIndexClaims
-            .keys({
-                gt: key,
-                limit: limit,
-            })
-            .all();
+        const rows =
+            await this.levelIndexSystemContentTypeUnixMillisecondsProcess
+                .iterator({
+                    lt: key,
+                    limit: limit,
+                })
+                .all();
 
-        let position = undefined;
         let result = [];
 
-        for (const k of indices) {
-            if (!Util.bufferSuffixMatch(k, systemStateKey)) {
+        for (const [k, value] of rows) {
+            if (!Util.bufferSuffixMatch(k, suffix)) {
                 continue;
             }
 
-            const signedEvent = await this.getSignedEventByKey(k);
+            const signedEvent = await this.getSignedEventByKey(value);
 
             if (signedEvent) {
                 result.push(signedEvent);
             }
-
-            position = k;
         }
 
-        return [result, position];
+        return result;
     }
 
     public putSystemState(

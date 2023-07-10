@@ -239,6 +239,12 @@ message QueryReferencesResponse {
 
 // end /query_references API
 
+// /query_index
+message QueryIndexResponse {
+    repeated SignedEvent events = 1;
+    repeated SignedEvent proof = 2;
+}
+
 message URLInfo {
     // url_type 1 = URLInfoSystemLink
     // url_type 2 = URLInfoEventLink

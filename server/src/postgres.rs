@@ -108,18 +108,19 @@ pub(crate) async fn prepare_database(
     ::sqlx::query(
         "
         CREATE TABLE IF NOT EXISTS events (
-            id              BIGSERIAL PRIMARY KEY,
-            system_key_type INT8      NOT NULL,
-            system_key      BYTEA     NOT NULL,
-            process         BYTEA     NOT NULL,
-            logical_clock   INT8      NOT NULL,
-            content_type    INT8      NOT NULL,
-            content         BYTEA     NOT NULL,
-            vector_clock    BYTEA     NOT NULL,
-            indices         BYTEA     NOT NULL,
-            signature       BYTEA     NOT NULL,
-            raw_event       BYTEA     NOT NULL,
-            server_time     INT8      NOT NULL,
+            id                BIGSERIAL PRIMARY KEY,
+            system_key_type   INT8      NOT NULL,
+            system_key        BYTEA     NOT NULL,
+            process           BYTEA     NOT NULL,
+            logical_clock     INT8      NOT NULL,
+            content_type      INT8      NOT NULL,
+            content           BYTEA     NOT NULL,
+            vector_clock      BYTEA     NOT NULL,
+            indices           BYTEA     NOT NULL,
+            signature         BYTEA     NOT NULL,
+            raw_event         BYTEA     NOT NULL,
+            server_time       INT8      NOT NULL,
+            unix_milliseconds INT8
 
             CHECK ( system_key_type >= 0  ),
             CHECK ( LENGTH(process) =  16 ),
@@ -611,9 +612,10 @@ pub(crate) async fn insert_event(
             indices,
             signature,
             raw_event,
-            server_time
+            server_time,
+            unix_milliseconds
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING id;
     ";
 
@@ -638,6 +640,7 @@ pub(crate) async fn insert_event(
         .bind(signed_event.signature())
         .bind(&serialized)
         .bind(i64::try_from(server_time)?)
+        .bind(event.unix_milliseconds().map(i64::try_from).transpose()?)
         .fetch_one(&mut *transaction)
         .await?;
 

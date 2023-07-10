@@ -536,25 +536,11 @@ export class ProcessHandle {
                     await Models.signedEventToPointer(signedEvent),
                 ),
             );
-
-            actions.push(
-                this._store.deleteIndexClaim(
-                    event.system,
-                    event.process,
-                    event.logicalClock,
-                ),
-            );
-        } else if (
-            event.contentType.equals(Models.ContentType.ContentTypeClaim)
-        ) {
-            actions.push(
-                this._store.putIndexClaim(
-                    event.system,
-                    event.process,
-                    event.logicalClock,
-                ),
-            );
         }
+
+        actions.push(
+            this._store.putIndexSystemContentTypeUnixMillisecondsProcess(event),
+        );
 
         updateSystemState(systemState, event);
         updateProcessState(processState, event);

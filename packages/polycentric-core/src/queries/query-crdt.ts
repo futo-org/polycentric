@@ -179,12 +179,9 @@ export class QueryManager {
         contentType: Models.ContentType.ContentType,
         server: string,
     ): Promise<void> {
-        const events = await APIMethods.getQueryIndex(
-            server,
-            system,
-            [contentType],
-            undefined,
-        );
+        const events = await APIMethods.getQueryLatest(server, system, [
+            contentType,
+        ]);
 
         for (const event of events.events) {
             this.update(Models.SignedEvent.fromProto(event));

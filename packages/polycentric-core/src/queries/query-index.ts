@@ -1,3 +1,5 @@
+import Long from 'long';
+
 import * as ProcessHandle from '../process-handle';
 import * as APIMethods from '../api-methods';
 import * as Models from '../models';
@@ -20,6 +22,7 @@ type StateForQuery = {
     totalExpected: number;
     contentType: Models.ContentType.ContentType;
     events: Map<Models.Process.ProcessString, Array<EventMemo>>;
+    earliestTime: Long | undefined;
 };
 
 type StateForSystem = {
@@ -69,6 +72,7 @@ export class QueryManager {
             totalExpected: 0,
             contentType: contentType,
             events: new Map(),
+            earliestTime: undefined,
         };
 
         stateForSystem.queries.set(callback, stateForQuery);
@@ -103,56 +107,33 @@ export class QueryManager {
 
         stateForQuery.totalExpected += additionalCount;
 
-        const queryAfter = this.pickQueryPath(stateForQuery);
-
         if (this._useNetwork === true) {
-            this.loadFromNetwork(system, queryAfter);
+            this.loadFromNetwork(system, stateForQuery);
         }
 
         if (this._useDisk === true) {
-            this.loadFromDisk(system, queryAfter);
+            this.loadFromDisk(system, stateForQuery);
         }
-    }
-
-    private pickQueryPath(
-        stateForQuery: StateForQuery,
-    ): Models.Event.Event | undefined {
-        let newest: Models.Event.Event | undefined = undefined;
-
-        for (const eventsForProcess of stateForQuery.events.values()) {
-            for (const event of eventsForProcess) {
-                if (event.event.unixMilliseconds === undefined) {
-                    throw Error('expected unixMilliseconds');
-                }
-
-                if (
-                    newest !== undefined &&
-                    newest.unixMilliseconds === undefined
-                ) {
-                    throw Error('expected unixMilliseconds');
-                }
-
-                if (
-                    newest === undefined ||
-                    event.event.unixMilliseconds.lessThan(
-                        newest.unixMilliseconds!,
-                    )
-                ) {
-                    newest = event.event;
-                }
-            }
-        }
-
-        return newest;
     }
 
     private async loadFromDisk(
         system: Models.PublicKey.PublicKey,
-        after: Models.Event.Event | undefined,
+        stateForQuery: StateForQuery,
     ): Promise<void> {
-        const [events] = await this._processHandle
+        let totalEvents = 0;
+
+        for (const eventsForProcess in stateForQuery.events.values()) {
+            totalEvents += eventsForProcess.length;
+        }
+
+        const events = await this._processHandle
             .store()
-            .queryClaimIndex(system, 10, undefined);
+            .queryIndexSystemContentTypeUnixMillisecondsProcess(
+                system,
+                stateForQuery.contentType,
+                stateForQuery.earliestTime,
+                stateForQuery.totalExpected - totalEvents,
+            );
 
         for (const event of events) {
             this.update(Models.SignedEvent.fromProto(event));
@@ -161,13 +142,13 @@ export class QueryManager {
 
     private async loadFromNetwork(
         system: Models.PublicKey.PublicKey,
-        after: Models.Event.Event | undefined,
+        stateForQuery: StateForQuery,
     ): Promise<void> {
         const systemState = await this._processHandle.loadSystemState(system);
 
         for (const server of systemState.servers()) {
             try {
-                this.loadFromNetworkSpecific(system, server, after);
+                this.loadFromNetworkSpecific(system, server, stateForQuery);
             } catch (err) {
                 console.log(err);
             }
@@ -177,16 +158,23 @@ export class QueryManager {
     private async loadFromNetworkSpecific(
         system: Models.PublicKey.PublicKey,
         server: string,
-        after: Models.Event.Event | undefined,
+        stateForQuery: StateForQuery,
     ): Promise<void> {
-        const events = await APIMethods.getQueryIndex(
+        let totalEvents = 0;
+
+        for (const eventsForProcess in stateForQuery.events.values()) {
+            totalEvents += eventsForProcess.length;
+        }
+
+        const response = await APIMethods.getQueryIndex(
             server,
             system,
-            [Models.ContentType.ContentTypeClaim],
-            10,
+            Models.ContentType.ContentTypeClaim,
+            stateForQuery.earliestTime,
+            Long.fromNumber(stateForQuery.totalExpected - totalEvents),
         );
 
-        for (const event of events.events) {
+        for (const event of response.events) {
             this.update(Models.SignedEvent.fromProto(event));
         }
     }
@@ -216,6 +204,10 @@ export class QueryManager {
             return;
         }
 
+        if (event.unixMilliseconds === undefined) {
+            return;
+        }
+
         let totalEvents = 0;
 
         for (const eventsForProcess in stateForQuery.events.values()) {
@@ -224,6 +216,13 @@ export class QueryManager {
 
         if (totalEvents >= stateForQuery.totalExpected) {
             return;
+        }
+
+        if (
+            stateForQuery.earliestTime === undefined ||
+            stateForQuery.earliestTime.greaterThan(event.unixMilliseconds)
+        ) {
+            stateForQuery.earliestTime = event.unixMilliseconds;
         }
 
         const processString = Models.Process.toString(event.process);

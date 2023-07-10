@@ -117,38 +117,4 @@ describe('processHandle', () => {
 
         await processHandle.delete(pointer.process, pointer.logicalClock);
     });
-
-    test('claim index', async () => {
-        const processHandle = await createProcessHandle();
-
-        expect(
-            await processHandle
-                .store()
-                .queryClaimIndex(processHandle.system(), 10, undefined),
-        ).toStrictEqual([[], undefined]);
-
-        const claimCount = 12;
-
-        for (let i = 0; i < claimCount; i++) {
-            await processHandle.claim(Models.claimHackerNews(i.toString()));
-        }
-
-        const batch1 = await processHandle
-            .store()
-            .queryClaimIndex(processHandle.system(), 5, undefined);
-
-        expect(batch1[0].length).toStrictEqual(5);
-
-        const batch2 = await processHandle
-            .store()
-            .queryClaimIndex(processHandle.system(), 10, batch1[1]);
-
-        expect(batch2[0].length).toStrictEqual(7);
-
-        expect(
-            await processHandle
-                .store()
-                .queryClaimIndex(processHandle.system(), 10, batch2[1]),
-        ).toStrictEqual([[], undefined]);
-    });
 });

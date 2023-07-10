@@ -101,31 +101,33 @@ describe('query index', () => {
         const s2p1 = await ProcessHandle.createTestProcessHandle();
         await s2p1.addServer(TEST_SERVER);
 
-        await s2p1.claim(Models.claimGeneric('1'));
-        await s2p1.claim(Models.claimGeneric('2'));
+        for (let i = 0; i < 30; i++) {
+            await s2p1.claim(Models.claimGeneric(i.toString()));
+        }
+
         await fullSync(s2p1);
 
         s1p1.addAddressHint(s2p1.system(), TEST_SERVER);
 
-        let stage = 0;
+        let stage = 29;
 
         await new Promise<void>((resolve) => {
             const cb = (value: QueryIndex.CallbackParameters) => {
-                if (stage === 0) {
-                    expect(extractGenericClaim(value.add[0])).toStrictEqual(
-                        '2',
-                    );
-                } else if (stage === 1) {
-                    expect(extractGenericClaim(value.add[0])).toStrictEqual(
-                        '1',
-                    );
-
+                if (stage === 11) {
                     resolve();
+                } else if (stage === 21) {
+                    expect(extractGenericClaim(value.add[0])).toStrictEqual(
+                        '21',
+                    );
+                    // start the second batch
+                    queryManager.advance(s2p1.system(), cb, 10);
                 } else {
-                    throw Error('unexpected');
+                    expect(extractGenericClaim(value.add[0])).toStrictEqual(
+                        stage.toString(),
+                    );
                 }
 
-                stage++;
+                stage--;
             };
 
             queryManager.query(
