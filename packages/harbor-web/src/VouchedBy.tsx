@@ -1,8 +1,8 @@
 import * as ReactRouterDOM from 'react-router-dom';
 import * as React from 'react';
 
-import * as App from './App';
 import * as Core from '@polycentric/polycentric-core';
+import { loadImageFromPointer } from './util';
 
 function loadVouchedByState(
     cancelContext: Core.CancelContext.CancelContext,
@@ -35,7 +35,7 @@ function loadVouchedByState(
         avatarCancelContext: Core.CancelContext.CancelContext,
         pointer: Core.Models.Pointer.Pointer,
     ): Promise<void> => {
-        const link = await App.loadImageFromPointer(processHandle, pointer);
+        const link = await loadImageFromPointer(processHandle, pointer);
 
         if (cancelContext.cancelled() || avatarCancelContext.cancelled()) {
             return;
