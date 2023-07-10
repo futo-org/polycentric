@@ -3,17 +3,19 @@ import YouTubeIcon from '@mui/icons-material/YouTube';
 import BitcoinIcon from '@mui/icons-material/CurrencyBitcoin';
 import TwitterIcon from '@mui/icons-material/Twitter';
 import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
-import * as App from './App';
 import * as Core from '@polycentric/polycentric-core';
 import * as VouchedBy from './VouchedBy';
+import { server } from './util';
+import { ParsedEvent } from './util';
 
 export type ClaimProps = {
     processHandle: Core.ProcessHandle.ProcessHandle;
     queryManager: Core.Queries.QueryManager.QueryManager;
-    parsedEvent: App.ParsedEvent<Core.Protocol.Claim>;
+    parsedEvent: ParsedEvent<Core.Protocol.Claim>;
 };
 
 type ImplementsFontSxProp = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sx?: any;
 };
 
@@ -114,7 +116,7 @@ export function Claim(props: ClaimProps) {
             const reference = Core.Models.pointerToReference(pointer);
 
             const references = await Core.APIMethods.getQueryReferences(
-                App.server,
+                server,
                 reference,
                 undefined,
                 {

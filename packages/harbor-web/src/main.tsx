@@ -14,16 +14,12 @@ async function createProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> 
 }
 
 async function main() {
-    const root = ReactDOM.createRoot(
-        document.getElementById('root') as HTMLElement,
-    );
-
     const processHandle = await createProcessHandle();
     const queryManager = new Core.Queries.QueryManager.QueryManager(
         processHandle,
     );
 
-    root.render(
+    ReactDOM.createRoot(document.getElementById('root')!).render(
         <React.StrictMode>
             <App.App
                 processHandle={processHandle}
