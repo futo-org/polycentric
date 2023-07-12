@@ -329,6 +329,14 @@ export enum ClaimType {
     Twitter = 'Twitter',
     Bitcoin = 'Bitcoin',
     Generic = 'Generic',
+    Discord = 'Discord',
+    Instagram = 'Instagram',
+    GitHub = 'GitHub',
+    Minds = 'Minds',
+    Patreon = 'Patreon',
+    Substack = 'Substack',
+    Twitch = 'Twitch',
+    Website = 'Website',
     URL = 'URL',
 }
 
