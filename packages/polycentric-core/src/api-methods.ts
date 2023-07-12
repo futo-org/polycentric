@@ -165,7 +165,7 @@ export async function getQueryIndex(
     contentType: Models.ContentType.ContentType,
     after?: Long,
     limit?: Long,
-): Promise<Protocol.Events> {
+): Promise<Protocol.QueryIndexResponse> {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
     );
@@ -187,7 +187,7 @@ export async function getQueryIndex(
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
-    return Protocol.Events.decode(rawBody);
+    return Protocol.QueryIndexResponse.decode(rawBody);
 }
 
 export async function getQueryReferences(
