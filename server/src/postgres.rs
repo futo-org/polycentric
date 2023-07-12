@@ -258,12 +258,14 @@ pub(crate) async fn prepare_database(
     ::sqlx::query(
         "
         CREATE TABLE IF NOT EXISTS deletions (
-            id              BIGSERIAL PRIMARY KEY,
-            system_key_type INT8      NOT NULL,
-            system_key      BYTEA     NOT NULL,
-            process         BYTEA     NOT NULL,
-            logical_clock   INT8      NOT NULL,
-            event_id        BIGSERIAL NOT NULL,
+            id                BIGSERIAL PRIMARY KEY,
+            system_key_type   INT8      NOT NULL,
+            system_key        BYTEA     NOT NULL,
+            process           BYTEA     NOT NULL,
+            logical_clock     INT8      NOT NULL,
+            event_id          BIGSERIAL NOT NULL,
+            unix_milliseconds INT8,
+            content_type      INT8      NOT NULL,
 
             CHECK ( system_key_type >= 0  ),
             CHECK ( LENGTH(process) =  16 ),
@@ -555,10 +557,12 @@ pub(crate) async fn delete_event(
             system_key,
             process,
             logical_clock,
-            event_id
+            event_id,
+            unix_milliseconds,
+            content_type
         )
         VALUES (
-            $1, $2, $3, $4, $5
+            $1, $2, $3, $4, $5, $6, $7
         );
     ";
 
@@ -578,6 +582,8 @@ pub(crate) async fn delete_event(
         .bind(delete.process().bytes())
         .bind(i64::try_from(*delete.logical_clock())?)
         .bind(i64::try_from(event_id)?)
+        .bind(delete.unix_milliseconds().map(i64::try_from).transpose()?)
+        .bind(i64::try_from(*delete.content_type())?)
         .execute(&mut *transaction)
         .await?;
 

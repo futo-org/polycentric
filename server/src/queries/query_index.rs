@@ -99,8 +99,33 @@ pub(crate) async fn load_event_later_than(
     let query = "
         SELECT
             raw_event
-        FROM
-            events
+        FROM (
+            SELECT
+                raw_event as raw_event,
+                unix_milliseconds,
+                process,
+                logical_clock,
+                system_key_type,
+                system_key,
+                content_type
+            FROM
+                events
+            UNION
+            SELECT
+                events.raw_event as raw_event,
+                deletions.unix_milliseconds as unix_milliseconds,
+                deletions.process as process,
+                deletions.logical_clock as logical_clock,
+                deletions.system_key_type as system_key_type,
+                deletions.system_key as system_key,
+                deletions.content_type as content_type
+            FROM
+                deletions
+            INNER JOIN
+                events
+            ON
+                events.id = deletions.event_id
+        ) x
         WHERE
             system_key_type = $1
         AND
@@ -150,8 +175,33 @@ pub(crate) async fn load_event_earlier_than(
     let query = "
         SELECT
             raw_event
-        FROM
-            events
+        FROM (
+            SELECT
+                raw_event as raw_event,
+                unix_milliseconds,
+                process,
+                logical_clock,
+                system_key_type,
+                system_key,
+                content_type
+            FROM
+                events
+            UNION
+            SELECT
+                events.raw_event as raw_event,
+                deletions.unix_milliseconds as unix_milliseconds,
+                deletions.process as process,
+                deletions.logical_clock as logical_clock,
+                deletions.system_key_type as system_key_type,
+                deletions.system_key as system_key,
+                deletions.content_type as content_type
+            FROM
+                deletions
+            INNER JOIN
+                events
+            ON
+                events.id = deletions.event_id
+        ) x
         WHERE
             system_key_type = $1
         AND
@@ -200,8 +250,33 @@ pub(crate) async fn load_events_by_time(
     let query = "
         SELECT
             raw_event
-        FROM
-            events
+        FROM (
+            SELECT
+                raw_event as raw_event,
+                unix_milliseconds,
+                process,
+                logical_clock,
+                system_key_type,
+                system_key,
+                content_type
+            FROM
+                events
+            UNION
+            SELECT
+                events.raw_event as raw_event,
+                deletions.unix_milliseconds as unix_milliseconds,
+                deletions.process as process,
+                deletions.logical_clock as logical_clock,
+                deletions.system_key_type as system_key_type,
+                deletions.system_key as system_key,
+                deletions.content_type as content_type
+            FROM
+                deletions
+            INNER JOIN
+                events
+            ON
+                events.id = deletions.event_id
+        ) x
         WHERE
             system_key_type = $1
         AND
@@ -217,7 +292,7 @@ pub(crate) async fn load_events_by_time(
         DESC,
             logical_clock
         DESC
-        LIMIT $5;
+        LIMIT $5
     ";
 
     ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
@@ -402,6 +477,67 @@ pub mod tests {
         let proof = vec![s1p1e4, s1p2e2];
 
         assert!(proof.iter().all(|item| result.proof.contains(item)));
+
+        Ok(())
+    }
+
+    #[::sqlx::test]
+    async fn test_single_process_with_delete(
+        pool: ::sqlx::PgPool,
+    ) -> ::anyhow::Result<()> {
+        let mut transaction = pool.begin().await?;
+        crate::postgres::prepare_database(&mut transaction).await?;
+
+        let s1 = crate::model::tests::make_test_keypair();
+        let s1p1 = crate::model::tests::make_test_process();
+
+        let s1p1e1 =
+            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 1, 12);
+        let s1p1e2 =
+            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 2, 13);
+        let s1p1e3 =
+            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 3, 14);
+        let s1p1e4 =
+            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 4, 15);
+        let s1p1e5 =
+            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 5, 20);
+
+        let s1p1e6 = crate::model::tests::make_delete_event_from_event(
+            &s1, &s1p1, &s1p1e3, 6, 21,
+        );
+
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e1).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e2).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e3).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e4).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e5).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e6).await?;
+
+        let system =
+            crate::model::public_key::PublicKey::Ed25519(s1.public.clone());
+
+        let result = crate::queries::query_index::query_index(
+            &mut transaction,
+            &system,
+            crate::model::known_message_types::POST,
+            4,
+            &None,
+        )
+        .await?;
+
+        transaction.commit().await?;
+
+        assert!(
+            result.events
+                == vec![
+                    s1p1e5.clone(),
+                    s1p1e4.clone(),
+                    s1p1e6.clone(),
+                    s1p1e2.clone(),
+                ],
+        );
+
+        assert!(result.proof == vec![]);
 
         Ok(())
     }

@@ -258,6 +258,8 @@ export namespace Delete {
         process: Process.Process;
         logicalClock: Long;
         indices: Protocol.Indices;
+        unixMilliseconds: Long | undefined;
+        contentType: ContentType.ContentType;
     }
 
     export type Delete = Readonly<DeleteI> & { readonly __tag: unique symbol };

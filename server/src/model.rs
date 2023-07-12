@@ -606,6 +606,8 @@ pub mod delete {
         process: crate::model::process::Process,
         logical_clock: u64,
         indices: crate::protocol::Indices,
+        unix_milliseconds: ::std::option::Option<u64>,
+        content_type: u64,
     }
 
     impl Delete {
@@ -613,11 +615,15 @@ pub mod delete {
             process: crate::model::process::Process,
             logical_clock: u64,
             indices: crate::protocol::Indices,
+            unix_milliseconds: ::std::option::Option<u64>,
+            content_type: u64,
         ) -> Delete {
             Delete {
                 process,
                 logical_clock,
                 indices,
+                unix_milliseconds,
+                content_type,
             }
         }
 
@@ -632,6 +638,14 @@ pub mod delete {
         pub fn indices(&self) -> &crate::protocol::Indices {
             &self.indices
         }
+
+        pub fn unix_milliseconds(&self) -> &::std::option::Option<u64> {
+            &self.unix_milliseconds
+        }
+
+        pub fn content_type(&self) -> &u64 {
+            &self.content_type
+        }
     }
 
     pub fn from_proto(
@@ -645,6 +659,8 @@ pub mod delete {
                 .clone()
                 .into_option()
                 .context("expected indices")?,
+            proto.unix_milliseconds,
+            proto.content_type,
         ))
     }
 
@@ -655,6 +671,8 @@ pub mod delete {
         );
         result.logical_clock = *item.logical_clock();
         result.indices = ::protobuf::MessageField::some(item.indices().clone());
+        result.unix_milliseconds = *item.unix_milliseconds();
+        result.content_type = *item.content_type();
         result
     }
 }
@@ -866,21 +884,16 @@ pub mod tests {
         content: &::std::vec::Vec<u8>,
         references: ::std::vec::Vec<crate::model::reference::Reference>,
     ) -> crate::model::signed_event::SignedEvent {
-        let system = crate::model::public_key::PublicKey::Ed25519(
-            keypair.public.clone(),
-        );
-
-        let vector_clock = crate::protocol::VectorClock::new();
-        let indices = crate::protocol::Indices::new();
-
         let event = crate::model::event::Event::new(
-            system,
+            crate::model::public_key::PublicKey::Ed25519(
+                keypair.public.clone(),
+            ),
             process.clone(),
             logical_clock,
             content_type,
             content.clone(),
-            vector_clock,
-            indices,
+            crate::protocol::VectorClock::new(),
+            crate::protocol::Indices::new(),
             references,
             None,
             None,
@@ -901,21 +914,16 @@ pub mod tests {
         process: &crate::model::process::Process,
         logical_clock: u64,
     ) -> crate::model::signed_event::SignedEvent {
-        let system = crate::model::public_key::PublicKey::Ed25519(
-            keypair.public.clone(),
-        );
-
-        let vector_clock = crate::protocol::VectorClock::new();
-        let indices = crate::protocol::Indices::new();
-
         let event = crate::model::event::Event::new(
-            system,
+            crate::model::public_key::PublicKey::Ed25519(
+                keypair.public.clone(),
+            ),
             process.clone(),
             logical_clock,
             3,
             vec![0, 1, 2, 3],
-            vector_clock,
-            indices,
+            crate::protocol::VectorClock::new(),
+            crate::protocol::Indices::new(),
             vec![],
             None,
             None,
@@ -937,21 +945,60 @@ pub mod tests {
         logical_clock: u64,
         unix_milliseconds: u64,
     ) -> crate::model::signed_event::SignedEvent {
-        let system = crate::model::public_key::PublicKey::Ed25519(
-            keypair.public.clone(),
-        );
-
-        let vector_clock = crate::protocol::VectorClock::new();
-        let indices = crate::protocol::Indices::new();
-
         let event = crate::model::event::Event::new(
-            system,
+            crate::model::public_key::PublicKey::Ed25519(
+                keypair.public.clone(),
+            ),
             process.clone(),
             logical_clock,
             crate::model::known_message_types::POST,
             vec![0, 1, 2, 3],
-            vector_clock,
-            indices,
+            crate::protocol::VectorClock::new(),
+            crate::protocol::Indices::new(),
+            vec![],
+            None,
+            None,
+            Some(unix_milliseconds),
+        );
+
+        crate::model::signed_event::SignedEvent::sign(
+            crate::model::event::to_proto(&event)
+                .unwrap()
+                .write_to_bytes()
+                .unwrap(),
+            &keypair,
+        )
+    }
+
+    pub fn make_delete_event_from_event(
+        keypair: &::ed25519_dalek::Keypair,
+        process: &crate::model::process::Process,
+        subject_signed_event: &crate::model::signed_event::SignedEvent,
+        logical_clock: u64,
+        unix_milliseconds: u64,
+    ) -> crate::model::signed_event::SignedEvent {
+        let subject_event =
+            crate::model::event::from_vec(subject_signed_event.event())
+                .unwrap();
+
+        let event = crate::model::event::Event::new(
+            crate::model::public_key::PublicKey::Ed25519(
+                keypair.public.clone(),
+            ),
+            process.clone(),
+            logical_clock,
+            crate::model::known_message_types::DELETE,
+            crate::model::delete::to_proto(&crate::model::delete::Delete::new(
+                subject_event.process().clone(),
+                subject_event.logical_clock().clone(),
+                subject_event.indices().clone(),
+                *subject_event.unix_milliseconds(),
+                *subject_event.content_type(),
+            ))
+            .write_to_bytes()
+            .unwrap(),
+            crate::protocol::VectorClock::new(),
+            crate::protocol::Indices::new(),
             vec![],
             None,
             None,

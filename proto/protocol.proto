@@ -85,9 +85,11 @@ message Pointer {
 }
 
 message Delete {
-    Process process       = 1;
-    uint64  logical_clock = 2;
-    Indices indices       = 3;
+             Process process           = 1;
+             uint64  logical_clock     = 2;
+             Indices indices           = 3;
+    optional uint64  unix_milliseconds = 4;
+             uint64  content_type      = 5;
 }
 
 message Events {

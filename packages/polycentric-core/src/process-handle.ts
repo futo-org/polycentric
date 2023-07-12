@@ -324,6 +324,8 @@ export class ProcessHandle {
                 process: process,
                 logicalClock: logicalClock,
                 indices: event.indices,
+                unixMilliseconds: event.unixMilliseconds,
+                contentType: event.contentType,
             }).finish(),
             undefined,
             undefined,
