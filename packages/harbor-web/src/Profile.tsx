@@ -1,9 +1,9 @@
 import * as React from 'react';
 import * as Core from '@polycentric/polycentric-core';
-import * as App from './App';
 import * as Claim from './Claim';
+import { ParsedEvent, loadImageFromPointer } from './util';
 
-export function loadProfileProps(
+function loadProfileProps(
     cancelContext: Core.CancelContext.CancelContext,
     processHandle: Core.ProcessHandle.ProcessHandle,
     queryManager: Core.Queries.QueryManager.QueryManager,
@@ -53,7 +53,7 @@ export function loadProfileProps(
         avatarCancelContext: Core.CancelContext.CancelContext,
         pointer: Core.Models.Pointer.Pointer,
     ): Promise<void> => {
-        const link = await App.loadImageFromPointer(processHandle, pointer);
+        const link = await loadImageFromPointer(processHandle, pointer);
 
         if (cancelContext.cancelled() || avatarCancelContext.cancelled()) {
             return;
@@ -112,7 +112,7 @@ export function loadProfileProps(
 
                 const claim = Core.Protocol.Claim.decode(event.content);
 
-                return new App.ParsedEvent<Core.Protocol.Claim>(
+                return new ParsedEvent<Core.Protocol.Claim>(
                     signedEvent,
                     event,
                     claim,
@@ -159,7 +159,7 @@ type State = {
     name: string;
     description: string;
     avatar: string;
-    claims: Array<App.ParsedEvent<Core.Protocol.Claim>>;
+    claims: Array<ParsedEvent<Core.Protocol.Claim>>;
 };
 
 const initialState = {
@@ -192,7 +192,7 @@ export function Profile(props: ProfileProps) {
         };
     }, [props.processHandle, props.queryManager, props.system]);
 
-    const isSocialProp = (claim: App.ParsedEvent<Core.Protocol.Claim>) => {
+    const isSocialProp = (claim: ParsedEvent<Core.Protocol.Claim>) => {
         return (
             claim.value.claimType === Core.Models.ClaimType.Twitter ||
             claim.value.claimType === Core.Models.ClaimType.YouTube ||
@@ -210,11 +210,15 @@ export function Profile(props: ProfileProps) {
 
     return (
         <div className="bg-white dark:bg-zinc-900 px-11 py-20 w-full max-w-4xl dark:text-white">
-            <div className="bg-slate-200 dark:bg-zinc-800 py-28 px-9 rounded-3xl">
+            <div className="bg-zinc-100 dark:bg-zinc-800 py-28 px-9 rounded-3xl shadow">
                 <div className="flex flex-col items-center justify-center text-center gap-5">
                     <img
                         className="rounded-full w-20 h-20"
-                        src={state.avatar}
+                        src={
+                            state.avatar == '' || state.avatar == null
+                                ? '/placeholder.jpg'
+                                : state.avatar
+                        }
                         alt={`The avatar for ${state.name}`}
                     />
                     <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
@@ -254,6 +258,11 @@ export function Profile(props: ProfileProps) {
                             queryManager={props.queryManager}
                         />
                     ))}
+                    {otherClaims.length == 0 && (
+                        <div className="text-gray-400 dark:text-gray-600">
+                            No claims yet!
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
