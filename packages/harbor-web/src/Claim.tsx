@@ -169,10 +169,6 @@ export function Claim(props: ClaimProps) {
         identifier,
     );
 
-    if (!claimInfo) {
-        return <></>;
-    }
-
     return (
         <div className="flex">
             <img
@@ -181,10 +177,13 @@ export function Claim(props: ClaimProps) {
                 src={'/placeholder.jpg'}
             ></img>
             <div className="flex flex-col px-4">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {props.parsedEvent.value.claimType}
+                </h4>
                 <h3 className="text-3xl font-bold text-gray-900 dark:text-white">
                     {identifier}
                 </h3>
-                <p className="italic">Verified by:</p>
+                <p className="italic">{vouchedBy.length > 0 ? "Verified by:" : "Not verified"}</p>
                 <div className="flex flex-row gap-5 pt-3">
                     {vouchedBy.map((system, idx) => {
                         return (

@@ -192,6 +192,7 @@ export function Profile(props: ProfileProps) {
         };
     }, [props.processHandle, props.queryManager, props.system]);
 
+
     const isSocialProp = (claim: ParsedEvent<Core.Protocol.Claim>) => {
         return (
             claim.value.claimType === Core.Models.ClaimType.Twitter ||
@@ -209,7 +210,7 @@ export function Profile(props: ProfileProps) {
     );
 
     return (
-        <div className="bg-white dark:bg-zinc-900 px-11 py-20 w-full max-w-4xl dark:text-white">
+        <div className="bg-white dark:bg-zinc-900 px-11 py-20 w-full max-w-3xl dark:text-white">
             <div className="bg-zinc-100 dark:bg-zinc-800 py-28 px-9 rounded-3xl shadow">
                 <div className="flex flex-col items-center justify-center text-center gap-5">
                     <img
@@ -225,7 +226,7 @@ export function Profile(props: ProfileProps) {
                         {state.name}
                     </h1>
 
-                    <h2 className="text-2xl font-serif dark:font-light">
+                    <h2 className="text-2xl font-light px-36">
                         {state.description}
                     </h2>
                     {socialClaims.length > 0 && (
