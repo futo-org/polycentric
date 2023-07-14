@@ -164,11 +164,6 @@ export function Claim(props: ClaimProps) {
         };
     }, [props.processHandle, props.queryManager, props.parsedEvent]);
 
-    const claimInfo = getClaimInfo(
-        props.parsedEvent.value.claimType,
-        identifier,
-    );
-
     return (
         <div className="flex">
             <img
