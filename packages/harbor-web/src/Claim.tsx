@@ -178,7 +178,9 @@ export function Claim(props: ClaimProps) {
                 <h3 className="text-3xl font-bold text-gray-900 dark:text-white">
                     {identifier}
                 </h3>
-                <p className="italic">{vouchedBy.length > 0 ? "Verified by:" : "Not verified"}</p>
+                <p className="italic">
+                    {vouchedBy.length > 0 ? 'Verified by:' : 'Not verified'}
+                </p>
                 <div className="flex flex-row gap-5 pt-3">
                     {vouchedBy.map((system, idx) => {
                         return (

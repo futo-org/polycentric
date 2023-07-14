@@ -192,7 +192,6 @@ export function Profile(props: ProfileProps) {
         };
     }, [props.processHandle, props.queryManager, props.system]);
 
-
     const isSocialProp = (claim: ParsedEvent<Core.Protocol.Claim>) => {
         return (
             claim.value.claimType === Core.Models.ClaimType.Twitter ||
