@@ -1,0 +1,12 @@
+<script>
+  let link = "harborsocial://" + window.location.href.substring(36);
+  
+  window.location.href = link;
+
+  let a = document.createElement('a');
+  let linkText = document.createTextNode("Click here if you are not automatically redirected to the Harbor app");
+  a.appendChild(linkText);
+  a.title = "Link to Harbor Mobile app";
+  a.href = link; 
+  document.documentElement.appendChild(a);
+</script>

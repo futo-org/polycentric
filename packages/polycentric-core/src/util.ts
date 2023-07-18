@@ -57,3 +57,21 @@ export function concatBuffers(buffers: Array<Uint8Array>): Uint8Array {
 
     return result;
 }
+
+export function compareBuffers(x: Uint8Array, y: Uint8Array): number {
+    if (x.length !== y.length) {
+        throw Error('buffers must be same length');
+    }
+
+    for (let i = 0; i < x.byteLength; i++) {
+        if (x[i] === y[i]) {
+            continue;
+        } else if (x[i] < y[i]) {
+            return -1;
+        } else {
+            return 1;
+        }
+    }
+
+    return 0;
+}

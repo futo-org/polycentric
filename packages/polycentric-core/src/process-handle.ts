@@ -152,6 +152,10 @@ export class ProcessHandle {
         return this._system;
     }
 
+    public process(): Models.Process.Process {
+        return this._processSecret.process;
+    }
+
     public store(): Store.Store {
         return this._store;
     }

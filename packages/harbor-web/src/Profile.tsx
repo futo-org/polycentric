@@ -59,7 +59,7 @@ function loadProfileProps(
             return;
         }
 
-        console.log('setting avatar');
+        console.log('setting avatar', link);
 
         setProfileProps((state) => {
             return {
@@ -98,8 +98,17 @@ function loadProfileProps(
 
     {
         const cb = (value: Core.Queries.QueryIndex.CallbackParameters) => {
-            const parsedEvents = value.add.map((raw) => {
-                const signedEvent = Core.Models.SignedEvent.fromProto(raw);
+            const parsedEvents: Array<ParsedEvent<Core.Protocol.Claim>> = [];
+
+            for (const cell of value.add) {
+                if (cell.signedEvent === undefined) {
+                    continue;
+                }
+
+                const signedEvent = Core.Models.SignedEvent.fromProto(
+                    cell.signedEvent,
+                );
+
                 const event = Core.Models.Event.fromBuffer(signedEvent.event);
 
                 if (
@@ -107,17 +116,24 @@ function loadProfileProps(
                         Core.Models.ContentType.ContentTypeClaim,
                     )
                 ) {
-                    throw new Error('event content type was not claim');
+                    console.log(
+                        'event content type was not claim',
+                        event.contentType,
+                    );
+                    // throw new Error('event content type was not claim');
+                    continue;
                 }
 
                 const claim = Core.Protocol.Claim.decode(event.content);
 
-                return new ParsedEvent<Core.Protocol.Claim>(
-                    signedEvent,
-                    event,
-                    claim,
+                parsedEvents.push(
+                    new ParsedEvent<Core.Protocol.Claim>(
+                        signedEvent,
+                        event,
+                        claim,
+                    ),
                 );
-            });
+            }
 
             if (cancelContext.cancelled()) {
                 return;

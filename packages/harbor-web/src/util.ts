@@ -24,22 +24,26 @@ export async function loadImageFromPointer(
     processHandle: Core.ProcessHandle.ProcessHandle,
     pointer: Core.Models.Pointer.Pointer,
 ) {
-    await Core.Synchronization.saveBatch(
-        processHandle,
-        await Core.APIMethods.getEvents(server, pointer.system, {
-            rangesForProcesses: [
-                {
-                    process: pointer.process,
-                    ranges: [
-                        {
-                            low: pointer.logicalClock,
-                            high: pointer.logicalClock.add(Long.UONE),
-                        },
-                    ],
-                },
-            ],
-        }),
-    );
+    const systemState = await processHandle.loadSystemState(pointer.system);
+
+    for (const server of systemState.servers()) {
+        await Core.Synchronization.saveBatch(
+            processHandle,
+            await Core.APIMethods.getEvents(server, pointer.system, {
+                rangesForProcesses: [
+                    {
+                        process: pointer.process,
+                        ranges: [
+                            {
+                                low: pointer.logicalClock,
+                                high: pointer.logicalClock.add(Long.UONE),
+                            },
+                        ],
+                    },
+                ],
+            }),
+        );
+    }
 
     const image = await processHandle.loadBlob(pointer);
 

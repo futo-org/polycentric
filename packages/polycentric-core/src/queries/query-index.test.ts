@@ -1,5 +1,4 @@
 /* eslint jest/no-conditional-expect: 0 */
-
 import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import * as QueryIndex from './query-index';
@@ -12,10 +11,12 @@ async function fullSync(handle: ProcessHandle.ProcessHandle) {
     while (await Synchronization.backFillServers(handle, handle.system())) {}
 }
 
-function extractGenericClaim(
-    signedEvent: Models.SignedEvent.SignedEvent,
-): string {
-    const event = Models.Event.fromBuffer(signedEvent.event);
+function extractGenericClaim(cell: QueryIndex.Cell): string | undefined {
+    if (cell.signedEvent === undefined) {
+        return undefined;
+    }
+
+    const event = Models.Event.fromBuffer(cell.signedEvent!.event);
 
     if (event.contentType.notEquals(Models.ContentType.ContentTypeClaim)) {
         throw Error('expected ContentTypeClaim');
@@ -109,25 +110,41 @@ describe('query index', () => {
 
         s1p1.addAddressHint(s2p1.system(), TEST_SERVER);
 
-        let stage = 29;
+        let stage = 0;
 
         await new Promise<void>((resolve) => {
             const cb = (value: QueryIndex.CallbackParameters) => {
-                if (stage === 11) {
-                    resolve();
-                } else if (stage === 21) {
-                    expect(extractGenericClaim(value.add[0])).toStrictEqual(
-                        '21',
-                    );
-                    // start the second batch
+                if (stage === 0) {
+                    const got = value.add.map(extractGenericClaim);
+
+                    let expected = [];
+
+                    for (let i = 29; i > 19; i--) {
+                        expected.push(i.toString());
+                    }
+
+                    expected.push(undefined);
+
+                    expect(got).toStrictEqual(expected);
+
                     queryManager.advance(s2p1.system(), cb, 10);
-                } else {
-                    expect(extractGenericClaim(value.add[0])).toStrictEqual(
-                        stage.toString(),
-                    );
+                } else if (stage === 1) {
+                    const got = value.add.map(extractGenericClaim);
+
+                    let expected = [];
+
+                    for (let i = 19; i > 9; i--) {
+                        expected.push(i.toString());
+                    }
+
+                    expected.push(undefined);
+
+                    expect(got).toStrictEqual(expected);
+
+                    resolve();
                 }
 
-                stage--;
+                stage++;
             };
 
             queryManager.query(
@@ -147,23 +164,38 @@ describe('query index', () => {
 
         await s1p1.claim(Models.claimGeneric('1'));
         await s1p1.claim(Models.claimGeneric('2'));
+        await s1p1.claim(Models.claimGeneric('3'));
+        await s1p1.claim(Models.claimGeneric('4'));
+        await s1p1.claim(Models.claimGeneric('5'));
+        await s1p1.claim(Models.claimGeneric('6'));
 
         let stage = 0;
 
         await new Promise<void>((resolve) => {
             const cb = (value: QueryIndex.CallbackParameters) => {
                 if (stage === 0) {
-                    expect(extractGenericClaim(value.add[0])).toStrictEqual(
-                        '1',
-                    );
+                    expect(value.add.map(extractGenericClaim)).toStrictEqual([
+                        '6',
+                        '5',
+                        undefined,
+                    ]);
+
+                    queryManager.advance(s1p1.system(), cb, 2);
                 } else if (stage === 1) {
-                    expect(extractGenericClaim(value.add[0])).toStrictEqual(
+                    expect(value.add.map(extractGenericClaim)).toStrictEqual([
+                        '4',
+                        '3',
+                        undefined,
+                    ]);
+
+                    queryManager.advance(s1p1.system(), cb, 2);
+                } else if (stage === 2) {
+                    expect(value.add.map(extractGenericClaim)).toStrictEqual([
                         '2',
-                    );
+                        '1',
+                    ]);
 
                     resolve();
-                } else {
-                    throw Error('unexpected');
                 }
 
                 stage++;
@@ -175,7 +207,7 @@ describe('query index', () => {
                 cb,
             );
 
-            queryManager.advance(s1p1.system(), cb, 10);
+            queryManager.advance(s1p1.system(), cb, 2);
         });
     });
 });

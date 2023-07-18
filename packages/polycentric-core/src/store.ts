@@ -259,7 +259,8 @@ export class Store {
             await this.levelIndexSystemContentTypeUnixMillisecondsProcess
                 .iterator({
                     lt: key,
-                    limit: limit,
+                    limit: unixMilliseconds ? limit + 1 : limit,
+                    reverse: true,
                 })
                 .all();
 
@@ -272,9 +273,21 @@ export class Store {
 
             const signedEvent = await this.getSignedEventByKey(value);
 
-            if (signedEvent) {
-                result.push(signedEvent);
+            if (signedEvent === undefined) {
+                continue;
             }
+
+            const event = Models.Event.fromBuffer(signedEvent.event);
+
+            if (
+                event.unixMilliseconds === undefined ||
+                (unixMilliseconds &&
+                    event.unixMilliseconds.greaterThanOrEqual(unixMilliseconds))
+            ) {
+                continue;
+            }
+
+            result.push(signedEvent);
         }
 
         return result;

@@ -3,26 +3,105 @@ import Long from 'long';
 import * as ProcessHandle from '../process-handle';
 import * as APIMethods from '../api-methods';
 import * as Models from '../models';
+import * as Util from '../util';
+import * as Protocol from '../protocol';
 import * as Shared from './shared';
 
+export type Cell = {
+    unixMilliseconds: Long;
+    process: Models.Process.Process;
+    logicalClock: Long;
+    contentType: Models.ContentType.ContentType;
+    next: Long | undefined;
+    signedEvent: Models.SignedEvent.SignedEvent | undefined;
+};
+
+function compareCells(a: Cell, b: Cell): number {
+    const timeComparison = a.unixMilliseconds.compare(b.unixMilliseconds);
+
+    if (timeComparison !== 0) {
+        return timeComparison;
+    }
+
+    const processComparison = Util.compareBuffers(
+        a.process.process,
+        b.process.process,
+    );
+
+    if (processComparison !== 0) {
+        return processComparison;
+    }
+
+    const clockComparison = a.logicalClock.compare(b.logicalClock);
+
+    return clockComparison;
+}
+
+function signedEventToCell(signedEvent: Models.SignedEvent.SignedEvent): Cell {
+    const event = Models.Event.fromBuffer(signedEvent.event);
+
+    function lookupIndex(
+        indices: Protocol.Indices,
+        contentType: Models.ContentType.ContentType,
+    ): Long | undefined {
+        for (const index of indices.indices) {
+            if (index.indexType.equals(contentType)) {
+                return index.logicalClock;
+            }
+        }
+
+        return undefined;
+    }
+
+    if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
+        const content = Models.Delete.fromBuffer(event.content);
+
+        return {
+            unixMilliseconds: content.unixMilliseconds!,
+            process: content.process,
+            logicalClock: content.logicalClock,
+            contentType: content.contentType,
+            next: lookupIndex(content.indices, content.contentType),
+            signedEvent: signedEvent,
+        };
+    } else {
+        return {
+            unixMilliseconds: event.unixMilliseconds!,
+            process: event.process,
+            logicalClock: event.logicalClock,
+            contentType: event.contentType,
+            next: lookupIndex(event.indices, event.contentType),
+            signedEvent: signedEvent,
+        };
+    }
+}
+
+function rawEventToCell(rawEvent: Protocol.SignedEvent): Cell {
+    return signedEventToCell(Models.SignedEvent.fromProto(rawEvent));
+}
+
 export type CallbackParameters = {
-    add: Array<Models.SignedEvent.SignedEvent>;
-    remove: Array<Models.SignedEvent.SignedEvent>;
+    add: Array<Cell>;
+    remove: Array<Cell>;
 };
 
 type Callback = (state: CallbackParameters) => void;
 
-type EventMemo = {
-    signedEvent: Models.SignedEvent.SignedEvent;
-    event: Models.Event.Event;
-};
+function processAndLogicalClockToString(
+    process: Models.Process.Process,
+    logicalClock: Long,
+): string {
+    return Models.Process.toString(process) + logicalClock.toString();
+}
 
 type StateForQuery = {
     callback: Callback;
     totalExpected: number;
     contentType: Models.ContentType.ContentType;
-    events: Map<Models.Process.ProcessString, Array<EventMemo>>;
-    earliestTime: Long | undefined;
+    earliestTimeBySource: Map<String, Long>;
+    eventsByProcessAndLogicalClock: Map<String, Cell>;
+    eventsByTime: Array<Cell>;
+    missingProcessAndLogicalClock: Map<String, Cell>;
 };
 
 type StateForSystem = {
@@ -71,8 +150,10 @@ export class QueryManager {
             callback: callback,
             totalExpected: 0,
             contentType: contentType,
-            events: new Map(),
-            earliestTime: undefined,
+            earliestTimeBySource: new Map(),
+            eventsByProcessAndLogicalClock: new Map(),
+            eventsByTime: [],
+            missingProcessAndLogicalClock: new Map(),
         };
 
         stateForSystem.queries.set(callback, stateForQuery);
@@ -120,24 +201,21 @@ export class QueryManager {
         system: Models.PublicKey.PublicKey,
         stateForQuery: StateForQuery,
     ): Promise<void> {
-        let totalEvents = 0;
-
-        for (const eventsForProcess in stateForQuery.events.values()) {
-            totalEvents += eventsForProcess.length;
-        }
-
         const events = await this._processHandle
             .store()
             .queryIndexSystemContentTypeUnixMillisecondsProcess(
                 system,
                 stateForQuery.contentType,
-                stateForQuery.earliestTime,
-                stateForQuery.totalExpected - totalEvents,
+                stateForQuery.earliestTimeBySource.get('disk'),
+                stateForQuery.totalExpected - stateForQuery.eventsByTime.length,
             );
 
-        for (const event of events) {
-            this.update(Models.SignedEvent.fromProto(event));
-        }
+        this.updateQueryBatch(
+            events.map(rawEventToCell),
+            [],
+            'disk',
+            stateForQuery,
+        );
     }
 
     private async loadFromNetwork(
@@ -160,23 +238,22 @@ export class QueryManager {
         server: string,
         stateForQuery: StateForQuery,
     ): Promise<void> {
-        let totalEvents = 0;
-
-        for (const eventsForProcess in stateForQuery.events.values()) {
-            totalEvents += eventsForProcess.length;
-        }
-
         const response = await APIMethods.getQueryIndex(
             server,
             system,
             Models.ContentType.ContentTypeClaim,
-            stateForQuery.earliestTime,
-            Long.fromNumber(stateForQuery.totalExpected - totalEvents),
+            stateForQuery.earliestTimeBySource.get(server),
+            Long.fromNumber(
+                stateForQuery.totalExpected - stateForQuery.eventsByTime.length,
+            ),
         );
 
-        for (const event of response.events) {
-            this.update(Models.SignedEvent.fromProto(event));
-        }
+        this.updateQueryBatch(
+            response.events.map(rawEventToCell),
+            response.proof.map(rawEventToCell),
+            server,
+            stateForQuery,
+        );
     }
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {
@@ -191,58 +268,190 @@ export class QueryManager {
         }
 
         for (const stateForQuery of stateForSystem.queries.values()) {
-            this.updateQuery(signedEvent, event, stateForQuery);
+            this.updateQueryBatch(
+                [rawEventToCell(signedEvent)],
+                [],
+                'unknown',
+                stateForQuery,
+            );
         }
     }
 
-    private updateQuery(
-        signedEvent: Models.SignedEvent.SignedEvent,
-        event: Models.Event.Event,
+    private validateBatchIsRelevant(
+        events: Array<Cell>,
+        contentType: Models.ContentType.ContentType,
+    ): boolean {
+        return events.every((cell) => cell.contentType.equals(contentType));
+    }
+
+    private validateBatchIsSorted(events: Array<Cell>): boolean {
+        for (let i = 0; i < events.length - 1; i++) {
+            if (compareCells(events[i], events[i + 1]) !== 1) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private validateIntegrity(stateForQuery: StateForQuery): Array<Cell> {
+        const eventsByTime = stateForQuery.eventsByTime;
+
+        const missingAfter = [];
+
+        for (let i = 0; i < eventsByTime.length; i++) {
+            const currentEvent = eventsByTime[i];
+
+            // last event of type from process
+            if (currentEvent.next === undefined) {
+                continue;
+            }
+
+            if (i + 1 >= eventsByTime.length) {
+                missingAfter.push(currentEvent);
+                continue;
+            }
+
+            const nextEventByTime = eventsByTime[i + 1];
+
+            if (
+                Models.Process.equal(
+                    nextEventByTime.process,
+                    currentEvent.process,
+                )
+            ) {
+                if (nextEventByTime.logicalClock.equals(currentEvent.next)) {
+                    continue;
+                } else {
+                    missingAfter.push(currentEvent);
+                    continue;
+                }
+            } else {
+                const nextEventByClock =
+                    stateForQuery.eventsByProcessAndLogicalClock.get(
+                        processAndLogicalClockToString(
+                            currentEvent.process,
+                            currentEvent.logicalClock.subtract(Long.UONE),
+                        ),
+                    );
+
+                if (nextEventByClock === undefined) {
+                    missingAfter.push(currentEvent);
+                    continue;
+                }
+
+                if (
+                    nextEventByClock.unixMilliseconds.greaterThanOrEqual(
+                        nextEventByTime.unixMilliseconds!,
+                    )
+                ) {
+                    missingAfter.push(currentEvent);
+                    continue;
+                }
+            }
+        }
+
+        let missingSlots = [];
+
+        for (const missing of missingAfter) {
+            const placeholder = {
+                unixMilliseconds: missing.unixMilliseconds,
+                process: missing.process,
+                logicalClock: missing.logicalClock.subtract(Long.UONE),
+                contentType: stateForQuery.contentType,
+                next: undefined,
+                signedEvent: undefined,
+            };
+
+            const key = processAndLogicalClockToString(
+                placeholder.process,
+                placeholder.logicalClock,
+            );
+
+            if (!stateForQuery.missingProcessAndLogicalClock.has(key)) {
+                stateForQuery.missingProcessAndLogicalClock.set(
+                    key,
+                    placeholder,
+                );
+
+                missingSlots.push(placeholder);
+            }
+        }
+
+        return missingSlots;
+    }
+
+    private updateQueryBatch(
+        cells: Array<Cell>,
+        proofCells: Array<Cell>,
+        source: string,
         stateForQuery: StateForQuery,
     ): void {
-        if (event.contentType.notEquals(stateForQuery.contentType)) {
+        const allCells = cells.concat(proofCells);
+
+        if (!this.validateBatchIsRelevant(cells, stateForQuery.contentType)) {
             return;
         }
 
-        if (event.unixMilliseconds === undefined) {
+        if (!this.validateBatchIsSorted(cells)) {
+            console.warn('batch failed sort validation');
+
             return;
         }
 
-        let totalEvents = 0;
+        let earliestTime = stateForQuery.earliestTimeBySource.get(source);
 
-        for (const eventsForProcess in stateForQuery.events.values()) {
-            totalEvents += eventsForProcess.length;
+        let cellsToAdd = [];
+        let cellsToRemove = [];
+
+        for (const cell of cells) {
+            const key = processAndLogicalClockToString(
+                cell.process,
+                cell.logicalClock,
+            );
+
+            if (!stateForQuery.eventsByProcessAndLogicalClock.has(key)) {
+                stateForQuery.eventsByTime.push(cell);
+
+                cellsToAdd.push(cell);
+
+                const placeholder =
+                    stateForQuery.missingProcessAndLogicalClock.get(key);
+
+                if (placeholder !== undefined) {
+                    stateForQuery.missingProcessAndLogicalClock.delete(key);
+
+                    cellsToRemove.push(placeholder);
+                }
+            }
+
+            if (
+                earliestTime === undefined ||
+                earliestTime.greaterThan(cell.unixMilliseconds)
+            ) {
+                earliestTime = cell.unixMilliseconds;
+            }
         }
 
-        if (totalEvents >= stateForQuery.totalExpected) {
-            return;
+        stateForQuery.earliestTimeBySource.set(source, earliestTime!);
+
+        for (const cell of allCells) {
+            stateForQuery.eventsByProcessAndLogicalClock.set(
+                processAndLogicalClockToString(cell.process, cell.logicalClock),
+                cell,
+            );
         }
 
-        if (
-            stateForQuery.earliestTime === undefined ||
-            stateForQuery.earliestTime.greaterThan(event.unixMilliseconds)
-        ) {
-            stateForQuery.earliestTime = event.unixMilliseconds;
-        }
+        stateForQuery.eventsByTime.sort(compareCells).reverse();
 
-        const processString = Models.Process.toString(event.process);
-
-        let eventsForProcess = stateForQuery.events.get(processString);
-
-        if (eventsForProcess === undefined) {
-            eventsForProcess = [];
-
-            stateForQuery.events.set(processString, eventsForProcess);
-        }
-
-        eventsForProcess.push({
-            signedEvent: signedEvent,
-            event: event,
-        });
+        const addMissingAfter = this.validateIntegrity(stateForQuery);
 
         stateForQuery.callback({
-            add: [signedEvent],
-            remove: [],
+            add: cellsToAdd
+                .concat(addMissingAfter)
+                .sort(compareCells)
+                .reverse(),
+            remove: cellsToRemove,
         });
     }
 }
