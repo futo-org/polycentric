@@ -2,6 +2,7 @@ import fetch, { Headers } from 'cross-fetch';
 import * as Base64 from '@borderless/base64';
 import * as Protocol from './protocol';
 import * as Models from './models';
+import Long from 'long';
 
 async function checkResponse(name: string, response: Response): Promise<void> {
     if (!response.ok) {
