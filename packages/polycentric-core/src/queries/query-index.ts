@@ -16,7 +16,7 @@ export type Cell = {
     signedEvent: Models.SignedEvent.SignedEvent | undefined;
 };
 
-function compareCells(a: Cell, b: Cell): number {
+export function compareCells(a: Cell, b: Cell): number {
     const timeComparison = a.unixMilliseconds.compare(b.unixMilliseconds);
 
     if (timeComparison !== 0) {

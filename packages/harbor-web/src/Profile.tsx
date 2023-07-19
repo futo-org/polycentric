@@ -98,53 +98,50 @@ function loadProfileProps(
 
     {
         const cb = (value: Core.Queries.QueryIndex.CallbackParameters) => {
-            const parsedEvents: Array<ParsedEvent<Core.Protocol.Claim>> = [];
-
-            for (const cell of value.add) {
-                if (cell.signedEvent === undefined) {
-                    continue;
-                }
-
-                const signedEvent = Core.Models.SignedEvent.fromProto(
-                    cell.signedEvent,
-                );
-
-                const event = Core.Models.Event.fromBuffer(signedEvent.event);
-
-                if (
-                    !event.contentType.equals(
-                        Core.Models.ContentType.ContentTypeClaim,
-                    )
-                ) {
-                    console.log(
-                        'event content type was not claim',
-                        event.contentType,
-                    );
-                    // throw new Error('event content type was not claim');
-                    continue;
-                }
-
-                const claim = Core.Protocol.Claim.decode(event.content);
-
-                parsedEvents.push(
-                    new ParsedEvent<Core.Protocol.Claim>(
-                        signedEvent,
-                        event,
-                        claim,
-                    ),
-                );
-            }
-
             if (cancelContext.cancelled()) {
                 return;
             }
 
-            console.log('setting claims');
+            const toAdd = value.add.map((cell) => {
+                let parsedEvent: ParsedEvent<Core.Protocol.Claim> | undefined =
+                    undefined;
+
+                if (cell.signedEvent !== undefined) {
+                    const signedEvent = Core.Models.SignedEvent.fromProto(
+                        cell.signedEvent,
+                    );
+                    const event = Core.Models.Event.fromBuffer(
+                        signedEvent.event,
+                    );
+                    const claim = Core.Protocol.Claim.decode(event.content);
+
+                    parsedEvent = new ParsedEvent<Core.Protocol.Claim>(
+                        signedEvent,
+                        event,
+                        claim,
+                    );
+                }
+
+                return {
+                    cell: cell,
+                    parsedEvent: parsedEvent,
+                };
+            });
+
+            const toRemove = new Set(value.remove);
 
             setProfileProps((state) => {
                 return {
                     ...state,
-                    claims: parsedEvents,
+                    claims: state.claims
+                        .filter((x) => !toRemove.has(x.cell))
+                        .concat(toAdd)
+                        .sort((x, y) =>
+                            Core.Queries.QueryIndex.compareCells(
+                                y.cell,
+                                x.cell,
+                            ),
+                        ),
                 };
             });
         };
@@ -171,11 +168,16 @@ export type ProfileProps = {
     system: Core.Models.PublicKey.PublicKey;
 };
 
+type ClaimInfo = {
+    cell: Core.Queries.QueryIndex.Cell;
+    parsedEvent: ParsedEvent<Core.Protocol.Claim> | undefined;
+};
+
 type State = {
     name: string;
     description: string;
     avatar: string;
-    claims: Array<ParsedEvent<Core.Protocol.Claim>>;
+    claims: Array<ClaimInfo>;
 };
 
 const initialState = {
@@ -208,12 +210,18 @@ export function Profile(props: ProfileProps) {
         };
     }, [props.processHandle, props.queryManager, props.system]);
 
-    const isSocialProp = (claim: ParsedEvent<Core.Protocol.Claim>) => {
+    const isSocialProp = (claim: ClaimInfo) => {
+        if (claim.parsedEvent === undefined) {
+            return false;
+        }
+
+        const claimType = claim.parsedEvent.value.claimType;
+
         return (
-            claim.value.claimType === Core.Models.ClaimType.Twitter ||
-            claim.value.claimType === Core.Models.ClaimType.YouTube ||
-            claim.value.claimType === Core.Models.ClaimType.Rumble ||
-            claim.value.claimType === Core.Models.ClaimType.Bitcoin
+            claimType === Core.Models.ClaimType.Twitter ||
+            claimType === Core.Models.ClaimType.YouTube ||
+            claimType === Core.Models.ClaimType.Rumble ||
+            claimType === Core.Models.ClaimType.Bitcoin
         );
     };
 
@@ -250,7 +258,7 @@ export function Profile(props: ProfileProps) {
                                 {socialClaims.map((claim, idx) => (
                                     <Claim.SocialClaim
                                         key={idx}
-                                        parsedEvent={claim}
+                                        parsedEvent={claim.parsedEvent!}
                                         processHandle={props.processHandle}
                                         queryManager={props.queryManager}
                                     />
@@ -266,14 +274,21 @@ export function Profile(props: ProfileProps) {
                         Claims
                     </h2>
 
-                    {otherClaims.map((claim, idx) => (
-                        <Claim.Claim
-                            key={idx}
-                            parsedEvent={claim}
-                            processHandle={props.processHandle}
-                            queryManager={props.queryManager}
-                        />
-                    ))}
+                    {otherClaims.map((claim, idx) => {
+                        if (claim.parsedEvent !== undefined) {
+                            return (
+                                <Claim.Claim
+                                    key={idx}
+                                    parsedEvent={claim.parsedEvent}
+                                    processHandle={props.processHandle}
+                                    queryManager={props.queryManager}
+                                />
+                            );
+                        } else {
+                            return <h1 key={idx}>missing</h1>;
+                        }
+                    })}
+
                     {otherClaims.length == 0 && (
                         <div className="text-gray-400 dark:text-gray-600">
                             No claims yet!
