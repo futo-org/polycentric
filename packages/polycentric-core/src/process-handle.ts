@@ -14,6 +14,7 @@ export class SystemState {
     private _processes: Array<Models.Process.Process>;
     private _username: string;
     private _description: string;
+    private _store: string;
     private _avatar: Models.Pointer.Pointer | undefined;
 
     public constructor(
@@ -21,12 +22,14 @@ export class SystemState {
         processes: Array<Models.Process.Process>,
         username: string,
         description: string,
+        store: string,
         avatar: Models.Pointer.Pointer | undefined,
     ) {
         this._servers = servers;
         this._processes = processes;
         this._username = username;
         this._description = description;
+        this._store = store;
         this._avatar = avatar;
     }
 
@@ -44,6 +47,10 @@ export class SystemState {
 
     public description(): string {
         return this._description;
+    }
+
+    public store(): string {
+        return this._store;
     }
 
     public avatar(): Models.Pointer.Pointer | undefined {
@@ -73,6 +80,7 @@ function protoSystemStateToSystemState(
 
     let username = '';
     let description = '';
+    let store = '';
     let avatar = undefined;
 
     for (const item of proto.crdtItems) {
@@ -83,6 +91,10 @@ function protoSystemStateToSystemState(
         ) {
             description = Util.decodeText(item.value);
         } else if (
+            item.contentType.equals(Models.ContentType.ContentTypeStore)
+        ) {
+            store = Util.decodeText(item.value);
+        } else if (
             item.contentType.equals(Models.ContentType.ContentTypeAvatar)
         ) {
             avatar = Models.Pointer.fromProto(
@@ -91,7 +103,14 @@ function protoSystemStateToSystemState(
         }
     }
 
-    return new SystemState(servers, processes, username, description, avatar);
+    return new SystemState(
+        servers,
+        processes,
+        username,
+        description,
+        store,
+        avatar,
+    );
 }
 
 export class ProcessHandle {
@@ -209,48 +228,53 @@ export class ProcessHandle {
         );
     }
 
-    public async setUsername(
-        username: string,
+    private async setCRDTItem(
+        contentType: Models.ContentType.ContentType,
+        value: Uint8Array,
     ): Promise<Models.Pointer.Pointer> {
         return await this.publish(
-            Models.ContentType.ContentTypeUsername,
+            contentType,
             new Uint8Array(),
             undefined,
             {
-                value: Util.encodeText(username),
+                value: value,
                 unixMilliseconds: Long.fromNumber(Date.now(), true),
             },
             [],
+        );
+    }
+
+    public async setUsername(
+        username: string,
+    ): Promise<Models.Pointer.Pointer> {
+        return await this.setCRDTItem(
+            Models.ContentType.ContentTypeUsername,
+            Util.encodeText(username),
+        );
+    }
+
+    public async setStore(storeLink: string): Promise<Models.Pointer.Pointer> {
+        return await this.setCRDTItem(
+            Models.ContentType.ContentTypeStore,
+            Util.encodeText(storeLink),
         );
     }
 
     public async setDescription(
         description: string,
     ): Promise<Models.Pointer.Pointer> {
-        return await this.publish(
+        return await this.setCRDTItem(
             Models.ContentType.ContentTypeDescription,
-            new Uint8Array(),
-            undefined,
-            {
-                value: Util.encodeText(description),
-                unixMilliseconds: Long.fromNumber(Date.now(), true),
-            },
-            [],
+            Util.encodeText(description),
         );
     }
 
     public async setAvatar(
         avatar: Models.Pointer.Pointer,
     ): Promise<Models.Pointer.Pointer> {
-        return await this.publish(
+        return await this.setCRDTItem(
             Models.ContentType.ContentTypeAvatar,
-            new Uint8Array(),
-            undefined,
-            {
-                value: Protocol.Pointer.encode(avatar).finish(),
-                unixMilliseconds: Long.fromNumber(Date.now(), true),
-            },
-            [],
+            Protocol.Pointer.encode(avatar).finish(),
         );
     }
 
