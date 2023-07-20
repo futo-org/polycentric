@@ -23,6 +23,7 @@ fn trace_event(
             .ok_or(Error)?;
     } else if content_type == crate::model::known_message_types::USERNAME
         || content_type == crate::model::known_message_types::DESCRIPTION
+        || content_type == crate::model::known_message_types::STORE
     {
         let lww_element = event.lww_element().clone().ok_or(Error)?;
 

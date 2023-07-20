@@ -17,6 +17,7 @@ pub mod known_message_types {
     pub const CLAIM: u64 = 12;
     pub const BANNER: u64 = 13;
     pub const OPINION: u64 = 14;
+    pub const STORE: u64 = 15;
 }
 
 pub fn content_type_to_string(content_type: u64) -> String {
@@ -35,6 +36,7 @@ pub fn content_type_to_string(content_type: u64) -> String {
         known_message_types::CLAIM => "CLAIM".to_string(),
         known_message_types::BANNER => "BANNER".to_string(),
         known_message_types::OPINION => "OPINION".to_string(),
+        known_message_types::STORE => "STORE".to_string(),
         _ => content_type.to_string(),
     }
 }
