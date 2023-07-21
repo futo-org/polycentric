@@ -58,7 +58,7 @@ export class SystemState {
     }
 }
 
-function protoSystemStateToSystemState(
+export function protoSystemStateToSystemState(
     proto: Protocol.StorageTypeSystemState,
 ): SystemState {
     const servers = [];
@@ -646,7 +646,7 @@ export async function createProcessHandleFromKey(
     return ProcessHandle.load(store);
 }
 
-function updateSystemState(
+export function updateSystemState(
     state: Protocol.StorageTypeSystemState,
     event: Models.Event.Event,
 ): void {

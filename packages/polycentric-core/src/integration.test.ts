@@ -10,6 +10,7 @@ import * as Synchronization from './synchronization';
 import * as Protocol from './protocol';
 import * as APIMethods from './api-methods';
 import * as Util from './util';
+import { protoSystemStateToSystemState, updateSystemState } from './process-handle';
 
 const TEST_SERVER = 'http://127.0.0.1:8081';
 // const TEST_SERVER = 'https://srv1-stg.polycentric.io';
@@ -198,6 +199,37 @@ describe('integration', () => {
             likes: 0,
             dislikes: 0,
         });
+    });
+
+    test('usernameChange', async () => {
+        const processHandle = await createHandleWithName("test1");
+
+        {
+            const response = await APIMethods.getQueryIndex(TEST_SERVER, processHandle.system(), Models.ContentType.ContentTypeUsername);
+            const systemState = Protocol.StorageTypeSystemState.create();
+            for (const ev of response.events) {
+                const se = Models.SignedEvent.fromProto(ev);
+                updateSystemState(systemState, Models.Event.fromBuffer(se.event));
+            }
+
+            const state = protoSystemStateToSystemState(systemState);
+            expect(state.username()).toStrictEqual("test1");
+        }
+
+        await processHandle.setUsername("test2");
+        await Synchronization.backFillServers(processHandle, processHandle.system());
+
+        {
+            const response = await APIMethods.getQueryIndex(TEST_SERVER, processHandle.system(), Models.ContentType.ContentTypeUsername);
+            const systemState = Protocol.StorageTypeSystemState.create();
+            for (const ev of response.events) {
+                const se = Models.SignedEvent.fromProto(ev);
+                updateSystemState(systemState, Models.Event.fromBuffer(se.event));
+            }
+
+            const state = protoSystemStateToSystemState(systemState);
+            expect(state.username()).toStrictEqual("test2");
+        }  
     });
 
     test('comment', async () => {
