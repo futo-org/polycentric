@@ -378,7 +378,9 @@ function claimIdentifier(
     };
 }
 
-function claimOccupation(claim: Protocol.ClaimOccupation): Protocol.Claim {
+export function claimOccupation(
+    claim: Protocol.ClaimOccupation,
+): Protocol.Claim {
     return {
         claimType: ClaimType.Occupation,
         claim: Protocol.ClaimOccupation.encode(claim).finish(),

@@ -154,7 +154,7 @@ function loadProfileProps(
             ),
         );
 
-        queryManager.queryIndex.advance(system, cb, 10);
+        queryManager.queryIndex.advance(system, cb, 30);
     }
 
     return () => {
@@ -221,6 +221,17 @@ export function Profile(props: ProfileProps) {
             claimType === Core.Models.ClaimType.Twitter ||
             claimType === Core.Models.ClaimType.YouTube ||
             claimType === Core.Models.ClaimType.Rumble ||
+            claimType === Core.Models.ClaimType.Odysee ||
+            claimType === Core.Models.ClaimType.Discord ||
+            claimType === Core.Models.ClaimType.Instagram ||
+            claimType === Core.Models.ClaimType.GitHub ||
+            claimType === Core.Models.ClaimType.Minds ||
+            claimType === Core.Models.ClaimType.Patreon ||
+            claimType === Core.Models.ClaimType.Substack ||
+            claimType === Core.Models.ClaimType.Twitch ||
+            claimType === Core.Models.ClaimType.HackerNews ||
+            claimType === Core.Models.ClaimType.URL ||
+            claimType === Core.Models.ClaimType.Website ||
             claimType === Core.Models.ClaimType.Bitcoin
         );
     };
@@ -233,7 +244,7 @@ export function Profile(props: ProfileProps) {
     );
 
     return (
-        <div className="bg-white dark:bg-zinc-900 px-11 py-20 w-full max-w-4xl dark:text-white">
+        <div className="bg-white dark:bg-zinc-900 px-11 py-20 w-full max-w-3xl dark:text-white">
             <div className="bg-zinc-100 dark:bg-zinc-800 py-28 px-9 rounded-3xl shadow">
                 <div className="flex flex-col items-center justify-center text-center gap-5">
                     <img
@@ -249,7 +260,7 @@ export function Profile(props: ProfileProps) {
                         {state.name}
                     </h1>
 
-                    <h2 className="text-2xl font-serif dark:font-light">
+                    <h2 className="text-2xl font-light px-36">
                         {state.description}
                     </h2>
                     {socialClaims.length > 0 && (
