@@ -61,6 +61,14 @@ async function scenarioEveryClaimType() {
         await s1p1.claim(Core.Models.claimTwitch('thekinocorner')),
         await s1p1.claim(Core.Models.claimWebsite('futo.org')),
         await s1p1.claim(Core.Models.claimURL('https://futo.org/grants')),
+        await s1p1.claim(Core.Models.claimSkill('Rust')),
+        await s1p1.claim(
+            Core.Models.claimOccupation({
+                organization: 'FUTO',
+                role: 'Software Engineer',
+                location: 'Austin Texas',
+            }),
+        ),
     ];
 
     await fullSync(s1p1);

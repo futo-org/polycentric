@@ -362,6 +362,8 @@ export enum ClaimType {
     Twitch = 'Twitch',
     Website = 'Website',
     URL = 'URL',
+    Occupation = 'Occupation',
+    Skill = 'Skill',
 }
 
 function claimIdentifier(
@@ -374,6 +376,17 @@ function claimIdentifier(
             identifier: identifier,
         }).finish(),
     };
+}
+
+function claimOccupation(claim: Protocol.ClaimOccupation): Protocol.Claim {
+    return {
+        claimType: ClaimType.Occupation,
+        claim: Protocol.ClaimOccupation.encode(claim).finish(),
+    };
+}
+
+export function claimSkill(skill: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.Skill, skill);
 }
 
 export function claimHackerNews(username: string): Protocol.Claim {
