@@ -70,8 +70,10 @@ async function scenarioEveryClaimType() {
     await s2p1.setUsername('scenarioEveryClaimType authority');
 
     for (const claim of claims) {
-        await s1p1.vouch(claim);
+        await s2p1.vouch(claim);
     }
+
+    await fullSync(s2p1);
 
     console.log(
         'scenarioEveryClaimType subject: ',
