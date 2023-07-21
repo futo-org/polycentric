@@ -364,58 +364,80 @@ export enum ClaimType {
     URL = 'URL',
 }
 
-export function claimHackerNews(username: string): Protocol.Claim {
+function claimIdentifier(
+    claimType: ClaimType,
+    identifier: string,
+): Protocol.Claim {
     return {
-        claimType: ClaimType.HackerNews,
+        claimType: claimType,
         claim: Protocol.ClaimIdentifier.encode({
-            identifier: username,
+            identifier: identifier,
         }).finish(),
     };
+}
+
+export function claimHackerNews(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.HackerNews, username);
 }
 
 export function claimYouTube(username: string): Protocol.Claim {
-    return {
-        claimType: ClaimType.YouTube,
-        claim: Protocol.ClaimIdentifier.encode({
-            identifier: username,
-        }).finish(),
-    };
+    return claimIdentifier(ClaimType.YouTube, username);
+}
+
+export function claimOdysee(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.Odysee, username);
+}
+
+export function claimRumble(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.Rumble, username);
 }
 
 export function claimTwitter(username: string): Protocol.Claim {
-    return {
-        claimType: ClaimType.Twitter,
-        claim: Protocol.ClaimIdentifier.encode({
-            identifier: username,
-        }).finish(),
-    };
+    return claimIdentifier(ClaimType.Twitter, username);
 }
 
 export function claimBitcoin(username: string): Protocol.Claim {
-    return {
-        claimType: ClaimType.Bitcoin,
-        claim: Protocol.ClaimIdentifier.encode({
-            identifier: username,
-        }).finish(),
-    };
+    return claimIdentifier(ClaimType.Bitcoin, username);
 }
 
 export function claimGeneric(text: string): Protocol.Claim {
-    return {
-        claimType: ClaimType.Generic,
-        claim: Protocol.ClaimIdentifier.encode({
-            identifier: text,
-        }).finish(),
-    };
+    return claimIdentifier(ClaimType.Generic, text);
 }
 
-export function claimURL(text: string): Protocol.Claim {
-    return {
-        claimType: ClaimType.URL,
-        claim: Protocol.ClaimIdentifier.encode({
-            identifier: text,
-        }).finish(),
-    };
+export function claimDiscord(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.Discord, username);
+}
+
+export function claimInstagram(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.Instagram, username);
+}
+
+export function claimGitHub(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.GitHub, username);
+}
+
+export function claimMinds(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.Minds, username);
+}
+
+export function claimPatreon(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.Patreon, username);
+}
+
+export function claimSubstack(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.Substack, username);
+}
+
+export function claimTwitch(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.Twitch, username);
+}
+
+export function claimWebsite(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.Website, username);
+}
+
+export function claimURL(url: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.URL, url);
 }
 
 export class Blob {

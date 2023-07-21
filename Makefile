@@ -61,7 +61,8 @@ pretty:
 		packages/polycentric-web/src/ \
 		packages/harbor-web/src/ \
 		packages/polycentric-desktop/src/ \
-		packages/polycentric-bot/src/
+		packages/polycentric-bot/src/ \
+		packages/test-data-generator/src/
 
 build-production: proto
 	./version.sh
