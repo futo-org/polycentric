@@ -205,7 +205,7 @@ describe('integration', () => {
         const processHandle = await createHandleWithName("test1");
 
         {
-            const response = await APIMethods.getQueryIndex(TEST_SERVER, processHandle.system(), Models.ContentType.ContentTypeUsername);
+            const response = await APIMethods.getQueryLatest(TEST_SERVER, processHandle.system(), [ Models.ContentType.ContentTypeUsername ]);
             const systemState = Protocol.StorageTypeSystemState.create();
             for (const ev of response.events) {
                 const se = Models.SignedEvent.fromProto(ev);
@@ -220,7 +220,7 @@ describe('integration', () => {
         await Synchronization.backFillServers(processHandle, processHandle.system());
 
         {
-            const response = await APIMethods.getQueryIndex(TEST_SERVER, processHandle.system(), Models.ContentType.ContentTypeUsername);
+            const response = await APIMethods.getQueryLatest(TEST_SERVER, processHandle.system(), [ Models.ContentType.ContentTypeUsername ]);
             const systemState = Protocol.StorageTypeSystemState.create();
             for (const ev of response.events) {
                 const se = Models.SignedEvent.fromProto(ev);
