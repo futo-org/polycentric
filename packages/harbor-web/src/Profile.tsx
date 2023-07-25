@@ -1,7 +1,9 @@
 import * as React from 'react';
+import { useInView } from 'react-intersection-observer';
+
 import * as Core from '@polycentric/polycentric-core';
 import * as Claim from './Claim';
-import { ParsedEvent, loadImageFromPointer } from './util';
+import { loadImageFromPointer, useIndex, useCRDT, ClaimInfo } from './util';
 
 function loadProfileProps(
     cancelContext: Core.CancelContext.CancelContext,
@@ -11,42 +13,6 @@ function loadProfileProps(
     setProfileProps: (f: (state: State) => State) => void,
 ): Core.Queries.Shared.UnregisterCallback {
     const queries: Array<Core.Queries.Shared.UnregisterCallback> = [];
-
-    queries.push(
-        queryManager.queryCRDT.query(
-            system,
-            Core.Models.ContentType.ContentTypeUsername,
-            (buffer: Uint8Array) => {
-                if (!cancelContext.cancelled()) {
-                    console.log('setting username');
-                    setProfileProps((state) => {
-                        return {
-                            ...state,
-                            name: Core.Util.decodeText(buffer),
-                        };
-                    });
-                }
-            },
-        ),
-    );
-
-    queries.push(
-        queryManager.queryCRDT.query(
-            system,
-            Core.Models.ContentType.ContentTypeDescription,
-            (buffer: Uint8Array) => {
-                if (!cancelContext.cancelled()) {
-                    console.log('setting description');
-                    setProfileProps((state) => {
-                        return {
-                            ...state,
-                            description: Core.Util.decodeText(buffer),
-                        };
-                    });
-                }
-            },
-        ),
-    );
 
     const loadAvatar = async (
         cancelContext: Core.CancelContext.CancelContext,
@@ -96,67 +62,6 @@ function loadProfileProps(
         ),
     );
 
-    {
-        const cb = (value: Core.Queries.QueryIndex.CallbackParameters) => {
-            if (cancelContext.cancelled()) {
-                return;
-            }
-
-            const toAdd = value.add.map((cell) => {
-                let parsedEvent: ParsedEvent<Core.Protocol.Claim> | undefined =
-                    undefined;
-
-                if (cell.signedEvent !== undefined) {
-                    const signedEvent = Core.Models.SignedEvent.fromProto(
-                        cell.signedEvent,
-                    );
-                    const event = Core.Models.Event.fromBuffer(
-                        signedEvent.event,
-                    );
-                    const claim = Core.Protocol.Claim.decode(event.content);
-
-                    parsedEvent = new ParsedEvent<Core.Protocol.Claim>(
-                        signedEvent,
-                        event,
-                        claim,
-                    );
-                }
-
-                return {
-                    cell: cell,
-                    parsedEvent: parsedEvent,
-                };
-            });
-
-            const toRemove = new Set(value.remove);
-
-            setProfileProps((state) => {
-                return {
-                    ...state,
-                    claims: state.claims
-                        .filter((x) => !toRemove.has(x.cell))
-                        .concat(toAdd)
-                        .sort((x, y) =>
-                            Core.Queries.QueryIndex.compareCells(
-                                y.cell,
-                                x.cell,
-                            ),
-                        ),
-                };
-            });
-        };
-
-        queries.push(
-            queryManager.queryIndex.query(
-                system,
-                Core.Models.ContentType.ContentTypeClaim,
-                cb,
-            ),
-        );
-
-        queryManager.queryIndex.advance(system, cb, 30);
-    }
-
     return () => {
         queries.forEach((f) => f());
     };
@@ -168,27 +73,38 @@ export type ProfileProps = {
     system: Core.Models.PublicKey.PublicKey;
 };
 
-type ClaimInfo = {
-    cell: Core.Queries.QueryIndex.Cell;
-    parsedEvent: ParsedEvent<Core.Protocol.Claim> | undefined;
-};
-
 type State = {
-    name: string;
-    description: string;
     avatar: string;
-    claims: Array<ClaimInfo>;
 };
 
 const initialState = {
-    name: 'loading',
-    description: 'loading',
-    claims: [],
     avatar: '',
 };
 
 export function Profile(props: ProfileProps) {
+    const username = useCRDT<string>(
+        props.queryManager,
+        props.system,
+        Core.Models.ContentType.ContentTypeUsername,
+        Core.Util.decodeText,
+    );
+
+    const description = useCRDT<string>(
+        props.queryManager,
+        props.system,
+        Core.Models.ContentType.ContentTypeDescription,
+        Core.Util.decodeText,
+    );
+
+    const [claims, advanceClaims] = useIndex<Core.Protocol.Claim>(
+        props.queryManager,
+        props.system,
+        Core.Models.ContentType.ContentTypeClaim,
+        Core.Protocol.Claim.decode,
+    );
+
     const [state, setState] = React.useState<State>(initialState);
+    const [ref, inView] = useInView();
 
     React.useEffect(() => {
         setState(initialState);
@@ -210,7 +126,13 @@ export function Profile(props: ProfileProps) {
         };
     }, [props.processHandle, props.queryManager, props.system]);
 
-    const isSocialProp = (claim: ClaimInfo) => {
+    React.useEffect(() => {
+        if (inView) {
+            advanceClaims();
+        }
+    }, [inView, advanceClaims]);
+
+    const isSocialProp = (claim: ClaimInfo<Core.Protocol.Claim>) => {
         if (claim.parsedEvent === undefined) {
             return false;
         }
@@ -236,12 +158,8 @@ export function Profile(props: ProfileProps) {
         );
     };
 
-    const socialClaims = state.claims.filter(
-        (claim) => isSocialProp(claim) === true,
-    );
-    const otherClaims = state.claims.filter(
-        (claim) => isSocialProp(claim) === false,
-    );
+    const socialClaims = claims.filter((claim) => isSocialProp(claim) === true);
+    const otherClaims = claims.filter((claim) => isSocialProp(claim) === false);
 
     return (
         <div className="bg-white dark:bg-zinc-900 px-11 py-20 w-full max-w-3xl dark:text-white">
@@ -254,15 +172,18 @@ export function Profile(props: ProfileProps) {
                                 ? '/placeholder.jpg'
                                 : state.avatar
                         }
-                        alt={`The avatar for ${state.name}`}
+                        alt={`The avatar for ${username}`}
                     />
                     <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-                        {state.name}
+                        {username ? username : 'loading'}
                     </h1>
 
-                    <h2 className="text-2xl font-light px-36">
-                        {state.description}
-                    </h2>
+                    {description && (
+                        <h2 className="text-2xl font-light px-36">
+                            {description}
+                        </h2>
+                    )}
+
                     {socialClaims.length > 0 && (
                         <div>
                             <div className="flex flex-row justify-center px-7 gap-5 bg-gray-50 dark:bg-zinc-900 rounded-full py-4">
@@ -296,7 +217,11 @@ export function Profile(props: ProfileProps) {
                                 />
                             );
                         } else {
-                            return <h1 key={idx}>missing</h1>;
+                            return (
+                                <h1 ref={ref} key={idx}>
+                                    missing
+                                </h1>
+                            );
                         }
                     })}
 

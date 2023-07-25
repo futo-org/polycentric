@@ -186,6 +186,13 @@ export class QueryManager {
             return;
         }
 
+        if (
+            stateForQuery.totalExpected - stateForQuery.eventsByTime.length >
+            0
+        ) {
+            return;
+        }
+
         stateForQuery.totalExpected += additionalCount;
 
         if (this._useNetwork === true) {
