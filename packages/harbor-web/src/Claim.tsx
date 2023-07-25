@@ -262,11 +262,6 @@ export function Claim(props: ClaimProps) {
 
     return (
         <div className="flex">
-            <img
-                className="h-24 w-24 object-cover mt-0"
-                alt="placeholder"
-                src={'/placeholder.jpg'}
-            />
             <div className="flex flex-col px-4">
                 {renderClaim()}
                 <p className="italic">
