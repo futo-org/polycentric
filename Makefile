@@ -106,5 +106,5 @@ deploy-spa:
 		./packages/polycentric-web/dist/
 
 deploy-harbor-spa:
-	wrangler pages publish --project-name harbor-spa \
-		./packages/harbor-web/dist/
+	wrangler pages deploy --project-name harbor-social \
+		./packages/harbor-web/dist/ --branch main
