@@ -1,4 +1,6 @@
 /* eslint jest/no-conditional-expect: 0 */
+import Long from 'long';
+
 import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import * as QueryIndex from './query-index';
@@ -31,6 +33,24 @@ function extractGenericClaim(cell: QueryIndex.Cell): string | undefined {
     const identifier = Protocol.ClaimIdentifier.decode(claim.claim);
 
     return identifier.identifier;
+}
+
+async function copyEventBetweenHandles(
+    pointer: Models.Pointer.Pointer,
+    from: ProcessHandle.ProcessHandle,
+    to: ProcessHandle.ProcessHandle,
+): Promise<void> {
+    await to.ingest(
+        Models.SignedEvent.fromProto(
+            (await from
+                .store()
+                .getSignedEvent(
+                    pointer.system,
+                    pointer.process,
+                    pointer.logicalClock,
+                ))!,
+        ),
+    );
 }
 
 describe('query index', () => {
@@ -208,6 +228,50 @@ describe('query index', () => {
             );
 
             queryManager.advance(s1p1.system(), cb, 2);
+        });
+    });
+
+    test('missing data', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+
+        let copyList = [];
+
+        await s1p1.claim(Models.claimGeneric('1'));
+        copyList.push(await s1p1.claim(Models.claimGeneric('2')));
+        await s1p1.claim(Models.claimGeneric('3'));
+        await s1p1.claim(Models.claimGeneric('4'));
+        copyList.push(await s1p1.claim(Models.claimGeneric('5')));
+        copyList.push(await s1p1.claim(Models.claimGeneric('6')));
+
+        const s2p1 = await ProcessHandle.createTestProcessHandle();
+
+        for (const copy of copyList) {
+            await copyEventBetweenHandles(copy, s1p1, s2p1);
+        }
+
+        const queryManager = new QueryIndex.QueryManager(s2p1);
+        queryManager.useNetwork(false);
+
+        await new Promise<void>((resolve) => {
+            const cb = (value: QueryIndex.CallbackParameters) => {
+                expect(value.add.map(extractGenericClaim)).toStrictEqual([
+                    '6',
+                    '5',
+                    undefined,
+                    '2',
+                    undefined,
+                ]);
+
+                resolve();
+            };
+
+            queryManager.query(
+                s1p1.system(),
+                Models.ContentType.ContentTypeClaim,
+                cb,
+            );
+
+            queryManager.advance(s1p1.system(), cb, 20);
         });
     });
 });
