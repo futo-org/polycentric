@@ -1,6 +1,4 @@
 /* eslint jest/no-conditional-expect: 0 */
-import Long from 'long';
-
 import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import * as QueryIndex from './query-index';
