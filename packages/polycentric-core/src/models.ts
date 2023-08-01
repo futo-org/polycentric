@@ -363,7 +363,7 @@ export enum ClaimType {
     Website = 'Website',
     Kick = 'Kick',
     Soundcloud = 'Soundcloud',
-    Vimeo = 'Vimeo', 
+    Vimeo = 'Vimeo',
     Nebula = 'Nebula',
     URL = 'URL',
     Occupation = 'Occupation',
