@@ -1,10 +1,9 @@
 import Long from 'long';
 
-import * as FS from 'fs';
 import * as Base64 from '@borderless/base64';
+import Sharp from 'sharp';
+
 import * as ProcessHandle from './process-handle';
-import * as MetaStore from './meta-store';
-import * as PersistenceDriver from './persistence-driver';
 import * as Models from './models';
 import * as Synchronization from './synchronization';
 import * as Protocol from './protocol';
@@ -14,20 +13,36 @@ import * as Util from './util';
 const TEST_SERVER = 'http://127.0.0.1:8081';
 // const TEST_SERVER = 'https://srv1-stg.polycentric.io';
 
-export async function createProcessHandle(): Promise<ProcessHandle.ProcessHandle> {
-    return await ProcessHandle.createProcessHandle(
-        await MetaStore.createMetaStore(
-            PersistenceDriver.createPersistenceDriverMemory(),
-        ),
-    );
-}
+async function setAvatarImage(
+    handle: ProcessHandle.ProcessHandle,
+    path: string,
+) {
+    const resolutions: Array<number> = [256, 128, 32];
 
-async function fullSync(handle: ProcessHandle.ProcessHandle) {
-    while (await Synchronization.backFillServers(handle, handle.system())) {}
+    const imageBundle: Protocol.ImageBundle = {
+        imageManifests: [],
+    };
+
+    for (const resolution of resolutions) {
+        const image = await Sharp(path).resize(resolution).jpeg().toBuffer();
+
+        const imageRanges = await handle.publishBlob(image);
+
+        imageBundle.imageManifests.push({
+            mime: 'image/jpeg',
+            width: Long.fromNumber(resolution),
+            height: Long.fromNumber(resolution),
+            byteCount: Long.fromNumber(image.length),
+            process: handle.process(),
+            sections: imageRanges,
+        });
+    }
+
+    await handle.setAvatar(imageBundle);
 }
 
 async function createHandleWithName(username: string) {
-    const s1p1 = await createProcessHandle();
+    const s1p1 = await ProcessHandle.createTestProcessHandle();
     await s1p1.addServer(TEST_SERVER);
     await s1p1.setUsername(username);
     await Synchronization.backFillServers(s1p1, s1p1.system());
@@ -36,7 +51,7 @@ async function createHandleWithName(username: string) {
 
 describe('integration', () => {
     test('sync', async () => {
-        const s1p1 = await createProcessHandle();
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
         await s1p1.addServer(TEST_SERVER);
         await s1p1.setDescription('hello');
 
@@ -47,7 +62,7 @@ describe('integration', () => {
 
         await Synchronization.backFillServers(s1p1, s1p1.system());
 
-        const s2p1 = await createProcessHandle();
+        const s2p1 = await ProcessHandle.createTestProcessHandle();
 
         while (
             await Synchronization.backfillClient(
@@ -71,7 +86,7 @@ describe('integration', () => {
     });
 
     test('resolveAndQuery', async () => {
-        const s1p1 = await createProcessHandle();
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
         await s1p1.addServer(TEST_SERVER);
 
         await s1p1.setUsername('Louis Rossmann');
@@ -94,26 +109,18 @@ describe('integration', () => {
             Models.claimBitcoin('1EaEv8DBeFfg6fE6BimEmvEFbYLkhpcvhj'),
         );
 
-        {
-            const image = FS.readFileSync('./src/rossmann.jpg', null);
-            const imagePointer = await s1p1.publishBlob('image/jpeg', image);
-            await s1p1.setAvatar(imagePointer);
-        }
+        await setAvatarImage(s1p1, './src/rossmann.jpg');
 
         await Synchronization.backFillServers(s1p1, s1p1.system());
 
-        const s2p1 = await createProcessHandle();
+        const s2p1 = await ProcessHandle.createTestProcessHandle();
         await s2p1.addServer(TEST_SERVER);
 
         await s2p1.setUsername('Futo');
         await s2p1.setDescription('Tech Freedom');
         await s2p1.vouch(claimPointer);
 
-        {
-            const image = FS.readFileSync('./src/futo.jpg', null);
-            const imagePointer = await s2p1.publishBlob('image/jpeg', image);
-            await s2p1.setAvatar(imagePointer);
-        }
+        await setAvatarImage(s2p1, './src/futo.jpg');
 
         await Synchronization.backFillServers(s2p1, s2p1.system());
 
@@ -165,7 +172,7 @@ describe('integration', () => {
         });
 
         await bernstein.opinion(subject, Models.Opinion.OpinionLike);
-        await fullSync(bernstein);
+        await ProcessHandle.fullSync(bernstein);
 
         expect(await getLikesAndDislikes()).toStrictEqual({
             likes: 1,
@@ -173,7 +180,7 @@ describe('integration', () => {
         });
 
         await shamir.opinion(subject, Models.Opinion.OpinionLike);
-        await fullSync(shamir);
+        await ProcessHandle.fullSync(shamir);
 
         expect(await getLikesAndDislikes()).toStrictEqual({
             likes: 2,
@@ -181,7 +188,7 @@ describe('integration', () => {
         });
 
         await bernstein.opinion(subject, Models.Opinion.OpinionDislike);
-        await fullSync(bernstein);
+        await ProcessHandle.fullSync(bernstein);
 
         expect(await getLikesAndDislikes()).toStrictEqual({
             likes: 1,
@@ -189,10 +196,10 @@ describe('integration', () => {
         });
 
         await bernstein.opinion(subject, Models.Opinion.OpinionNeutral);
-        await fullSync(bernstein);
+        await ProcessHandle.fullSync(bernstein);
 
         await shamir.opinion(subject, Models.Opinion.OpinionNeutral);
-        await fullSync(shamir);
+        await ProcessHandle.fullSync(shamir);
 
         expect(await getLikesAndDislikes()).toStrictEqual({
             likes: 0,
@@ -253,10 +260,10 @@ describe('integration', () => {
             await turing.post(i.toString(), undefined, rootPosts[1]);
         }
 
-        await fullSync(vonNeumann);
-        await fullSync(godel);
-        await fullSync(babbage);
-        await fullSync(turing);
+        await ProcessHandle.fullSync(vonNeumann);
+        await ProcessHandle.fullSync(godel);
+        await ProcessHandle.fullSync(babbage);
+        await ProcessHandle.fullSync(turing);
 
         // query comments from a server
         const queryReferences = await APIMethods.getQueryReferences(
@@ -330,7 +337,7 @@ describe('integration', () => {
     }, 10000);
 
     test('censor', async () => {
-        const s1p1 = await createProcessHandle();
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
         await s1p1.addServer(TEST_SERVER);
 
         let postContent = 'I fought the law, and the law won';
@@ -392,7 +399,7 @@ describe('integration', () => {
             return signedEvent.event;
         }
 
-        const s1p1 = await createProcessHandle();
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
         await s1p1.addServer(TEST_SERVER);
 
         let username = Math.random() * 100000 + '';

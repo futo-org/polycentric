@@ -54,8 +54,20 @@ message BlobMeta {
 }
 
 message BlobSection {
-    uint64 meta_pointer = 1;
-    bytes content = 2;
+    bytes content = 1;
+}
+
+message ImageManifest {
+             string  mime       = 1;
+             uint64  width      = 2;
+             uint64  height     = 3;
+             uint64  byte_count = 4;
+             Process process    = 5; 
+    repeated Range   sections   = 6;
+}
+
+message ImageBundle {
+    repeated ImageManifest image_manifests = 1;
 }
 
 message Event {

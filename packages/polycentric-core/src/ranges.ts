@@ -5,6 +5,19 @@ export interface IRange {
     high: Long;
 }
 
+export function contains(ranges: Array<IRange>, item: Long): boolean {
+    for (const range of ranges) {
+        if (
+            item.greaterThanOrEqual(range.low) ||
+            item.lessThanOrEqual(range.high)
+        ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 export function insert(ranges: Array<IRange>, item: Long): void {
     for (let i = 0; i < ranges.length; i++) {
         // within existing range

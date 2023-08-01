@@ -5,13 +5,8 @@ import Long from 'long';
 import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import * as QueryHead from './query-head';
-import * as Synchronization from '../synchronization';
 
 const TEST_SERVER = 'http://127.0.0.1:8081';
-
-async function fullSync(handle: ProcessHandle.ProcessHandle) {
-    while (await Synchronization.backFillServers(handle, handle.system())) {}
-}
 
 describe('head', () => {
     test('non existant', async () => {
@@ -94,7 +89,7 @@ describe('head', () => {
         const s2p1 = await ProcessHandle.createTestProcessHandle();
         await s2p1.addServer(TEST_SERVER);
         await s2p1.setUsername('heinlein');
-        await fullSync(s2p1);
+        await ProcessHandle.fullSync(s2p1);
 
         const s2p1ProcessString = Models.Process.toString(
             s2p1.processSecret().process,

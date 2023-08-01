@@ -2,7 +2,7 @@ import * as ReactRouterDOM from 'react-router-dom';
 import * as React from 'react';
 
 import * as Core from '@polycentric/polycentric-core';
-import { loadImageFromPointer } from './util';
+import * as Util from './util';
 
 function loadVouchedByState(
     cancelContext: Core.CancelContext.CancelContext,
@@ -27,54 +27,6 @@ function loadVouchedByState(
                     });
                 }
             },
-        ),
-    );
-
-    const loadAvatar = async (
-        cancelContext: Core.CancelContext.CancelContext,
-        avatarCancelContext: Core.CancelContext.CancelContext,
-        pointer: Core.Models.Pointer.Pointer,
-    ): Promise<void> => {
-        const link = await loadImageFromPointer(processHandle, pointer);
-
-        if (cancelContext.cancelled() || avatarCancelContext.cancelled()) {
-            return;
-        }
-
-        console.log('setting avatar');
-
-        setProps((state) => {
-            return {
-                ...state,
-                avatar: link,
-            };
-        });
-    };
-
-    let avatarCancelContext: Core.CancelContext.CancelContext | undefined =
-        undefined;
-
-    const avatarCallback = (buffer: Uint8Array) => {
-        if (cancelContext.cancelled()) {
-            return;
-        }
-
-        const pointer = Core.Models.Pointer.fromBuffer(buffer);
-
-        if (avatarCancelContext !== undefined) {
-            avatarCancelContext.cancel();
-        }
-
-        avatarCancelContext = new Core.CancelContext.CancelContext();
-
-        loadAvatar(cancelContext, avatarCancelContext, pointer);
-    };
-
-    queries.push(
-        queryManager.queryCRDT.query(
-            system,
-            Core.Models.ContentType.ContentTypeAvatar,
-            avatarCallback,
         ),
     );
 
@@ -110,7 +62,6 @@ export type VouchedByProps = {
 };
 
 export type VouchedByState = {
-    avatar: string;
     username: string;
     link: string;
 };
@@ -119,13 +70,14 @@ function makeInitialState(
     system: Core.Models.PublicKey.PublicKey,
 ): VouchedByState {
     return {
-        avatar: '',
         username: '',
         link: Core.ProcessHandle.makeSystemLinkSync(system, []),
     };
 }
 
 export function VouchedBy(props: VouchedByProps) {
+    const avatar = Util.useAvatar(props.queryManager, props.system);
+
     const [state, setState] = React.useState<VouchedByState>(
         makeInitialState(props.system),
     );
@@ -154,7 +106,7 @@ export function VouchedBy(props: VouchedByProps) {
         <div>
             <ReactRouterDOM.Link to={'/' + state.link}>
                 <img
-                    src={state.avatar}
+                    src={avatar}
                     alt={state.username}
                     className="border rounded-full w-20 h-20"
                 />

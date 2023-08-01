@@ -4,13 +4,8 @@ import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import * as Util from '../util';
 import * as QueryCRDT from './query-crdt';
-import * as Synchronization from '../synchronization';
 
 const TEST_SERVER = 'http://127.0.0.1:8081';
-
-async function fullSync(handle: ProcessHandle.ProcessHandle) {
-    while (await Synchronization.backFillServers(handle, handle.system())) {}
-}
 
 describe('query crdt', () => {
     test('non existant', async () => {
@@ -80,7 +75,7 @@ describe('query crdt', () => {
         const s2p1 = await ProcessHandle.createTestProcessHandle();
         await s2p1.addServer(TEST_SERVER);
         await s2p1.setUsername('guatarri');
-        await fullSync(s2p1);
+        await ProcessHandle.fullSync(s2p1);
 
         s1p1.addAddressHint(s2p1.system(), TEST_SERVER);
 
