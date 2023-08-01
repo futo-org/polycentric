@@ -5,14 +5,9 @@ import Long from 'long';
 import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import * as QueryEvent from './query-event';
-import * as Synchronization from '../synchronization';
 import * as Protocol from '../protocol';
 
 const TEST_SERVER = 'http://127.0.0.1:8081';
-
-async function fullSync(handle: ProcessHandle.ProcessHandle) {
-    while (await Synchronization.backFillServers(handle, handle.system())) {}
-}
 
 function extractGenericClaim(
     signedEvent: Models.SignedEvent.SignedEvent,
@@ -103,7 +98,7 @@ describe('query event', () => {
         const s2p1 = await ProcessHandle.createTestProcessHandle();
         await s2p1.addServer(TEST_SERVER);
         const pointer = await s2p1.claim(Models.claimGeneric('1'));
-        await fullSync(s2p1);
+        await ProcessHandle.fullSync(s2p1);
 
         s1p1.addAddressHint(s2p1.system(), TEST_SERVER);
 

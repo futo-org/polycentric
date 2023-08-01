@@ -3,69 +3,7 @@ import { useInView } from 'react-intersection-observer';
 
 import * as Core from '@polycentric/polycentric-core';
 import * as Claim from './Claim';
-import { loadImageFromPointer, useIndex, useCRDT, ClaimInfo } from './util';
-
-function loadProfileProps(
-    cancelContext: Core.CancelContext.CancelContext,
-    processHandle: Core.ProcessHandle.ProcessHandle,
-    queryManager: Core.Queries.QueryManager.QueryManager,
-    system: Core.Models.PublicKey.PublicKey,
-    setProfileProps: (f: (state: State) => State) => void,
-): Core.Queries.Shared.UnregisterCallback {
-    const queries: Array<Core.Queries.Shared.UnregisterCallback> = [];
-
-    const loadAvatar = async (
-        cancelContext: Core.CancelContext.CancelContext,
-        avatarCancelContext: Core.CancelContext.CancelContext,
-        pointer: Core.Models.Pointer.Pointer,
-    ): Promise<void> => {
-        const link = await loadImageFromPointer(processHandle, pointer);
-
-        if (cancelContext.cancelled() || avatarCancelContext.cancelled()) {
-            return;
-        }
-
-        console.log('setting avatar', link);
-
-        setProfileProps((state) => {
-            return {
-                ...state,
-                avatar: link,
-            };
-        });
-    };
-
-    let avatarCancelContext: Core.CancelContext.CancelContext | undefined =
-        undefined;
-
-    const avatarCallback = (buffer: Uint8Array) => {
-        if (cancelContext.cancelled()) {
-            return;
-        }
-
-        const pointer = Core.Models.Pointer.fromBuffer(buffer);
-
-        if (avatarCancelContext !== undefined) {
-            avatarCancelContext.cancel();
-        }
-
-        avatarCancelContext = new Core.CancelContext.CancelContext();
-
-        loadAvatar(cancelContext, avatarCancelContext, pointer);
-    };
-
-    queries.push(
-        queryManager.queryCRDT.query(
-            system,
-            Core.Models.ContentType.ContentTypeAvatar,
-            avatarCallback,
-        ),
-    );
-
-    return () => {
-        queries.forEach((f) => f());
-    };
-}
+import * as Util from './util';
 
 export type ProfileProps = {
     processHandle: Core.ProcessHandle.ProcessHandle;
@@ -73,58 +11,31 @@ export type ProfileProps = {
     system: Core.Models.PublicKey.PublicKey;
 };
 
-type State = {
-    avatar: string;
-};
-
-const initialState = {
-    avatar: '',
-};
-
 export function Profile(props: ProfileProps) {
-    const username = useCRDT<string>(
+    const avatar = Util.useAvatar(props.queryManager, props.system);
+
+    const username = Util.useCRDT<string>(
         props.queryManager,
         props.system,
         Core.Models.ContentType.ContentTypeUsername,
         Core.Util.decodeText,
     );
 
-    const description = useCRDT<string>(
+    const description = Util.useCRDT<string>(
         props.queryManager,
         props.system,
         Core.Models.ContentType.ContentTypeDescription,
         Core.Util.decodeText,
     );
 
-    const [claims, advanceClaims] = useIndex<Core.Protocol.Claim>(
+    const [claims, advanceClaims] = Util.useIndex<Core.Protocol.Claim>(
         props.queryManager,
         props.system,
         Core.Models.ContentType.ContentTypeClaim,
         Core.Protocol.Claim.decode,
     );
 
-    const [state, setState] = React.useState<State>(initialState);
     const [ref, inView] = useInView();
-
-    React.useEffect(() => {
-        setState(initialState);
-
-        const cancelContext = new Core.CancelContext.CancelContext();
-
-        const cleanupView = loadProfileProps(
-            cancelContext,
-            props.processHandle,
-            props.queryManager,
-            props.system,
-            setState,
-        );
-
-        return () => {
-            cancelContext.cancel();
-
-            cleanupView();
-        };
-    }, [props.processHandle, props.queryManager, props.system]);
 
     React.useEffect(() => {
         if (inView) {
@@ -132,7 +43,7 @@ export function Profile(props: ProfileProps) {
         }
     }, [inView, advanceClaims]);
 
-    const isSocialProp = (claim: ClaimInfo<Core.Protocol.Claim>) => {
+    const isSocialProp = (claim: Util.ClaimInfo<Core.Protocol.Claim>) => {
         if (claim.parsedEvent === undefined) {
             return false;
         }
@@ -167,11 +78,7 @@ export function Profile(props: ProfileProps) {
                 <div className="flex flex-col items-center justify-center text-center gap-5">
                     <img
                         className="rounded-full w-20 h-20"
-                        src={
-                            state.avatar == '' || state.avatar == null
-                                ? '/placeholder.jpg'
-                                : state.avatar
-                        }
+                        src={avatar === '' ? '/placeholder.jpg' : avatar}
                         alt={`The avatar for ${username}`}
                     />
                     <h1 className="text-3xl font-bold text-gray-800 dark:text-white">

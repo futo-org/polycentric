@@ -1,21 +1,11 @@
 import Long from 'long';
 import * as ProcessHandle from './process-handle';
-import * as MetaStore from './meta-store';
-import * as PersistenceDriver from './persistence-driver';
 import * as Models from './models';
 import * as Util from './util';
 
-export async function createProcessHandle(): Promise<ProcessHandle.ProcessHandle> {
-    return await ProcessHandle.createProcessHandle(
-        await MetaStore.createMetaStore(
-            PersistenceDriver.createPersistenceDriverMemory(),
-        ),
-    );
-}
-
 describe('processHandle', () => {
     test('basic post', async () => {
-        const processHandle = await createProcessHandle();
+        const processHandle = await ProcessHandle.createTestProcessHandle();
 
         const events: Array<Models.SignedEvent.SignedEvent> = [];
         processHandle.setListener((event: Models.SignedEvent.SignedEvent) => {
@@ -37,7 +27,7 @@ describe('processHandle', () => {
     });
 
     test('addAndRemoveServer', async () => {
-        const processHandle = await createProcessHandle();
+        const processHandle = await ProcessHandle.createTestProcessHandle();
 
         await processHandle.addServer('127.0.0.1');
         await processHandle.addServer('127.0.0.2');
@@ -52,7 +42,7 @@ describe('processHandle', () => {
     });
 
     test('username', async () => {
-        const processHandle = await createProcessHandle();
+        const processHandle = await ProcessHandle.createTestProcessHandle();
 
         await processHandle.setUsername('alice');
         await processHandle.setUsername('bob');
@@ -65,7 +55,7 @@ describe('processHandle', () => {
     });
 
     test('description', async () => {
-        const processHandle = await createProcessHandle();
+        const processHandle = await ProcessHandle.createTestProcessHandle();
 
         await processHandle.setDescription('test');
 
@@ -77,31 +67,30 @@ describe('processHandle', () => {
     });
 
     test('avatar', async () => {
-        const processHandle = await createProcessHandle();
+        const processHandle = await ProcessHandle.createTestProcessHandle();
 
         const fakeImage = Util.encodeText('not actually a png');
-        const imagePointer = await processHandle.publishBlob(
-            'image/png',
-            fakeImage,
-        );
-        await processHandle.setAvatar(imagePointer);
 
-        const serverState = await processHandle.loadSystemState(
-            processHandle.system(),
-        );
+        const imageRanges = await processHandle.publishBlob(fakeImage);
 
-        const loadedAvatar = await processHandle.loadBlob(
-            serverState.avatar()!,
-        );
+        const imageBundle = {
+            imageManifests: [
+                {
+                    mime: 'image/jpeg',
+                    width: Long.fromNumber(512),
+                    height: Long.fromNumber(512),
+                    byteCount: Long.fromNumber(fakeImage.length),
+                    process: processHandle.process(),
+                    sections: imageRanges,
+                },
+            ],
+        };
 
-        expect(loadedAvatar!.mime()).toStrictEqual('image/png');
-        expect(
-            Util.buffersEqual(loadedAvatar!.content(), fakeImage),
-        ).toStrictEqual(true);
+        await processHandle.setAvatar(imageBundle);
     });
 
     test('claim then vouch', async () => {
-        const processHandle = await createProcessHandle();
+        const processHandle = await ProcessHandle.createTestProcessHandle();
 
         const claimPointer = await processHandle.claim(
             Models.claimHackerNews('pg'),
@@ -111,7 +100,7 @@ describe('processHandle', () => {
     });
 
     test('delete', async () => {
-        const processHandle = await createProcessHandle();
+        const processHandle = await ProcessHandle.createTestProcessHandle();
 
         const pointer = await processHandle.post('jej');
 

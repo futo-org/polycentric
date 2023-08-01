@@ -2,14 +2,9 @@
 import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import * as QueryIndex from './query-index';
-import * as Synchronization from '../synchronization';
 import * as Protocol from '../protocol';
 
 const TEST_SERVER = 'http://127.0.0.1:8081';
-
-async function fullSync(handle: ProcessHandle.ProcessHandle) {
-    while (await Synchronization.backFillServers(handle, handle.system())) {}
-}
 
 function extractGenericClaim(cell: QueryIndex.Cell): string | undefined {
     if (cell.signedEvent === undefined) {
@@ -124,7 +119,7 @@ describe('query index', () => {
             await s2p1.claim(Models.claimGeneric(i.toString()));
         }
 
-        await fullSync(s2p1);
+        await ProcessHandle.fullSync(s2p1);
 
         s1p1.addAddressHint(s2p1.system(), TEST_SERVER);
 

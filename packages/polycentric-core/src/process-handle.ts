@@ -8,6 +8,7 @@ import * as MetaStore from './meta-store';
 import * as Util from './util';
 import * as Ranges from './ranges';
 import * as PersistenceDriver from './persistence-driver';
+import * as Synchronization from './synchronization';
 
 export class SystemState {
     private _servers: Array<string>;
@@ -15,7 +16,7 @@ export class SystemState {
     private _username: string;
     private _description: string;
     private _store: string;
-    private _avatar: Models.Pointer.Pointer | undefined;
+    private _avatar: Protocol.ImageBundle | undefined;
 
     public constructor(
         servers: Array<string>,
@@ -23,7 +24,7 @@ export class SystemState {
         username: string,
         description: string,
         store: string,
-        avatar: Models.Pointer.Pointer | undefined,
+        avatar: Protocol.ImageBundle | undefined,
     ) {
         this._servers = servers;
         this._processes = processes;
@@ -53,7 +54,7 @@ export class SystemState {
         return this._store;
     }
 
-    public avatar(): Models.Pointer.Pointer | undefined {
+    public avatar(): Protocol.ImageBundle | undefined {
         return this._avatar;
     }
 }
@@ -97,9 +98,7 @@ function protoSystemStateToSystemState(
         } else if (
             item.contentType.equals(Models.ContentType.ContentTypeAvatar)
         ) {
-            avatar = Models.Pointer.fromProto(
-                Protocol.Pointer.decode(item.value),
-            );
+            avatar = Protocol.ImageBundle.decode(item.value);
         }
     }
 
@@ -270,11 +269,11 @@ export class ProcessHandle {
     }
 
     public async setAvatar(
-        avatar: Models.Pointer.Pointer,
+        avatar: Protocol.ImageBundle,
     ): Promise<Models.Pointer.Pointer> {
         return await this.setCRDTItem(
             Models.ContentType.ContentTypeAvatar,
-            Protocol.Pointer.encode(avatar).finish(),
+            Protocol.ImageBundle.encode(avatar).finish(),
         );
     }
 
@@ -362,94 +361,25 @@ export class ProcessHandle {
     }
 
     public async publishBlob(
-        mime: string,
         content: Uint8Array,
-    ): Promise<Models.Pointer.Pointer> {
-        const meta = await this.publish(
-            Models.ContentType.ContentTypeBlobMeta,
-            Protocol.BlobMeta.encode({
-                sectionCount: new Long(1, 0, true),
-                mime: mime,
-            }).finish(),
-            undefined,
-            undefined,
-            [],
-        );
+    ): Promise<Array<Ranges.IRange>> {
+        const ranges: Array<Ranges.IRange> = [];
 
-        await this.publish(
-            Models.ContentType.ContentTypeBlobSection,
-            Protocol.BlobSection.encode({
-                metaPointer: meta.logicalClock,
-                content: content,
-            }).finish(),
-            undefined,
-            undefined,
-            [],
-        );
+        const maxBytes = 1024 * 512;
 
-        return meta;
-    }
-
-    public async loadBlob(
-        pointer: Models.Pointer.Pointer,
-    ): Promise<Models.Blob | undefined> {
-        const meta = await (async () => {
-            const signedEvent = await this._store.getSignedEvent(
-                pointer.system,
-                pointer.process,
-                pointer.logicalClock,
+        for (let i = 0; i < content.length; i += maxBytes) {
+            const pointer = await this.publish(
+                Models.ContentType.ContentTypeBlobSection,
+                content.slice(i, i + maxBytes),
+                undefined,
+                undefined,
+                [],
             );
 
-            if (!signedEvent) {
-                return undefined;
-            }
-
-            const event = Models.Event.fromBuffer(signedEvent.event);
-
-            if (
-                !event.contentType.equals(
-                    Models.ContentType.ContentTypeBlobMeta,
-                )
-            ) {
-                return undefined;
-            }
-
-            return Protocol.BlobMeta.decode(event.content);
-        })();
-
-        if (!meta) {
-            return undefined;
+            Ranges.insert(ranges, pointer.logicalClock);
         }
 
-        const section = await (async () => {
-            const signedEvent = await this._store.getSignedEvent(
-                pointer.system,
-                pointer.process,
-                pointer.logicalClock.add(Long.UONE),
-            );
-
-            if (!signedEvent) {
-                return undefined;
-            }
-
-            const event = Models.Event.fromBuffer(signedEvent.event);
-
-            if (
-                !event.contentType.equals(
-                    Models.ContentType.ContentTypeBlobSection,
-                )
-            ) {
-                return undefined;
-            }
-
-            return Protocol.BlobSection.decode(event.content);
-        })();
-
-        if (!section) {
-            return undefined;
-        }
-
-        return new Models.Blob(meta.mime, section.content);
+        return ranges;
     }
 
     public async loadSystemState(
@@ -823,4 +753,8 @@ export async function createTestProcessHandle(): Promise<ProcessHandle> {
             PersistenceDriver.createPersistenceDriverMemory(),
         ),
     );
+}
+
+export async function fullSync(handle: ProcessHandle) {
+    while (await Synchronization.backFillServers(handle, handle.system())) {}
 }

@@ -1,9 +1,10 @@
 import Long from 'long';
+
 import * as Core from '@polycentric/polycentric-core';
 import * as React from 'react';
 
-// export const server = 'http://localhost:8081';
-export const server = 'https://srv1-stg.polycentric.io';
+export const server = 'http://localhost:8081';
+// export const server = 'https://srv1-stg.polycentric.io';
 
 export class ParsedEvent<T> {
     signedEvent: Core.Models.SignedEvent.SignedEvent;
@@ -21,44 +22,72 @@ export class ParsedEvent<T> {
     }
 }
 
-export async function loadImageFromPointer(
-    processHandle: Core.ProcessHandle.ProcessHandle,
-    pointer: Core.Models.Pointer.Pointer,
-) {
-    const systemState = await processHandle.loadSystemState(pointer.system);
+export function useAvatar(
+    queryManager: Core.Queries.QueryManager.QueryManager,
+    system: Core.Models.PublicKey.PublicKey,
+): string {
+    const [link, setLink] = React.useState('');
 
-    for (const server of systemState.servers()) {
-        await Core.Synchronization.saveBatch(
-            processHandle,
-            await Core.APIMethods.getEvents(server, pointer.system, {
-                rangesForProcesses: [
-                    {
-                        process: pointer.process,
-                        ranges: [
-                            {
-                                low: pointer.logicalClock,
-                                high: pointer.logicalClock.add(Long.UONE),
-                            },
-                        ],
-                    },
-                ],
-            }),
+    React.useEffect(() => {
+        setLink('');
+
+        const cancelContext = new Core.CancelContext.CancelContext();
+
+        let subCancel = new Core.CancelContext.CancelContext();
+
+        const unregister = queryManager.queryCRDT.query(
+            system,
+            Core.Models.ContentType.ContentTypeAvatar,
+            (rawImageBundle: Uint8Array) => {
+                if (cancelContext.cancelled()) {
+                    return;
+                }
+
+                subCancel.cancel();
+
+                subCancel = new Core.CancelContext.CancelContext();
+
+                const manifest = Core.Protocol.ImageBundle.decode(
+                    rawImageBundle,
+                ).imageManifests.find((manifest) => {
+                    return (
+                        manifest.height.equals(Long.fromNumber(256)) &&
+                        manifest.width.equals(Long.fromNumber(256))
+                    );
+                });
+
+                if (manifest === undefined) {
+                    console.log('manifest missing 256x256');
+
+                    return;
+                }
+
+                subCancel.addCallback(
+                    queryManager.queryBlob.query(
+                        system,
+                        Core.Models.Process.fromProto(manifest.process!),
+                        manifest.sections,
+                        (rawImage: Uint8Array) => {
+                            const blob = new Blob([rawImage], {
+                                type: manifest.mime,
+                            });
+
+                            setLink(URL.createObjectURL(blob));
+                        },
+                    ),
+                );
+            },
         );
-    }
 
-    const image = await processHandle.loadBlob(pointer);
+        return () => {
+            subCancel.cancel();
+            cancelContext.cancel();
 
-    if (image) {
-        const blob = new Blob([image.content()], {
-            type: image.mime(),
-        });
+            unregister();
+        };
+    }, [queryManager, system]);
 
-        return URL.createObjectURL(blob);
-    }
-
-    console.log('failed to load blob');
-
-    return '';
+    return link;
 }
 
 export function useCRDT<T>(
