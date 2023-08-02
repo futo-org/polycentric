@@ -73,6 +73,23 @@ const HeartIconSolid = ({ color }: { color?: string }) => (
   </svg>
 )
 
+const RePostIconSolid = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    className="w-6 h-6"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+    />
+  </svg>
+)
+
 const CommentIconOutline = ({ color }: { color?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -86,6 +103,23 @@ const CommentIconOutline = ({ color }: { color?: string }) => (
       strokeLinecap="round"
       strokeLinejoin="round"
       d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 01-.923 1.785A5.969 5.969 0 006 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337z"
+    />
+  </svg>
+)
+
+const ShareButton = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    className="w-6 h-6"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15m0-3l-3-3m0 0l-3 3m3-3V15"
     />
   </svg>
 )
@@ -112,8 +146,16 @@ export const LikeButton = ({
   )
 }
 
+export const RePostButton = ({ onClick, count }: { onClick: () => void; count?: number }) => {
+  return <PostActionButton name="RePost" DefaultIcon={RePostIconSolid} onClick={onClick} count={count} />
+}
+
 export const CommentButton = ({ onClick, count }: { onClick: () => void; count?: number }) => {
   return <PostActionButton name="Comment" DefaultIcon={CommentIconOutline} onClick={onClick} count={count} />
+}
+
+export const SharePostButton = ({ onClick }: { onClick: () => void }) => {
+  return <PostActionButton name="Share" DefaultIcon={ShareButton} onClick={onClick} />
 }
 
 // eslint-disable-next-line react/display-name
@@ -160,88 +202,129 @@ export const PurePost = forwardRef(
     }, [sub, subcontentCropped])
 
     return (
-      <Link to="#" className="cursor-default">
-        <article className="px-3 py-5 md:px-10 md:py-10 border rounded-2xl bg-white overflow-clip" ref={ref}>
-          <div className="flex relative overflow-clip">
-            <div className="mr-3 md:mr-4 flex-shrink-0 flex flex-col overflow-clip">
-              <img src={author.avatarURL} className="rounded-full h-16 w-16 md:h-20 md:w-20" />
-              <div className="sticky top-full overflow-clip">
-                <LikeButton
+      <article className="px-3 pt-5 pb-3 md:px-10 md:pt-10 md:pb-8 border rounded-2xl bg-white overflow-clip" ref={ref}>
+        <div className="flex relative overflow-clip">
+          <div className="mr-3 md:mr-4 flex-shrink-0 flex flex-col overflow-clip">
+            <img src={author.avatarURL} className="rounded-full h-16 w-16 md:h-20 md:w-20" />
+            <div
+              className={`hidden lg:flex flex-col space-y-2 sticky top-full overflow-clip ${sub == null ? 'pt-5' : ''}`}
+            >
+              <LikeButton
+                onClick={() => {
+                  return
+                }}
+                count={69}
+                clicked={false}
+              />
+              <RePostButton
+                onClick={() => {
+                  return
+                }}
+                count={420}
+              />
+              <CommentButton
+                onClick={() => {
+                  return
+                }}
+                count={1337}
+              />
+            </div>
+          </div>
+          <div className="flex-grow">
+            <div className="flex w-full justify-between">
+              <div className="font-bold text-md ">{author.name}</div>
+              <div className="flex space-x-2 text-gray-700">
+                <time className="pr-3 md:pr-0 font-light text-gray-500 tracking-tight">
+                  {dateToAgoString(publishedAt)}
+                </time>
+                <SharePostButton
                   onClick={() => {
                     return
                   }}
-                  count={69}
-                  clicked={false}
                 />
               </div>
             </div>
-            <div className="flex-grow">
-              <div className="flex w-full justify-between">
-                <div className="font-bold text-md ">{author.name}</div>
-                <div className="pr-3 md:pr-0 font-light text-gray-500">{dateToAgoString(publishedAt)}</div>
-              </div>
-              <div className=" text-purple-400 leading-3">{topic}</div>
-              <div className="flex flex-col space-y-3">
-                {/* Actual post content */}
-                <main
-                  className={
-                    'pt-4 leading-normal whitespace-pre-line text-lg text-gray-900 font-normal overflow-clip' +
-                    (expanded ? '' : ' line-clamp-[7]') +
-                    (contentCropped && !expanded
-                      ? ` line-clamp-[7] relative
+            <div className=" text-purple-400 leading-3">{topic}</div>
+            <div className="flex flex-col space-y-3">
+              {/* Actual post content */}
+              <main
+                className={
+                  'pt-4 leading-normal whitespace-pre-line text-lg text-gray-900 font-normal overflow-clip' +
+                  (expanded ? '' : ' line-clamp-[7]') +
+                  (contentCropped && !expanded
+                    ? ` line-clamp-[7] relative
                   after:top-0 after:left-0  after:w-full after:h-full 
                   after:bg-gradient-to-b after:from-80% after:from-transparent after:to-white
                   after:absolute `
-                      : '')
-                  }
-                  ref={mainRef}
+                    : '')
+                }
+                ref={mainRef}
+              >
+                {content}
+              </main>
+              {/* sub.post */}
+              {sub && (
+                <div
+                  className="border rounded-2xl w-full p-5 bg-white hover:bg-gray-50 overflow-clip flex flex-col space-y-3"
                 >
-                  {content}
-                </main>
-                {/* sub.post */}
-                {sub && (
-                  <Link
-                    to={sub.ContentLink || '/'}
-                    className="border rounded-2xl w-full p-5 bg-white overflow-clip flex flex-col space-y-3"
-                  >
-                    <div className="flex">
-                      <img src={sub.author.avatarURL} className="rounded-full h-5 w-5 md:h-10 md:w-10" />
-                      <div className="flex flex-col ml-2 w-full">
-                        <div className="flex justify-between w-full">
-                          <div className="font-bold">{sub.author.name}</div>
-                          <div className="pr-3 md:pr-0 font-light text-gray-500 text-sm">
-                            {dateToAgoString(sub.publishedAt)}
-                          </div>
+                  <div className="flex">
+                    <img src={sub.author.avatarURL} className="rounded-full h-5 w-5 md:h-10 md:w-10" />
+                    <div className="flex flex-col ml-2 w-full">
+                      <div className="flex justify-between w-full">
+                        <div className="font-bold">{sub.author.name}</div>
+                        <div className="pr-3 md:pr-0 font-light text-gray-500 text-sm">
+                          {dateToAgoString(sub.publishedAt)}
                         </div>
-                        <div className=" text-purple-400 leading-3 text-sm">{sub.topic}</div>
                       </div>
+                      <div className=" text-purple-400 leading-3 text-sm">{sub.topic}</div>
                     </div>
-                    <main
-                      ref={subContentRef}
-                      className={`line-clamp-[4]  ${
-                        subcontentCropped
-                          ? `relative after:top-0 after:left-0  after:w-full after:h-full 
+                  </div>
+                  <main
+                    ref={subContentRef}
+                    className={`line-clamp-[4]  ${
+                      subcontentCropped
+                        ? `relative after:top-0 after:left-0  after:w-full after:h-full 
                         after:bg-gradient-to-b after:from-20% after:from-transparent after:to-white
                         after:absolute`
-                          : ''
-                      }`}
-                    >
-                      {sub.content}
-                    </main>
-                  </Link>
-                )}
-              </div>
+                        : ''
+                    }`}
+                  >
+                    {sub.content}
+                  </main>
+                </div>
+              )}
             </div>
           </div>
-          {contentCropped && !expanded && (
-            <div className="flex w-full justify-center mt-4">
-              <button onClick={() => setExpanded(true)} className="bg-gray-200 rounded-full font-bold px-10 z-10 py-3">
-                Read more
-              </button>
-            </div>
-          )}
-        </article>
-      </Link>
+        </div>
+        {contentCropped && !expanded && (
+          <div className="flex w-full justify-center mt-4">
+            <button onClick={() => setExpanded(true)} className="bg-gray-200 rounded-full font-bold px-10 z-10 py-3">
+              Read more
+            </button>
+          </div>
+        )}
+        <div className="lg:hidden flex justify-around pt-6">
+          <LikeButton
+            onClick={() => {
+              return
+            }}
+            count={69}
+            clicked={false}
+          />
+          <RePostButton
+            onClick={() => {
+              return
+            }}
+            count={420}
+          />
+          <CommentButton
+            onClick={() => {
+              return
+            }}
+            count={1337}
+          />
+        </div>
+      </article>
     )
   },
 )
