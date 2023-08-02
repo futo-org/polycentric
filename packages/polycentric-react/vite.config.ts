@@ -5,12 +5,21 @@ import dts from 'vite-plugin-dts'
 import tailwindcss from 'tailwindcss'
 import { UserConfigExport } from 'vite'
 import { name } from './package.json'
+import unfonts from 'unplugin-fonts/vite'
 
 const app = defineConfig(({ mode }) => ({
   plugins: [
     react(),
     dts({
       insertTypesEntry: true,
+    }),
+    unfonts({
+      fontsource: {
+        families: [
+          { name: 'Public Sans', weights: [100, 200, 300, 400, 500, 600, 700, 800, 900] },
+          { name: 'Fragment Mono', weights: [400] },
+        ],
+      },
     }),
   ],
   css: {
@@ -19,7 +28,7 @@ const app = defineConfig(({ mode }) => ({
     },
   },
   optimizeDeps: {
-    exclude: mode === 'development' ? ["@polycentric/polycentric-core"] : [],
+    exclude: mode === 'development' ? ['@polycentric/polycentric-core'] : [],
   },
   build: {
     sourcemap: mode === 'development',
@@ -30,14 +39,14 @@ const app = defineConfig(({ mode }) => ({
       fileName: (format) => `polycentric-react.${format}.js`,
     },
     rollupOptions: {
-      external: ['react', 'react-dom', 'react/jsx-runtime', 'tailwindcss', "@polycentric/polycentric-core"],
+      external: ['react', 'react-dom', 'react/jsx-runtime', 'tailwindcss', '@polycentric/polycentric-core'],
       output: {
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',
           tailwindcss: 'tailwindcss',
           'react/jsx-runtime': 'react/jsx-runtime',
-          "@polycentric/polycentric-core": "@polycentric/polycentric-core",
+          '@polycentric/polycentric-core': '@polycentric/polycentric-core',
         },
       },
     },
