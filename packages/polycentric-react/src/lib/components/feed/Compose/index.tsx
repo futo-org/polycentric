@@ -59,7 +59,13 @@ const TopicBox = ({ topic, setTopic }: { topic: string; setTopic: (s: string) =>
   )
 }
 
-export const Compose = ({ hideTopic }: { hideTopic?: boolean }) => {
+export const Compose = ({
+  hideTopic,
+  maxTextboxHeightPx = 440,
+}: {
+  hideTopic?: boolean
+  maxTextboxHeightPx?: number
+}) => {
   const [content, setContent] = useState('')
   const [topic, setTopic] = useState('/')
   const [upload, setUpload] = useState<File | null>(null)
@@ -75,8 +81,8 @@ export const Compose = ({ hideTopic }: { hideTopic?: boolean }) => {
             value={content}
             onChange={(e) => {
               e.target.style.height = '0'
-              let height = Math.max(100, e.target.scrollHeight)
-              height = Math.min(height, 440)
+              let height = Math.max(125, e.target.scrollHeight)
+              height = Math.min(height, maxTextboxHeightPx)
               e.target.style.height = `${height}px`
               setContent(e.target.value)
             }}
@@ -116,7 +122,7 @@ export const Compose = ({ hideTopic }: { hideTopic?: boolean }) => {
               }}
             />
           </div>
-          <button className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-8 py-2 font-extrabold text-lg">
+          <button className="bg-blue-500 hover:bg-blue-600 border text-white rounded-full px-8 py-2 font-bold text-lg tracking-wide">
             Post
           </button>
         </div>
