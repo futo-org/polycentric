@@ -48,15 +48,6 @@ message Server {
     string server = 1;
 }
 
-message BlobMeta {
-    uint64 section_count = 1;
-    string mime = 2;
-}
-
-message BlobSection {
-    bytes content = 1;
-}
-
 message ImageManifest {
              string  mime       = 1;
              uint64  width      = 2;

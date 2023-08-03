@@ -369,7 +369,7 @@ export enum ClaimType {
     Occupation = 'Occupation',
     Skill = 'Skill',
     Spotify = 'Spotify',
-    Spreadshop = 'Spreadshop'
+    Spreadshop = 'Spreadshop',
 }
 
 function claimIdentifier(
