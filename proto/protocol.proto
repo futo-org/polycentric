@@ -254,6 +254,7 @@ message URLInfo {
     // url_type 1 = URLInfoSystemLink
     // url_type 2 = URLInfoEventLink
     // url_type 3 = ExportBundle
+    // url_type 4 = URLInfoDataLink
     uint64 url_type = 1;
     bytes  body     = 2;
 }
