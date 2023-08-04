@@ -269,3 +269,12 @@ message URLInfoEventLink {
              uint64    logical_clock = 3;
     repeated string    servers       = 4;
 }
+
+message URLInfoDataLink {
+             PublicKey system     = 1;
+             Process   process    = 2;
+    repeated string    servers    = 3;
+             uint64    byte_count = 4;
+    repeated Range     sections   = 5;
+    optional string    mime       = 6;
+}
