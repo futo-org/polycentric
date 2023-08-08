@@ -4,8 +4,15 @@ services:
         image: postgres:14
         environment:
             POSTGRES_PASSWORD: testing
+        ports:
+          - "127.0.0.1:5432:5432"
     opensearch-node1:
         image: opensearchproject/opensearch:2.1.0
+        ports:
+          - "127.0.0.1:9200:9200"
+          - "127.0.0.1:9300:9300"
+          - "127.0.0.1:9600:9600"
+          - "127.0.0.1:9650:9650"
         environment:
             - cluster.name=opensearch-cluster
             - node.name=opensearch-node1
@@ -37,7 +44,6 @@ services:
             - ./:/app
         tmpfs:
             - /tmp:exec
-        privileged: true
         ports:
             # gdbserver
             - "127.0.0.1:3345:3345"
@@ -61,7 +67,7 @@ services:
         links:
             - influxdb
         ports:
-            - "8090:3000"
+            - "127.0.0.1:8090:3000"
         volumes:
             - grafana_data:/var/lib/grafana
             - ./monitoring/grafana-dashboards:/var/lib/grafana/dashboards
@@ -77,7 +83,7 @@ services:
             - DOCKER_INFLUXDB_INIT_BUCKET=polycentric
             - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=admin
         ports:
-            - "8086:8086"
+            - "127.0.0.1:8086:8086"
         volumes:
             - influxdb_data:/var/lib/influxdb2
     telegraf:
@@ -92,7 +98,9 @@ services:
         links:
             - influxdb
         ports:
-            - "8125:8125"
+            - "127.0.0.1:8125:8125"
+            - "127.0.0.1:8092:8092"
+            - "127.0.0.1:8094:8094"
 volumes:
     grafana_data: { }
     influxdb_data: { }
