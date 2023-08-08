@@ -150,7 +150,7 @@ message Post {
 }
 
 message Claim {
-    string claim_type = 1;
+    uint64 claim_type = 1;
     bytes  claim      = 2;
 }
 

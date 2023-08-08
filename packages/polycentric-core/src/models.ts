@@ -345,35 +345,97 @@ export namespace SignedEvent {
     }
 }
 
-export enum ClaimType {
-    HackerNews = 'HackerNews',
-    YouTube = 'YouTube',
-    Odysee = 'Odysee',
-    Rumble = 'Rumble',
-    Twitter = 'Twitter',
-    Bitcoin = 'Bitcoin',
-    Generic = 'Generic',
-    Discord = 'Discord',
-    Instagram = 'Instagram',
-    GitHub = 'GitHub',
-    Minds = 'Minds',
-    Patreon = 'Patreon',
-    Substack = 'Substack',
-    Twitch = 'Twitch',
-    Website = 'Website',
-    Kick = 'Kick',
-    Soundcloud = 'Soundcloud',
-    Vimeo = 'Vimeo',
-    Nebula = 'Nebula',
-    URL = 'URL',
-    Occupation = 'Occupation',
-    Skill = 'Skill',
-    Spotify = 'Spotify',
-    Spreadshop = 'Spreadshop',
+export namespace ClaimType {
+    export type ClaimType = Readonly<Long> & {
+        readonly __tag: unique symbol;
+    };
+
+    function makeClaimType(x: number): ClaimType {
+        return new Long(x, 0, true) as ClaimType;
+    }
+
+    export const ClaimTypeHackerNews = makeClaimType(1);
+    export const ClaimTypeYouTube = makeClaimType(2);
+    export const ClaimTypeOdysee = makeClaimType(3);
+    export const ClaimTypeRumble = makeClaimType(4);
+    export const ClaimTypeTwitter = makeClaimType(5);
+    export const ClaimTypeBitcoin = makeClaimType(6);
+    export const ClaimTypeGeneric = makeClaimType(7);
+    export const ClaimTypeDiscord = makeClaimType(8);
+    export const ClaimTypeInstagram = makeClaimType(9);
+    export const ClaimTypeGitHub = makeClaimType(10);
+    export const ClaimTypeMinds = makeClaimType(11);
+    export const ClaimTypePatreon = makeClaimType(12);
+    export const ClaimTypeSubstack = makeClaimType(13);
+    export const ClaimTypeTwitch = makeClaimType(14);
+    export const ClaimTypeWebsite = makeClaimType(15);
+    export const ClaimTypeKick = makeClaimType(16);
+    export const ClaimTypeSoundcloud = makeClaimType(17);
+    export const ClaimTypeVimeo = makeClaimType(18);
+    export const ClaimTypeNebula = makeClaimType(19);
+    export const ClaimTypeURL = makeClaimType(20);
+    export const ClaimTypeOccupation = makeClaimType(21);
+    export const ClaimTypeSkill = makeClaimType(22);
+    export const ClaimTypeSpotify = makeClaimType(23);
+    export const ClaimTypeSpreadshop = makeClaimType(24);
+
+    export function toString(claimType: ClaimType): string {
+        if (claimType.equals(ClaimTypeHackerNews)) {
+            return 'HackerNews';
+        } else if (claimType.equals(ClaimTypeYouTube)) {
+            return 'YouTube';
+        } else if (claimType.equals(ClaimTypeOdysee)) {
+            return 'Odysee';
+        } else if (claimType.equals(ClaimTypeRumble)) {
+            return 'Rumble';
+        } else if (claimType.equals(ClaimTypeTwitter)) {
+            return 'Twitter';
+        } else if (claimType.equals(ClaimTypeBitcoin)) {
+            return 'Bitcoin';
+        } else if (claimType.equals(ClaimTypeGeneric)) {
+            return 'Generic';
+        } else if (claimType.equals(ClaimTypeDiscord)) {
+            return 'Discord';
+        } else if (claimType.equals(ClaimTypeInstagram)) {
+            return 'Instagram';
+        } else if (claimType.equals(ClaimTypeGitHub)) {
+            return 'GitHub';
+        } else if (claimType.equals(ClaimTypeMinds)) {
+            return 'Minds';
+        } else if (claimType.equals(ClaimTypePatreon)) {
+            return 'Patreon';
+        } else if (claimType.equals(ClaimTypeSubstack)) {
+            return 'Substack';
+        } else if (claimType.equals(ClaimTypeTwitch)) {
+            return 'Twitch';
+        } else if (claimType.equals(ClaimTypeWebsite)) {
+            return 'Website';
+        } else if (claimType.equals(ClaimTypeKick)) {
+            return 'Kick';
+        } else if (claimType.equals(ClaimTypeSoundcloud)) {
+            return 'Soundcloud';
+        } else if (claimType.equals(ClaimTypeVimeo)) {
+            return 'Vimeo';
+        } else if (claimType.equals(ClaimTypeNebula)) {
+            return 'Nebula';
+        } else if (claimType.equals(ClaimTypeURL)) {
+            return 'URL';
+        } else if (claimType.equals(ClaimTypeOccupation)) {
+            return 'Occupation';
+        } else if (claimType.equals(ClaimTypeSkill)) {
+            return 'SKill';
+        } else if (claimType.equals(ClaimTypeSpotify)) {
+            return 'Spotify';
+        } else if (claimType.equals(ClaimTypeSpreadshop)) {
+            return 'Spreadshop';
+        } else {
+            return 'unknown';
+        }
+    }
 }
 
 function claimIdentifier(
-    claimType: ClaimType,
+    claimType: ClaimType.ClaimType,
     identifier: string,
 ): Protocol.Claim {
     return {
@@ -388,77 +450,77 @@ export function claimOccupation(
     claim: Protocol.ClaimOccupation,
 ): Protocol.Claim {
     return {
-        claimType: ClaimType.Occupation,
+        claimType: ClaimType.ClaimTypeOccupation,
         claim: Protocol.ClaimOccupation.encode(claim).finish(),
     };
 }
 
 export function claimSkill(skill: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.Skill, skill);
+    return claimIdentifier(ClaimType.ClaimTypeSkill, skill);
 }
 
 export function claimHackerNews(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.HackerNews, username);
+    return claimIdentifier(ClaimType.ClaimTypeHackerNews, username);
 }
 
 export function claimYouTube(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.YouTube, username);
+    return claimIdentifier(ClaimType.ClaimTypeYouTube, username);
 }
 
 export function claimOdysee(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.Odysee, username);
+    return claimIdentifier(ClaimType.ClaimTypeOdysee, username);
 }
 
 export function claimRumble(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.Rumble, username);
+    return claimIdentifier(ClaimType.ClaimTypeRumble, username);
 }
 
 export function claimTwitter(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.Twitter, username);
+    return claimIdentifier(ClaimType.ClaimTypeTwitter, username);
 }
 
 export function claimBitcoin(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.Bitcoin, username);
+    return claimIdentifier(ClaimType.ClaimTypeBitcoin, username);
 }
 
 export function claimGeneric(text: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.Generic, text);
+    return claimIdentifier(ClaimType.ClaimTypeGeneric, text);
 }
 
 export function claimDiscord(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.Discord, username);
+    return claimIdentifier(ClaimType.ClaimTypeDiscord, username);
 }
 
 export function claimInstagram(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.Instagram, username);
+    return claimIdentifier(ClaimType.ClaimTypeInstagram, username);
 }
 
 export function claimGitHub(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.GitHub, username);
+    return claimIdentifier(ClaimType.ClaimTypeGitHub, username);
 }
 
 export function claimMinds(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.Minds, username);
+    return claimIdentifier(ClaimType.ClaimTypeMinds, username);
 }
 
 export function claimPatreon(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.Patreon, username);
+    return claimIdentifier(ClaimType.ClaimTypePatreon, username);
 }
 
 export function claimSubstack(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.Substack, username);
+    return claimIdentifier(ClaimType.ClaimTypeSubstack, username);
 }
 
 export function claimTwitch(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.Twitch, username);
+    return claimIdentifier(ClaimType.ClaimTypeTwitch, username);
 }
 
 export function claimWebsite(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.Website, username);
+    return claimIdentifier(ClaimType.ClaimTypeWebsite, username);
 }
 
 export function claimURL(url: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.URL, url);
+    return claimIdentifier(ClaimType.ClaimTypeURL, url);
 }
 
 export class Blob {

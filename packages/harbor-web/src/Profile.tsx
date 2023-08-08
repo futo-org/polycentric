@@ -51,21 +51,21 @@ export function Profile(props: ProfileProps) {
         const claimType = claim.parsedEvent.value.claimType;
 
         return (
-            claimType === Core.Models.ClaimType.Twitter ||
-            claimType === Core.Models.ClaimType.YouTube ||
-            claimType === Core.Models.ClaimType.Rumble ||
-            claimType === Core.Models.ClaimType.Odysee ||
-            claimType === Core.Models.ClaimType.Discord ||
-            claimType === Core.Models.ClaimType.Instagram ||
-            claimType === Core.Models.ClaimType.GitHub ||
-            claimType === Core.Models.ClaimType.Minds ||
-            claimType === Core.Models.ClaimType.Patreon ||
-            claimType === Core.Models.ClaimType.Substack ||
-            claimType === Core.Models.ClaimType.Twitch ||
-            claimType === Core.Models.ClaimType.HackerNews ||
-            claimType === Core.Models.ClaimType.URL ||
-            claimType === Core.Models.ClaimType.Website ||
-            claimType === Core.Models.ClaimType.Bitcoin
+            claimType.equals(Core.Models.ClaimType.ClaimTypeTwitter) ||
+            claimType.equals(Core.Models.ClaimType.ClaimTypeYouTube) ||
+            claimType.equals(Core.Models.ClaimType.ClaimTypeRumble) ||
+            claimType.equals(Core.Models.ClaimType.ClaimTypeOdysee) ||
+            claimType.equals(Core.Models.ClaimType.ClaimTypeDiscord) ||
+            claimType.equals(Core.Models.ClaimType.ClaimTypeInstagram) ||
+            claimType.equals(Core.Models.ClaimType.ClaimTypeGitHub) ||
+            claimType.equals(Core.Models.ClaimType.ClaimTypeMinds) ||
+            claimType.equals(Core.Models.ClaimType.ClaimTypePatreon) ||
+            claimType.equals(Core.Models.ClaimType.ClaimTypeSubstack) ||
+            claimType.equals(Core.Models.ClaimType.ClaimTypeTwitch) ||
+            claimType.equals(Core.Models.ClaimType.ClaimTypeHackerNews) ||
+            claimType.equals(Core.Models.ClaimType.ClaimTypeURL) ||
+            claimType.equals(Core.Models.ClaimType.ClaimTypeWebsite) ||
+            claimType.equals(Core.Models.ClaimType.ClaimTypeBitcoin)
         );
     };
 
