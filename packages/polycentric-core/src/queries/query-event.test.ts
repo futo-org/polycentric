@@ -20,7 +20,7 @@ function extractGenericClaim(
 
     const claim = Protocol.Claim.decode(event.content);
 
-    if (claim.claimType !== 'Generic') {
+    if (claim.claimType.notEquals(Models.ClaimType.ClaimTypeGeneric)) {
         throw Error('expected Generic');
     }
 

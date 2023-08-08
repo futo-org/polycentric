@@ -129,7 +129,7 @@ pub(crate) async fn ingest_event_postgres(
         crate::postgres::insert_claim(
             &mut *transaction,
             event_id,
-            body.claim_type(),
+            *body.claim_type(),
         )
         .await?;
     }

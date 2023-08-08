@@ -33,94 +33,94 @@ type ClaimInfo = {
 };
 
 function getClaimInfo(
-    claimType: string,
+    claimType: Core.Models.ClaimType.ClaimType,
     identifier: string,
 ): ClaimInfo | undefined {
-    if (claimType === Core.Models.ClaimType.Twitter) {
+    if (claimType.equals(Core.Models.ClaimType.ClaimTypeTwitter)) {
         return {
             Icon: TwitterIcon,
             name: 'Twitter',
             URL: `https://twitter.com/${identifier}`,
         };
-    } else if (claimType === Core.Models.ClaimType.YouTube) {
+    } else if (claimType.equals(Core.Models.ClaimType.ClaimTypeYouTube)) {
         return {
             Icon: YouTubeIcon,
             name: 'YouTube',
             URL: `https://youtube.com/${identifier}`,
         };
-    } else if (claimType === Core.Models.ClaimType.Rumble) {
+    } else if (claimType.equals(Core.Models.ClaimType.ClaimTypeRumble)) {
         return {
             Icon: RumbleIcon,
             name: 'Rumble',
             URL: `https://rumble.com/user/${identifier}`,
         };
-    } else if (claimType === Core.Models.ClaimType.Odysee) {
+    } else if (claimType.equals(Core.Models.ClaimType.ClaimTypeOdysee)) {
         return {
             Icon: OdyseeIcon,
             name: 'Odysee',
             URL: `https://odysee.com/${identifier}`,
         };
-    } else if (claimType === Core.Models.ClaimType.Discord) {
+    } else if (claimType.equals(Core.Models.ClaimType.ClaimTypeDiscord)) {
         return {
             Icon: DiscordIcon,
             name: 'Discord',
             URL: `https://discordapp.com/users/${identifier}`,
         };
-    } else if (claimType === Core.Models.ClaimType.Instagram) {
+    } else if (claimType.equals(Core.Models.ClaimType.ClaimTypeInstagram)) {
         return {
             Icon: InstagramIcon,
             name: 'Instagram',
             URL: `https://instagram.com/${identifier}`,
         };
-    } else if (claimType === Core.Models.ClaimType.GitHub) {
+    } else if (claimType.equals(Core.Models.ClaimType.ClaimTypeGitHub)) {
         return {
             Icon: GitHubIcon,
             name: 'GitHub',
             URL: `https://github.com/${identifier}`,
         };
-    } else if (claimType === Core.Models.ClaimType.Minds) {
+    } else if (claimType.equals(Core.Models.ClaimType.ClaimTypeMinds)) {
         return {
             Icon: MindsIcon,
             name: 'Minds',
             URL: `https://minds.com/${identifier}`,
         };
-    } else if (claimType === Core.Models.ClaimType.Patreon) {
+    } else if (claimType.equals(Core.Models.ClaimType.ClaimTypePatreon)) {
         return {
             Icon: PatreonIcon,
             name: 'Patreon',
             URL: `https://patreon.com/${identifier}`,
         };
-    } else if (claimType === Core.Models.ClaimType.Substack) {
+    } else if (claimType.equals(Core.Models.ClaimType.ClaimTypeSubstack)) {
         return {
             Icon: SubstackIcon,
             name: 'Substack',
             URL: `https://${identifier}.substack.com`,
         };
-    } else if (claimType === Core.Models.ClaimType.Twitch) {
+    } else if (claimType.equals(Core.Models.ClaimType.ClaimTypeTwitch)) {
         return {
             Icon: TwitchIcon,
             name: 'Twitch',
             URL: `https://twitch.tv/${identifier}`,
         };
-    } else if (claimType === Core.Models.ClaimType.HackerNews) {
+    } else if (claimType.equals(Core.Models.ClaimType.ClaimTypeHackerNews)) {
         return {
             Icon: HackerNewsIcon,
             name: 'HackerNews',
             URL: `https://news.ycombinator.com/user?id=${identifier}`,
         };
-    } else if (claimType === Core.Models.ClaimType.URL) {
+    } else if (claimType.equals(Core.Models.ClaimType.ClaimTypeURL)) {
         return {
             Icon: URLIcon,
             name: 'URL',
             URL: `${identifier}`,
         };
-    } else if (claimType === Core.Models.ClaimType.Website) {
+    } else if (claimType.equals(Core.Models.ClaimType.ClaimTypeWebsite)) {
         return {
             Icon: WebsiteIcon,
             name: 'Website',
             URL: `https://${identifier}`,
         };
-    } else if (claimType === Core.Models.ClaimType.Bitcoin) {
+    } else if (claimType.equals(Core.Models.ClaimType.ClaimTypeBitcoin)) {
         return {
             Icon: BitcoinIcon,
             name: 'Bitcoin',
@@ -139,7 +139,7 @@ export function SocialClaim(props: ClaimProps) {
     ).identifier;
 
     const claimInfo = getClaimInfo(
-        props.parsedEvent.value.claimType,
+        props.parsedEvent.value.claimType as Core.Models.ClaimType.ClaimType,
         identifier,
     );
 
@@ -226,8 +226,9 @@ export function Claim(props: ClaimProps) {
         const h2Theme = 'text-1xl font-bold text-gray-900 dark:text-white';
 
         if (
-            props.parsedEvent.value.claimType ===
-            Core.Models.ClaimType.Occupation
+            props.parsedEvent.value.claimType.equals(
+                Core.Models.ClaimType.ClaimTypeOccupation,
+            )
         ) {
             const occupation = Core.Protocol.ClaimOccupation.decode(
                 props.parsedEvent.value.claim,
@@ -251,7 +252,10 @@ export function Claim(props: ClaimProps) {
             return (
                 <>
                     <h3 className={h3Theme}>
-                        {props.parsedEvent.value.claimType}
+                        {Core.Models.ClaimType.toString(
+                            props.parsedEvent.value
+                                .claimType as Core.Models.ClaimType.ClaimType,
+                        )}
                     </h3>
 
                     <h2 className={h2Theme}>{identifier}</h2>

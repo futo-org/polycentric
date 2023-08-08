@@ -751,19 +751,19 @@ pub mod claim {
 
     #[derive(PartialEq, Clone, Debug)]
     pub struct Claim {
-        claim_type: ::std::string::String,
+        claim_type: u64,
         claim: ::std::vec::Vec<u8>,
     }
 
     impl Claim {
-        pub fn new(claim_type: &str, claim: &[u8]) -> Claim {
+        pub fn new(claim_type: u64, claim: &[u8]) -> Claim {
             Claim {
-                claim_type: claim_type.to_owned(),
+                claim_type,
                 claim: claim.to_owned(),
             }
         }
 
-        pub fn claim_type(&self) -> &::std::string::String {
+        pub fn claim_type(&self) -> &u64 {
             &self.claim_type
         }
 
@@ -774,13 +774,13 @@ pub mod claim {
 
     pub fn to_proto(claim: &Claim) -> crate::protocol::Claim {
         let mut proto = crate::protocol::Claim::new();
-        proto.claim_type = claim.claim_type().clone();
+        proto.claim_type = *claim.claim_type();
         proto.claim = claim.claim().clone();
         proto
     }
 
     pub fn from_proto(proto: &crate::protocol::Claim) -> Claim {
-        Claim::new(&proto.claim_type, &proto.claim)
+        Claim::new(proto.claim_type, &proto.claim)
     }
 
     pub fn serde_url_deserialize<'de, D>(
