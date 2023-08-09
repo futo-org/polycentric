@@ -1,8 +1,8 @@
-import { ReplyComposePopup } from ".";
+import { PopupComposeReply } from ".";
 
 export default {
-    title: "Feed/ReplyComposePopup",
-    component: ReplyComposePopup,
+    title: "Popup/PopupComposeReply",
+    component: PopupComposeReply,
 }
 
 export const BasicRePost = {

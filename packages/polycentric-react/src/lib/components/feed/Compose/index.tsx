@@ -19,17 +19,25 @@ const testTopics = {
   pakistan: {},
 }
 
-const TopicBox = ({ topic, setTopic }: { topic: string; setTopic: (s: string) => void }) => {
+const TopicBox = ({
+  topic,
+  setTopic,
+  disabled,
+}: {
+  topic: string
+  setTopic: (s: string) => void
+  disabled?: boolean
+}) => {
   const [focused, setFocused] = useState(false)
   return (
-    <div className=" w-96  max-w-full h-[3rem] relative ml-1">
+    <div className="md:w-96 max-w-screen h-[3rem] relative ml-1">
       <input
         type="text"
         name="postTopic"
         autoComplete="off"
         list="autocompleteOff"
         aria-autocomplete="none"
-        className="bg-transparent w-full h-full p-5 absolute text-xl focus:outline-none peer z-10 font-mono"
+        className={`bg-transparent w-full h-full p-5 absolute text-xl focus:outline-none peer z-10 font-mono ${disabled ? 'opacity-60' : ''}`}
         value={topic}
         onChange={(e) => {
           const { value } = e.target
@@ -39,9 +47,10 @@ const TopicBox = ({ topic, setTopic }: { topic: string; setTopic: (s: string) =>
         }}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
+        disabled={disabled}
       />
       <div
-        className={`absolute top-0 left-0 w-full h-full border-2 bg-white peer-focus:border-3 peer-focus:border-purple-900 rounded-lg -skew-x-[9deg]`}
+        className={`absolute top-0 left-0 w-full h-full border bg-white peer-focus:border-3 peer-focus:border-purple-900 rounded-lg -skew-x-[9deg] ${disabled ? 'opacity-50' : ''}`}
       ></div>
       {focused && (
         <div className="absolute top-[3rem] w-full">
@@ -60,28 +69,35 @@ const TopicBox = ({ topic, setTopic }: { topic: string; setTopic: (s: string) =>
 }
 
 export const Compose = ({
+  preSetTopic,
   hideTopic,
+  topicDisabled = false,
   maxTextboxHeightPx = 440,
+  minTextboxHeightPx = 125,
 }: {
+  preSetTopic?: string
   hideTopic?: boolean
+  topicDisabled?: boolean
   maxTextboxHeightPx?: number
+  minTextboxHeightPx?: number
 }) => {
   const [content, setContent] = useState('')
-  const [topic, setTopic] = useState('/')
+  const [topic, setTopic] = useState(preSetTopic ?? '/')
   const [upload, setUpload] = useState<File | null>(null)
   const uploadRef = useRef<HTMLInputElement | null>(null)
 
   return (
     <div className="flex flex-col">
       <div className="">
-        {hideTopic ? null : <TopicBox topic={topic} setTopic={setTopic} />}
-        <div className="flex flex-col mt-1.5 w-full border rounded-lg focus-within:outline ">
+        {hideTopic ? null : <TopicBox topic={topic} setTopic={setTopic} disabled={topicDisabled} />}
+        <div className="flex flex-col mt-1.5 w-full border rounded-lg focus-within:border-black ">
           <textarea
-            className="w-full resize-none text-2xl rounded-lg p-4 focus:outline-none"
+            className={`w-full resize-none text-2xl rounded-lg p-4 focus:outline-none`}
+            style={{ minHeight: minTextboxHeightPx + 'px' }}
             value={content}
             onChange={(e) => {
               e.target.style.height = '0'
-              let height = Math.max(125, e.target.scrollHeight)
+              let height = Math.max(minTextboxHeightPx, e.target.scrollHeight)
               height = Math.min(height, maxTextboxHeightPx)
               e.target.style.height = `${height}px`
               setContent(e.target.value)

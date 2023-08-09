@@ -21,6 +21,21 @@ export const Default = {
   },
 }
 
+export const Image = {
+  args: {
+    main: {
+      content: 'L + Ratio + 1',
+      topic: '/tpot_dating',
+      author: {
+        name: 'John Doe',
+        avatarURL: 'https://i.pravatar.cc/300',
+      },
+      image: 'https://picsum.photos/seed/picsum/200/300',
+      publishedAt: new Date(),
+    },
+  },
+}
+
 export const BasicRePost = {
   args: {
     main: {
