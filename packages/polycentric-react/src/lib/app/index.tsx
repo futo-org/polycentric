@@ -9,8 +9,10 @@ import {
   Protocol,
   Util,
 } from '@polycentric/polycentric-core'
-import { QueryManagerContext, useCRDTQuery, useQueryManager } from '../../hooks/queryManagerHooks.js'
+import { QueryManagerContext, useCRDTQuery, useQueryManager } from '../hooks/queryManagerHooks.js'
 import { decode } from '@borderless/base64'
+import { Root } from '../components/root/index.js'
+import { DummyScrollFeed } from '../components/index.js'
 
 const decodeSystemQuery = (raw: string) => {
   return Models.URLInfo.getSystemLink(Protocol.URLInfo.decode(decode(raw)))
@@ -50,7 +52,11 @@ const createRouterFunction = isElectron() ? createHashRouter : createBrowserRout
 const router = createRouterFunction([
   {
     path: '/',
-    element: <TestPage />,
+    element: <Root />,
+    children: [{
+      index: true,
+      element: <p>hello</p>
+    }],
   },
 ])
 
@@ -60,7 +66,7 @@ async function createProcessHandle(
   return await ProcessHandle.createProcessHandle(await MetaStore.createMetaStore(persistenceDriver))
 }
 
-export const RootApp = ({ persistenceDriver }: { persistenceDriver: PersistenceDriver.IPersistenceDriver }) => {
+export const App = ({ persistenceDriver }: { persistenceDriver: PersistenceDriver.IPersistenceDriver }) => {
   const [processHandle, setProcessHandle] = useState<ProcessHandle.ProcessHandle | undefined>(undefined)
   const [queryManager, setQueryManager] = useState<Queries.QueryManager.QueryManager | undefined>(undefined)
   useEffect(() => {

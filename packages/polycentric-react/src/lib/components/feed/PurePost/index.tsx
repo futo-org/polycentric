@@ -1,6 +1,8 @@
 import { Profile } from '../../../types/profile'
 import { forwardRef, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { PopupComposeReply, PopupComposeReplyFullscreen } from '../../popup/PopupComposeReply'
+import { Modal } from '../../util/modal'
 
 const dateToAgoString = (date: Date) => {
   const diff = Date.now() - date.getTime()
@@ -158,51 +160,54 @@ export const SharePostButton = ({ onClick }: { onClick: () => void }) => {
   return <PostActionButton name="Share" DefaultIcon={ShareButton} onClick={onClick} />
 }
 
+interface PurePostProps {
+  main: {
+    content: string
+    author: Profile
+    publishedAt: Date
+    topic: string
+    image?: string
+  }
+  sub?: {
+    content: string
+    author: Profile
+    publishedAt: Date
+    topic: string
+    image?: string
+    ContentLink?: string
+  }
+}
+
 // eslint-disable-next-line react/display-name
-export const PurePost = forwardRef(
-  (
-    {
-      main,
-      sub,
-    }: {
-      main: {
-        content: string
-        author: Profile
-        publishedAt: Date
-        topic: string
-      }
-      sub: {
-        content: string
-        author: Profile
-        publishedAt: Date
-        topic: string
-        ContentLink?: string
-      }
-    },
-    ref,
-  ) => {
-    const mainRef = useRef<HTMLDivElement>(null)
-    const subContentRef = useRef<HTMLDivElement>(null)
-    const [contentCropped, setContentCropped] = useState(false)
-    const [expanded, setExpanded] = useState(false)
-    const [subcontentCropped, setsubcontentCropped] = useState(false)
+export const PurePost = forwardRef<HTMLElement, PurePostProps>(({ main, sub }: PurePostProps, ref) => {
+  const mainRef = useRef<HTMLDivElement>(null)
+  const subContentRef = useRef<HTMLDivElement>(null)
+  const [contentCropped, setContentCropped] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [subcontentCropped, setsubcontentCropped] = useState(false)
+  const [commentPanelOpen, setCommentPanelOpen] = useState(false)
+  const [mainImageOpen, setMainImageOpen] = useState(false)
 
-    const { content, author, publishedAt, topic } = main
+  const { content, author, publishedAt, topic, image } = main
 
-    useEffect(() => {
-      if (mainRef.current != null && expanded === false) {
-        setContentCropped(mainRef.current.clientHeight < mainRef.current.scrollHeight)
-      }
-    }, [content, expanded])
+  useEffect(() => {
+    if (mainRef.current != null && expanded === false) {
+      setContentCropped(mainRef.current.clientHeight < mainRef.current.scrollHeight)
+    }
+  }, [content, expanded])
 
-    useEffect(() => {
-      if (subContentRef.current != null && subcontentCropped === false) {
-        setsubcontentCropped(subContentRef.current.clientHeight < subContentRef.current.scrollHeight)
-      }
-    }, [sub, subcontentCropped])
+  useEffect(() => {
+    if (subContentRef.current != null && subcontentCropped === false) {
+      setsubcontentCropped(subContentRef.current.clientHeight < subContentRef.current.scrollHeight)
+    }
+  }, [sub, subcontentCropped])
 
-    return (
-      <article className="px-3 pt-5 pb-3 md:px-10 md:pt-10 md:pb-8 border rounded-2xl bg-white overflow-clip" ref={ref}>
+  return (
+    <div>
+      <article
+        className="px-3 pt-5 pb-3 md:px-10 md:pt-10 md:pb-8 border-b border-gray-100 bg-white overflow-clip"
+        ref={ref}
+      >
         <div className="flex relative overflow-clip">
           <div className="mr-3 md:mr-4 flex-shrink-0 flex flex-col overflow-clip">
             <img src={author.avatarURL} className="rounded-full h-16 w-16 md:h-20 md:w-20" />
@@ -262,11 +267,12 @@ export const PurePost = forwardRef(
               >
                 {content}
               </main>
+              <button onClick={() => setMainImageOpen(true)}>
+                <img src={image} className="rounded-2xl max-h-60 max-w-full w-fit hover:opacity-80" />
+              </button>
               {/* sub.post */}
               {sub && (
-                <div
-                  className="border rounded-2xl w-full p-5 bg-white hover:bg-gray-50 overflow-clip flex flex-col space-y-3"
-                >
+                <div className="border rounded-2xl w-full p-5 bg-white hover:bg-gray-50 overflow-clip flex flex-col space-y-3">
                   <div className="flex">
                     <img src={sub.author.avatarURL} className="rounded-full h-5 w-5 md:h-10 md:w-10" />
                     <div className="flex flex-col ml-2 w-full">
@@ -319,12 +325,22 @@ export const PurePost = forwardRef(
           />
           <CommentButton
             onClick={() => {
-              return
+              setCommentPanelOpen(true)
             }}
             count={1337}
           />
         </div>
       </article>
-    )
-  },
-)
+      {commentPanelOpen && (
+        <PopupComposeReplyFullscreen main={main} sub={sub} setOpen={(open) => setCommentPanelOpen(open)} />
+      )}
+      {mainImageOpen && (
+        <Modal setOpen={(open) => setMainImageOpen(open)}>
+          <div className="m-5">
+            <img className="rounded-2xl w-[90%] max-w-[30rem]" src={image} />
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+})

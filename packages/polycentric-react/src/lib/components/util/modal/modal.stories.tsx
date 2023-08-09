@@ -1,6 +1,7 @@
 import React from 'react'
 import { Modal } from '.'
-import { ReplyComposePopup } from '../../feed/ReplyComposePopup'
+import { PopupComposeReply } from '../../popup/PopupComposeReply'
+import { PopupCompose } from '../../popup/PopupCompose'
 
 export default {
   title: 'Util/Modal',
@@ -18,7 +19,7 @@ export const ReplyCompose = {
   args: {
     title: 'Reply',
     children: (
-      <ReplyComposePopup
+      <PopupComposeReply
         main={{
           content: 'L + Ratio + 1',
           topic: '/tpot_dating',
@@ -39,5 +40,12 @@ export const ReplyCompose = {
         }}
       />
     ),
+  },
+}
+
+export const Compose = {
+  args: {
+    title: 'Compose',
+    children: <PopupCompose />,
   },
 }

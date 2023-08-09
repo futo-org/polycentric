@@ -10,6 +10,21 @@ const XIcon = () => (
   </svg>
 )
 
+export const EmptyModal = ({
+  children,
+  setOpen,
+}: {
+  children: React.ReactNode
+  setOpen: (open: boolean) => void
+}): JSX.Element => (
+  <div
+    className="absolute top-0 left-0 w-screen h-screen backdrop-blur-md z-40 flex flex-col items-center md:justify-center"
+    onClick={() => setOpen(false)}
+  >
+    {children}
+  </div>
+)
+
 export const Modal = ({
   children,
   setOpen,
@@ -18,17 +33,14 @@ export const Modal = ({
   setOpen: (open: boolean) => void
 }): JSX.Element => {
   return (
-    <div
-      className="absolute top-0 left-0 w-screen h-screen backdrop-blur-md z-40 flex flex-col items-center md:justify-center"
-      onClick={() => setOpen(false)}
-    >
+    <EmptyModal setOpen={setOpen}>
       <div
-        className="bg-white p-5 md:p-7 md:rounded-xl border h-full md:h-auto"
+        className="bg-white m-5 md:m-7 md:rounded-xl md:border h-full md:h-auto"
         onClick={(e) => {
           e.stopPropagation()
         }}
       >
-        <div className="flex justify-end">
+        <div className="flex justify-end px-3">
           <button
             className="flex items-center rounded-full hover:bg-gray-50 border p-2"
             aria-label="Close"
@@ -39,6 +51,6 @@ export const Modal = ({
         </div>
         {children}
       </div>
-    </div>
+    </EmptyModal>
   )
 }
