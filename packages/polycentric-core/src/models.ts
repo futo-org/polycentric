@@ -424,7 +424,7 @@ export namespace ClaimType {
         } else if (claimType.equals(ClaimTypeOccupation)) {
             return 'Occupation';
         } else if (claimType.equals(ClaimTypeSkill)) {
-            return 'SKill';
+            return 'Skill';
         } else if (claimType.equals(ClaimTypeSpotify)) {
             return 'Spotify';
         } else if (claimType.equals(ClaimTypeSpreadshop)) {
