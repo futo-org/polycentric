@@ -37,12 +37,16 @@ const TopicBox = ({
         autoComplete="off"
         list="autocompleteOff"
         aria-autocomplete="none"
-        className={`bg-transparent w-full h-full p-5 absolute text-xl focus:outline-none peer z-10 font-mono ${disabled ? 'opacity-60' : ''}`}
+        className={`bg-transparent w-full h-full p-5 absolute text-xl focus:outline-none peer z-10 font-mono ${
+          disabled ? 'opacity-60' : ''
+        }`}
         value={topic}
         onChange={(e) => {
           const { value } = e.target
           if (startsWithSlash.test(value)) {
             setTopic(value)
+          } else if (value === '') {
+            setTopic('/')
           }
         }}
         onFocus={() => setFocused(true)}
@@ -50,7 +54,9 @@ const TopicBox = ({
         disabled={disabled}
       />
       <div
-        className={`absolute top-0 left-0 w-full h-full border bg-white peer-focus:border-3 peer-focus:border-purple-900 rounded-lg -skew-x-[9deg] ${disabled ? 'opacity-50' : ''}`}
+        className={`absolute top-0 left-0 w-full h-full border bg-white peer-focus:border-3 peer-focus:border-purple-900 rounded-lg -skew-x-[9deg] ${
+          disabled ? 'opacity-50' : ''
+        }`}
       ></div>
       {focused && (
         <div className="absolute top-[3rem] w-full">

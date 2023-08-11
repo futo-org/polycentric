@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Compose } from '../../feed/Compose'
 import { Profile } from '../../../types/profile'
-import assert from 'assert'
 import { Modal } from '../../util/modal'
 
 export const PopupCompose = () => {

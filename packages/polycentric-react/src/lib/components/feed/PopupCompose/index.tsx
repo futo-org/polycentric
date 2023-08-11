@@ -3,7 +3,6 @@ import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import { TopicSuggestionBox } from '../../feed/TopicSuggestionBox'
 import { Compose } from '../../feed/Compose'
 import { Profile } from '../../../types/profile'
-import assert from 'assert'
 import { Link } from 'react-router-dom'
 import { Modal } from '../../util/modal'
 
@@ -25,8 +24,6 @@ export const ReplyComposePopup = ({
     ContentLink?: string
   }
 }) => {
-  assert((!main && !sub) || (main && !sub) || (main && sub))
-  console.log(sub != null)
   return (
     <div className="px-3 py-5 md:px-7 bg-white overflow-clip flex flex-col space-y-0 w-auto md:w-[40rem]">
       <div className="flex relative overflow-clip">
