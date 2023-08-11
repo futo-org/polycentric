@@ -32,6 +32,7 @@ const app = defineConfig(({ mode }) => ({
   },
   build: {
     sourcemap: mode === 'development',
+    emptyOutDir: false,
     lib: {
       entry: path.resolve(__dirname, 'src/lib/index.ts'),
       name,

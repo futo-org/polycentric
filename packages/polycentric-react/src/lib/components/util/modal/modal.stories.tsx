@@ -10,6 +10,7 @@ export default {
 
 export const Default = {
   args: {
+    open: true,
     title: 'test',
     children: 'Hello World',
   },
@@ -17,7 +18,7 @@ export const Default = {
 
 export const ReplyCompose = {
   args: {
-    title: 'Reply',
+    open: true,
     children: (
       <PopupComposeReply
         main={{
@@ -45,7 +46,7 @@ export const ReplyCompose = {
 
 export const Compose = {
   args: {
-    title: 'Compose',
+    open: true,
     children: <PopupCompose />,
   },
 }
