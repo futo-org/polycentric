@@ -150,18 +150,13 @@ message Post {
 }
 
 message Claim {
-    uint64 claim_type = 1;
-    bytes  claim      = 2;
+             uint64          claim_type   = 1;
+    repeated ClaimFieldEntry claim_fields = 2;
 }
 
-message ClaimIdentifier {
-    string identifier = 1;
-}
-
-message ClaimOccupation {
-    string organization = 1;
-    string role         = 2;
-    string location     = 3;
+message ClaimFieldEntry {
+    uint64 key   = 1;
+    string value = 2;
 }
 
 message Vouch {}

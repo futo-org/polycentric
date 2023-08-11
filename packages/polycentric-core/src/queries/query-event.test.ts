@@ -24,9 +24,7 @@ function extractGenericClaim(
         throw Error('expected Generic');
     }
 
-    const identifier = Protocol.ClaimIdentifier.decode(claim.claim);
-
-    return identifier.identifier;
+    return claim.claimFields[0]!.value;
 }
 
 describe('query event', () => {

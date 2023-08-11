@@ -1,4 +1,6 @@
 import * as React from 'react';
+import Long from 'long';
+
 import * as Core from '@polycentric/polycentric-core';
 import * as VouchedBy from './VouchedBy';
 import { server } from './util';
@@ -134,9 +136,11 @@ function getClaimInfo(
 }
 
 export function SocialClaim(props: ClaimProps) {
-    const identifier = Core.Protocol.ClaimIdentifier.decode(
-        props.parsedEvent.value.claim,
-    ).identifier;
+    if (props.parsedEvent.value.claimFields.length === 0) {
+        return <></>;
+    }
+
+    const identifier = props.parsedEvent.value.claimFields[0].value;
 
     const claimInfo = getClaimInfo(
         props.parsedEvent.value.claimType as Core.Models.ClaimType.ClaimType,
@@ -230,24 +234,38 @@ export function Claim(props: ClaimProps) {
                 Core.Models.ClaimType.ClaimTypeOccupation,
             )
         ) {
-            const occupation = Core.Protocol.ClaimOccupation.decode(
-                props.parsedEvent.value.claim,
-            );
+            let organization = '';
+            let role = '';
+            let location = '';
+
+            for (const field of props.parsedEvent.value.claimFields) {
+                if (field.key.equals(Long.fromNumber(1))) {
+                    organization = field.value;
+                } else if (field.key.equals(Long.fromNumber(2))) {
+                    role = field.value;
+                } else if (field.key.equals(Long.fromNumber(3))) {
+                    location = field.value;
+                }
+            }
 
             return (
                 <>
                     <h3 className={h3Theme}>Occupation</h3>
 
                     <h2 className={h2Theme}>
-                        Organization: {occupation.organization}, Role:{' '}
-                        {occupation.role}, Location: {occupation.location}
+                        Organization: {organization}, Role: {role}, Location:{' '}
+                        {location}
                     </h2>
                 </>
             );
         } else {
-            const identifier = Core.Protocol.ClaimIdentifier.decode(
-                props.parsedEvent.value.claim,
-            ).identifier;
+            let identifier = '';
+
+            for (const field of props.parsedEvent.value.claimFields) {
+                if (field.key.equals(Long.fromNumber(1))) {
+                    identifier = field.value;
+                }
+            }
 
             return (
                 <>

@@ -443,18 +443,46 @@ function claimIdentifier(
 ): Protocol.Claim {
     return {
         claimType: claimType,
-        claim: Protocol.ClaimIdentifier.encode({
-            identifier: identifier,
-        }).finish(),
+        claimFields: [
+            {
+                key: Long.fromNumber(1),
+                value: identifier,
+            },
+        ],
     };
 }
 
 export function claimOccupation(
-    claim: Protocol.ClaimOccupation,
+    organization: string | undefined,
+    role: string | undefined,
+    location: string | undefined,
 ): Protocol.Claim {
+    const fields = [];
+
+    if (organization !== undefined) {
+        fields.push({
+            key: Long.fromNumber(1),
+            value: organization,
+        });
+    }
+
+    if (role !== undefined) {
+        fields.push({
+            key: Long.fromNumber(2),
+            value: role,
+        });
+    }
+
+    if (location !== undefined) {
+        fields.push({
+            key: Long.fromNumber(1),
+            value: location,
+        });
+    }
+
     return {
         claimType: ClaimType.ClaimTypeOccupation,
-        claim: Protocol.ClaimOccupation.encode(claim).finish(),
+        claimFields: fields,
     };
 }
 

@@ -1379,11 +1379,11 @@ pub mod tests {
 
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let mut claim_hacker_news = crate::protocol::ClaimIdentifier::new();
-        claim_hacker_news.identifier = "hello".to_string();
-        let claim_hacker_news_bytes = claim_hacker_news.write_to_bytes()?;
-        let claim =
-            crate::model::claim::Claim::new(1, &claim_hacker_news_bytes);
+        let mut claim_hacker_news = crate::protocol::ClaimFieldEntry::new();
+        claim_hacker_news.key = 1;
+        claim_hacker_news.value = "hello".to_string();
+
+        let claim = crate::model::claim::Claim::new(1, &[claim_hacker_news]);
 
         let s1 = crate::model::tests::make_test_keypair();
         let s1p1 = crate::model::tests::make_test_process();
