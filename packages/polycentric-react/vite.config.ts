@@ -6,6 +6,7 @@ import tailwindcss from 'tailwindcss'
 import { UserConfigExport } from 'vite'
 import { name } from './package.json'
 import unfonts from 'unplugin-fonts/vite'
+import libAssetsPlugin from '@laynezh/vite-plugin-lib-assets'
 
 const app = defineConfig(({ mode }) => ({
   plugins: [
@@ -21,6 +22,9 @@ const app = defineConfig(({ mode }) => ({
         ],
       },
     }),
+    libAssetsPlugin({
+      // limit: 1024 * 8,
+    }),
   ],
   css: {
     postcss: {
@@ -34,8 +38,8 @@ const app = defineConfig(({ mode }) => ({
     sourcemap: mode === 'development',
     emptyOutDir: false,
     lib: {
-      entry: path.resolve(__dirname, 'src/lib/index.ts'),
       name,
+      entry: path.resolve(__dirname, 'src/lib/index.ts'),
       formats: ['es', 'umd'],
       fileName: (format) => `polycentric-react.${format}.js`,
     },

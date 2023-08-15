@@ -10,7 +10,7 @@ export const Default = {
     profile: {
       name: 'John Doe',
       avatarURL: 'https://i.pravatar.cc/300',
-      description: "i like to repair. i like to repair. i like to repair. "
+      description: 'i like to repair. i like to repair. i like to repair. ',
     },
   },
 }

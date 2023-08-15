@@ -53,10 +53,12 @@ const router = createRouterFunction([
   {
     path: '/',
     element: <Root />,
-    children: [{
-      index: true,
-      element: <FeedPage/>
-    }],
+    children: [
+      {
+        index: true,
+        element: <FeedPage />,
+      },
+    ],
   },
 ])
 

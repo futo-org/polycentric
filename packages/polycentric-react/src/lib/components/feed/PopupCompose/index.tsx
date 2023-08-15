@@ -50,7 +50,7 @@ export const ReplyComposePopup = ({
             </main>
             {/* sub.post */}
             {sub && (
-              <div className='pb-3'>
+              <div className="pb-3">
                 <div className="border rounded-2xl w-full p-5 bg-white overflow-clip flex flex-col space-y-3">
                   <div className="flex">
                     <img src={sub.author.avatarURL} className="rounded-full h-5 w-5 md:h-10 md:w-10" />

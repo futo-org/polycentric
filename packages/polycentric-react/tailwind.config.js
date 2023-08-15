@@ -19,6 +19,7 @@ module.exports = {
       }
     }
   },
+  darkMode: 'media',
   plugins: [
     require("nightwind")
   ],

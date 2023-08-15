@@ -26,11 +26,7 @@ export const DummyScrollFeed = ({ p }: { p: ReadonlyArray<PostProps> }) => {
       <div ref={innerRef}>
         {items.map(({ index, size, measureRef }) => (
           // You can set the item's height with the `size` property
-          <PurePost
-            ref={measureRef}
-            key={index}
-            main={p[index % 2]}
-          />
+          <PurePost ref={measureRef} key={index} main={p[index % 2]} />
         ))}
       </div>
     </div>
