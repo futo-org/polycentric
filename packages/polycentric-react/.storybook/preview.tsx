@@ -2,6 +2,7 @@ import type { Preview } from '@storybook/react'
 import React from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import '../src/lib/tailwind/theme.css'
+// import 'unfonts.css'
 
 const preview: Preview = {
   parameters: {

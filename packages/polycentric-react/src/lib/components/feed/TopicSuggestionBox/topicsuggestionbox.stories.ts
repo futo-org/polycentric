@@ -24,13 +24,13 @@ const testTopics = {
   ebikes: {
     diy: {},
     ask: {},
-    rides: {}
+    rides: {},
   },
   ee: {
     careers: {},
     ask: {},
     projects: {},
-    news: {}
+    news: {},
   },
   pakistan: {},
 }
