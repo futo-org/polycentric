@@ -331,16 +331,17 @@ export const PurePost = forwardRef<HTMLElement, PurePostProps>(({ main, sub }: P
           />
         </div>
       </article>
-      {commentPanelOpen && (
-        <PopupComposeReplyFullscreen main={main} sub={sub} setOpen={(open) => setCommentPanelOpen(open)} />
-      )}
-      {mainImageOpen && (
-        <Modal setOpen={(open) => setMainImageOpen(open)}>
-          <div className="m-5">
-            <img className="rounded-2xl w-[90%] max-w-[30rem]" src={image} />
-          </div>
-        </Modal>
-      )}
+      <PopupComposeReplyFullscreen
+        open={commentPanelOpen}
+        main={main}
+        sub={sub}
+        setOpen={(open) => setCommentPanelOpen(open)}
+      />
+      <Modal open={mainImageOpen} setOpen={(open) => setMainImageOpen(open)}>
+        <div className="m-5">
+          <img className="rounded-2xl w-[90%] max-w-[30rem]" src={image} />
+        </div>
+      </Modal>
     </div>
   )
 })

@@ -78,6 +78,7 @@ export const PopupComposeReply = ({
 export const PopupComposeReplyFullscreen = ({
   main,
   sub,
+  open,
   setOpen,
 }: {
   main: {
@@ -93,10 +94,11 @@ export const PopupComposeReplyFullscreen = ({
     topic: string
     ContentLink?: string
   }
+  open: boolean
   setOpen: (b: boolean) => void
 }) => {
   return (
-    <Modal setOpen={setOpen}>
+    <Modal open={open} setOpen={setOpen}>
       <PopupComposeReply main={main} sub={sub} />
     </Modal>
   )

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Drawer } from '../util/drawer'
+import { MainSidebar } from '../sidebars/mainsidebar'
 
 const MenuIcon = () => (
   <svg
@@ -56,11 +57,29 @@ export const Root = () => {
       {/* Content area */}
       <div className="flex h-full mt-16 md:mt-0">
         {/* Left sidebar */}
-        <aside className={`w-3/12 hidden md:block border`}>Left Sidebar Content</aside>
-        <Drawer open={showLeftSidebar} setOpen={setShowLeftSidebar} side="left"></Drawer>
+        <aside className={`w-3/12 hidden md:block border`}>
+          <MainSidebar
+            topics={['/tpot', '/tpot/dating']}
+            profile={{
+              name: 'John Doe',
+              avatarURL: 'https://i.pravatar.cc/300',
+              description: 'i like to repair. i like to repair. i like to repair. ',
+            }}
+          />
+        </aside>
+        <Drawer open={showLeftSidebar} setOpen={setShowLeftSidebar} side="left">
+          <MainSidebar
+            topics={['/tpot', '/tpot/dating']}
+            profile={{
+              name: 'John Doe',
+              avatarURL: 'https://i.pravatar.cc/300',
+              description: 'i like to repair. i like to repair. i like to repair. ',
+            }}
+          />
+        </Drawer>
 
         {/* Main content */}
-        <main className="bg-white w-6/12">
+        <main className="bg-white w-9/12">
           <Outlet />
         </main>
       </div>

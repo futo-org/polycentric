@@ -12,7 +12,7 @@ import {
 import { QueryManagerContext, useCRDTQuery, useQueryManager } from '../hooks/queryManagerHooks.js'
 import { decode } from '@borderless/base64'
 import { Root } from '../components/root/index.js'
-import { DummyScrollFeed } from '../components/index.js'
+import { DummyScrollFeed, FeedPage } from '../components/index.js'
 
 const decodeSystemQuery = (raw: string) => {
   return Models.URLInfo.getSystemLink(Protocol.URLInfo.decode(decode(raw)))
@@ -55,7 +55,7 @@ const router = createRouterFunction([
     element: <Root />,
     children: [{
       index: true,
-      element: <p>hello</p>
+      element: <FeedPage/>
     }],
   },
 ])
