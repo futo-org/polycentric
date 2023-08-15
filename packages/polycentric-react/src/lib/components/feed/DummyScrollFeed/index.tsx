@@ -12,7 +12,7 @@ interface PostProps {
 
 export const DummyScrollFeed = ({ p }: { p: ReadonlyArray<PostProps> }) => {
   const { outerRef, innerRef, items } = useVirtual<HTMLDivElement>({
-    itemCount: 500, // Provide the total number for the list items
+    itemCount: 100, // Provide the total number for the list items
   })
 
   return (

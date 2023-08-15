@@ -13,9 +13,9 @@ export const PopupCompose = () => {
   )
 }
 
-export const PopupComposeFullscreen = ({ setOpen }: { setOpen: (b: boolean) => void }) => {
+export const PopupComposeFullscreen = ({ open, setOpen }: { open: boolean; setOpen: (b: boolean) => void }) => {
   return (
-    <Modal setOpen={setOpen}>
+    <Modal open={open} setOpen={setOpen}>
       <PopupCompose />
     </Modal>
   )
