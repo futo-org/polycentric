@@ -153,6 +153,13 @@ export namespace Digest {
 
         return proto as Digest;
     }
+
+    export function equal(a: Digest, b: Digest): boolean {
+        return (
+            a.digestType.equals(b.digestType) &&
+            Util.buffersEqual(b.digest, b.digest)
+        );
+    }
 }
 
 export namespace Process {
@@ -223,6 +230,15 @@ export namespace Pointer {
 
     export function fromBuffer(buffer: Uint8Array): Pointer {
         return fromProto(Protocol.Pointer.decode(buffer));
+    }
+
+    export function equal(a: Pointer, b: Pointer): boolean {
+        return (
+            PublicKey.equal(a.system, b.system) &&
+            Process.equal(a.process, b.process) &&
+            a.logicalClock.equals(b.logicalClock) &&
+            Digest.equal(a.eventDigest, b.eventDigest)
+        );
     }
 }
 

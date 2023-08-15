@@ -219,6 +219,27 @@ pub(crate) async fn prepare_database(
 
     ::sqlx::query(
         "
+        CREATE TABLE IF NOT EXISTS claim_fields (
+            id          BIGSERIAL PRIMARY KEY,
+            field_key   INT8      NOT NULL,
+            field_value TEXT      NOT NULL,
+            event_id    BIGSERIAL NOT NULL,
+
+            CHECK ( field_key >= 0 ),
+            CHECK ( event_id  >= 0 ),
+
+            CONSTRAINT FK_event
+                FOREIGN KEY (event_id)
+                REFERENCES events(id)
+                ON DELETE CASCADE
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
         CREATE TABLE IF NOT EXISTS lww_elements (
             id                BIGSERIAL PRIMARY KEY,
             unix_milliseconds INT8      NOT NULL,
@@ -758,7 +779,7 @@ pub(crate) async fn insert_event_index(
 pub(crate) async fn insert_claim(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event_id: u64,
-    claim_type: u64,
+    claim: crate::model::claim::Claim,
 ) -> ::anyhow::Result<()> {
     let query_insert_claim = "
         INSERT INTO claims
@@ -770,11 +791,31 @@ pub(crate) async fn insert_claim(
         ON CONFLICT DO NOTHING;
     ";
 
+    let query_insert_claim_field = "
+        INSERT INTO claim_fields
+        (
+            field_key,
+            field_value,
+            event_id
+        )
+        VALUES ($1, $2, $3)
+        ON CONFLICT DO NOTHING;
+    ";
+
     ::sqlx::query(query_insert_claim)
-        .bind(i64::try_from(claim_type)?)
+        .bind(i64::try_from(*claim.claim_type())?)
         .bind(i64::try_from(event_id)?)
         .execute(&mut *transaction)
         .await?;
+
+    for field in claim.claim_fields().iter() {
+        ::sqlx::query(query_insert_claim_field)
+            .bind(i64::try_from(field.key)?)
+            .bind(&field.value)
+            .bind(i64::try_from(event_id)?)
+            .execute(&mut *transaction)
+            .await?;
+    }
 
     Ok(())
 }
@@ -803,129 +844,6 @@ pub(crate) async fn insert_lww_element(
         .await?;
 
     Ok(())
-}
-
-pub(crate) async fn find_claims(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    claim: &crate::model::claim::Claim,
-    trust_root: &crate::model::public_key::PublicKey,
-) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
-{
-    let proto = crate::model::claim::to_proto(claim)
-        .write_to_bytes()
-        .map_err(::anyhow::Error::new)?;
-
-    let query_select_claims = "
-        SELECT
-            raw_event
-        FROM
-            events
-        WHERE
-            content_type = 12
-        AND
-            content = $1
-        AND (
-            system_key_type,
-            system_key,
-            process,
-            logical_clock
-        ) IN (
-            SELECT
-                t1.subject_system_key_type as system_key_type,
-                t1.subject_system_key as system_key,
-                t1.subject_process as process,
-                t1.subject_logical_clock as logical_clock
-            FROM
-                event_links t1
-            JOIN
-                events t2
-            ON
-                t1.event_id = t2.id
-            WHERE
-                t2.system_key_type = $2
-            AND
-                t2.system_key = $3
-            AND
-                t1.link_content_type = 11
-        );
-    ";
-
-    let query_select_vouches_for_claim = "
-        SELECT
-            raw_event
-        FROM
-            events
-        WHERE
-            id
-        IN (
-            SELECT
-                event_id as id
-            FROM
-                event_links
-            WHERE
-                subject_system_key_type = $1
-            AND
-                subject_system_key = $2
-            AND
-                subject_process = $3
-            AND
-                subject_logical_clock = $4
-        );
-    ";
-
-    let claims =
-        ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query_select_claims)
-            .bind(&proto)
-            .bind(i64::try_from(crate::model::public_key::get_key_type(
-                trust_root,
-            ))?)
-            .bind(crate::model::public_key::get_key_bytes(trust_root))
-            .fetch_all(&mut *transaction)
-            .await?
-            .iter()
-            .map(|raw| {
-                crate::model::signed_event::from_proto(
-                    &crate::protocol::SignedEvent::parse_from_bytes(raw)?,
-                )
-            })
-            .collect::<::anyhow::Result<
-                ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
-            >>()?;
-
-    let mut all_vouches = vec![];
-
-    for claim_event_raw in claims.iter() {
-        let claim_event = crate::model::event::from_proto(
-            &crate::protocol::Event::parse_from_bytes(claim_event_raw.event())?,
-        )?;
-
-        let mut vouches = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(
-            query_select_vouches_for_claim,
-        )
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
-            claim_event.system(),
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(
-            claim_event.system(),
-        ))
-        .bind(claim_event.process().bytes())
-        .bind(i64::try_from(*claim_event.logical_clock())?)
-        .fetch_all(&mut *transaction)
-        .await?
-        .iter()
-        .map(|raw| {
-            crate::model::signed_event::from_proto(
-                &crate::protocol::SignedEvent::parse_from_bytes(raw)?,
-            )
-        })
-        .collect::<::anyhow::Result<
-            ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
-        >>()?;
-
-        all_vouches.append(&mut vouches);
-    }
-
-    Ok([claims, all_vouches].concat())
 }
 
 pub(crate) async fn load_system_head(
@@ -1369,73 +1287,6 @@ pub mod tests {
 
             assert!(found);
         }
-
-        Ok(())
-    }
-
-    #[::sqlx::test]
-    async fn test_find_claims(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
-        let mut transaction = pool.begin().await?;
-
-        crate::postgres::prepare_database(&mut transaction).await?;
-
-        let mut claim_hacker_news = crate::protocol::ClaimFieldEntry::new();
-        claim_hacker_news.key = 1;
-        claim_hacker_news.value = "hello".to_string();
-
-        let claim = crate::model::claim::Claim::new(1, &[claim_hacker_news]);
-
-        let s1 = crate::model::tests::make_test_keypair();
-        let s1p1 = crate::model::tests::make_test_process();
-
-        let s1p1e1 = crate::model::tests::make_test_event_with_content(
-            &s1,
-            &s1p1,
-            1,
-            12,
-            &crate::model::claim::to_proto(&claim).write_to_bytes()?,
-            vec![],
-        );
-
-        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e1).await?;
-
-        let s2 = crate::model::tests::make_test_keypair();
-        let s2p1 = crate::model::tests::make_test_process();
-
-        let s2p1e1 = crate::model::tests::make_test_event_with_content(
-            &s2,
-            &s2p1,
-            1,
-            11,
-            &vec![],
-            vec![crate::model::reference::Reference::Pointer(
-                crate::model::pointer::Pointer::new(
-                    crate::model::public_key::PublicKey::Ed25519(
-                        s1.public.clone(),
-                    ),
-                    s1p1,
-                    1,
-                    crate::model::digest::Digest::SHA256(
-                        crate::model::hash_event(s1p1e1.event()),
-                    ),
-                ),
-            )],
-        );
-
-        crate::ingest::ingest_event_postgres(&mut transaction, &s2p1e1).await?;
-
-        let result = crate::postgres::find_claims(
-            &mut transaction,
-            &claim,
-            &crate::model::public_key::PublicKey::Ed25519(s2.public.clone()),
-        )
-        .await?;
-
-        let expected = vec![s1p1e1, s2p1e1];
-
-        transaction.commit().await?;
-
-        assert!(result == expected);
 
         Ok(())
     }

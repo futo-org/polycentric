@@ -126,12 +126,8 @@ pub(crate) async fn ingest_event_postgres(
         )
         .await?;
     } else if let crate::model::content::Content::Claim(body) = content {
-        crate::postgres::insert_claim(
-            &mut *transaction,
-            event_id,
-            *body.claim_type(),
-        )
-        .await?;
+        crate::postgres::insert_claim(&mut *transaction, event_id, body)
+            .await?;
     }
 
     if let Some(lww_element) = event.lww_element() {

@@ -103,15 +103,18 @@ export async function getEvents(
 export async function getResolveClaim(
     server: string,
     trustRoot: Models.PublicKey.PublicKey,
-    claim: Protocol.Claim,
-): Promise<Protocol.Events> {
-    const trustRootQuery = Base64.encodeUrl(
-        Protocol.PublicKey.encode(trustRoot).finish(),
+    claimType: Models.ClaimType.ClaimType,
+    matchAnyField: string,
+): Promise<Protocol.QueryClaimToSystemResponse> {
+    const query = Base64.encodeUrl(
+        Protocol.QueryClaimToSystemRequest.encode({
+            claimType: claimType,
+            trustRoot: trustRoot,
+            matchAnyField: matchAnyField,
+        }).finish(),
     );
 
-    const claimQuery = Base64.encodeUrl(Protocol.Claim.encode(claim).finish());
-
-    const path = `/resolve_claim?claim=${claimQuery}&trust_root=${trustRootQuery}`;
+    const path = `/resolve_claim?query=${query}`;
 
     const response = await fetch(server + path, {
         method: 'GET',
@@ -124,7 +127,7 @@ export async function getResolveClaim(
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
-    return Protocol.Events.decode(rawBody);
+    return Protocol.QueryClaimToSystemResponse.decode(rawBody);
 }
 
 export async function getQueryLatest(

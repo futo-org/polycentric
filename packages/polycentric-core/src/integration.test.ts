@@ -58,7 +58,7 @@ describe('integration', () => {
         const claim = Models.claimHackerNews('pg');
 
         const claimPointer = await s1p1.claim(claim);
-        await s1p1.vouch(claimPointer);
+        const vouchPointer = await s1p1.vouch(claimPointer);
 
         await Synchronization.backFillServers(s1p1, s1p1.system());
 
@@ -79,10 +79,33 @@ describe('integration', () => {
         const resolved = await APIMethods.getResolveClaim(
             TEST_SERVER,
             s1p1.system(),
-            claim,
+            Models.ClaimType.ClaimTypeHackerNews,
+            'pg',
         );
 
-        expect(resolved.events.length).toStrictEqual(2);
+        expect(resolved.matches.length).toStrictEqual(1);
+
+        expect(
+            Models.Pointer.equal(
+                await Models.signedEventToPointer(
+                    Models.SignedEvent.fromProto(resolved.matches[0].claim!),
+                ),
+                claimPointer,
+            ),
+        ).toStrictEqual(true);
+
+        expect(resolved.matches[0]!.proofChain.length).toStrictEqual(1);
+
+        expect(
+            Models.Pointer.equal(
+                await Models.signedEventToPointer(
+                    Models.SignedEvent.fromProto(
+                        resolved.matches[0]!.proofChain[0]!,
+                    ),
+                ),
+                vouchPointer,
+            ),
+        ).toStrictEqual(true);
     });
 
     test('resolveAndQuery', async () => {

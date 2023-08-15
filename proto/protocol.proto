@@ -239,6 +239,25 @@ message QueryReferencesResponse {
 
 // end /query_references API
 
+// start /claim_to_system
+
+message QueryClaimToSystemRequest {
+             uint64    claim_type      = 1;
+             PublicKey trust_root      = 2;
+    optional string    match_any_field = 3;
+}
+
+message QueryClaimToSystemResponse {
+    repeated QueryClaimToSystemResponseMatch matches = 1;
+}
+
+message QueryClaimToSystemResponseMatch {
+             SignedEvent claim       = 1;
+    repeated SignedEvent proof_chain = 2;
+}
+
+// end /claim_to_system
+
 // /query_index
 message QueryIndexResponse {
     repeated SignedEvent events = 1;
