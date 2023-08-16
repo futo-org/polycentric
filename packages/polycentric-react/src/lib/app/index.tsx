@@ -11,8 +11,11 @@ import {
 } from '@polycentric/polycentric-core'
 import { QueryManagerContext, useCRDTQuery, useQueryManager } from '../hooks/queryManagerHooks.js'
 import { decode } from '@borderless/base64'
-import { Root } from '../components/root/index.js'
-import { DummyScrollFeed, FeedPage } from '../components/index.js'
+import { Root } from '../components/root'
+import { DummyScrollFeed } from '../components/feed/DummyScrollFeed'
+import { FeedPage } from '../components/feed/FeedPage'
+import { PureSidebarProfile } from '../components/profile/PureSidebarProfile'
+import { SearchBox } from '../components/search/searchbox'
 
 const decodeSystemQuery = (raw: string) => {
   return Models.URLInfo.getSystemLink(Protocol.URLInfo.decode(decode(raw)))
@@ -56,7 +59,18 @@ const router = createRouterFunction([
     children: [
       {
         index: true,
-        element: <FeedPage />,
+        element: (
+          <FeedPage>
+            <SearchBox/>
+            <PureSidebarProfile
+              profile={{
+                name: 'Rossman',
+                avatarURL: 'https://avatars.githubusercontent.com/u/1388441?v=4',
+                description: 'I like to repair. I like to repair. I like to repair.',
+              }}
+            />
+          </FeedPage>
+        ),
       },
     ],
   },

@@ -56,8 +56,8 @@ export const Root = () => {
 
       {/* Content area */}
       <div className="flex h-full mt-16 md:mt-0">
-        {/* Left sidebar */}
-        <aside className={`w-3/12 hidden md:block border`}>
+        {/* Physical left sidebar for tablet+ */}
+        <aside className={`border hidden lg:block md:w-[1/4] xl:w-[320px] flex-grow  `}>
           <MainSidebar
             topics={['/tpot', '/tpot/dating']}
             profile={{
@@ -67,6 +67,7 @@ export const Root = () => {
             }}
           />
         </aside>
+        {/* Drawer sidebar for mobile */}
         <Drawer open={showLeftSidebar} setOpen={setShowLeftSidebar} side="left">
           <MainSidebar
             topics={['/tpot', '/tpot/dating']}
@@ -78,10 +79,7 @@ export const Root = () => {
           />
         </Drawer>
 
-        {/* Main content */}
-        <main className="bg-white w-9/12">
-          <Outlet />
-        </main>
+        <Outlet />
       </div>
     </div>
   )
