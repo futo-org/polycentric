@@ -126,6 +126,23 @@ const ShareButton = () => (
   </svg>
 )
 
+const BookmarkIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    className="w-6 h-6"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
+    />
+  </svg>
+)
+
 export const LikeButton = ({
   onClick,
   count,
@@ -160,8 +177,12 @@ export const SharePostButton = ({ onClick }: { onClick: () => void }) => {
   return <PostActionButton name="Share" DefaultIcon={ShareButton} onClick={onClick} />
 }
 
+export const BookmarkPostButton = ({ onClick }: { onClick: () => void }) => {
+  return <PostActionButton name="Bookmark" DefaultIcon={BookmarkIcon} onClick={onClick} />
+}
+
 interface PurePostProps {
-  main: {
+  main?: {
     content: string
     author: Profile
     publishedAt: Date
@@ -179,7 +200,7 @@ interface PurePostProps {
 }
 
 // eslint-disable-next-line react/display-name
-export const PurePost = forwardRef<HTMLElement, PurePostProps>(({ main, sub }: PurePostProps, ref) => {
+export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(({ main, sub }: PurePostProps, infiniteScrollRef) => {
   const mainRef = useRef<HTMLDivElement>(null)
   const subContentRef = useRef<HTMLDivElement>(null)
   const [contentCropped, setContentCropped] = useState(false)
@@ -188,13 +209,11 @@ export const PurePost = forwardRef<HTMLElement, PurePostProps>(({ main, sub }: P
   const [commentPanelOpen, setCommentPanelOpen] = useState(false)
   const [mainImageOpen, setMainImageOpen] = useState(false)
 
-  const { content, author, publishedAt, topic, image } = main
-
   useEffect(() => {
     if (mainRef.current != null && expanded === false) {
       setContentCropped(mainRef.current.clientHeight < mainRef.current.scrollHeight)
     }
-  }, [content, expanded])
+  }, [main, expanded])
 
   useEffect(() => {
     if (subContentRef.current != null && subcontentCropped === false) {
@@ -203,145 +222,164 @@ export const PurePost = forwardRef<HTMLElement, PurePostProps>(({ main, sub }: P
   }, [sub, subcontentCropped])
 
   return (
-    <div>
-      <article
-        className="px-3 pt-5 pb-3 md:px-10 md:pt-10 md:pb-8 border-b border-gray-100 bg-white overflow-clip"
-        ref={ref}
-      >
-        <div className="flex relative overflow-clip">
-          <div className="mr-3 md:mr-4 flex-shrink-0 flex flex-col overflow-clip">
-            <img src={author.avatarURL} className="rounded-full h-16 w-16 md:h-20 md:w-20" />
-            <div
-              className={`hidden lg:flex flex-col space-y-2 sticky top-full overflow-clip ${sub == null ? 'pt-5' : ''}`}
-            >
-              <LikeButton
-                onClick={() => {
-                  return
-                }}
-                count={69}
-                clicked={false}
-              />
-              <RePostButton
-                onClick={() => {
-                  return
-                }}
-                count={420}
-              />
-              <CommentButton
-                onClick={() => {
-                  return
-                }}
-                count={1337}
-              />
-            </div>
-          </div>
-          <div className="flex-grow">
-            <div className="flex w-full justify-between">
-              <div className="font-bold text-md ">{author.name}</div>
-              <div className="flex space-x-2 text-gray-700">
-                <time className="pr-3 md:pr-0 font-light text-gray-500 tracking-tight">
-                  {dateToAgoString(publishedAt)}
-                </time>
-                <SharePostButton
+    <div ref={infiniteScrollRef}>
+      {main == null ? (
+        <div className="p-14 border-b border-gray-100 bg-white">
+          <div className="w-full animate-pulse border border-blue-100 rounded-2xl h-5"></div>
+        </div>
+      ) : (
+        <article
+          className="px-3 pt-5 pb-3 md:px-10 md:pt-10 md:pb-8 border-b border-gray-100 bg-white overflow-clip inline-block w-full"
+          
+        >
+          <div className="flex relative overflow-clip">
+            <div className="mr-3 md:mr-4 flex-shrink-0 flex flex-col overflow-clip">
+              <img src={main.author.avatarURL} className="rounded-full h-16 w-16 md:h-20 md:w-20" />
+              <div
+                className={`hidden xl:flex flex-col space-y-2 ${expanded ? 'sticky top-1/2' : ''} overflow-clip ${
+                  sub == null ? 'pt-5' : ''
+                }`}
+              >
+                <LikeButton
                   onClick={() => {
                     return
                   }}
+                  count={69}
+                  clicked={false}
+                />
+                <RePostButton
+                  onClick={() => {
+                    return
+                  }}
+                  count={420}
+                />
+                <CommentButton
+                  onClick={() => {
+                    setCommentPanelOpen(true)
+                  }}
+                  count={1337}
                 />
               </div>
             </div>
-            <div className=" text-purple-400 leading-3">{topic}</div>
-            <div className="flex flex-col space-y-3">
-              {/* Actual post content */}
-              <main
-                className={
-                  'pt-4 leading-normal whitespace-pre-line text-lg text-gray-900 font-normal overflow-clip' +
-                  (expanded ? '' : ' line-clamp-[7]') +
-                  (contentCropped && !expanded
-                    ? ` line-clamp-[7] relative
+            <div className="flex-grow w-full max-w-[600px]">
+              <div className="flex w-full justify-between">
+                <div className="">
+                  <address className="font-bold text-md author not-italic">{main.author.name}</address>
+                  <div className="text-purple-400 leading-3">{main.topic}</div>
+                </div>
+                <div className="flex space-x-2 text-gray-700 items-center">
+                  <time className="text-right sm:text-right pr-3 md:pr-0 font-light text-gray-500 tracking-tight">
+                    {dateToAgoString(main.publishedAt)}
+                  </time>
+                  <div className="flex flex-col-reverse sm:flex-row">
+                    <SharePostButton
+                      onClick={() => {
+                        if (navigator.share) {
+                          navigator.share({
+                            title: 'Polycentric',
+                            text: main.content,
+                            url: window.location.href,
+                          })
+                        }
+                      }}
+                    />
+                    <BookmarkPostButton onClick={() => {}} />
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col space-y-3">
+                {/* Actual post content */}
+                <main
+                  className={
+                    'pt-4 leading-normal whitespace-pre-line text-lg text-gray-900 font-normal overflow-clip' +
+                    (expanded ? '' : ' line-clamp-[7]') +
+                    (contentCropped && !expanded
+                      ? ` line-clamp-[7] relative
                   after:top-0 after:left-0  after:w-full after:h-full 
                   after:bg-gradient-to-b after:from-80% after:from-transparent after:to-white
                   after:absolute `
-                    : '')
-                }
-                ref={mainRef}
-              >
-                {content}
-              </main>
-              <button onClick={() => setMainImageOpen(true)}>
-                <img src={image} className="rounded-2xl max-h-60 max-w-full w-fit hover:opacity-80" />
-              </button>
-              {/* sub.post */}
-              {sub && (
-                <div className="border rounded-2xl w-full p-5 bg-white hover:bg-gray-50 overflow-clip flex flex-col space-y-3">
-                  <div className="flex">
-                    <img src={sub.author.avatarURL} className="rounded-full h-5 w-5 md:h-10 md:w-10" />
-                    <div className="flex flex-col ml-2 w-full">
-                      <div className="flex justify-between w-full">
-                        <div className="font-bold">{sub.author.name}</div>
-                        <div className="pr-3 md:pr-0 font-light text-gray-500 text-sm">
-                          {dateToAgoString(sub.publishedAt)}
+                      : '')
+                  }
+                  ref={mainRef}
+                >
+                  {main.content}
+                </main>
+                <button onClick={() => setMainImageOpen(true)}>
+                  <img src={main.image} className="rounded-2xl max-h-60 max-w-full w-fit hover:opacity-80" />
+                </button>
+                {/* sub.post */}
+                {sub && (
+                  <div className="border rounded-2xl w-full p-5 bg-white hover:bg-gray-50 overflow-clip flex flex-col space-y-3">
+                    <div className="flex">
+                      <img src={sub.author.avatarURL} className="rounded-full h-5 w-5 md:h-10 md:w-10" />
+                      <div className="flex flex-col ml-2 w-full">
+                        <div className="flex justify-between w-full">
+                          <div className="font-bold">{sub.author.name}</div>
+                          <div className="pr-3 md:pr-0 font-light text-gray-500 text-sm">
+                            {dateToAgoString(sub.publishedAt)}
+                          </div>
                         </div>
+                        <div className=" text-purple-400 leading-3 text-sm">{sub.topic}</div>
                       </div>
-                      <div className=" text-purple-400 leading-3 text-sm">{sub.topic}</div>
                     </div>
-                  </div>
-                  <main
-                    ref={subContentRef}
-                    className={`line-clamp-[4]  ${
-                      subcontentCropped
-                        ? `relative after:top-0 after:left-0  after:w-full after:h-full 
+                    <main
+                      ref={subContentRef}
+                      className={`line-clamp-[4]  ${
+                        subcontentCropped
+                          ? `relative after:top-0 after:left-0  after:w-full after:h-full 
                         after:bg-gradient-to-b after:from-20% after:from-transparent after:to-white
                         after:absolute`
-                        : ''
-                    }`}
-                  >
-                    {sub.content}
-                  </main>
-                </div>
-              )}
+                          : ''
+                      }`}
+                    >
+                      {sub.content}
+                    </main>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-        {contentCropped && !expanded && (
-          <div className="flex w-full justify-center mt-4">
-            <button onClick={() => setExpanded(true)} className="bg-gray-200 rounded-full font-bold px-10 z-10 py-3">
-              Read more
-            </button>
+          {contentCropped && !expanded && (
+            <div className="flex w-full justify-center mt-4">
+              <button onClick={() => setExpanded(true)} className="bg-gray-200 rounded-full font-bold px-10 z-10 py-3">
+                Read more
+              </button>
+            </div>
+          )}
+          <div className="xl:hidden flex justify-around pt-6">
+            <LikeButton
+              onClick={() => {
+                return
+              }}
+              count={69}
+              clicked={false}
+            />
+            <RePostButton
+              onClick={() => {
+                return
+              }}
+              count={420}
+            />
+            <CommentButton
+              onClick={() => {
+                setCommentPanelOpen(true)
+              }}
+              count={1337}
+            />
           </div>
-        )}
-        <div className="lg:hidden flex justify-around pt-6">
-          <LikeButton
-            onClick={() => {
-              return
-            }}
-            count={69}
-            clicked={false}
+          <PopupComposeReplyFullscreen
+            open={commentPanelOpen}
+            main={main}
+            sub={sub}
+            setOpen={(open) => setCommentPanelOpen(open)}
           />
-          <RePostButton
-            onClick={() => {
-              return
-            }}
-            count={420}
-          />
-          <CommentButton
-            onClick={() => {
-              setCommentPanelOpen(true)
-            }}
-            count={1337}
-          />
-        </div>
-      </article>
-      <PopupComposeReplyFullscreen
-        open={commentPanelOpen}
-        main={main}
-        sub={sub}
-        setOpen={(open) => setCommentPanelOpen(open)}
-      />
-      <Modal open={mainImageOpen} setOpen={(open) => setMainImageOpen(open)}>
-        <div className="m-5">
-          <img className="rounded-2xl w-[90%] max-w-[30rem]" src={image} />
-        </div>
-      </Modal>
+          <Modal open={mainImageOpen} setOpen={(open) => setMainImageOpen(open)}>
+            <div className="m-5">
+              <img className="rounded-2xl w-[90%] max-w-[30rem]" src={main.image} />
+            </div>
+          </Modal>
+        </article>
+      )}
     </div>
   )
 })
