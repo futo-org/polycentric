@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {} from '@headlessui/react'
 import { Profile } from '../../../types/profile'
+import { CircleExpandMenu } from '../../util/circleexpandmenu'
 
 const UpArrowIcon = () => (
   <svg
@@ -60,11 +61,7 @@ export const AccountSwitcher = ({
                       <p className="font-light text-gray-400">fhsioqui29180a</p>
                     </div>
                   </div>
-                  <button className="h-[3rem] border p-1 rounded-full w-auto aspect-square flex justify-center items-center space-x-1">
-                    {[0, 0, 0].map(() => (
-                      <div className="w-1 h-1 rounded-full bg-gray-500"></div>
-                    ))}
-                  </button>
+                  <CircleExpandMenu />
                 </div>
               ))}
             </div>
