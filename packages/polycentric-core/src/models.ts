@@ -395,6 +395,7 @@ export namespace ClaimType {
     export const ClaimTypeSpotify = makeClaimType(23);
     export const ClaimTypeSpreadshop = makeClaimType(24);
     export const ClaimTypePolycentric = makeClaimType(25);
+    export const ClaimTypeGitlab = makeClaimType(26);
 
     export function toString(claimType: ClaimType): string {
         if (claimType.equals(ClaimTypeHackerNews)) {
@@ -447,6 +448,8 @@ export namespace ClaimType {
             return 'Spreadshop';
         } else if (claimType.equals(ClaimTypePolycentric)) {
             return 'Polycentric';
+        } else if (claimType.equals(ClaimTypeGitlab)) {
+            return 'Gitlab';
         } else {
             return 'unknown';
         }
