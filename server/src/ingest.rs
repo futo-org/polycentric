@@ -28,7 +28,9 @@ fn trace_event(
         let lww_element = event.lww_element().clone().ok_or(Error)?;
 
         content_str = String::from_utf8(lww_element.value)?;
-    } else if content_type == crate::model::known_message_types::SERVER {
+    } else if content_type == crate::model::known_message_types::SERVER
+        || content_type == crate::model::known_message_types::AUTHORITY
+    {
         let lww_element_set = event.lww_element_set().clone().ok_or(Error)?;
 
         content_str = String::from_utf8(lww_element_set.value)?;

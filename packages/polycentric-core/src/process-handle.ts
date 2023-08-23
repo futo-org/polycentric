@@ -12,6 +12,7 @@ import * as Synchronization from './synchronization';
 
 export class SystemState {
     private _servers: Array<string>;
+    private _authorities: Array<string>;
     private _processes: Array<Models.Process.Process>;
     private _username: string;
     private _description: string;
@@ -20,6 +21,7 @@ export class SystemState {
 
     public constructor(
         servers: Array<string>,
+        authorities: Array<string>,
         processes: Array<Models.Process.Process>,
         username: string,
         description: string,
@@ -27,6 +29,7 @@ export class SystemState {
         avatar: Protocol.ImageBundle | undefined,
     ) {
         this._servers = servers;
+        this._authorities = authorities;
         this._processes = processes;
         this._username = username;
         this._description = description;
@@ -36,6 +39,10 @@ export class SystemState {
 
     public servers(): Array<string> {
         return this._servers;
+    }
+
+    public authorities(): Array<string> {
+        return this._authorities;
     }
 
     public processes(): Array<Models.Process.Process> {
@@ -63,6 +70,7 @@ function protoSystemStateToSystemState(
     proto: Protocol.StorageTypeSystemState,
 ): SystemState {
     const servers = [];
+    const authorities = [];
 
     for (const item of proto.crdtSetItems) {
         if (
@@ -70,6 +78,11 @@ function protoSystemStateToSystemState(
             item.operation === Protocol.LWWElementSet_Operation.ADD
         ) {
             servers.push(Util.decodeText(item.value));
+        } else if (
+            item.contentType.equals(Models.ContentType.ContentTypeAuthority) &&
+            item.operation === Protocol.LWWElementSet_Operation.ADD
+        ) {
+            authorities.push(Util.decodeText(item.value));
         }
     }
 
@@ -104,6 +117,7 @@ function protoSystemStateToSystemState(
 
     return new SystemState(
         servers,
+        authorities,
         processes,
         username,
         description,
@@ -243,6 +257,24 @@ export class ProcessHandle {
         );
     }
 
+    private async setCRDTElementSetItem(
+        contentType: Models.ContentType.ContentType,
+        value: Uint8Array,
+        operation: Protocol.LWWElementSet_Operation,
+    ): Promise<Models.Pointer.Pointer> {
+        return await this.publish(
+            contentType,
+            new Uint8Array(),
+            {
+                operation: operation,
+                value: value,
+                unixMilliseconds: Long.fromNumber(Date.now(), true),
+            },
+            undefined,
+            [],
+        );
+    }
+
     public async setUsername(
         username: string,
     ): Promise<Models.Pointer.Pointer> {
@@ -278,30 +310,36 @@ export class ProcessHandle {
     }
 
     public async addServer(server: string): Promise<Models.Pointer.Pointer> {
-        return await this.publish(
+        return await this.setCRDTElementSetItem(
             Models.ContentType.ContentTypeServer,
-            new Uint8Array(),
-            {
-                operation: Protocol.LWWElementSet_Operation.ADD,
-                value: Util.encodeText(server),
-                unixMilliseconds: Long.fromNumber(Date.now(), true),
-            },
-            undefined,
-            [],
+            Util.encodeText(server),
+            Protocol.LWWElementSet_Operation.ADD,
         );
     }
 
     public async removeServer(server: string): Promise<Models.Pointer.Pointer> {
-        return await this.publish(
+        return await this.setCRDTElementSetItem(
             Models.ContentType.ContentTypeServer,
-            new Uint8Array(),
-            {
-                operation: Protocol.LWWElementSet_Operation.REMOVE,
-                value: Util.encodeText(server),
-                unixMilliseconds: Long.fromNumber(Date.now(), true),
-            },
-            undefined,
-            [],
+            Util.encodeText(server),
+            Protocol.LWWElementSet_Operation.REMOVE,
+        );
+    }
+
+    public async addAuthority(server: string): Promise<Models.Pointer.Pointer> {
+        return await this.setCRDTElementSetItem(
+            Models.ContentType.ContentTypeAuthority,
+            Util.encodeText(server),
+            Protocol.LWWElementSet_Operation.ADD,
+        );
+    }
+
+    public async removeAuthority(
+        server: string,
+    ): Promise<Models.Pointer.Pointer> {
+        return await this.setCRDTElementSetItem(
+            Models.ContentType.ContentTypeAuthority,
+            Util.encodeText(server),
+            Protocol.LWWElementSet_Operation.REMOVE,
         );
     }
 
