@@ -239,11 +239,11 @@ export function Claim(props: ClaimProps) {
             let location = '';
 
             for (const field of props.parsedEvent.value.claimFields) {
-                if (field.key.equals(Long.fromNumber(1))) {
+                if (field.key.equals(Long.fromNumber(0))) {
                     organization = field.value;
-                } else if (field.key.equals(Long.fromNumber(2))) {
+                } else if (field.key.equals(Long.fromNumber(1))) {
                     role = field.value;
-                } else if (field.key.equals(Long.fromNumber(3))) {
+                } else if (field.key.equals(Long.fromNumber(2))) {
                     location = field.value;
                 }
             }

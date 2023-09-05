@@ -465,7 +465,7 @@ function claimIdentifier(
         claimType: claimType,
         claimFields: [
             {
-                key: Long.fromNumber(1),
+                key: Long.fromNumber(0),
                 value: identifier,
             },
         ],
@@ -481,21 +481,21 @@ export function claimOccupation(
 
     if (organization !== undefined) {
         fields.push({
-            key: Long.fromNumber(1),
+            key: Long.fromNumber(0),
             value: organization,
         });
     }
 
     if (role !== undefined) {
         fields.push({
-            key: Long.fromNumber(2),
+            key: Long.fromNumber(1),
             value: role,
         });
     }
 
     if (location !== undefined) {
         fields.push({
-            key: Long.fromNumber(1),
+            key: Long.fromNumber(2),
             value: location,
         });
     }
