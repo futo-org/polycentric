@@ -12,7 +12,7 @@ export const SearchBox = ({
   getResultsPreview,
   debounceMs = 200,
 }: {
-  getResultsPreview: (query: string) => Promise<ResultsPreview>
+  getResultsPreview?: (query: string) => Promise<ResultsPreview>
   debounceMs: number
 }) => {
   const [query, setQuery] = useState('')
@@ -21,7 +21,7 @@ export const SearchBox = ({
 
   useEffect(() => {
     if (debouncedQuery && debouncedQuery.length > 0) {
-      getResultsPreview(debouncedQuery).then(setResults)
+      getResultsPreview?.(debouncedQuery).then(setResults)
     }
   }, [debouncedQuery, getResultsPreview])
 
