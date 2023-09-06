@@ -55,9 +55,9 @@ export const Root = () => {
       </div>
 
       {/* Content area */}
-      <div className="flex h-full mt-16 md:mt-0">
+      <div className="flex h-screen mt-16 md:mt-0 w-full">
         {/* Physical left sidebar for tablet+ */}
-        <aside className={`border hidden lg:block md:w-[1/4] xl:w-[320px] flex-grow  `}>
+        <aside className={`border hidden lg:block h-full lg:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:ml-[calc((100vw-1536px)/2)] `}>
           <MainSidebar
             topics={['/tpot', '/tpot/dating']}
             profile={{

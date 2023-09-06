@@ -197,6 +197,8 @@ interface PurePostProps {
     image?: string
     ContentLink?: string
   }
+  preOnExpand?: (origTop: number) => void
+  onExpand?: (origTop: number) => void
 }
 
 // eslint-disable-next-line react/display-name
@@ -228,25 +230,16 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(({ main, sub }
           <div className="w-full animate-pulse border border-blue-100 rounded-2xl h-5"></div>
         </div>
       ) : (
-        <article
-          className="px-3 pt-5 pb-3 md:px-10 md:pt-10 md:pb-8 border-b border-gray-100 bg-white overflow-clip inline-block w-full"
-          
-        >
+        <article className="px-3 pt-5 pb-3 md:px-10 md:pt-10 md:pb-8 border-b border-gray-100 bg-white overflow-clip inline-block w-full">
           <div className="flex relative overflow-clip">
             <div className="mr-3 md:mr-4 flex-shrink-0 flex flex-col overflow-clip">
               <img src={main.author.avatarURL} className="rounded-full h-16 w-16 md:h-20 md:w-20" />
               <div
                 className={`hidden xl:flex flex-col space-y-2 ${expanded ? 'sticky top-1/2' : ''} overflow-clip ${
-                  sub == null ? 'pt-5' : ''
+                  // sub == null ? 'pt-5' : ''
+                  'pt-5'
                 }`}
               >
-                <LikeButton
-                  onClick={() => {
-                    return
-                  }}
-                  count={69}
-                  clicked={false}
-                />
                 <RePostButton
                   onClick={() => {
                     return
@@ -258,6 +251,13 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(({ main, sub }
                     setCommentPanelOpen(true)
                   }}
                   count={1337}
+                />
+                <LikeButton
+                  onClick={() => {
+                    return
+                  }}
+                  count={69}
+                  clicked={false}
                 />
               </div>
             </div>
@@ -341,19 +341,17 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(({ main, sub }
           </div>
           {contentCropped && !expanded && (
             <div className="flex w-full justify-center mt-4">
-              <button onClick={() => setExpanded(true)} className="bg-gray-200 rounded-full font-bold px-10 z-10 py-3">
+              <button
+                onClick={() => {
+                  setExpanded(true)
+                }}
+                className="bg-gray-200 rounded-full font-bold px-10 z-10 py-3"
+              >
                 Read more
               </button>
             </div>
           )}
           <div className="xl:hidden flex justify-around pt-6">
-            <LikeButton
-              onClick={() => {
-                return
-              }}
-              count={69}
-              clicked={false}
-            />
             <RePostButton
               onClick={() => {
                 return
@@ -365,6 +363,13 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(({ main, sub }
                 setCommentPanelOpen(true)
               }}
               count={1337}
+            />
+            <LikeButton
+              onClick={() => {
+                return
+              }}
+              count={69}
+              clicked={false}
             />
           </div>
           <PopupComposeReplyFullscreen

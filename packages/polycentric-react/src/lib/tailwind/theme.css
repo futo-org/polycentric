@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@media (max-width: 1536px) {
+  .noscrollbar {
+      -ms-overflow-style: none;  /* Internet Explorer 10+ */
+      scrollbar-width: none;  /* Firefox */
+  }
+  .noscrollbar::-webkit-scrollbar { 
+      display: none;  /* Safari and Chrome */
+  }
+}
+
+* {
+    -webkit-tap-highlight-color: transparent;
+}

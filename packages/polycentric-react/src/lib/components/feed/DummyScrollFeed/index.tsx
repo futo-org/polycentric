@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import useVirtual from 'react-cool-virtual'
+import useVirtual from '@polycentric/react-cool-virtual'
 import { Profile } from '../../../types/profile'
 import { PurePost } from '../PurePost'
 import { Compose } from '../Compose'
@@ -32,11 +32,15 @@ export const DummyScrollFeed = ({ p, children }: { p: ReadonlyArray<{ main?: Pos
 
   const [showScrollButton, setShowScrollButton] = useState(false)
 
+  const onExpand = (origTop: number) => {
+    scrollTo(origTop)
+  }
+
   return (
     <div
       // @ts-ignore
       ref={outerRef} // Attach the `outerRef` to the scroll container
-      className="h-full overflow-auto flex"
+      className="h-full overflow-auto flex noscrollbar"
       onScroll={(e) => {
         if (e.currentTarget.scrollTop > 400 && !showScrollButton) {
           setShowScrollButton(true)
@@ -45,17 +49,22 @@ export const DummyScrollFeed = ({ p, children }: { p: ReadonlyArray<{ main?: Pos
         }
       }}
     >
-      <div className="w-full xl:w-[640px] relative">
+      <div className="w-full lg:w-[776px] relative">
         {/* Attach the `innerRef` to the wrapper of the items */}
         {/* //@ts-ignore */}
 
-        <div className="p-10 border-b-2">
+        <div className="p-3 md:p-10 border-b-2">
           <Compose />
         </div>
-        <div ref={innerRef} className="w-full xl:w-[640px]" style={{ height: '100%' }}>
+        <div ref={innerRef} className="w-full lg:w-[776px]" style={{ height: '100%' }}>
           {items.map(({ index, size, measureRef }) => (
             // You can set the item's height with the `size` property
-            <PurePost ref={measureRef} key={index} main={p[index % 5].main} sub={p[index % 5].sub} />
+            <PurePost
+              ref={measureRef}
+              key={index}
+              main={p[index % 5].main}
+              sub={p[index % 5].sub}
+            />
           ))}
         </div>
         {showScrollButton && (
@@ -69,7 +78,9 @@ export const DummyScrollFeed = ({ p, children }: { p: ReadonlyArray<{ main?: Pos
           </div>
         )}
       </div>
-      <div className="h-full sticky top-0 border hidden md:block md:w-[15rem] xl:w-[320px]">{children}</div>
+      <div className="h-full sticky top-0 border hidden md:block lg:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:mr-[calc((100vw-1536px)/2)] ">
+        {children}
+      </div>
     </div>
   )
 }

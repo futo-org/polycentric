@@ -55,7 +55,16 @@ const InternetTodayPanel = ({ nextSlide }: { nextSlide: any }) => (
   </OnboardingPanel>
 )
 
-const GenCredsPanelItem = ({ title, hint }: { title: string; hint: string }) => (
+const RequestNotificationsPanel = () => {
+  return (
+    <div>
+      {/* TODO: Good explination */}
+      <p>We need you to enable notifications</p>
+    </div>
+  )
+}
+
+const GenCredsPanelItem = ({ title, hint }: { title: string; hint?: string }) => (
   <div className="flex flex-col gap-y-1">
     <h3 className="font-medium">{title}</h3>
     <input type="text" className="rounded-lg border text-xl p-3" />
@@ -76,4 +85,6 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: any }) => (
   </OnboardingPanel>
 )
 
-export const Onboarding = () => <Carousel childComponents={[WelcomePanel, InternetTodayPanel, GenCredsPanel]} />
+export const Onboarding = () => (
+  <Carousel childComponents={[WelcomePanel, RequestNotificationsPanel, InternetTodayPanel, GenCredsPanel]} />
+)
