@@ -25,7 +25,7 @@ module.exports = {
                 include: defaultInclude,
             },
             {
-                test: /\.(jpe?g|png|gif)$/,
+                test: /\.(jpe?g|png|gif|svg)$/,
                 use: [
                     {
                         loader: 'file-loader?name=img/[name]__[hash:base64:5].[ext]',

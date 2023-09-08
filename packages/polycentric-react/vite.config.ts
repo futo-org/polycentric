@@ -5,12 +5,25 @@ import dts from 'vite-plugin-dts'
 import tailwindcss from 'tailwindcss'
 import { UserConfigExport } from 'vite'
 import { name } from './package.json'
+import unfonts from 'unplugin-fonts/vite'
+import libAssetsPlugin from '@laynezh/vite-plugin-lib-assets'
 
 const app = defineConfig(({ mode }) => ({
   plugins: [
     react(),
     dts({
       insertTypesEntry: true,
+    }),
+    unfonts({
+      fontsource: {
+        families: [
+          { name: 'Public Sans', weights: [100, 200, 300, 400, 500, 600, 700, 800, 900] },
+          { name: 'Fragment Mono', weights: [400] },
+        ],
+      },
+    }),
+    libAssetsPlugin({
+      // limit: 1024 * 8,
     }),
   ],
   css: {
@@ -19,25 +32,26 @@ const app = defineConfig(({ mode }) => ({
     },
   },
   optimizeDeps: {
-    exclude: mode === 'development' ? ["@polycentric/polycentric-core"] : [],
+    exclude: mode === 'development' ? ['@polycentric/polycentric-core'] : [],
   },
   build: {
     sourcemap: mode === 'development',
+    emptyOutDir: false,
     lib: {
-      entry: path.resolve(__dirname, 'src/lib/index.ts'),
       name,
+      entry: path.resolve(__dirname, 'src/lib/index.ts'),
       formats: ['es', 'umd'],
       fileName: (format) => `polycentric-react.${format}.js`,
     },
     rollupOptions: {
-      external: ['react', 'react-dom', 'react/jsx-runtime', 'tailwindcss', "@polycentric/polycentric-core"],
+      external: ['react', 'react-dom', 'react/jsx-runtime', 'tailwindcss', '@polycentric/polycentric-core'],
       output: {
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',
           tailwindcss: 'tailwindcss',
           'react/jsx-runtime': 'react/jsx-runtime',
-          "@polycentric/polycentric-core": "@polycentric/polycentric-core",
+          '@polycentric/polycentric-core': '@polycentric/polycentric-core',
         },
       },
     },

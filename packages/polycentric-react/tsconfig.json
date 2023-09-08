@@ -16,6 +16,5 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["./src/**/*.ts", "./src/**/*.tsx", "src/lib/components/rootapp/index.tsx"],
-  "exclude": ["./src/**/*.stories.*"]
+  "include": ["./src/**/*.ts", "./src/**/*.tsx", "./src/lib/app/index.tsx"],
 }

@@ -1,5 +1,8 @@
 import type { Preview } from '@storybook/react'
+import React from 'react'
+import { MemoryRouter } from 'react-router-dom'
 import '../src/lib/tailwind/theme.css'
+// import 'unfonts.css'
 
 const preview: Preview = {
   parameters: {
@@ -11,6 +14,14 @@ const preview: Preview = {
       },
     },
   },
+  // So that we can use react-router-dom's Link component in our stories
+  decorators: [
+    (Story) => (
+      <MemoryRouter initialEntries={['/']}>
+        <Story />
+      </MemoryRouter>
+    ),
+  ],
 }
 
 export default preview
