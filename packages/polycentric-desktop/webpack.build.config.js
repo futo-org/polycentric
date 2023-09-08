@@ -27,22 +27,22 @@ module.exports = {
                 include: defaultInclude,
             },
             {
-                test: /\.(jpe?g|png|gif)$/,
+                test: /\.(jpe?g|png|gif|svg)$/,
                 use: [
                     {
                         loader: 'file-loader?name=img/[name]__[hash:base64:5].[ext]',
                     },
                 ],
-                include: defaultInclude,
+                include: [defaultInclude, polycentricInclude],
             },
             {
-                test: /\.(eot|svg|ttf|woff|woff2)$/,
+                test: /\.(eot|ttf|woff|woff2)$/,
                 use: [
                     {
                         loader: 'file-loader?name=font/[name]__[hash:base64:5].[ext]',
                     },
                 ],
-                include: defaultInclude,
+                include: [defaultInclude, polycentricInclude],
             },
         ],
     },

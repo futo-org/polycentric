@@ -1,0 +1,10 @@
+{
+    "eslint.workingDirectories": [{ "pattern": "packages/*" }],
+    "editor.suggest.showSnippets": false,
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll": true,
+        "source.organizeImports": true,
+        "source.sortMembers": true
+    }
+}

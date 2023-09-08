@@ -1,6 +1,6 @@
 import '@polycentric/polycentric-react/dist/style.css';
 import React from 'react';
-import { RootApp } from '@polycentric/polycentric-react';
+import { App } from '@polycentric/polycentric-react';
 import { PersistenceDriver } from '@polycentric/polycentric-core';
 
 const WebRoot = () => {
@@ -18,7 +18,7 @@ const WebRoot = () => {
         return <></>;
     }
 
-    return <RootApp persistenceDriver={persistenceDriver} />;
+    return <App persistenceDriver={persistenceDriver} />;
 };
 
 export default WebRoot;
