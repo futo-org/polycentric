@@ -82,7 +82,6 @@ export class Store {
     levelSystemStates: PersistenceDriver.BinaryAbstractSubLevel;
     levelProcessStates: PersistenceDriver.BinaryAbstractSubLevel;
     levelEvents: PersistenceDriver.BinaryAbstractSubLevel;
-    levelIndexClaims: PersistenceDriver.BinaryAbstractSubLevel;
 
     levelIndexSystemContentTypeUnixMillisecondsProcess: PersistenceDriver.BinaryAbstractSubLevel;
 
@@ -100,11 +99,6 @@ export class Store {
         }) as PersistenceDriver.BinaryAbstractSubLevel;
 
         this.levelEvents = this.level.sublevel('events', {
-            keyEncoding: 'buffer',
-            valueEncoding: 'buffer',
-        }) as PersistenceDriver.BinaryAbstractSubLevel;
-
-        this.levelIndexClaims = this.level.sublevel('indexClaims', {
             keyEncoding: 'buffer',
             valueEncoding: 'buffer',
         }) as PersistenceDriver.BinaryAbstractSubLevel;
