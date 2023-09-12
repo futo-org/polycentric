@@ -59,20 +59,26 @@ pub(crate) async fn handler(
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
 
-    let matches = crate::warp_try_err_500!(
-        match &query.query.query {
-            QueryType::MatchAnyField(value) => {
-                crate::queries::query_claims::query_claims_match_any_field(
-                    &mut transaction,
-                    query.query.claim_type,
-                    &query.query.trust_root,
-                    value,
-                )
-            }
-            QueryType::MatchAllFields(_) => todo!(),
+    let matches = crate::warp_try_err_500!(match &query.query.query {
+        QueryType::MatchAnyField(value) => {
+            crate::queries::query_claims::query_claims_match_any_field(
+                &mut transaction,
+                query.query.claim_type,
+                &query.query.trust_root,
+                value,
+            )
+            .await
         }
-        .await
-    );
+        QueryType::MatchAllFields(fields) => {
+            crate::queries::query_claims::query_claims_match_all_fields(
+                &mut transaction,
+                query.query.claim_type,
+                &query.query.trust_root,
+                fields,
+            )
+            .await
+        }
+    });
 
     crate::warp_try_err_500!(transaction.commit().await);
 

@@ -28,9 +28,78 @@ pub(crate) async fn query_claims_match_any_field(
         ON
             events.id = claims.event_id
         JOIN
-            claim_fields
+            event_links
         ON
-            events.id = claim_fields.event_id
+            (
+                event_links.subject_system_key_type,
+                event_links.subject_system_key,
+                event_links.subject_process,
+                event_links.subject_logical_clock
+            )
+            =
+            (
+                events.system_key_type,
+                events.system_key,
+                events.process,
+                events.logical_clock
+            )
+        JOIN
+            events vouch_events
+        ON
+            vouch_events.id = event_links.event_id
+        WHERE
+            events.content_type = $1
+        AND
+            claims.claim_type = $2
+        AND
+            jsonb_path_query_array(claims.fields, '$.*') ? $3
+        AND
+            vouch_events.content_type = $4
+        AND
+            vouch_events.system_key_type = $5
+        AND
+            vouch_events.system_key = $6
+    ";
+
+    ::sqlx::query_as::<_, Row>(query)
+        .bind(i64::try_from(crate::model::known_message_types::CLAIM)?)
+        .bind(i64::try_from(claim_type)?)
+        .bind(match_any_field)
+        .bind(i64::try_from(crate::model::known_message_types::VOUCH)?)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            trust_root,
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(trust_root))
+        .fetch_all(&mut *transaction)
+        .await?
+        .iter()
+        .map(|row| {
+            Ok(Match {
+                claim: crate::model::signed_event::from_vec(&row.claim_event)?,
+                path: vec![crate::model::signed_event::from_vec(
+                    &row.vouch_event,
+                )?],
+            })
+        })
+        .collect::<::anyhow::Result<::std::vec::Vec<Match>>>()
+}
+
+pub(crate) async fn query_claims_match_all_fields(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    claim_type: u64,
+    trust_root: &crate::model::public_key::PublicKey,
+    match_all_fields: &[crate::protocol::ClaimFieldEntry],
+) -> ::anyhow::Result<::std::vec::Vec<Match>> {
+    let query = "
+        SELECT
+            events.raw_event as claim_event,
+            vouch_events.raw_event as vouch_event
+        FROM
+            events
+        JOIN
+            claims
+        ON
+            events.id = claims.event_id
         JOIN
             event_links
         ON
@@ -56,7 +125,7 @@ pub(crate) async fn query_claims_match_any_field(
         AND
             claims.claim_type = $2
         AND
-            claim_fields.field_value = $3
+            claims.fields @> $3
         AND
             vouch_events.content_type = $4
         AND
@@ -68,7 +137,9 @@ pub(crate) async fn query_claims_match_any_field(
     ::sqlx::query_as::<_, Row>(query)
         .bind(i64::try_from(crate::model::known_message_types::CLAIM)?)
         .bind(i64::try_from(claim_type)?)
-        .bind(match_any_field)
+        .bind(crate::postgres::claim_fields_to_json_object(
+            match_all_fields,
+        ))
         .bind(i64::try_from(crate::model::known_message_types::VOUCH)?)
         .bind(i64::try_from(crate::model::public_key::get_key_type(
             trust_root,

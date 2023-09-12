@@ -204,29 +204,9 @@ pub(crate) async fn prepare_database(
             id         BIGSERIAL PRIMARY KEY,
             claim_type INT8      NOT NULL,
             event_id   BIGSERIAL NOT NULL,
+            fields     jsonb     NOT NULL,
 
             CHECK ( claim_type >= 0 ),
-
-            CONSTRAINT FK_event
-                FOREIGN KEY (event_id)
-                REFERENCES events(id)
-                ON DELETE CASCADE
-        );
-    ",
-    )
-    .execute(&mut *transaction)
-    .await?;
-
-    ::sqlx::query(
-        "
-        CREATE TABLE IF NOT EXISTS claim_fields (
-            id          BIGSERIAL PRIMARY KEY,
-            field_key   INT8      NOT NULL,
-            field_value TEXT      NOT NULL,
-            event_id    BIGSERIAL NOT NULL,
-
-            CHECK ( field_key >= 0 ),
-            CHECK ( event_id  >= 0 ),
 
             CONSTRAINT FK_event
                 FOREIGN KEY (event_id)
@@ -776,6 +756,22 @@ pub(crate) async fn insert_event_index(
     Ok(())
 }
 
+pub(crate) fn claim_fields_to_json_object(
+    fields: &[crate::protocol::ClaimFieldEntry],
+) -> ::serde_json::Value {
+    ::serde_json::Value::Object(
+        fields
+            .iter()
+            .map(|field| {
+                (
+                    field.key.to_string(),
+                    ::serde_json::Value::String(field.value.clone()),
+                )
+            })
+            .collect::<::serde_json::Map<String, ::serde_json::Value>>(),
+    )
+}
+
 pub(crate) async fn insert_claim(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event_id: u64,
@@ -785,18 +781,8 @@ pub(crate) async fn insert_claim(
         INSERT INTO claims
         (
             claim_type,
-            event_id
-        )
-        VALUES ($1, $2)
-        ON CONFLICT DO NOTHING;
-    ";
-
-    let query_insert_claim_field = "
-        INSERT INTO claim_fields
-        (
-            field_key,
-            field_value,
-            event_id
+            event_id,
+            fields
         )
         VALUES ($1, $2, $3)
         ON CONFLICT DO NOTHING;
@@ -805,17 +791,9 @@ pub(crate) async fn insert_claim(
     ::sqlx::query(query_insert_claim)
         .bind(i64::try_from(*claim.claim_type())?)
         .bind(i64::try_from(event_id)?)
+        .bind(&claim_fields_to_json_object(&claim.claim_fields()))
         .execute(&mut *transaction)
         .await?;
-
-    for field in claim.claim_fields().iter() {
-        ::sqlx::query(query_insert_claim_field)
-            .bind(i64::try_from(field.key)?)
-            .bind(&field.value)
-            .bind(i64::try_from(event_id)?)
-            .execute(&mut *transaction)
-            .await?;
-    }
 
     Ok(())
 }
