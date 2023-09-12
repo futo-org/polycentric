@@ -117,7 +117,7 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
                 id: 'asfafs',
                 password: 'fsdkjflsdf',
               })
-              navigator.credentials.store(cred).then(console.log, console.error)
+              navigator.credentials.store(cred)
             }
 
             const processHandle = await createAccount(privateKey)

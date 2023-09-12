@@ -1,5 +1,4 @@
-import { decode } from '@borderless/base64'
-import { MetaStore, Models, PersistenceDriver, ProcessHandle, Protocol, Queries } from '@polycentric/polycentric-core'
+import { MetaStore, PersistenceDriver, ProcessHandle, Queries } from '@polycentric/polycentric-core'
 import { useEffect, useState } from 'react'
 import { BrowserRouter, HashRouter, Route, Switch } from 'react-router-dom'
 import { QueryManagerContext } from '../hooks/queryManagerHooks'
@@ -17,10 +16,6 @@ import {
   useProcessHandleManagerBaseComponentHook,
 } from '../hooks/processHandleManagerHooks'
 
-const decodeSystemQuery = (raw: string) => {
-  return Models.URLInfo.getSystemLink(Protocol.URLInfo.decode(decode(raw)))
-}
-
 // Check if we're in electron or not
 const isElectron = () => {
   // window.process.type is only defined in electron
@@ -31,12 +26,6 @@ const isElectron = () => {
 // @ts-ignore
 // navigator.standalone isn't an official api yet
 const isStandalonePWA = (): boolean => window.navigator.standalone ?? false
-
-async function createProcessHandle(
-  persistenceDriver: PersistenceDriver.IPersistenceDriver,
-): Promise<ProcessHandle.ProcessHandle> {
-  return await ProcessHandle.createProcessHandle(await MetaStore.createMetaStore(persistenceDriver))
-}
 
 const memoryHistory = createMemoryHistory()
 
