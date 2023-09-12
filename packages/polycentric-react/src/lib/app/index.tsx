@@ -110,7 +110,13 @@ const LoadedMetastoreApp = ({ metaStore }: { metaStore: MetaStore.IMetaStore }) 
 
   return (
     <ProcessHandleManagerContext.Provider value={storeManagerProps}>
-      {processHandle === undefined ? <OnboardingApp /> : <SignedinApp processHandle={processHandle} />}
+      {processHandle === undefined ? (
+        <p>loading</p>
+      ) : processHandle === null ? (
+        <OnboardingApp />
+      ) : (
+        <SignedinApp processHandle={processHandle} />
+      )}
       {/* <SignedinApp /> */}
     </ProcessHandleManagerContext.Provider>
   )
