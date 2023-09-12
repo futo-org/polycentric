@@ -1,4 +1,3 @@
-use ::anyhow::Context;
 use ::protobuf::Message;
 
 #[derive(::serde::Deserialize)]
@@ -7,19 +6,32 @@ pub(crate) struct Query {
     query: Request,
 }
 
+enum QueryType {
+    MatchAnyField(String),
+    MatchAllFields(::std::vec::Vec<crate::protocol::ClaimFieldEntry>),
+}
+
 struct Request {
     claim_type: u64,
     trust_root: crate::model::public_key::PublicKey,
-    match_any_field: ::std::option::Option<String>,
+    query: QueryType,
 }
 
 fn request_from_proto(
     proto: &crate::protocol::QueryClaimToSystemRequest,
 ) -> ::anyhow::Result<Request> {
+    let query = if proto.has_match_any_field() {
+        QueryType::MatchAnyField(proto.match_any_field().to_string())
+    } else if proto.has_match_all_fields() {
+        QueryType::MatchAllFields(proto.match_all_fields().fields.clone())
+    } else {
+        ::anyhow::bail!("unknown query type");
+    };
+
     Ok(Request {
         claim_type: proto.claim_type,
         trust_root: crate::model::public_key::from_proto(&proto.trust_root)?,
-        match_any_field: proto.match_any_field.clone(),
+        query,
     })
 }
 
@@ -45,20 +57,20 @@ pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
-    let match_any_field = crate::warp_try_err_500!(query
-        .query
-        .match_any_field
-        .context("query not provided"));
-
     let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
 
     let matches = crate::warp_try_err_500!(
-        crate::queries::query_claims::query_claims(
-            &mut transaction,
-            query.query.claim_type,
-            &query.query.trust_root,
-            &match_any_field,
-        )
+        match &query.query.query {
+            QueryType::MatchAnyField(value) => {
+                crate::queries::query_claims::query_claims(
+                    &mut transaction,
+                    query.query.claim_type,
+                    &query.query.trust_root,
+                    value,
+                )
+            }
+            QueryType::MatchAllFields(_) => todo!(),
+        }
         .await
     );
 
