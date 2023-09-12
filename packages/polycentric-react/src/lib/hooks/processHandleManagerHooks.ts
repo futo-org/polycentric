@@ -2,17 +2,18 @@ import { MetaStore, Models, ProcessHandle, Store } from '@polycentric/polycentri
 import { createContext, useContext, useEffect, useState } from 'react'
 
 type ProcessHandleManagerHookReturn = {
-  processHandle: ProcessHandle.ProcessHandle | undefined
-  activeStore: MetaStore.StoreInfo | undefined
+  processHandle: ProcessHandle.ProcessHandle | null | undefined
+  activeStore: MetaStore.StoreInfo | null | undefined
   listStores: () => Promise<MetaStore.StoreInfo[]>
-  changeHandle: (account?: MetaStore.StoreInfo) => Promise<ProcessHandle.ProcessHandle | undefined>
+  changeHandle: (account?: MetaStore.StoreInfo) => Promise<ProcessHandle.ProcessHandle | null | undefined>
   createHandle: (key: Models.PrivateKey.PrivateKey) => Promise<ProcessHandle.ProcessHandle>
   metaStore: MetaStore.IMetaStore
 }
 
 interface UseProcessHandleManagerState {
-  activeStore: MetaStore.StoreInfo | undefined
-  processHandle: ProcessHandle.ProcessHandle | undefined
+  // Undefined indicates we're loading, null indicates we've checked and there's no active store
+  activeStore: MetaStore.StoreInfo | null | undefined
+  processHandle: ProcessHandle.ProcessHandle | null | undefined
 }
 
 export function useProcessHandleManagerBaseComponentHook(
@@ -26,8 +27,8 @@ export function useProcessHandleManagerBaseComponentHook(
   const changeHandle = async (account?: MetaStore.StoreInfo) => {
     if (!account) {
       setInternalHookState({
-        activeStore: undefined,
-        processHandle: undefined,
+        activeStore: null,
+        processHandle: null,
       })
       await metaStore.unsetActiveStore()
       return undefined
@@ -46,8 +47,8 @@ export function useProcessHandleManagerBaseComponentHook(
       return processHandle
     } else {
       setInternalHookState({
-        activeStore: undefined,
-        processHandle: undefined,
+        activeStore: null,
+        processHandle: null,
       })
       return undefined
     }
@@ -68,7 +69,7 @@ export function useProcessHandleManagerBaseComponentHook(
   useEffect(() => {
     metaStore.getActiveStore().then((store) => {
       if (store) changeHandle(store)
-      else setInternalHookState({ activeStore: undefined, processHandle: undefined })
+      else setInternalHookState({ activeStore: null, processHandle: null })
     })
   }, [metaStore])
 
