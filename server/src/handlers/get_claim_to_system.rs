@@ -62,7 +62,7 @@ pub(crate) async fn handler(
     let matches = crate::warp_try_err_500!(
         match &query.query.query {
             QueryType::MatchAnyField(value) => {
-                crate::queries::query_claims::query_claims(
+                crate::queries::query_claims::query_claims_match_any_field(
                     &mut transaction,
                     query.query.claim_type,
                     &query.query.trust_root,

@@ -11,7 +11,7 @@ pub(crate) struct Row {
     vouch_event: ::std::vec::Vec<u8>,
 }
 
-pub(crate) async fn query_claims(
+pub(crate) async fn query_claims_match_any_field(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     claim_type: u64,
     trust_root: &crate::model::public_key::PublicKey,
@@ -93,7 +93,9 @@ pub mod tests {
     use ::protobuf::Message;
 
     #[::sqlx::test]
-    async fn test_find_claims(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
+    async fn test_match_any_field(
+        pool: ::sqlx::PgPool,
+    ) -> ::anyhow::Result<()> {
         let mut transaction = pool.begin().await?;
 
         crate::postgres::prepare_database(&mut transaction).await?;
@@ -143,13 +145,16 @@ pub mod tests {
 
         crate::ingest::ingest_event_postgres(&mut transaction, &s2p1e1).await?;
 
-        let result = crate::queries::query_claims::query_claims(
-            &mut transaction,
-            1,
-            &crate::model::public_key::PublicKey::Ed25519(s2.public.clone()),
-            &"hello".to_string(),
-        )
-        .await?;
+        let result =
+            crate::queries::query_claims::query_claims_match_any_field(
+                &mut transaction,
+                1,
+                &crate::model::public_key::PublicKey::Ed25519(
+                    s2.public.clone(),
+                ),
+                &"hello".to_string(),
+            )
+            .await?;
 
         let expected = vec![crate::queries::query_claims::Match {
             claim: s1p1e1.clone(),
