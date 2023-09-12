@@ -1,5 +1,6 @@
 import { Menu } from '@headlessui/react'
 import { useEffect } from 'react'
+import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
 
 /* Because headless ui is stupid and Menu doesn't supply an onchange event, we must take its open prop, pass it to an interior component, and use useEffect there */
 const CircleExpandMenuInterior = ({
@@ -61,6 +62,8 @@ const CircleExpandMenuInteriorReverse = ({
     onIsOpenChange?.(open)
   }, [open, onIsOpenChange])
 
+  const { changeHandle } = useProcessHandleManager()
+
   return (
     <div className={`absolute rounded-[1.5rem] border bottom-0 right-0 bg-white ${open ? 'z-10' : ''} overflow-hidden`}>
       <Menu.Items as="div">
@@ -69,7 +72,14 @@ const CircleExpandMenuInteriorReverse = ({
             <button className="h-[3rem] px-5 flex items-center hover:bg-gray-50 w-full">Switch To</button>
           </Menu.Item>
           <Menu.Item>
-            <button className="h-[3rem] px-5 flex items-center hover:bg-gray-100 w-full">Sign Out</button>
+            <button
+              className="h-[3rem] px-5 flex items-center hover:bg-gray-100 w-full"
+              onClick={() => {
+                changeHandle()
+              }}
+            >
+              Sign Out
+            </button>
           </Menu.Item>
         </div>
       </Menu.Items>
