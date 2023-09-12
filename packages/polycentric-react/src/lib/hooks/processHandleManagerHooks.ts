@@ -1,5 +1,5 @@
 import { MetaStore, Models, ProcessHandle, Store } from '@polycentric/polycentric-core'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 
 type ProcessHandleManagerHookReturn = {
   processHandle: ProcessHandle.ProcessHandle | null | undefined
@@ -24,35 +24,38 @@ export function useProcessHandleManagerBaseComponentHook(
     processHandle: undefined,
   })
 
-  const changeHandle = async (account?: MetaStore.StoreInfo) => {
-    if (!account) {
-      setInternalHookState({
-        activeStore: null,
-        processHandle: null,
-      })
-      await metaStore.unsetActiveStore()
-      return undefined
-    }
+  const changeHandle = useCallback(
+    async (account?: MetaStore.StoreInfo) => {
+      if (!account) {
+        setInternalHookState({
+          activeStore: null,
+          processHandle: null,
+        })
+        await metaStore.unsetActiveStore()
+        return undefined
+      }
 
-    await metaStore.setActiveStore(account.system, account.version)
-    const newStore = await metaStore.getActiveStore()
-    if (newStore) {
-      const level = await metaStore.openStore(newStore.system, newStore.version)
-      const store = new Store.Store(level)
-      const processHandle = await ProcessHandle.ProcessHandle.load(store)
-      setInternalHookState({
-        activeStore: newStore,
-        processHandle,
-      })
-      return processHandle
-    } else {
-      setInternalHookState({
-        activeStore: null,
-        processHandle: null,
-      })
-      return undefined
-    }
-  }
+      await metaStore.setActiveStore(account.system, account.version)
+      const newStore = await metaStore.getActiveStore()
+      if (newStore) {
+        const level = await metaStore.openStore(newStore.system, newStore.version)
+        const store = new Store.Store(level)
+        const processHandle = await ProcessHandle.ProcessHandle.load(store)
+        setInternalHookState({
+          activeStore: newStore,
+          processHandle,
+        })
+        return processHandle
+      } else {
+        setInternalHookState({
+          activeStore: null,
+          processHandle: null,
+        })
+        return undefined
+      }
+    },
+    [metaStore],
+  )
 
   const createHandle = async (privateKey: Models.PrivateKey.PrivateKey) => {
     const processHandle = await ProcessHandle.createProcessHandleFromKey(metaStore, privateKey)
@@ -71,7 +74,7 @@ export function useProcessHandleManagerBaseComponentHook(
       if (store) changeHandle(store)
       else setInternalHookState({ activeStore: null, processHandle: null })
     })
-  }, [metaStore])
+  }, [metaStore, changeHandle])
 
   return {
     activeStore: internalHookState.activeStore,
