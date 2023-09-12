@@ -29,6 +29,7 @@ export function useProcessHandleManagerBaseComponentHook(
         activeStore: undefined,
         processHandle: undefined,
       })
+      await metaStore.unsetActiveStore()
       return undefined
     }
 
