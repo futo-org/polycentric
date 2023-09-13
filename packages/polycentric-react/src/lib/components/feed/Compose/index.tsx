@@ -1,5 +1,5 @@
 import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TopicSuggestionBox } from '../TopicSuggestionBox'
 
 const startsWithSlash = /^\/.*/
@@ -92,11 +92,17 @@ export const Compose = ({
   const [upload, setUpload] = useState<File | null>(null)
   const uploadRef = useRef<HTMLInputElement | null>(null)
 
-  const imageURL = useMemo(() => {
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    let currentURL: string | null
     if (upload) {
-      return URL.createObjectURL(upload)
+      currentURL = URL.createObjectURL(upload)
+      setImageUrl(currentURL)
     }
-    return undefined
+    return () => {
+      if (currentURL) URL.revokeObjectURL(currentURL)
+    }
   }, [upload])
 
   return (
@@ -122,7 +128,7 @@ export const Compose = ({
               <div className="p-4 inline-block relative">
                 <img
                   className="max-h-[20rem] max-w-[20rem] rounded-sm inline-block border-gray-1000 border"
-                  src={imageURL}
+                  src={imageUrl}
                 />
                 <button className="absolute top-5 right-5 " onClick={() => setUpload(null)}>
                   <XCircleIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
