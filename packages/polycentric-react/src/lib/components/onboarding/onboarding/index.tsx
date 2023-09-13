@@ -1,9 +1,10 @@
 import { encode } from '@borderless/base64'
 import { Models } from '@polycentric/polycentric-core'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import internetTodayURL from '../../../../graphics/onboarding/internettoday.svg'
 import starterURL from '../../../../graphics/onboarding/starter.svg'
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
+import { publishBlobToAvatar } from '../../../util/imageConversion'
 import { Carousel } from '../../util/carousel'
 
 const OnboardingPanel = ({ children, imgSrc }: { children: JSX.Element; nextSlide: () => void; imgSrc: string }) => (
@@ -97,7 +98,55 @@ const GenCredsPanelItem = ({
   </div>
 )
 
+// copy this but for a profile image upload, with a small circle with an upload symbol (just put "u" fo for now) that switches to the uploaded image and an x that appears next to it to remove it
+
+const GenCredsPanelImageUpload = ({
+  title,
+  hint,
+  value,
+  setImage,
+}: {
+  title: string
+  hint?: string
+  value?: File
+  setImage: (image?: File) => void
+}) => {
+  const [imageURL, setImageURL] = useState<string | undefined>(undefined)
+
+  useEffect(() => {
+    let currentURL: string | undefined
+    if (value) {
+      currentURL = URL.createObjectURL(value)
+      setImageURL(currentURL)
+    }
+    return () => {
+      if (currentURL) URL.revokeObjectURL(currentURL)
+    }
+  }, [value])
+
+  return (
+    <div className="flex flex-col gap-y-1">
+      <h3 className="font-medium">{title}</h3>
+      <div className="relative w-16 h-16 rounded-full border overflow-hidden">
+        <img src={imageURL} alt="uploaded profile" className="absolute w-full h-full object-cover" />
+        <button className="absolute top-0 right-0 bg-red-500 w-4 h-4 rounded-full" onClick={() => setImage(undefined)}>
+          x
+        </button>
+        <label
+          htmlFor="upload-button"
+          className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white"
+        >
+          u
+        </label>
+        <input id="upload-button" type="file" className="hidden" onChange={(e) => setImage(e.target.files?.[0])} />
+      </div>
+      <p className="text-sm text-gray-700">{hint}</p>
+    </div>
+  )
+}
+
 const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
+  const [avatar, setAvatar] = useState<File>()
   const [privateKey] = useState(Models.PrivateKey.random())
   const [username, setUsername] = useState('')
   const { createHandle: createAccount } = useProcessHandleManager()
@@ -120,10 +169,18 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
               navigator.credentials.store(cred)
             }
 
+            debugger
             const processHandle = await createAccount(privateKey)
             processHandle.setUsername(username)
+            if (avatar) console.log(await publishBlobToAvatar(avatar, processHandle))
           }}
         >
+          <GenCredsPanelImageUpload
+            title="Upload a profile picture (optional)"
+            hint="You can change this later"
+            value={avatar}
+            setImage={setAvatar}
+          />
           <GenCredsPanelItem
             title="What's your username?"
             hint="You can change this later"
