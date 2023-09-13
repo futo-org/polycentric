@@ -238,4 +238,86 @@ pub mod tests {
 
         Ok(())
     }
+
+    #[::sqlx::test]
+    async fn test_match_all_fields(
+        pool: ::sqlx::PgPool,
+    ) -> ::anyhow::Result<()> {
+        let mut transaction = pool.begin().await?;
+
+        crate::postgres::prepare_database(&mut transaction).await?;
+
+        let mut claim_field_1 = crate::protocol::ClaimFieldEntry::new();
+        claim_field_1.key = 1;
+        claim_field_1.value = "alpha".to_string();
+
+        let mut claim_field_2 = crate::protocol::ClaimFieldEntry::new();
+        claim_field_2.key = 2;
+        claim_field_2.value = "bravo".to_string();
+
+        let claim_fields = [claim_field_1, claim_field_2];
+
+        let claim = crate::model::claim::Claim::new(1, &claim_fields);
+
+        let s1 = crate::model::tests::make_test_keypair();
+        let s1p1 = crate::model::tests::make_test_process();
+
+        let s1p1e1 = crate::model::tests::make_test_event_with_content(
+            &s1,
+            &s1p1,
+            1,
+            crate::model::known_message_types::CLAIM,
+            &crate::model::claim::to_proto(&claim).write_to_bytes()?,
+            vec![],
+        );
+
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e1).await?;
+
+        let s2 = crate::model::tests::make_test_keypair();
+        let s2p1 = crate::model::tests::make_test_process();
+
+        let s2p1e1 = crate::model::tests::make_test_event_with_content(
+            &s2,
+            &s2p1,
+            1,
+            crate::model::known_message_types::VOUCH,
+            &vec![],
+            vec![crate::model::reference::Reference::Pointer(
+                crate::model::pointer::Pointer::new(
+                    crate::model::public_key::PublicKey::Ed25519(
+                        s1.public.clone(),
+                    ),
+                    s1p1,
+                    1,
+                    crate::model::digest::Digest::SHA256(
+                        crate::model::hash_event(s1p1e1.event()),
+                    ),
+                ),
+            )],
+        );
+
+        crate::ingest::ingest_event_postgres(&mut transaction, &s2p1e1).await?;
+
+        let result =
+            crate::queries::query_claims::query_claims_match_all_fields(
+                &mut transaction,
+                1,
+                &crate::model::public_key::PublicKey::Ed25519(
+                    s2.public.clone(),
+                ),
+                &claim_fields,
+            )
+            .await?;
+
+        let expected = vec![crate::queries::query_claims::Match {
+            claim: s1p1e1.clone(),
+            path: vec![s2p1e1.clone()],
+        }];
+
+        transaction.commit().await?;
+
+        assert!(result == expected);
+
+        Ok(())
+    }
 }
