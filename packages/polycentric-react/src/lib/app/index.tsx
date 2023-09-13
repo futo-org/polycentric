@@ -1,7 +1,7 @@
 import { MetaStore, PersistenceDriver, ProcessHandle, Queries } from '@polycentric/polycentric-core'
 import { useEffect, useState } from 'react'
 import { BrowserRouter, HashRouter, Route, Switch } from 'react-router-dom'
-import { QueryManagerContext } from '../hooks/queryManagerHooks'
+import { QueryManagerContext } from '../hooks/queryHooks'
 // TODO: When everything works, change these to lazy loading
 import { IonApp, IonRouterOutlet } from '@ionic/react'
 import { IonReactMemoryRouter } from '@ionic/react-router'

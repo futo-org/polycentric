@@ -1,9 +1,19 @@
 import { MetaStore, Models, ProcessHandle, Store } from '@polycentric/polycentric-core'
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 
-type ProcessHandleManagerHookReturn = {
+type BaseProcessHandleManagerHookReturn = {
   processHandle: ProcessHandle.ProcessHandle | null | undefined
   activeStore: MetaStore.StoreInfo | null | undefined
+  listStores: () => Promise<MetaStore.StoreInfo[]>
+  changeHandle: (account?: MetaStore.StoreInfo) => Promise<ProcessHandle.ProcessHandle | null | undefined>
+  createHandle: (key: Models.PrivateKey.PrivateKey) => Promise<ProcessHandle.ProcessHandle>
+  metaStore: MetaStore.IMetaStore
+}
+
+// Same type, but with the process handle guaranteed to be non-null
+type ProcessHandleManagerHookReturn = {
+  processHandle: ProcessHandle.ProcessHandle
+  activeStore: MetaStore.StoreInfo
   listStores: () => Promise<MetaStore.StoreInfo[]>
   changeHandle: (account?: MetaStore.StoreInfo) => Promise<ProcessHandle.ProcessHandle | null | undefined>
   createHandle: (key: Models.PrivateKey.PrivateKey) => Promise<ProcessHandle.ProcessHandle>
@@ -18,7 +28,7 @@ interface UseProcessHandleManagerState {
 
 export function useProcessHandleManagerBaseComponentHook(
   metaStore: MetaStore.IMetaStore,
-): ProcessHandleManagerHookReturn {
+): BaseProcessHandleManagerHookReturn {
   const [internalHookState, setInternalHookState] = useState<UseProcessHandleManagerState>({
     activeStore: undefined,
     processHandle: undefined,
@@ -87,8 +97,11 @@ export function useProcessHandleManagerBaseComponentHook(
 }
 
 //@ts-ignore
-export const ProcessHandleManagerContext = createContext<ProcessHandleManagerHookReturn>()
+export const ProcessHandleManagerContext = createContext<BaseProcessHandleManagerHookReturn>()
 
 export function useProcessHandleManager(): ProcessHandleManagerHookReturn {
-  return useContext(ProcessHandleManagerContext)
+  // This hook will only be used in the main app, not onboarding
+  // Therefore, we can assume that the process handle will always be non-null
+  const context = useContext(ProcessHandleManagerContext)
+  return context as ProcessHandleManagerHookReturn
 }
