@@ -242,9 +242,17 @@ message QueryReferencesResponse {
 // start /claim_to_system
 
 message QueryClaimToSystemRequest {
-             uint64    claim_type      = 1;
-             PublicKey trust_root      = 2;
-    optional string    match_any_field = 3;
+    uint64    claim_type      = 1;
+    PublicKey trust_root      = 2;
+
+    oneof query {
+        string                            match_any_field  = 3;
+        QueryClaimToSystemRequestMatchAll match_all_fields = 4;
+    }
+}
+
+message QueryClaimToSystemRequestMatchAll {
+    repeated ClaimFieldEntry fields = 1;
 }
 
 message QueryClaimToSystemResponse {
