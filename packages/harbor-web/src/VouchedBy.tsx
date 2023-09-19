@@ -111,7 +111,6 @@ export function VouchedBy(props: VouchedByProps) {
                     className="border rounded-full w-20 h-20"
                 />
             </ReactRouterDOM.Link>
-            <p className="leading-4 w-20 text-center py-2">{state.username}</p>
         </div>
     );
 }

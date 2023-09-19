@@ -217,6 +217,10 @@ export function Claim(props: ClaimProps) {
                 return;
             }
 
+            for (const item of vouchedBy) {
+                props.processHandle.addAddressHint(item, server);
+            }
+
             setVouchedBy(vouchedBy);
         })();
 
