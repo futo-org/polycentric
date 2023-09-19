@@ -69,6 +69,29 @@ async function scenarioEveryClaimType() {
                 'Austin Texas',
             ),
         ),
+        await s1p1.claim(
+            Core.Models.claimOccupation('FUTO', undefined, 'Austin Texas'),
+        ),
+        await s1p1.claim(
+            Core.Models.claimOccupation('FUTO', undefined, undefined),
+        ),
+        await s1p1.claim(
+            Core.Models.claimOccupation(
+                undefined,
+                'Software Engineer',
+                'Austin Texas',
+            ),
+        ),
+        await s1p1.claim(
+            Core.Models.claimOccupation(undefined, undefined, 'Austin Texas'),
+        ),
+        await s1p1.claim(
+            Core.Models.claimOccupation(
+                undefined,
+                'Software Engineer',
+                undefined,
+            ),
+        ),
     ];
 
     await fullSync(s1p1);
