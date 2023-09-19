@@ -262,7 +262,7 @@ export function Claim(props: ClaimProps) {
             let identifier = '';
 
             for (const field of props.parsedEvent.value.claimFields) {
-                if (field.key.equals(Long.fromNumber(1))) {
+                if (field.key.equals(Long.fromNumber(0))) {
                     identifier = field.value;
                 }
             }
