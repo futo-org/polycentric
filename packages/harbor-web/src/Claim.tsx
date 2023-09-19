@@ -234,9 +234,9 @@ export function Claim(props: ClaimProps) {
                 Core.Models.ClaimType.ClaimTypeOccupation,
             )
         ) {
-            let organization = '';
-            let role = '';
-            let location = '';
+            let organization: undefined | string = undefined;
+            let role: undefined | string = undefined;
+            let location: undefined | string = undefined;
 
             for (const field of props.parsedEvent.value.claimFields) {
                 if (field.key.equals(Long.fromNumber(0))) {
@@ -248,14 +248,25 @@ export function Claim(props: ClaimProps) {
                 }
             }
 
+            let job: undefined | string = undefined;
+
+            if (organization !== undefined && role !== undefined) {
+                job = `${role} at ${organization}`;
+            } else if (organization === undefined && role !== undefined) {
+                job = role;
+            } else if (organization !== undefined && role === undefined) {
+                job = `Unspecified role at ${organization}`;
+            }
+
             return (
                 <>
                     <h3 className={h3Theme}>Occupation</h3>
 
-                    <h2 className={h2Theme}>
-                        Organization: {organization}, Role: {role}, Location:{' '}
-                        {location}
-                    </h2>
+                    {job && <h2 className={h2Theme}>{job}</h2>}
+
+                    {location && (
+                        <h2 className={h2Theme}>Location: {location}</h2>
+                    )}
                 </>
             );
         } else {
