@@ -1,4 +1,6 @@
-import './tailwind/theme.css'
+import '@ionic/react/css/core.css'
 import 'unfonts.css'
-export * from './components'
+import './tailwind/theme.css'
+
 export * from './app'
+export * from './components'
