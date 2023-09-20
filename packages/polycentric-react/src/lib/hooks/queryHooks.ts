@@ -1,4 +1,3 @@
-import { encode } from '@borderless/base64'
 import { CancelContext, Models, Protocol, Queries, Ranges, Util } from '@polycentric/polycentric-core'
 import Long from 'long'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
@@ -50,7 +49,7 @@ export const useUsernameCRDTQuery = (system: Models.PublicKey.PublicKey) => {
 
 export const useTextPublicKey = (system: Models.PublicKey.PublicKey) => {
   return useMemo<string>(() => {
-    return encode(system.key)
+    return Models.PublicKey.toString(system)
   }, [system])
 }
 
