@@ -1,4 +1,4 @@
-import { MetaStore, Models, ProcessHandle, Store } from '@polycentric/polycentric-core'
+import { CancelContext, MetaStore, Models, ProcessHandle, Store } from '@polycentric/polycentric-core'
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 
 type BaseProcessHandleManagerHookReturn = {
@@ -70,10 +70,17 @@ export function useProcessHandleManagerBaseComponentHook(
   }
 
   useEffect(() => {
+    const cancelContext = new CancelContext.CancelContext()
+
     metaStore.getActiveStore().then((store) => {
+      if (cancelContext.cancelled()) return
       if (store) changeHandle(store)
       else setInternalHookState({ activeStore: null, processHandle: null })
     })
+
+    return () => {
+      cancelContext.cancel()
+    }
   }, [metaStore, changeHandle])
 
   return {
