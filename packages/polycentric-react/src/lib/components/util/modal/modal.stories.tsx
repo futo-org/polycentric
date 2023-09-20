@@ -56,6 +56,6 @@ export const Crop = {
     open: true,
     title: 'Crop',
     desktopClassName: 'w-[30rem]',
-    children: <CropProfilePic src="https://i.pravatar.cc/300" />,
+    children: <CropProfilePic src="https://i.pravatar.cc/300" onCrop={() => 0} />,
   },
 }
