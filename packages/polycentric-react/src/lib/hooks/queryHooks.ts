@@ -1,7 +1,7 @@
 import { encode } from '@borderless/base64'
-import { Models, Protocol, Queries, Ranges, Util } from '@polycentric/polycentric-core'
+import { CancelContext, Models, Protocol, Queries, Ranges, Util } from '@polycentric/polycentric-core'
 import Long from 'long'
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
 // Since we create query managers based on the driver passed in, we set the query managers value at the root of the app.
 // With this, it will never be undefined - but since typescript doesn't know that, we ignore the error.
@@ -13,62 +13,39 @@ export function useQueryManager(): Queries.QueryManager.QueryManager {
 }
 
 export function useCRDTQuery<T>(
+  system: Models.PublicKey.PublicKey | undefined,
   contentType: Models.ContentType.ContentType,
-  system: Models.PublicKey.PublicKey,
   parse: (buffer: Uint8Array) => T,
-): [T | undefined, boolean, () => boolean] {
-  const [data, setData] = useState<T | undefined>()
-  const [loaded, setLoaded] = useState(false)
-
+): T | undefined {
   const queryManager = useQueryManager()
-
-  // Use a ref to track if the component is still mounted
-  const isCancelled = useRef(false)
-
-  // A ref to track the current content type and system
-  const currentParams = useRef({ contentType, system })
+  const [state, setState] = useState<T | undefined>(undefined)
 
   useEffect(() => {
-    isCancelled.current = false
-    currentParams.current = { contentType, system }
-    return () => {
-      // When the component unmounts, update the isMounted ref
-      isCancelled.current = true
-    }
-  }, [])
+    setState(undefined)
 
-  useEffect(() => {
-    currentParams.current = { contentType, system }
+    if (system !== undefined) {
+      const cancelContext = new CancelContext.CancelContext()
 
-    const unregister = queryManager.queryCRDT.query(system, contentType, (buffer: Uint8Array) => {
-      // Only set data if the component is still mounted and the content and system are still the same
-      if (
-        isCancelled.current === false &&
-        currentParams.current.contentType === contentType &&
-        currentParams.current.system === system
-      ) {
-        setData(parse(buffer))
-        setLoaded(true)
+      const unregister = queryManager.queryCRDT.query(system, contentType, (buffer: Uint8Array) => {
+        if (cancelContext.cancelled()) {
+          return
+        }
+
+        setState(parse(buffer))
+      })
+
+      return () => {
+        cancelContext.cancel()
+        unregister()
       }
-    })
-
-    // Unregister when either contentType or system changes
-    return () => {
-      unregister()
     }
-  }, [contentType, system, queryManager, parse])
+  }, [queryManager, system, contentType, parse])
 
-  const cancel = () => {
-    const alreadyCancelled = isCancelled.current
-    isCancelled.current = true
-    return alreadyCancelled
-  }
-
-  return [data, loaded, cancel]
+  return state
 }
 
 export const useUsernameCRDTQuery = (system: Models.PublicKey.PublicKey) => {
-  return useCRDTQuery(Models.ContentType.ContentTypeUsername, system, (buffer: Uint8Array) => Util.decodeText(buffer))
+  return useCRDTQuery(system, Models.ContentType.ContentTypeUsername, (buffer: Uint8Array) => Util.decodeText(buffer))
 }
 
 export const useTextPublicKey = (system: Models.PublicKey.PublicKey) => {
@@ -78,65 +55,42 @@ export const useTextPublicKey = (system: Models.PublicKey.PublicKey) => {
 }
 
 export function useBlobQuery<T>(
-  system: Models.PublicKey.PublicKey,
+  system: Models.PublicKey.PublicKey | undefined,
+  process: Models.Process.Process | undefined,
+  range: Ranges.IRange[] | undefined,
   parse: (buffer: Uint8Array) => T,
-  process?: Models.Process.Process,
-  range?: Ranges.IRange[],
-): [T | undefined, boolean, () => boolean] {
-  const [data, setData] = useState<T | undefined>()
-  const [loaded, setLoaded] = useState(false)
-
+): T | undefined {
   const queryManager = useQueryManager()
-
-  // Use a ref to track if the component is still mounted
-  const isCancelled = useRef(false)
-  const currentParams = useRef({ system, process, range })
+  const [state, setState] = useState<T | undefined>(undefined)
 
   useEffect(() => {
-    isCancelled.current = false
-    return () => {
-      // When the component unmounts, update the isMounted ref
-      isCancelled.current = true
-    }
-  }, [])
+    setState(undefined)
 
-  useEffect(() => {
-    currentParams.current = { system, process, range }
+    if (system !== undefined && process !== undefined && range !== undefined) {
+      const cancelContext = new CancelContext.CancelContext()
 
-    if (!process || !range) {
-      return
-    }
+      const unregister = queryManager.queryBlob.query(system, process, range, (buffer: Uint8Array) => {
+        if (cancelContext.cancelled()) {
+          return
+        }
 
-    const unregister = queryManager.queryBlob.query(system, process, range, (buffer: Uint8Array) => {
-      // Only set data if the component is still mounted and the content and system are still the same
-      if (
-        isCancelled.current === false &&
-        currentParams.current.system === system &&
-        currentParams.current.process === process &&
-        currentParams.current.range === range
-      ) {
-        setData(parse(buffer))
-        setLoaded(true)
+        setState(parse(buffer))
+      })
+
+      return () => {
+        cancelContext.cancel()
+
+        unregister()
       }
-    })
-
-    // Unregister when either contentType or system changes
-    return () => {
-      unregister()
     }
   }, [system, process, range, queryManager, parse])
 
-  const cancel = () => {
-    const alreadyCancelled = isCancelled.current
-    isCancelled.current = true
-    return alreadyCancelled
-  }
-
-  return [data, loaded, cancel]
+  return state
 }
 
 const decodeImageManifest = (rawImageBundle: Uint8Array) => {
   const imageBundle = Protocol.ImageBundle.decode(rawImageBundle)
+
   const manifest = imageBundle.imageManifests.find((manifest) => {
     return manifest.height.equals(Long.fromNumber(256)) && manifest.width.equals(Long.fromNumber(256))
   })
@@ -156,37 +110,29 @@ const decodeImageManifest = (rawImageBundle: Uint8Array) => {
   }
 }
 
-export const useAvatar = (
-  system: Models.PublicKey.PublicKey,
-): [string | undefined, [boolean, boolean, boolean], () => void] => {
-  const [manifest, manifestLoaded, cancelManifest] = useCRDTQuery(
-    Models.ContentType.ContentTypeAvatar,
-    system,
-    decodeImageManifest,
-  )
-
-  const { process, sections, mime } = manifest || {}
-
+export const useAvatar = (system: Models.PublicKey.PublicKey): string | undefined => {
   const [avatarLink, setAvatarLink] = useState<string | undefined>(undefined)
-  const [avatarLoaded, setAvatarLoaded] = useState(false)
 
-  const [avatarBlob, blobLoaded, cancelAvatarBlob] = useBlobQuery(
-    system,
-    (rawImage: Uint8Array) => {
-      return new Blob([rawImage], {
+  const manifest = useCRDTQuery(system, Models.ContentType.ContentTypeAvatar, decodeImageManifest)
+
+  const { process, sections, mime } = manifest ?? {}
+
+  const parseAvatarBlob = useCallback(
+    (buffer: Uint8Array) => {
+      return new Blob([buffer], {
         type: mime,
       })
     },
-    process,
-    sections,
+    [mime],
   )
+
+  const avatarBlob = useBlobQuery(system, process, sections, parseAvatarBlob)
 
   useEffect(() => {
     let currentURL: string | undefined
     if (avatarBlob) {
       currentURL = URL.createObjectURL(avatarBlob)
       setAvatarLink(currentURL)
-      setAvatarLoaded(true)
     } else {
       setAvatarLink(undefined)
     }
@@ -198,17 +144,5 @@ export const useAvatar = (
     }
   }, [avatarBlob])
 
-  useEffect(() => {
-    cancelAvatarBlob()
-    cancelManifest()
-  }, [cancelAvatarBlob, cancelManifest])
-
-  return [
-    avatarLink,
-    [manifestLoaded, avatarLoaded, blobLoaded],
-    () => {
-      cancelManifest()
-      cancelAvatarBlob()
-    },
-  ]
+  return avatarLink
 }
