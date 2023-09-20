@@ -1,5 +1,4 @@
 import { Carousel } from '.'
-import starterURL from '../../../../graphics/onboarding/starter.svg'
 
 export default {
   title: 'Util/Slideshow',
@@ -7,14 +6,16 @@ export default {
 }
 
 const Foo = ({ nextSlide }: { nextSlide: () => void }) => (
-  <div className="bg-red-500" onClick={nextSlide}>
+  <div className="b" onClick={nextSlide}>
     Slide 1
   </div>
 )
-const Bar = () => <img src={starterURL} />
+const Bar = () => <div>slide 2</div>
 
 export const Default = {
   args: {
+    className: 'w-96',
+    swiperClassName: 'w-96 h-96',
     childComponents: [Foo, Bar],
   },
 }
