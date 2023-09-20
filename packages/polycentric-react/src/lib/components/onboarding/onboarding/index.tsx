@@ -205,9 +205,28 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
   )
 }
 
-export const Onboarding = () => (
-  <Carousel
-    childComponents={[WelcomePanel, RequestNotificationsPanel, InternetTodayPanel, GenCredsPanel]}
-    itemClassName="md:h-[830px]"
-  />
-)
+export const Onboarding = () => {
+  const isChromium = navigator.userAgent.includes('Chrome')
+
+  useEffect(() => {
+    const isChromium = navigator.userAgent.includes('Chrome')
+    if (isChromium === false) {
+      navigator.storage.persist()
+    }
+  }, [])
+
+  const childComponents = [
+    WelcomePanel,
+    // I literally submitted a proposal to the EMCAscript spec to avoid this syntax but it got rejected
+    // https://es.discourse.group/t/conditionally-add-elements-to-declaratively-defined-arrays/1041
+    ...(isChromium ? [RequestNotificationsPanel] : []),
+    InternetTodayPanel,
+    GenCredsPanel,
+  ]
+
+  return (
+    <div className="lg:flex justify-center items-center">
+      <Carousel childComponents={childComponents} className="lg:max-w-7xl" />
+    </div>
+  )
+}
