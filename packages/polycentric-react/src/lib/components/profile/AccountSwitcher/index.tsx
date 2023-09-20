@@ -1,5 +1,5 @@
 import { Menu } from '@headlessui/react'
-import { MetaStore } from '@polycentric/polycentric-core'
+import { MetaStore, Models } from '@polycentric/polycentric-core'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
@@ -91,15 +91,18 @@ const AccountSwitcherItem = ({
   setSubMenuExpanded: (b: boolean) => void
 }) => {
   const system = storeInfo.system
+
+  const avatarURL = useAvatar(system)
   const username = useUsernameCRDTQuery(system)
+  const displayKey = useTextPublicKey(system).substring(0, 10)
 
   return (
     <div className="flex justify-between w-full p-2">
       <div className="flex space-x-2">
-        <img className="h-[3rem] rounded-full w-auto aspect-square border" src={'https://i.pravatar.cc/300'} />
+        <img className="h-[3rem] rounded-full w-auto aspect-square border" src={avatarURL} />
         <div className="flex flex-col">
           <p className="bold text-normal">{username}</p>
-          <p className="font-light text-gray-400">fhsioqui29180a</p>
+          <p className="font-light text-gray-400">{displayKey}</p>
         </div>
       </div>
       <CircleExpandMenuReverse title={username} onIsOpenChange={(isOpen) => setSubMenuExpanded(isOpen)} />
@@ -118,8 +121,8 @@ export const AccountSwitcherReverse = ({}: {
 
   const { listStores, processHandle } = useProcessHandleManager()
 
-  const username = useUsernameCRDTQuery(processHandle?.system())
-  const avatarURL = useAvatar(processHandle?.system())
+  const username = useUsernameCRDTQuery(processHandle.system())
+  const avatarURL = useAvatar(processHandle.system())
   const key = useTextPublicKey(processHandle.system())
 
   return (
@@ -134,9 +137,11 @@ export const AccountSwitcherReverse = ({}: {
           <>
             <Menu.Items static={true}>
               <div className="flex flex-col">
-                {stores.map((storeInfo) => (
-                  <AccountSwitcherItem storeInfo={storeInfo} setSubMenuExpanded={setSubMenuExpanded} />
-                ))}
+                {stores
+                  .filter((storeInfo) => !Models.PublicKey.equal(storeInfo.system, processHandle.system()))
+                  .map((storeInfo) => (
+                    <AccountSwitcherItem storeInfo={storeInfo} setSubMenuExpanded={setSubMenuExpanded} />
+                  ))}
               </div>
             </Menu.Items>
             <div className="w-full border-b m-0"></div>
