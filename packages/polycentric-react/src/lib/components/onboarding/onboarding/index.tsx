@@ -61,7 +61,8 @@ const RequestNotificationsPanel = ({ nextSlide }: { nextSlide: () => void }) => 
       <button
         className="bg-blue-500 text-white border shadow rounded-full lg:rounded-md py-2 px-4 font-bold text-lg"
         onClick={async () => {
-          await Notification.requestPermission()
+          const permission = await Notification.requestPermission()
+          if (permission === 'denied') console.error('Notifications denied')
           await navigator.storage.persist()
 
           nextSlide()
