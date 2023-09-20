@@ -91,7 +91,7 @@ const AccountSwitcherItem = ({
   setSubMenuExpanded: (b: boolean) => void
 }) => {
   const system = storeInfo.system
-  const [username] = useUsernameCRDTQuery(system)
+  const username = useUsernameCRDTQuery(system)
 
   return (
     <div className="flex justify-between w-full p-2">
@@ -107,9 +107,7 @@ const AccountSwitcherItem = ({
   )
 }
 
-export const AccountSwitcherReverse = ({
-  currentProfile,
-}: {
+export const AccountSwitcherReverse = ({}: {
   switchAccount?: () => void
   currentProfile: Profile
   profiles: Profile[]
@@ -118,14 +116,11 @@ export const AccountSwitcherReverse = ({
   const [subMenuExpanded, setSubMenuExpanded] = useState(false)
   const [stores, setStores] = useState<MetaStore.StoreInfo[]>([])
 
-  const { listStores, changeHandle, processHandle } = useProcessHandleManager()
+  const { listStores, processHandle } = useProcessHandleManager()
 
-  const [username] = useUsernameCRDTQuery(processHandle?.system())
-  const [avatarURL, loaded] = useAvatar(processHandle?.system())
+  const username = useUsernameCRDTQuery(processHandle?.system())
+  const avatarURL = useAvatar(processHandle?.system())
   const key = useTextPublicKey(processHandle.system())
-
-  console.log(processHandle?.system())
-  console.log(loaded)
 
   return (
     <Menu as="div" className="relative">
@@ -149,8 +144,8 @@ export const AccountSwitcherReverse = ({
         )}
         <div className={`flex justify-between p-2 w-full ${expanded ? 'rounded-b-[2rem]' : 'rounded-[2rem]'}`}>
           <div className="flex space-x-2">
-            <Link to="">
-              <img className="h-[3rem] rounded-full w-auto aspect-square border" src={avatarURL} />
+            <Link to="" className="h-[3rem] w-[3rem] rounded-full border overflow-hidden">
+              <img className="" src={avatarURL} />
             </Link>
             <div className="flex flex-col">
               <p className="bold text-normal">{username}</p>
@@ -167,6 +162,8 @@ export const AccountSwitcherReverse = ({
                   setStores(stores)
                   setExpanded(true)
                 })
+              } else {
+                setExpanded(false)
               }
             }}
           >
