@@ -92,7 +92,7 @@ export const Compose = ({
   const [upload, setUpload] = useState<File | null>(null)
   const uploadRef = useRef<HTMLInputElement | null>(null)
 
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [imageUrl, setImageUrl] = useState<string | undefined>()
 
   useEffect(() => {
     let currentURL: string | null
