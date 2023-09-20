@@ -1,7 +1,7 @@
-import React from 'react'
 import { Modal } from '.'
-import { PopupComposeReply } from '../../popup/PopupComposeReply'
 import { PopupCompose } from '../../popup/PopupCompose'
+import { PopupComposeReply } from '../../popup/PopupComposeReply'
+import { CropProfilePic } from '../../profile/CropProfilePic'
 
 export default {
   title: 'Util/Modal',
@@ -48,5 +48,14 @@ export const Compose = {
   args: {
     open: true,
     children: <PopupCompose />,
+  },
+}
+
+export const Crop = {
+  args: {
+    open: true,
+    title: 'Crop',
+    desktopClassName: 'w-[30rem]',
+    children: <CropProfilePic src="https://i.pravatar.cc/300" />,
   },
 }
