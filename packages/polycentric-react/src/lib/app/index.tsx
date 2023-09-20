@@ -12,6 +12,7 @@ import { PureSidebarProfile } from '../components/profile'
 import { Root } from '../components/root'
 import { SearchBox } from '../components/search/searchbox'
 import {
+  OnboardingProcessHandleManagerContext,
   ProcessHandleManagerContext,
   useProcessHandleManagerBaseComponentHook,
 } from '../hooks/processHandleManagerHooks'
@@ -89,26 +90,28 @@ export const SignedinApp = ({ processHandle }: { processHandle: ProcessHandle.Pr
   )
 }
 
-const OnboardingApp = () => {
-  return <Onboarding />
-}
-
 const LoadedMetastoreApp = ({ metaStore }: { metaStore: MetaStore.IMetaStore }) => {
   const storeManagerProps = useProcessHandleManagerBaseComponentHook(metaStore)
-  const { processHandle } = storeManagerProps
 
-  return (
-    <ProcessHandleManagerContext.Provider value={storeManagerProps}>
-      {processHandle === undefined ? (
-        <p>loading</p>
-      ) : processHandle === null ? (
-        <OnboardingApp />
-      ) : (
+  const { processHandle, activeStore } = storeManagerProps
+
+  if (processHandle === undefined || activeStore === undefined) {
+    return <p>loading</p>
+  } else if (processHandle === null || activeStore === null) {
+    return (
+      <OnboardingProcessHandleManagerContext.Provider value={storeManagerProps}>
+        <Onboarding />
+      </OnboardingProcessHandleManagerContext.Provider>
+    )
+  } else {
+    // Typescript is dumb and doesn't understand that we've already checked for null
+    const contextProps = { ...storeManagerProps, processHandle, activeStore }
+    return (
+      <ProcessHandleManagerContext.Provider value={contextProps}>
         <SignedinApp processHandle={processHandle} />
-      )}
-      {/* <SignedinApp /> */}
-    </ProcessHandleManagerContext.Provider>
-  )
+      </ProcessHandleManagerContext.Provider>
+    )
+  }
 }
 
 export const App = ({ persistenceDriver }: { persistenceDriver: PersistenceDriver.IPersistenceDriver }) => {

@@ -10,16 +10,6 @@ type BaseProcessHandleManagerHookReturn = {
   metaStore: MetaStore.IMetaStore
 }
 
-// Same type, but with the process handle guaranteed to be non-null
-type ProcessHandleManagerHookReturn = {
-  processHandle: ProcessHandle.ProcessHandle
-  activeStore: MetaStore.StoreInfo
-  listStores: () => Promise<MetaStore.StoreInfo[]>
-  changeHandle: (account?: MetaStore.StoreInfo) => Promise<ProcessHandle.ProcessHandle | null | undefined>
-  createHandle: (key: Models.PrivateKey.PrivateKey) => Promise<ProcessHandle.ProcessHandle>
-  metaStore: MetaStore.IMetaStore
-}
-
 interface UseProcessHandleManagerState {
   // Undefined indicates we're loading, null indicates we've checked and there's no active store
   activeStore: MetaStore.StoreInfo | null | undefined
@@ -96,12 +86,27 @@ export function useProcessHandleManagerBaseComponentHook(
   }
 }
 
+// Same type, but with the process handle guaranteed to be non-null, for use within a provider
+export type ProcessHandleManagerHookReturn = BaseProcessHandleManagerHookReturn & {
+  processHandle: ProcessHandle.ProcessHandle
+  activeStore: MetaStore.StoreInfo
+}
+
 //@ts-ignore
-export const ProcessHandleManagerContext = createContext<BaseProcessHandleManagerHookReturn>()
+// No default value once again because the hook must be used within a provider, and we enforce this below
+export const ProcessHandleManagerContext = createContext<ProcessHandleManagerHookReturn>()
 
 export function useProcessHandleManager(): ProcessHandleManagerHookReturn {
-  // This hook will only be used in the main app, not onboarding
-  // Therefore, we can assume that the process handle will always be non-null
   const context = useContext(ProcessHandleManagerContext)
-  return context as ProcessHandleManagerHookReturn
+  if (context.processHandle === undefined || context.activeStore === undefined) {
+    throw new Error('useProcessHandleManager must be used within a ProcessHandleManagerProvider')
+  }
+  return context
+}
+
+//@ts-ignore
+export const OnboardingProcessHandleManagerContext = createContext<BaseProcessHandleManagerHookReturn>()
+
+export function useOnboardingProcessHandleManager(): BaseProcessHandleManagerHookReturn {
+  return useContext(OnboardingProcessHandleManagerContext)
 }
