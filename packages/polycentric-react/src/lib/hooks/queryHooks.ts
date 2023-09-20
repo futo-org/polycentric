@@ -1,4 +1,3 @@
-import { encode } from '@borderless/base64'
 import {
   APIMethods,
   CancelContext,
@@ -60,7 +59,7 @@ export const useUsernameCRDTQuery = (system?: Models.PublicKey.PublicKey) => {
 
 export const useTextPublicKey = (system: Models.PublicKey.PublicKey) => {
   return useMemo<string>(() => {
-    return encode(system.key)
+    return Models.PublicKey.toString(system)
   }, [system])
 }
 
