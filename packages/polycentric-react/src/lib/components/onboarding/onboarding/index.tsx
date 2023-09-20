@@ -157,22 +157,22 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
         <form
           onSubmit={async (e) => {
             e.preventDefault()
+            const processHandle = await createAccount(privateKey)
+            processHandle.addServer('https://srv1-stg.polycentric.io')
+            processHandle.setUsername(username)
+            if (avatar) publishBlobToAvatar(avatar, processHandle)
+
             // if supported, save private key to credential manager api
             // @ts-ignore
             if (window.PasswordCredential) {
               // @ts-ignore
               const cred = new window.PasswordCredential({
-                name: 'asfafs',
-                id: 'asfafs',
-                password: 'fsdkjflsdf',
+                name: username,
+                id: encode(processHandle.system().key),
+                password: encode(privateKey.key),
               })
               navigator.credentials.store(cred)
             }
-
-            debugger
-            const processHandle = await createAccount(privateKey)
-            processHandle.setUsername(username)
-            if (avatar) console.log(await publishBlobToAvatar(avatar, processHandle))
           }}
         >
           <GenCredsPanelImageUpload
