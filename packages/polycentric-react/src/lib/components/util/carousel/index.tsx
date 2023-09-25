@@ -1,5 +1,5 @@
 import { Transition } from '@headlessui/react' // Make sure to install @headlessui/react and its types if using this
-import { useEffect, useRef, useState } from 'react'
+import React from 'react'
 
 const LeftArrow = () => (
   <svg
@@ -32,20 +32,13 @@ const RightArrow = () => (
 
 export const Carousel = ({
   childComponents,
+  itemClassName,
 }: {
   childComponents: (({ nextSlide }: { nextSlide: () => void }) => JSX.Element)[]
+  itemClassName: string
 }) => {
-  const [currentSlide, setCurrentSlide] = useState(0)
-  const [maxVisitedSlide, setMaxVisitedSlide] = useState(0)
-
-  const [height, setHeight] = useState(900)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (ref.current) {
-      setHeight(ref.current.scrollHeight)
-    }
-  }, [])
+  const [currentSlide, setCurrentSlide] = React.useState(0)
+  const [maxVisitedSlide, setMaxVisitedSlide] = React.useState(0)
 
   return (
     <div className="flex flex-col space-y-3">
@@ -62,11 +55,9 @@ export const Carousel = ({
         >
           <LeftArrow />
         </button>
-        <div className="flex-grow md:border rounded-[2.5rem] relative overflow-hidden ">
-          <div style={{ height }} />
+        <div className={'flex-grow md:border rounded-[2.5rem] relative overflow-hidden ' + itemClassName}>
           {childComponents.map((Child, i) => (
             <Transition
-              ref={ref}
               key={i}
               show={i === currentSlide}
               enter="transition-opacity duration-300"
@@ -87,47 +78,47 @@ export const Carousel = ({
               />
             </Transition>
           ))}
+          <button
+            className={`hidden md:flex w-20 h-20 rounded-full bg-white border justify-center items-center ${
+              currentSlide < maxVisitedSlide ? '' : 'invisible'
+            }`}
+            onClick={() => {
+              if (currentSlide < childComponents.length - 1 && currentSlide < maxVisitedSlide) {
+                setCurrentSlide(currentSlide + 1)
+                setMaxVisitedSlide(Math.max(currentSlide + 1, maxVisitedSlide))
+              }
+            }}
+          >
+            <RightArrow />
+          </button>
         </div>
-        <button
-          className={`hidden md:flex w-20 h-20 rounded-full bg-white border justify-center items-center ${
-            currentSlide < maxVisitedSlide ? '' : 'invisible'
-          }`}
-          onClick={() => {
-            if (currentSlide < childComponents.length - 1 && currentSlide < maxVisitedSlide) {
-              setCurrentSlide(currentSlide + 1)
-              setMaxVisitedSlide(Math.max(currentSlide + 1, maxVisitedSlide))
-            }
-          }}
-        >
-          <RightArrow />
-        </button>
-      </div>
-      <div className="md:hidden flex space-x-5 justify-between">
-        <button
-          className={`md:hidden flex w-20 h-20 rounded-full bg-white border justify-center items-center ${
-            currentSlide > 0 ? '' : 'invisible'
-          }`}
-          onClick={() => {
-            if (currentSlide > 0) {
-              setCurrentSlide(currentSlide - 1)
-            }
-          }}
-        >
-          <LeftArrow />
-        </button>
-        <button
-          className={`md:hidden flex w-20 h-20 rounded-full bg-white border justify-center items-center ${
-            currentSlide < maxVisitedSlide ? '' : 'invisible'
-          }`}
-          onClick={() => {
-            if (currentSlide < childComponents.length - 1 && currentSlide < maxVisitedSlide) {
-              setCurrentSlide(currentSlide + 1)
-              setMaxVisitedSlide(Math.max(currentSlide + 1, maxVisitedSlide))
-            }
-          }}
-        >
-          <RightArrow />
-        </button>
+        <div className="md:hidden flex space-x-5 justify-between">
+          <button
+            className={`md:hidden flex w-20 h-20 rounded-full bg-white border justify-center items-center ${
+              currentSlide > 0 ? '' : 'invisible'
+            }`}
+            onClick={() => {
+              if (currentSlide > 0) {
+                setCurrentSlide(currentSlide - 1)
+              }
+            }}
+          >
+            <LeftArrow />
+          </button>
+          <button
+            className={`md:hidden flex w-20 h-20 rounded-full bg-white border justify-center items-center ${
+              currentSlide < maxVisitedSlide ? '' : 'invisible'
+            }`}
+            onClick={() => {
+              if (currentSlide < childComponents.length - 1 && currentSlide < maxVisitedSlide) {
+                setCurrentSlide(currentSlide + 1)
+                setMaxVisitedSlide(Math.max(currentSlide + 1, maxVisitedSlide))
+              }
+            }}
+          >
+            <RightArrow />
+          </button>
+        </div>
       </div>
     </div>
   )

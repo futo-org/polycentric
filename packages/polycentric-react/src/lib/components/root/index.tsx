@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Outlet } from 'react-router-dom'
-import { Drawer } from '../util/drawer'
 import { MainSidebar } from '../sidebars/mainsidebar'
+import { Drawer } from '../util/drawer'
 
 const MenuIcon = () => (
   <svg
@@ -37,7 +36,7 @@ const InformationIcon = () => (
   </svg>
 )
 
-export const Root = () => {
+export const Root = ({ children }: { children: React.ReactNode }) => {
   const [showLeftSidebar, setShowLeftSidebar] = useState(false)
   const [showRightSidebar, setShowRightSidebar] = useState(false)
 
@@ -81,7 +80,7 @@ export const Root = () => {
           />
         </Drawer>
 
-        <Outlet />
+        {children}
       </div>
     </div>
   )

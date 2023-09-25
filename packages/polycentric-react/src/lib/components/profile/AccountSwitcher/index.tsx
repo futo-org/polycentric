@@ -1,6 +1,9 @@
 import { Menu } from '@headlessui/react'
+import { MetaStore } from '@polycentric/polycentric-core'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
+import { useAvatar, useTextPublicKey, useUsernameCRDTQuery } from '../../../hooks/queryHooks'
 import { Profile } from '../../../types/profile'
 import { CircleExpandMenu, CircleExpandMenuReverse } from '../../util/circleexpandmenu'
 
@@ -80,15 +83,44 @@ export const AccountSwitcher = ({
   )
 }
 
-export const AccountSwitcherReverse = ({
-  currentProfile,
+const AccountSwitcherItem = ({
+  storeInfo,
+  setSubMenuExpanded,
 }: {
+  storeInfo: MetaStore.StoreInfo
+  setSubMenuExpanded: (b: boolean) => void
+}) => {
+  const system = storeInfo.system
+  const username = useUsernameCRDTQuery(system)
+
+  return (
+    <div className="flex justify-between w-full p-2">
+      <div className="flex space-x-2">
+        <img className="h-[3rem] rounded-full w-auto aspect-square border" src={'https://i.pravatar.cc/300'} />
+        <div className="flex flex-col">
+          <p className="bold text-normal">{username}</p>
+          <p className="font-light text-gray-400">fhsioqui29180a</p>
+        </div>
+      </div>
+      <CircleExpandMenuReverse title={username} onIsOpenChange={(isOpen) => setSubMenuExpanded(isOpen)} />
+    </div>
+  )
+}
+
+export const AccountSwitcherReverse = ({}: {
   switchAccount?: () => void
   currentProfile: Profile
   profiles: Profile[]
 }) => {
   const [expanded, setExpanded] = useState(false)
   const [subMenuExpanded, setSubMenuExpanded] = useState(false)
+  const [stores, setStores] = useState<MetaStore.StoreInfo[]>([])
+
+  const { listStores, processHandle } = useProcessHandleManager()
+
+  const username = useUsernameCRDTQuery(processHandle?.system())
+  const avatarURL = useAvatar(processHandle?.system())
+  const key = useTextPublicKey(processHandle.system())
 
   return (
     <Menu as="div" className="relative">
@@ -102,23 +134,8 @@ export const AccountSwitcherReverse = ({
           <>
             <Menu.Items static={true}>
               <div className="flex flex-col">
-                {[2, 2, 3].map(() => (
-                  <div className="flex justify-between w-full p-2">
-                    <div className="flex space-x-2">
-                      <img
-                        className="h-[3rem] rounded-full w-auto aspect-square border"
-                        src={currentProfile.avatarURL}
-                      />
-                      <div className="flex flex-col">
-                        <p className="bold text-normal">{currentProfile.name}</p>
-                        <p className="font-light text-gray-400">fhsioqui29180a</p>
-                      </div>
-                    </div>
-                    <CircleExpandMenuReverse
-                      title={currentProfile.name}
-                      onIsOpenChange={(isOpen) => setSubMenuExpanded(isOpen)}
-                    />
-                  </div>
+                {stores.map((storeInfo) => (
+                  <AccountSwitcherItem storeInfo={storeInfo} setSubMenuExpanded={setSubMenuExpanded} />
                 ))}
               </div>
             </Menu.Items>
@@ -127,19 +144,28 @@ export const AccountSwitcherReverse = ({
         )}
         <div className={`flex justify-between p-2 w-full ${expanded ? 'rounded-b-[2rem]' : 'rounded-[2rem]'}`}>
           <div className="flex space-x-2">
-            <Link to="">
-              <img className="h-[3rem] rounded-full w-auto aspect-square border" src={currentProfile.avatarURL} />
+            <Link to="" className="h-[3rem] w-[3rem] rounded-full border overflow-hidden">
+              <img className="" src={avatarURL} />
             </Link>
             <div className="flex flex-col">
-              <p className="bold text-normal">{currentProfile.name}</p>
-              <p className="font-light text-gray-400">fhsioqui29180a</p>
+              <p className="bold text-normal">{username}</p>
+              <p className="font-light text-gray-400">{key.substring(0, 10)}</p>
             </div>
           </div>
           <button
             className={`h-[3rem] bg-gray-50 p-1 rounded-full w-auto aspect-square flex justify-center items-center ${
               expanded ? ' -scale-y-100' : 'scale-y-100'
             }`}
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => {
+              if (expanded === false) {
+                listStores().then((stores) => {
+                  setStores(stores)
+                  setExpanded(true)
+                })
+              } else {
+                setExpanded(false)
+              }
+            }}
           >
             <UpArrowIcon />
           </button>

@@ -32,9 +32,13 @@
     "@fontsource/public-sans": "^5.0.5",
     "@headlessui/react": "^1.7.16",
     "@heroicons/react": "^2.0.18",
-    "@uidotdev/usehooks": "^2.1.0",
+    "@ionic/react": "^7.3.2",
+    "@ionic/react-router": "^7.3.2",
     "@polycentric/react-cool-virtual": "https://gitlab.futo.org/api/v4/projects/117/packages/npm/@polycentric/react-cool-virtual/-/@polycentric/react-cool-virtual-0.7.2.tgz",
-    "react-router-dom": "^6.14.0",
+    "@storybook/addon-a11y": "^7.3.2",
+    "@types/react-router-dom": "^5.3.3",
+    "@uidotdev/usehooks": "^2.1.0",
+    "react-router-dom": "^5.3.4",
     "unplugin-fonts": "^1.0.3"
   },
   "peerDependencies": {
