@@ -1,11 +1,21 @@
 import { MetaStore, PersistenceDriver, ProcessHandle, Queries } from '@polycentric/polycentric-core'
 import { useEffect, useState } from 'react'
-import { RouterProvider, createBrowserRouter, createHashRouter } from 'react-router-dom'
-import { FeedPage } from '../components/feed/FeedPage'
-import { PureSidebarProfile } from '../components/profile/PureSidebarProfile'
+import { BrowserRouter, HashRouter, Route, Switch } from 'react-router-dom'
+import { QueryManagerContext } from '../hooks/queryHooks'
+// TODO: When everything works, change these to lazy loading
+import { IonApp, IonRouterOutlet } from '@ionic/react'
+import { IonReactMemoryRouter } from '@ionic/react-router'
+import { createMemoryHistory } from 'history'
+import { FeedPage } from '../components/feed'
+import { Onboarding } from '../components/onboarding'
+import { PureSidebarProfile } from '../components/profile'
 import { Root } from '../components/root'
 import { SearchBox } from '../components/search/searchbox'
-import { QueryManagerContext } from '../hooks/queryManagerHooks.js'
+import {
+  OnboardingProcessHandleManagerContext,
+  ProcessHandleManagerContext,
+  useProcessHandleManagerBaseComponentHook,
+} from '../hooks/processHandleManagerHooks'
 
 // Check if we're in electron or not
 const isElectron = () => {
@@ -14,58 +24,106 @@ const isElectron = () => {
   return window && window.process && window.process.type
 }
 
-const createRouterFunction = isElectron() ? createHashRouter : createBrowserRouter
+// @ts-ignore
+// navigator.standalone isn't an official api yet
+const isStandalonePWA = (): boolean => window.navigator.standalone ?? false
 
-const router = createRouterFunction([
-  {
-    path: '/',
-    element: <Root />,
-    children: [
-      {
-        index: true,
-        element: (
-          <FeedPage>
-            <>
-              <SearchBox />
-              <PureSidebarProfile
-                profile={{
-                  name: 'Rossman',
-                  avatarURL: 'https://avatars.githubusercontent.com/u/1388441?v=4',
-                  description: 'I like to repair. I like to repair. I like to repair.',
-                }}
-              />
-            </>
-          </FeedPage>
-        ),
-      },
-    ],
-  },
-])
+const memoryHistory = createMemoryHistory()
 
-async function createProcessHandle(
-  persistenceDriver: PersistenceDriver.IPersistenceDriver,
-): Promise<ProcessHandle.ProcessHandle> {
-  return await ProcessHandle.createProcessHandle(await MetaStore.createMetaStore(persistenceDriver))
+const PlatformRouter = ({ children }: { children: React.ReactNode }) => {
+  if (isElectron()) {
+    return <HashRouter>{children}</HashRouter>
+  }
+
+  if (isStandalonePWA()) {
+    return (
+      <IonApp>
+        <IonReactMemoryRouter history={memoryHistory}>{children}</IonReactMemoryRouter>
+      </IonApp>
+    )
+  }
+
+  return <BrowserRouter>{children}</BrowserRouter>
 }
 
-export const App = ({ persistenceDriver }: { persistenceDriver: PersistenceDriver.IPersistenceDriver }) => {
-  const [processHandle, setProcessHandle] = useState<ProcessHandle.ProcessHandle | undefined>(undefined)
-  const [queryManager, setQueryManager] = useState<Queries.QueryManager.QueryManager | undefined>(undefined)
-  useEffect(() => {
-    createProcessHandle(persistenceDriver).then((ph) => {
-      setProcessHandle(ph)
-      const queryManager = new Queries.QueryManager.QueryManager(ph)
-      setQueryManager(queryManager)
-    })
-  }, [persistenceDriver])
-
-  if (processHandle === undefined || queryManager === undefined) {
-    return <></>
+const PlatformSwitch = ({ children }: { children: React.ReactNode }) => {
+  if (isElectron() || !isStandalonePWA()) {
+    return <Switch>{children}</Switch>
   }
+
+  return <IonRouterOutlet>{children}</IonRouterOutlet>
+}
+
+// Currently, Polycentric can only be used while signed in
+export const SignedinApp = ({ processHandle }: { processHandle: ProcessHandle.ProcessHandle }) => {
+  const [queryManager, setQueryManager] = useState<Queries.QueryManager.QueryManager>(
+    () => new Queries.QueryManager.QueryManager(processHandle),
+  )
+
+  useEffect(() => {
+    setQueryManager(new Queries.QueryManager.QueryManager(processHandle))
+  }, [processHandle])
 
   return (
     <QueryManagerContext.Provider value={queryManager}>
-      <RouterProvider router={router} />
+      <PlatformRouter>
+        <Root>
+          <PlatformSwitch>
+            <Route path="/">
+              <FeedPage>
+                <div className="p-5">
+                  <SearchBox />
+                  <PureSidebarProfile
+                    profile={{
+                      name: 'Rossman',
+                      avatarURL: 'https://avatars.githubusercontent.com/u/1388441?v=4',
+                      description: 'I like to repair. I like to repair. I like to repair.',
+                    }}
+                  />
+                </div>
+              </FeedPage>
+            </Route>
+          </PlatformSwitch>
+        </Root>
+      </PlatformRouter>
     </QueryManagerContext.Provider>
   )
+}
+
+const LoadedMetastoreApp = ({ metaStore }: { metaStore: MetaStore.IMetaStore }) => {
+  const storeManagerProps = useProcessHandleManagerBaseComponentHook(metaStore)
+
+  const { processHandle, activeStore } = storeManagerProps
+
+  if (processHandle === undefined || activeStore === undefined) {
+    return <p>loading</p>
+  } else if (processHandle === null || activeStore === null) {
+    return (
+      <OnboardingProcessHandleManagerContext.Provider value={storeManagerProps}>
+        <Onboarding />
+      </OnboardingProcessHandleManagerContext.Provider>
+    )
+  } else {
+    // Typescript is dumb and doesn't understand that we've already checked for null
+    const contextProps = { ...storeManagerProps, processHandle, activeStore }
+    return (
+      <ProcessHandleManagerContext.Provider value={contextProps}>
+        <SignedinApp processHandle={processHandle} />
+      </ProcessHandleManagerContext.Provider>
+    )
+  }
+}
+
+export const App = ({ persistenceDriver }: { persistenceDriver: PersistenceDriver.IPersistenceDriver }) => {
+  const [metaStore, setMetaStore] = useState<MetaStore.IMetaStore>()
+
+  useEffect(() => {
+    MetaStore.createMetaStore(persistenceDriver).then((metaStore) => setMetaStore(metaStore))
+  }, [persistenceDriver])
+
+  if (metaStore === undefined) {
+    return <p>Loading...</p>
+  }
+
+  return <LoadedMetastoreApp metaStore={metaStore} />
 }
