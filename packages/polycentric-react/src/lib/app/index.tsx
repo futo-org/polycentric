@@ -1,11 +1,9 @@
-import { MetaStore, PersistenceDriver, ProcessHandle, Queries } from '@polycentric/polycentric-core'
-import { useEffect, useState } from 'react'
-import { BrowserRouter, HashRouter, Route, Switch } from 'react-router-dom'
-import { QueryManagerContext } from '../hooks/queryHooks'
-// TODO: When everything works, change these to lazy loading
 import { IonApp, IonRouterOutlet } from '@ionic/react'
 import { IonReactHashRouter, IonReactMemoryRouter, IonReactRouter } from '@ionic/react-router'
+import { MetaStore, PersistenceDriver, ProcessHandle, Queries } from '@polycentric/polycentric-core'
 import { createMemoryHistory } from 'history'
+import { useEffect, useState } from 'react'
+import { Route } from 'react-router-dom'
 import { FeedPage } from '../components/feed'
 import { Onboarding } from '../components/onboarding'
 import { PureSidebarProfile } from '../components/profile'
@@ -16,6 +14,7 @@ import {
   ProcessHandleManagerContext,
   useProcessHandleManagerBaseComponentHook,
 } from '../hooks/processHandleManagerHooks'
+import { QueryManagerContext } from '../hooks/queryHooks'
 
 // Check if we're in electron or not
 const isElectron = () => {
