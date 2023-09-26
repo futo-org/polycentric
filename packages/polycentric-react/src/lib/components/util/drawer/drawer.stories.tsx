@@ -1,8 +1,9 @@
-import { Drawer } from '.'
+import { DrawerTest } from '.'
 
 export default {
   title: 'Util/Drawer',
-  component: Drawer,
+  component: DrawerTest,
+
   argTypes: { setOpen: { action: 'clicked' } },
 }
 

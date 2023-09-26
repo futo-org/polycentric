@@ -1,5 +1,5 @@
 import { IonPage } from '@ionic/react'
-import { useState } from 'react'
+import { useIsMobile } from '../../hooks/styleHooks'
 import { MainSidebar } from '../sidebars/mainsidebar'
 import { Drawer } from '../util/drawer'
 
@@ -38,37 +38,34 @@ const InformationIcon = () => (
 )
 
 export const RootLayout = ({ children }: { children: React.ReactNode }) => {
-  const [showLeftSidebar, setShowLeftSidebar] = useState(false)
-  const [showRightSidebar, setShowRightSidebar] = useState(false)
+  const isMobile = useIsMobile()
 
   return (
-    <IonPage>
-      {/* Floating top bar for mobile */}
-      <div className="fixed top-0 left-0 w-full flex justify-between p-4 border bg-white md:hidden">
-        <button className="md:hidden" onClick={() => setShowLeftSidebar(!showLeftSidebar)}>
-          <MenuIcon />
-        </button>
-        <h1>Polycentric</h1>
-        <button className="md:hidden" onClick={() => setShowRightSidebar(!showRightSidebar)}>
-          <InformationIcon />
-        </button>
-      </div>
-
-      {/* Content area */}
-      <div className="flex h-screen mt-16 md:mt-0 w-full">
-        {/* Physical left sidebar for tablet+ */}
-        <aside
-          className={`border hidden lg:block h-full lg:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:ml-[calc((100vw-1536px)/2)] `}
-        >
-          <MainSidebar topics={['/tpot', '/tpot/dating']} />
-        </aside>
-        {/* Drawer sidebar for mobile */}
-        <Drawer open={showLeftSidebar} setOpen={setShowLeftSidebar} side="left">
+    <>
+      {isMobile && (
+        <Drawer contentId="main-drawer">
           <MainSidebar topics={['/tpot', '/tpot/dating']} />
         </Drawer>
-
+      )}
+      <IonPage id="main-drawer">
+        {/* <IonContent> */}
         {children}
-      </div>
-    </IonPage>
+        {/* </IonContent> */}
+
+        {/* Content area */}
+        {/* <IonContent> */}
+        {/* Physical left sidebar for tablet+ */}
+        {/* <aside
+          className={`border hidden lg:block h-full lg:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:ml-[calc((100vw-1536px)/2)] `}
+        >
+          <MainSidebar
+            topics={['/tpot', '/tpot/dating']}
+          />
+        </aside> */}
+
+        {/* {children}
+      </IonContent> */}
+      </IonPage>
+    </>
   )
 }
