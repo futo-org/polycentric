@@ -1,5 +1,7 @@
-import { Fragment } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
+import { IonModal } from '@ionic/react'
+import { Fragment } from 'react'
+import { useIsMobile } from '../../../hooks/ionicHooks'
 const XIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
     <path
@@ -21,6 +23,28 @@ export const Modal = ({
   open: boolean
   title?: string
 }): JSX.Element => {
+  const isMobile = useIsMobile()
+
+  if (isMobile) {
+    return (
+      <IonModal isOpen={open} className="bg-white">
+        <div className="flex flex-col h-screen">
+          <div className="flex justify-between items-center py-5 px-7">
+            <h1 className="text-2xl font-semibold leading-6 text-gray-900">{title}</h1>
+            <button
+              className="flex items-center rounded-full hover:bg-gray-50 border p-2"
+              aria-label="Close"
+              onClick={() => setOpen(false)}
+            >
+              <XIcon />
+            </button>
+          </div>
+          <div className="flex-grow px-7 flex flex-col justify-center">{children}</div>
+        </div>
+      </IonModal>
+    )
+  }
+
   return (
     <Transition appear show={open} as={Fragment}>
       <Dialog as="div" className="relative z-10" onClose={() => setOpen(false)}>
