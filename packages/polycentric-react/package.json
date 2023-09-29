@@ -2,7 +2,6 @@
   "name": "@polycentric/polycentric-react",
   "private": true,
   "version": "2.0.0",
-  "type": "module",
   "main": "./dist/polycentric-react.umd.js",
   "module": "./dist/polycentric-react.es.js",
   "types": "./dist/index.d.ts",
@@ -49,7 +48,7 @@
   },
   "devDependencies": {
     "@babel/core": "7.22.5",
-    "@laynezh/vite-plugin-lib-assets": "^0.5.5",
+    "@laynezh/vite-plugin-lib-assets": "^0.4.3",
     "@polycentric/polycentric-core": "*",
     "@storybook/addon-essentials": "7.0.23",
     "@storybook/addon-interactions": "7.0.23",

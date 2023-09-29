@@ -1,20 +1,21 @@
-import { IonApp, IonRouterOutlet } from '@ionic/react'
-import { IonReactHashRouter, IonReactMemoryRouter, IonReactRouter } from '@ionic/react-router'
 import { MetaStore, PersistenceDriver, ProcessHandle, Queries } from '@polycentric/polycentric-core'
-import { createMemoryHistory } from 'history'
 import { useEffect, useState } from 'react'
-import { Route } from 'react-router-dom'
+import { BrowserRouter, HashRouter, Route, Switch } from 'react-router-dom'
+import { QueryManagerContext } from '../hooks/queryHooks'
+// TODO: When everything works, change these to lazy loading
+import { IonApp, IonRouterOutlet } from '@ionic/react'
+import { IonReactMemoryRouter } from '@ionic/react-router'
+import { createMemoryHistory } from 'history'
 import { FeedPage } from '../components/feed'
 import { Onboarding } from '../components/onboarding'
 import { PureSidebarProfile } from '../components/profile'
-import { RootLayout } from '../components/rootlayout'
+import { Root } from '../components/root'
 import { SearchBox } from '../components/search/searchbox'
 import {
   OnboardingProcessHandleManagerContext,
   ProcessHandleManagerContext,
   useProcessHandleManagerBaseComponentHook,
 } from '../hooks/processHandleManagerHooks'
-import { QueryManagerContext } from '../hooks/queryHooks'
 
 // Check if we're in electron or not
 const isElectron = () => {
@@ -31,34 +32,27 @@ const memoryHistory = createMemoryHistory()
 
 const PlatformRouter = ({ children }: { children: React.ReactNode }) => {
   if (isElectron()) {
-    return <IonReactHashRouter>{children}</IonReactHashRouter>
+    return <HashRouter>{children}</HashRouter>
   }
 
   if (isStandalonePWA()) {
-    return <IonReactMemoryRouter history={memoryHistory}>{children}</IonReactMemoryRouter>
+    return (
+      <IonApp>
+        <IonReactMemoryRouter history={memoryHistory}>{children}</IonReactMemoryRouter>
+      </IonApp>
+    )
   }
 
-  return <IonReactRouter>{children}</IonReactRouter>
+  return <BrowserRouter>{children}</BrowserRouter>
 }
 
-const AppRouter = () => (
-  <>
-    <Route path="/">
-      <FeedPage>
-        <div className="p-5">
-          <SearchBox />
-          <PureSidebarProfile
-            profile={{
-              name: 'Rossman',
-              avatarURL: 'https://avatars.githubusercontent.com/u/1388441?v=4',
-              description: 'I like to repair. I like to repair. I like to repair.',
-            }}
-          />
-        </div>
-      </FeedPage>
-    </Route>
-  </>
-)
+const PlatformSwitch = ({ children }: { children: React.ReactNode }) => {
+  if (isElectron() || !isStandalonePWA()) {
+    return <Switch>{children}</Switch>
+  }
+
+  return <IonRouterOutlet>{children}</IonRouterOutlet>
+}
 
 // Currently, Polycentric can only be used while signed in
 export const SignedinApp = ({ processHandle }: { processHandle: ProcessHandle.ProcessHandle }) => {
@@ -72,15 +66,26 @@ export const SignedinApp = ({ processHandle }: { processHandle: ProcessHandle.Pr
 
   return (
     <QueryManagerContext.Provider value={queryManager}>
-      <IonApp>
-        <PlatformRouter>
-          <RootLayout>
-            <IonRouterOutlet>
-              <AppRouter />
-            </IonRouterOutlet>
-          </RootLayout>
-        </PlatformRouter>
-      </IonApp>
+      <PlatformRouter>
+        <Root>
+          <PlatformSwitch>
+            <Route path="/">
+              <FeedPage>
+                <div className="p-5">
+                  <SearchBox />
+                  <PureSidebarProfile
+                    profile={{
+                      name: 'Rossman',
+                      avatarURL: 'https://avatars.githubusercontent.com/u/1388441?v=4',
+                      description: 'I like to repair. I like to repair. I like to repair.',
+                    }}
+                  />
+                </div>
+              </FeedPage>
+            </Route>
+          </PlatformSwitch>
+        </Root>
+      </PlatformRouter>
     </QueryManagerContext.Provider>
   )
 }

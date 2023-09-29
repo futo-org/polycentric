@@ -1,11 +1,10 @@
 import { IonApp, setupIonicReact } from '@ionic/react'
 import { IonReactRouter } from '@ionic/react-router'
+import '@ionic/react/css/core.css'
 import type { Preview } from '@storybook/react'
 import React from 'react'
-
 import 'unfonts.css'
-import '../src/lib/style/tailwind.css'
-import '../src/lib/style/ionic.css'
+import '../src/lib/tailwind/theme.css'
 
 setupIonicReact({
   mode: 'ios',
