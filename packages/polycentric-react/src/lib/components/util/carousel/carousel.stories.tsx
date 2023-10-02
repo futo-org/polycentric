@@ -6,7 +6,6 @@ export default {
 }
 
 const Foo = ({ nextSlide }: { nextSlide: () => void }) => <div onClick={nextSlide}>Slide 1</div>
-
 const Bar = () => <div>slide 2</div>
 
 export const Default = {
