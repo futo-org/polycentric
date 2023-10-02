@@ -1,5 +1,7 @@
-import { Transition } from '@headlessui/react' // Make sure to install @headlessui/react and its types if using this
-import React from 'react'
+import { useEffect, useRef, useState } from 'react'
+
+import 'swiper/css'
+import { Swiper, SwiperRef, SwiperSlide } from 'swiper/react'
 
 const LeftArrow = () => (
   <svg
@@ -32,93 +34,83 @@ const RightArrow = () => (
 
 export const Carousel = ({
   childComponents,
-  itemClassName,
+  className,
+  swiperClassName,
 }: {
   childComponents: (({ nextSlide }: { nextSlide: () => void }) => JSX.Element)[]
-  itemClassName: string
+  className?: string
+  swiperClassName?: string
 }) => {
-  const [currentSlide, setCurrentSlide] = React.useState(0)
-  const [maxVisitedSlide, setMaxVisitedSlide] = React.useState(0)
+  const [currentSlide, setCurrentSlide] = useState(0)
+  const [maxVisitedSlide, setMaxVisitedSlide] = useState(0)
+  const [isTransitioning, setIsTransitioning] = useState(false)
+
+  const swiper = useRef<SwiperRef>(null)
+
+  useEffect(() => {
+    if (isTransitioning) {
+      swiper.current?.swiper.slideTo(currentSlide)
+      setIsTransitioning(false)
+    }
+  }, [isTransitioning, currentSlide])
 
   return (
-    <div className="flex flex-col space-y-3">
-      <div className="w-full flex md:space-x-3 md:items-end">
-        <button
-          className={`hidden md:flex w-20 h-20 rounded-full bg-white border justify-center items-center ${
-            currentSlide > 0 ? '' : 'invisible'
-          }`}
-          onClick={() => {
-            if (currentSlide > 0) {
-              setCurrentSlide(currentSlide - 1)
-            }
-          }}
-        >
-          <LeftArrow />
-        </button>
-        <div className={'flex-grow md:border rounded-[2.5rem] relative overflow-hidden ' + itemClassName}>
-          {childComponents.map((Child, i) => (
-            <Transition
-              key={i}
-              show={i === currentSlide}
-              enter="transition-opacity duration-300"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="transition-opacity duration-300"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
-              className="absolute top-0"
-            >
-              <Child
-                nextSlide={() => {
-                  if (currentSlide < childComponents.length - 1) {
-                    setCurrentSlide(currentSlide + 1)
-                    setMaxVisitedSlide(Math.max(currentSlide + 1, maxVisitedSlide))
-                  }
-                }}
-              />
-            </Transition>
-          ))}
+    <div className={className}>
+      <Swiper
+        onSlideChange={(swiper) => {
+          setCurrentSlide(swiper.activeIndex)
+        }}
+        allowSlideNext={currentSlide < maxVisitedSlide || isTransitioning}
+        allowSlidePrev={currentSlide > 0 || isTransitioning}
+        className={swiperClassName}
+        ref={swiper}
+      >
+        {childComponents.map((Child, i) => (
+          <SwiperSlide key={i}>
+            <Child
+              nextSlide={() => {
+                if (currentSlide < childComponents.length - 1) {
+                  setCurrentSlide(currentSlide + 1)
+                  setIsTransitioning(true)
+                  setMaxVisitedSlide(Math.max(currentSlide + 1, maxVisitedSlide))
+                }
+              }}
+            />
+          </SwiperSlide>
+        ))}
+      </Swiper>
+      <div className="hidden md:flex w-full justify-between space-x-5">
+        {currentSlide > 0 ? (
           <button
-            className={`hidden md:flex w-20 h-20 rounded-full bg-white border justify-center items-center ${
-              currentSlide < maxVisitedSlide ? '' : 'invisible'
-            }`}
-            onClick={() => {
-              if (currentSlide < childComponents.length - 1 && currentSlide < maxVisitedSlide) {
-                setCurrentSlide(currentSlide + 1)
-                setMaxVisitedSlide(Math.max(currentSlide + 1, maxVisitedSlide))
-              }
-            }}
-          >
-            <RightArrow />
-          </button>
-        </div>
-        <div className="md:hidden flex space-x-5 justify-between">
-          <button
-            className={`md:hidden flex w-20 h-20 rounded-full bg-white border justify-center items-center ${
-              currentSlide > 0 ? '' : 'invisible'
-            }`}
+            className={`swiper-button-prev md:flex justify-self-end w-20 h-20 rounded-full bg-white border justify-center items-center`}
             onClick={() => {
               if (currentSlide > 0) {
                 setCurrentSlide(currentSlide - 1)
+                setIsTransitioning(true)
               }
             }}
           >
             <LeftArrow />
           </button>
+        ) : (
+          <div />
+        )}
+        {currentSlide < maxVisitedSlide ? (
           <button
-            className={`md:hidden flex w-20 h-20 rounded-full bg-white border justify-center items-center ${
-              currentSlide < maxVisitedSlide ? '' : 'invisible'
-            }`}
+            className={`swiper-button-next justify-self-end hidden md:flex w-20 h-20 rounded-full bg-white border justify-center items-center`}
             onClick={() => {
-              if (currentSlide < childComponents.length - 1 && currentSlide < maxVisitedSlide) {
+              if (currentSlide < childComponents.length - 1) {
                 setCurrentSlide(currentSlide + 1)
+                setIsTransitioning(true)
                 setMaxVisitedSlide(Math.max(currentSlide + 1, maxVisitedSlide))
               }
             }}
           >
             <RightArrow />
           </button>
-        </div>
+        ) : (
+          <div />
+        )}
       </div>
     </div>
   )
