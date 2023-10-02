@@ -226,7 +226,7 @@ export const Onboarding = () => {
 
   return (
     <div className="lg:flex justify-center items-center">
-      <Carousel childComponents={childComponents} itemClassName="lg:max-w-7xl" />
+      <Carousel childComponents={childComponents} className="lg:max-w-7xl" />
     </div>
   )
 }
