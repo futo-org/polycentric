@@ -1,3 +1,4 @@
+import { useIsMobile } from '../../../hooks/ionicHooks'
 import { Profile } from '../../../types/profile'
 import { Compose } from '../../feed/Compose'
 import { Modal } from '../../util/modal'
@@ -20,8 +21,10 @@ export const PopupComposeReply = ({
     ContentLink?: string
   }
 }) => {
+  const isMobile = useIsMobile()
+
   return (
-    <div className="px-3 py-5 md:px-7 bg-white overflow-clip flex flex-col space-y-0 w-auto md:w-[40rem]">
+    <div className="px-3 py-5 md:px-7 bg-white overflow-clip flex flex-col space-y-0 w-auto md:w-[40rem] h-full">
       <div className="flex relative overflow-clip">
         <div className="mr-3 md:mr-4 flex-shrink-0 flex flex-col overflow-clip">
           <img src={main.author.avatarURL} className="rounded-full h-16 w-16 md:h-20 md:w-20" />
@@ -67,9 +70,12 @@ export const PopupComposeReply = ({
           </div>
         </div>
       </div>
-      <div>
-        <Compose hideTopic={false} maxTextboxHeightPx={250} topicDisabled={true} preSetTopic={main.topic} />
-      </div>
+      <Compose
+        hideTopic={false}
+        maxTextboxHeightPx={isMobile ? 0 : 250}
+        topicDisabled={true}
+        preSetTopic={main.topic}
+      />
     </div>
   )
 }
