@@ -1,37 +1,76 @@
 import { ProcessHandle, Protocol } from '@polycentric/polycentric-core'
 import Long from 'long'
 
-const canvas = document.createElement('canvas')
-const ctx = canvas.getContext('2d')
+export async function cropImageToWebp(image: Blob, x: number, y: number, width: number, height: number): Promise<Blob> {
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
 
-export async function convertImageToWebp(
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.src = URL.createObjectURL(image)
+
+    img.onload = () => {
+      canvas.width = width
+      canvas.height = height
+
+      if (ctx == null) {
+        URL.revokeObjectURL(img.src)
+        reject(new Error('Error loading context for canvas'))
+        return
+      }
+
+      ctx.drawImage(img, x, y, width, height, 0, 0, width, height)
+
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(img.src)
+        if (blob === null) {
+          reject(new Error('Error converting canvas to blob'))
+          return
+        }
+        resolve(blob)
+      }, 'image/webp')
+    }
+
+    img.onerror = function () {
+      URL.revokeObjectURL(img.src)
+      reject(new Error('Error loading image.'))
+    }
+  })
+}
+
+export async function resizeImageToWebp(
   image: Blob,
   quality = 0.7,
   maxResX = 1000,
   maxResY = 1000,
-  squareCrop = false,
+  upscale = false,
 ): Promise<[Blob, number, number]> {
   return new Promise((resolve, reject) => {
-    const img = new Image()
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
 
-    if (squareCrop && maxResX !== maxResY) {
-      throw new Error('squareCrop can only be used when maxResX === maxResY')
-    }
+    const img = new Image()
 
     img.onload = () => {
       // For a 3000x4000 image, this will return a 750x1000 image
-      // For a 30x40 image, this will return a 30x40 image
-      const ratio = Math.min(maxResX / img.width, maxResY / img.height, 1)
-      const newWidth = img.width * ratio
-      const newHeight = img.height * ratio
+      // For a 30x40 image without upscale, this will return a 30x40 image
+      // For a 30x40 image with upscale, this will return a 750x1000 image
+      let ratio
 
-      if (squareCrop === true) {
-        canvas.width = maxResX
-        canvas.height = maxResX
+      if (upscale) {
+        ratio = Math.min(maxResX / img.width, maxResY / img.height)
       } else {
-        canvas.width = newWidth
-        canvas.height = newHeight
+        ratio = Math.min(maxResX / img.width, maxResY / img.height, 1)
       }
+
+      // 4998 * Math.min(1000 / 3999, 1000 / 4998) = 999.9999999999999
+      // 5003 * Math.min(1000 / 3999, 1000 / 5003) = 1000.0000000000001
+      // Due to floating point precision, we need to round the width and height to back to integers
+      const newWidth = Math.round(img.width * ratio)
+      const newHeight = Math.round(img.height * ratio)
+
+      canvas.width = newWidth
+      canvas.height = newHeight
 
       if (ctx == null) {
         URL.revokeObjectURL(img.src)
@@ -42,13 +81,7 @@ export async function convertImageToWebp(
       // Draw the image onto the canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-      if (squareCrop === true) {
-        const x = (canvas.width - newWidth) / 2
-        const y = (canvas.height - newHeight) / 2
-        ctx.drawImage(img, x, y, newWidth, newHeight)
-      } else {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
 
       // Convert the canvas content to WebP format
       canvas.toBlob(
@@ -89,7 +122,7 @@ export const publishBlobToAvatar = async (blob: Blob, handle: ProcessHandle.Proc
     imageManifests: [],
   }
   for (const resolution of resolutions) {
-    const [newBlob, width, height] = await convertImageToWebp(blob, quality, resolution, resolution, true)
+    const [newBlob, width, height] = await resizeImageToWebp(blob, quality, resolution, resolution, true)
     const newUint8Array = await convertBlobToUint8Array(newBlob)
 
     const imageRanges = await handle.publishBlob(newUint8Array)
