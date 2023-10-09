@@ -301,3 +301,21 @@ message URLInfoDataLink {
     repeated Range     sections   = 5;
     optional string    mime       = 6;
 }
+
+message HarborChallengeResponse {
+    // HarborChallengeResponseBody
+    bytes body = 1;
+    bytes hmac = 2;
+}
+
+message HarborChallengeResponseBody {
+    bytes  challenge  = 1;
+    uint64 created_on = 2;
+}
+
+message HarborValidateRequest {
+    HarborChallengeResponse challenge     = 1;
+    PublicKey               system        = 2;
+    bytes                   signature     = 3;
+}
+
