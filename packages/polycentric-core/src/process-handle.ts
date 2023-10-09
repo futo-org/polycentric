@@ -1,14 +1,14 @@
 import * as Base64 from '@borderless/base64';
 
-import * as Store from './store';
 import Long from 'long';
-import * as Protocol from './protocol';
-import * as Models from './models';
 import * as MetaStore from './meta-store';
-import * as Util from './util';
-import * as Ranges from './ranges';
+import * as Models from './models';
 import * as PersistenceDriver from './persistence-driver';
+import * as Protocol from './protocol';
+import * as Ranges from './ranges';
+import * as Store from './store';
 import * as Synchronization from './synchronization';
+import * as Util from './util';
 
 export class SystemState {
     private _servers: Array<string>;
@@ -565,7 +565,7 @@ export class ProcessHandle {
                     event.system,
                     deleteProcess,
                     deleteProto.logicalClock,
-                    await Models.signedEventToPointer(signedEvent),
+                    Models.signedEventToPointer(signedEvent),
                 ),
             );
         }
@@ -625,7 +625,7 @@ export class ProcessHandle {
             this._listener(signedEvent);
         }
 
-        return await Models.signedEventToPointer(signedEvent);
+        return Models.signedEventToPointer(signedEvent);
     }
 }
 
