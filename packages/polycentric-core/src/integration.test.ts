@@ -3,15 +3,15 @@ import Long from 'long';
 import * as Base64 from '@borderless/base64';
 import Sharp from 'sharp';
 
-import * as ProcessHandle from './process-handle';
-import * as Models from './models';
-import * as Synchronization from './synchronization';
-import * as Protocol from './protocol';
 import * as APIMethods from './api-methods';
+import * as Models from './models';
+import * as ProcessHandle from './process-handle';
+import * as Protocol from './protocol';
+import * as Synchronization from './synchronization';
 import * as Util from './util';
 
-const TEST_SERVER = 'http://127.0.0.1:8081';
-// const TEST_SERVER = 'https://srv1-stg.polycentric.io';
+// const TEST_SERVER = 'http://127.0.0.1:8081';
+const TEST_SERVER = 'https://srv1-stg.polycentric.io';
 
 async function setAvatarImage(
     handle: ProcessHandle.ProcessHandle,
@@ -87,7 +87,7 @@ describe('integration', () => {
 
         expect(
             Models.Pointer.equal(
-                await Models.signedEventToPointer(
+                Models.signedEventToPointer(
                     Models.SignedEvent.fromProto(resolved.matches[0].claim!),
                 ),
                 claimPointer,
@@ -98,7 +98,7 @@ describe('integration', () => {
 
         expect(
             Models.Pointer.equal(
-                await Models.signedEventToPointer(
+                Models.signedEventToPointer(
                     Models.SignedEvent.fromProto(
                         resolved.matches[0]!.proofChain[0]!,
                     ),
@@ -366,7 +366,7 @@ describe('integration', () => {
                 throw new Error('expected event');
             }
             const signedEvent = Models.SignedEvent.fromProto(item.event);
-            const pointer = await Models.signedEventToPointer(signedEvent);
+            const pointer = Models.signedEventToPointer(signedEvent);
             const reference = Models.pointerToReference(pointer);
             referenceToItem.set(referenceToString(reference), item);
         }
