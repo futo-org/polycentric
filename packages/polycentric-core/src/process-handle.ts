@@ -562,6 +562,22 @@ export class ProcessHandle {
             ),
         );
 
+        if (
+            event.contentType.equals(Models.ContentType.ContentTypeOpinion) &&
+            event.references.length === 1 &&
+            event.lwwElement
+        ) {
+            const action = await this._store.opinionIndex.put(
+                event.system,
+                event.references[0],
+                event.lwwElement,
+            );
+
+            if (action) {
+                actions.push(action);
+            }
+        }
+
         await this._store.level.batch(actions);
 
         if (this._listener !== undefined) {

@@ -51,6 +51,10 @@ export namespace Opinion {
     export const OpinionLike = makeOpinion(1);
     export const OpinionDislike = makeOpinion(2);
     export const OpinionNeutral = makeOpinion(3);
+
+    export function equal(a: Opinion, b: Opinion): boolean {
+        return Util.buffersEqual(a, b);
+    }
 }
 
 export namespace PublicKey {
