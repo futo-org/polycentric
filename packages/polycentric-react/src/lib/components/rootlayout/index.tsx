@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Outlet } from 'react-router-dom'
-import { Drawer } from '../util/drawer'
 import { MainSidebar } from '../sidebars/mainsidebar'
+import { Drawer } from '../util/drawer'
+import { IonPage } from '@ionic/react'
 
 const MenuIcon = () => (
   <svg
@@ -37,12 +37,12 @@ const InformationIcon = () => (
   </svg>
 )
 
-export const Root = () => {
+export const RootLayout = ({ children }: { children: React.ReactNode }) => {
   const [showLeftSidebar, setShowLeftSidebar] = useState(false)
   const [showRightSidebar, setShowRightSidebar] = useState(false)
 
   return (
-    <div className="h-screen">
+    <IonPage>
       {/* Floating top bar for mobile */}
       <div className="fixed top-0 left-0 w-full flex justify-between p-4 border bg-white md:hidden">
         <button className="md:hidden" onClick={() => setShowLeftSidebar(!showLeftSidebar)}>
@@ -81,8 +81,8 @@ export const Root = () => {
           />
         </Drawer>
 
-        <Outlet />
+        {children}
       </div>
-    </div>
+    </IonPage>
   )
 }

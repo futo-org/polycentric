@@ -1,5 +1,5 @@
 import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TopicSuggestionBox } from '../TopicSuggestionBox'
 
 const startsWithSlash = /^\/.*/
@@ -78,12 +78,14 @@ export const Compose = ({
   preSetTopic,
   hideTopic,
   topicDisabled = false,
+  flexGrow = false,
   maxTextboxHeightPx = 440,
   minTextboxHeightPx = 125,
 }: {
   preSetTopic?: string
   hideTopic?: boolean
   topicDisabled?: boolean
+  flexGrow?: boolean
   maxTextboxHeightPx?: number
   minTextboxHeightPx?: number
 }) => {
@@ -92,62 +94,81 @@ export const Compose = ({
   const [upload, setUpload] = useState<File | null>(null)
   const uploadRef = useRef<HTMLInputElement | null>(null)
 
+  const [imageUrl, setImageUrl] = useState<string | undefined>()
+
+  useEffect(() => {
+    let currentURL: string | undefined
+    if (upload) {
+      currentURL = URL.createObjectURL(upload)
+      setImageUrl(currentURL)
+    }
+    return () => {
+      if (currentURL) URL.revokeObjectURL(currentURL)
+    }
+  }, [upload])
+
   return (
-    <div className="flex flex-col">
-      <div className="">
-        {hideTopic ? null : <TopicBox topic={topic} setTopic={setTopic} disabled={topicDisabled} />}
-        <div className="flex flex-col mt-1.5 w-full border rounded-lg focus-within:border-black ">
-          <textarea
-            className={`w-full resize-none text-2xl rounded-lg p-4 focus:outline-none`}
-            style={{ minHeight: minTextboxHeightPx + 'px' }}
-            value={content}
-            onChange={(e) => {
+    <div className={`flex flex-col ${flexGrow ? 'flex-grow' : ''}`}>
+      {hideTopic ? null : <TopicBox topic={topic} setTopic={setTopic} disabled={topicDisabled} />}
+      <div
+        className={`flex flex-col mt-1.5 w-full border rounded-lg focus-within:border-gray-300  ${
+          flexGrow ? 'flex-grow' : ''
+        }`}
+      >
+        <textarea
+          className={`w-full resize-none text-2xl rounded-lg p-4 focus:outline-none`}
+          style={flexGrow ? { height: '100%' } : { minHeight: minTextboxHeightPx + 'px' }}
+          value={content}
+          onChange={(e) => {
+            if (flexGrow === false) {
               e.target.style.height = '0'
               let height = Math.max(minTextboxHeightPx, e.target.scrollHeight)
-              height = Math.min(height, maxTextboxHeightPx)
+              if (maxTextboxHeightPx !== 0) {
+                height = Math.min(height, maxTextboxHeightPx)
+              }
               e.target.style.height = `${height}px`
-              setContent(e.target.value)
-            }}
-            placeholder="What's hapenneing?!?!?!?!"
-          />
-          {upload && (
-            <div>
-              <div className="p-4 inline-block relative">
-                <img
-                  className="max-h-[20rem] max-w-[20rem] rounded-sm inline-block border-gray-1000 border"
-                  src={URL.createObjectURL(upload)}
-                />
-                <button className="absolute top-5 right-5 " onClick={() => setUpload(null)}>
-                  <XCircleIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
-                </button>
-              </div>
+            }
+            setContent(e.target.value)
+          }}
+          placeholder="What's hapenneing?!?!?!?!"
+        />
+        {upload && (
+          <div>
+            <div className="p-4 inline-block relative">
+              <img
+                className="max-h-[20rem] max-w-[20rem] rounded-sm inline-block border-gray-1000 border"
+                src={imageUrl}
+              />
+              <button className="absolute top-5 right-5 " onClick={() => setUpload(null)}>
+                <XCircleIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
+              </button>
             </div>
-          )}
-        </div>
-
-        <div className="w-full flex justify-between pt-4">
-          <div className="flex items-start space-x-4">
-            <button onClick={() => uploadRef.current?.click()}>
-              <PhotoIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
-            </button>
-            <input
-              type="file"
-              className="hidden"
-              name="img"
-              accept="image/*"
-              ref={uploadRef}
-              onChange={(e) => {
-                const { files } = e.target
-                if (files !== null && files.length > 0) {
-                  setUpload(files[0])
-                }
-              }}
-            />
           </div>
-          <button className="bg-blue-500 hover:bg-blue-600 border text-white rounded-full px-8 py-2 font-bold text-lg tracking-wide">
-            Post
+        )}
+      </div>
+
+      <div className="w-full flex justify-between pt-4">
+        <div className="flex items-start space-x-4">
+          <button onClick={() => uploadRef.current?.click()}>
+            <PhotoIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
           </button>
+          <input
+            type="file"
+            className="hidden"
+            name="img"
+            accept="image/*"
+            ref={uploadRef}
+            onChange={(e) => {
+              const { files } = e.target
+              if (files !== null && files.length > 0) {
+                setUpload(files[0])
+              }
+            }}
+          />
         </div>
+        <button className="bg-blue-500 hover:bg-blue-600 border text-white rounded-full px-8 py-2 font-bold text-lg tracking-wide">
+          Post
+        </button>
       </div>
     </div>
   )

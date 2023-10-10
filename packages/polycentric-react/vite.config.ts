@@ -1,12 +1,11 @@
+import libAssetsPlugin from '@laynezh/vite-plugin-lib-assets'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
-import { defineConfig } from 'vitest/config'
-import dts from 'vite-plugin-dts'
 import tailwindcss from 'tailwindcss'
-import { UserConfigExport } from 'vite'
-import { name } from './package.json'
 import unfonts from 'unplugin-fonts/vite'
-import libAssetsPlugin from '@laynezh/vite-plugin-lib-assets'
+import dts from 'vite-plugin-dts'
+import { defineConfig } from 'vitest/config'
+import { name } from './package.json'
 
 const app = defineConfig(({ mode }) => ({
   plugins: [
