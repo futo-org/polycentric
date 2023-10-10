@@ -77,13 +77,83 @@ function indexSystemContentTypeUnixMillisecondsProcessKey(
     ]);
 }
 
+export class OpinionIndex {
+    private _level: PersistenceDriver.BinaryAbstractSubLevel;
+
+    constructor(level: PersistenceDriver.BinaryAbstractSubLevel) {
+        this._level = level;
+    }
+
+    private makeKey(
+        system: Models.PublicKey.PublicKey,
+        subject: Protocol.Reference,
+    ): Uint8Array {
+        return Util.concatBuffers([
+            Protocol.PublicKey.encode(system).finish(),
+            Protocol.Reference.encode(subject).finish(),
+        ]);
+    }
+
+    public async getRawWithKey(
+        key: Uint8Array,
+    ): Promise<Protocol.LWWElement | undefined> {
+        const attempt = await PersistenceDriver.tryLoadKey(this._level, key);
+
+        if (attempt) {
+            return Protocol.LWWElement.decode(attempt);
+        } else {
+            return undefined;
+        }
+    }
+
+    public async put(
+        system: Models.PublicKey.PublicKey,
+        subject: Protocol.Reference,
+        lwwElement: Protocol.LWWElement,
+    ): Promise<PersistenceDriver.BinaryPutLevel | undefined> {
+        const key = this.makeKey(system, subject);
+
+        const existing = await this.getRawWithKey(key);
+
+        if (
+            existing &&
+            (existing.unixMilliseconds.greaterThan(
+                lwwElement.unixMilliseconds,
+            ) ||
+                Util.buffersEqual(existing.value, lwwElement.value))
+        ) {
+            return undefined;
+        }
+
+        return {
+            type: 'put',
+            key: key,
+            value: Protocol.LWWElement.encode(lwwElement).finish(),
+            sublevel: this._level,
+        };
+    }
+
+    public async get(
+        system: Models.PublicKey.PublicKey,
+        subject: Protocol.Reference,
+    ): Promise<Models.Opinion.Opinion> {
+        const attempt = await this.getRawWithKey(this.makeKey(system, subject));
+
+        if (attempt) {
+            return attempt.value as Models.Opinion.Opinion;
+        } else {
+            return Models.Opinion.OpinionNeutral;
+        }
+    }
+}
+
 export class Store {
     level: PersistenceDriver.BinaryAbstractLevel;
     levelSystemStates: PersistenceDriver.BinaryAbstractSubLevel;
     levelProcessStates: PersistenceDriver.BinaryAbstractSubLevel;
     levelEvents: PersistenceDriver.BinaryAbstractSubLevel;
-
     levelIndexSystemContentTypeUnixMillisecondsProcess: PersistenceDriver.BinaryAbstractSubLevel;
+    opinionIndex: OpinionIndex;
 
     constructor(level: PersistenceDriver.BinaryAbstractLevel) {
         this.level = level;
@@ -111,6 +181,13 @@ export class Store {
                     valueEncoding: 'buffer',
                 },
             ) as PersistenceDriver.BinaryAbstractSubLevel;
+
+        this.opinionIndex = new OpinionIndex(
+            this.level.sublevel('opinions', {
+                keyEncoding: 'buffer',
+                valueEncoding: 'buffer',
+            }) as PersistenceDriver.BinaryAbstractSubLevel,
+        );
     }
 
     public async setProcessSecret(

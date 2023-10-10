@@ -194,6 +194,15 @@ describe('integration', () => {
             dislikes: 0,
         });
 
+        expect(
+            Models.Opinion.equal(
+                await bernstein
+                    .store()
+                    .opinionIndex.get(bernstein.system(), subject),
+                Models.Opinion.OpinionNeutral,
+            ),
+        ).toStrictEqual(true);
+
         await bernstein.opinion(subject, Models.Opinion.OpinionLike);
         await ProcessHandle.fullSync(bernstein);
 
@@ -201,6 +210,15 @@ describe('integration', () => {
             likes: 1,
             dislikes: 0,
         });
+
+        expect(
+            Models.Opinion.equal(
+                await bernstein
+                    .store()
+                    .opinionIndex.get(bernstein.system(), subject),
+                Models.Opinion.OpinionLike,
+            ),
+        ).toStrictEqual(true);
 
         await shamir.opinion(subject, Models.Opinion.OpinionLike);
         await ProcessHandle.fullSync(shamir);
@@ -218,6 +236,15 @@ describe('integration', () => {
             dislikes: 1,
         });
 
+        expect(
+            Models.Opinion.equal(
+                await bernstein
+                    .store()
+                    .opinionIndex.get(bernstein.system(), subject),
+                Models.Opinion.OpinionDislike,
+            ),
+        ).toStrictEqual(true);
+
         await bernstein.opinion(subject, Models.Opinion.OpinionNeutral);
         await ProcessHandle.fullSync(bernstein);
 
@@ -228,6 +255,15 @@ describe('integration', () => {
             likes: 0,
             dislikes: 0,
         });
+
+        expect(
+            Models.Opinion.equal(
+                await bernstein
+                    .store()
+                    .opinionIndex.get(bernstein.system(), subject),
+                Models.Opinion.OpinionNeutral,
+            ),
+        ).toStrictEqual(true);
     });
 
     test('comment', async () => {
