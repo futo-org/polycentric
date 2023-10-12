@@ -238,6 +238,23 @@ export class CRDTElementSetIndex {
 
         return result;
     }
+
+    public async queryIfAdded(
+        system: Models.PublicKey.PublicKey,
+        contentType: Models.ContentType.ContentType,
+        value: Uint8Array,
+    ): Promise<boolean> {
+        const key = this.makeKey(
+            system,
+            contentType,
+            Protocol.LWWElementSet_Operation.ADD,
+            value,
+        );
+
+        const attempt = await PersistenceDriver.tryLoadKey(this._level, key);
+
+        return attempt !== undefined;
+    }
 }
 
 export class OpinionIndex {

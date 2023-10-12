@@ -292,6 +292,26 @@ export class ProcessHandle {
         );
     }
 
+    public async follow(
+        system: Models.PublicKey.PublicKey,
+    ): Promise<Models.Pointer.Pointer> {
+        return await this.setCRDTElementSetItem(
+            Models.ContentType.ContentTypeFollow,
+            Protocol.PublicKey.encode(system).finish(),
+            Protocol.LWWElementSet_Operation.ADD,
+        );
+    }
+
+    public async unfollow(
+        system: Models.PublicKey.PublicKey,
+    ): Promise<Models.Pointer.Pointer> {
+        return await this.setCRDTElementSetItem(
+            Models.ContentType.ContentTypeFollow,
+            Protocol.PublicKey.encode(system).finish(),
+            Protocol.LWWElementSet_Operation.REMOVE,
+        );
+    }
+
     public async addServer(server: string): Promise<Models.Pointer.Pointer> {
         return await this.setCRDTElementSetItem(
             Models.ContentType.ContentTypeServer,
