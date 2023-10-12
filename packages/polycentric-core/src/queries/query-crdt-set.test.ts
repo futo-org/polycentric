@@ -1,3 +1,4 @@
+/* eslint jest/no-conditional-expect: 0 */
 import * as ProcessHandle from '../process-handle';
 import * as QueryIndex from './query-index';
 import * as QueryCRDTSet from './query-crdt-set';
