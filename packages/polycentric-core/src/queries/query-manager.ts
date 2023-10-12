@@ -6,6 +6,7 @@ import * as QueryIndex from './query-index';
 import * as QueryEvent from './query-event';
 import * as QueryCRDT from './query-crdt';
 import * as QueryBlob from './query-blob';
+import * as QueryCRDTSet from './query-crdt-set';
 
 export class QueryManager {
     processHandle: ProcessHandle.ProcessHandle;
@@ -15,6 +16,7 @@ export class QueryManager {
     public queryEvent: QueryEvent.QueryManager;
     public queryCRDT: QueryCRDT.QueryManager;
     public queryBlob: QueryBlob.QueryManager;
+    public queryCRDTSet: QueryCRDTSet.QueryManager;
 
     public constructor(processHandle: ProcessHandle.ProcessHandle) {
         this.processHandle = processHandle;
@@ -24,6 +26,7 @@ export class QueryManager {
         this.queryEvent = new QueryEvent.QueryManager(processHandle);
         this.queryCRDT = new QueryCRDT.QueryManager(processHandle);
         this.queryBlob = new QueryBlob.QueryManager(processHandle);
+        this.queryCRDTSet = new QueryCRDTSet.QueryManager(this.queryIndex);
 
         processHandle.setListener((signedEvent) => {
             this.update(signedEvent);
