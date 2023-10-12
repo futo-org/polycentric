@@ -234,7 +234,7 @@ export async function getSearch(
     server: string,
     searchQuery: string,
     cursor?: Uint8Array,
-): Promise<Protocol.ResultEventsAndRelatedEventsAndCursor> {
+): Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type> {
     let path = `/search?search=${encodeURIComponent(searchQuery)}`;
 
     if (cursor !== undefined) {
@@ -252,7 +252,7 @@ export async function getSearch(
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
-    return Protocol.ResultEventsAndRelatedEventsAndCursor.decode(rawBody);
+    return Models.ResultEventsAndRelatedEventsAndCursor.fromBuffer(rawBody);
 }
 
 export async function getHead(
@@ -277,4 +277,28 @@ export async function getHead(
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
     return Protocol.Events.decode(rawBody);
+}
+
+export async function getExplore(
+    server: string,
+    cursor?: Uint8Array,
+): Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type> {
+    let path = '/explore';
+
+    if (cursor !== undefined) {
+        path += `&cursor=${Base64.encodeUrl(cursor)}`;
+    }
+
+    const response = await fetch(server + path, {
+        method: 'GET',
+        headers: new Headers({
+            'content-type': 'application/octet-stream',
+        }),
+    });
+
+    await checkResponse('getExplore', response);
+
+    const rawBody = new Uint8Array(await response.arrayBuffer());
+
+    return Models.ResultEventsAndRelatedEventsAndCursor.fromBuffer(rawBody);
 }

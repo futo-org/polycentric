@@ -737,3 +737,56 @@ export namespace URLInfo {
         return Protocol.ExportBundle.decode(proto.body);
     }
 }
+
+export namespace Events {
+    interface TypeI {
+        events: Array<SignedEvent.SignedEvent>;
+    };
+
+    export type Type = Readonly<TypeI> & {
+        readonly __tag: unique symbol;
+    };
+
+    export function fromProto(
+        proto: Protocol.Events,
+    ): Type {
+        proto.events.forEach(SignedEvent.fromProto);
+
+        return proto as Type;
+    }
+}
+
+export namespace ResultEventsAndRelatedEventsAndCursor {
+    interface TypeI{
+        resultEvents: Events.Type;
+        relatedEvents: Events.Type;
+        cursor: Uint8Array | undefined;
+    };
+
+    export type Type = Readonly<TypeI> & {
+        readonly __tag: unique symbol;
+    };
+
+    export function fromProto(
+        proto: Protocol.ResultEventsAndRelatedEventsAndCursor,
+    ): Type {
+        if (proto.resultEvents === undefined) {
+            throw new Error("expected resultEvents");
+        }
+
+        if (proto.relatedEvents === undefined) {
+            throw new Error("expectd relatedEvents");
+        }
+
+        Events.fromProto(proto.resultEvents);
+        Events.fromProto(proto.relatedEvents);
+
+        return proto as Type;
+    }
+
+    export function fromBuffer(buffer: Uint8Array): Type {
+        return fromProto(
+            Protocol.ResultEventsAndRelatedEventsAndCursor.decode(buffer),
+        );
+    }
+}
