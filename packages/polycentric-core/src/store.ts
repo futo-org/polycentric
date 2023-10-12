@@ -77,6 +77,169 @@ function indexSystemContentTypeUnixMillisecondsProcessKey(
     ]);
 }
 
+export class CRDTElementSetIndex {
+    private _level: PersistenceDriver.BinaryAbstractSubLevel;
+
+    constructor(level: PersistenceDriver.BinaryAbstractSubLevel) {
+        this._level = level;
+    }
+
+    private makeKey(
+        system: Models.PublicKey.PublicKey,
+        contentType: Models.ContentType.ContentType,
+        operation: Protocol.LWWElementSet_Operation,
+        value: Uint8Array | undefined,
+    ): Uint8Array {
+        const buffers = [
+            Protocol.PublicKey.encode(system).finish(),
+            new Uint8Array(contentType.toBytesBE()),
+            new Uint8Array([operation]),
+        ];
+
+        if (value) {
+            buffers.push(value);
+        }
+
+        return Util.concatBuffers(buffers);
+    }
+
+    public async ingest(
+        signedEvent: Models.SignedEvent.SignedEvent,
+        event: Models.Event.Event,
+    ): Promise<Array<PersistenceDriver.BinaryUpdateLevel>> {
+        if (event.lwwElementSet === undefined) {
+            return [];
+        }
+
+        const addKey = this.makeKey(
+            event.system,
+            event.contentType,
+            Protocol.LWWElementSet_Operation.ADD,
+            event.lwwElementSet.value,
+        );
+
+        const removeKey = this.makeKey(
+            event.system,
+            event.contentType,
+            Protocol.LWWElementSet_Operation.REMOVE,
+            event.lwwElementSet.value,
+        );
+
+        const potentialExistingAdd = await PersistenceDriver.tryLoadKey(
+            this._level,
+            addKey,
+        );
+
+        const potentialExistingRemove = await PersistenceDriver.tryLoadKey(
+            this._level,
+            removeKey,
+        );
+
+        if (potentialExistingAdd && potentialExistingRemove) {
+            throw new Error('CRDTElementSetIndex invariant violated');
+        }
+
+        const potentialExisting =
+            potentialExistingAdd ?? potentialExistingRemove;
+
+        const parsedPotentialExisting = potentialExisting
+            ? Long.fromBytesBE(Array.from(potentialExisting))
+            : undefined;
+
+        if (
+            parsedPotentialExisting === undefined ||
+            parsedPotentialExisting.lessThan(
+                event.lwwElementSet.unixMilliseconds,
+            )
+        ) {
+            const key =
+                event.lwwElementSet.operation ===
+                Protocol.LWWElementSet_Operation.ADD
+                    ? addKey
+                    : removeKey;
+
+            const operations: Array<PersistenceDriver.BinaryUpdateLevel> = [];
+
+            operations.push({
+                type: 'put',
+                key: key,
+                value: new Uint8Array(
+                    event.lwwElementSet.unixMilliseconds.toBytesBE(),
+                ),
+                sublevel: this._level,
+            });
+
+            let keyToRemove: Uint8Array | undefined = undefined;
+
+            if (
+                potentialExistingAdd &&
+                event.lwwElementSet.operation ===
+                    Protocol.LWWElementSet_Operation.REMOVE
+            ) {
+                keyToRemove = addKey;
+            } else if (
+                potentialExistingRemove &&
+                event.lwwElementSet.operation ===
+                    Protocol.LWWElementSet_Operation.ADD
+            ) {
+                keyToRemove = removeKey;
+            }
+
+            if (keyToRemove) {
+                operations.push({
+                    type: 'del',
+                    key: keyToRemove,
+                    sublevel: this._level,
+                });
+            }
+
+            return operations;
+        }
+
+        return [];
+    }
+
+    public async query(
+        system: Models.PublicKey.PublicKey,
+        contentType: Models.ContentType.ContentType,
+        value: Uint8Array | undefined,
+        limit: number,
+    ): Promise<Array<Uint8Array>> {
+        const suffix = this.makeKey(
+            system,
+            contentType,
+            Protocol.LWWElementSet_Operation.ADD,
+            undefined,
+        );
+
+        const key = this.makeKey(
+            system,
+            contentType,
+            Protocol.LWWElementSet_Operation.ADD,
+            value,
+        );
+
+        const rows = await this._level
+            .iterator({
+                gte: key,
+                limit: value ? limit + 1 : limit,
+            })
+            .all();
+
+        let result = [];
+
+        for (const [k] of rows) {
+            if (!Util.bufferSuffixMatch(k, suffix)) {
+                continue;
+            }
+
+            result.push(k.slice(suffix.length));
+        }
+
+        return result;
+    }
+}
+
 export class OpinionIndex {
     private _level: PersistenceDriver.BinaryAbstractSubLevel;
 
@@ -154,6 +317,7 @@ export class Store {
     levelEvents: PersistenceDriver.BinaryAbstractSubLevel;
     levelIndexSystemContentTypeUnixMillisecondsProcess: PersistenceDriver.BinaryAbstractSubLevel;
     opinionIndex: OpinionIndex;
+    crdtElementSetIndex: CRDTElementSetIndex;
 
     constructor(level: PersistenceDriver.BinaryAbstractLevel) {
         this.level = level;
@@ -184,6 +348,13 @@ export class Store {
 
         this.opinionIndex = new OpinionIndex(
             this.level.sublevel('opinions', {
+                keyEncoding: 'buffer',
+                valueEncoding: 'buffer',
+            }) as PersistenceDriver.BinaryAbstractSubLevel,
+        );
+
+        this.crdtElementSetIndex = new CRDTElementSetIndex(
+            this.level.sublevel('indexCRDTElementSet', {
                 keyEncoding: 'buffer',
                 valueEncoding: 'buffer',
             }) as PersistenceDriver.BinaryAbstractSubLevel,
@@ -251,7 +422,6 @@ export class Store {
         if (attempt === undefined) {
             return {
                 crdtItems: [],
-                crdtSetItems: [],
                 processes: [],
             };
         } else {

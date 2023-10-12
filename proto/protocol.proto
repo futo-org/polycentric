@@ -186,7 +186,7 @@ message StorageTypeCRDTItem {
 }
 
 message StorageTypeSystemState {
-    repeated StorageTypeCRDTSetItem crdt_set_items = 1;
+    reserved 1;
     repeated Process                processes      = 2;
     repeated StorageTypeCRDTItem    crdt_items     = 3;
 }
