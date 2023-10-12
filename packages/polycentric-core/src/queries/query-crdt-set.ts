@@ -1,11 +1,18 @@
+import * as Base64 from '@borderless/base64';
+
 import * as QueryIndex from './query-index';
 import * as Shared from './shared';
 import * as Models from '../models';
 import * as Protocol from '../protocol';
 
+type StateForItem = {
+    cell: QueryIndex.Cell;
+    lwwElement: Protocol.LWWElementSet;
+};
+
 type StateForQuery = {
     queryIndexCallback: QueryIndex.Callback;
-    items: Map<string, Protocol.LWWElement>;
+    items: Map<string, StateForItem>;
 };
 
 export class QueryManager {
@@ -26,13 +33,61 @@ export class QueryManager {
             throw new Error('duplicated callback QueryCRDTSet');
         }
 
-        const queryIndexCallback = (
-            params: QueryIndex.CallbackParameters,
-        ) => {};
+        const items = new Map();
+
+        const queryIndexCallback = (params: QueryIndex.CallbackParameters) => {
+            if (params.remove.length > 0) {
+                throw new Error('delete never expected for QueryCRDTSet');
+            }
+
+            const toAdd: Array<QueryIndex.Cell> = [];
+            const toRemove: Array<QueryIndex.Cell> = [];
+
+            for (const cell of params.add) {
+                if (cell.signedEvent === undefined) {
+                    throw new Error('expected signed event');
+                }
+
+                const event = Models.Event.fromBuffer(cell.signedEvent.event);
+
+                if (event.lwwElementSet === undefined) {
+                    throw new Error('expected lwwElement');
+                }
+
+                const key = Base64.encode(event.lwwElementSet.value);
+
+                const potential = items.get(key);
+
+                if (
+                    potential === undefined ||
+                    potential.lwwElement.unixMilliseconds.lessThan(
+                        event.lwwElementSet.unixMilliseconds,
+                    )
+                ) {
+                    items.set(key, {
+                        cell: cell,
+                        lwwElement: event.lwwElementSet,
+                    });
+
+                    toAdd.push(cell);
+
+                    if (potential) {
+                        toRemove.push(cell);
+                    }
+                }
+            }
+
+            if (toAdd.length > 0 || toRemove.length > 0) {
+                callback({
+                    add: toAdd,
+                    remove: toRemove,
+                });
+            }
+        };
 
         const stateForQuery = {
             queryIndexCallback: queryIndexCallback,
-            items: new Map(),
+            items: items,
         };
 
         this._state.set(callback, stateForQuery);
