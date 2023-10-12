@@ -69,7 +69,12 @@ export class QueryManager {
                         lwwElement: event.lwwElementSet,
                     });
 
-                    toAdd.push(cell);
+                    if (
+                        event.lwwElementSet.operation ===
+                        Protocol.LWWElementSet_Operation.ADD
+                    ) {
+                        toAdd.push(cell);
+                    }
 
                     if (potential) {
                         toRemove.push(cell);
