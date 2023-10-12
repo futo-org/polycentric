@@ -228,7 +228,7 @@ export class CRDTElementSetIndex {
 
         let result = [];
 
-        for (const [k,] of rows) {
+        for (const [k] of rows) {
             if (!Util.bufferSuffixMatch(k, suffix)) {
                 continue;
             }
