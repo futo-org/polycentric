@@ -2,6 +2,7 @@ import Long from 'long';
 import * as ProcessHandle from './process-handle';
 import * as Models from './models';
 import * as Util from './util';
+import * as Protocol from './protocol';
 
 describe('processHandle', () => {
     test('basic post', async () => {
@@ -105,5 +106,30 @@ describe('processHandle', () => {
         const pointer = await processHandle.post('jej');
 
         await processHandle.delete(pointer.process, pointer.logicalClock);
+    });
+
+    test('following', async () => {
+        const processHandle = await ProcessHandle.createTestProcessHandle();
+        const subjectHandle = await ProcessHandle.createTestProcessHandle();
+
+        const expectState = async (expected: boolean) => {
+            expect(
+                await processHandle
+                    .store()
+                    .crdtElementSetIndex.queryIfAdded(
+                        processHandle.system(),
+                        Models.ContentType.ContentTypeFollow,
+                        Protocol.PublicKey.encode(
+                            subjectHandle.system(),
+                        ).finish(),
+                    ),
+            ).toStrictEqual(expected);
+        };
+
+        await expectState(false);
+        await processHandle.follow(subjectHandle.system());
+        await expectState(true);
+        await processHandle.unfollow(subjectHandle.system());
+        await expectState(false);
     });
 });
