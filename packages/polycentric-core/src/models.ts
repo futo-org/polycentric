@@ -741,15 +741,13 @@ export namespace URLInfo {
 export namespace Events {
     interface TypeI {
         events: Array<SignedEvent.SignedEvent>;
-    };
+    }
 
     export type Type = Readonly<TypeI> & {
         readonly __tag: unique symbol;
     };
 
-    export function fromProto(
-        proto: Protocol.Events,
-    ): Type {
+    export function fromProto(proto: Protocol.Events): Type {
         proto.events.forEach(SignedEvent.fromProto);
 
         return proto as Type;
@@ -757,11 +755,11 @@ export namespace Events {
 }
 
 export namespace ResultEventsAndRelatedEventsAndCursor {
-    interface TypeI{
+    interface TypeI {
         resultEvents: Events.Type;
         relatedEvents: Events.Type;
         cursor: Uint8Array | undefined;
-    };
+    }
 
     export type Type = Readonly<TypeI> & {
         readonly __tag: unique symbol;
@@ -771,11 +769,11 @@ export namespace ResultEventsAndRelatedEventsAndCursor {
         proto: Protocol.ResultEventsAndRelatedEventsAndCursor,
     ): Type {
         if (proto.resultEvents === undefined) {
-            throw new Error("expected resultEvents");
+            throw new Error('expected resultEvents');
         }
 
         if (proto.relatedEvents === undefined) {
-            throw new Error("expectd relatedEvents");
+            throw new Error('expectd relatedEvents');
         }
 
         Events.fromProto(proto.resultEvents);
