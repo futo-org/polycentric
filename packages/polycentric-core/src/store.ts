@@ -422,7 +422,6 @@ export class Store {
         if (attempt === undefined) {
             return {
                 crdtItems: [],
-                crdtSetItems: [],
                 processes: [],
             };
         } else {
