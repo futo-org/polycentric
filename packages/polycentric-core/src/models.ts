@@ -769,11 +769,11 @@ export namespace ResultEventsAndRelatedEventsAndCursor {
         proto: Protocol.ResultEventsAndRelatedEventsAndCursor,
     ): Type {
         if (proto.resultEvents === undefined) {
-            throw new Error('expected resultEvents');
+            proto.resultEvents = { events: [] };
         }
 
         if (proto.relatedEvents === undefined) {
-            throw new Error('expectd relatedEvents');
+            proto.relatedEvents = { events: [] };
         }
 
         Events.fromProto(proto.resultEvents);
