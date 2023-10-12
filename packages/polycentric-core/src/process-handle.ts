@@ -69,23 +69,6 @@ export class SystemState {
 function protoSystemStateToSystemState(
     proto: Protocol.StorageTypeSystemState,
 ): SystemState {
-    const servers = [];
-    const authorities = [];
-
-    for (const item of proto.crdtSetItems) {
-        if (
-            item.contentType.equals(Models.ContentType.ContentTypeServer) &&
-            item.operation === Protocol.LWWElementSet_Operation.ADD
-        ) {
-            servers.push(Util.decodeText(item.value));
-        } else if (
-            item.contentType.equals(Models.ContentType.ContentTypeAuthority) &&
-            item.operation === Protocol.LWWElementSet_Operation.ADD
-        ) {
-            authorities.push(Util.decodeText(item.value));
-        }
-    }
-
     const processes = [];
 
     for (const process of proto.processes) {
@@ -116,8 +99,8 @@ function protoSystemStateToSystemState(
     }
 
     return new SystemState(
-        servers,
-        authorities,
+        [],
+        [],
         processes,
         username,
         description,
@@ -427,6 +410,37 @@ export class ProcessHandle {
 
         const systemState = protoSystemStateToSystemState(protoSystemState);
 
+        const loadCRDTElementSetItems = async (
+            contentType: Models.ContentType.ContentType,
+        ) => {
+            return await this._store.crdtElementSetIndex.query(
+                system,
+                contentType,
+                undefined,
+                10,
+            );
+        };
+
+        systemState
+            .servers()
+            .push(
+                ...(
+                    await loadCRDTElementSetItems(
+                        Models.ContentType.ContentTypeServer,
+                    )
+                ).map(Util.decodeText),
+            );
+
+        systemState
+            .authorities()
+            .push(
+                ...(
+                    await loadCRDTElementSetItems(
+                        Models.ContentType.ContentTypeAuthority,
+                    )
+                ).map(Util.decodeText),
+            );
+
         const addressHints = this.getAddressHints(system);
 
         for (const address1 of addressHints) {
@@ -578,6 +592,13 @@ export class ProcessHandle {
             }
         }
 
+        actions.push(
+            ...(await this._store.crdtElementSetIndex.ingest(
+                signedEvent,
+                event,
+            )),
+        );
+
         await this._store.level.batch(actions);
 
         if (this._listener !== undefined) {
@@ -634,39 +655,6 @@ function updateSystemState(
     state: Protocol.StorageTypeSystemState,
     event: Models.Event.Event,
 ): void {
-    {
-        const lwwElementSet = event.lwwElementSet;
-
-        if (lwwElementSet) {
-            let found: Protocol.StorageTypeCRDTSetItem | undefined = undefined;
-
-            for (const item of state.crdtSetItems) {
-                if (
-                    item.contentType.equals(event.contentType) &&
-                    Util.buffersEqual(item.value, lwwElementSet.value)
-                ) {
-                    found = item;
-                    break;
-                }
-            }
-
-            if (
-                found &&
-                found.unixMilliseconds < lwwElementSet.unixMilliseconds
-            ) {
-                found.unixMilliseconds = lwwElementSet.unixMilliseconds;
-                found.operation = lwwElementSet.operation;
-            } else {
-                state.crdtSetItems.push({
-                    contentType: event.contentType,
-                    value: lwwElementSet.value,
-                    unixMilliseconds: lwwElementSet.unixMilliseconds,
-                    operation: lwwElementSet.operation,
-                });
-            }
-        }
-    }
-
     {
         const lwwElement = event.lwwElement;
 

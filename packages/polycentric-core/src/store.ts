@@ -103,7 +103,7 @@ export class CRDTElementSetIndex {
         return Util.concatBuffers(buffers);
     }
 
-    private async ingest(
+    public async ingest(
         signedEvent: Models.SignedEvent.SignedEvent,
         event: Models.Event.Event,
     ): Promise<Array<PersistenceDriver.BinaryUpdateLevel>> {
@@ -221,9 +221,8 @@ export class CRDTElementSetIndex {
 
         const rows = await this._level
             .iterator({
-                lt: key,
+                gte: key,
                 limit: value ? limit + 1 : limit,
-                reverse: true,
             })
             .all();
 
