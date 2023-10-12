@@ -85,7 +85,7 @@ export type CallbackParameters = {
     remove: Array<Cell>;
 };
 
-type Callback = (state: CallbackParameters) => void;
+export type Callback = (state: CallbackParameters) => void;
 
 function processAndLogicalClockToString(
     process: Models.Process.Process,
