@@ -4,6 +4,7 @@ use ::protobuf::{Message, MessageField};
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
     cursor: ::std::option::Option<String>,
+    limit: ::std::option::Option<u64>,
 }
 
 pub(crate) async fn handler(
@@ -20,11 +21,17 @@ pub(crate) async fn handler(
         crate::warp_try_err_500!(u64::try_from(i64::max_value()))
     };
 
+    let limit = query.limit.unwrap_or(10);
+
     let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
 
     let db_result = crate::warp_try_err_500!(
-        crate::postgres::load_posts_before_id(&mut transaction, start_id,)
-            .await
+        crate::postgres::load_posts_before_id(
+            &mut transaction,
+            start_id,
+            limit
+        )
+        .await
     );
 
     let mut events = Events::new();

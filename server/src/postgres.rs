@@ -361,18 +361,20 @@ pub(crate) async fn load_event(
 pub(crate) async fn load_posts_before_id(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     start_id: u64,
+    limit: u64,
 ) -> ::anyhow::Result<EventsAndCursor> {
     let query = "
         SELECT id, raw_event, server_time FROM events
         WHERE id < $1
         AND content_type = $2
         ORDER BY id DESC
-        LIMIT 10;
+        LIMIT $3;
     ";
 
     let rows = ::sqlx::query_as::<_, ExploreRow>(query)
         .bind(i64::try_from(start_id)?)
         .bind(i64::try_from(crate::model::known_message_types::POST)?)
+        .bind(i64::try_from(limit)?)
         .fetch_all(&mut *transaction)
         .await?;
 

@@ -519,6 +519,7 @@ describe('integration', () => {
         let post3ReSearchResults = await APIMethods.getSearch(
             TEST_SERVER,
             post3Content,
+            25,
             post3SearchResults.cursor,
         );
         expect(post3ReSearchResults.resultEvents?.events.length).toBe(1);
