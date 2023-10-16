@@ -9,6 +9,7 @@ use crate::{model::known_message_types, protocol::Events};
 pub(crate) struct Query {
     search: String,
     cursor: ::std::option::Option<String>,
+    limit: ::std::option::Option<u64>,
 }
 
 pub(crate) async fn handler(
@@ -25,6 +26,8 @@ pub(crate) async fn handler(
         0
     };
 
+    let limit = query.limit.unwrap_or(10);
+
     let response = crate::warp_try_err_500!(
         state
             .search
@@ -34,7 +37,7 @@ pub(crate) async fn handler(
                 "profile_descriptions",
             ]))
             .from(crate::warp_try_err_500!(i64::try_from(start_count)))
-            .size(10)
+            .size(crate::warp_try_err_500!(i64::try_from(limit)))
             .body(json!({
                 "query": {
                     "match": {
@@ -112,16 +115,6 @@ pub(crate) async fn handler(
     let mut result =
         crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
 
-    /*
-    let mut processed_events =
-        crate::process_mutations2(&mut transaction, history)
-            .await
-            .map_err(|e| crate::RequestError::Anyhow(e))?;
-
-    result
-        .related_events
-        .append(&mut processed_events.related_events);
-    */
     let returned_event_count =
         crate::warp_try_err_500!(u64::try_from(result_events.events.len()));
     result.result_events = MessageField::some(result_events);

@@ -213,6 +213,10 @@ export namespace Pointer {
         readonly __tag: unique symbol;
     };
 
+    export type PointerString = Readonly<string> & {
+        readonly __tag: unique symbol;
+    };
+
     export function fromProto(proto: Protocol.Pointer): Pointer {
         if (proto.system === undefined) {
             throw new Error('expected system');
@@ -231,6 +235,12 @@ export namespace Pointer {
         Digest.fromProto(proto.eventDigest);
 
         return proto as Pointer;
+    }
+
+    export function toString(pointer: Pointer): PointerString {
+        return Base64.encode(
+            Protocol.Pointer.encode(pointer).finish(),
+        ) as PointerString;
     }
 
     export function fromBuffer(buffer: Uint8Array): Pointer {
@@ -363,6 +373,18 @@ export namespace SignedEvent {
 
     export function fromBuffer(buffer: Uint8Array): SignedEvent {
         return fromProto(Protocol.SignedEvent.decode(buffer));
+    }
+
+    export function equal(x: SignedEvent, y: SignedEvent): boolean {
+        if (!Util.buffersEqual(x.signature, y.signature)) {
+            return false;
+        }
+
+        if (!Util.buffersEqual(x.event, y.event)) {
+            return false;
+        }
+
+        return true;
     }
 }
 
@@ -786,5 +808,45 @@ export namespace ResultEventsAndRelatedEventsAndCursor {
         return fromProto(
             Protocol.ResultEventsAndRelatedEventsAndCursor.decode(buffer),
         );
+    }
+
+    export function equal(x: Type, y: Type): boolean {
+        if (x.resultEvents.events.length !== y.resultEvents.events.length) {
+            return false;
+        }
+
+        if (x.relatedEvents.events.length !== y.relatedEvents.events.length) {
+            return false;
+        }
+
+        for (let i = 0; i < x.resultEvents.events.length; i++) {
+            if (
+                !SignedEvent.equal(
+                    x.resultEvents.events[i],
+                    y.resultEvents.events[i],
+                )
+            ) {
+                return false;
+            }
+        }
+
+        for (let i = 0; i < x.relatedEvents.events.length; i++) {
+            if (
+                !SignedEvent.equal(
+                    x.relatedEvents.events[i],
+                    y.relatedEvents.events[i],
+                )
+            ) {
+                return false;
+            }
+        }
+
+        if (x.cursor !== undefined && y.cursor !== undefined) {
+            return Util.buffersEqual(x.cursor, y.cursor);
+        } else if (x.cursor === undefined && y.cursor === undefined) {
+            return true;
+        } else {
+            return false;
+        }
     }
 }

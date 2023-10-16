@@ -233,12 +233,17 @@ export async function getQueryReferences(
 export async function getSearch(
     server: string,
     searchQuery: string,
+    limit?: number,
     cursor?: Uint8Array,
 ): Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type> {
     let path = `/search?search=${encodeURIComponent(searchQuery)}`;
 
     if (cursor !== undefined) {
         path += `&cursor=${Base64.encodeUrl(cursor)}`;
+    }
+
+    if (limit !== undefined) {
+        path += `&limit=${limit.toString()}`;
     }
 
     const response = await fetch(server + path, {
@@ -281,12 +286,17 @@ export async function getHead(
 
 export async function getExplore(
     server: string,
+    limit?: number,
     cursor?: Uint8Array,
 ): Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type> {
     let path = '/explore';
 
     if (cursor !== undefined) {
         path += `&cursor=${Base64.encodeUrl(cursor)}`;
+    }
+
+    if (limit !== undefined) {
+        path += `&limit=${limit.toString()}`;
     }
 
     const response = await fetch(server + path, {
