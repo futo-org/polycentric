@@ -6,14 +6,16 @@ export const Drawer = ({
   children,
   side = 'left',
   contentId = 'main',
+  type = 'reveal',
 }: {
   title?: string
   children?: React.ReactNode
   side?: 'left' | 'right'
   contentId?: string
+  type?: 'reveal' | 'push' | 'overlay'
 }) => {
   return (
-    <IonMenu side={side === 'left' ? 'start' : 'end'} type="reveal" contentId={contentId}>
+    <IonMenu side={side === 'left' ? 'start' : 'end'} type={type} contentId={contentId}>
       <div className="flex h-full flex-col overflow-y-auto bg-white py-6 shadow-xl">
         <div className="px-4 sm:px-6">
           <h2 className="text-base font-semibold leading-6 text-gray-900">{title}</h2>
