@@ -214,6 +214,7 @@ message QueryReferencesRequestEvents {
     optional uint64                                          from_type                    = 1;
     repeated QueryReferencesRequestCountLWWElementReferences count_lww_element_references = 2;
     repeated QueryReferencesRequestCountReferences           count_references             = 3;
+    optional PublicKey                                       from_system                  = 4;
 }
 
 message QueryReferencesRequestCountLWWElementReferences {

@@ -34,12 +34,14 @@ fn process_rows(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn query_pointer(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     system: &crate::model::public_key::PublicKey,
     process: &crate::model::process::Process,
     logical_clock: u64,
     from_type: &::std::option::Option<u64>,
+    from_system: &::std::option::Option<crate::model::public_key::PublicKey>,
     cursor: &::std::option::Option<u64>,
     limit: u64,
 ) -> ::anyhow::Result<QueryResult> {
@@ -68,9 +70,13 @@ pub(crate) async fn query_pointer(
             ($5 IS NULL OR content_type = $5)
         AND
             ($6 IS NULL OR id < $6)
+        AND
+            ($7 IS NULL OR system_key_type = $7)
+        AND
+            ($8 IS NULL OR system_key = $8)
         ORDER BY
             id DESC
-        LIMIT $7
+        LIMIT $9
     ";
 
     let from_type_query = if let Some(x) = from_type {
@@ -94,6 +100,19 @@ pub(crate) async fn query_pointer(
         .bind(i64::try_from(logical_clock)?)
         .bind(from_type_query)
         .bind(cursor_query)
+        .bind(
+            from_system
+                .as_ref()
+                .map(|x| {
+                    i64::try_from(crate::model::public_key::get_key_type(x))
+                })
+                .transpose()?,
+        )
+        .bind(
+            from_system
+                .as_ref()
+                .map(crate::model::public_key::get_key_bytes),
+        )
         .bind(i64::try_from(limit)?)
         .fetch_all(&mut *transaction)
         .await?;
@@ -105,6 +124,7 @@ pub(crate) async fn query_bytes(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     bytes: &::std::vec::Vec<u8>,
     from_type: &::std::option::Option<u64>,
+    from_system: &::std::option::Option<crate::model::public_key::PublicKey>,
     cursor: &::std::option::Option<u64>,
     limit: u64,
 ) -> ::anyhow::Result<QueryResult> {
@@ -127,9 +147,13 @@ pub(crate) async fn query_bytes(
             ($2 IS NULL OR content_type = $2)
         AND
             ($3 IS NULL OR id < $3)
+        AND
+            ($4 IS NULL OR system_key_type = $4)
+        AND
+            ($5 IS NULL OR system_key = $5)
         ORDER BY
             id DESC
-        LIMIT $4
+        LIMIT $6
     ";
 
     let from_type_query = if let Some(x) = from_type {
@@ -148,6 +172,19 @@ pub(crate) async fn query_bytes(
         .bind(bytes)
         .bind(from_type_query)
         .bind(cursor_query)
+        .bind(
+            from_system
+                .as_ref()
+                .map(|x| {
+                    i64::try_from(crate::model::public_key::get_key_type(x))
+                })
+                .transpose()?,
+        )
+        .bind(
+            from_system
+                .as_ref()
+                .map(crate::model::public_key::get_key_bytes),
+        )
         .bind(i64::try_from(limit)?)
         .fetch_all(&mut *transaction)
         .await?;
@@ -159,6 +196,7 @@ pub(crate) async fn query_references(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     reference: &crate::model::reference::Reference,
     from_type: &::std::option::Option<u64>,
+    from_system: &::std::option::Option<crate::model::public_key::PublicKey>,
     cursor: &::std::option::Option<u64>,
     limit: u64,
 ) -> ::anyhow::Result<QueryResult> {
@@ -170,14 +208,22 @@ pub(crate) async fn query_references(
                 pointer.process(),
                 *pointer.logical_clock(),
                 from_type,
+                from_system,
                 cursor,
                 limit,
             )
             .await
         }
         crate::model::reference::Reference::Bytes(bytes) => {
-            query_bytes(&mut *transaction, bytes, from_type, cursor, limit)
-                .await
+            query_bytes(
+                &mut *transaction,
+                bytes,
+                from_type,
+                from_system,
+                cursor,
+                limit,
+            )
+            .await
         }
         _ => {
             unimplemented!("query identity not implemented");

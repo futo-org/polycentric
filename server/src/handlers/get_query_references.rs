@@ -47,11 +47,20 @@ pub(crate) async fn handler(
             None
         };
 
+        let from_system = if let Some(system) = &request_events.from_system.0 {
+            Some(crate::warp_try_err_500!(
+                crate::model::public_key::from_proto(system)
+            ))
+        } else {
+            None
+        };
+
         let query_result = crate::warp_try_err_500!(
             crate::queries::query_references::query_references(
                 &mut transaction,
                 &reference,
                 &request_events.from_type,
+                &from_system,
                 &query_cursor,
                 20,
             )
