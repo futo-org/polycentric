@@ -48,6 +48,26 @@ const TopicBox = ({
           } else if (value === '') {
             setTopic('/')
           }
+
+          if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
+            e.currentTarget.setSelectionRange(1, 1)
+          }
+        }}
+        onKeyDown={(e) => {
+          // prevent the user from moving the cursor before the slash
+          if (e.key === 'ArrowLeft' && e.currentTarget.selectionStart != null && e.currentTarget.selectionStart === 1) {
+            e.preventDefault()
+          }
+        }}
+        onTouchStart={(e) => {
+          if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
+            e.currentTarget.setSelectionRange(1, 1)
+          }
+        }}
+        onClick={(e) => {
+          if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
+            e.currentTarget.setSelectionRange(1, 1)
+          }
         }}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
@@ -77,21 +97,26 @@ const TopicBox = ({
 export const Compose = ({
   preSetTopic,
   hideTopic,
+  onPost,
   topicDisabled = false,
   flexGrow = false,
   maxTextboxHeightPx = 440,
   minTextboxHeightPx = 125,
+  postingProgress,
 }: {
+  onPost?: (content: string, upload?: File) => Promise<boolean>
   preSetTopic?: string
   hideTopic?: boolean
   topicDisabled?: boolean
   flexGrow?: boolean
   maxTextboxHeightPx?: number
   minTextboxHeightPx?: number
+  postingProgress?: number
 }) => {
   const [content, setContent] = useState('')
   const [topic, setTopic] = useState(preSetTopic ?? '/')
-  const [upload, setUpload] = useState<File | null>(null)
+  const [upload, setUpload] = useState<File | undefined>()
+  const textRef = useRef<HTMLTextAreaElement | null>(null)
   const uploadRef = useRef<HTMLInputElement | null>(null)
 
   const [imageUrl, setImageUrl] = useState<string | undefined>()
@@ -119,6 +144,7 @@ export const Compose = ({
           className={`w-full resize-none text-2xl rounded-lg p-4 focus:outline-none`}
           style={flexGrow ? { height: '100%' } : { minHeight: minTextboxHeightPx + 'px' }}
           value={content}
+          ref={textRef}
           onChange={(e) => {
             if (flexGrow === false) {
               e.target.style.height = '0'
@@ -139,7 +165,7 @@ export const Compose = ({
                 className="max-h-[20rem] max-w-[20rem] rounded-sm inline-block border-gray-1000 border"
                 src={imageUrl}
               />
-              <button className="absolute top-5 right-5 " onClick={() => setUpload(null)}>
+              <button className="absolute top-5 right-5 " onClick={() => setUpload(undefined)}>
                 <XCircleIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
               </button>
             </div>
@@ -166,7 +192,16 @@ export const Compose = ({
             }}
           />
         </div>
-        <button className="bg-blue-500 hover:bg-blue-600 border text-white rounded-full px-8 py-2 font-bold text-lg tracking-wide">
+        <button
+          disabled={(!content && !upload) || (postingProgress != null && postingProgress > 0)}
+          className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 border text-white rounded-full px-8 py-2 font-bold text-lg tracking-wide"
+          onClick={() =>
+            onPost?.(content, upload).then(() => {
+              setContent('')
+              if (textRef.current) textRef.current.style.height = `${minTextboxHeightPx}px`
+            })
+          }
+        >
           Post
         </button>
       </div>
