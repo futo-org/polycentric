@@ -47,13 +47,12 @@ pub(crate) async fn handler(
             None
         };
 
-        let from_system = if let Some(system) = &request_events.from_system.0 {
-            Some(crate::warp_try_err_500!(
-                crate::model::public_key::from_proto(system)
-            ))
-        } else {
-            None
-        };
+        let from_system = crate::warp_try_err_500!(request_events
+            .from_system
+            .into_option()
+            .as_ref()
+            .map(crate::model::public_key::from_proto)
+            .transpose());
 
         let query_result = crate::warp_try_err_500!(
             crate::queries::query_references::query_references(
