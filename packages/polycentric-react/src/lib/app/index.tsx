@@ -15,6 +15,7 @@ import {
   useProcessHandleManagerBaseComponentHook,
 } from '../hooks/processHandleManagerHooks'
 import { QueryManagerContext } from '../hooks/queryHooks'
+import { AppRouter } from './router'
 
 // Check if we're in electron or not
 const isElectron = () => {
@@ -40,25 +41,6 @@ const PlatformRouter = ({ children }: { children: React.ReactNode }) => {
 
   return <IonReactRouter>{children}</IonReactRouter>
 }
-
-const AppRouter = () => (
-  <>
-    <Route path="/">
-      <FeedPage>
-        <div className="p-5">
-          <SearchBox />
-          <PureSidebarProfile
-            profile={{
-              name: 'Rossman',
-              avatarURL: 'https://avatars.githubusercontent.com/u/1388441?v=4',
-              description: 'I like to repair. I like to repair. I like to repair.',
-            }}
-          />
-        </div>
-      </FeedPage>
-    </Route>
-  </>
-)
 
 // Currently, Polycentric can only be used while signed in
 export const SignedinApp = ({ processHandle }: { processHandle: ProcessHandle.ProcessHandle }) => {
