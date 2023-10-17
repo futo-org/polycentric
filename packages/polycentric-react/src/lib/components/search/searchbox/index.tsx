@@ -1,10 +1,9 @@
 import { useDebounce } from '@uidotdev/usehooks'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Profile } from '../../../types/profile'
 
 interface ResultsPreview {
-  accounts: Profile[]
+  accounts: { name: string; avatarURL: string; id: string; url?: string }[]
   topics: string[]
 }
 
@@ -30,7 +29,7 @@ export const SearchBox = ({
       <input
         type="text"
         placeholder="Search..."
-        className="rounded-lg border text-xl p-3"
+        className="rounded-lg border text-xl p-3 font-light"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
@@ -41,7 +40,11 @@ export const SearchBox = ({
               <h3 className="font-medium pl-2.5">Accounts</h3>
               <div className="flex flex-col">
                 {results?.accounts.map((account) => (
-                  <Link className="flex items-center space-x-3 hover:bg-gray-100 p-3 rounded-md cursor-default" to="/">
+                  <Link
+                    className="flex items-center space-x-3 hover:bg-gray-100 p-3 rounded-md cursor-default"
+                    to={account.url ?? ''}
+                    key={account.id}
+                  >
                     <img src={account.avatarURL} className="w-10 h-10 rounded-full " />
                     <div className="flex flex-col">
                       <div className="text-gray-500">{account.name}</div>
@@ -60,7 +63,7 @@ export const SearchBox = ({
               <h3 className="font-medium pl-2.5">Topics</h3>
               <Link className="flex flex-col cursor-default" to="/">
                 {results?.topics.map((topic) => (
-                  <div className="flex items-center space-x-3 hover:bg-gray-100 p-3 rounded-md">
+                  <div className="flex items-center space-x-3 hover:bg-gray-100 p-3 rounded-md" key={topic}>
                     <div className="flex flex-col">
                       <div className="text-gray-500">{topic}</div>
                     </div>
