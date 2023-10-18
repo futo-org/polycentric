@@ -319,3 +319,13 @@ message HarborValidateRequest {
     bytes                   signature     = 3;
 }
 
+message FindClaimAndVouchRequest {
+             PublicKey       vouching_system  = 1;
+             PublicKey       claiming_system  = 2;
+    repeated ClaimFieldEntry fields           = 3;
+}
+
+message FindClaimAndVouchResponse {
+    SignedEvent vouch = 1;
+    SignedEvent claim = 2;
+}

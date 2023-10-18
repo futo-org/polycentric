@@ -1,6 +1,7 @@
 pub(crate) mod get_claim_to_system;
 pub(crate) mod get_events;
 pub(crate) mod get_explore;
+pub(crate) mod get_find_claim_and_vouch;
 pub(crate) mod get_head;
 pub(crate) mod get_query_index;
 pub(crate) mod get_query_latest;
