@@ -1,3 +1,4 @@
+#[derive(PartialEq, Debug)]
 pub(crate) struct Match {
     pub(crate) claim_event: crate::model::signed_event::SignedEvent,
     pub(crate) vouch_event: crate::model::signed_event::SignedEvent,
@@ -92,5 +93,89 @@ pub(crate) async fn query_find_claim_and_vouch(
             )?,
         })),
         None => Ok(None),
+    }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use ::protobuf::Message;
+
+    #[::sqlx::test]
+    async fn test_expect_match(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
+        let mut transaction = pool.begin().await?;
+
+        crate::postgres::prepare_database(&mut transaction).await?;
+
+        let mut claim_hacker_news = crate::protocol::ClaimFieldEntry::new();
+        claim_hacker_news.key = 1;
+        claim_hacker_news.value = "hello".to_string();
+
+        let claim =
+            crate::model::claim::Claim::new(1, &[claim_hacker_news.clone()]);
+
+        let s1 = crate::model::tests::make_test_keypair();
+        let s1p1 = crate::model::tests::make_test_process();
+
+        let s1p1e1 = crate::model::tests::make_test_event_with_content(
+            &s1,
+            &s1p1,
+            1,
+            crate::model::known_message_types::CLAIM,
+            &crate::model::claim::to_proto(&claim).write_to_bytes()?,
+            vec![],
+        );
+
+        crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e1).await?;
+
+        let s2 = crate::model::tests::make_test_keypair();
+        let s2p1 = crate::model::tests::make_test_process();
+
+        let s2p1e1 = crate::model::tests::make_test_event_with_content(
+            &s2,
+            &s2p1,
+            1,
+            crate::model::known_message_types::VOUCH,
+            &vec![],
+            vec![crate::model::reference::Reference::Pointer(
+                crate::model::pointer::Pointer::new(
+                    crate::model::public_key::PublicKey::Ed25519(
+                        s1.public.clone(),
+                    ),
+                    s1p1,
+                    1,
+                    crate::model::digest::Digest::SHA256(
+                        crate::model::hash_event(s1p1e1.event()),
+                    ),
+                ),
+            )],
+        );
+
+        crate::ingest::ingest_event_postgres(&mut transaction, &s2p1e1).await?;
+
+        let result =
+            crate::queries::query_find_claim_and_vouch::query_find_claim_and_vouch(
+                &mut transaction,
+                &crate::model::public_key::PublicKey::Ed25519(
+                    s2.public.clone()
+                ),
+                &crate::model::public_key::PublicKey::Ed25519(
+                    s1.public.clone(),
+                ),
+                1,
+                &[claim_hacker_news],
+            )
+            .await?;
+
+        transaction.commit().await?;
+
+        let expected =
+            Some(crate::queries::query_find_claim_and_vouch::Match {
+                vouch_event: s2p1e1.clone(),
+                claim_event: s1p1e1.clone(),
+            });
+
+        assert!(result == expected);
+
+        Ok(())
     }
 }
