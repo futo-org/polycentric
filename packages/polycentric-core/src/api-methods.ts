@@ -312,3 +312,41 @@ export async function getExplore(
 
     return Models.ResultEventsAndRelatedEventsAndCursor.fromBuffer(rawBody);
 }
+
+export async function getFindClaimAndVouch(
+    server: string,
+    vouching_system: Models.PublicKey.PublicKey,
+    claiming_system: Models.PublicKey.PublicKey,
+    fields: Array<Protocol.ClaimFieldEntry>,
+    claimType: Long,
+): Promise<Models.FindClaimAndVouchResponse.Type | undefined> {
+    const query: Protocol.FindClaimAndVouchRequest = {
+        vouchingSystem: vouching_system,
+        claimingSystem: claiming_system,
+        fields: fields,
+        claimType: claimType,
+    };
+
+    const encodedQuery = Base64.encodeUrl(
+        Protocol.FindClaimAndVouchRequest.encode(query).finish(),
+    );
+
+    const path = `/find_claim_and_vouch?query=${encodedQuery}`;
+
+    const response = await fetch(server + path, {
+        method: 'GET',
+        headers: new Headers({
+            'content-type': 'application/octet-stream',
+        }),
+    });
+
+    if (response.status === 404) {
+        return undefined;
+    }
+
+    await checkResponse('getFindClaimAndVouch', response);
+
+    const rawBody = new Uint8Array(await response.arrayBuffer());
+
+    return Models.FindClaimAndVouchResponse.fromBuffer(rawBody);
+}
