@@ -1,8 +1,8 @@
-import { CircleExpandMenu } from '.'
+import { CircleExpandMenuReverse } from '.'
 
 export default {
   title: 'Util/CircleExpandMenu',
-  component: CircleExpandMenu,
+  component: CircleExpandMenuReverse,
 }
 
 export const Default = {}

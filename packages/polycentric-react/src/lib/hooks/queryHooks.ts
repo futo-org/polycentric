@@ -1,7 +1,8 @@
 import { encode } from '@borderless/base64'
-import { CancelContext, Models, Protocol, Queries, Ranges, Util } from '@polycentric/polycentric-core'
+import { CancelContext, Models, ProcessHandle, Protocol, Queries, Ranges, Util } from '@polycentric/polycentric-core'
 import Long from 'long'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useProcessHandleManager } from './processHandleManagerHooks'
 
 // Since we create query managers based on the driver passed in, we set the query managers value at the root of the app.
 // With this, it will never be undefined - but since typescript doesn't know that, we ignore the error.
@@ -52,6 +53,30 @@ export const useTextPublicKey = (system: Models.PublicKey.PublicKey) => {
   return useMemo<string>(() => {
     return encode(system.key)
   }, [system])
+}
+
+export const useSystemLink = (system: Models.PublicKey.PublicKey) => {
+  const { processHandle } = useProcessHandleManager()
+
+  const [link, setLink] = useState<string | undefined>(undefined)
+  useEffect(() => {
+    ProcessHandle.makeSystemLink(processHandle, system).then((link) => {
+      setLink(link)
+    })
+  }, [processHandle, system])
+
+  return link
+}
+
+export const useEventLink = (system: Models.PublicKey.PublicKey, pointer: Models.Pointer.Pointer) => {
+  const { processHandle } = useProcessHandleManager()
+  const [link, setLink] = useState<string | undefined>(undefined)
+  useEffect(() => {
+    ProcessHandle.makeEventLink(processHandle, system, pointer).then((link) => {
+      setLink(link)
+    })
+  }, [processHandle, system, pointer])
+  return link
 }
 
 export function useBlobQuery<T>(

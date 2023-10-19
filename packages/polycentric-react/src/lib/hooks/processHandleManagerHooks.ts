@@ -4,9 +4,10 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 type BaseProcessHandleManagerHookReturn = {
   processHandle: ProcessHandle.ProcessHandle | null | undefined
   activeStore: MetaStore.StoreInfo | null | undefined
-  listStores: () => Promise<MetaStore.StoreInfo[]>
+  stores: MetaStore.StoreInfo[]
   changeHandle: (account?: MetaStore.StoreInfo) => Promise<ProcessHandle.ProcessHandle | null | undefined>
   createHandle: (key: Models.PrivateKey.PrivateKey) => Promise<ProcessHandle.ProcessHandle>
+  signOutOtherUser: (account: MetaStore.StoreInfo) => Promise<void>
   metaStore: MetaStore.IMetaStore
 }
 
@@ -24,6 +25,8 @@ export function useProcessHandleManagerBaseComponentHook(
     processHandle: undefined,
   })
 
+  const [stores, setStores] = useState<MetaStore.StoreInfo[]>([])
+
   const changeHandle = useCallback(
     async (account?: MetaStore.StoreInfo) => {
       if (!account) {
@@ -35,16 +38,15 @@ export function useProcessHandleManagerBaseComponentHook(
         return undefined
       }
 
-      await metaStore.setActiveStore(account.system, account.version)
-      const newStore = await metaStore.getActiveStore()
-      if (newStore) {
-        const level = await metaStore.openStore(newStore.system, newStore.version)
+      if (account) {
+        const level = await metaStore.openStore(account.system, account.version)
         const store = new Store.Store(level)
         const processHandle = await ProcessHandle.ProcessHandle.load(store)
         setInternalHookState({
-          activeStore: newStore,
+          activeStore: account,
           processHandle,
         })
+        await metaStore.setActiveStore(account.system, account.version)
         return processHandle
       } else {
         setInternalHookState({
@@ -57,20 +59,43 @@ export function useProcessHandleManagerBaseComponentHook(
     [metaStore],
   )
 
-  const createHandle = async (privateKey: Models.PrivateKey.PrivateKey) => {
-    const processHandle = await ProcessHandle.createProcessHandleFromKey(metaStore, privateKey)
-    // TODO: Add proper store version numbering
-    await metaStore.setActiveStore(processHandle.system(), 0)
-    const activeStore = await metaStore.getActiveStore()
-    setInternalHookState({
-      activeStore,
-      processHandle,
-    })
-    return processHandle
-  }
+  const createHandle = useCallback(
+    async (privateKey: Models.PrivateKey.PrivateKey) => {
+      const processHandle = await ProcessHandle.createProcessHandleFromKey(metaStore, privateKey)
+      // TODO: Add proper store version numbering
+      await metaStore.setActiveStore(processHandle.system(), 0)
+      const activeStore = await metaStore.getActiveStore()
+      setInternalHookState({
+        activeStore,
+        processHandle,
+      })
+      return processHandle
+    },
+    [metaStore],
+  )
+
+  const signOutOtherUser = useCallback(
+    async (account: MetaStore.StoreInfo) => {
+      if (
+        internalHookState.activeStore &&
+        Models.PublicKey.equal(internalHookState.activeStore?.system, account.system)
+      ) {
+        throw new Error('Cannot sign out the currently active user. Prompt the user to switch accounts instead.')
+      }
+      await metaStore.deleteStore(account.system, account.version)
+      const stores = await metaStore.listStores()
+      setStores(stores)
+    },
+    [metaStore, internalHookState.activeStore],
+  )
 
   useEffect(() => {
     const cancelContext = new CancelContext.CancelContext()
+
+    metaStore.listStores().then((stores) => {
+      if (cancelContext.cancelled()) return
+      setStores(stores)
+    })
 
     metaStore.getActiveStore().then((store) => {
       if (cancelContext.cancelled()) return
@@ -86,9 +111,10 @@ export function useProcessHandleManagerBaseComponentHook(
   return {
     activeStore: internalHookState.activeStore,
     processHandle: internalHookState.processHandle,
-    listStores: metaStore.listStores,
+    stores,
     changeHandle,
     createHandle,
+    signOutOtherUser,
     metaStore,
   }
 }
