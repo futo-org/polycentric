@@ -1,5 +1,4 @@
 use ::protobuf::Message;
-use ::warp::Reply;
 
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
@@ -11,6 +10,7 @@ struct Request {
     vouching_system: crate::model::public_key::PublicKey,
     claiming_system: crate::model::public_key::PublicKey,
     fields: ::std::vec::Vec<crate::protocol::ClaimFieldEntry>,
+    claim_type: u64,
 }
 
 fn request_from_proto(
@@ -24,6 +24,7 @@ fn request_from_proto(
             &proto.claiming_system,
         )?,
         fields: proto.fields.clone(),
+        claim_type: proto.claim_type,
     })
 }
 
@@ -48,11 +49,49 @@ where
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
-) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
-    Ok(::std::boxed::Box::new(
-        ::warp::reply::json(&::serde_json::json!({
-            "placeholder": "placeholder",
-        }))
-        .into_response(),
-    ))
+) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+    let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
+
+    let potential_db_result = crate::warp_try_err_500!(
+        crate::queries::query_find_claim_and_vouch::query_find_claim_and_vouch(
+            &mut transaction,
+            &query.query.vouching_system,
+            &query.query.claiming_system,
+            query.query.claim_type,
+            &query.query.fields,
+        )
+        .await
+    );
+
+    crate::warp_try_err_500!(transaction.commit().await);
+
+    match potential_db_result {
+        Some(db_result) => {
+            let mut result = crate::protocol::FindClaimAndVouchResponse::new();
+
+            result.vouch = ::protobuf::MessageField::some(
+                crate::model::signed_event::to_proto(&db_result.vouch_event),
+            );
+
+            result.claim = ::protobuf::MessageField::some(
+                crate::model::signed_event::to_proto(&db_result.claim_event),
+            );
+
+            let result_serialized =
+                crate::warp_try_err_500!(result.write_to_bytes());
+
+            Ok(Box::new(::warp::reply::with_header(
+                ::warp::reply::with_status(
+                    result_serialized,
+                    ::warp::http::StatusCode::OK,
+                ),
+                "Cache-Control",
+                "public, max-age=30",
+            )))
+        }
+        None => Ok(Box::new(::warp::reply::with_status(
+            "pair not found".to_string(),
+            ::warp::http::StatusCode::NOT_FOUND,
+        ))),
+    }
 }

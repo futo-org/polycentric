@@ -1,11 +1,11 @@
 pub(crate) struct Match {
-    claim_event: crate::model::signed_event::SignedEvent,
-    vouch_event: crate::model::signed_event::SignedEvent,
+    pub(crate) claim_event: crate::model::signed_event::SignedEvent,
+    pub(crate) vouch_event: crate::model::signed_event::SignedEvent,
 }
 
 #[allow(dead_code)]
 #[derive(::sqlx::FromRow)]
-pub(crate) struct Row {
+struct Row {
     claim_event: ::std::vec::Vec<u8>,
     vouch_event: ::std::vec::Vec<u8>,
 }
@@ -15,7 +15,7 @@ pub(crate) async fn query_find_claim_and_vouch(
     vouching_system: &crate::model::public_key::PublicKey,
     claiming_system: &crate::model::public_key::PublicKey,
     claim_type: u64,
-    fields: &::std::vec::Vec<crate::protocol::ClaimFieldEntry>,
+    fields: &[crate::protocol::ClaimFieldEntry],
 ) -> ::anyhow::Result<::std::option::Option<Match>> {
     let query = "
         SELECT
