@@ -1,7 +1,7 @@
+import { IonPage } from '@ionic/react'
 import { useState } from 'react'
 import { MainSidebar } from '../sidebars/mainsidebar'
 import { Drawer } from '../util/drawer'
-import { IonPage } from '@ionic/react'
 
 const MenuIcon = () => (
   <svg
@@ -60,25 +60,11 @@ export const RootLayout = ({ children }: { children: React.ReactNode }) => {
         <aside
           className={`border hidden lg:block h-full lg:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:ml-[calc((100vw-1536px)/2)] `}
         >
-          <MainSidebar
-            topics={['/tpot', '/tpot/dating']}
-            profile={{
-              name: 'John Doe',
-              avatarURL: 'https://i.pravatar.cc/300',
-              description: 'i like to repair. i like to repair. i like to repair. ',
-            }}
-          />
+          <MainSidebar topics={['/tpot', '/tpot/dating']} />
         </aside>
         {/* Drawer sidebar for mobile */}
         <Drawer open={showLeftSidebar} setOpen={setShowLeftSidebar} side="left">
-          <MainSidebar
-            topics={['/tpot', '/tpot/dating']}
-            profile={{
-              name: 'John Doe',
-              avatarURL: 'https://i.pravatar.cc/300',
-              description: 'i like to repair. i like to repair. i like to repair. ',
-            }}
-          />
+          <MainSidebar topics={['/tpot', '/tpot/dating']} />
         </Drawer>
 
         {children}
