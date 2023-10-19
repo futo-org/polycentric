@@ -280,6 +280,16 @@ async fn serve_api(
         .and_then(crate::handlers::post_censor::handler)
         .with(cors.clone());
 
+    let route_get_find_claim_and_vouch = ::warp::get()
+        .and(::warp::path("find_claim_and_vouch"))
+        .and(::warp::path::end())
+        .and(state_filter.clone())
+        .and(::warp::query::<
+            crate::handlers::get_find_claim_and_vouch::Query,
+        >())
+        .and_then(crate::handlers::get_find_claim_and_vouch::handler)
+        .with(cors.clone());
+
     let routes = route_post_events
         .or(route_get_head)
         .or(route_get_query_latest)
@@ -293,6 +303,7 @@ async fn serve_api(
         .or(route_get_recommended_profiles)
         .or(route_get_version)
         .or(route_post_censor)
+        .or(route_get_find_claim_and_vouch)
         .recover(handle_rejection);
 
     info!("API server listening on {}", config.http_port_api);

@@ -850,3 +850,33 @@ export namespace ResultEventsAndRelatedEventsAndCursor {
         }
     }
 }
+
+export namespace FindClaimAndVouchResponse {
+    interface TypeI {
+        vouch: SignedEvent.SignedEvent;
+        claim: SignedEvent.SignedEvent;
+    }
+
+    export type Type = Readonly<TypeI> & {
+        readonly __tag: unique symbol;
+    };
+
+    export function fromProto(proto: Protocol.FindClaimAndVouchResponse): Type {
+        if (proto.vouch === undefined) {
+            throw new Error('expected vouch field');
+        }
+
+        if (proto.claim === undefined) {
+            throw new Error('expected claim field');
+        }
+
+        SignedEvent.fromProto(proto.vouch);
+        SignedEvent.fromProto(proto.claim);
+
+        return proto as Type;
+    }
+
+    export function fromBuffer(buffer: Uint8Array): Type {
+        return fromProto(Protocol.FindClaimAndVouchResponse.decode(buffer));
+    }
+}
