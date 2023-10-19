@@ -47,25 +47,7 @@ export const RootLayout = ({ children }: { children: React.ReactNode }) => {
           <MainSidebar topics={['/tpot', '/tpot/dating']} />
         </Drawer>
       )}
-      <IonPage id="main-drawer">
-        {/* <IonContent> */}
-        {children}
-        {/* </IonContent> */}
-
-        {/* Content area */}
-        {/* <IonContent> */}
-        {/* Physical left sidebar for tablet+ */}
-        {/* <aside
-          className={`border hidden lg:block h-full lg:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:ml-[calc((100vw-1536px)/2)] `}
-        >
-          <MainSidebar
-            topics={['/tpot', '/tpot/dating']}
-          />
-        </aside> */}
-
-        {/* {children}
-      </IonContent> */}
-      </IonPage>
+      <IonPage id="main-drawer">{children}</IonPage>
     </>
   )
 }
