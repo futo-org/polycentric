@@ -318,7 +318,7 @@ export async function getFindClaimAndVouch(
     vouching_system: Models.PublicKey.PublicKey,
     claiming_system: Models.PublicKey.PublicKey,
     fields: Array<Protocol.ClaimFieldEntry>,
-    claimType: Long,
+    claimType: Models.ClaimType.ClaimType,
 ): Promise<Models.FindClaimAndVouchResponse.Type | undefined> {
     const query: Protocol.FindClaimAndVouchRequest = {
         vouchingSystem: vouching_system,
