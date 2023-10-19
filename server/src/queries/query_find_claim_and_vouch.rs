@@ -73,9 +73,7 @@ pub(crate) async fn query_find_claim_and_vouch(
         ))?)
         .bind(crate::model::public_key::get_key_bytes(claiming_system))
         .bind(i64::try_from(claim_type)?)
-        .bind(crate::postgres::claim_fields_to_json_object(
-            fields,
-        ))
+        .bind(crate::postgres::claim_fields_to_json_object(fields))
         .bind(i64::try_from(crate::model::known_message_types::VOUCH)?)
         .bind(i64::try_from(crate::model::public_key::get_key_type(
             vouching_system,
@@ -84,5 +82,15 @@ pub(crate) async fn query_find_claim_and_vouch(
         .fetch_optional(&mut *transaction)
         .await?;
 
-    Ok(None)
+    match potential_row {
+        Some(row) => Ok(Some(Match {
+            claim_event: crate::model::signed_event::from_vec(
+                &row.claim_event,
+            )?,
+            vouch_event: crate::model::signed_event::from_vec(
+                &row.vouch_event,
+            )?,
+        })),
+        None => Ok(None),
+    }
 }
