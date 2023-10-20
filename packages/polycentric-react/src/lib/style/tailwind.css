@@ -12,6 +12,10 @@
   }
 }
 
+html, body {
+  overscroll-behavior-y: none;
+}
+
 * {
   -webkit-tap-highlight-color: transparent;
 }
