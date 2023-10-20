@@ -122,7 +122,12 @@ describe('query crdt set', () => {
                 cb,
             );
 
-            queryManager.advance(s1p1.system(), cb, 10);
+            queryManager.advance(
+                s1p1.system(),
+                cb,
+                10,
+                Models.ContentType.ContentTypeFollow,
+            );
 
             await s1p1.follow(s4p1.system());
             await s1p1.unfollow(s2p1.system());

@@ -1,8 +1,8 @@
 /* eslint jest/no-conditional-expect: 0 */
-import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
-import * as QueryIndex from './query-index';
+import * as ProcessHandle from '../process-handle';
 import * as Protocol from '../protocol';
+import * as QueryIndex from './query-index';
 
 const TEST_SERVER = 'http://127.0.0.1:8081';
 
@@ -94,7 +94,12 @@ describe('query index', () => {
             cb,
         );
 
-        queryManager.advance(s1p1.system(), cb, 10);
+        queryManager.advance(
+            s1p1.system(),
+            cb,
+            10,
+            Models.ContentType.ContentTypeClaim,
+        );
 
         await s1p1.claim(Models.claimGeneric('1'));
         await s1p1.claim(Models.claimGeneric('2'));
@@ -138,7 +143,12 @@ describe('query index', () => {
 
                     expect(got).toStrictEqual(expected);
 
-                    queryManager.advance(s2p1.system(), cb, 10);
+                    queryManager.advance(
+                        s2p1.system(),
+                        cb,
+                        10,
+                        Models.ContentType.ContentTypeClaim,
+                    );
                 } else if (stage === 1) {
                     const got = value.add.map(extractGenericClaim);
 
@@ -164,7 +174,12 @@ describe('query index', () => {
                 cb,
             );
 
-            queryManager.advance(s2p1.system(), cb, 10);
+            queryManager.advance(
+                s2p1.system(),
+                cb,
+                10,
+                Models.ContentType.ContentTypeClaim,
+            );
         });
     });
 
@@ -191,7 +206,12 @@ describe('query index', () => {
                         undefined,
                     ]);
 
-                    queryManager.advance(s1p1.system(), cb, 2);
+                    queryManager.advance(
+                        s1p1.system(),
+                        cb,
+                        2,
+                        Models.ContentType.ContentTypeClaim,
+                    );
                 } else if (stage === 1) {
                     expect(value.add.map(extractGenericClaim)).toStrictEqual([
                         '4',
@@ -199,7 +219,12 @@ describe('query index', () => {
                         undefined,
                     ]);
 
-                    queryManager.advance(s1p1.system(), cb, 2);
+                    queryManager.advance(
+                        s1p1.system(),
+                        cb,
+                        2,
+                        Models.ContentType.ContentTypeClaim,
+                    );
                 } else if (stage === 2) {
                     expect(value.add.map(extractGenericClaim)).toStrictEqual([
                         '2',
@@ -218,7 +243,12 @@ describe('query index', () => {
                 cb,
             );
 
-            queryManager.advance(s1p1.system(), cb, 2);
+            queryManager.advance(
+                s1p1.system(),
+                cb,
+                2,
+                Models.ContentType.ContentTypeClaim,
+            );
         });
     });
 
@@ -262,7 +292,12 @@ describe('query index', () => {
                 cb,
             );
 
-            queryManager.advance(s1p1.system(), cb, 20);
+            queryManager.advance(
+                s1p1.system(),
+                cb,
+                20,
+                Models.ContentType.ContentTypeClaim,
+            );
         });
     });
 });
