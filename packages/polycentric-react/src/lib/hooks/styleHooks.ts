@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 const tailwindColors = [
   'red-500',
@@ -40,4 +40,56 @@ export const useRandomColor = (text: string) => {
   }, [text])
 
   return color
+}
+
+const breakpoints = {
+  sm: 640,
+  md: 768,
+  lg: 1024,
+  xl: 1280,
+  '2xl': 1536,
+}
+
+const breakpointNames = Object.keys(breakpoints)
+
+function getBreakpoint(width: number) {
+  let breakpoint = 'sm'
+  for (let i = 0; i < breakpointNames.length; i++) {
+    // Typescript isn't smart enough to know that breakpointNames[i]
+    // is a key of breakpoints with the specific allowed keys
+    const name = breakpointNames[i] as keyof typeof breakpoints
+    if (width >= breakpoints[name]) {
+      breakpoint = breakpointNames[i]
+      continue
+    } else {
+      break
+    }
+  }
+  return breakpoint
+}
+
+export const useTailwindBreakpoint = () => {
+  const [breakpoint, setBreakpoint] = useState(getBreakpoint(window.innerWidth))
+
+  useEffect(() => {
+    const onResize = () => {
+      const newBreakpoint = getBreakpoint(window.innerWidth)
+      if (breakpoint !== newBreakpoint) setBreakpoint(newBreakpoint)
+    }
+
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [breakpoint])
+
+  return breakpoint
+}
+
+export const useIsAtLeastTailwindBreakpoint = (breakpoint: string) => {
+  const currentBreakpoint = useTailwindBreakpoint()
+
+  return breakpointNames.indexOf(currentBreakpoint) >= breakpointNames.indexOf(breakpoint)
+}
+
+export const useIsMobile = () => {
+  return useIsAtLeastTailwindBreakpoint('lg') === false
 }

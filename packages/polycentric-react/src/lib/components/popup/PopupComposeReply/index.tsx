@@ -1,4 +1,4 @@
-import { useIsMobile } from '../../../hooks/ionicHooks'
+import { useIsMobile } from '../../../hooks/styleHooks'
 import { Profile } from '../../../types/profile'
 import { Compose } from '../../feed/Compose'
 import { Modal } from '../../util/modal'
