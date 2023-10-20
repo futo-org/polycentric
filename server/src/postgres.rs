@@ -136,6 +136,17 @@ pub(crate) async fn prepare_database(
 
     ::sqlx::query(
         "
+        CREATE INDEX IF NOT EXISTS
+            events_content_type_idx
+        ON
+            events (content_type);
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
         CREATE TABLE IF NOT EXISTS event_links (
             id                      BIGSERIAL PRIMARY KEY,
             subject_system_key_type INT8      NOT NULL,
@@ -162,6 +173,22 @@ pub(crate) async fn prepare_database(
 
     ::sqlx::query(
         "
+        CREATE INDEX IF NOT EXISTS
+            event_links_subject_idx
+        ON
+            event_links (
+                subject_system_key_type,
+                subject_system_key,
+                subject_process,
+                subject_logical_clock
+            );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
         CREATE TABLE IF NOT EXISTS event_references_bytes (
             id                      BIGSERIAL PRIMARY KEY,
             subject_bytes           BYTEA     NOT NULL,
@@ -172,6 +199,17 @@ pub(crate) async fn prepare_database(
                 REFERENCES events(id)
                 ON DELETE CASCADE
         );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        CREATE INDEX IF NOT EXISTS
+            event_references_bytes_subject_bytes_idx
+        ON
+            event_references_bytes (subject_bytes);
     ",
     )
     .execute(&mut *transaction)
