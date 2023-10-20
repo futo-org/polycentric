@@ -1,13 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Polycentric</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Polycentric</title>
+        <meta name="description" content="A social network for communities" />
+        <link rel="icon" href="/icons/favicon.ico" />
+        <link
+            rel="apple-touch-icon"
+            href="/icons/maskable_icon_x192.png"
+            sizes="192x192"
+        />
+        <meta name="theme-color" content="#ffffff" />
+
+        <style>
+            @font-face {
+                font-family: 'Public Sans';
+                src: url('/fonts/PublicSans[wght].ttf') format('truetype');
+                font-style: normal;
+                font-weight: normal;
+            }
+
+            @font-face {
+                font-family: 'Public Sans';
+                src: url('/fonts/PublicSans-Italic[wght].ttf')
+                    format('truetype');
+                font-style: italic;
+                font-weight: normal;
+            }
+
+            @font-face {
+                font-family: 'Fragment Mono';
+                src: url('/fonts/FragmentMono-Regular.woff2') format('woff2');
+                font-style: normal;
+                font-weight: normal;
+            }
+
+            @font-face {
+                font-family: 'Fragment Mono';
+                src: url('/fonts/FragmentMono-Italic.woff2') format('woff2');
+                font-style: italic;
+                font-weight: normal;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="root"></div>
+        <script type="module" src="/src/main.tsx"></script>
+    </body>
 </html>

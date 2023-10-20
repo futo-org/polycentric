@@ -6,6 +6,8 @@ const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 // Any directories you will be adding code/files into, need to be added to this array so webpack will pick them up
 const defaultInclude = path.resolve(__dirname, 'src');
 const polycentricInclude = path.resolve(__dirname, '../polycentric-react/dist');
+const fontSourceInclude1 = path.resolve(__dirname, '../../node_modules/@fontsource');
+const fontSourceInclude2 = path.resolve(__dirname, 'node_modules/@fontsource');
 
 module.exports = {
     externals: {
@@ -19,7 +21,7 @@ module.exports = {
                     MiniCssExtractPlugin.loader,
                     'css-loader',
                 ],
-                include: [defaultInclude, polycentricInclude],
+                include: [defaultInclude, polycentricInclude, fontSourceInclude1, fontSourceInclude2],
             },
             {
                 test: /\.jsx?$/,
