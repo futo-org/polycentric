@@ -38,10 +38,13 @@ export const CropProfilePic = ({
         />
       </div>
       <div>
-        <label htmlFor="default-range" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+        <label
+          htmlFor="default-range"
+          className=" mb-2 text-sm font-medium text-gray-900 dark:text-white hidden lg:block"
+        >
           Zoom
         </label>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-4 justify-center">
           <input
             id="default-range"
             type="range"
@@ -49,11 +52,13 @@ export const CropProfilePic = ({
             min={1}
             max={4}
             step={0.1}
-            onChange={(e) => setZoom(Number(e.target.value))}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+            onInput={(e) => {
+              setZoom(parseFloat(e.currentTarget.value))
+            }}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 hidden lg:block"
           ></input>
           <button
-            className="ml-2 px-6 py-2 border bg-blue-500 rounded-full text-xl text-white"
+            className="lg:ml-2 px-6 py-2 border bg-blue-500 rounded-full text-xl text-white"
             onClick={() => {
               if (cropParams.current) {
                 onCrop(cropParams.current)
@@ -82,7 +87,7 @@ export const CropProfilePicModal = ({
   setOpen: (open: boolean) => void
 }) => (
   <Modal title="Crop" open={open} setOpen={setOpen}>
-    <div className="w-[30rem]">
+    <div className="max-w-[30rem]">
       <CropProfilePic src={src} aspect={aspect} onCrop={onCrop} />
     </div>
   </Modal>
