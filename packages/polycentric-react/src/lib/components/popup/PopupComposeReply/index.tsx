@@ -10,13 +10,13 @@ export const PopupComposeReply = ({
   main: {
     content: string
     author: Profile
-    publishedAt: Date
+    publishedAt?: Date
     topic: string
   }
   sub?: {
     content: string
     author: Profile
-    publishedAt: Date
+    publishedAt?: Date
     topic: string
     ContentLink?: string
   }
@@ -86,16 +86,17 @@ export const PopupComposeReplyFullscreen = ({
   open,
   setOpen,
 }: {
+  onComment?: (content: string, upload: File) => void
   main: {
     content: string
     author: Profile
-    publishedAt: Date
+    publishedAt?: Date
     topic: string
   }
   sub?: {
     content: string
     author: Profile
-    publishedAt: Date
+    publishedAt?: Date
     topic: string
     ContentLink?: string
   }

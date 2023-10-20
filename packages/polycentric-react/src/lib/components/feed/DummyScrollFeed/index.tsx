@@ -2,7 +2,7 @@ import useVirtual from '@polycentric/react-cool-virtual'
 import { useState } from 'react'
 import { Profile } from '../../../types/profile'
 import { Compose } from '../Compose'
-import { PurePost } from '../PurePost'
+import { PurePost } from '../Post/PurePost'
 
 interface PostProps {
   content: string

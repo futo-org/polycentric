@@ -1,5 +1,5 @@
 export * from './Compose'
 export * from './DummyScrollFeed'
 export * from './FeedPage'
-export * from './PurePost'
+export * from './Post'
 export * from './TopicSuggestionBox'

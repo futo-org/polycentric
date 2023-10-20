@@ -88,6 +88,16 @@ export const useEventLink = (system: Models.PublicKey.PublicKey, pointer: Models
   return link
 }
 
+export const useDateFromUnixMS = (unixMS: Long | undefined) => {
+  return useMemo<Date | undefined>(() => {
+    if (unixMS === undefined) {
+      return undefined
+    }
+
+    return new Date(unixMS.toNumber())
+  }, [unixMS])
+}
+
 export function useBlobQuery<T>(
   system: Models.PublicKey.PublicKey | undefined,
   process: Models.Process.Process | undefined,
