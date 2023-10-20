@@ -200,7 +200,12 @@ export function useIndex<T>(
             cb,
         );
 
-        queryManager.queryIndex.advance(system, cb, 30);
+        queryManager.queryIndex.advance(
+            system,
+            cb,
+            30,
+            Core.Models.ContentType.ContentTypeClaim,
+        );
 
         return () => {
             cancelContext.cancel();
@@ -212,7 +217,12 @@ export function useIndex<T>(
     return [
         state,
         () => {
-            queryManager.queryIndex.advance(system, latestCB.current, 30);
+            queryManager.queryIndex.advance(
+                system,
+                latestCB.current,
+                30,
+                Core.Models.ContentType.ContentTypeClaim,
+            );
         },
     ];
 }

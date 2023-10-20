@@ -19,7 +19,8 @@ module.exports = {
     'no-console': 'warn',
     '@typescript-eslint/ban-ts-comment': 'off',
     '@typescript-eslint/no-empty-function': 'off',
-    "react-refresh/only-export-components": "warn"
+    "react-refresh/only-export-components": "warn",
+    'no-console': 'off'
   },
   settings: {
     react: {

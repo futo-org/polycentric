@@ -1,7 +1,16 @@
 import { encode } from '@borderless/base64'
-import { CancelContext, Models, ProcessHandle, Protocol, Queries, Ranges, Util } from '@polycentric/polycentric-core'
+import {
+  APIMethods,
+  CancelContext,
+  Models,
+  ProcessHandle,
+  Protocol,
+  Queries,
+  Ranges,
+  Util,
+} from '@polycentric/polycentric-core'
 import Long from 'long'
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useProcessHandleManager } from './processHandleManagerHooks'
 
 // Since we create query managers based on the driver passed in, we set the query managers value at the root of the app.
@@ -45,8 +54,8 @@ export function useCRDTQuery<T>(
   return state
 }
 
-export const useUsernameCRDTQuery = (system: Models.PublicKey.PublicKey) => {
-  return useCRDTQuery(system, Models.ContentType.ContentTypeUsername, (buffer: Uint8Array) => Util.decodeText(buffer))
+export const useUsernameCRDTQuery = (system?: Models.PublicKey.PublicKey) => {
+  return useCRDTQuery(system, Models.ContentType.ContentTypeUsername, Util.decodeText)
 }
 
 export const useTextPublicKey = (system: Models.PublicKey.PublicKey) => {
@@ -135,7 +144,7 @@ const decodeImageManifest = (rawImageBundle: Uint8Array) => {
   }
 }
 
-export const useAvatar = (system: Models.PublicKey.PublicKey): string | undefined => {
+export const useAvatar = (system?: Models.PublicKey.PublicKey): string | undefined => {
   const [avatarLink, setAvatarLink] = useState<string | undefined>(undefined)
 
   const manifest = useCRDTQuery(system, Models.ContentType.ContentTypeAvatar, decodeImageManifest)
@@ -170,4 +179,253 @@ export const useAvatar = (system: Models.PublicKey.PublicKey): string | undefine
   }, [avatarBlob])
 
   return avatarLink
+}
+
+export class ParsedEvent<T> {
+  signedEvent: Models.SignedEvent.SignedEvent
+  event: Models.Event.Event
+  value: T
+
+  constructor(signedEvent: Models.SignedEvent.SignedEvent, event: Models.Event.Event, value: T) {
+    this.signedEvent = signedEvent
+    this.event = event
+    this.value = value
+  }
+}
+
+export type ClaimInfo<T> = {
+  cell: Queries.QueryIndex.Cell
+  parsedEvent: ParsedEvent<T> | undefined
+}
+
+export function useIndex<T>(
+  system: Models.PublicKey.PublicKey,
+  contentType: Models.ContentType.ContentType,
+  parse: (buffer: Uint8Array) => T,
+): [Array<ParsedEvent<T>>, (advanceBy: number) => void] {
+  const queryManager = useQueryManager()
+
+  const [state, setState] = useState<Array<ClaimInfo<T>>>([])
+
+  const latestCB = useRef(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (_x: Queries.QueryIndex.CallbackParameters) =>
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      {},
+  )
+
+  useEffect(() => {
+    setState([])
+
+    const cancelContext = new CancelContext.CancelContext()
+
+    const cb = (value: Queries.QueryIndex.CallbackParameters) => {
+      if (cancelContext.cancelled()) {
+        return
+      }
+
+      const toAdd = value.add.map((cell) => {
+        let parsedEvent: ParsedEvent<T> | undefined = undefined
+
+        if (cell.signedEvent !== undefined) {
+          const signedEvent = Models.SignedEvent.fromProto(cell.signedEvent)
+          const event = Models.Event.fromBuffer(signedEvent.event)
+          const parsed = parse(event.content)
+
+          parsedEvent = new ParsedEvent<T>(signedEvent, event, parsed)
+        }
+
+        return {
+          cell: cell,
+          parsedEvent: parsedEvent,
+        }
+      })
+
+      const toRemove = new Set(value.remove)
+
+      setState((state) => {
+        return state
+          .filter((x) => !toRemove.has(x.cell))
+          .concat(toAdd)
+          .sort((x, y) => Queries.QueryIndex.compareCells(y.cell, x.cell))
+      })
+    }
+
+    latestCB.current = cb
+
+    const unregister = queryManager.queryIndex.query(system, contentType, cb)
+
+    queryManager.queryIndex.advance(system, cb, 30, contentType)
+
+    return () => {
+      cancelContext.cancel()
+
+      unregister()
+    }
+  }, [queryManager.queryIndex, system, contentType, parse])
+
+  const parsedEvents = useMemo(() => {
+    return state.map((x) => x.parsedEvent).filter((x) => x !== undefined) as ParsedEvent<T>[]
+  }, [state])
+
+  const advanceCallback = useCallback(
+    (advanceBy: number) => {
+      queryManager.queryIndex.advance(system, latestCB.current, advanceBy, contentType)
+    },
+    [queryManager.queryIndex, system, contentType],
+  )
+
+  return [parsedEvents, advanceCallback]
+}
+
+export const useQueryReferences = (
+  system: Models.PublicKey.PublicKey | undefined,
+  reference: Protocol.Reference | undefined,
+  cursor?: Uint8Array,
+  requestEvents?: Protocol.QueryReferencesRequestEvents,
+  countLwwElementReferences?: Protocol.QueryReferencesRequestCountLWWElementReferences[],
+  countReferences?: Protocol.QueryReferencesRequestCountReferences[],
+): Protocol.QueryReferencesResponse[] | undefined => {
+  const [state, setState] = useState<Protocol.QueryReferencesResponse[] | undefined>(undefined)
+  const { processHandle } = useProcessHandleManager()
+
+  useEffect(() => {
+    setState(undefined)
+
+    if (system === undefined || reference === undefined) return
+
+    const cancelContext = new CancelContext.CancelContext()
+
+    const fetchQueryReferences = async () => {
+      try {
+        const systemState = await processHandle.loadSystemState(system)
+        const servers = systemState.servers()
+
+        const responses = await Promise.allSettled(
+          servers.map((server) =>
+            APIMethods.getQueryReferences(
+              server,
+              reference,
+              cursor,
+              requestEvents,
+              countLwwElementReferences,
+              countReferences,
+            ),
+          ),
+        )
+        const fulfilledResponses = responses
+          .filter((response) => response.status === 'fulfilled')
+          .map((response) => (response as PromiseFulfilledResult<Protocol.QueryReferencesResponse>).value)
+
+        if (cancelContext.cancelled() === false) {
+          setState(fulfilledResponses)
+        }
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
+    fetchQueryReferences()
+
+    return () => {
+      cancelContext.cancel()
+    }
+  }, [system, reference, cursor, requestEvents, countLwwElementReferences, countReferences, processHandle])
+
+  return state
+}
+
+export const useQueryPointerReferences = (
+  pointer: Models.Pointer.Pointer,
+  cursor?: Uint8Array,
+  requestEvents?: Protocol.QueryReferencesRequestEvents,
+  countLwwElementReferences?: Protocol.QueryReferencesRequestCountLWWElementReferences[],
+  countReferences?: Protocol.QueryReferencesRequestCountReferences[],
+) => {
+  const { system } = pointer
+  const reference = useMemo(() => Models.pointerToReference(pointer), [pointer])
+
+  return useQueryReferences(system, reference, cursor, requestEvents, countLwwElementReferences, countReferences)
+}
+
+// Declare explicitly so they don't cause a useEffect rerender
+const postStatsRequestEvents = {
+  fromType: Models.ContentType.ContentTypePost,
+  countLwwElementReferences: [],
+  countReferences: [],
+}
+
+const postStatLwwElementReferences = [
+  {
+    fromType: Models.ContentType.ContentTypeOpinion,
+    value: Models.Opinion.OpinionLike,
+  },
+  {
+    fromType: Models.ContentType.ContentTypeOpinion,
+    value: Models.Opinion.OpinionDislike,
+  },
+]
+
+const postStatReferences = [
+  {
+    fromType: Models.ContentType.ContentTypePost,
+  },
+]
+
+export const usePostStats = (pointer: Models.Pointer.Pointer) => {
+  const out = useQueryPointerReferences(
+    pointer,
+    undefined,
+    postStatsRequestEvents,
+    postStatLwwElementReferences,
+    postStatReferences,
+  )
+
+  const counts = useMemo(() => {
+    let likes = 0
+    let dislikes = 0
+    let comments = 0
+
+    out?.forEach((response) => {
+      likes += response.counts[0].toNumber()
+      dislikes += response.counts[1].toNumber()
+      comments += response.counts[2].toNumber()
+    })
+
+    return {
+      likes,
+      dislikes,
+      comments,
+    }
+  }, [out])
+
+  return counts
+}
+
+export const useQueryIfAdded = (
+  system: Models.PublicKey.PublicKey,
+  contentType: Models.ContentType.ContentType,
+  value: Uint8Array,
+) => {
+  const { processHandle } = useProcessHandleManager()
+  const [state, setState] = useState<boolean | undefined>(undefined)
+
+  useEffect(() => {
+    const cancelContext = new CancelContext.CancelContext()
+    processHandle
+      .store()
+      .crdtElementSetIndex.queryIfAdded(system, contentType, value)
+      .then((result) => {
+        if (cancelContext.cancelled()) {
+          return
+        }
+        setState(result)
+      })
+
+    return () => {
+      cancelContext.cancel()
+    }
+  }, [processHandle, system, contentType, value])
+
+  return state
 }

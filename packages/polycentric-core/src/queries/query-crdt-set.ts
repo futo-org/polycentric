@@ -1,9 +1,9 @@
 import * as Base64 from '@borderless/base64';
 
-import * as QueryIndex from './query-index';
-import * as Shared from './shared';
 import * as Models from '../models';
 import * as Protocol from '../protocol';
+import * as QueryIndex from './query-index';
+import * as Shared from './shared';
 
 type StateForItem = {
     cell: QueryIndex.Cell;
@@ -114,6 +114,7 @@ export class QueryManager {
         system: Models.PublicKey.PublicKey,
         callback: QueryIndex.Callback,
         additionalCount: number,
+        contentType: Models.ContentType.ContentType,
     ): void {
         const stateForQuery = this._state.get(callback);
 
@@ -125,6 +126,7 @@ export class QueryManager {
             system,
             stateForQuery.queryIndexCallback,
             additionalCount,
+            contentType,
         );
     }
 }

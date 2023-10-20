@@ -1,10 +1,10 @@
 import Long from 'long';
 
-import * as ProcessHandle from '../process-handle';
 import * as APIMethods from '../api-methods';
 import * as Models from '../models';
-import * as Util from '../util';
+import * as ProcessHandle from '../process-handle';
 import * as Protocol from '../protocol';
+import * as Util from '../util';
 import * as Shared from './shared';
 
 export type Cell = {
@@ -171,6 +171,7 @@ export class QueryManager {
         system: Models.PublicKey.PublicKey,
         callback: Callback,
         additionalCount: number,
+        contentType: Models.ContentType.ContentType,
     ): void {
         const systemString = Models.PublicKey.toString(system);
 
@@ -196,7 +197,7 @@ export class QueryManager {
         stateForQuery.totalExpected += additionalCount;
 
         if (this._useNetwork === true) {
-            this.loadFromNetwork(system, stateForQuery);
+            this.loadFromNetwork(system, stateForQuery, contentType);
         }
 
         if (this._useDisk === true) {
@@ -228,12 +229,18 @@ export class QueryManager {
     private async loadFromNetwork(
         system: Models.PublicKey.PublicKey,
         stateForQuery: StateForQuery,
+        contentType: Models.ContentType.ContentType,
     ): Promise<void> {
         const systemState = await this._processHandle.loadSystemState(system);
 
         for (const server of systemState.servers()) {
             try {
-                this.loadFromNetworkSpecific(system, server, stateForQuery);
+                this.loadFromNetworkSpecific(
+                    system,
+                    server,
+                    stateForQuery,
+                    contentType,
+                );
             } catch (err) {
                 console.log(err);
             }
@@ -244,11 +251,12 @@ export class QueryManager {
         system: Models.PublicKey.PublicKey,
         server: string,
         stateForQuery: StateForQuery,
+        contentType: Models.ContentType.ContentType,
     ): Promise<void> {
         const response = await APIMethods.getQueryIndex(
             server,
             system,
-            Models.ContentType.ContentTypeClaim,
+            contentType,
             stateForQuery.earliestTimeBySource.get(server),
             Long.fromNumber(
                 stateForQuery.totalExpected - stateForQuery.eventsByTime.length,
