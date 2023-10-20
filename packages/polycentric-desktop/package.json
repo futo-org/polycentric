@@ -33,6 +33,8 @@
   },
   "dependencies": {
     "@electron/remote": "^2.0.10",
+    "@fontsource-variable/public-sans": "^5.0.14",
+    "@fontsource/fragment-mono": "^5.0.15",
     "@polycentric/polycentric-core": "*",
     "@polycentric/polycentric-leveldb": "*",
     "@polycentric/polycentric-react": "*",

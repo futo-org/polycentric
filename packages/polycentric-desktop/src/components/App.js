@@ -6,6 +6,11 @@ import { Root } from '@polycentric/polycentric-react';
 import path from 'path';
 import React, { useState } from 'react';
 
+import '@fontsource-variable/public-sans/index.css';
+import '@fontsource-variable/public-sans/wght-italic.css';
+import '@fontsource/fragment-mono/400-italic.css';
+import '@fontsource/fragment-mono/index.css';
+
 const DesktopRoot = () => {
     const [persistenceDriver, setPersistenceDriver] = useState(undefined);
 
