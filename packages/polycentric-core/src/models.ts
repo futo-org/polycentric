@@ -1,9 +1,9 @@
 import * as Protocol from './protocol';
 
-import * as Ed from '@noble/ed25519';
-import Long from 'long';
-import * as FastSHA256 from 'fast-sha256';
 import * as Base64 from '@borderless/base64';
+import * as Ed from '@noble/ed25519';
+import * as FastSHA256 from 'fast-sha256';
+import Long from 'long';
 
 import * as Util from './util';
 
@@ -618,12 +618,12 @@ export class Blob {
     }
 }
 
-export async function hash(bytes: Uint8Array): Promise<Digest.Digest> {
+export function hash(bytes: Uint8Array): Digest.Digest {
     const context = new FastSHA256.Hash();
     context.update(bytes);
     return Digest.fromProto({
         digestType: Long.UONE,
-        digest: await context.digest(),
+        digest: context.digest(),
     });
 }
 
@@ -643,15 +643,15 @@ export function bufferToReference(buffer: Uint8Array): Protocol.Reference {
     };
 }
 
-export async function signedEventToPointer(
+export function signedEventToPointer(
     signedEvent: SignedEvent.SignedEvent,
-): Promise<Pointer.Pointer> {
+): Pointer.Pointer {
     const event = Event.fromBuffer(signedEvent.event);
     return Pointer.fromProto({
         system: event.system,
         process: event.process,
         logicalClock: event.logicalClock,
-        eventDigest: await hash(signedEvent.event),
+        eventDigest: hash(signedEvent.event),
     });
 }
 
