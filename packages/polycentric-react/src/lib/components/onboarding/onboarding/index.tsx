@@ -1,30 +1,36 @@
 import { encode } from '@borderless/base64'
-import { Models } from '@polycentric/polycentric-core'
-import { useEffect, useState } from 'react'
+import { Models, Synchronization } from '@polycentric/polycentric-core'
+import { ReactNode, useEffect, useState } from 'react'
 import internetTodayURL from '../../../../graphics/onboarding/internettoday.svg'
 import starterURL from '../../../../graphics/onboarding/starter.svg'
 import { useOnboardingProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
+import { useThemeColor } from '../../../hooks/styleHooks'
 import { cropImageToWebp, publishBlobToAvatar } from '../../../util/imageProcessing'
 import { CropProfilePicModal } from '../../profile/CropProfilePic'
 import { Carousel } from '../../util/carousel'
 
-const OnboardingPanel = ({ children, imgSrc }: { children: JSX.Element; nextSlide: () => void; imgSrc: string }) => (
-  <div className="w-full flex flex-col-reverse lg:grid lg:grid-cols-2 lg:grid-rows-1 lg:gap-5 lg:px-14 lg:py-10">
-    <div className=" border rounded-[2.5rem]">{children}</div>
-    <br className="lg:hidden" />
-    <div className="w-full flex justify-center bg-[#0096E6] max-h-72 lg:max-h-none rounded-[2.5rem] overflow-hidden">
+const OnboardingPanel = ({ children, imgSrc }: { children: ReactNode; nextSlide: () => void; imgSrc: string }) => (
+  <div className="relative h-screen md:h-auto w-full flex flex-col justify- md:grid md:grid-cols-2 md:grid-rows-1 md:gap-5 md:px-14 md:py-10">
+    <div className="border rounded-[2.5rem] bg-white">{children}</div>
+    {/* Desktop graphic */}
+    <br className="md:hidden" />
+    <div className="hidden md:block w-full justify-center bg-[#0096E6] max-h-72 md:max-h-none rounded-[2.5rem] overflow-hidden">
       <img className="h-full" src={imgSrc} />
+    </div>
+    {/* Mobile graphic */}
+    <div className="md:hidden absolute top-0 left-0 w-full h-full flex flex-col justify-end items-center bg-[#0096E6] -z-10">
+      <img className="h-1/2" src={imgSrc} />
     </div>
   </div>
 )
 
 const WelcomePanel = ({ nextSlide }: { nextSlide: () => void }) => (
   <OnboardingPanel nextSlide={nextSlide} imgSrc={starterURL}>
-    <div className="flex flex-col justify-center h-full text-left p-10 space-y-10 lg:space-y-4">
-      <div className="text-4xl lg:font-6xl font-bold">Welcome to Polycentric</div>
+    <div className="flex flex-col justify-center h-full text-left p-10 space-y-10 md:space-y-4">
+      <div className="text-4xl md:font-6xl font-bold">Welcome to Polycentric</div>
       <div className="text-gray-400 text-lg">Posting for communities</div>
       <button
-        className="bg-blue-500 text-white border shadow rounded-full lg:rounded-md py-2 px-4 font-bold text-lg"
+        className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
         onClick={nextSlide}
       >
         Try it (no email needed)
@@ -44,7 +50,7 @@ const InternetTodayPanel = ({ nextSlide }: { nextSlide: () => void }) => (
         Polycentric was developed with a love for the old internet, built around communities and respect for you.
       </p>
       <button
-        className="bg-blue-500 text-white border shadow rounded-full lg:rounded-md py-2 px-4 font-bold text-lg"
+        className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
         onClick={nextSlide}
       >
         Lets go back
@@ -59,7 +65,7 @@ const RequestNotificationsPanel = ({ nextSlide }: { nextSlide: () => void }) => 
       <div className="text-4xl font-bold">Enable Notifications</div>
       <p className="text-xl">We need you to enable notifications because chrome is stupid.</p>
       <button
-        className="bg-blue-500 text-white border shadow rounded-full lg:rounded-md py-2 px-4 font-bold text-lg"
+        className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
         onClick={async () => {
           const permission = await Notification.requestPermission()
           if (permission === 'denied') console.error('Notifications denied')
@@ -211,9 +217,13 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
           onSubmit={async (e) => {
             e.preventDefault()
             const processHandle = await createAccount(privateKey)
-            processHandle.addServer('https://srv1-stg.polycentric.io')
-            processHandle.setUsername(username)
-            if (avatar) publishBlobToAvatar(avatar, processHandle)
+            processHandle.addAddressHint(processHandle.system(), 'https://srv1-stg.polycentric.io')
+            await processHandle.addServer('https://srv1-stg.polycentric.io')
+            await processHandle.setUsername(username)
+            if (avatar) await publishBlobToAvatar(avatar, processHandle)
+
+            const result = await Synchronization.backFillServers(processHandle, processHandle.system())
+            console.log({ result })
 
             // if supported, save private key to credential manager api
             // @ts-ignore
@@ -247,7 +257,7 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
           />
           <button
             type="submit"
-            className="bg-blue-500 text-white border shadow rounded-full lg:rounded-md py-2 px-4 font-bold text-lg"
+            className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
           >
             Lets go
           </button>
@@ -258,6 +268,8 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
 }
 
 export const Onboarding = () => {
+  useThemeColor('#0096E6')
+
   const isChromium = navigator.userAgent.includes('Chrome')
 
   useEffect(() => {
@@ -277,8 +289,8 @@ export const Onboarding = () => {
   ]
 
   return (
-    <div className="lg:flex justify-center items-center">
-      <Carousel childComponents={childComponents} className="lg:max-w-7xl" />
+    <div className="md:flex justify-center items-center">
+      <Carousel childComponents={childComponents} className="w-full md:max-w-7xl" />
     </div>
   )
 }
