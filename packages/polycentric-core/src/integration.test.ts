@@ -10,8 +10,8 @@ import * as Protocol from './protocol';
 import * as Synchronization from './synchronization';
 import * as Util from './util';
 
-// const TEST_SERVER = 'http://127.0.0.1:8081';
-const TEST_SERVER = 'https://srv1-stg.polycentric.io';
+const TEST_SERVER = 'http://127.0.0.1:8081';
+// const TEST_SERVER = 'https://srv1-stg.polycentric.io';
 
 async function setAvatarImage(
     handle: ProcessHandle.ProcessHandle,
