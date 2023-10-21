@@ -12,11 +12,9 @@ module.exports = {
   },
   plugins: ['react', 'react-refresh'],
   rules: {
-    'react/jsx-key': 'off',
     'react/react-in-jsx-scope': 'off',
     'no-unused-vars': 'off',
     '@typescript-eslint/no-unused-vars': 'warn',
-    'no-console': 'warn',
     '@typescript-eslint/ban-ts-comment': 'off',
     '@typescript-eslint/no-empty-function': 'off',
     "react-refresh/only-export-components": "warn",
