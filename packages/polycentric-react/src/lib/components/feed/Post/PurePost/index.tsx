@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useIsMobile } from '../../../../hooks/styleHooks'
 import { Profile } from '../../../../types/profile'
 import { PopupComposeReplyFullscreen } from '../../../popup/PopupComposeReply'
@@ -197,6 +198,7 @@ export interface PurePostProps {
     publishedAt?: Date
     topic: string
     image?: string
+    url: string
   }
   sub?: {
     content: string
@@ -205,6 +207,7 @@ export interface PurePostProps {
     topic: string
     image?: string
     ContentLink?: string
+    url: string
   }
   stats?: {
     likes: number
@@ -256,9 +259,11 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
             <div className="grid grid-cols-[fit-content(100%)_1fr] relative overflow-clip">
               {/* Left column */}
               <div className="mr-3 lg:mr-4 flex-shrink-0 flex flex-col overflow-clip">
-                <div className="rounded-full h-10 w-10 md:h-16 md:w-16 lg:h-20 lg:w-20 overflow-clip border">
-                  <img src={main.author.avatarURL} />
-                </div>
+                <Link to={main.author.URL}>
+                  <div className="rounded-full h-10 w-10 md:h-16 md:w-16 lg:h-20 lg:w-20 overflow-clip border">
+                    <img src={main.author.avatarURL} />
+                  </div>
+                </Link>
                 {(!isMobile || (isMobile && expanded)) && (
                   <div
                     className={`flex-col space-y-5 md:space-y-2 ${expanded ? 'sticky top-[50vh]' : ''} overflow-clip ${
@@ -331,7 +336,11 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   {sub && (
                     <div className="border rounded-2xl w-full p-5 bg-white hover:bg-gray-50 overflow-clip flex flex-col space-y-3">
                       <div className="flex">
-                        <img src={sub.author.avatarURL} className="rounded-full h-5 w-5 lg:h-10 lg:w-10" />
+                        <Link to={sub.author.URL}>
+                          <div className="rounded-full h-5 w-5 lg:h-10 lg:w-10 overflow-clip">
+                            <img src={sub.author.avatarURL} />
+                          </div>
+                        </Link>
                         <div className="flex flex-col ml-2 w-full">
                           <div className="flex justify-between w-full">
                             <div className="font-bold">{sub.author.name}</div>
