@@ -1,8 +1,8 @@
-import fetch, { Headers } from 'cross-fetch';
 import * as Base64 from '@borderless/base64';
-import * as Protocol from './protocol';
-import * as Models from './models';
+import fetch, { Headers } from 'cross-fetch';
 import Long from 'long';
+import * as Models from './models';
+import * as Protocol from './protocol';
 
 async function checkResponse(name: string, response: Response): Promise<void> {
     if (!response.ok) {
@@ -289,15 +289,19 @@ export async function getExplore(
     limit?: number,
     cursor?: Uint8Array,
 ): Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type> {
-    let path = '/explore';
+    let path = '/explore?';
+
+    const params = new URLSearchParams();
 
     if (cursor !== undefined) {
-        path += `&cursor=${Base64.encodeUrl(cursor)}`;
+        params.append('cursor', Base64.encodeUrl(cursor));
     }
 
     if (limit !== undefined) {
-        path += `&limit=${limit.toString()}`;
+        params.append('limit', limit.toString());
     }
+
+    path += params.toString();
 
     const response = await fetch(server + path, {
         method: 'GET',
