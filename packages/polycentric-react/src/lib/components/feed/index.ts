@@ -1,5 +1,4 @@
 export * from './Compose'
-export * from './DummyScrollFeed'
 export * from './Feed'
 export * from './Post'
 export * from './TopicSuggestionBox'

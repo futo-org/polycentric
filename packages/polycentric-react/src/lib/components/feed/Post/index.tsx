@@ -24,8 +24,6 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
     Protocol.PublicKey.encode(pointer.system).finish(),
   )
 
-  console.log({ likedStored })
-
   const [likedLocal, setLikedLocal] = useState<boolean>(false)
 
   const like = useCallback(async () => {
