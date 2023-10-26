@@ -2,5 +2,5 @@ export interface Profile {
   name?: string
   avatarURL?: string
   description?: string
-  URL: string
+  URL?: string
 }
