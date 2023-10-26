@@ -27,8 +27,8 @@ export const Modal = ({
 
   if (isMobile) {
     return (
-      <IonModal isOpen={open} className="bg-white">
-        <div className="flex flex-col h-screen">
+      <IonModal isOpen={open}>
+        <div className="flex flex-col h-screen bg-white">
           <div className="flex justify-between items-center py-5 px-7">
             <h1 className="text-2xl font-semibold leading-6 text-gray-900">{title}</h1>
             <button
