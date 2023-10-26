@@ -1,6 +1,5 @@
 import { decode } from '@borderless/base64'
 import { Models, Protocol } from '@polycentric/polycentric-core'
-import { useWhatChanged } from '@simbathesailor/use-what-changed'
 import { useCallback, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { PureSidebarProfile } from '../../components'
@@ -84,10 +83,8 @@ export const UserFeedPage = () => {
 
   const [data, advanceFeed] = useAuthorFeed(system)
 
-  const column = <UserColumn system={system} />
-
-  const mobilePreview = <MobileFeedProfile system={system} />
-  useWhatChanged([data, advanceFeed, column, system, mobilePreview])
+  const column = useMemo(() => <UserColumn system={system} />, [system])
+  const mobilePreview = useMemo(() => <MobileFeedProfile system={system} />, [system])
 
   return (
     <InfiniteScrollWithRightCol
