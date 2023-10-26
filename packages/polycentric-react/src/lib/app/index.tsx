@@ -3,18 +3,15 @@ import { IonReactHashRouter, IonReactMemoryRouter, IonReactRouter } from '@ionic
 import { MetaStore, PersistenceDriver, ProcessHandle, Queries } from '@polycentric/polycentric-core'
 import { createMemoryHistory } from 'history'
 import { useEffect, useState } from 'react'
-import { Route } from 'react-router-dom'
-import { FeedPage } from '../components/feed'
+import { SidebarLayout } from '../components/layout/sidebarlayout'
 import { Onboarding } from '../components/onboarding'
-import { PureSidebarProfile } from '../components/profile'
-import { RootLayout } from '../components/rootlayout'
-import { SearchBox } from '../components/search/searchbox'
 import {
   OnboardingProcessHandleManagerContext,
   ProcessHandleManagerContext,
   useProcessHandleManagerBaseComponentHook,
 } from '../hooks/processHandleManagerHooks'
 import { QueryManagerContext } from '../hooks/queryHooks'
+import { AppRouter } from './router'
 
 // Check if we're in electron or not
 const isElectron = () => {
@@ -41,25 +38,6 @@ const PlatformRouter = ({ children }: { children: React.ReactNode }) => {
   return <IonReactRouter>{children}</IonReactRouter>
 }
 
-const AppRouter = () => (
-  <>
-    <Route path="/">
-      <FeedPage>
-        <div className="p-5">
-          <SearchBox />
-          <PureSidebarProfile
-            profile={{
-              name: 'Rossman',
-              avatarURL: 'https://avatars.githubusercontent.com/u/1388441?v=4',
-              description: 'I like to repair. I like to repair. I like to repair.',
-            }}
-          />
-        </div>
-      </FeedPage>
-    </Route>
-  </>
-)
-
 // Currently, Polycentric can only be used while signed in
 export const SignedinApp = ({ processHandle }: { processHandle: ProcessHandle.ProcessHandle }) => {
   const [queryManager, setQueryManager] = useState<Queries.QueryManager.QueryManager>(
@@ -74,11 +52,11 @@ export const SignedinApp = ({ processHandle }: { processHandle: ProcessHandle.Pr
     <QueryManagerContext.Provider value={queryManager}>
       <IonApp>
         <PlatformRouter>
-          <RootLayout>
-            <IonRouterOutlet>
+          <SidebarLayout>
+            <IonRouterOutlet id="main-drawer">
               <AppRouter />
             </IonRouterOutlet>
-          </RootLayout>
+          </SidebarLayout>
         </PlatformRouter>
       </IonApp>
     </QueryManagerContext.Provider>

@@ -1,8 +1,8 @@
-import { DummyScrollFeed } from '.'
+import { Feed } from '.'
 
 export default {
   title: 'Feed/DummyScrollFeed',
-  component: DummyScrollFeed,
+  component: Feed,
 }
 
 export const Main = {
