@@ -5,6 +5,7 @@ import 'swiper/css'
 
 import { Controller } from 'swiper/modules'
 import { Swiper, SwiperSlide } from 'swiper/react'
+import { ExploreFeed } from './ExploreFeed/index.js'
 import { TopicFeed } from './TopicFeed.tsx/index.js'
 
 const MenuIcon = () => (
@@ -41,7 +42,7 @@ const InfoIcon = () => (
   </svg>
 )
 
-const topics = ['/tpot', '/tpot/dating', '/tpot/technology.repair', '/tpot/technology']
+const topics = ['Explore', '/tpot', '/tpot/dating', '/tpot/technology.repair', '/tpot/technology']
 
 export const SwipeHomeFeed = () => {
   const [headerSwiper, setHeaderSwiper] = useState<SwyperType>()
@@ -86,7 +87,7 @@ export const SwipeHomeFeed = () => {
             {topics.map((topic) => (
               <SwiperSlide key={topic}>
                 <div className="flex h-full justify-center items-center">
-                  <h1 className="text-2xl">/tpot/dating</h1>
+                  <h1 className="text-2xl">{topic}</h1>
                 </div>
               </SwiperSlide>
             ))}
@@ -108,7 +109,7 @@ export const SwipeHomeFeed = () => {
       >
         {topics.map((topic) => (
           <SwiperSlide key={topic} style={{ overflow: 'auto' }}>
-            <TopicFeed topic={topic} />
+            {topic === 'Explore' ? <ExploreFeed /> : <TopicFeed topic={topic} />}
           </SwiperSlide>
         ))}
       </Swiper>
