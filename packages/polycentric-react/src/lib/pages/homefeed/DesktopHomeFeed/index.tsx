@@ -1,7 +1,7 @@
 import { InfiniteScrollWithRightCol } from '../../../components/layout/infinitescrollwithrightcol'
+import { useExploreFeed } from '../../../hooks/feedHooks'
 
 export const DesktopHomeFeed = () => {
-  return (
-    <InfiniteScrollWithRightCol data={[]} advanceFeed={() => 0} LeftCol={() => <p>hi</p>} showComposeOnDesktop={true} />
-  )
+  const [data, advanceFeed] = useExploreFeed()
+  return <InfiniteScrollWithRightCol data={data} advanceFeed={advanceFeed} leftCol={null} showComposeOnDesktop={true} />
 }
