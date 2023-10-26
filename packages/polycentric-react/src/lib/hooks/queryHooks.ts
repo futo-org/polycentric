@@ -211,7 +211,8 @@ export function useIndex<T>(
   system: Models.PublicKey.PublicKey,
   contentType: Models.ContentType.ContentType,
   parse: (buffer: Uint8Array) => T,
-): [Array<ParsedEvent<T>>, (advanceBy: number) => void] {
+  batchSize = 30,
+): [Array<ParsedEvent<T>>, () => void] {
   const queryManager = useQueryManager()
 
   const [state, setState] = useState<Array<ClaimInfo<T>>>([])
@@ -264,25 +265,22 @@ export function useIndex<T>(
 
     const unregister = queryManager.queryIndex.query(system, contentType, cb)
 
-    queryManager.queryIndex.advance(system, cb, 30, contentType)
+    queryManager.queryIndex.advance(system, cb, batchSize, contentType)
 
     return () => {
       cancelContext.cancel()
 
       unregister()
     }
-  }, [queryManager.queryIndex, system, contentType, parse])
+  }, [queryManager.queryIndex, system, contentType, parse, batchSize])
 
   const parsedEvents = useMemo(() => {
     return state.map((x) => x.parsedEvent).filter((x) => x !== undefined) as ParsedEvent<T>[]
   }, [state])
 
-  const advanceCallback = useCallback(
-    (advanceBy: number) => {
-      queryManager.queryIndex.advance(system, latestCB.current, advanceBy, contentType)
-    },
-    [queryManager.queryIndex, system, contentType],
-  )
+  const advanceCallback = useCallback(() => {
+    queryManager.queryIndex.advance(system, latestCB.current, batchSize, contentType)
+  }, [queryManager.queryIndex, system, batchSize, contentType])
 
   return [parsedEvents, advanceCallback]
 }
