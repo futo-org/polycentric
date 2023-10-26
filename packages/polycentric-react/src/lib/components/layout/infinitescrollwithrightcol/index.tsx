@@ -1,5 +1,5 @@
 import useVirtual, { Item, ScrollTo } from '@polycentric/react-cool-virtual'
-import { ReactNode, useState } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
 import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks'
 import { useIsMobile } from '../../../hooks/styleHooks'
 import { InnerFeed } from '../../feed/Feed'
@@ -33,11 +33,16 @@ export const InfiniteScrollWithRightCol = ({
   const { outerRef, innerRef, items, scrollTo } = useVirtual<HTMLDivElement>({
     itemCount: data.length,
     loadMoreCount,
-    loadMore: () => advanceFeed(loadMoreCount),
+    loadMore: () => advanceFeed(),
+    overscanCount: 5,
   })
 
   const [hasScrolled, setHasScrolled] = useState(false)
   const isMobile = useIsMobile()
+
+  useEffect(() => {
+    advanceFeed()
+  }, [advanceFeed])
 
   return (
     <div
