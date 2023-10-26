@@ -441,3 +441,40 @@ export const useQueryIfAdded = (
 
   return state
 }
+
+export function useQueryCursor<T>(
+  loadCallback: Queries.QueryCursor.LoadCallback,
+  parse: (buffer: Uint8Array) => T,
+  batchSize = 30,
+): [Array<ParsedEvent<T>>, () => void] {
+  const { processHandle } = useProcessHandleManager()
+  const [state, setState] = useState<Array<ParsedEvent<T>>>([])
+  const [query, setQuery] = useState<Queries.QueryCursor.Query | null>(null)
+
+  const addNewCells = useCallback(
+    (newCells: Queries.QueryCursor.Cell[]) => {
+      const newCellsAsSignedEvents = newCells.map((cell) => {
+        const { signedEvent } = cell
+        const event = Models.Event.fromBuffer(signedEvent.event)
+        const parsed = parse(event.content)
+        return new ParsedEvent<T>(signedEvent, event, parsed)
+      })
+      setState((currentCells) => [...currentCells].concat(newCellsAsSignedEvents))
+    },
+    [parse],
+  )
+
+  useEffect(() => {
+    const newQuery = new Queries.QueryCursor.Query(processHandle, loadCallback, addNewCells, batchSize)
+    setQuery(newQuery)
+    return () => {
+      newQuery.cleanup()
+    }
+  }, [processHandle, loadCallback, addNewCells, batchSize])
+
+  const advance = useMemo(() => {
+    return query?.advance.bind(query) ?? (() => {})
+  }, [query])
+
+  return [state, advance]
+}
