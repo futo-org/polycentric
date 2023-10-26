@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<style>
+			h1 {
+				font-size: 2rem;
+				margin-bottom: 1rem;
+			}
+			
+			.input-container {
+				display: flex;
+				flex-direction: column;
+				gap: 1rem;
+			}
+
+			input {
+				width: 100%;
+				padding: 0.5rem;
+				border: 1px solid #ccc;
+				border-radius: 0.25rem;
+			}
+
+			.response-output {
+				padding: 1rem;
+				border: 1px solid #ccc;
+				border-radius: 0.25rem;
+				font-size: 0.875rem;
+				margin-top: 1rem;
+			}
+
+			.table-container {
+				overflow-x: auto;
+			}
+
+			table {
+				width: 100%;
+				border-collapse: collapse;
+			}
+
+			th, td {
+				padding: 0.5rem;
+				border: 1px solid #ccc;
+				text-align: center;
+			}
+
+			th {
+				background-color: #f2f2f2;
+			}
+
+			tr:nth-child(even) {
+				background-color: #f9f9f9;
+			}
+		</style>
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
