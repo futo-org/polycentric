@@ -39,6 +39,7 @@ export const ReplyCompose = {
           },
           publishedAt: new Date(new Date().getTime() - 5000),
         }}
+        onComment={async () => false}
       />
     ),
   },

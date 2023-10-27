@@ -1,6 +1,6 @@
 import { decode } from '@borderless/base64'
 import { Models, Protocol } from '@polycentric/polycentric-core'
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { PureSidebarProfile } from '../../components'
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol'
@@ -11,7 +11,6 @@ import { useAvatar, useUsernameCRDTQuery } from '../../hooks/queryHooks'
 const UserColumn = ({ system }: { system?: Models.PublicKey.PublicKey }) => {
   const name = useUsernameCRDTQuery(system)
   const avatarURL = useAvatar(system)
-  const { processHandle } = useProcessHandleManager()
 
   return (
     <PureSidebarProfile

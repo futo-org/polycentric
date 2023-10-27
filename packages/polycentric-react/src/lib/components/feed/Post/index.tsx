@@ -24,8 +24,6 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
     Protocol.PublicKey.encode(pointer.system).finish(),
   )
 
-  console.log({ likedStored })
-
   const [likedLocal, setLikedLocal] = useState<boolean>(false)
 
   const like = useCallback(async () => {
@@ -51,10 +49,16 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
   }, [pointer, processHandle])
 
   const comment = useCallback(
-    (text: string) => {
+    async (text: string) => {
       const reference = Models.pointerToReference(pointer)
-      processHandle.post(text, undefined, reference)
-      Synchronization.backFillServers(processHandle, pointer.system)
+      await processHandle.post(text, undefined, reference)
+      try {
+        await Synchronization.backFillServers(processHandle, pointer.system)
+      } catch (e) {
+        console.error(e)
+        return false
+      }
+      return true
     },
     [pointer, processHandle],
   )
