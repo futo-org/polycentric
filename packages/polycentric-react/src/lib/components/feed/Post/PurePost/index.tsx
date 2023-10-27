@@ -216,7 +216,7 @@ export interface PurePostProps {
     unlike?: () => void
     liked?: boolean
     repost: () => void
-    comment: (content: string, upload?: File) => void
+    comment: (content: string, upload?: File) => Promise<boolean>
   }
 }
 

@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react'
 import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks'
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
 import { useIsMobile } from '../../../hooks/styleHooks'
+import { Compose } from '../Compose'
 import { Post } from '../Post'
 
 const UpArrowIcon = () => (
@@ -17,23 +18,6 @@ const UpArrowIcon = () => (
     className="w-6 h-6"
   >
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 19.5v-15m0 0l-6.75 6.75M12 4.5l6.75 6.75" />
-  </svg>
-)
-
-const ComposeIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    strokeWidth={1.5}
-    stroke="currentColor"
-    className="w-6 h-6"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"
-    />
   </svg>
 )
 
@@ -86,11 +70,11 @@ export const InnerFeed = ({
     [processHandle],
   )
 
+  const topFeedComponent = isMobile ? mobileTopComponent : showCompose ? <Compose onPost={onPost} /> : null
+
   return (
     <div className="w-full lg:w-[700px] xl:w-[776px] relative  bg-white">
-      {/* Attach the `innerRef` to the wrapper of the items */}
-      {/* //@ts-ignore */}
-
+      {topFeedComponent && <div className="py-3 lg:p-10 border-b-2">{topFeedComponent}</div>}
       {postingProgress > 0 && (
         <div style={{ height: '4px', width: `${postingProgress * 100}%` }} className="bg-blue-500"></div>
       )}
@@ -130,8 +114,7 @@ export const Feed = ({ data, advanceFeed }: { data: FeedHookData; advanceFeed: F
 
   return (
     <div
-      // @ts-ignore
-      ref={outerRef} // Attach the `outerRef` to the scroll container
+      ref={outerRef}
       className="h-full w-full overflow-auto flex noscrollbar"
       onScroll={(e) => {
         if (e.currentTarget.scrollTop > 400 && !hasScrolled) {

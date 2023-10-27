@@ -47,22 +47,19 @@ export const SwipeHomeFeed = () => {
   const [headerSwiper, setHeaderSwiper] = useState<SwyperType>()
   const [feedSwiper, setFeedSwiper] = useState<SwyperType>()
 
-  const handleSlideChange = useCallback(
-    (swiper: SwyperType) => {
-      if (swiper.activeIndex === 0) {
-        swiper.allowSlidePrev = false
-      }
-      if (swiper.activeIndex === topics.length - 1) {
-        swiper.allowSlideNext = false
-      }
+  const handleSlideChange = useCallback((swiper: SwyperType) => {
+    if (swiper.activeIndex === 0) {
+      swiper.allowSlidePrev = false
+    }
+    if (swiper.activeIndex === topics.length - 1) {
+      swiper.allowSlideNext = false
+    }
 
-      if (swiper.activeIndex !== 0 && swiper.activeIndex !== topics.length - 1) {
-        swiper.allowSlidePrev = true
-        swiper.allowSlideNext = true
-      }
-    },
-    [topics],
-  )
+    if (swiper.activeIndex !== 0 && swiper.activeIndex !== topics.length - 1) {
+      swiper.allowSlidePrev = true
+      swiper.allowSlideNext = true
+    }
+  }, [])
 
   useEffect(() => {
     if (headerSwiper) handleSlideChange(headerSwiper)
@@ -86,7 +83,7 @@ export const SwipeHomeFeed = () => {
             allowSlidePrev={false}
             onSlideChange={handleSlideChange}
           >
-            {topics.map((topic, i) => (
+            {topics.map((topic) => (
               <SwiperSlide key={topic}>
                 <div className="flex h-full justify-center items-center">
                   <h1 className="text-2xl">/tpot/dating</h1>
@@ -109,7 +106,7 @@ export const SwipeHomeFeed = () => {
         edgeSwipeThreshold={50}
         onSlideChange={handleSlideChange}
       >
-        {topics.map((topic, i) => (
+        {topics.map((topic) => (
           <SwiperSlide key={topic} style={{ overflow: 'auto' }}>
             <TopicFeed topic={topic} />
           </SwiperSlide>

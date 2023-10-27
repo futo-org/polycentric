@@ -1,25 +1,32 @@
+import { useCallback } from 'react'
 import { useIsMobile } from '../../../hooks/styleHooks'
-import { Profile } from '../../../types/profile'
 import { Compose } from '../../feed/Compose'
 import { Modal } from '../../util/modal'
+
+interface PopupComposeReplyProfile {
+  name?: string
+  avatarURL?: string
+}
 
 export const PopupComposeReply = ({
   main,
   sub,
+  onComment,
 }: {
   main: {
     content: string
-    author: Profile
     publishedAt?: Date
+    author: PopupComposeReplyProfile
     topic: string
   }
   sub?: {
     content: string
-    author: Profile
     publishedAt?: Date
+    author: PopupComposeReplyProfile
     topic: string
     ContentLink?: string
   }
+  onComment: (content: string, upload?: File) => Promise<boolean>
 }) => {
   const isMobile = useIsMobile()
 
@@ -27,7 +34,9 @@ export const PopupComposeReply = ({
     <div className="px-3 py-5 md:px-7 bg-white overflow-clip flex flex-col space-y-0 w-auto md:w-[40rem] h-full">
       <div className="flex relative overflow-clip">
         <div className="mr-3 md:mr-4 flex-shrink-0 flex flex-col overflow-clip">
-          <img src={main.author.avatarURL} className="rounded-full h-16 w-16 md:h-20 md:w-20" />
+          <div className="rounded-full h-16 w-16 md:h-20 md:w-20 overflow-clip border">
+            <img src={main.author.avatarURL} />
+          </div>
           <div className={`flex-grow flex justify-center items-center ${sub != null ? 'py-3' : 'py-2'}`}>
             <div className={`border h-full ${sub != null ? 'h-full' : 'min-h-[2rem]'}`}></div>
           </div>
@@ -75,6 +84,8 @@ export const PopupComposeReply = ({
         maxTextboxHeightPx={isMobile ? 0 : 250}
         topicDisabled={true}
         preSetTopic={main.topic}
+        onPost={onComment}
+        flexGrow={isMobile}
       />
     </div>
   )
@@ -85,27 +96,40 @@ export const PopupComposeReplyFullscreen = ({
   sub,
   open,
   setOpen,
+  onComment,
 }: {
-  onComment?: (content: string, upload: File) => void
   main: {
     content: string
-    author: Profile
     publishedAt?: Date
+    author: PopupComposeReplyProfile
     topic: string
   }
   sub?: {
     content: string
-    author: Profile
     publishedAt?: Date
+    author: PopupComposeReplyProfile
     topic: string
     ContentLink?: string
   }
   open: boolean
   setOpen: (b: boolean) => void
+  onComment?: (content: string, upload?: File) => Promise<boolean>
 }) => {
+  const onCommentWithClose = useCallback(
+    async (content: string, upload?: File) => {
+      try {
+        await onComment?.(content, upload)
+        setOpen(false)
+        return true
+      } catch (e) {
+        return false
+      }
+    },
+    [onComment, setOpen],
+  )
   return (
     <Modal open={open} setOpen={setOpen}>
-      <PopupComposeReply main={main} sub={sub} />
+      <PopupComposeReply main={main} sub={sub} onComment={onCommentWithClose} />
     </Modal>
   )
 }
