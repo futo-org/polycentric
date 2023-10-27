@@ -1,208 +1,56 @@
 <script>
-    import GetPolycentricEventsByPublicKey from "./GetPolycentricEventsByPublicKey.svelte";
-    import GetPolycentricProfileByClaim from "./GetPolycentricProfileByClaim.svelte";
+    import Constants from "./Constants.svelte";
+    import GetEvents from "./GetEvents.svelte";
+    import QueryReferencesBuffer from "./QueryReferencesBuffer.svelte";
+    import QueryReferencesPointer from "./QueryReferencesPointer.svelte";
+    import ResolveClaim from "./ResolveClaim.svelte";
+  
+    let activeTab = 'events';
 </script>
 
-<GetPolycentricEventsByPublicKey />
+<style>
+    .tabs {
+        display: flex;
+    }
 
-<GetPolycentricProfileByClaim />
+    .tab {
+        cursor: pointer;
+        padding: 10px;
+        border: 1px solid #ccc;
+        margin-right: 10px;
+    }
 
-<h1>Constants</h1>
-<div class="table-container" style="margin-bottom: 20px;">
-    <table>
-        <tr>
-            <th>Name</th>
-            <th>Public Key</th>
-        </tr>
-        <tr>
-            <td>Trust Root</td>
-            <td>gX0eCWctTm6WHVGot4sMAh7NDAIwWsIM5tRsOz9dX04=</td>
-        </tr>
-    </table>
+    .active {
+        background-color: #ccc;
+    }
+</style>
+
+<h1>Get Polycentric Data</h1>
+
+
+<div class="tabs" style="margin-bottom: 10px;">
+    <div role="button" tabindex="0" class="tab" class:active={activeTab === 'events'} on:click={() => activeTab = 'events'}>
+        Events By System
+    </div>
+    <div role="button" tabindex="1" class="tab" class:active={activeTab === 'resolveClaim'} on:click={() => activeTab = 'resolveClaim'}>
+        Resolve Claim
+    </div>
+    <div role="button" tabindex="2" class="tab" class:active={activeTab === 'queryReferencesBuffer'} on:click={() => activeTab = 'queryReferencesBuffer'}>
+        Query References Buffer
+    </div>
+    <div role="button" tabindex="3" class="tab" class:active={activeTab === 'queryReferencesPointer'} on:click={() => activeTab = 'queryReferencesPointer'}>
+        Query References Pointer
+    </div>
 </div>
 
-<div class="table-container">
-    <table>
-        <tr>
-            <th>Claim Type</th>
-            <th>Platform</th>
-        </tr>
-        <tr>
-            <td>1</td>
-            <td>HackerNews</td>
-        </tr>
-        <tr>
-            <td>2</td>
-            <td>YouTube</td>
-        </tr>
-        <tr>
-            <td>3</td>
-            <td>Odysee</td>
-        </tr>
-        <tr>
-            <td>4</td>
-            <td>Rumble</td>
-        </tr>
-        <tr>
-            <td>5</td>
-            <td>Twitter</td>
-        </tr>
-        <tr>
-            <td>6</td>
-            <td>Bitcoin</td>
-        </tr>
-        <tr>
-            <td>7</td>
-            <td>Generic</td>
-        </tr>
-        <tr>
-            <td>8</td>
-            <td>Discord</td>
-        </tr>
-        <tr>
-            <td>9</td>
-            <td>Instagram</td>
-        </tr>
-        <tr>
-            <td>10</td>
-            <td>GitHub</td>
-        </tr>
-        <tr>
-            <td>11</td>
-            <td>Minds</td>
-        </tr>
-        <tr>
-            <td>12</td>
-            <td>Patreon</td>
-        </tr>
-        <tr>
-            <td>13</td>
-            <td>Substack</td>
-        </tr>
-        <tr>
-            <td>14</td>
-            <td>Twitch</td>
-        </tr>
-        <tr>
-            <td>15</td>
-            <td>Website</td>
-        </tr>
-        <tr>
-            <td>16</td>
-            <td>Kick</td>
-        </tr>
-        <tr>
-            <td>17</td>
-            <td>Soundcloud</td>
-        </tr>
-        <tr>
-            <td>18</td>
-            <td>Vimeo</td>
-        </tr>
-        <tr>
-            <td>19</td>
-            <td>Nebula</td>
-        </tr>
-        <tr>
-            <td>20</td>
-            <td>URL</td>
-        </tr>
-        <tr>
-            <td>21</td>
-            <td>Occupation</td>
-        </tr>
-        <tr>
-            <td>22</td>
-            <td>Skill</td>
-        </tr>
-        <tr>
-            <td>23</td>
-            <td>Spotify</td>
-        </tr>
-        <tr>
-            <td>24</td>
-            <td>Spreadshop</td>
-        </tr>
-        <tr>
-            <td>25</td>
-            <td>Polycentric</td>
-        </tr>
-        <tr>
-            <td>26</td>
-            <td>Gitlab</td>
-        </tr>
-    </table>
-</div>
+{#if activeTab === 'events'}
+    <GetEvents />
+{:else if activeTab === 'resolveClaim'}
+    <ResolveClaim />
+{:else if activeTab === 'queryReferencesBuffer'}
+    <QueryReferencesBuffer />
+{:else if activeTab === 'queryReferencesPointer'}
+    <QueryReferencesPointer />
+{/if}
 
-<div class="table-container" style="margin-bottom: 10px;">
-    <table>
-        <tr>
-            <th>Content Type</th>
-            <th>ID</th>
-        </tr>
-        <tr>
-            <td>Delete</td>
-            <td>1</td>
-        </tr>
-        <tr>
-            <td>System Processes</td>
-            <td>2</td>
-        </tr>
-        <tr>
-            <td>Post</td>
-            <td>3</td>
-        </tr>
-        <tr>
-            <td>Follow</td>
-            <td>4</td>
-        </tr>
-        <tr>
-            <td>Username</td>
-            <td>5</td>
-        </tr>
-        <tr>
-            <td>Description</td>
-            <td>6</td>
-        </tr>
-        <tr>
-            <td>Blob Meta</td>
-            <td>7</td>
-        </tr>
-        <tr>
-            <td>Blob Section</td>
-            <td>8</td>
-        </tr>
-        <tr>
-            <td>Avatar</td>
-            <td>9</td>
-        </tr>
-        <tr>
-            <td>Server</td>
-            <td>10</td>
-        </tr>
-        <tr>
-            <td>Vouch</td>
-            <td>11</td>
-        </tr>
-        <tr>
-            <td>Claim</td>
-            <td>12</td>
-        </tr>
-        <tr>
-            <td>Banner</td>
-            <td>13</td>
-        </tr>
-        <tr>
-            <td>Opinion</td>
-            <td>14</td>
-        </tr>
-        <tr>
-            <td>Store</td>
-            <td>15</td>
-        </tr>
-        <tr>
-            <td>Authority</td>
-            <td>16</td>
-        </tr>
-    </table>
-</div>
+<Constants />
