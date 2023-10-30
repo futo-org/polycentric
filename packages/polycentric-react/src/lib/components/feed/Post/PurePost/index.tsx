@@ -253,7 +253,8 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
           </div>
         ) : (
           <article className="px-3 pt-5 pb-3 lg:px-10 lg:pt-10 lg:pb-8 border-b border-gray-100 bg-white overflow-clip inline-block w-full">
-            <div className="flex relative overflow-clip">
+            <div className="grid grid-cols-[fit-content(100%)_1fr] relative overflow-clip">
+              {/* Left column */}
               <div className="mr-3 lg:mr-4 flex-shrink-0 flex flex-col overflow-clip">
                 <div className="rounded-full h-10 w-10 md:h-16 md:w-16 lg:h-20 lg:w-20 overflow-clip border">
                   <img src={main.author.avatarURL} />
@@ -290,6 +291,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   </div>
                 )}
               </div>
+              {/* Right column */}
               <div className="flex-grow w-full lg:max-w-[600px]">
                 <div className="flex w-full justify-between">
                   <div className="">
@@ -356,48 +358,50 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   )}
                 </div>
               </div>
-            </div>
-            {contentCropped && !expanded && (
-              <div className="flex w-full justify-center mt-4">
-                <button
+              {contentCropped && !expanded && (
+                // Bot columns so it's centered
+                <div className="col-span-2 flex w-full justify-center mt-4">
+                  <button
+                    onClick={() => {
+                      setExpanded(true)
+                    }}
+                    className="bg-gray-200 rounded-full font-bold px-10 z-10 py-3"
+                  >
+                    Read more
+                  </button>
+                </div>
+              )}
+              {/* Left column */}
+              <div className="col-start-2 lg:hidden flex justify-between pt-6">
+                <RePostButton
                   onClick={() => {
-                    setExpanded(true)
+                    return
                   }}
-                  className="bg-gray-200 rounded-full font-bold px-10 z-10 py-3"
-                >
-                  Read more
-                </button>
+                  count={stats?.reposts}
+                />
+                <CommentButton
+                  onClick={() => {
+                    setCommentPanelOpen(true)
+                  }}
+                  count={stats?.comments}
+                />
+                <LikeButton
+                  onClick={() => (actions?.liked ? actions?.unlike?.() : actions?.like?.())}
+                  count={stats?.likes}
+                  clicked={actions?.liked ?? false}
+                />
+                <SharePostButton
+                  onClick={() => {
+                    if (navigator.share) {
+                      navigator.share({
+                        title: 'Polycentric',
+                        text: main.content,
+                        url: window.location.href,
+                      })
+                    }
+                  }}
+                />
               </div>
-            )}
-            <div className="lg:hidden flex justify-around pt-6">
-              <RePostButton
-                onClick={() => {
-                  return
-                }}
-                count={stats?.reposts}
-              />
-              <CommentButton
-                onClick={() => {
-                  setCommentPanelOpen(true)
-                }}
-                count={stats?.comments}
-              />
-              <LikeButton
-                onClick={() => (actions?.liked ? actions?.unlike?.() : actions?.like?.())}
-                count={stats?.likes}
-                clicked={actions?.liked ?? false}
-              />
-              <SharePostButton
-                onClick={() => {
-                  if (navigator.share) {
-                    navigator.share({
-                      title: 'Polycentric',
-                      text: main.content,
-                      url: window.location.href,
-                    })
-                  }
-                }}
-              />
             </div>
             <PopupComposeReplyFullscreen
               open={commentPanelOpen}

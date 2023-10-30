@@ -93,3 +93,19 @@ export const useIsAtLeastTailwindBreakpoint = (breakpoint: string) => {
 export const useIsMobile = () => {
   return useIsAtLeastTailwindBreakpoint('lg') === false
 }
+
+export const useThemeColor = (color: string) => {
+  const originalColor = document.querySelector('meta[name="theme-color"]')?.getAttribute('content')
+
+  if (originalColor !== color) {
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (originalColor) {
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', originalColor)
+      }
+    }
+  }, [originalColor])
+}
