@@ -7,27 +7,19 @@ pub(crate) async fn count_references_pointer(
 ) -> ::anyhow::Result<u64> {
     let query = "
         SELECT
-            COUNT(*)
+            COALESCE(SUM(count), 0)::bigint
         FROM
-            events
+            count_references_pointer
         WHERE
-            id
-        IN (
-            SELECT
-                event_id as id
-            FROM
-                event_links
-            WHERE
-                subject_system_key_type = $1
-            AND
-                subject_system_key = $2
-            AND
-                subject_process = $3
-            AND
-                subject_logical_clock = $4
-        )
+            subject_system_key_type = $1
         AND
-            ($5 IS NULL OR content_type = $5)
+            subject_system_key = $2
+        AND
+            subject_process = $3
+        AND
+            subject_logical_clock = $4
+        AND
+            ($5 IS NULL OR from_type = $5)
     ";
 
     let from_type_query = if let Some(x) = from_type {
@@ -57,21 +49,13 @@ pub(crate) async fn count_references_bytes(
 ) -> ::anyhow::Result<u64> {
     let query = "
         SELECT
-            COUNT(*)
+            COALESCE(SUM(count), 0)::bigint
         FROM
-            events
+            count_references_bytes
         WHERE
-            id
-        IN (
-            SELECT
-                event_id as id
-            FROM
-                event_references_bytes
-            WHERE
-                subject_bytes = $1
-        )
+            subject_bytes = $1
         AND
-            ($2 IS NULL OR content_type = $2)
+            ($2 IS NULL OR from_type = $2)
     ";
 
     let from_type_query = if let Some(x) = from_type {

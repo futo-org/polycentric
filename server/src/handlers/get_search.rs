@@ -93,21 +93,19 @@ pub(crate) async fn handler(
                 known_message_types::DESCRIPTION
             };
 
-            let event_list_result =
-                &crate::postgres::load_latest_system_wide_lww_event_by_type(
+            let potential_event = crate::warp_try_err_500!(
+                crate::postgres::load_latest_system_wide_lww_event_by_type(
                     &mut transaction,
                     &system,
                     content_type,
-                    1,
                 )
-                .await;
+                .await
+            );
 
-            let event_list = crate::warp_try_err_500!(event_list_result);
-
-            if !event_list.is_empty() {
+            if let Some(event) = potential_event {
                 result_events
                     .events
-                    .push(crate::model::signed_event::to_proto(&event_list[0]));
+                    .push(crate::model::signed_event::to_proto(&event));
             }
         }
     }

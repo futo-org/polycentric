@@ -47,7 +47,8 @@ fn trace_event(
     }
 
     debug!(
-        "ingesting logical_clock: {} event_type: {} details: {}",
+        "ingesting {}:{} event_type: {} details: {}",
+        crate::model::public_key::to_base64(event.system())?,
         *event.logical_clock(),
         crate::model::content_type_to_string(*event.content_type()),
         content_str,
@@ -74,17 +75,25 @@ pub(crate) async fn ingest_event_postgres(
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
 
+    let content = crate::model::content::decode_content(
+        *event.content_type(),
+        event.content(),
+    )?;
+
+    // update_counts must run before delete_event or event inserted
+    crate::queries::update_counts::update_counts(
+        &mut *transaction,
+        &event,
+        &content,
+    )
+    .await?;
+
     let event_id = crate::postgres::insert_event(
         &mut *transaction,
         signed_event,
         server_time,
     )
     .await?;
-
-    let content = crate::model::content::decode_content(
-        *event.content_type(),
-        event.content(),
-    )?;
 
     for reference in event.references().iter() {
         match reference {
@@ -119,15 +128,15 @@ pub(crate) async fn ingest_event_postgres(
         .await?;
     }
 
-    if let crate::model::content::Content::Delete(body) = content {
+    if let crate::model::content::Content::Delete(body) = &content {
         crate::postgres::delete_event(
             &mut *transaction,
             event_id,
             event.system(),
-            &body,
+            body,
         )
         .await?;
-    } else if let crate::model::content::Content::Claim(body) = content {
+    } else if let crate::model::content::Content::Claim(body) = &content {
         crate::postgres::insert_claim(&mut *transaction, event_id, body)
             .await?;
     }

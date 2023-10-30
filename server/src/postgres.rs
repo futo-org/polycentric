@@ -147,6 +147,107 @@ pub(crate) async fn prepare_database(
 
     ::sqlx::query(
         "
+        CREATE TABLE IF NOT EXISTS count_references_bytes (
+            id            BIGSERIAL PRIMARY KEY,
+            subject_bytes BYTEA     NOT NULL,
+            count         INT8      NOT NULL,
+            from_type     INT8      NOT NULL,
+            
+            CHECK ( count     >= 0 ),
+            CHECK ( from_type >= 0 ),
+
+            UNIQUE(subject_bytes, from_type)
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        CREATE TABLE IF NOT EXISTS count_lww_element_references_bytes (
+            id            BIGSERIAL PRIMARY KEY,
+            subject_bytes BYTEA     NOT NULL,
+            count         INT8      NOT NULL,
+            from_type     INT8      NOT NULL,
+            value         BYTEA     NOT NULL,
+            
+            CHECK ( count     >= 0 ),
+            CHECK ( from_type >= 0 ),
+
+            UNIQUE(subject_bytes, value, from_type)
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        CREATE TABLE IF NOT EXISTS count_references_pointer (
+            id                      BIGSERIAL PRIMARY KEY,
+            subject_system_key_type INT8      NOT NULL,
+            subject_system_key      BYTEA     NOT NULL,
+            subject_process         BYTEA     NOT NULL,
+            subject_logical_clock   INT8      NOT NULL,
+            count                   INT8      NOT NULL,
+            from_type               INT8      NOT NULL,
+
+
+            CHECK ( subject_system_key_type >= 0  ),
+            CHECK ( LENGTH(subject_process) =  16 ),
+            CHECK ( subject_logical_clock   >= 0  ),
+            CHECK ( count                   >= 0  ),
+            CHECK ( from_type               >= 0  ),
+
+            UNIQUE(
+                subject_system_key_type,
+                subject_system_key,
+                subject_process,
+                subject_logical_clock,
+                from_type
+            )
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        CREATE TABLE IF NOT EXISTS count_lww_element_references_pointer (
+            id                      BIGSERIAL PRIMARY KEY,
+            subject_system_key_type INT8      NOT NULL,
+            subject_system_key      BYTEA     NOT NULL,
+            subject_process         BYTEA     NOT NULL,
+            subject_logical_clock   INT8      NOT NULL,
+            count                   INT8      NOT NULL,
+            from_type               INT8      NOT NULL,
+            value                   BYTEA     NOT NULL,
+
+
+            CHECK ( subject_system_key_type >= 0  ),
+            CHECK ( LENGTH(subject_process) =  16 ),
+            CHECK ( subject_logical_clock   >= 0  ),
+            CHECK ( count                   >= 0  ),
+            CHECK ( from_type               >= 0  ),
+
+            UNIQUE(
+                subject_system_key_type,
+                subject_system_key,
+                subject_process,
+                subject_logical_clock,
+                value,
+                from_type
+            )
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
         CREATE TABLE IF NOT EXISTS event_links (
             id                      BIGSERIAL PRIMARY KEY,
             subject_system_key_type INT8      NOT NULL,
@@ -440,12 +541,12 @@ pub(crate) async fn load_processes_for_system(
         FROM events
         WHERE system_key_type = $1
         AND system_key = $2
-    ";
+        ";
 
     ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
         .bind(i64::try_from(crate::model::public_key::get_key_type(
-            system,
-        ))?)
+                    system,
+                    ))?)
         .bind(crate::model::public_key::get_key_bytes(system))
         .fetch_all(&mut *transaction)
         .await?
@@ -453,8 +554,8 @@ pub(crate) async fn load_processes_for_system(
         .map(|raw| {
             crate::model::process::from_vec(raw)
         })
-        .collect::<::anyhow::Result<
-            ::std::vec::Vec<crate::model::process::Process>,
+    .collect::<::anyhow::Result<
+        ::std::vec::Vec<crate::model::process::Process>,
         >>()
 }
 
@@ -501,38 +602,43 @@ pub(crate) async fn load_latest_system_wide_lww_event_by_type(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     system: &crate::model::public_key::PublicKey,
     content_type: u64,
-    limit: u64,
-) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
-{
+) -> ::anyhow::Result<Option<crate::model::signed_event::SignedEvent>> {
     let query = "
-        SELECT events.raw_event FROM events 
-        INNER JOIN lww_elements 
-        ON events.id = lww_elements.event_id 
-        WHERE events.system_key_type = $1
-        AND   events.system_key      = $2
-        AND   events.content_type    = $3
-        ORDER BY lww_elements.unix_milliseconds DESC
-        LIMIT $4;
+        SELECT
+            events.raw_event
+        FROM
+            events 
+        INNER JOIN
+            lww_elements 
+        ON
+            events.id = lww_elements.event_id 
+        WHERE
+            events.system_key_type = $1
+        AND
+            events.system_key = $2
+        AND
+            events.content_type = $3
+        ORDER BY
+            lww_elements.unix_milliseconds DESC,
+            events.process DESC
+        LIMIT 1;
     ";
 
-    ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
+    let potential_raw = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
         .bind(i64::try_from(crate::model::public_key::get_key_type(
             system,
         ))?)
         .bind(crate::model::public_key::get_key_bytes(system))
         .bind(i64::try_from(content_type)?)
-        .bind(i64::try_from(limit)?)
-        .fetch_all(&mut *transaction)
-        .await?
-        .iter()
-        .map(|raw| {
-            crate::model::signed_event::from_proto(
-                &crate::protocol::SignedEvent::parse_from_bytes(raw)?,
-            )
-        })
-        .collect::<::anyhow::Result<
-            ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
-        >>()
+        .fetch_optional(&mut *transaction)
+        .await?;
+
+    match potential_raw {
+        Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
+            &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+        )?)),
+        None => Ok(None),
+    }
 }
 
 pub(crate) async fn does_event_exist(
@@ -815,7 +921,7 @@ pub(crate) fn claim_fields_to_json_object(
 pub(crate) async fn insert_claim(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event_id: u64,
-    claim: crate::model::claim::Claim,
+    claim: &crate::model::claim::Claim,
 ) -> ::anyhow::Result<()> {
     let query_insert_claim = "
         INSERT INTO claims
