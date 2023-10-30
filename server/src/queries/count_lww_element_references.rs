@@ -7,45 +7,22 @@ pub(crate) async fn count_lww_element_references_pointer(
     from_type: &::std::option::Option<u64>,
 ) -> ::anyhow::Result<u64> {
     let query = "
-        WITH latest_values AS (
-            SELECT DISTINCT ON (
-                events.system_key_type,
-                events.system_key
-            )
-                lww_elements.value as value,
-                events.content_type as content_type
-            FROM
-                events
-            INNER JOIN
-                lww_elements
-            ON
-                events.id = lww_elements.event_id
-            INNER JOIN
-                event_links
-            ON
-                events.id = event_links.event_id
-            WHERE
-                event_links.subject_system_key_type = $1
-            AND
-                event_links.subject_system_key = $2
-            AND
-                event_links.subject_process = $3
-            AND
-                event_links.subject_logical_clock = $4
-            ORDER BY
-                events.system_key_type,
-                events.system_key,
-                lww_elements.unix_milliseconds
-            DESC
-        )
         SELECT
-            COUNT(*)
+            COALESCE(SUM(count), 0)::bigint
         FROM
-            latest_values
+            count_lww_element_references_pointer
         WHERE
-            latest_values.value = $5
+            subject_system_key_type = $1
         AND
-            ($6 IS NULL OR latest_values.content_type = $6)
+            subject_system_key = $2
+        AND
+            subject_process = $3
+        AND
+            subject_logical_clock = $4
+        AND
+            value = $5
+        AND
+            ($6 IS NULL OR from_type = $6)
     ";
 
     let from_type_query = if let Some(x) = from_type {
@@ -76,39 +53,16 @@ pub(crate) async fn count_lww_element_references_bytes(
     from_type: &::std::option::Option<u64>,
 ) -> ::anyhow::Result<u64> {
     let query = "
-        WITH latest_values AS (
-            SELECT DISTINCT ON (
-                events.system_key_type,
-                events.system_key
-            )
-                lww_elements.value as value,
-                events.content_type as content_type
-            FROM
-                events
-            INNER JOIN
-                lww_elements
-            ON
-                events.id = lww_elements.event_id
-            INNER JOIN
-                event_references_bytes
-            ON
-                events.id = event_references_bytes.event_id
-            WHERE
-                event_references_bytes.subject_bytes = $1
-            ORDER BY
-                events.system_key_type,
-                events.system_key,
-                lww_elements.unix_milliseconds
-            DESC
-        )
         SELECT
-            COUNT(*)
+            COALESCE(SUM(count), 0)::bigint
         FROM
-            latest_values
+            count_lww_element_references_bytes
         WHERE
-            latest_values.value = $2
+            subject_bytes = $1
         AND
-            ($3 IS NULL OR latest_values.content_type = $3)
+            value = $2
+        AND
+            ($3 IS NULL OR from_type = $3)
     ";
 
     let from_type_query = if let Some(x) = from_type {
