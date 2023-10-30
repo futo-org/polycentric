@@ -85,7 +85,7 @@ export const TopicSuggestionBox = ({
   }, [query, topics])
 
   return (
-    <div className="bg-white p-5 rounded-b-xl shadow w-full">
+    <div className="bg-white p-5 rounded-b-xl border border-3 border-purple-900 w-full">
       <TopicSuggestionBoxPill topics={results} path="" setSelected={setSelected} />
     </div>
   )

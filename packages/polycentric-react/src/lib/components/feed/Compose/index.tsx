@@ -74,12 +74,15 @@ const TopicBox = ({
         disabled={disabled}
       />
       <div
-        className={`absolute top-0 left-0 w-full h-full border bg-white peer-focus:border-3 peer-focus:border-purple-900 rounded-lg -skew-x-[9deg] ${
+        className={`absolute top-0 left-0 w-full h-full border bg-white peer-focus:border-3 peer-focus:border-purple-900 peer-focus:border-b-0 rounded-lg -skew-x-[9deg] ${
           disabled ? 'opacity-50' : ''
-        }`}
+        }
+          ${focused ? ' rounded-b-none' : ''}
+        `}
       ></div>
       {focused && (
-        <div className="absolute top-[3rem] w-full">
+        // What, you've never seen a trig function in CSS before?
+        <div className="absolute top-[3rem] w-full ml-[calc(-0.5_*_tan(9deg)_*_3rem)]">
           <TopicSuggestionBox
             topics={testTopics}
             query={topic}
