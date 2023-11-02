@@ -30,16 +30,9 @@ export const SidebarLayout = ({ children }: { children: ReactNode }) => {
       <div className="flex h-screen mt-16 md:mt-0 w-full">
         {/* Physical left sidebar for tablet+ */}
         <aside
-          className={`border h-full lg:w-[calc(100vw-700px)] xl:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:ml-[calc((100vw-1536px)/2)] `}
+          className={`border-x h-full lg:w-[calc(100vw-700px)] xl:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:ml-[calc((100vw-1536px)/2)] `}
         >
-          <MainSidebar
-            topics={['/tpot', '/tpot/dating']}
-            profile={{
-              name: 'John Doe',
-              avatarURL: 'https://i.pravatar.cc/300',
-              description: 'i like to repair. i like to repair. i like to repair. ',
-            }}
-          />
+          <MainSidebar topics={['/tpot', '/tpot/dating']} />
         </aside>
         {/* [     |  |    main    |  |       ]
             Formula for left two side bars of a 3 column table, with total width of X and middle column width of Y
