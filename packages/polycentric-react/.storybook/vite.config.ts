@@ -1,5 +1,4 @@
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react-swc'
 import tailwindcss from 'tailwindcss'
 import { UserConfigExport } from 'vite'
 import unfonts from 'unplugin-fonts/vite'
