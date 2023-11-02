@@ -24,8 +24,12 @@ const app = defineConfig(({ mode }) => ({
   optimizeDeps: {
     exclude: mode === 'development' ? ['@polycentric/polycentric-core'] : [],
   },
+  esbuild: {
+    keepNames: mode === 'development',
+  },
   build: {
     sourcemap: mode === 'development',
+    keepNames: mode === 'development',
     emptyOutDir: false,
     lib: {
       name,

@@ -9,7 +9,7 @@ const polycentricDeps = [
 ];
 
 // https://vitejs.dev/config/
-export default defineConfig(({ command }) => ({
+export default defineConfig(({ mode }) => ({
     server: { https: true },
     plugins: [
         react(),
@@ -88,7 +88,6 @@ export default defineConfig(({ command }) => ({
     ],
     build: {
         rollupOptions: {
-            external: command === 'serve' ? polycentricDeps : [],
             output: {
                 format: 'es',
                 manualChunks: {
@@ -105,7 +104,7 @@ export default defineConfig(({ command }) => ({
         },
     },
     optimizeDeps: {
-        exclude: command === 'serve' ? polycentricDeps : [],
+        exclude: mode === 'development' ? polycentricDeps : [],
     },
     // Currently not using tailwindcss because it's prepackaged with polycentric-react
 }));
