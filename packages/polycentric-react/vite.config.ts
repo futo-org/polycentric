@@ -1,5 +1,5 @@
 import libAssetsPlugin from '@laynezh/vite-plugin-lib-assets'
-import react from '@vitejs/plugin-react'
+import react from '@vitejs/plugin-react-swc'
 import path from 'node:path'
 import tailwindcss from 'tailwindcss'
 import dts from 'vite-plugin-dts'
