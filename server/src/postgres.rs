@@ -77,6 +77,27 @@ pub(crate) async fn prepare_database(
 ) -> ::sqlx::Result<()> {
     ::sqlx::query(
         "
+        CREATE TABLE IF NOT EXISTS schema_version (
+            version     INT8        NOT NULL,
+            upgraded_on TIMESTAMPTZ NOT NULL
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        INSERT INTO schema_version (version, upgraded_on)
+        SELECT 0, NOW()
+        WHERE NOT EXISTS (SELECT * FROM schema_version);
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
         DO $$ BEGIN
             CREATE TYPE censorship_type AS ENUM (
                 'do_not_recommend',

@@ -6,6 +6,7 @@ use ::warp::Filter;
 
 mod handlers;
 mod ingest;
+mod migrate;
 mod model;
 mod postgres;
 mod queries;
@@ -148,6 +149,8 @@ async fn serve_api(
     let mut transaction = pool.begin().await?;
 
     crate::postgres::prepare_database(&mut transaction).await?;
+
+    crate::migrate::migrate(&mut transaction).await?;
 
     transaction.commit().await?;
 
