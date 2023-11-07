@@ -150,6 +150,13 @@ pub(crate) async fn ingest_event_postgres(
         .await?;
     }
 
+    crate::queries::update_counts::update_lww_element_reference(
+        &mut *transaction,
+        event_id,
+        &event,
+    )
+    .await?;
+
     Ok(())
 }
 
