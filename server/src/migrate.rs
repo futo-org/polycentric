@@ -38,6 +38,10 @@ async fn migration_1_compute_reference_counts(
     let mut cursor: Option<i64> = None;
 
     loop {
+        if let Some(position) = cursor {
+            ::log::info!("cursor {:?}", position);
+        }
+
         let rows = ::sqlx::query_as::<_, RawEventAndIdRow>(
             "
                 SELECT id, raw_event FROM events
@@ -71,6 +75,13 @@ async fn migration_1_compute_reference_counts(
                 &mut *transaction,
                 &event,
                 &content,
+            )
+            .await?;
+
+            crate::queries::update_counts::update_lww_element_reference(
+                &mut *transaction,
+                u64::try_from(row.id)?,
+                &event,
             )
             .await?;
         }
