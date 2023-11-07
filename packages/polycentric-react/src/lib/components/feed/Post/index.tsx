@@ -19,8 +19,8 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
   const { processHandle } = useProcessHandleManager()
 
   const likedStored: boolean | undefined = useQueryIfAdded(
-    processHandle.system(),
     Models.ContentType.ContentTypeOpinion,
+    processHandle.system(),
     Protocol.PublicKey.encode(pointer.system).finish(),
   )
 
