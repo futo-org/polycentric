@@ -207,28 +207,25 @@ async fn load_previous_with_bytes(
 ) -> ::anyhow::Result<Option<crate::model::signed_event::SignedEvent>> {
     let query = "
         SELECT
-            events.raw_event
+            raw_event
         FROM
-            events 
-        INNER JOIN
-            lww_elements 
-        ON
-            events.id = lww_elements.event_id
-        INNER JOIN
-            event_references_bytes
-        ON
-            events.id = event_references_bytes.event_id
+            events
         WHERE
-            events.system_key_type = $1
-        AND
-            events.system_key = $2
-        AND
-            events.content_type = $3
-        AND
-            event_references_bytes.subject_bytes = $4
-        ORDER BY
-            lww_elements.unix_milliseconds DESC,
-            events.process DESC
+            id
+        IN (
+            SELECT
+                event_id
+            FROM
+                lww_element_latest_reference_bytes
+            WHERE
+                system_key_type = $1
+            AND
+                system_key = $2
+            AND
+                content_type = $3
+            AND
+                subject = $4
+        )
         LIMIT 1;
     ";
 
@@ -258,34 +255,31 @@ async fn load_previous_with_pointer(
 ) -> ::anyhow::Result<Option<crate::model::signed_event::SignedEvent>> {
     let query = "
         SELECT
-            events.raw_event
+            raw_event
         FROM
-            events 
-        INNER JOIN
-            lww_elements 
-        ON
-            events.id = lww_elements.event_id
-        INNER JOIN
-            event_links
-        ON
-            events.id = event_links.event_id
+            events
         WHERE
-            events.system_key_type = $1
-        AND
-            events.system_key = $2
-        AND
-            events.content_type = $3
-        AND
-            event_links.subject_system_key_type = $4
-        AND
-            event_links.subject_system_key = $5
-        AND
-            event_links.subject_process = $6
-        AND
-            event_links.subject_logical_clock = $7
-        ORDER BY
-            lww_elements.unix_milliseconds DESC,
-            events.process DESC
+            id
+        IN (
+            SELECT
+                event_id
+            FROM
+                lww_element_latest_reference_pointer
+            WHERE
+                system_key_type = $1
+            AND
+                system_key = $2
+            AND
+                content_type = $3
+            AND
+                subject_system_key_type = $4
+            AND
+                subject_system_key = $5
+            AND
+                subject_process = $6
+            AND
+                subject_logical_clock = $7
+        )
         LIMIT 1;
     ";
 
@@ -403,6 +397,141 @@ async fn upsert_count_lww_element_references(
         }
         _ => {}
     };
+    Ok(())
+}
+
+pub(crate) async fn update_lww_element_reference(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    event_id: u64,
+    event: &crate::model::event::Event,
+) -> ::anyhow::Result<()> {
+    let query_bytes = "
+        INSERT INTO lww_element_latest_reference_bytes (
+            event_id,
+            system_key_type,
+            system_key,
+            process,
+            content_type,
+            lww_element_unix_milliseconds,
+            subject
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (
+            system_key_type,
+            system_key,
+            content_type,
+            subject
+        )
+        DO UPDATE
+        SET
+            event_id = $1,
+            process = $4,
+            lww_element_unix_milliseconds = $6
+        WHERE
+            (
+                EXCLUDED.lww_element_unix_milliseconds,
+                EXCLUDED.process
+            )
+            >
+            (
+                lww_element_latest_reference_bytes.lww_element_unix_milliseconds,
+                lww_element_latest_reference_bytes.process
+            );
+    ";
+
+    let query_pointer = "
+        INSERT INTO lww_element_latest_reference_pointer (
+            event_id,
+            system_key_type,
+            system_key,
+            process,
+            content_type,
+            lww_element_unix_milliseconds,
+            subject_system_key_type,
+            subject_system_key,
+            subject_process,
+            subject_logical_clock
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        ON CONFLICT (
+            system_key_type,
+            system_key,
+            content_type,
+            subject_system_key_type,
+            subject_system_key,
+            subject_process,
+            subject_logical_clock
+        )
+        DO UPDATE
+        SET
+            event_id = $1,
+            process = $4,
+            lww_element_unix_milliseconds = $6
+        WHERE
+            (
+                EXCLUDED.lww_element_unix_milliseconds,
+                EXCLUDED.process
+            )
+            >
+            (
+                lww_element_latest_reference_pointer.lww_element_unix_milliseconds,
+                lww_element_latest_reference_pointer.process
+            );
+    ";
+
+    if let Some(lww_element) = event.lww_element() {
+        if let Some(reference) = event.references().first() {
+            match reference {
+                crate::model::reference::Reference::Pointer(pointer) => {
+                    ::sqlx::query(query_pointer)
+                        .bind(i64::try_from(event_id)?)
+                        .bind(i64::try_from(
+                            crate::model::public_key::get_key_type(
+                                event.system(),
+                            ),
+                        )?)
+                        .bind(crate::model::public_key::get_key_bytes(
+                            event.system(),
+                        ))
+                        .bind(event.process().bytes())
+                        .bind(i64::try_from(*event.content_type())?)
+                        .bind(i64::try_from(lww_element.unix_milliseconds)?)
+                        .bind(i64::try_from(
+                            crate::model::public_key::get_key_type(
+                                pointer.system(),
+                            ),
+                        )?)
+                        .bind(crate::model::public_key::get_key_bytes(
+                            pointer.system(),
+                        ))
+                        .bind(pointer.process().bytes())
+                        .bind(i64::try_from(*pointer.logical_clock())?)
+                        .execute(&mut *transaction)
+                        .await?;
+                }
+                crate::model::reference::Reference::Bytes(bytes) => {
+                    ::sqlx::query(query_bytes)
+                        .bind(i64::try_from(event_id)?)
+                        .bind(i64::try_from(
+                            crate::model::public_key::get_key_type(
+                                event.system(),
+                            ),
+                        )?)
+                        .bind(crate::model::public_key::get_key_bytes(
+                            event.system(),
+                        ))
+                        .bind(event.process().bytes())
+                        .bind(i64::try_from(*event.content_type())?)
+                        .bind(i64::try_from(lww_element.unix_milliseconds)?)
+                        .bind(bytes)
+                        .execute(&mut *transaction)
+                        .await?;
+                }
+                _ => {}
+            }
+        }
+    }
+
     Ok(())
 }
 

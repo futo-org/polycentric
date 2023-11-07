@@ -482,6 +482,109 @@ pub(crate) async fn prepare_database(
     .execute(&mut *transaction)
     .await?;
 
+    ::sqlx::query(
+        "
+        CREATE TABLE IF NOT EXISTS lww_element_latest_reference_pointer (
+            id                            BIGSERIAL PRIMARY KEY,
+            event_id                      BIGSERIAL NOT NULL,
+            system_key_type               INT8      NOT NULL,
+            system_key                    BYTEA     NOT NULL,
+            process                       BYTEA     NOT NULL,
+            content_type                  INT8      NOT NULL,
+            lww_element_unix_milliseconds INT8      NOT NULL,
+            subject_system_key_type       INT8      NOT NULL,
+            subject_system_key            BYTEA     NOT NULL,
+            subject_process               BYTEA     NOT NULL,
+            subject_logical_clock         INT8      NOT NULL,
+
+            CONSTRAINT FK_event
+                FOREIGN KEY (event_id)
+                REFERENCES events(id)
+                ON DELETE CASCADE,
+
+            UNIQUE (
+                system_key_type,
+                system_key,
+                content_type,
+                subject_system_key_type,
+                subject_system_key,
+                subject_process,
+                subject_logical_clock
+            )
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        CREATE INDEX IF NOT EXISTS
+            lww_element_latest_reference_pointer_idx
+        ON
+            lww_element_latest_reference_pointer (
+                system_key_type,
+                system_key,
+                content_type,
+                subject_system_key_type,
+                subject_system_key,
+                subject_process,
+                subject_logical_clock,
+                lww_element_unix_milliseconds,
+                process
+            );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        CREATE TABLE IF NOT EXISTS lww_element_latest_reference_bytes (
+            id                            BIGSERIAL PRIMARY KEY,
+            event_id                      BIGSERIAL NOT NULL,
+            system_key_type               INT8      NOT NULL,
+            system_key                    BYTEA     NOT NULL,
+            process                       BYTEA     NOT NULL,
+            content_type                  INT8      NOT NULL,
+            lww_element_unix_milliseconds INT8      NOT NULL,
+            subject                       BYTEA     NOT NULL,
+
+            CONSTRAINT FK_event
+                FOREIGN KEY (event_id)
+                REFERENCES events(id)
+                ON DELETE CASCADE,
+
+            UNIQUE (
+                system_key_type,
+                system_key,
+                content_type,
+                subject
+            )
+        );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
+    ::sqlx::query(
+        "
+        CREATE INDEX IF NOT EXISTS
+            lww_element_latest_reference_bytes_idx
+        ON
+            lww_element_latest_reference_bytes (
+                system_key_type,
+                system_key,
+                content_type,
+                subject,
+                lww_element_unix_milliseconds,
+                process
+            );
+    ",
+    )
+    .execute(&mut *transaction)
+    .await?;
+
     Ok(())
 }
 
