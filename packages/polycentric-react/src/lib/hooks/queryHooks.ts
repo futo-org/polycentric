@@ -413,14 +413,19 @@ export const usePostStats = (pointer: Models.Pointer.Pointer) => {
 }
 
 export const useQueryIfAdded = (
-  system: Models.PublicKey.PublicKey,
   contentType: Models.ContentType.ContentType,
-  value: Uint8Array,
+  system?: Models.PublicKey.PublicKey,
+  value?: Uint8Array,
 ) => {
   const { processHandle } = useProcessHandleManager()
   const [state, setState] = useState<boolean | undefined>(undefined)
 
   useEffect(() => {
+    if (system === undefined || value === undefined) {
+      setState(undefined)
+      return
+    }
+
     const cancelContext = new CancelContext.CancelContext()
     processHandle
       .store()
