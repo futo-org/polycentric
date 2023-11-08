@@ -322,7 +322,7 @@ pub mod tests {
         let keypair = crate::model::tests::make_test_keypair();
 
         let system = crate::model::public_key::PublicKey::Ed25519(
-            keypair.public.clone(),
+            keypair.verifying_key().clone(),
         );
 
         let result = crate::queries::query_index::query_index(
@@ -372,8 +372,9 @@ pub mod tests {
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e4).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e5).await?;
 
-        let system =
-            crate::model::public_key::PublicKey::Ed25519(s1.public.clone());
+        let system = crate::model::public_key::PublicKey::Ed25519(
+            s1.verifying_key().clone(),
+        );
 
         let result = crate::queries::query_index::query_index(
             &mut transaction,
@@ -450,8 +451,9 @@ pub mod tests {
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p3e2).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p3e3).await?;
 
-        let system =
-            crate::model::public_key::PublicKey::Ed25519(s1.public.clone());
+        let system = crate::model::public_key::PublicKey::Ed25519(
+            s1.verifying_key().clone(),
+        );
 
         let result = crate::queries::query_index::query_index(
             &mut transaction,
@@ -513,8 +515,9 @@ pub mod tests {
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e5).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e6).await?;
 
-        let system =
-            crate::model::public_key::PublicKey::Ed25519(s1.public.clone());
+        let system = crate::model::public_key::PublicKey::Ed25519(
+            s1.verifying_key().clone(),
+        );
 
         let result = crate::queries::query_index::query_index(
             &mut transaction,
