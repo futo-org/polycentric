@@ -55,7 +55,7 @@ pub(crate) async fn query_index(
     for process in processes.iter() {
         if process != latest_event.process() {
             let potential_later = load_event_later_than(
-                &mut *transaction,
+                transaction,
                 system,
                 process,
                 content_type,
@@ -70,7 +70,7 @@ pub(crate) async fn query_index(
 
         if process != earliest_event.process() {
             let potential_earlier = load_event_earlier_than(
-                &mut *transaction,
+                transaction,
                 system,
                 process,
                 content_type,
@@ -152,7 +152,7 @@ pub(crate) async fn load_event_later_than(
         .bind(process.bytes())
         .bind(i64::try_from(content_type)?)
         .bind(i64::try_from(later_than_unix_milliseconds)?)
-        .fetch_optional(&mut *transaction)
+        .fetch_optional(&mut **transaction)
         .await?;
 
     match potential_raw {
@@ -228,7 +228,7 @@ pub(crate) async fn load_event_earlier_than(
         .bind(process.bytes())
         .bind(i64::try_from(content_type)?)
         .bind(i64::try_from(earlier_than_unix_milliseconds)?)
-        .fetch_optional(&mut *transaction)
+        .fetch_optional(&mut **transaction)
         .await?;
 
     match potential_raw {
@@ -303,7 +303,7 @@ pub(crate) async fn load_events_by_time(
         .bind(i64::try_from(content_type)?)
         .bind(after.map(i64::try_from).transpose()?)
         .bind(i64::try_from(limit)?)
-        .fetch_all(&mut *transaction)
+        .fetch_all(&mut **transaction)
         .await?
         .iter()
         .map(|raw| crate::model::signed_event::from_vec(raw))

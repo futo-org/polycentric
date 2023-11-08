@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 hyper = { version = "0.14", features = ["full"] }
 tokio = { version = "1", features = ["full"] }
-sqlx = { version = "0.6.2", features = [ "runtime-tokio-rustls", "postgres", "migrate" ] }
+sqlx = { version = "0.7.2", features = [ "runtime-tokio-rustls", "postgres", "migrate" ] }
 warp = "0.3"
 protobuf =  { version = "3.1.0", features = ["bytes"] }
 bytes = "1.2.0"

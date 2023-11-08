@@ -30,6 +30,22 @@ macro_rules! warp_try_err_500 {
     };
 }
 
+#[macro_export]
+macro_rules! warp_try_err_400 {
+    ($expr:expr) => {
+        match $expr {
+            Ok(x) => x,
+            Err(err) => {
+                ::log::warn!("HTTP 400 {}", err.to_string().clone());
+                return Ok(Box::new(::warp::reply::with_status(
+                    err.to_string().clone(),
+                    ::warp::http::StatusCode::BAD_REQUEST,
+                )));
+            }
+        }
+    };
+}
+
 struct State {
     pool: ::sqlx::PgPool,
     search: ::opensearch::OpenSearch,
