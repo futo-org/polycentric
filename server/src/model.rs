@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use protobuf::Message;
+use ::protobuf::Message;
 
 pub mod known_message_types {
     pub const DELETE: u64 = 1;
@@ -180,7 +180,7 @@ pub mod public_key {
 
     #[derive(PartialEq, Clone, Debug)]
     pub enum PublicKey {
-        Ed25519(::ed25519_dalek::PublicKey),
+        Ed25519(::ed25519_dalek::VerifyingKey),
     }
 
     pub fn get_key_type(public_key: &PublicKey) -> u64 {
@@ -201,7 +201,7 @@ pub mod public_key {
     ) -> ::anyhow::Result<PublicKey> {
         match key_type {
             1 => Ok(PublicKey::Ed25519(
-                ::ed25519_dalek::PublicKey::from_bytes(key)?,
+                ::ed25519_dalek::VerifyingKey::from_bytes(key.try_into()?)?,
             )),
             _ => {
                 ::anyhow::bail!("unknown key_type");
@@ -557,7 +557,7 @@ pub mod signed_event {
 
         pub fn sign(
             event: ::std::vec::Vec<u8>,
-            keypair: &::ed25519_dalek::Keypair,
+            keypair: &::ed25519_dalek::SigningKey,
         ) -> SignedEvent {
             let signature = keypair.sign(&event);
 
@@ -869,8 +869,8 @@ pub mod tests {
     use protobuf::Message;
     use rand::Rng;
 
-    pub fn make_test_keypair() -> ::ed25519_dalek::Keypair {
-        ::ed25519_dalek::Keypair::generate(&mut ::rand::thread_rng())
+    pub fn make_test_keypair() -> ::ed25519_dalek::SigningKey {
+        ::ed25519_dalek::SigningKey::generate(&mut ::rand::thread_rng())
     }
 
     pub fn make_test_process() -> crate::model::process::Process {
@@ -886,7 +886,7 @@ pub mod tests {
     }
 
     pub fn make_test_event_with_content(
-        keypair: &::ed25519_dalek::Keypair,
+        keypair: &::ed25519_dalek::SigningKey,
         process: &crate::model::process::Process,
         logical_clock: u64,
         content_type: u64,
@@ -895,7 +895,7 @@ pub mod tests {
     ) -> crate::model::signed_event::SignedEvent {
         let event = crate::model::event::Event::new(
             crate::model::public_key::PublicKey::Ed25519(
-                keypair.public.clone(),
+                keypair.verifying_key().clone(),
             ),
             process.clone(),
             logical_clock,
@@ -919,13 +919,13 @@ pub mod tests {
     }
 
     pub fn make_test_event(
-        keypair: &::ed25519_dalek::Keypair,
+        keypair: &::ed25519_dalek::SigningKey,
         process: &crate::model::process::Process,
         logical_clock: u64,
     ) -> crate::model::signed_event::SignedEvent {
         let event = crate::model::event::Event::new(
             crate::model::public_key::PublicKey::Ed25519(
-                keypair.public.clone(),
+                keypair.verifying_key().clone(),
             ),
             process.clone(),
             logical_clock,
@@ -949,14 +949,14 @@ pub mod tests {
     }
 
     pub fn make_test_event_with_time(
-        keypair: &::ed25519_dalek::Keypair,
+        keypair: &::ed25519_dalek::SigningKey,
         process: &crate::model::process::Process,
         logical_clock: u64,
         unix_milliseconds: u64,
     ) -> crate::model::signed_event::SignedEvent {
         let event = crate::model::event::Event::new(
             crate::model::public_key::PublicKey::Ed25519(
-                keypair.public.clone(),
+                keypair.verifying_key().clone(),
             ),
             process.clone(),
             logical_clock,
@@ -980,7 +980,7 @@ pub mod tests {
     }
 
     pub fn make_delete_event_from_event(
-        keypair: &::ed25519_dalek::Keypair,
+        keypair: &::ed25519_dalek::SigningKey,
         process: &crate::model::process::Process,
         subject_signed_event: &crate::model::signed_event::SignedEvent,
         logical_clock: u64,
@@ -992,7 +992,7 @@ pub mod tests {
 
         let event = crate::model::event::Event::new(
             crate::model::public_key::PublicKey::Ed25519(
-                keypair.public.clone(),
+                keypair.verifying_key().clone(),
             ),
             process.clone(),
             logical_clock,

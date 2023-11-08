@@ -139,7 +139,7 @@ pub mod tests {
             vec![crate::model::reference::Reference::Pointer(
                 crate::model::pointer::Pointer::new(
                     crate::model::public_key::PublicKey::Ed25519(
-                        s1.public.clone(),
+                        s1.verifying_key().clone(),
                     ),
                     s1p1,
                     1,
@@ -156,10 +156,10 @@ pub mod tests {
             crate::queries::query_find_claim_and_vouch::query_find_claim_and_vouch(
                 &mut transaction,
                 &crate::model::public_key::PublicKey::Ed25519(
-                    s2.public.clone()
+                    s2.verifying_key().clone()
                 ),
                 &crate::model::public_key::PublicKey::Ed25519(
-                    s1.public.clone(),
+                    s1.verifying_key().clone(),
                 ),
                 1,
                 &[claim_hacker_news],

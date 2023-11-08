@@ -203,7 +203,7 @@ pub mod tests {
             vec![crate::model::reference::Reference::Pointer(
                 crate::model::pointer::Pointer::new(
                     crate::model::public_key::PublicKey::Ed25519(
-                        s1.public.clone(),
+                        s1.verifying_key().clone(),
                     ),
                     s1p1,
                     1,
@@ -221,7 +221,7 @@ pub mod tests {
                 &mut transaction,
                 1,
                 &crate::model::public_key::PublicKey::Ed25519(
-                    s2.public.clone(),
+                    s2.verifying_key().clone(),
                 ),
                 &"hello".to_string(),
             )
@@ -285,7 +285,7 @@ pub mod tests {
             vec![crate::model::reference::Reference::Pointer(
                 crate::model::pointer::Pointer::new(
                     crate::model::public_key::PublicKey::Ed25519(
-                        s1.public.clone(),
+                        s1.verifying_key().clone(),
                     ),
                     s1p1,
                     1,
@@ -303,7 +303,7 @@ pub mod tests {
                 &mut transaction,
                 1,
                 &crate::model::public_key::PublicKey::Ed25519(
-                    s2.public.clone(),
+                    s2.verifying_key().clone(),
                 ),
                 &claim_fields,
             )
