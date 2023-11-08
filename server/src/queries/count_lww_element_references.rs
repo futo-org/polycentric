@@ -40,7 +40,7 @@ pub(crate) async fn count_lww_element_references_pointer(
         .bind(i64::try_from(logical_clock)?)
         .bind(value)
         .bind(from_type_query)
-        .fetch_one(&mut *transaction)
+        .fetch_one(&mut **transaction)
         .await?;
 
     Ok(u64::try_from(count)?)
@@ -75,7 +75,7 @@ pub(crate) async fn count_lww_element_references_bytes(
         .bind(bytes)
         .bind(value)
         .bind(from_type_query)
-        .fetch_one(&mut *transaction)
+        .fetch_one(&mut **transaction)
         .await?;
 
     Ok(u64::try_from(count)?)
@@ -90,7 +90,7 @@ pub(crate) async fn count_lww_element_references(
     match reference {
         crate::model::reference::Reference::Pointer(pointer) => {
             count_lww_element_references_pointer(
-                &mut *transaction,
+                transaction,
                 pointer.system(),
                 pointer.process(),
                 *pointer.logical_clock(),
@@ -101,7 +101,7 @@ pub(crate) async fn count_lww_element_references(
         }
         crate::model::reference::Reference::Bytes(bytes) => {
             count_lww_element_references_bytes(
-                &mut *transaction,
+                transaction,
                 bytes,
                 value,
                 from_type,

@@ -83,7 +83,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -93,7 +93,7 @@ pub(crate) async fn prepare_database(
         WHERE NOT EXISTS (SELECT * FROM schema_version);
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -108,7 +108,7 @@ pub(crate) async fn prepare_database(
         END $$;
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -123,7 +123,7 @@ pub(crate) async fn prepare_database(
         END $$;
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -152,7 +152,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -163,7 +163,7 @@ pub(crate) async fn prepare_database(
             events (content_type);
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -181,7 +181,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -200,7 +200,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -231,7 +231,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -264,7 +264,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -290,7 +290,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -306,7 +306,7 @@ pub(crate) async fn prepare_database(
             );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -323,7 +323,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -334,7 +334,7 @@ pub(crate) async fn prepare_database(
             event_references_bytes (subject_bytes);
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -355,7 +355,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -375,7 +375,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -395,7 +395,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -415,7 +415,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -441,7 +441,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -462,7 +462,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -479,7 +479,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -514,7 +514,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -535,7 +535,7 @@ pub(crate) async fn prepare_database(
             );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -564,7 +564,7 @@ pub(crate) async fn prepare_database(
         );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     ::sqlx::query(
@@ -582,7 +582,7 @@ pub(crate) async fn prepare_database(
             );
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     Ok(())
@@ -610,7 +610,7 @@ pub(crate) async fn load_event(
         .bind(crate::model::public_key::get_key_bytes(system))
         .bind(process.bytes())
         .bind(i64::try_from(logical_clock)?)
-        .fetch_optional(&mut *transaction)
+        .fetch_optional(&mut **transaction)
         .await?;
 
     match potential_raw {
@@ -638,7 +638,7 @@ pub(crate) async fn load_posts_before_id(
         .bind(i64::try_from(start_id)?)
         .bind(i64::try_from(crate::model::known_message_types::POST)?)
         .bind(i64::try_from(limit)?)
-        .fetch_all(&mut *transaction)
+        .fetch_all(&mut **transaction)
         .await?;
 
     let mut result_set = vec![];
@@ -672,7 +672,7 @@ pub(crate) async fn load_processes_for_system(
                     system,
                     ))?)
         .bind(crate::model::public_key::get_key_bytes(system))
-        .fetch_all(&mut *transaction)
+        .fetch_all(&mut **transaction)
         .await?
         .iter()
         .map(|raw| {
@@ -709,7 +709,7 @@ pub(crate) async fn load_latest_event_by_type(
         .bind(process.bytes())
         .bind(i64::try_from(content_type)?)
         .bind(i64::try_from(limit)?)
-        .fetch_all(&mut *transaction)
+        .fetch_all(&mut **transaction)
         .await?
         .iter()
         .map(|raw| {
@@ -754,7 +754,7 @@ pub(crate) async fn load_latest_system_wide_lww_event_by_type(
         ))?)
         .bind(crate::model::public_key::get_key_bytes(system))
         .bind(i64::try_from(content_type)?)
-        .fetch_optional(&mut *transaction)
+        .fetch_optional(&mut **transaction)
         .await?;
 
     match potential_raw {
@@ -785,7 +785,7 @@ pub(crate) async fn does_event_exist(
         .bind(crate::model::public_key::get_key_bytes(event.system()))
         .bind(event.process().bytes())
         .bind(i64::try_from(*event.logical_clock())?)
-        .fetch_optional(&mut *transaction)
+        .fetch_optional(&mut **transaction)
         .await?;
 
     Ok(does_exist.is_some())
@@ -811,7 +811,7 @@ pub(crate) async fn is_event_deleted(
         .bind(crate::model::public_key::get_key_bytes(event.system()))
         .bind(event.process().bytes())
         .bind(i64::try_from(*event.logical_clock())?)
-        .fetch_optional(&mut *transaction)
+        .fetch_optional(&mut **transaction)
         .await?;
 
     Ok(is_deleted.is_some())
@@ -857,7 +857,7 @@ pub(crate) async fn delete_event(
         .bind(i64::try_from(event_id)?)
         .bind(delete.unix_milliseconds().map(i64::try_from).transpose()?)
         .bind(i64::try_from(*delete.content_type())?)
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
 
     ::sqlx::query(query_delete_event)
@@ -867,7 +867,7 @@ pub(crate) async fn delete_event(
         .bind(crate::model::public_key::get_key_bytes(system))
         .bind(delete.process().bytes())
         .bind(i64::try_from(*delete.logical_clock())?)
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
 
     Ok(())
@@ -920,7 +920,7 @@ pub(crate) async fn insert_event(
         .bind(&serialized)
         .bind(i64::try_from(server_time)?)
         .bind(event.unix_milliseconds().map(i64::try_from).transpose()?)
-        .fetch_one(&mut *transaction)
+        .fetch_one(&mut **transaction)
         .await?;
 
     Ok(u64::try_from(id)?)
@@ -962,7 +962,7 @@ pub(crate) async fn insert_event_link(
         .bind(i64::try_from(*pointer.logical_clock())?)
         .bind(i64::try_from(link_content_type)?)
         .bind(i64::try_from(event_id)?)
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
 
     Ok(())
@@ -989,7 +989,7 @@ pub(crate) async fn insert_event_reference_bytes(
     ::sqlx::query(query_insert_event_link)
         .bind(bytes)
         .bind(i64::try_from(event_id)?)
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
 
     Ok(())
@@ -1020,7 +1020,7 @@ pub(crate) async fn insert_event_index(
         .bind(i64::try_from(index_type)?)
         .bind(i64::try_from(logical_clock)?)
         .bind(i64::try_from(event_id)?)
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
 
     Ok(())
@@ -1062,7 +1062,7 @@ pub(crate) async fn insert_claim(
         .bind(i64::try_from(*claim.claim_type())?)
         .bind(i64::try_from(event_id)?)
         .bind(&claim_fields_to_json_object(claim.claim_fields()))
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
 
     Ok(())
@@ -1088,7 +1088,7 @@ pub(crate) async fn insert_lww_element(
         .bind(&lww_element.value)
         .bind(i64::try_from(lww_element.unix_milliseconds)?)
         .bind(i64::try_from(event_id)?)
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
 
     Ok(())
@@ -1117,7 +1117,7 @@ pub(crate) async fn load_system_head(
             system,
         ))?)
         .bind(crate::model::public_key::get_key_bytes(system))
-        .fetch_all(&mut *transaction)
+        .fetch_all(&mut **transaction)
         .await?
         .iter()
         .map(|raw| {
@@ -1144,13 +1144,9 @@ pub(crate) async fn load_event_ranges(
 
         for range in process_ranges.ranges.iter() {
             for logical_clock in range.low..=range.high {
-                let potential_event = load_event(
-                    &mut *transaction,
-                    system,
-                    &process,
-                    logical_clock,
-                )
-                .await?;
+                let potential_event =
+                    load_event(transaction, system, &process, logical_clock)
+                        .await?;
 
                 if let Some(event) = potential_event {
                     result.push(event);
@@ -1202,7 +1198,7 @@ pub(crate) async fn known_ranges_for_system(
             system,
         ))?)
         .bind(crate::model::public_key::get_key_bytes(system))
-        .fetch_all(&mut *transaction)
+        .fetch_all(&mut **transaction)
         .await
         .map_err(::anyhow::Error::new)?;
 
@@ -1268,7 +1264,7 @@ pub(crate) async fn censor_event(
         .bind(process.bytes())
         .bind(i64::try_from(logical_clock)?)
         .bind(censor_type)
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
 
     Ok(())
@@ -1292,7 +1288,7 @@ pub(crate) async fn censor_system(
         ))?)
         .bind(crate::model::public_key::get_key_bytes(&system))
         .bind(censor_type)
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
 
     Ok(())
@@ -1325,7 +1321,7 @@ pub(crate) async fn load_random_profiles(
     ";
 
     let sys_rows = ::sqlx::query_as::<_, SystemRow>(query)
-        .fetch_all(&mut *transaction)
+        .fetch_all(&mut **transaction)
         .await?;
 
     let mut result_set = vec![];

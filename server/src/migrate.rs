@@ -3,7 +3,7 @@ async fn load_version(
 ) -> ::anyhow::Result<i64> {
     Ok(
         ::sqlx::query_scalar::<_, i64>("SELECT version FROM schema_version")
-            .fetch_one(&mut *transaction)
+            .fetch_one(&mut **transaction)
             .await?,
     )
 }
@@ -18,7 +18,7 @@ async fn bump_version(
             upgraded_on = NOW();
     ",
     )
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     Ok(())
@@ -51,7 +51,7 @@ async fn migration_1_compute_reference_counts(
             ",
         )
         .bind(cursor)
-        .fetch_all(&mut *transaction)
+        .fetch_all(&mut **transaction)
         .await?;
 
         if let Some(last_row) = rows.last() {
@@ -72,14 +72,14 @@ async fn migration_1_compute_reference_counts(
             )?;
 
             crate::queries::update_counts::update_counts(
-                &mut *transaction,
+                transaction,
                 &event,
                 &content,
             )
             .await?;
 
             crate::queries::update_counts::update_lww_element_reference(
-                &mut *transaction,
+                transaction,
                 u64::try_from(row.id)?,
                 &event,
             )
@@ -91,7 +91,7 @@ async fn migration_1_compute_reference_counts(
 pub(crate) async fn migrate(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
 ) -> ::anyhow::Result<()> {
-    let mut current_version = load_version(&mut *transaction).await?;
+    let mut current_version = load_version(transaction).await?;
 
     ::log::info!("current schema version: {}", current_version);
 
@@ -104,7 +104,7 @@ pub(crate) async fn migrate(
             _ => ::anyhow::bail!("schema too new for this server version"),
         }
 
-        bump_version(&mut *transaction).await?;
+        bump_version(transaction).await?;
 
         current_version += 1;
     }

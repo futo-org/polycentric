@@ -95,7 +95,7 @@ pub(crate) async fn query_pointer(
         .bind(from_type_query)
         .bind(cursor_query)
         .bind(i64::try_from(limit)?)
-        .fetch_all(&mut *transaction)
+        .fetch_all(&mut **transaction)
         .await?;
 
     process_rows(rows, limit)
@@ -149,7 +149,7 @@ pub(crate) async fn query_bytes(
         .bind(from_type_query)
         .bind(cursor_query)
         .bind(i64::try_from(limit)?)
-        .fetch_all(&mut *transaction)
+        .fetch_all(&mut **transaction)
         .await?;
 
     process_rows(rows, 20)
@@ -165,7 +165,7 @@ pub(crate) async fn query_references(
     match reference {
         crate::model::reference::Reference::Pointer(pointer) => {
             query_pointer(
-                &mut *transaction,
+                transaction,
                 pointer.system(),
                 pointer.process(),
                 *pointer.logical_clock(),
@@ -176,8 +176,7 @@ pub(crate) async fn query_references(
             .await
         }
         crate::model::reference::Reference::Bytes(bytes) => {
-            query_bytes(&mut *transaction, bytes, from_type, cursor, limit)
-                .await
+            query_bytes(transaction, bytes, from_type, cursor, limit).await
         }
         _ => {
             unimplemented!("query identity not implemented");
