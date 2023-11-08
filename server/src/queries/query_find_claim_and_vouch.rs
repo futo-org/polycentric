@@ -80,7 +80,7 @@ pub(crate) async fn query_find_claim_and_vouch(
             vouching_system,
         ))?)
         .bind(crate::model::public_key::get_key_bytes(vouching_system))
-        .fetch_optional(&mut *transaction)
+        .fetch_optional(&mut **transaction)
         .await?;
 
     match potential_row {

@@ -70,7 +70,7 @@ pub(crate) async fn query_claims_match_any_field(
             trust_root,
         ))?)
         .bind(crate::model::public_key::get_key_bytes(trust_root))
-        .fetch_all(&mut *transaction)
+        .fetch_all(&mut **transaction)
         .await?
         .iter()
         .map(|row| {
@@ -145,7 +145,7 @@ pub(crate) async fn query_claims_match_all_fields(
             trust_root,
         ))?)
         .bind(crate::model::public_key::get_key_bytes(trust_root))
-        .fetch_all(&mut *transaction)
+        .fetch_all(&mut **transaction)
         .await?
         .iter()
         .map(|row| {

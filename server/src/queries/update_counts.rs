@@ -38,7 +38,7 @@ async fn upsert_count_references_bytes(
             Operation::Increment => 1,
             Operation::Decrement => -1,
         })
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
 
     Ok(())
@@ -82,7 +82,7 @@ async fn upsert_count_lww_element_references_bytes(
             Operation::Increment => 1,
             Operation::Decrement => -1,
         })
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
 
     Ok(())
@@ -135,7 +135,7 @@ async fn upsert_count_references_pointer(
             Operation::Increment => 1,
             Operation::Decrement => -1,
         })
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
 
     Ok(())
@@ -193,7 +193,7 @@ async fn upsert_count_lww_element_references_pointer(
             Operation::Increment => 1,
             Operation::Decrement => -1,
         })
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
 
     Ok(())
@@ -236,7 +236,7 @@ async fn load_previous_with_bytes(
         .bind(crate::model::public_key::get_key_bytes(system))
         .bind(i64::try_from(content_type)?)
         .bind(subject)
-        .fetch_optional(&mut *transaction)
+        .fetch_optional(&mut **transaction)
         .await?;
 
     match potential_raw {
@@ -295,7 +295,7 @@ async fn load_previous_with_pointer(
         .bind(crate::model::public_key::get_key_bytes(subject.system()))
         .bind(subject.process().bytes())
         .bind(i64::try_from(*subject.logical_clock())?)
-        .fetch_optional(&mut *transaction)
+        .fetch_optional(&mut **transaction)
         .await?;
 
     match potential_raw {
@@ -315,7 +315,7 @@ async fn load_previous(
     Ok(match reference {
         crate::model::reference::Reference::Pointer(pointer) => {
             load_previous_with_pointer(
-                &mut *transaction,
+                transaction,
                 system,
                 content_type,
                 pointer,
@@ -323,13 +323,8 @@ async fn load_previous(
             .await?
         }
         crate::model::reference::Reference::Bytes(bytes) => {
-            load_previous_with_bytes(
-                &mut *transaction,
-                system,
-                content_type,
-                bytes,
-            )
-            .await?
+            load_previous_with_bytes(transaction, system, content_type, bytes)
+                .await?
         }
         _ => {
             unimplemented!("unhandled reference type");
@@ -346,7 +341,7 @@ async fn upsert_count_references(
     match reference {
         crate::model::reference::Reference::Pointer(pointer) => {
             upsert_count_references_pointer(
-                &mut *transaction,
+                transaction,
                 pointer,
                 content_type,
                 operation,
@@ -355,7 +350,7 @@ async fn upsert_count_references(
         }
         crate::model::reference::Reference::Bytes(bytes) => {
             upsert_count_references_bytes(
-                &mut *transaction,
+                transaction,
                 bytes,
                 content_type,
                 operation,
@@ -377,7 +372,7 @@ async fn upsert_count_lww_element_references(
     match reference {
         crate::model::reference::Reference::Pointer(pointer) => {
             upsert_count_lww_element_references_pointer(
-                &mut *transaction,
+                transaction,
                 pointer,
                 value,
                 content_type,
@@ -387,7 +382,7 @@ async fn upsert_count_lww_element_references(
         }
         crate::model::reference::Reference::Bytes(bytes) => {
             upsert_count_lww_element_references_bytes(
-                &mut *transaction,
+                transaction,
                 bytes,
                 value,
                 content_type,
@@ -506,7 +501,7 @@ pub(crate) async fn update_lww_element_reference(
                         ))
                         .bind(pointer.process().bytes())
                         .bind(i64::try_from(*pointer.logical_clock())?)
-                        .execute(&mut *transaction)
+                        .execute(&mut **transaction)
                         .await?;
                 }
                 crate::model::reference::Reference::Bytes(bytes) => {
@@ -524,7 +519,7 @@ pub(crate) async fn update_lww_element_reference(
                         .bind(i64::try_from(*event.content_type())?)
                         .bind(i64::try_from(lww_element.unix_milliseconds)?)
                         .bind(bytes)
-                        .execute(&mut *transaction)
+                        .execute(&mut **transaction)
                         .await?;
                 }
                 _ => {}
@@ -542,7 +537,7 @@ pub(crate) async fn update_counts(
 ) -> ::anyhow::Result<()> {
     for reference in event.references().iter() {
         upsert_count_references(
-            &mut *transaction,
+            transaction,
             reference,
             *event.content_type(),
             Operation::Increment,
@@ -552,7 +547,7 @@ pub(crate) async fn update_counts(
 
     if let crate::model::content::Content::Delete(body) = &content {
         let potential_existing = crate::postgres::load_event(
-            &mut *transaction,
+            transaction,
             event.system(),
             body.process(),
             *body.logical_clock(),
@@ -565,7 +560,7 @@ pub(crate) async fn update_counts(
 
             for reference in existing_event.references().iter() {
                 upsert_count_references(
-                    &mut *transaction,
+                    transaction,
                     reference,
                     *existing_event.content_type(),
                     Operation::Decrement,
@@ -579,7 +574,7 @@ pub(crate) async fn update_counts(
         let potential_previous =
             if let Some(reference) = event.references().first() {
                 load_previous(
-                    &mut *transaction,
+                    transaction,
                     event.system(),
                     reference,
                     *event.content_type(),
@@ -599,7 +594,7 @@ pub(crate) async fn update_counts(
                 {
                     for reference in previous_event.references().iter() {
                         upsert_count_lww_element_references(
-                            &mut *transaction,
+                            transaction,
                             reference,
                             &previous_lww_element.value,
                             *event.content_type(),
@@ -615,7 +610,7 @@ pub(crate) async fn update_counts(
 
         for reference in event.references().iter() {
             upsert_count_lww_element_references(
-                &mut *transaction,
+                transaction,
                 reference,
                 &lww_element.value,
                 *event.content_type(),

@@ -36,7 +36,7 @@ pub(crate) async fn count_references_pointer(
         .bind(process.bytes())
         .bind(i64::try_from(logical_clock)?)
         .bind(from_type_query)
-        .fetch_one(&mut *transaction)
+        .fetch_one(&mut **transaction)
         .await?;
 
     Ok(u64::try_from(count)?)
@@ -67,7 +67,7 @@ pub(crate) async fn count_references_bytes(
     let count = ::sqlx::query_scalar::<_, i64>(query)
         .bind(bytes)
         .bind(from_type_query)
-        .fetch_one(&mut *transaction)
+        .fetch_one(&mut **transaction)
         .await?;
 
     Ok(u64::try_from(count)?)
@@ -81,7 +81,7 @@ pub(crate) async fn count_references(
     match reference {
         crate::model::reference::Reference::Pointer(pointer) => {
             count_references_pointer(
-                &mut *transaction,
+                transaction,
                 pointer.system(),
                 pointer.process(),
                 *pointer.logical_clock(),
@@ -90,7 +90,7 @@ pub(crate) async fn count_references(
             .await
         }
         crate::model::reference::Reference::Bytes(bytes) => {
-            count_references_bytes(&mut *transaction, bytes, from_type).await
+            count_references_bytes(transaction, bytes, from_type).await
         }
         _ => {
             unimplemented!("count_references case not implemented");
