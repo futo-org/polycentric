@@ -109,7 +109,7 @@ pub mod tests {
         let process = crate::model::tests::make_test_process();
 
         let system = crate::model::public_key::PublicKey::Ed25519(
-            keypair.public.clone(),
+            keypair.verifying_key().clone(),
         );
 
         let result =

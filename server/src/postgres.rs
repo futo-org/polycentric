@@ -1363,7 +1363,7 @@ pub mod tests {
             .await?;
 
         let system = crate::model::public_key::PublicKey::Ed25519(
-            keypair.public.clone(),
+            keypair.verifying_key().clone(),
         );
 
         let loaded_event = crate::postgres::load_event(
@@ -1403,8 +1403,9 @@ pub mod tests {
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p2e1).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s2p1e5).await?;
 
-        let system =
-            crate::model::public_key::PublicKey::Ed25519(s1.public.clone());
+        let system = crate::model::public_key::PublicKey::Ed25519(
+            s1.verifying_key().clone(),
+        );
 
         let head = crate::postgres::load_system_head(&mut transaction, &system)
             .await?;
@@ -1473,8 +1474,9 @@ pub mod tests {
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p2e1).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s2p1e5).await?;
 
-        let system =
-            crate::model::public_key::PublicKey::Ed25519(s1.public.clone());
+        let system = crate::model::public_key::PublicKey::Ed25519(
+            s1.verifying_key().clone(),
+        );
 
         let ranges =
             crate::postgres::known_ranges_for_system(&mut transaction, &system)
