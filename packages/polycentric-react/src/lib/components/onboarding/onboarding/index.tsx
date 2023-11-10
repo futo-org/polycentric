@@ -210,9 +210,9 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
         <form
           onSubmit={async (e) => {
             e.preventDefault()
-            const processHandle = await createAccount(privateKey)
-            processHandle.addServer('https://srv1-stg.polycentric.io')
-            processHandle.setUsername(username)
+            const defaultServers = ['https://srv1-stg.polycentric.io']
+            const processHandle = await createAccount(privateKey, defaultServers, username)
+
             if (avatar) publishBlobToAvatar(avatar, processHandle)
 
             // if supported, save private key to credential manager api
