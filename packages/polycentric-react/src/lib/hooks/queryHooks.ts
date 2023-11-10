@@ -457,11 +457,12 @@ export function useQueryCursor<T>(
         const { signedEvent } = cell
         const event = Models.Event.fromBuffer(signedEvent.event)
         const parsed = parse(event.content)
+        processHandle.addAddressHint(event.system, cell.fromServer)
         return new ParsedEvent<T>(signedEvent, event, parsed)
       })
       setState((currentCells) => [...currentCells].concat(newCellsAsSignedEvents))
     },
-    [parse],
+    [parse, processHandle],
   )
 
   useEffect(() => {
