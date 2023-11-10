@@ -68,9 +68,16 @@ export const useSystemLink = (system: Models.PublicKey.PublicKey) => {
 
   const [link, setLink] = useState<string | undefined>(undefined)
   useEffect(() => {
+    const cancelContext = new CancelContext.CancelContext()
     ProcessHandle.makeSystemLink(processHandle, system).then((link) => {
-      setLink(link)
+      if (cancelContext.cancelled()) {
+        return
+      }
+      setLink('/user/' + link)
     })
+    return () => {
+      cancelContext.cancel()
+    }
   }, [processHandle, system])
 
   return link
@@ -80,9 +87,16 @@ export const useEventLink = (system: Models.PublicKey.PublicKey, pointer: Models
   const { processHandle } = useProcessHandleManager()
   const [link, setLink] = useState<string | undefined>(undefined)
   useEffect(() => {
+    const cancelContext = new CancelContext.CancelContext()
     ProcessHandle.makeEventLink(processHandle, system, pointer).then((link) => {
-      setLink(link)
+      if (cancelContext.cancelled()) {
+        return
+      }
+      setLink('/p/' + link)
     })
+    return () => {
+      cancelContext.cancel()
+    }
   }, [processHandle, system, pointer])
   return link
 }

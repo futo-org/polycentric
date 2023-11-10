@@ -5,8 +5,10 @@ import {
   ParsedEvent,
   useAvatar,
   useDateFromUnixMS,
+  useEventLink,
   usePostStats,
   useQueryIfAdded,
+  useSystemLink,
   useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks'
 import { PurePost, PurePostProps } from './PurePost'
@@ -100,17 +102,22 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(({ data }, ref) => {
   const mainAvatar = useAvatar(event.system)
   const mainDate = useDateFromUnixMS(event.unixMilliseconds)
 
+  const mainURL = useEventLink(event.system, pointer)
+  const mainAuthorURL = useSystemLink(event.system)
+
   const main: PurePostProps['main'] = useMemo(
     () => ({
       author: {
         name: mainUsername,
         avatarURL: mainAvatar,
+        URL: mainAuthorURL,
       },
       content: content ?? '',
       topic: 'todo',
       publishedAt: mainDate,
+      url: mainURL,
     }),
-    [mainUsername, mainAvatar, content, mainDate],
+    [mainUsername, mainAvatar, content, mainDate, mainURL, mainAuthorURL],
   )
 
   const { actions, stats } = usePostStatsWithLocalActions(pointer)
