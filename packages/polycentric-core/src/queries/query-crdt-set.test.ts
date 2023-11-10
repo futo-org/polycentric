@@ -4,7 +4,6 @@ import * as QueryIndex from './query-index';
 import * as QueryCRDTSet from './query-crdt-set';
 import * as Models from '../models';
 import * as Protocol from '../protocol';
-import * as Shared from './shared';
 
 function setupQueryManager(
     processHandle: ProcessHandle.ProcessHandle,
@@ -47,7 +46,7 @@ describe('query crdt set', () => {
 
         const queryManager = setupQueryManager(s1p1, false);
 
-        const unregister = queryManager.query(
+        const handle = queryManager.query(
             s1p1.system(),
             Models.ContentType.ContentTypeFollow,
             (value) => {
@@ -55,7 +54,7 @@ describe('query crdt set', () => {
             },
         );
 
-        unregister();
+        handle.unregister();
     });
 
     test('update during query', async () => {
@@ -68,7 +67,7 @@ describe('query crdt set', () => {
         const queryManager = setupQueryManager(s1p1, true);
 
         let stage = 0;
-        let unregister: Shared.UnregisterCallback | undefined;
+        let handle: QueryCRDTSet.QueryHandle | undefined;
 
         await new Promise<void>(async (resolve) => {
             const cb = (value: QueryIndex.CallbackParameters) => {
@@ -116,26 +115,19 @@ describe('query crdt set', () => {
             await s1p1.follow(s2p1.system());
             await s1p1.follow(s3p1.system());
 
-            unregister = queryManager.query(
+            handle = queryManager.query(
                 s1p1.system(),
                 Models.ContentType.ContentTypeFollow,
                 cb,
             );
 
-            queryManager.advance(
-                s1p1.system(),
-                cb,
-                10,
-                Models.ContentType.ContentTypeFollow,
-            );
+            handle.advance(10);
 
             await s1p1.follow(s4p1.system());
             await s1p1.unfollow(s2p1.system());
         });
 
-        if (unregister) {
-            unregister();
-        }
+        handle?.unregister();
 
         expect(stage).toStrictEqual(3);
     });

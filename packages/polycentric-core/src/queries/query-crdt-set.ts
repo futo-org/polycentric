@@ -3,7 +3,6 @@ import * as Base64 from '@borderless/base64';
 import * as Models from '../models';
 import * as Protocol from '../protocol';
 import * as QueryIndex from './query-index';
-import * as Shared from './shared';
 
 type StateForItem = {
     cell: QueryIndex.Cell;
@@ -14,6 +13,11 @@ type StateForQuery = {
     queryIndexCallback: QueryIndex.Callback;
     items: Map<string, StateForItem>;
 };
+
+export interface QueryHandle {
+    advance(additionalCount: number): void;
+    unregister(): void;
+}
 
 export class QueryManager {
     private _queryIndex: QueryIndex.QueryManager;
@@ -28,7 +32,7 @@ export class QueryManager {
         system: Models.PublicKey.PublicKey,
         contentType: Models.ContentType.ContentType,
         callback: QueryIndex.Callback,
-    ): Shared.UnregisterCallback {
+    ): QueryHandle {
         if (this._state.get(callback)) {
             throw new Error('duplicated callback QueryCRDTSet');
         }
@@ -97,36 +101,27 @@ export class QueryManager {
 
         this._state.set(callback, stateForQuery);
 
-        const queryIndexUnregister = this._queryIndex.query(
+        const queryIndexHandle = this._queryIndex.query(
             system,
             contentType,
             queryIndexCallback,
         );
 
-        return () => {
-            queryIndexUnregister();
+        let unregistered = false;
 
-            this._state.delete(callback);
+        return {
+            advance: (additionalCount: number) => {
+                if (unregistered === false) {
+                    queryIndexHandle.advance(additionalCount);
+                }
+            },
+            unregister: () => {
+                unregistered = true;
+
+                queryIndexHandle.unregister();
+
+                this._state.delete(callback);
+            },
         };
-    }
-
-    public advance(
-        system: Models.PublicKey.PublicKey,
-        callback: QueryIndex.Callback,
-        additionalCount: number,
-        contentType: Models.ContentType.ContentType,
-    ): void {
-        const stateForQuery = this._state.get(callback);
-
-        if (stateForQuery === undefined) {
-            return;
-        }
-
-        this._queryIndex.advance(
-            system,
-            stateForQuery.queryIndexCallback,
-            additionalCount,
-            contentType,
-        );
     }
 }

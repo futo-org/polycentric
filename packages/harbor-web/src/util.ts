@@ -138,12 +138,9 @@ export function useIndex<T>(
 ): [Array<ClaimInfo<T>>, () => void] {
     const [state, setState] = React.useState<Array<ClaimInfo<T>>>([]);
 
-    const latestCB = React.useRef(
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        (_x: Core.Queries.QueryIndex.CallbackParameters) =>
-            // eslint-disable-next-line @typescript-eslint/no-empty-function
-            {},
-    );
+    const queryHandle = React.useRef<
+        Core.Queries.QueryIndex.QueryHandle | undefined
+    >(undefined);
 
     React.useEffect(() => {
         setState([]);
@@ -192,37 +189,25 @@ export function useIndex<T>(
             });
         };
 
-        latestCB.current = cb;
-
-        const unregister = queryManager.queryIndex.query(
+        queryHandle.current = queryManager.queryIndex.query(
             system,
             contentType,
             cb,
         );
 
-        queryManager.queryIndex.advance(
-            system,
-            cb,
-            30,
-            Core.Models.ContentType.ContentTypeClaim,
-        );
+        queryHandle.current?.advance(30);
 
         return () => {
             cancelContext.cancel();
 
-            unregister();
+            queryHandle.current?.unregister();
         };
     }, [queryManager, system, contentType, parse]);
 
     return [
         state,
         () => {
-            queryManager.queryIndex.advance(
-                system,
-                latestCB.current,
-                30,
-                Core.Models.ContentType.ContentTypeClaim,
-            );
+            queryHandle.current?.advance(30);
         },
     ];
 }

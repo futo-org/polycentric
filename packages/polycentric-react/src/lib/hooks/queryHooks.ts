@@ -231,12 +231,7 @@ export function useIndex<T>(
 
   const [state, setState] = useState<Array<ClaimInfo<T>>>([])
 
-  const latestCB = useRef(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    (_x: Queries.QueryIndex.CallbackParameters) =>
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      {},
-  )
+  const latestHandle = useRef<Queries.QueryIndex.QueryHandle | undefined>(undefined)
 
   useEffect(() => {
     setState([])
@@ -275,26 +270,24 @@ export function useIndex<T>(
       })
     }
 
-    latestCB.current = cb
+    latestHandle.current = queryManager.queryIndex.query(system, contentType, cb)
 
-    const unregister = queryManager.queryIndex.query(system, contentType, cb)
-
-    queryManager.queryIndex.advance(system, cb, batchSize, contentType)
+    latestHandle.current.advance(batchSize)
 
     return () => {
       cancelContext.cancel()
 
-      unregister()
+      latestHandle.current?.unregister()
     }
-  }, [queryManager.queryIndex, system, contentType, parse, batchSize])
+  }, [queryManager, system, contentType, parse, batchSize])
 
   const parsedEvents = useMemo(() => {
     return state.map((x) => x.parsedEvent).filter((x) => x !== undefined) as ParsedEvent<T>[]
   }, [state])
 
   const advanceCallback = useCallback(() => {
-    queryManager.queryIndex.advance(system, latestCB.current, batchSize, contentType)
-  }, [queryManager.queryIndex, system, batchSize, contentType])
+    latestHandle.current?.advance(batchSize)
+  }, [batchSize])
 
   return [parsedEvents, advanceCallback]
 }

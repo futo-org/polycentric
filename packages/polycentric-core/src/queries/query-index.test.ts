@@ -54,7 +54,7 @@ describe('query index', () => {
 
         s1p1.setListener((event) => queryManager.update(event));
 
-        const unregister = queryManager.query(
+        const handle = queryManager.query(
             s1p1.system(),
             Models.ContentType.ContentTypeClaim,
             (value) => {
@@ -62,7 +62,7 @@ describe('query index', () => {
             },
         );
 
-        unregister();
+        handle.unregister();
     });
 
     test('update during query', async () => {
@@ -88,23 +88,18 @@ describe('query index', () => {
             stage++;
         };
 
-        const unregisterQ1 = queryManager.query(
+        const handle = queryManager.query(
             s1p1.system(),
             Models.ContentType.ContentTypeClaim,
             cb,
         );
 
-        queryManager.advance(
-            s1p1.system(),
-            cb,
-            10,
-            Models.ContentType.ContentTypeClaim,
-        );
+        handle.advance(10);
 
         await s1p1.claim(Models.claimGeneric('1'));
         await s1p1.claim(Models.claimGeneric('2'));
 
-        unregisterQ1();
+        handle.unregister();
 
         expect(stage).toStrictEqual(2);
     });
@@ -128,6 +123,8 @@ describe('query index', () => {
 
         let stage = 0;
 
+        let handle: QueryIndex.QueryHandle | undefined;
+
         await new Promise<void>((resolve) => {
             const cb = (value: QueryIndex.CallbackParameters) => {
                 if (stage === 0) {
@@ -143,12 +140,7 @@ describe('query index', () => {
 
                     expect(got).toStrictEqual(expected);
 
-                    queryManager.advance(
-                        s2p1.system(),
-                        cb,
-                        10,
-                        Models.ContentType.ContentTypeClaim,
-                    );
+                    handle?.advance(10);
                 } else if (stage === 1) {
                     const got = value.add.map(extractGenericClaim);
 
@@ -168,19 +160,16 @@ describe('query index', () => {
                 stage++;
             };
 
-            queryManager.query(
+            handle = queryManager.query(
                 s2p1.system(),
                 Models.ContentType.ContentTypeClaim,
                 cb,
             );
 
-            queryManager.advance(
-                s2p1.system(),
-                cb,
-                10,
-                Models.ContentType.ContentTypeClaim,
-            );
+            handle?.advance(10);
         });
+
+        handle?.unregister();
     });
 
     test('hit disk', async () => {
@@ -197,6 +186,8 @@ describe('query index', () => {
 
         let stage = 0;
 
+        let handle: QueryIndex.QueryHandle | undefined;
+
         await new Promise<void>((resolve) => {
             const cb = (value: QueryIndex.CallbackParameters) => {
                 if (stage === 0) {
@@ -206,12 +197,7 @@ describe('query index', () => {
                         undefined,
                     ]);
 
-                    queryManager.advance(
-                        s1p1.system(),
-                        cb,
-                        2,
-                        Models.ContentType.ContentTypeClaim,
-                    );
+                    handle?.advance(2);
                 } else if (stage === 1) {
                     expect(value.add.map(extractGenericClaim)).toStrictEqual([
                         '4',
@@ -219,12 +205,7 @@ describe('query index', () => {
                         undefined,
                     ]);
 
-                    queryManager.advance(
-                        s1p1.system(),
-                        cb,
-                        2,
-                        Models.ContentType.ContentTypeClaim,
-                    );
+                    handle?.advance(2);
                 } else if (stage === 2) {
                     expect(value.add.map(extractGenericClaim)).toStrictEqual([
                         '2',
@@ -237,19 +218,16 @@ describe('query index', () => {
                 stage++;
             };
 
-            queryManager.query(
+            handle = queryManager.query(
                 s1p1.system(),
                 Models.ContentType.ContentTypeClaim,
                 cb,
             );
 
-            queryManager.advance(
-                s1p1.system(),
-                cb,
-                2,
-                Models.ContentType.ContentTypeClaim,
-            );
+            handle?.advance(2);
         });
+
+        handle?.unregister();
     });
 
     test('missing data', async () => {
@@ -273,6 +251,8 @@ describe('query index', () => {
         const queryManager = new QueryIndex.QueryManager(s2p1);
         queryManager.useNetwork(false);
 
+        let handle: QueryIndex.QueryHandle | undefined;
+
         await new Promise<void>((resolve) => {
             const cb = (value: QueryIndex.CallbackParameters) => {
                 expect(value.add.map(extractGenericClaim)).toStrictEqual([
@@ -286,18 +266,15 @@ describe('query index', () => {
                 resolve();
             };
 
-            queryManager.query(
+            handle = queryManager.query(
                 s1p1.system(),
                 Models.ContentType.ContentTypeClaim,
                 cb,
             );
 
-            queryManager.advance(
-                s1p1.system(),
-                cb,
-                20,
-                Models.ContentType.ContentTypeClaim,
-            );
+            handle.advance(20);
         });
+
+        handle?.unregister();
     });
 });

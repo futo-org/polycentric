@@ -5,7 +5,11 @@ import * as Models from '../models';
 import * as ProcessHandle from '../process-handle';
 import * as Protocol from '../protocol';
 import * as Util from '../util';
-import * as Shared from './shared';
+
+export interface QueryHandle {
+    advance(additionalCount: number): void;
+    unregister(): void;
+}
 
 export type Cell = {
     unixMilliseconds: Long;
@@ -133,7 +137,7 @@ export class QueryManager {
         system: Models.PublicKey.PublicKey,
         contentType: Models.ContentType.ContentType,
         callback: Callback,
-    ): Shared.UnregisterCallback {
+    ): QueryHandle {
         const systemString = Models.PublicKey.toString(system);
 
         let stateForSystem = this._state.get(systemString);
@@ -158,35 +162,37 @@ export class QueryManager {
 
         stateForSystem.queries.set(callback, stateForQuery);
 
-        return () => {
-            if (stateForSystem !== undefined) {
-                stateForSystem.queries.delete(callback);
-            } else {
-                throw Error('impossible');
-            }
+        let unregistered = false;
+
+        return {
+            advance: (additionalCount: number) => {
+                if (unregistered === false) {
+                    this.advanceInternal(
+                        stateForQuery,
+                        additionalCount,
+                        contentType,
+                        system,
+                    );
+                }
+            },
+            unregister: () => {
+                unregistered = true;
+
+                if (stateForSystem !== undefined) {
+                    stateForSystem.queries.delete(callback);
+                } else {
+                    throw Error('impossible');
+                }
+            },
         };
     }
 
-    public advance(
-        system: Models.PublicKey.PublicKey,
-        callback: Callback,
+    private advanceInternal(
+        stateForQuery: StateForQuery,
         additionalCount: number,
         contentType: Models.ContentType.ContentType,
+        system: Models.PublicKey.PublicKey,
     ): void {
-        const systemString = Models.PublicKey.toString(system);
-
-        let stateForSystem = this._state.get(systemString);
-
-        if (stateForSystem === undefined) {
-            return;
-        }
-
-        const stateForQuery = stateForSystem.queries.get(callback);
-
-        if (stateForQuery === undefined) {
-            return;
-        }
-
         if (
             stateForQuery.totalExpected - stateForQuery.eventsByTime.length >
             0
