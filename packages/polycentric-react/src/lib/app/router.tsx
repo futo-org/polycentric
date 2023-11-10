@@ -1,36 +1,32 @@
 import { IonPage } from '@ionic/react'
-import { Route } from 'react-router-dom'
+import { Route as RouterRoute } from 'react-router-dom'
 import { HomeFeedPage } from '../pages/homefeed'
 import { UserFeedPage } from '../pages/userfeed'
 
-export const Page = ({
+export const Route = ({
   children,
+  path,
   allowMobileDrawer = false,
 }: {
   children: React.ReactNode
+  path?: string
   allowMobileDrawer?: boolean
 }) => (
   <IonPage className="bg-white" id={allowMobileDrawer ? 'main-drawer' : undefined}>
-    {children}
+    <RouterRoute path={path}>{children}</RouterRoute>
   </IonPage>
 )
 
 export const AppRouter = () => (
   <>
-    <Route path="/">
-      <Page allowMobileDrawer={true}>
-        <HomeFeedPage />
-      </Page>
+    <Route path="/" allowMobileDrawer={true}>
+      <HomeFeedPage />
     </Route>
     <Route path="/t/:topic">
-      <Page>
-        <p>wip</p>
-      </Page>
+      <p>wip</p>
     </Route>
     <Route path="/user/:urlInfoString">
-      <Page>
-        <UserFeedPage />
-      </Page>
+      <UserFeedPage />
     </Route>
     {/* <Route path="/:urlinfo">
       <URLInfoRouter />
