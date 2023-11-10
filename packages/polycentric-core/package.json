@@ -30,7 +30,7 @@
     "dev:mjs": "esbuild src/index.ts --bundle --outfile=dist/polycentric-core.mjs --format=esm --platform=browser --sourcemap --watch",
     "dev:cjs": "esbuild src/index.ts --bundle --outfile=dist/polycentric-core.cjs --format=cjs --platform=browser --sourcemap --watch",
     "dev:node": "esbuild src/index.ts --bundle --outfile=dist/polycentric-core.node.cjs --format=cjs --platform=node --sourcemap --watch",
-    "build": "run-s build:*",
+    "build:production": "run-s build:*",
     "build:declaration": "tsc --emitDeclarationOnly",
     "build:mjs": "esbuild src/index.ts --bundle --outfile=dist/polycentric-core.mjs --format=esm --platform=browser",
     "build:cjs": "esbuild src/index.ts --bundle --outfile=dist/polycentric-core.cjs --format=cjs --platform=browser",

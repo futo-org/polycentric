@@ -6,5 +6,8 @@
         "source.fixAll": true,
         "source.organizeImports": true,
         "source.sortMembers": true
+    },
+    "[yaml]": {
+        "editor.formatOnSave": false
     }
 }
