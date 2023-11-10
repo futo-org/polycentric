@@ -466,11 +466,14 @@ export function useQueryCursor<T>(
   )
 
   useEffect(() => {
+    setState([])
     const newQuery = new Queries.QueryCursor.Query(processHandle, loadCallback, addNewCells, batchSize)
     setQuery(newQuery)
     return () => {
       newQuery.cleanup()
     }
+    // NOTE: Currently we don't care about dynamic batch sizes.
+    // If we do, the current implementation of this hook will result in clearing the whole feed when the batch size changes.
   }, [processHandle, loadCallback, addNewCells, batchSize])
 
   const advance = useMemo(() => {
