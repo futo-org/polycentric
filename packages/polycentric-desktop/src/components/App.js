@@ -2,9 +2,9 @@ import '@polycentric/polycentric-react/dist/style.css';
 
 import { app } from '@electron/remote';
 import { createPersistenceDriverLevelDB } from '@polycentric/polycentric-leveldb';
-import { Root } from '@polycentric/polycentric-react';
+import { App as Root } from '@polycentric/polycentric-react';
 import path from 'path';
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import '@fontsource-variable/public-sans/index.css';
 import '@fontsource-variable/public-sans/wght-italic.css';
@@ -14,7 +14,7 @@ import '@fontsource/fragment-mono/index.css';
 const DesktopRoot = () => {
     const [persistenceDriver, setPersistenceDriver] = useState(undefined);
 
-    React.useEffect(() => {
+    useEffect(() => {
         try {
             const levelDBPath = path.join(app.getPath('userData'), '/leveldb/');
             const persistenceDriverLevelDB =
