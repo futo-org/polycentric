@@ -216,7 +216,7 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
         <form
           onSubmit={async (e) => {
             e.preventDefault()
-            
+
             const defaultServers: Array<string> = import.meta.env.VITE_DEFAULT_SERVERS?.split(',') ?? []
             const processHandle = await createAccount(privateKey, defaultServers, username)
 
