@@ -216,17 +216,10 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
         <form
           onSubmit={async (e) => {
             e.preventDefault()
-            const processHandle = await createAccount(privateKey)
 
             const defaultServers: Array<string> = import.meta.env.VITE_DEFAULT_SERVERS?.split(',') ?? []
-            await Promise.all(
-              defaultServers.map(async (server) => {
-                await processHandle.addServer(server)
-                processHandle.addAddressHint(processHandle.system(), server)
-              }),
-            )
+            const processHandle = await createAccount(privateKey, defaultServers, username)
 
-            await processHandle.setUsername(username)
             if (avatar) await publishBlobToAvatar(avatar, processHandle)
 
             await Synchronization.backFillServers(processHandle, processHandle.system())

@@ -6,7 +6,11 @@ type BaseProcessHandleManagerHookReturn = {
   activeStore: MetaStore.StoreInfo | null | undefined
   stores: MetaStore.StoreInfo[]
   changeHandle: (account?: MetaStore.StoreInfo) => Promise<ProcessHandle.ProcessHandle | null | undefined>
-  createHandle: (key: Models.PrivateKey.PrivateKey) => Promise<ProcessHandle.ProcessHandle>
+  createHandle: (
+    key: Models.PrivateKey.PrivateKey,
+    servers?: ReadonlyArray<string>,
+    username?: string,
+  ) => Promise<ProcessHandle.ProcessHandle>
   signOutOtherUser: (account: MetaStore.StoreInfo) => Promise<void>
   metaStore: MetaStore.IMetaStore
 }
@@ -60,8 +64,22 @@ export function useProcessHandleManagerBaseComponentHook(
   )
 
   const createHandle = useCallback(
-    async (privateKey: Models.PrivateKey.PrivateKey) => {
+    async (privateKey: Models.PrivateKey.PrivateKey, servers?: ReadonlyArray<string>, username?: string) => {
       const processHandle = await ProcessHandle.createProcessHandleFromKey(metaStore, privateKey)
+
+      if (username) {
+        await processHandle.setUsername(username)
+      }
+
+      if (servers) {
+        await Promise.all(
+          servers?.map((server) => {
+            processHandle.addAddressHint(processHandle.system(), server)
+            processHandle.addServer(server)
+          }),
+        )
+      }
+
       // TODO: Add proper store version numbering
       await metaStore.setActiveStore(processHandle.system(), 0)
       const activeStore = await metaStore.getActiveStore()

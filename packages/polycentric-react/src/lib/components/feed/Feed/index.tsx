@@ -107,7 +107,7 @@ export const Feed = ({ data, advanceFeed }: { data: FeedHookData; advanceFeed: F
   const { outerRef, innerRef, items, scrollTo } = useVirtual<HTMLDivElement>({
     itemCount: data.length,
     loadMoreCount,
-    loadMore: () => advanceFeed(loadMoreCount),
+    loadMore: () => advanceFeed(),
   })
 
   const [hasScrolled, setHasScrolled] = useState(false)

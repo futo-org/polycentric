@@ -211,7 +211,8 @@ export function useIndex<T>(
   system: Models.PublicKey.PublicKey,
   contentType: Models.ContentType.ContentType,
   parse: (buffer: Uint8Array) => T,
-): [Array<ParsedEvent<T>>, (advanceBy: number) => void] {
+  batchSize = 30,
+): [Array<ParsedEvent<T>>, () => void] {
   const queryManager = useQueryManager()
 
   const [state, setState] = useState<Array<ClaimInfo<T>>>([])
@@ -264,25 +265,22 @@ export function useIndex<T>(
 
     const unregister = queryManager.queryIndex.query(system, contentType, cb)
 
-    queryManager.queryIndex.advance(system, cb, 30, contentType)
+    queryManager.queryIndex.advance(system, cb, batchSize, contentType)
 
     return () => {
       cancelContext.cancel()
 
       unregister()
     }
-  }, [queryManager.queryIndex, system, contentType, parse])
+  }, [queryManager.queryIndex, system, contentType, parse, batchSize])
 
   const parsedEvents = useMemo(() => {
     return state.map((x) => x.parsedEvent).filter((x) => x !== undefined) as ParsedEvent<T>[]
   }, [state])
 
-  const advanceCallback = useCallback(
-    (advanceBy: number) => {
-      queryManager.queryIndex.advance(system, latestCB.current, advanceBy, contentType)
-    },
-    [queryManager.queryIndex, system, contentType],
-  )
+  const advanceCallback = useCallback(() => {
+    queryManager.queryIndex.advance(system, latestCB.current, batchSize, contentType)
+  }, [queryManager.queryIndex, system, batchSize, contentType])
 
   return [parsedEvents, advanceCallback]
 }
@@ -442,4 +440,43 @@ export const useQueryIfAdded = (
   }, [processHandle, system, contentType, value])
 
   return state
+}
+
+export function useQueryCursor<T>(
+  loadCallback: Queries.QueryCursor.LoadCallback,
+  parse: (buffer: Uint8Array) => T,
+  batchSize = 30,
+): [Array<ParsedEvent<T>>, () => void] {
+  const { processHandle } = useProcessHandleManager()
+  const [state, setState] = useState<Array<ParsedEvent<T>>>([])
+  const query = useRef<Queries.QueryCursor.Query | null>(null)
+  const [advance, setAdvance] = useState<() => void>(() => {})
+
+  const addNewCells = useCallback(
+    (newCells: Queries.QueryCursor.Cell[]) => {
+      const newCellsAsSignedEvents = newCells.map((cell) => {
+        const { signedEvent } = cell
+        const event = Models.Event.fromBuffer(signedEvent.event)
+        const parsed = parse(event.content)
+        processHandle.addAddressHint(event.system, cell.fromServer)
+        return new ParsedEvent<T>(signedEvent, event, parsed)
+      })
+      setState((currentCells) => [...currentCells].concat(newCellsAsSignedEvents))
+    },
+    [parse, processHandle],
+  )
+
+  useEffect(() => {
+    setState([])
+    const newQuery = new Queries.QueryCursor.Query(processHandle, loadCallback, addNewCells, batchSize)
+    query.current = newQuery
+    setAdvance(() => query.current?.advance.bind(query.current) ?? (() => {}))
+    return () => {
+      newQuery.cleanup()
+    }
+    // NOTE: Currently we don't care about dynamic batch sizes.
+    // If we do, the current implementation of this hook will result in clearing the whole feed when the batch size changes.
+  }, [processHandle, loadCallback, addNewCells, batchSize])
+
+  return [state, advance]
 }
