@@ -16,8 +16,7 @@
     "rss-parser": "^3.12.0"
   },
   "scripts": {
-    "build": "webpack --mode=development",
-    "build:production": "webpack --mode=production",
+    "build": "webpack --mode=production",
     "dev": "webpack --mode=development && node dist/index.js"
   },
   "eslintConfig": {

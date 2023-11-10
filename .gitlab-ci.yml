@@ -167,7 +167,7 @@ build-core-harbor:
     - ./version.sh
     - make proto
     - cd packages/polycentric-core
-    - npm run build:production
+    - npm run build
     - cd ../harbor-web
     - npm run build
   needs: ["check"]
@@ -186,11 +186,11 @@ build-core-react-web:
     - ./version.sh
     - make proto
     - cd packages/polycentric-core
-    - npm run build:production
+    - npm run build
     - cd ../polycentric-react
-    - npm run build:production
+    - npm run build
     - cd ../polycentric-web
-    - npm run build:production
+    - npm run build
   needs: ["check"]
   artifacts:
       name: "artifacts"
@@ -207,13 +207,13 @@ build-core-react-leveldb-desktop:
     - ./version.sh
     - make proto
     - cd packages/polycentric-core
-    - npm run build:production
+    - npm run build
     - cd ../polycentric-react
-    - npm run build:production
+    - npm run build
     - cd ../polycentric-leveldb
-    - npm run build:production
+    - npm run build
     - cd ../polycentric-desktop
-    - npm run build:production
+    - npm run build
   needs: ["check"]
   artifacts:
       name: "artifacts"
