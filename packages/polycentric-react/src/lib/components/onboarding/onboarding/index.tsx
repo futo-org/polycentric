@@ -217,8 +217,15 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
           onSubmit={async (e) => {
             e.preventDefault()
             const processHandle = await createAccount(privateKey)
-            processHandle.addAddressHint(processHandle.system(), 'https://srv1-stg.polycentric.io')
-            await processHandle.addServer('https://srv1-stg.polycentric.io')
+
+            const defaultServers: Array<string> = import.meta.env.VITE_DEFAULT_SERVERS?.split(',') ?? []
+            await Promise.all(
+              defaultServers.map(async (server) => {
+                await processHandle.addServer(server)
+                processHandle.addAddressHint(processHandle.system(), server)
+              }),
+            )
+
             await processHandle.setUsername(username)
             if (avatar) await publishBlobToAvatar(avatar, processHandle)
 
