@@ -19,7 +19,7 @@ const UpArrowIcon = () => (
   </svg>
 )
 
-const AccountSwitcherItem = ({
+const AccountSwitcherAccountItem = ({
   storeInfo,
   setSubMenuExpanded,
 }: {
@@ -84,7 +84,7 @@ export const AccountSwitcher = () => {
             <Menu.Items static={true}>
               <div className="flex flex-col">
                 {notCurrentStores.map((storeInfo) => (
-                  <AccountSwitcherItem
+                  <AccountSwitcherAccountItem
                     key={Models.PublicKey.toString(storeInfo.system)}
                     storeInfo={storeInfo}
                     setSubMenuExpanded={setSubMenuExpanded}
@@ -97,7 +97,7 @@ export const AccountSwitcher = () => {
         )}
         <div className={`flex justify-between p-2 w-full ${expanded ? 'rounded-b-[2rem]' : 'rounded-[2rem]'}`}>
           <div className="flex space-x-2">
-            <Link to={`/user/${systemLink}`} className="h-[3rem] w-[3rem] rounded-full border overflow-clip">
+            <Link routerLink={systemLink} className="h-[3rem] w-[3rem] rounded-full border overflow-clip">
               <img className="" src={avatarURL} />
             </Link>
             <div className="flex flex-col">
@@ -105,24 +105,25 @@ export const AccountSwitcher = () => {
               <p className="font-light text-gray-400">{key.substring(0, 10)}</p>
             </div>
           </div>
-          {notCurrentStores.length === 0 ? (
+          <div className="flex justify-end space-x-2">
             <CircleExpandMenuReverse
               menuItems={[{ label: 'New Account', action: () => changeHandle() }]}
               title={username}
               onIsOpenChange={(isOpen) => setSubMenuExpanded(isOpen)}
             />
-          ) : (
-            <button
-              className={`h-[3rem] bg-gray-50 p-1 rounded-full w-auto aspect-square flex justify-center items-center ${
-                expanded ? ' -scale-y-100' : 'scale-y-100'
-              }`}
-              onClick={() => {
-                setExpanded(!expanded)
-              }}
-            >
-              <UpArrowIcon />
-            </button>
-          )}
+            {notCurrentStores.length > 0 && (
+              <button
+                className={`h-[3rem] bg-gray-50 p-1 rounded-full w-auto aspect-square flex justify-center items-center ${
+                  expanded ? ' -scale-y-100' : 'scale-y-100'
+                }`}
+                onClick={() => {
+                  setExpanded(!expanded)
+                }}
+              >
+                <UpArrowIcon />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </Menu>
