@@ -18,7 +18,19 @@ export type Cell = {
     contentType: Models.ContentType.ContentType;
     next: Long | undefined;
     signedEvent: Models.SignedEvent.SignedEvent | undefined;
+    key: string;
+    isDelete: boolean;
 };
+
+export function applyPatch(
+    state: Array<Cell>,
+    patch: CallbackParameters,
+): Array<Cell> {
+    return state
+        .filter((x) => !patch.remove.has(x.key))
+        .concat(patch.add)
+        .sort(compareCells);
+}
 
 export function compareCells(a: Cell, b: Cell): number {
     const timeComparison = a.unixMilliseconds.compare(b.unixMilliseconds);
@@ -67,6 +79,11 @@ function signedEventToCell(signedEvent: Models.SignedEvent.SignedEvent): Cell {
             contentType: content.contentType,
             next: lookupIndex(content.indices, content.contentType),
             signedEvent: signedEvent,
+            key: processAndLogicalClockToString(
+                content.process,
+                content.logicalClock,
+            ),
+            isDelete: true,
         };
     } else {
         return {
@@ -76,6 +93,11 @@ function signedEventToCell(signedEvent: Models.SignedEvent.SignedEvent): Cell {
             contentType: event.contentType,
             next: lookupIndex(event.indices, event.contentType),
             signedEvent: signedEvent,
+            key: processAndLogicalClockToString(
+                event.process,
+                event.logicalClock,
+            ),
+            isDelete: false,
         };
     }
 }
@@ -86,7 +108,7 @@ function rawEventToCell(rawEvent: Protocol.SignedEvent): Cell {
 
 export type CallbackParameters = {
     add: Array<Cell>;
-    remove: Array<Cell>;
+    remove: Set<string>;
 };
 
 export type Callback = (state: CallbackParameters) => void;
@@ -382,6 +404,11 @@ export class QueryManager {
                 contentType: stateForQuery.contentType,
                 next: undefined,
                 signedEvent: undefined,
+                key: processAndLogicalClockToString(
+                    missing.process,
+                    missing.logicalClock.subtract(Long.UONE),
+                ),
+                isDelete: false,
             };
 
             const key = processAndLogicalClockToString(
@@ -423,27 +450,28 @@ export class QueryManager {
         let earliestTime = stateForQuery.earliestTimeBySource.get(source);
 
         let cellsToAdd = [];
-        let cellsToRemove = [];
+        let cellsToRemove: Set<string> = new Set();
 
         for (const cell of cells) {
-            const key = processAndLogicalClockToString(
-                cell.process,
-                cell.logicalClock,
-            );
-
-            if (!stateForQuery.eventsByProcessAndLogicalClock.has(key)) {
+            if (!stateForQuery.eventsByProcessAndLogicalClock.has(cell.key)) {
                 stateForQuery.eventsByTime.push(cell);
 
-                cellsToAdd.push(cell);
+                if (!cell.isDelete) {
+                    cellsToAdd.push(cell);
+                }
 
                 const placeholder =
-                    stateForQuery.missingProcessAndLogicalClock.get(key);
+                    stateForQuery.missingProcessAndLogicalClock.get(cell.key);
 
                 if (placeholder !== undefined) {
-                    stateForQuery.missingProcessAndLogicalClock.delete(key);
+                    stateForQuery.missingProcessAndLogicalClock.delete(
+                        cell.key,
+                    );
 
-                    cellsToRemove.push(placeholder);
+                    cellsToRemove.add(placeholder.key);
                 }
+            } else if (cell.isDelete) {
+                cellsToRemove.add(cell.key);
             }
 
             if (
@@ -457,10 +485,7 @@ export class QueryManager {
         stateForQuery.earliestTimeBySource.set(source, earliestTime!);
 
         for (const cell of allCells) {
-            stateForQuery.eventsByProcessAndLogicalClock.set(
-                processAndLogicalClockToString(cell.process, cell.logicalClock),
-                cell,
-            );
+            stateForQuery.eventsByProcessAndLogicalClock.set(cell.key, cell);
         }
 
         stateForQuery.eventsByTime.sort(compareCells).reverse();

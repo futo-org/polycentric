@@ -277,4 +277,47 @@ describe('query index', () => {
 
         handle?.unregister();
     });
+
+    test('live delete', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+
+        const queryManager = new QueryIndex.QueryManager(s1p1);
+        queryManager.useNetwork(false);
+        queryManager.useDisk(false);
+
+        s1p1.setListener((event) => queryManager.update(event));
+
+        let handle: QueryIndex.QueryHandle | undefined;
+        let state: Array<QueryIndex.Cell> = [];
+
+        await new Promise<void>(async (resolve) => {
+            let stage = 0;
+
+            const cb = (patch: QueryIndex.CallbackParameters) => {
+                state = QueryIndex.applyPatch(state, patch);
+                stage++;
+
+                if (stage === 4) {
+                    resolve();
+                }
+            };
+
+            handle = queryManager.query(
+                s1p1.system(),
+                Models.ContentType.ContentTypeClaim,
+                cb,
+            );
+
+            handle.advance(10);
+
+            await s1p1.claim(Models.claimGeneric('1'));
+            const secondClaim = await s1p1.claim(Models.claimGeneric('2'));
+            await s1p1.claim(Models.claimGeneric('3'));
+            await s1p1.delete(secondClaim.process, secondClaim.logicalClock);
+        });
+
+        handle?.unregister();
+
+        expect(state.map(extractGenericClaim)).toStrictEqual(['1', '3']);
+    });
 });

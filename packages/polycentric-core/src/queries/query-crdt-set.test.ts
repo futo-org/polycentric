@@ -73,7 +73,7 @@ describe('query crdt set', () => {
             const cb = (value: QueryIndex.CallbackParameters) => {
                 if (stage === 0) {
                     expect(value.add.length).toStrictEqual(2);
-                    expect(value.remove.length).toStrictEqual(0);
+                    expect(value.remove.size).toStrictEqual(0);
                     expect(
                         Models.PublicKey.equal(
                             extractSystem(value.add[0]),
@@ -88,7 +88,7 @@ describe('query crdt set', () => {
                     ).toStrictEqual(true);
                 } else if (stage === 1) {
                     expect(value.add.length).toStrictEqual(1);
-                    expect(value.remove.length).toStrictEqual(0);
+                    expect(value.remove.size).toStrictEqual(0);
                     expect(
                         Models.PublicKey.equal(
                             extractSystem(value.add[0]),
@@ -97,13 +97,7 @@ describe('query crdt set', () => {
                     ).toStrictEqual(true);
                 } else if (stage === 2) {
                     expect(value.add.length).toStrictEqual(0);
-                    expect(value.remove.length).toStrictEqual(1);
-                    expect(
-                        Models.PublicKey.equal(
-                            extractSystem(value.remove[0]),
-                            s2p1.system(),
-                        ),
-                    ).toStrictEqual(true);
+                    expect(value.remove.size).toStrictEqual(1);
                     resolve();
                 } else {
                     throw Error('unexpected');
