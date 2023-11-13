@@ -159,9 +159,15 @@ export function useIndex<T>(
                     const signedEvent = Core.Models.SignedEvent.fromProto(
                         cell.signedEvent,
                     );
+
                     const event = Core.Models.Event.fromBuffer(
                         signedEvent.event,
                     );
+
+                    if (!event.contentType.equals(contentType)) {
+                        throw new Error('unexpected content type');
+                    }
+
                     const parsed = parse(event.content);
 
                     parsedEvent = new ParsedEvent<T>(
@@ -177,11 +183,9 @@ export function useIndex<T>(
                 };
             });
 
-            const toRemove = new Set(value.remove);
-
             setState((state) => {
                 return state
-                    .filter((x) => !toRemove.has(x.cell))
+                    .filter((x) => !value.remove.has(x.cell.key))
                     .concat(toAdd)
                     .sort((x, y) =>
                         Core.Queries.QueryIndex.compareCells(y.cell, x.cell),

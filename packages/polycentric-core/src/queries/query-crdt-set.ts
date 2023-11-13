@@ -40,12 +40,12 @@ export class QueryManager {
         const items = new Map();
 
         const queryIndexCallback = (params: QueryIndex.CallbackParameters) => {
-            if (params.remove.length > 0) {
+            if (params.remove.size > 0) {
                 throw new Error('delete never expected for QueryCRDTSet');
             }
 
             const toAdd: Array<QueryIndex.Cell> = [];
-            const toRemove: Array<QueryIndex.Cell> = [];
+            const toRemove: Set<string> = new Set();
 
             for (const cell of params.add) {
                 if (cell.signedEvent === undefined) {
@@ -81,12 +81,12 @@ export class QueryManager {
                     }
 
                     if (potential) {
-                        toRemove.push(cell);
+                        toRemove.add(cell.key);
                     }
                 }
             }
 
-            if (toAdd.length > 0 || toRemove.length > 0) {
+            if (toAdd.length > 0 || toRemove.size > 0) {
                 callback({
                     add: toAdd,
                     remove: toRemove,

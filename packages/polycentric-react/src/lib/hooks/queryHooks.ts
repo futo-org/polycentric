@@ -260,11 +260,9 @@ export function useIndex<T>(
         }
       })
 
-      const toRemove = new Set(value.remove)
-
       setState((state) => {
         return state
-          .filter((x) => !toRemove.has(x.cell))
+          .filter((x) => !value.remove.has(x.cell.key))
           .concat(toAdd)
           .sort((x, y) => Queries.QueryIndex.compareCells(y.cell, x.cell))
       })
