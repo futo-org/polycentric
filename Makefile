@@ -43,6 +43,10 @@ start-gdbserver:
 	docker-compose -f docker-compose.development.yml \
 		exec development gdbserver 0.0.0.0:3345 ./server/target/debug/server
 
+devcert:
+	mkdir -p ./devcert/
+	mkcert -cert-file ./devcert/local-cert.pem -key-file ./devcert/local-key.pem localhost 127.0.0.1 ::1 $$(ifconfig | grep -oE "\binet\b [0-9.]+ " | grep -oE "[0-9.]+")
+
 proto: proto/protocol.proto
 	npm install
 	npx protoc \
