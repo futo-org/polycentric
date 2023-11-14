@@ -394,6 +394,13 @@ export const usePostStats = (pointer: Models.Pointer.Pointer) => {
   )
 
   const counts = useMemo(() => {
+    if (out === undefined)
+      return {
+        likes: undefined,
+        dislikes: undefined,
+        comments: undefined,
+      }
+
     let likes = 0
     let dislikes = 0
     let comments = 0
