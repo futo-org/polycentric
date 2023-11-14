@@ -23,7 +23,7 @@ export const PureSidebarProfile = ({
         <img src={profile.avatarURL} className="" />
       </div>
       <div className="text-2xl font-medium">{profile.name}</div>
-      {profile.isMyProfile && (
+      {!profile.isMyProfile && (
         <button
           onClick={profile.iAmFollowing ? unfollow : follow}
           className="bg-blue-500 text-white px-4 py-2 rounded-full"
