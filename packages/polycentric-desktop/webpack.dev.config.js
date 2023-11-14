@@ -5,8 +5,14 @@ const { spawn } = require('child_process');
 
 // Any directories you will be adding code/files into, need to be added to this array so webpack will pick them up
 const defaultInclude = path.resolve(__dirname, 'src');
-const polycentricIncludeDist = path.resolve(__dirname, '../polycentric-react/dist');
-const polycentricIncludeTailwind = path.resolve(__dirname, '../polycentric-react/tailwind.config.js');
+const polycentricIncludeDist = path.resolve(
+    __dirname,
+    '../polycentric-react/dist',
+);
+const polycentricIncludeTailwind = path.resolve(
+    __dirname,
+    '../polycentric-react/tailwind.config.js',
+);
 
 module.exports = {
     externals: {
@@ -25,7 +31,7 @@ module.exports = {
                 include: defaultInclude,
             },
             {
-                test: /\.(jpe?g|png|gif|svg)$/,
+                test: /\.(jpe?g|png|gif|svg|ico)$/,
                 use: [
                     {
                         loader: 'file-loader?name=img/[name]__[hash:base64:5].[ext]',
@@ -59,16 +65,16 @@ module.exports = {
         stats: {
             colors: true,
             chunks: false,
-            children: false
+            children: false,
         },
         before() {
-            spawn(
-                'electron',
-                ['.'],
-                { shell: true, env: process.env, stdio: 'inherit' }
-            )
-                .on('close', code => process.exit(0))
-                .on('error', spawnError => console.error(spawnError))
-        }
-    }
+            spawn('electron', ['.'], {
+                shell: true,
+                env: process.env,
+                stdio: 'inherit',
+            })
+                .on('close', (code) => process.exit(0))
+                .on('error', (spawnError) => console.error(spawnError));
+        },
+    },
 };
