@@ -18,8 +18,10 @@ RUN apt-get update -y && \
 		pkg-config \
 		openssl \
 		libssl-dev \
+		net-tools \
 		gdbserver \ 
-		gdb && \
+		gdb \
+		mkcert && \
 	export RUSTUP_HOME=/opt/rust && \
 	curl https://sh.rustup.rs -sSf | sh -s -- -y && \
 	cargo install protobuf-codegen@3.1.0 --root /opt/protobuf-codegen && \

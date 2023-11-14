@@ -1,6 +1,6 @@
 import react from '@vitejs/plugin-react';
+import fs from 'fs';
 import { defineConfig } from 'vite';
-import mkcert from 'vite-plugin-mkcert';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const polycentricDeps = [
@@ -8,12 +8,28 @@ const polycentricDeps = [
     '@polycentric/polycentric-react',
 ];
 
+if (!fs.existsSync('../../devcert/local-key.pem')) {
+    console.warn(
+        'Warning: ../../devcert/local-key.pem does not exist. Make sure to run `make devcert`',
+    );
+}
+
+if (!fs.existsSync('../../devcert/local-cert.pem')) {
+    console.warn(
+        'Warning: ../../devcert/local-cert.pem does not exist. Make sure to run `make devcert`',
+    );
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => ({
-    server: { https: true },
+    server: {
+        https: {
+            key: '../../devcert/local-key.pem',
+            cert: '../../devcert/local-cert.pem',
+        },
+    },
     plugins: [
         react(),
-        mkcert(),
         VitePWA({
             registerType: 'autoUpdate',
             devOptions: {
