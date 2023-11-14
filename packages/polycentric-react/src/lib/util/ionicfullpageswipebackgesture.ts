@@ -1,5 +1,12 @@
 import { createGesture } from '@ionic/react'
 
+// Allow swiping back anywhere on page
+// The only other way to do this is to distribute our own ionic build
+// Copy of
+// https://github.com/ionic-team/ionic-framework/blob/main/core/src/utils/gesture/swipe-back.ts
+// With one change to add x threshold value
+// All changed lines have 'Polycentric:' comment above
+
 // @ts-nocheck
 
 const clamp = (min: number, n: number, max: number) => {
@@ -21,6 +28,7 @@ export const createSwipeBackGesture = (
   onStartHandler: () => void,
   onMoveHandler: (step: number) => void,
   onEndHandler: (shouldComplete: boolean, step: number, dur: number) => void,
+  // Polycentric: This is new
   threshold?: number,
 ) => {
   const win = el.ownerDocument!.defaultView!
@@ -35,9 +43,11 @@ export const createSwipeBackGesture = (
     const { startX } = detail
 
     if (rtl) {
+      // Polycentric: this has changed
       return startX >= win.innerWidth - threshold
     }
 
+    // Polycentric: this has changed
     return startX <= threshold
   }
 
