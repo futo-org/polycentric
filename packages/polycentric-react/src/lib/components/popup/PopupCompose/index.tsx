@@ -5,7 +5,7 @@ export const PopupCompose = () => {
   return (
     <div className="px-3 py-5 md:px-7 bg-white overflow-clip flex flex-col space-y-0 w-auto md:w-[40rem]">
       <div>
-        <Compose hideTopic={false} maxTextboxHeightPx={250} minTextboxHeightPx={200} />
+        <Compose hideTopic={true} maxTextboxHeightPx={250} minTextboxHeightPx={200} />
       </div>
     </div>
   )
