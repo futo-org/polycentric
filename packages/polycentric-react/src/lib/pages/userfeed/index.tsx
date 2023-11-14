@@ -85,6 +85,7 @@ export const UserFeedPage = () => {
 
   const column = useMemo(() => <UserColumn system={system} />, [system])
   const mobilePreview = useMemo(() => <MobileFeedProfile system={system} />, [system])
+  const compose = <Compose hideTopic={true} />
 
   return (
     <InfiniteScrollWithRightCol

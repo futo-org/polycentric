@@ -80,7 +80,7 @@ export const PopupComposeReply = ({
         </div>
       </div>
       <Compose
-        hideTopic={false}
+        hideTopic={true}
         maxTextboxHeightPx={isMobile ? 0 : 250}
         topicDisabled={true}
         preSetTopic={main.topic}
