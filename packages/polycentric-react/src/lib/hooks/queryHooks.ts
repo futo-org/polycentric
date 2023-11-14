@@ -99,7 +99,7 @@ export const useEventLink = (system: Models.PublicKey.PublicKey, pointer: Models
       if (cancelContext.cancelled()) {
         return
       }
-      setLink('/p/' + link)
+      setLink('/post/' + link)
     })
     return () => {
       cancelContext.cancel()
