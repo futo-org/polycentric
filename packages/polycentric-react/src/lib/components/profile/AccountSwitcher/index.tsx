@@ -1,10 +1,10 @@
 import { Menu } from '@headlessui/react'
 import { MetaStore, Models } from '@polycentric/polycentric-core'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
 import { useAvatar, useSystemLink, useTextPublicKey, useUsernameCRDTQuery } from '../../../hooks/queryHooks'
 import { CircleExpandMenuReverse } from '../../util/circleexpandmenu'
+import { Link } from '../../util/link'
 
 const UpArrowIcon = () => (
   <svg

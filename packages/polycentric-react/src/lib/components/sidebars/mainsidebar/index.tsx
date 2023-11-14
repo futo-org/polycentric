@@ -1,5 +1,7 @@
 import polycentricIcon from '../../../../graphics/icons/favicon.ico'
 import { AccountSwitcher } from '../../profile/AccountSwitcher'
+import { Link } from '../../util/link'
+
 const SidebarLink = ({ to, children }: { to: string; children: React.ReactNode }) => (
   <Link routerLink={to} className="rounded hover:bg-gray-200 p-2 transition-colors duration-200">
     {children}
