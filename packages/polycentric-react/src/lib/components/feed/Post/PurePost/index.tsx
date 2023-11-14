@@ -349,6 +349,16 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
       }
     }, [sub, subcontentCropped])
 
+    const openSharePrompt = useCallback(() => {
+      if (navigator.share && main != null) {
+        navigator.share({
+          title: 'Polycentric',
+          text: main.content,
+          url: window.location.href,
+        })
+      }
+    }, [main])
+
     return (
       <div ref={infiniteScrollRef}>
         {main == null ? (
@@ -520,6 +530,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                     count={stats?.likes}
                     clicked={actions?.liked ?? false}
                   />
+                  <SharePostButton onClick={openSharePrompt} />
                 </div>
               </div>
               <PopupComposeReplyFullscreen
