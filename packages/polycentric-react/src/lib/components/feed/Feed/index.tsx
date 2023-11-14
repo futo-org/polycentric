@@ -1,7 +1,7 @@
 import { encode } from '@borderless/base64'
 import { Synchronization } from '@polycentric/polycentric-core'
 import useVirtual, { Item, ScrollTo } from '@polycentric/react-cool-virtual'
-import { useCallback, useState } from 'react'
+import { createContext, useContext, useState } from 'react'
 import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks'
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
 import { useIsMobile } from '../../../hooks/styleHooks'
@@ -37,6 +37,16 @@ const ComposeIcon = () => (
     />
   </svg>
 )
+
+const ScrollToContext = createContext<ScrollTo | undefined>(undefined)
+
+export const useScrollTo = () => {
+  const context = useContext(ScrollToContext)
+  if (context === undefined) {
+    throw new Error('useScrollTo must be used within a ScrollToProvider')
+  }
+  return context
+}
 
 // For when you're providing your own outerref so the scroll area can be wider than just the feed
 export const InnerFeed = ({
@@ -90,34 +100,31 @@ export const InnerFeed = ({
   const topFeedComponent = isMobile ? mobileTopComponent : showCompose ? <Compose onPost={onPost} /> : null
 
   return (
-    <div className="w-full lg:w-[700px] xl:w-[776px] relative  bg-white">
-      {/* Attach the `innerRef` to the wrapper of the items */}
+    <ScrollToContext.Provider value={scrollTo}>
+      <div className="w-full lg:w-[700px] xl:w-[776px] relative  bg-white">
       {/* //@ts-ignore */}
 
-      {topFeedComponent && <div className="py-3 lg:p-10 border-b-2">{topFeedComponent}</div>}
-      {postingProgress > 0 && (
-        <div style={{ height: '4px', width: `${postingProgress * 100}%` }} className="bg-blue-500"></div>
-      )}
-      <div ref={innerRef} className="w-full lg:w-[700px] xl:w-[776px]" style={{ height: '100%' }}>
-        {items.map(({ index, measureRef }) => (
-          // You can set the item's height with the `size` property
-          // TODO: change this to a proper index
-          <Post ref={measureRef} key={encode(data[index]?.signedEvent.signature)} data={data[index]} />
-        ))}
+        <div ref={innerRef} className="w-full lg:w-[700px] xl:w-[776px]" style={{ height: '100%' }}>
+          {items.map(({ index, measureRef }) => (
+            // You can set the item's height with the `size` property
+            // TODO: change this to a proper index
+            <Post ref={measureRef} key={encode(data[index]?.signedEvent.signature)} data={data[index]} />
+          ))}
+        </div>
+        {hasScrolled && (
+          <>
+            <div className="absolute w-full top-1 md:top-5 flex justify-center z-40">
+              <button
+                onClick={() => scrollTo(0)}
+                className="bg-blue-500 opacity-80 md:opacity-50 hover:opacity-80 border shadow rounded-full px-14 py-2 md:p-1 text-white fixed"
+              >
+                <UpArrowIcon />
+              </button>
+            </div>
+          </>
+        )}
       </div>
-      {hasScrolled && (
-        <>
-          <div className="absolute w-full top-1 md:top-5 flex justify-center z-40">
-            <button
-              onClick={() => scrollTo(0)}
-              className="bg-blue-500 opacity-80 md:opacity-50 hover:opacity-80 border shadow rounded-full px-14 py-2 md:p-1 text-white fixed"
-            >
-              <UpArrowIcon />
-            </button>
-          </div>
-        </>
-      )}
-    </div>
+    </ScrollToContext.Provider>
   )
 }
 

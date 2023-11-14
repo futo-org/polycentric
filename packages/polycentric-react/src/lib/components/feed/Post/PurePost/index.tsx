@@ -4,6 +4,7 @@ import { useIsMobile } from '../../../../hooks/styleHooks'
 import { Profile } from '../../../../types/profile'
 import { PopupComposeReplyFullscreen } from '../../../popup/PopupComposeReply'
 import { Modal } from '../../../util/modal'
+import { useScrollTo } from '../../Feed'
 
 const dateToAgoString = (date: Date | undefined) => {
   if (date == null) {
@@ -150,6 +151,19 @@ const BookmarkIcon = () => (
   </svg>
 )
 
+const DownIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    className="w-6 h-6"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m0 0l6.75-6.75M12 19.5l-6.75-6.75" />
+  </svg>
+)
+
 export const LikeButton = ({
   onClick,
   count,
@@ -190,6 +204,50 @@ export const SharePostButton = ({ onClick }: { onClick: () => void }) => {
 export const BookmarkPostButton = ({ onClick }: { onClick: () => void }) => {
   return <PostActionButton name="Bookmark" DefaultIcon={BookmarkIcon} onClick={onClick} />
 }
+
+const DownButton = ({ onClick }: { onClick: () => void }) => {
+  return <PostActionButton name="Down" DefaultIcon={DownIcon} onClick={onClick} />
+}
+
+function customScrollIntoView(element: HTMLElement, scrollTo: ScrollTo) {
+  function getScrollableParent(element: HTMLElement) {
+    let currentElement: HTMLElement | null = element
+    while (currentElement) {
+      if (currentElement.scrollHeight > currentElement.clientHeight) {
+        return currentElement
+      }
+      currentElement = currentElement.parentElement
+    }
+    return null
+  }
+
+  function getOffsetTop(element: HTMLElement, scrollableParent: HTMLElement) {
+    let offsetTop = 0
+    let currentElement: HTMLElement | null = element
+
+    while (currentElement && currentElement !== scrollableParent) {
+      offsetTop += currentElement.offsetTop
+      currentElement = currentElement.offsetParent as HTMLElement
+    }
+
+    return offsetTop
+  }
+
+  const scrollableParent = getScrollableParent(element)
+
+  // If no scrollable parent found, there's nothing to scroll.
+  if (!scrollableParent) {
+    return
+  }
+
+  const offsetTop = getOffsetTop(element, scrollableParent)
+
+  // Call the provided scrollTo function
+  scrollTo({ offset: offsetTop, smooth: true })
+}
+
+// Usage
+// customScrollIntoView(elementToScrollTo, scrollTo);
 
 export interface PurePostProps {
   main?: {
@@ -234,6 +292,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
     const [commentPanelOpen, setCommentPanelOpen] = useState(false)
     const [mainImageOpen, setMainImageOpen] = useState(false)
 
+    const scrollTo = useScrollTo()
     const isMobile = useIsMobile()
 
     useEffect(() => {
@@ -293,6 +352,13 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                       count={isMobile ? undefined : stats?.likes}
                       clicked={actions?.liked ?? false}
                     />
+                      {expanded && (
+                        <DownButton
+                          onClick={() => {
+                            endRef.current && customScrollIntoView(endRef.current, scrollTo)
+                          }}
+                        />
+                      )}
                   </div>
                 )}
               </div>
