@@ -268,9 +268,9 @@ export interface PurePostProps {
     url: string
   }
   stats?: {
-    likes: number
+    likes?: number
     reposts?: number
-    comments: number
+    comments?: number
   }
   actions?: {
     like?: () => void
