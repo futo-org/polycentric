@@ -76,15 +76,22 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
     }
   }, [likedStored, likedLocal, like, comment, unlike])
 
-  let stats = usePostStats(pointer)
+  const stats = usePostStats(pointer)
 
-  stats = useMemo(
-    () => ({ ...stats, likes: stats.likes + (likedLocal && !likedStored ? 1 : 0) }),
+  const locallyModifiedStats: {
+    likes?: number
+    comments?: number
+    reposts?: number
+  } = useMemo(
+    () => ({
+      ...stats,
+      likes: stats.likes === undefined ? undefined : stats.likes + (likedLocal && !likedStored ? 1 : 0),
+    }),
     [stats, likedLocal, likedStored],
   )
 
   return {
-    stats,
+    stats: locallyModifiedStats,
     actions,
   }
 }
