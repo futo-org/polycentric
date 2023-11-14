@@ -96,6 +96,8 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(({ data, doesLink = tr
 
   const mainUsername = useUsernameCRDTQuery(event.system)
   const mainAvatar = useAvatar(event.system)
+  const mainKey = useTextPublicKey(event.system, 10)
+
   const mainDate = useDateFromUnixMS(event.unixMilliseconds)
 
   const mainURL = useEventLink(event.system, pointer)
@@ -107,13 +109,14 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(({ data, doesLink = tr
         name: mainUsername,
         avatarURL: mainAvatar,
         URL: mainAuthorURL,
+        pubkey: mainKey,
       },
       content: content ?? '',
       topic: 'todo',
       publishedAt: mainDate,
       url: mainURL,
     }),
-    [mainUsername, mainAvatar, content, mainDate, mainURL, mainAuthorURL],
+    [mainUsername, mainAvatar, content, mainDate, mainURL, mainAuthorURL, mainKey],
   )
 
   const { actions, stats } = usePostStatsWithLocalActions(pointer)
