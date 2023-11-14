@@ -5,13 +5,13 @@ import { createMemoryHistory } from 'history'
 import { useEffect, useState } from 'react'
 import { SidebarLayout } from '../components/layout/sidebarlayout'
 import { Onboarding } from '../components/onboarding'
+import { AppRouter } from '../components/util/approuter'
 import {
   OnboardingProcessHandleManagerContext,
   ProcessHandleManagerContext,
   useProcessHandleManagerBaseComponentHook,
 } from '../hooks/processHandleManagerHooks'
 import { QueryManagerContext } from '../hooks/queryHooks'
-import { AppRouter } from './router'
 
 setupIonicReact({
   mode: 'ios',
