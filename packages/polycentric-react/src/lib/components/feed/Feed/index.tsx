@@ -128,7 +128,15 @@ export const InnerFeed = ({
   )
 }
 
-export const Feed = ({ data, advanceFeed }: { data: FeedHookData; advanceFeed: FeedHookAdvanceFn }) => {
+export const Feed = ({
+  data,
+  advanceFeed,
+  composeButton,
+}: {
+  data: FeedHookData
+  advanceFeed: FeedHookAdvanceFn
+  composeButton?: boolean
+}) => {
   const loadMoreCount = 20
 
   const { outerRef, innerRef, items, scrollTo } = useVirtual<HTMLDivElement>({
@@ -138,12 +146,13 @@ export const Feed = ({ data, advanceFeed }: { data: FeedHookData; advanceFeed: F
   })
 
   const [hasScrolled, setHasScrolled] = useState(false)
+  const [expandCompose, setExpandCompose] = useState(false)
 
   return (
     <div
       // @ts-ignore
       ref={outerRef} // Attach the `outerRef` to the scroll container
-      className="h-full w-full overflow-auto flex noscrollbar"
+      className="h-full w-full overflow-auto flex noscrollbar relative"
       onScroll={(e) => {
         if (e.currentTarget.scrollTop > 400 && !hasScrolled) {
           setHasScrolled(true)
@@ -153,6 +162,17 @@ export const Feed = ({ data, advanceFeed }: { data: FeedHookData; advanceFeed: F
       }}
     >
       <InnerFeed data={data} innerRef={innerRef} items={items} scrollTo={scrollTo} hasScrolled={hasScrolled} />
+      {composeButton && (
+        <>
+          <button
+            className="rounded-full bg-blue-600 bottom-0 right-0 m-5 p-4 border-4 border-white text-white fixed"
+            onClick={() => setExpandCompose(true)}
+          >
+            <ComposeIcon />
+          </button>
+          <PopupComposeFullscreen open={expandCompose} setOpen={setExpandCompose} />
+        </>
+      )}
     </div>
   )
 }

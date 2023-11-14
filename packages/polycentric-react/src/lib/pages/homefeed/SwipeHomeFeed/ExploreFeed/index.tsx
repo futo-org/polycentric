@@ -7,5 +7,6 @@ export const ExploreFeed = () => {
   useEffect(() => {
     advanceFeed()
   }, [advanceFeed])
-  return <Feed data={data} advanceFeed={advanceFeed} />
+
+  return <Feed data={data} advanceFeed={advanceFeed} composeButton={true} />
 }
