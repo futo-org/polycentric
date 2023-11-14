@@ -1,10 +1,10 @@
 import { Menu } from '@headlessui/react'
 import { MetaStore, Models } from '@polycentric/polycentric-core'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
 import { useAvatar, useSystemLink, useTextPublicKey, useUsernameCRDTQuery } from '../../../hooks/queryHooks'
 import { CircleExpandMenuReverse } from '../../util/circleexpandmenu'
+import { Link } from '../../util/link'
 
 const UpArrowIcon = () => (
   <svg
@@ -97,7 +97,7 @@ export const AccountSwitcher = () => {
         )}
         <div className={`flex justify-between p-2 w-full ${expanded ? 'rounded-b-[2rem]' : 'rounded-[2rem]'}`}>
           <div className="flex space-x-2">
-            <Link to={`/user/${systemLink}`} className="h-[3rem] w-[3rem] rounded-full border overflow-clip">
+            <Link routerLink={systemLink} className="h-[3rem] w-[3rem] rounded-full border overflow-clip">
               <img className="" src={avatarURL} />
             </Link>
             <div className="flex flex-col">
