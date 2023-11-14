@@ -1,4 +1,4 @@
-import { IonApp, IonRouterOutlet } from '@ionic/react'
+import { IonApp, IonRouterOutlet, setupIonicReact } from '@ionic/react'
 import { IonReactHashRouter, IonReactMemoryRouter, IonReactRouter } from '@ionic/react-router'
 import { MetaStore, PersistenceDriver, ProcessHandle, Queries } from '@polycentric/polycentric-core'
 import { createMemoryHistory } from 'history'
