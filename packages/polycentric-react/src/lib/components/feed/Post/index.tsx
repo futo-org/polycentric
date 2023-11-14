@@ -9,6 +9,7 @@ import {
   usePostStats,
   useQueryIfAdded,
   useSystemLink,
+  useTextPublicKey,
   useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks'
 import { PurePost, PurePostProps } from './PurePost'
