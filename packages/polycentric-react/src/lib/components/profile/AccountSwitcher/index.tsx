@@ -30,7 +30,7 @@ const AccountSwitcherAccountItem = ({
 
   const avatarURL = useAvatar(system)
   const username = useUsernameCRDTQuery(system)
-  const displayKey = useTextPublicKey(system).substring(0, 10)
+  const displayKey = useTextPublicKey(system, 6)
   const { changeHandle, signOutOtherUser } = useProcessHandleManager()
 
   return (
@@ -64,7 +64,7 @@ export const AccountSwitcher = () => {
 
   const username = useUsernameCRDTQuery(processHandle.system())
   const avatarURL = useAvatar(processHandle.system())
-  const key = useTextPublicKey(processHandle.system())
+  const key = useTextPublicKey(processHandle.system(), 6)
   const systemLink = useSystemLink(processHandle.system())
 
   const notCurrentStores = stores.filter(

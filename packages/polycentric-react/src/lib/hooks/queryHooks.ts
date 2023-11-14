@@ -57,10 +57,15 @@ export const useUsernameCRDTQuery = (system?: Models.PublicKey.PublicKey) => {
   return useCRDTQuery(system, Models.ContentType.ContentTypeUsername, Util.decodeText)
 }
 
-export const useTextPublicKey = (system: Models.PublicKey.PublicKey) => {
+export const useTextPublicKey = (system: Models.PublicKey.PublicKey, maxLength?: number) => {
   return useMemo<string>(() => {
-    return Models.PublicKey.toString(system)
-  }, [system])
+    const string = Models.PublicKey.toString(system)
+    if (maxLength) {
+      return string.slice(0, maxLength)
+    } else {
+      return string
+    }
+  }, [system, maxLength])
 }
 
 export const useSystemLink = (system: Models.PublicKey.PublicKey) => {
