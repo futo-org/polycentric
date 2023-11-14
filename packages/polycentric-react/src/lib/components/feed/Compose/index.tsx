@@ -4,21 +4,6 @@ import { TopicSuggestionBox } from '../TopicSuggestionBox'
 
 const startsWithSlash = /^\/.*/
 
-const testTopics = {
-  polycentric: {
-    updates: {
-      images: {},
-    },
-  },
-  popcornLovers: {
-    butter: {},
-  },
-  tpot: {
-    dating: {},
-  },
-  pakistan: {},
-}
-
 const TopicBox = ({
   topic,
   setTopic,
@@ -74,7 +59,7 @@ const TopicBox = ({
         disabled={disabled}
       />
       <div
-        className={`absolute top-0 left-0 w-full h-full border bg-white peer-focus:border-3 peer-focus:border-purple-900 peer-focus:border-b-0 rounded-lg -skew-x-[9deg] ${
+        className={`absolute top-0 left-0 w-full h-full border-2 bg-white peer-focus:border-3 peer-focus:border-gray-300 peer-focus:border-b-0 rounded-lg -skew-x-[9deg] ${
           disabled ? 'opacity-50' : ''
         }
           ${focused ? ' rounded-b-none' : ''}
@@ -97,6 +82,8 @@ const TopicBox = ({
   )
 }
 
+export type ComposeFn = (content: string, upload?: File, topic?: string) => Promise<boolean>
+
 export const Compose = ({
   preSetTopic,
   hideTopic,
@@ -107,7 +94,7 @@ export const Compose = ({
   minTextboxHeightPx = 125,
   postingProgress,
 }: {
-  onPost?: (content: string, upload?: File) => Promise<boolean>
+  onPost?: ComposeFn
   preSetTopic?: string
   hideTopic?: boolean
   topicDisabled?: boolean
@@ -136,7 +123,7 @@ export const Compose = ({
   }, [upload])
 
   return (
-    <div className={`flex flex-col ${flexGrow ? 'flex-grow' : ''}`}>
+    <div className={`flex flex-col md:mx-10 my-5 ${flexGrow ? 'flex-grow' : ''}`}>
       {hideTopic ? null : <TopicBox topic={topic} setTopic={setTopic} disabled={topicDisabled} />}
       <div
         className={`flex flex-col mt-1.5 w-full border rounded-lg focus-within:border-gray-300  ${
