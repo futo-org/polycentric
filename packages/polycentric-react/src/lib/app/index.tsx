@@ -13,6 +13,10 @@ import {
 import { QueryManagerContext } from '../hooks/queryHooks'
 import { AppRouter } from './router'
 
+setupIonicReact({
+  mode: 'ios',
+})
+
 // Check if we're in electron or not
 const isElectron = () => {
   // window.process.type is only defined in electron
