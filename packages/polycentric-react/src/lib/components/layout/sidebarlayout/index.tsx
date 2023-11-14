@@ -11,14 +11,7 @@ export const SidebarLayout = ({ children }: { children: ReactNode }) => {
       <>
         {/* To use the drawer on the page, we need to make sure that the page has an IonPage with id="main-drawer" */}
         <Drawer contentId="main-drawer">
-          <MainSidebar
-            topics={['/tpot', '/tpot/dating']}
-            profile={{
-              name: 'John Doe',
-              avatarURL: 'https://i.pravatar.cc/300',
-              description: 'i like to repair. i like to repair. i like to repair. ',
-            }}
-          />
+          <MainSidebar />
         </Drawer>
         {children}
       </>
@@ -32,7 +25,7 @@ export const SidebarLayout = ({ children }: { children: ReactNode }) => {
         <aside
           className={`border-x h-full lg:w-[calc(100vw-700px)] xl:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:ml-[calc((100vw-1536px)/2)] `}
         >
-          <MainSidebar topics={['/tpot', '/tpot/dating']} />
+          <MainSidebar />
         </aside>
         {/* [     |  |    main    |  |       ]
             Formula for left two side bars of a 3 column table, with total width of X and middle column width of Y
