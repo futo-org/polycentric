@@ -50,7 +50,13 @@ export const PostActionButton = ({
   const Icon = (clicked ? ClickedIcon : DefaultIcon) ?? DefaultIcon
   const color = (clicked ? clickedIconColor : iconColor) ?? 'text-black'
   return (
-    <button onClick={onClick} className={'flex items-center space-x-1 ' + className}>
+    <button
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+      className={'flex items-center space-x-1 ' + className}
+    >
       <div className="" aria-label={name}>
         <Icon color={color} />
       </div>
