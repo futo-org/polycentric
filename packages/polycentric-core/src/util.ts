@@ -1,4 +1,4 @@
-declare var TextEncoder: any;
+declare const TextEncoder: any;
 
 const textEncoder = new TextEncoder();
 
@@ -6,7 +6,7 @@ export function encodeText(text: string): Uint8Array {
     return textEncoder.encode(text);
 }
 
-declare var TextDecoder: any;
+declare const TextDecoder: any;
 
 const textDecoder = new TextDecoder();
 

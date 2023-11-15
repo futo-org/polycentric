@@ -130,7 +130,7 @@ describe('query index', () => {
                 if (stage === 0) {
                     const got = value.add.map(extractGenericClaim);
 
-                    let expected = [];
+                    const expected = [];
 
                     for (let i = 29; i > 19; i--) {
                         expected.push(i.toString());
@@ -144,7 +144,7 @@ describe('query index', () => {
                 } else if (stage === 1) {
                     const got = value.add.map(extractGenericClaim);
 
-                    let expected = [];
+                    const expected = [];
 
                     for (let i = 19; i > 9; i--) {
                         expected.push(i.toString());
@@ -233,7 +233,7 @@ describe('query index', () => {
     test('missing data', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
 
-        let copyList = [];
+        const copyList = [];
 
         await s1p1.claim(Models.claimGeneric('1'));
         copyList.push(await s1p1.claim(Models.claimGeneric('2')));
