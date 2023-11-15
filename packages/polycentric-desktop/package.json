@@ -28,7 +28,7 @@
     "prod": "cross-env NODE_ENV=production webpack --mode production --config webpack.build.config.js && electron --noDevServer .",
     "dev": "cross-env NODE_ENV=development webpack serve --hot --host 0.0.0.0 --config=./webpack.dev.config.js --mode development",
     "build": "cross-env NODE_ENV=production webpack --config webpack.build.config.js --mode production",
-    "postbuild": "DEBUG='electron-builder' electron-builder",
+    "postbuild": "electron-builder",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
@@ -38,6 +38,7 @@
     "@polycentric/polycentric-core": "*",
     "@polycentric/polycentric-leveldb": "*",
     "@polycentric/polycentric-react": "*",
+    "encoding": "^0.1.13",
     "postcss": "^8.4.8",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"

@@ -2,7 +2,7 @@ import '@polycentric/polycentric-react/dist/style.css';
 
 import { app } from '@electron/remote';
 import { createPersistenceDriverLevelDB } from '@polycentric/polycentric-leveldb';
-import { Root } from '@polycentric/polycentric-react';
+import { App } from '@polycentric/polycentric-react';
 import path from 'path';
 import React, { useState } from 'react';
 
@@ -29,7 +29,7 @@ const DesktopRoot = () => {
         return <></>;
     }
 
-    return <Root persistenceDriver={persistenceDriver} />;
+    return <App persistenceDriver={persistenceDriver} />;
 };
 
 export default DesktopRoot;
