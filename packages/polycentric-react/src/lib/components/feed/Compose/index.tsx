@@ -4,21 +4,6 @@ import { TopicSuggestionBox } from '../TopicSuggestionBox'
 
 const startsWithSlash = /^\/.*/
 
-const testTopics = {
-  polycentric: {
-    updates: {
-      images: {},
-    },
-  },
-  popcornLovers: {
-    butter: {},
-  },
-  tpot: {
-    dating: {},
-  },
-  pakistan: {},
-}
-
 const TopicBox = ({
   topic,
   setTopic,
@@ -84,7 +69,7 @@ const TopicBox = ({
         // What, you've never seen a trig function in CSS before?
         <div className="absolute top-[3rem] w-full ml-[calc(-0.5_*_tan(9deg)_*_3rem)]">
           <TopicSuggestionBox
-            topics={testTopics}
+            topics={{}}
             query={topic}
             setSelected={(s) => {
               setTopic(s)
