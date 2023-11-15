@@ -44,9 +44,6 @@
       "react-app/jest"
     ]
   },
-  "jest": {
-    "testTimeout": 15000
-  },
   "homepage": "./",
   "build": {
     "extends": null,
