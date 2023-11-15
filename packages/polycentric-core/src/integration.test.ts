@@ -276,7 +276,7 @@ describe('integration', () => {
         const babbage = await createHandleWithName('Babbage');
         const turing = await createHandleWithName('Turing');
 
-        let rootPosts: Array<Protocol.Reference> = [];
+        const rootPosts: Array<Protocol.Reference> = [];
 
         // von neumann comments 5 times
         for (let i = 0; i < 5; i++) {
@@ -399,11 +399,11 @@ describe('integration', () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         await s1p1.addServer(TEST_SERVER);
 
-        let postContent = 'I fought the law, and the law won';
+        const postContent = 'I fought the law, and the law won';
         await s1p1.post(postContent);
 
-        let post = await s1p1.post(postContent);
-        let censorSystem = await ProcessHandle.makeSystemLink(
+        const post = await s1p1.post(postContent);
+        const censorSystem = await ProcessHandle.makeSystemLink(
             s1p1,
             s1p1.system(),
         );
@@ -414,7 +414,7 @@ describe('integration', () => {
             '123',
         );
 
-        let censorEvent = await ProcessHandle.makeEventLink(
+        const censorEvent = await ProcessHandle.makeEventLink(
             s1p1,
             s1p1.system(),
             post,
@@ -429,8 +429,8 @@ describe('integration', () => {
 
     test('search', async () => {
         function eventToContent(event: Uint8Array): string {
-            let decodedEvent = Models.Event.fromBuffer(event);
-            let post = Protocol.Post.decode(decodedEvent.content);
+            const decodedEvent = Models.Event.fromBuffer(event);
+            const post = Protocol.Post.decode(decodedEvent.content);
             if (post.content === undefined) {
                 throw new Error('Post content was undefined');
             }
@@ -438,7 +438,7 @@ describe('integration', () => {
         }
 
         function lwwEventToContent(event: Uint8Array): string {
-            let decodedEvent = Models.Event.fromBuffer(event);
+            const decodedEvent = Models.Event.fromBuffer(event);
             if (decodedEvent.lwwElement === undefined) {
                 throw new Error('LWW Element was undefined');
             }
@@ -448,30 +448,31 @@ describe('integration', () => {
         function getAndCheckFirstEvent(
             searchResults: Protocol.ResultEventsAndRelatedEventsAndCursor,
         ): Uint8Array {
-            let resultEvents = searchResults.resultEvents;
+            const resultEvents = searchResults.resultEvents;
             if (resultEvents === undefined) {
                 throw new Error('ResultEvents was undefined');
             }
-            let events = resultEvents.events;
+            const events = resultEvents.events;
             expect(events.length).toBeGreaterThan(0);
-            let signedEvent = events[0];
+            const signedEvent = events[0];
             return signedEvent.event;
         }
 
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         await s1p1.addServer(TEST_SERVER);
 
-        let username = Math.random() * 100000 + '';
-        let description = 'Alerts for many rail lines';
-        let newUsername = 'South Eastern Pennsylvania Transportation Authority';
+        const username = Math.random() * 100000 + '';
+        const description = 'Alerts for many rail lines';
+        const newUsername =
+            'South Eastern Pennsylvania Transportation Authority';
         await s1p1.setDescription(description);
         await s1p1.setUsername(newUsername);
 
-        let post1Content =
+        const post1Content =
             'The Manayunk/Norristown line is delayed 15 minutes due to trackwork';
-        let post2Content =
+        const post2Content =
             'All trains are on a reduced schedule due to single-tracking at Jefferson station';
-        let post3Content = Math.random() * 100000 + '';
+        const post3Content = Math.random() * 100000 + '';
         await s1p1.post(post1Content);
         await s1p1.post(post2Content);
 
@@ -484,29 +485,29 @@ describe('integration', () => {
         // give opensearch time to index everything
         await new Promise((r) => setTimeout(r, 5000));
 
-        let post1SearchResults = await APIMethods.getSearch(
+        const post1SearchResults = await APIMethods.getSearch(
             TEST_SERVER,
             'Manayunk',
         );
-        let post1SearchContent = eventToContent(
+        const post1SearchContent = eventToContent(
             getAndCheckFirstEvent(post1SearchResults),
         );
         expect(post1SearchContent).toBe(post1Content);
 
-        let post2SearchResults = await APIMethods.getSearch(
+        const post2SearchResults = await APIMethods.getSearch(
             TEST_SERVER,
             'Thomas Jefferson',
         );
-        let post2SearchContent = eventToContent(
+        const post2SearchContent = eventToContent(
             getAndCheckFirstEvent(post2SearchResults),
         );
         expect(post2SearchContent).toBe(post2Content);
 
-        let post3SearchResults = await APIMethods.getSearch(
+        const post3SearchResults = await APIMethods.getSearch(
             TEST_SERVER,
             post3Content,
         );
-        let post3SearchContent = eventToContent(
+        const post3SearchContent = eventToContent(
             getAndCheckFirstEvent(post3SearchResults),
         );
         expect(post3SearchContent).toBe(post3Content);
@@ -516,7 +517,7 @@ describe('integration', () => {
             throw new Error('post3SearchResults.cursor is undefined');
         }
 
-        let post3ReSearchResults = await APIMethods.getSearch(
+        const post3ReSearchResults = await APIMethods.getSearch(
             TEST_SERVER,
             post3Content,
             25,
@@ -524,26 +525,26 @@ describe('integration', () => {
         );
         expect(post3ReSearchResults.resultEvents?.events.length).toBe(1);
 
-        let usernameSearchResults = await APIMethods.getSearch(
+        const usernameSearchResults = await APIMethods.getSearch(
             TEST_SERVER,
             'Pennsylvania',
         );
-        let usernameSearchContent = lwwEventToContent(
+        const usernameSearchContent = lwwEventToContent(
             getAndCheckFirstEvent(usernameSearchResults),
         );
         expect(usernameSearchContent).toBe(newUsername);
 
-        let oldUsernameSearchResults = await APIMethods.getSearch(
+        const oldUsernameSearchResults = await APIMethods.getSearch(
             TEST_SERVER,
             username,
         );
         expect(oldUsernameSearchResults.resultEvents?.events.length).toBe(0);
 
-        let descriptionSearchResults = await APIMethods.getSearch(
+        const descriptionSearchResults = await APIMethods.getSearch(
             TEST_SERVER,
             'Alerts',
         );
-        let descriptionSearchContent = lwwEventToContent(
+        const descriptionSearchContent = lwwEventToContent(
             getAndCheckFirstEvent(descriptionSearchResults),
         );
         expect(descriptionSearchContent).toBe(description);

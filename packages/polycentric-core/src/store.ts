@@ -226,7 +226,7 @@ export class CRDTElementSetIndex {
             })
             .all();
 
-        let result = [];
+        const result = [];
 
         for (const [k] of rows) {
             if (!Util.bufferSuffixMatch(k, suffix)) {
@@ -522,7 +522,7 @@ export class Store {
                 })
                 .all();
 
-        let result = [];
+        const result = [];
 
         for (const [k, value] of rows) {
             if (!Util.bufferSuffixMatch(k, suffix)) {

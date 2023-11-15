@@ -121,7 +121,9 @@ export class QueryManager {
             .store()
             .getSystemState(system);
 
-        let stateForSystem = this._state.get(Models.PublicKey.toString(system));
+        const stateForSystem = this._state.get(
+            Models.PublicKey.toString(system),
+        );
 
         if (stateForSystem === undefined) {
             return;
@@ -195,7 +197,7 @@ export class QueryManager {
             return;
         }
 
-        let stateForSystem = this._state.get(
+        const stateForSystem = this._state.get(
             Models.PublicKey.toString(event.system),
         );
 

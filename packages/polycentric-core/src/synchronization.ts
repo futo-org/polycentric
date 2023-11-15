@@ -17,7 +17,7 @@ async function loadRanges(
 
     for (const range of ranges) {
         for (
-            var i = range.low;
+            let i = range.low;
             i.lessThanOrEqual(range.high);
             i = i.add(Long.UONE)
         ) {

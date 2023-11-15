@@ -84,7 +84,7 @@ export class QueryManager {
 
         const systemString = Models.PublicKey.toString(event.system);
 
-        let stateForSystem = this._state.get(systemString);
+        const stateForSystem = this._state.get(systemString);
 
         if (stateForSystem === undefined) {
             return;
