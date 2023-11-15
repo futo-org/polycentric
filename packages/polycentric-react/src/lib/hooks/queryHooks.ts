@@ -469,7 +469,9 @@ export function useQueryCursor<T>(
   const { processHandle } = useProcessHandleManager()
   const [state, setState] = useState<Array<ParsedEvent<T>>>([])
   const query = useRef<Queries.QueryCursor.Query | null>(null)
-  const [advance, setAdvance] = useState<() => void>(() => {})
+  const [advance, setAdvance] = useState<() => void>(() => {
+    return () => {}
+  })
 
   const addNewCells = useCallback(
     (newCells: Queries.QueryCursor.Cell[]) => {
@@ -487,6 +489,7 @@ export function useQueryCursor<T>(
 
   useEffect(() => {
     setState([])
+    setAdvance(() => () => {})
     const newQuery = new Queries.QueryCursor.Query(processHandle, loadCallback, addNewCells, batchSize)
     query.current = newQuery
     setAdvance(() => query.current?.advance.bind(query.current) ?? (() => {}))
