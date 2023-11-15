@@ -129,7 +129,7 @@ export const Compose = ({
         }`}
       >
         <textarea
-          className={`w-full resize-none text-2xl rounded-lg p-4 focus:outline-none`}
+          className={`w-full resize-none leading-normal whitespace-pre-line text-lg text-gray-900 font-normal rounded-lg p-4 focus:outline-none`}
           style={flexGrow ? { height: '100%' } : { minHeight: minTextboxHeightPx + 'px' }}
           value={content}
           ref={textRef}
