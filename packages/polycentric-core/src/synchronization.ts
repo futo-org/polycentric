@@ -34,10 +34,10 @@ async function loadRanges(
 
 export async function saveBatch(
     processHandle: ProcessHandle.ProcessHandle,
-    events: Protocol.Events,
+    events: Models.Events.Type,
 ): Promise<void> {
-    for (const rawEvent of events.events) {
-        await processHandle.ingest(Models.SignedEvent.fromProto(rawEvent));
+    for (const signedEvent of events.events) {
+        await processHandle.ingest(signedEvent);
     }
 }
 

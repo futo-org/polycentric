@@ -122,7 +122,7 @@ export class QueryManager {
                     );
 
                 if (signedEvent !== undefined) {
-                    this.update(Models.SignedEvent.fromProto(signedEvent));
+                    this.update(signedEvent);
                 }
             }
         }
@@ -164,9 +164,7 @@ export class QueryManager {
             },
         );
 
-        for (const event of events.events) {
-            this.update(Models.SignedEvent.fromProto(event));
-        }
+        events.events.forEach(this.update);
     }
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {

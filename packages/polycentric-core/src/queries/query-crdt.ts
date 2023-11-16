@@ -185,9 +185,7 @@ export class QueryManager {
             contentType,
         ]);
 
-        for (const event of events.events) {
-            this.update(Models.SignedEvent.fromProto(event));
-        }
+        events.events.forEach(this.update);
     }
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {
