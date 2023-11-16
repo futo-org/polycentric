@@ -1,5 +1,6 @@
 import { PhotoIcon } from '@heroicons/react/20/solid'
 import { XCircleIcon } from '@heroicons/react/24/outline'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { TopicSuggestionBox } from '../TopicSuggestionBox'
 
 const startsWithSlash = /^\/.*/
@@ -120,6 +121,13 @@ export const Compose = ({
     }
   }, [upload])
 
+  const post = useCallback(() => {
+    onPost?.(content, upload).then(() => {
+      setContent('')
+      if (textRef.current) textRef.current.style.height = `${minTextboxHeightPx}px`
+    })
+  }, [onPost, content, upload, minTextboxHeightPx])
+
   return (
     <div className={`flex flex-col ${flexGrow ? 'flex-grow' : ''}`}>
       {hideTopic ? null : <TopicBox topic={topic} setTopic={setTopic} disabled={topicDisabled} />}
@@ -143,6 +151,11 @@ export const Compose = ({
               e.target.style.height = `${height}px`
             }
             setContent(e.target.value)
+          }}
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.key === 'NumpadEnter')) {
+              post()
+            }
           }}
           placeholder="What's going on?"
         />
@@ -183,6 +196,7 @@ export const Compose = ({
         <button
           disabled={(!content && !upload) || (postingProgress != null && postingProgress > 0)}
           className="bg-slate-50 hover:bg-slate-200 disabled:bg-white border disabled:text-gray-500 text-gray-800 rounded-full px-8 py-2 font-medium text-lg tracking-wide"
+          onClick={post}
         >
           Post
         </button>
