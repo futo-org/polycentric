@@ -229,6 +229,7 @@ export interface PurePostProps {
     comment: (content: string, upload?: File) => Promise<boolean>
   }
   doesLink?: boolean
+  autoExpand?: boolean
 }
 
 const PostLinkContainer = ({
@@ -260,11 +261,11 @@ const PostLinkContainer = ({
 
 // eslint-disable-next-line react/display-name
 export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
-  ({ main, sub, stats, actions, doesLink = true }: PurePostProps, infiniteScrollRef) => {
+  ({ main, sub, stats, actions, doesLink = true, autoExpand = false }: PurePostProps, infiniteScrollRef) => {
     const mainRef = useRef<HTMLDivElement>(null)
     const subContentRef = useRef<HTMLDivElement>(null)
     const [contentCropped, setContentCropped] = useState(false)
-    const [expanded, setExpanded] = useState(false)
+    const [expanded, setExpanded] = useState(autoExpand)
     const [subcontentCropped, setsubcontentCropped] = useState(false)
     const [commentPanelOpen, setCommentPanelOpen] = useState(false)
     const [mainImageOpen, setMainImageOpen] = useState(false)
@@ -276,10 +277,10 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
     const isMobile = useIsMobile()
 
     useEffect(() => {
-      if (mainRef.current != null && expanded === false) {
+      if (mainRef.current != null && expanded === false && autoExpand === false) {
         setContentCropped(mainRef.current.clientHeight < mainRef.current.scrollHeight)
       }
-    }, [main, expanded])
+    }, [main, expanded, autoExpand])
 
     useEffect(() => {
       if (subContentRef.current != null && subcontentCropped === false) {
