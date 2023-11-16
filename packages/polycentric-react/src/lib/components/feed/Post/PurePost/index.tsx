@@ -307,11 +307,14 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
               <div className="grid grid-cols-[fit-content(100%)_1fr] relative overflow-clip">
                 {/* Left column */}
                 <div className="mr-3 lg:mr-4 flex-shrink-0 flex flex-col overflow-clip">
-                  <Link routerLink={main.author.URL ?? '#'} routerDirection="forward">
-                    <div className="rounded-full h-10 w-10 md:h-16 md:w-16 lg:h-20 lg:w-20 overflow-clip border">
-                      <img src={main.author.avatarURL} />
-                    </div>
-                  </Link>
+                  {/* Stop pfp link propagation to post link */}
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Link routerLink={main.author.URL ?? '#'} routerDirection="forward">
+                      <div className="rounded-full h-10 w-10 md:h-16 md:w-16 lg:h-20 lg:w-20 overflow-clip border">
+                        <img src={main.author.avatarURL} />
+                      </div>
+                    </Link>
+                  </div>
                   {(!isMobile || (isMobile && expanded)) && (
                     <div
                       className={`flex-col space-y-5 md:space-y-2 ${
