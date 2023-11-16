@@ -1,5 +1,6 @@
+import { ArrowRightIcon } from '@heroicons/react/24/solid'
 import { useDebounce } from '@uidotdev/usehooks'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from '../../util/link'
 
 interface ResultsPreview {
@@ -24,15 +25,33 @@ export const SearchBox = ({
     }
   }, [debouncedQuery, getResultsPreview])
 
+  const searchButtonRef = useRef<HTMLElement | null>(null)
+
   return (
     <div className="flex flex-col space-y-2">
-      <input
-        type="text"
-        placeholder="Search..."
-        className="rounded-full border text-xl p-2 pl-5 font-light placeholder:text-gray-300"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
+      <div className="flex rounded-full border focus-within:border-gray-300 p-2 space-x-2">
+        <input
+          type="text"
+          placeholder="Search..."
+          className="flex-grow text-lg text-gray-900 ml-4 font-light placeholder:text-gray-300 focus:outline-none"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              searchButtonRef.current?.click()
+            }
+          }}
+        />
+        <Link
+          className={`rounded-full border aspect-square h-[2.5rem] w-[2.5rem] flex justify-center items-center ${
+            query !== '' ? 'hover:bg-gray-50' : ''
+          }`}
+          routerLink={`/search/${query}`}
+          ref={searchButtonRef}
+        >
+          <ArrowRightIcon className={`w-6 h-6  ${query === '' ? 'text-gray-300' : 'text-gray-500'}`} />
+        </Link>
+      </div>
       {query.length > 0 && results && (
         <div className="relative">
           <div className="flex flex-col space-y-0 border rounded-lg bg-white absolute w-full">
