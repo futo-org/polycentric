@@ -500,7 +500,7 @@ export class Store {
         contentType: Models.ContentType.ContentType,
         unixMilliseconds: Long | undefined,
         limit: number,
-    ): Promise<Array<Protocol.SignedEvent>> {
+    ): Promise<Array<Models.SignedEvent.SignedEvent>> {
         const suffix = indexSystemContentTypeUnixMillisecondsProcessKeySuffix(
             system,
             contentType,
@@ -597,7 +597,7 @@ export class Store {
 
     public async getSignedEventByKey(
         key: Uint8Array,
-    ): Promise<Protocol.SignedEvent | undefined> {
+    ): Promise<Models.SignedEvent.SignedEvent | undefined> {
         const attempt = await PersistenceDriver.tryLoadKey(
             this.levelEvents,
             key,
@@ -609,7 +609,7 @@ export class Store {
             const storageEvent = Protocol.StorageTypeEvent.decode(attempt);
 
             if (storageEvent.event) {
-                return storageEvent.event;
+                return Models.SignedEvent.fromProto(storageEvent.event);
             } else if (storageEvent.mutationPointer) {
                 const mutationPointer = Models.Pointer.fromProto(
                     storageEvent.mutationPointer,
@@ -630,7 +630,7 @@ export class Store {
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
         logicalClock: Long,
-    ): Promise<Protocol.SignedEvent | undefined> {
+    ): Promise<Models.SignedEvent.SignedEvent | undefined> {
         const attempt = await PersistenceDriver.tryLoadKey(
             this.levelEvents,
             makeEventKey(system, process, logicalClock),
@@ -642,7 +642,7 @@ export class Store {
             const storageEvent = Protocol.StorageTypeEvent.decode(attempt);
 
             if (storageEvent.event) {
-                return storageEvent.event;
+                return Models.SignedEvent.fromProto(storageEvent.event);
             } else if (storageEvent.mutationPointer) {
                 const mutationPointer = Models.Pointer.fromProto(
                     storageEvent.mutationPointer,
