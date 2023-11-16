@@ -29,7 +29,7 @@ export const SearchBox = ({
       <input
         type="text"
         placeholder="Search..."
-        className="rounded-lg border text-xl p-3 font-light"
+        className="rounded-full border text-xl p-2 pl-5 font-light placeholder:text-gray-300"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
