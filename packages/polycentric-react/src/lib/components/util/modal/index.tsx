@@ -57,7 +57,7 @@ export const Modal = ({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0 bg-gray-400 bg-opacity-40" onClick={() => setOpen(false)} />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -71,7 +71,7 @@ export const Modal = ({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+              <Dialog.Panel className="transform overflow-hidden rounded-2xl bg-white border p-6 text-left align-middle shadow-xl transition-all">
                 <div className="flex justify-between items-center px-3">
                   <Dialog.Title className="text-2xl font-semibold leading-6 text-gray-900">{title}</Dialog.Title>
                   <button
