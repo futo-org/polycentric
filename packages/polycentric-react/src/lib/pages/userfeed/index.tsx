@@ -1,15 +1,19 @@
 import { decode } from '@borderless/base64'
 import { Models, Protocol } from '@polycentric/polycentric-core'
-import { useMemo } from 'react'
-import { useParams } from 'react-router-dom'
+import { useCallback, useMemo, useState } from 'react'
+import { Page } from '../../app/router'
+import { PureSidebarProfile } from '../../components'
 import { PostCompose } from '../../components/feed/Compose/PostCompose'
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol'
 import { UserColumn } from '../../components/profile/UserColumn'
 import { useAuthorFeed } from '../../hooks/feedHooks'
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks'
+import { useAvatar, useQueryIfAdded, useUsernameCRDTQuery } from '../../hooks/queryHooks'
+import { useParams, usePath } from '../../hooks/stackRouterHooks'
 
-export const UserFeedPage = () => {
-  const { urlInfoString } = useParams<{ urlInfoString: string }>()
+export const UserFeedPage: Page = ({ memoryPath }: { memoryPath?: string }) => {
+  const path = usePath(memoryPath)
+  const { urlInfoString } = useParams<{ urlInfoString: string }>(path)
   const { processHandle } = useProcessHandleManager()
 
   const { system } = useMemo(() => {

@@ -502,3 +502,59 @@ export function useQueryCursor<T>(
 
   return [state, advance]
 }
+
+export function useQueryEvent<T>(
+  system: Models.PublicKey.PublicKey,
+  process: Models.Process.Process,
+  logicalClock: Long,
+  parse: (buffer: Uint8Array) => T,
+): ParsedEvent<T> | undefined {
+  const queryManager = useQueryManager()
+
+  const [parsedEvent, setParsedEvent] = useState<ParsedEvent<T> | undefined>(undefined)
+
+  useEffect(() => {
+    setParsedEvent(undefined)
+
+    if (system !== undefined) {
+      const cancelContext = new CancelContext.CancelContext()
+
+      const unregister = queryManager.queryEvent.query(
+        system,
+        process,
+        logicalClock,
+        (signedEvent: Models.SignedEvent.SignedEvent | undefined) => {
+          if (cancelContext.cancelled()) {
+            return
+          }
+
+          let parsedEvent: ParsedEvent<T> | undefined = undefined
+
+          if (signedEvent !== undefined) {
+            const event = Models.Event.fromBuffer(signedEvent.event)
+            const parsed = parse(event.content)
+
+            parsedEvent = new ParsedEvent<T>(signedEvent, event, parsed)
+          }
+
+          setParsedEvent(parsedEvent)
+        },
+      )
+
+      return () => {
+        cancelContext.cancel()
+        unregister()
+      }
+    }
+  }, [queryManager, system, process, logicalClock, parse])
+
+  return parsedEvent
+}
+
+export function useQueryPost(
+  system: Models.PublicKey.PublicKey,
+  process: Models.Process.Process,
+  logicalClock: Long,
+): ParsedEvent<Protocol.Post> | undefined {
+  return useQueryEvent(system, process, logicalClock, Protocol.Post.decode)
+}
