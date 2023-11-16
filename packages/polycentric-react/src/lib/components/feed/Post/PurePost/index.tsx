@@ -301,7 +301,6 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
               } ${doesLink && hoverStylePost ? 'bg-gray-50' : ''} ${hoverStylePost ? 'bg-gray-50' : 'bg-white'}`}
               onMouseEnter={() => {
                 setMainHover(true)
-                console.log('heeer')
               }}
               onMouseLeave={() => setMainHover(false)}
             >
