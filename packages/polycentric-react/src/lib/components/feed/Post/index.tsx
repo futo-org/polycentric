@@ -96,8 +96,7 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
   }
 }
 
-// eslint-disable-next-line react/display-name
-export const Post = forwardRef<HTMLDivElement, PostProps>(({ data }, ref) => {
+const LoadedPost = forwardRef<HTMLDivElement, PostProps>(({ data }, ref) => {
   const { value, event, signedEvent } = data
   const {
     content,
@@ -135,3 +134,15 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(({ data }, ref) => {
 
   return <PurePost ref={ref} main={main} stats={stats} actions={actions} />
 })
+LoadedPost.displayName = 'LoadedPost'
+
+const UnloadedPost = forwardRef<HTMLDivElement>((_, ref) => {
+  return <PurePost ref={ref} main={undefined} />
+})
+UnloadedPost.displayName = 'UnloadedPost'
+
+export const Post = forwardRef<HTMLDivElement, PostProps>(({ data }, ref) => {
+  return data ? <LoadedPost ref={ref} data={data} /> : <UnloadedPost ref={ref} />
+})
+
+Post.displayName = 'Post'
