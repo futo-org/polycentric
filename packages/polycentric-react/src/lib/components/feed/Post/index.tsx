@@ -15,7 +15,13 @@ import {
 import { PurePost, PurePostProps } from './PurePost'
 
 interface PostProps {
+  data: ParsedEvent<Protocol.Post> | undefined
+  doesLink?: boolean
+}
+
+interface LoadedPostProps {
   data: ParsedEvent<Protocol.Post>
+  doesLink?: boolean
 }
 
 const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
@@ -96,8 +102,7 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
   }
 }
 
-// eslint-disable-next-line react/display-name
-export const Post = forwardRef<HTMLDivElement, PostProps>(({ data }, ref) => {
+const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(({ data, doesLink }, ref) => {
   const { value, event, signedEvent } = data
   const {
     content,
@@ -133,5 +138,17 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(({ data }, ref) => {
 
   const { actions, stats } = usePostStatsWithLocalActions(pointer)
 
-  return <PurePost ref={ref} main={main} stats={stats} actions={actions} />
+  return <PurePost ref={ref} main={main} stats={stats} actions={actions} doesLink={doesLink} />
 })
+LoadedPost.displayName = 'LoadedPost'
+
+const UnloadedPost = forwardRef<HTMLDivElement>((_, ref) => {
+  return <PurePost ref={ref} main={undefined} />
+})
+UnloadedPost.displayName = 'UnloadedPost'
+
+export const Post = forwardRef<HTMLDivElement, PostProps>(({ data, doesLink }, ref) => {
+  return data ? <LoadedPost ref={ref} data={data} doesLink={doesLink} /> : <UnloadedPost ref={ref} />
+})
+
+Post.displayName = 'Post'
