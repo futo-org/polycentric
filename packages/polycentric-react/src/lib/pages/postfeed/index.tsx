@@ -31,5 +31,5 @@ export const PostFeedPage: Page = ({ memoryPath }: { memoryPath?: string }) => {
     return <Post data={postEvent} doesLink={false} />
   }, [postEvent])
 
-  return <InfiniteScrollWithRightCol data={[]} advanceFeed={todoAdvanceComments} leftCol={<div></div>} />
+  return <InfiniteScrollWithRightCol data={[]} advanceFeed={todoAdvanceComments} leftCol={<div></div>} topFeedComponent={post}/>
 }
