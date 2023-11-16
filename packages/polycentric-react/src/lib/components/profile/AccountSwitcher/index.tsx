@@ -102,27 +102,30 @@ export const AccountSwitcher = () => {
             </Link>
             <div className="flex flex-col">
               <p className="bold text-normal">{username}</p>
-              <p className="font-light text-gray-400">{key.substring(0, 10)}</p>
+              <p className="font-light text-gray-400">{key}</p>
             </div>
           </div>
-          {notCurrentStores.length === 0 ? (
-            <CircleExpandMenuReverse
-              menuItems={[{ label: 'New Account', action: () => changeHandle() }]}
-              title={username}
-              onIsOpenChange={(isOpen) => setSubMenuExpanded(isOpen)}
-            />
-          ) : (
-            <button
-              className={`h-[3rem] bg-gray-50 p-1 rounded-full w-auto aspect-square flex justify-center items-center ${
-                expanded ? ' -scale-y-100' : 'scale-y-100'
-              }`}
-              onClick={() => {
-                setExpanded(!expanded)
-              }}
-            >
-              <UpArrowIcon />
-            </button>
-          )}
+          <div className="flex justify-end space-x-2">
+            {notCurrentStores.length > 0 && (
+              <button
+                className={`h-[3rem] bg-gray-50 p-1 rounded-full w-auto aspect-square flex justify-center items-center ${
+                  expanded ? ' -scale-y-100' : 'scale-y-100'
+                }`}
+                onClick={() => {
+                  setExpanded(!expanded)
+                }}
+              >
+                <UpArrowIcon />
+              </button>
+            )}
+            <div className="min-w-[3rem] min-h-[3rem] flex flex-col justify-end items-end">
+              <CircleExpandMenuReverse
+                menuItems={[{ label: 'New Account', action: () => changeHandle() }]}
+                title={username}
+                onIsOpenChange={(isOpen) => setSubMenuExpanded(isOpen)}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </Menu>
