@@ -19,14 +19,12 @@ export const InfiniteScrollWithRightCol = ({
   data,
   advanceFeed,
   leftCol,
-  showComposeOnDesktop = false,
-  mobileTopComponent,
+  topFeedComponent,
 }: {
   data: FeedHookData
   advanceFeed: FeedHookAdvanceFn
   leftCol: ReactNode
-  showComposeOnDesktop?: boolean
-  mobileTopComponent?: React.ReactNode
+  topFeedComponent?: ReactNode
 }) => {
   const loadMoreCount = 20
 
@@ -64,8 +62,7 @@ export const InfiniteScrollWithRightCol = ({
           data={data}
           scrollTo={scrollTo}
           hasScrolled={hasScrolled}
-          showComposeOnDesktop={showComposeOnDesktop}
-          mobileTopComponent={mobileTopComponent}
+          topFeedComponent={topFeedComponent}
         />
       </div>
       {isMobile ? (
