@@ -296,7 +296,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
         ) : (
           <PostLinkContainer doesLink={doesLink} url={main.url ?? '#'}>
             <article
-              className={`px-3 pt-5 pb-3 lg:px-10 lg:pt-10 lg:pb-8 border-b border-gray-100  overflow-clip inline-block w-full ${
+              className={`px-3 pt-5 pb-3 lg:px-10 lg:pt-10 lg:pb-8 border-t border-gray-100  overflow-clip inline-block w-full ${
                 doesLink ? ' transition-colors duration-200 ease-in-out group' : ''
               } ${doesLink && hoverStylePost ? 'bg-gray-50' : ''} ${hoverStylePost ? 'bg-gray-50' : 'bg-white'}`}
               onMouseEnter={() => {

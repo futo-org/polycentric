@@ -72,7 +72,7 @@ export const InfiniteScrollWithRightCol = ({
         <div />
       ) : (
         <div className="h-full sticky top-0 border-x hidden xl:block xl:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:mr-[calc((100vw-1536px)/2)] ">
-          <div className="p-5">
+          <div className="p-5 pb-10">
             <SearchBox />
           </div>
           {leftCol}

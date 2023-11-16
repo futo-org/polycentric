@@ -1,5 +1,5 @@
-import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline'
-import { useEffect, useRef, useState } from 'react'
+import { PhotoIcon } from '@heroicons/react/20/solid'
+import { XCircleIcon } from '@heroicons/react/24/outline'
 import { TopicSuggestionBox } from '../TopicSuggestionBox'
 
 const startsWithSlash = /^\/.*/
@@ -124,12 +124,12 @@ export const Compose = ({
     <div className={`flex flex-col ${flexGrow ? 'flex-grow' : ''}`}>
       {hideTopic ? null : <TopicBox topic={topic} setTopic={setTopic} disabled={topicDisabled} />}
       <div
-        className={`flex flex-col mt-1.5 w-full border rounded-lg focus-within:border-gray-300  ${
+        className={`flex flex-col mt-1.5 w-full border rounded-md focus-within:border-gray-300  ${
           flexGrow ? 'flex-grow' : ''
         }`}
       >
         <textarea
-          className={`w-full resize-none text-2xl rounded-lg p-4 focus:outline-none`}
+          className={`w-full resize-none leading-normal whitespace-pre-line text-lg placeholder:text-gray-300 text-gray-900 font-normal rounded-lg p-3.5 focus:outline-none`}
           style={flexGrow ? { height: '100%' } : { minHeight: minTextboxHeightPx + 'px' }}
           value={content}
           ref={textRef}
@@ -144,7 +144,7 @@ export const Compose = ({
             }
             setContent(e.target.value)
           }}
-          placeholder="What's hapenneing?!?!?!?!"
+          placeholder="What's going on?"
         />
         {upload && (
           <div>
@@ -182,7 +182,7 @@ export const Compose = ({
         </div>
         <button
           disabled={(!content && !upload) || (postingProgress != null && postingProgress > 0)}
-          className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 border text-white rounded-full px-8 py-2 font-bold text-lg tracking-wide"
+          className="bg-slate-50 hover:bg-slate-200 disabled:bg-white border disabled:text-gray-500 text-gray-800 rounded-full px-8 py-2 font-medium text-lg tracking-wide"
           onClick={() =>
             onPost?.(content, upload).then(() => {
               setContent('')
