@@ -183,6 +183,12 @@ export const Compose = ({
         <button
           disabled={(!content && !upload) || (postingProgress != null && postingProgress > 0)}
           className="bg-slate-50 hover:bg-slate-200 disabled:bg-white border disabled:text-gray-500 text-gray-800 rounded-full px-8 py-2 font-medium text-lg tracking-wide"
+          onClick={() =>
+            onPost?.(content, upload).then(() => {
+              setContent('')
+              if (textRef.current) textRef.current.style.height = `${minTextboxHeightPx}px`
+            })
+          }
         >
           Post
         </button>
