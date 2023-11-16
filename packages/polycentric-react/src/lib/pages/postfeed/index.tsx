@@ -28,7 +28,7 @@ export const PostFeedPage: Page = ({ memoryPath }: { memoryPath?: string }) => {
 
   const postEvent = useQueryPost(system, process, logicalClock)
   const post = useMemo(() => {
-    return <Post data={postEvent} doesLink={false} />
+    return <Post data={postEvent} doesLink={false} autoExpand={true} />
   }, [postEvent])
 
   return (
