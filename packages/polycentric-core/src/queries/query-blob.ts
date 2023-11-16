@@ -164,7 +164,7 @@ export class QueryManager {
             },
         );
 
-        events.events.forEach(x => this.update(x));
+        events.events.forEach((x) => this.update(x));
     }
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {

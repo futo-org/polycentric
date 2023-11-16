@@ -69,7 +69,7 @@ export class QueryManager {
         for (const server of systemState.servers()) {
             try {
                 const events = await APIMethods.getHead(server, system);
-                events.events.forEach(x => this.update(x));
+                events.events.forEach((x) => this.update(x));
             } catch (err) {
                 console.log(err);
             }
