@@ -774,6 +774,10 @@ export namespace Events {
 
         return proto as Type;
     }
+
+    export function fromBuffer(buffer: Uint8Array): Type {
+        return fromProto(Protocol.Events.decode(buffer));
+    }
 }
 
 export namespace ResultEventsAndRelatedEventsAndCursor {
