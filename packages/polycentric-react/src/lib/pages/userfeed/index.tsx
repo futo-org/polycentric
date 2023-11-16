@@ -1,14 +1,12 @@
 import { decode } from '@borderless/base64'
 import { Models, Protocol } from '@polycentric/polycentric-core'
-import { useCallback, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Page } from '../../app/router'
-import { PureSidebarProfile } from '../../components'
 import { PostCompose } from '../../components/feed/Compose/PostCompose'
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol'
 import { UserColumn } from '../../components/profile/UserColumn'
 import { useAuthorFeed } from '../../hooks/feedHooks'
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks'
-import { useAvatar, useQueryIfAdded, useUsernameCRDTQuery } from '../../hooks/queryHooks'
 import { useParams, usePath } from '../../hooks/stackRouterHooks'
 
 export const UserFeedPage: Page = ({ memoryPath }: { memoryPath?: string }) => {
