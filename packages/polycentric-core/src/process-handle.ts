@@ -193,7 +193,7 @@ export class ProcessHandle {
 
     public async post(
         content: string,
-        image?: Models.Pointer.Pointer,
+        image?: Protocol.ImageManifest,
         reference?: Protocol.Reference,
     ): Promise<Models.Pointer.Pointer> {
         return await this.publish(
