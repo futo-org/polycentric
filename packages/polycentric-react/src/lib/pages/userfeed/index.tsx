@@ -7,11 +7,10 @@ import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescro
 import { UserColumn } from '../../components/profile/UserColumn'
 import { useAuthorFeed } from '../../hooks/feedHooks'
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks'
-import { useParams, usePath } from '../../hooks/stackRouterHooks'
+import { useParams } from '../../hooks/stackRouterHooks'
 
-export const UserFeedPage: Page = ({ memoryPath }: { memoryPath?: string }) => {
-  const path = usePath(memoryPath)
-  const { urlInfoString } = useParams<{ urlInfoString: string }>(path)
+export const UserFeedPage: Page = () => {
+  const { urlInfoString } = useParams<{ urlInfoString: string }>()
   const { processHandle } = useProcessHandleManager()
 
   const { system } = useMemo(() => {

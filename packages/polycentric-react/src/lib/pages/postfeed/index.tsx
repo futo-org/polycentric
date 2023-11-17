@@ -6,11 +6,10 @@ import { Post } from '../../components'
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol'
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks'
 import { useQueryPost } from '../../hooks/queryHooks'
-import { useParams, usePath } from '../../hooks/stackRouterHooks'
+import { useParams } from '../../hooks/stackRouterHooks'
 
-export const PostFeedPage: Page = ({ memoryPath }: { memoryPath?: string }) => {
-  const path = usePath(memoryPath)
-  const { urlInfoString } = useParams<{ urlInfoString: string }>(path)
+export const PostFeedPage: Page = () => {
+  const { urlInfoString } = useParams<{ urlInfoString: string }>()
   const { processHandle } = useProcessHandleManager()
 
   const { system, logicalClock, process } = useMemo(() => {
