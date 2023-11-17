@@ -1,4 +1,4 @@
-import { PureSidebarProfileData } from '../PureSidebarProfile'
+import { PureSidebarProfileData } from '../../sidebarprofile/PureSidebarProfile'
 
 const ElipsesIcon = () => (
   <svg
@@ -38,14 +38,20 @@ export const PureMobileFeedProfile = ({
     <div className="grid grid-cols-2 gap-4 px-4">
       <div className="col-span-1 text-2xl font-medium self-center">{profile.name}</div>
       <div className="col-span-1 flex items-end">
-        <button
-          className="bg-blue-500 text-white px-4 py-2 rounded-full flex-grow"
-          onClick={() => {
-            profile.iAmFollowing ? unfollow() : follow()
-          }}
-        >
-          {profile.iAmFollowing ? 'Unfollow' : 'Follow'}
-        </button>
+        {profile.isMyProfile ? (
+          <button className="bg-gray-50 text-gray-700 border text-sm px-4 py-2 rounded-full flex-grow">
+            Edit profile
+          </button>
+        ) : (
+          <button
+            className="bg-blue-500 text-white px-4 py-2 rounded-full flex-grow"
+            onClick={() => {
+              profile.iAmFollowing ? unfollow() : follow()
+            }}
+          >
+            {profile.iAmFollowing ? 'Unfollow' : 'Follow'}
+          </button>
+        )}
         <button className="bg-gray-50 text-gray-500 h-full flex justify-center items-center rounded-full ml-2 border aspect-square">
           <ElipsesIcon />
         </button>

@@ -4,6 +4,7 @@ import { useCallback, useMemo } from 'react'
 import { Page } from '../../app/router'
 import { Post } from '../../components'
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol'
+import { UserColumn } from '../../components/profile/sidebarprofile'
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks'
 import { useQueryPost } from '../../hooks/queryHooks'
 import { useParams } from '../../hooks/stackRouterHooks'
@@ -30,12 +31,9 @@ export const PostFeedPage: Page = () => {
     return <Post data={postEvent} doesLink={false} autoExpand={true} />
   }, [postEvent])
 
+  const column = <UserColumn system={system} />
+
   return (
-    <InfiniteScrollWithRightCol
-      data={[]}
-      advanceFeed={todoAdvanceComments}
-      leftCol={<div></div>}
-      topFeedComponent={post}
-    />
+    <InfiniteScrollWithRightCol data={[]} advanceFeed={todoAdvanceComments} leftCol={column} topFeedComponent={post} />
   )
 }
