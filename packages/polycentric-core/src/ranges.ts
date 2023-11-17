@@ -5,6 +5,13 @@ export interface IRange {
     high: Long;
 }
 
+export function toString(ranges: ReadonlyArray<IRange>): string {
+    return ranges.reduce(
+        (acc, x) => acc + x.low.toString() + x.high.toString(),
+        '',
+    );
+}
+
 export function contains(ranges: Array<IRange>, item: Long): boolean {
     for (const range of ranges) {
         if (

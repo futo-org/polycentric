@@ -27,7 +27,7 @@ function makeKey(
     return (
         Models.PublicKey.toString(system) +
         Models.Process.toString(process) +
-        ranges.toString()
+        Ranges.toString(ranges)
     );
 }
 
