@@ -10,6 +10,7 @@ import {
 } from '@polycentric/polycentric-core'
 import Long from 'long'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useImageManifestDisplayURL } from './imageHooks'
 import { useProcessHandleManager } from './processHandleManagerHooks'
 
 // Since we create query managers based on the driver passed in, we set the query managers value at the root of the app.
@@ -152,7 +153,7 @@ export function useBlobQuery<T>(
   return state
 }
 
-const decodeImageManifest = (rawImageBundle: Uint8Array) => {
+const decodeAvatarImageBundle = (rawImageBundle: Uint8Array) => {
   const imageBundle = Protocol.ImageBundle.decode(rawImageBundle)
 
   const manifest = imageBundle.imageManifests.find((manifest) => {
@@ -160,55 +161,16 @@ const decodeImageManifest = (rawImageBundle: Uint8Array) => {
   })
 
   if (manifest === undefined) {
-    throw new Error('manifest missing 256x256')
+    return undefined
   }
 
-  if (!manifest.process) {
-    throw new Error('manifest missing process')
-  }
-
-  return {
-    process: Models.Process.fromProto(manifest.process),
-    sections: manifest.sections,
-    mime: manifest.mime,
-  }
+  return manifest
 }
 
 export const useAvatar = (system?: Models.PublicKey.PublicKey): string | undefined => {
-  const [avatarLink, setAvatarLink] = useState<string | undefined>(undefined)
+  const manifest = useCRDTQuery(system, Models.ContentType.ContentTypeAvatar, decodeAvatarImageBundle)
 
-  const manifest = useCRDTQuery(system, Models.ContentType.ContentTypeAvatar, decodeImageManifest)
-
-  const { process, sections, mime } = manifest ?? {}
-
-  const parseAvatarBlob = useCallback(
-    (buffer: Uint8Array) => {
-      return new Blob([buffer], {
-        type: mime,
-      })
-    },
-    [mime],
-  )
-
-  const avatarBlob = useBlobQuery(system, process, sections, parseAvatarBlob)
-
-  useEffect(() => {
-    let currentURL: string | undefined
-    if (avatarBlob) {
-      currentURL = URL.createObjectURL(avatarBlob)
-      setAvatarLink(currentURL)
-    } else {
-      setAvatarLink(undefined)
-    }
-
-    return () => {
-      if (currentURL) {
-        URL.revokeObjectURL(currentURL)
-      }
-    }
-  }, [avatarBlob])
-
-  return avatarLink
+  return useImageManifestDisplayURL(system, manifest)
 }
 
 export class ParsedEvent<T> {

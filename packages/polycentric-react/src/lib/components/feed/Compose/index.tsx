@@ -123,6 +123,7 @@ export const Compose = ({
   const post = useCallback(() => {
     onPost?.(content, upload).then(() => {
       setContent('')
+      setUpload(undefined)
       if (textRef.current) textRef.current.style.height = `${minTextboxHeightPx}px`
     })
   }, [onPost, content, upload, minTextboxHeightPx])

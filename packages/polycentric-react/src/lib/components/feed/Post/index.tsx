@@ -1,5 +1,6 @@
 import { Models, Protocol, Synchronization } from '@polycentric/polycentric-core'
 import { forwardRef, useCallback, useMemo, useState } from 'react'
+import { useImageManifestDisplayURL } from '../../../hooks/imageHooks'
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
 import {
   ParsedEvent,
@@ -106,10 +107,9 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
 
 const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(({ data, doesLink, autoExpand }, ref) => {
   const { value, event, signedEvent } = data
-  const {
-    content,
-    // image,
-  } = value
+  const { content, image } = value
+
+  const imageUrl = useImageManifestDisplayURL(event.system, image)
 
   const pointer = useMemo(() => Models.signedEventToPointer(signedEvent), [signedEvent])
 
@@ -131,11 +131,12 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(({ data, doesLink
         pubkey: mainKey,
       },
       content: content ?? '',
+      image: imageUrl,
       topic: 'todo',
       publishedAt: mainDate,
       url: mainURL,
     }),
-    [mainUsername, mainAvatar, content, mainDate, mainURL, mainAuthorURL, mainKey],
+    [mainUsername, mainAvatar, content, mainDate, mainURL, mainAuthorURL, mainKey, imageUrl],
   )
 
   const { actions, stats } = usePostStatsWithLocalActions(pointer)

@@ -2,6 +2,7 @@ import { Synchronization } from '@polycentric/polycentric-core'
 import { useCallback, useState } from 'react'
 import { Compose } from '..'
 import { useProcessHandleManager } from '../../../../hooks/processHandleManagerHooks'
+import { publishImageBlob } from '../../../../util/imageProcessing'
 
 export const PostCompose = () => {
   const { processHandle } = useProcessHandleManager()
@@ -11,11 +12,14 @@ export const PostCompose = () => {
   const onPost = useCallback(
     async (content: string, upload?: File): Promise<boolean> => {
       try {
-        if (upload) {
-          alert('uploading not yet supported, ask harpo to change ProcessHandle.post to support an image bundle')
-        }
         setPostingProgress(0.1)
-        await processHandle.post(content)
+        if (upload) {
+          const imageBundle = await publishImageBlob(upload, processHandle)
+          setPostingProgress(0.3)
+          await processHandle.post(content, imageBundle)
+        } else {
+          await processHandle.post(content)
+        }
         setPostingProgress(0.5)
         await Synchronization.backFillServers(processHandle, processHandle.system())
         setPostingProgress(1)
