@@ -1,10 +1,10 @@
 import { Models, Protocol } from '@polycentric/polycentric-core'
 import { useCallback, useState } from 'react'
-import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
-import { useAvatar, useQueryIfAdded, useUsernameCRDTQuery } from '../../../hooks/queryHooks'
-import { PureSidebarProfile } from '../PureSidebarProfile'
+import { useProcessHandleManager } from '../../../../hooks/processHandleManagerHooks'
+import { useAvatar, useQueryIfAdded, useUsernameCRDTQuery } from '../../../../hooks/queryHooks'
+import { PureMobileFeedProfile } from '../PureMobileFeedProfile'
 
-export const UserColumn = ({ system }: { system: Models.PublicKey.PublicKey }) => {
+export const MobileProfileFeed = ({ system }: { system: Models.PublicKey.PublicKey }) => {
   const name = useUsernameCRDTQuery(system)
   const avatarURL = useAvatar(system)
   const { processHandle } = useProcessHandleManager()
@@ -32,7 +32,7 @@ export const UserColumn = ({ system }: { system: Models.PublicKey.PublicKey }) =
   const iAmFollowing = localFollowing ? localFollowing : remotelyFollowing
 
   return (
-    <PureSidebarProfile
+    <PureMobileFeedProfile
       profile={{
         name,
         avatarURL,

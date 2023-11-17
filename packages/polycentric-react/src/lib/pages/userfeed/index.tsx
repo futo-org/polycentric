@@ -4,10 +4,12 @@ import { useMemo } from 'react'
 import { Page } from '../../app/router'
 import { PostCompose } from '../../components/feed/Compose/PostCompose'
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol'
-import { UserColumn } from '../../components/profile/UserColumn'
+import { MobileProfileFeed } from '../../components/profile/mobilefeedprofile'
+import { UserColumn } from '../../components/profile/sidebarprofile/UserColumn'
 import { useAuthorFeed } from '../../hooks/feedHooks'
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks'
 import { useParams } from '../../hooks/stackRouterHooks'
+import { useIsMobile } from '../../hooks/styleHooks'
 
 export const UserFeedPage: Page = () => {
   const { urlInfoString } = useParams<{ urlInfoString: string }>()
@@ -28,9 +30,13 @@ export const UserFeedPage: Page = () => {
 
   const column = <UserColumn system={system} />
 
+  const isMobile = useIsMobile()
   const isMyProfile = Models.PublicKey.equal(system, processHandle.system())
 
-  const topComponent = isMyProfile ? <PostCompose /> : undefined
+  const topComponent = useMemo(() => {
+    if (isMobile) return <MobileProfileFeed system={system} />
+    return isMyProfile ? <PostCompose /> : undefined
+  }, [isMobile, isMyProfile, system])
 
   return (
     <InfiniteScrollWithRightCol
