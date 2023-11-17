@@ -35,7 +35,7 @@ export function bufferSuffixMatch(
     return true;
 }
 
-export function concatBuffers(buffers: Array<Uint8Array>): Uint8Array {
+export function concatBuffers(buffers: ReadonlyArray<Uint8Array>): Uint8Array {
     const result = new Uint8Array(
         buffers.reduce((acc, x) => acc + x.length, 0),
     );
