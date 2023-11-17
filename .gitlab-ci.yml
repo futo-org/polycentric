@@ -11,21 +11,33 @@ variables:
   RUSTC_WRAPPER: /opt/sccache/sccache
 
 .node-cache-config: &node-cache-config
-  key: ${CI_COMMIT_REF_SLUG}-js
+  key:
+    files:
+      - package-lock.json  
   paths:
     - ~/.npm/
     - ${CI_PROJECT_DIR}/.node_modules/
+    - ${CI_PROJECT_DIR}/packages/polycentric-react/node_modules/
     - ${CI_PROJECT_DIR}/packages/polycentric-core/node_modules/
     - ${CI_PROJECT_DIR}/packages/harbor-web/node_modules/
   policy: pull-push
 
 .rust-cache-config: &rust-cache-config
-  key: ${CI_COMMIT_REF_SLUG}
+  key:
+    files:
+      - server/Cargo.lock
+      - server/Cargo.toml
   paths:
     - ${CI_PROJECT_DIR}/.sccache/
     - ${CI_PROJECT_DIR}/.cargo/
-    - ${CI_PROJECT_DIR}/server/target/
   policy: pull-push
+
+.rust-cache-build-config: &rust-cache-build-config
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - ${CI_PROJECT_DIR}/server/target
+  policy: pull-push
+
 
 stages:
   - check
@@ -139,6 +151,7 @@ build-server:
   image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
   cache: 
    - <<: *rust-cache-config
+   - <<: *rust-cache-build-config
      key: ${CI_COMMIT_REF_SLUG}-rs-build
   script:
     - ./version.sh
@@ -228,6 +241,7 @@ lint-server:
   image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
   cache: 
     - <<: *rust-cache-config
+    - <<: *rust-cache-build-config
       key: ${CI_COMMIT_REF_SLUG}-rs-lint
   script: 
     - ./version.sh
