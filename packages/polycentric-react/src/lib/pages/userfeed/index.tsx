@@ -1,8 +1,10 @@
 import { decode } from '@borderless/base64'
+import { IonContent } from '@ionic/react'
 import { Models, Protocol } from '@polycentric/polycentric-core'
 import { useMemo } from 'react'
 import { Page } from '../../app/router'
 import { PostCompose } from '../../components/feed/Compose/PostCompose'
+import { Header } from '../../components/layout/header'
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol'
 import { MobileProfileFeed } from '../../components/profile/mobilefeedprofile'
 import { UserColumn } from '../../components/profile/sidebarprofile/UserColumn'
@@ -39,11 +41,16 @@ export const UserFeedPage: Page = () => {
   }, [isMobile, isMyProfile, system])
 
   return (
-    <InfiniteScrollWithRightCol
-      data={data}
-      advanceFeed={advanceFeed}
-      leftCol={column}
-      topFeedComponent={topComponent}
-    />
+    <>
+      <Header>Profile</Header>
+      <IonContent>
+        <InfiniteScrollWithRightCol
+          data={data}
+          advanceFeed={advanceFeed}
+          leftCol={column}
+          topFeedComponent={topComponent}
+        />
+      </IonContent>
+    </>
   )
 }

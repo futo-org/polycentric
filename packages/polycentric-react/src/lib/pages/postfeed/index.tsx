@@ -1,8 +1,10 @@
 import { decode } from '@borderless/base64'
+import { IonContent } from '@ionic/react'
 import { Models, Protocol } from '@polycentric/polycentric-core'
 import { useCallback, useMemo } from 'react'
 import { Page } from '../../app/router'
 import { Post } from '../../components'
+import { Header } from '../../components/layout/header'
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol'
 import { UserColumn } from '../../components/profile/sidebarprofile'
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks'
@@ -34,6 +36,17 @@ export const PostFeedPage: Page = () => {
   const column = <UserColumn system={system} />
 
   return (
-    <InfiniteScrollWithRightCol data={[]} advanceFeed={todoAdvanceComments} leftCol={column} topFeedComponent={post} />
+    <>
+      <Header>Post</Header>
+
+      <IonContent>
+        <InfiniteScrollWithRightCol
+          data={[]}
+          advanceFeed={todoAdvanceComments}
+          leftCol={column}
+          topFeedComponent={post}
+        />
+      </IonContent>
+    </>
   )
 }

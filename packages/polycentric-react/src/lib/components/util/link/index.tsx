@@ -1,5 +1,5 @@
 import { RouterDirection } from '@ionic/core'
-import { IonContent, IonNavLink, IonPage, IonRouterLink } from '@ionic/react'
+import { IonNavLink, IonPage, IonRouterLink } from '@ionic/react'
 import React, { forwardRef, useCallback, useMemo } from 'react'
 import { matchPath } from 'react-router-dom'
 import { routeData } from '../../../app/router'
@@ -42,9 +42,7 @@ const LinkComponent = forwardRef<
     () => (
       <MemoryRoutedLinkContext.Provider value={routerLink}>
         <IonPage>
-          <IonContent>
-            <MemoryRoutedComponent routerLink={routerLink} />
-          </IonContent>
+          <MemoryRoutedComponent routerLink={routerLink} />
         </IonPage>
       </MemoryRoutedLinkContext.Provider>
     ),

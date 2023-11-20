@@ -1,4 +1,4 @@
-import { IonContent, IonNav, IonPage } from '@ionic/react'
+import { IonNav, IonPage } from '@ionic/react'
 import { useCallback, useRef } from 'react'
 import { Route as RouterRoute } from 'react-router-dom'
 
@@ -16,11 +16,7 @@ export const Route = ({
   const navref = useRef<HTMLIonNavElement>(null)
 
   const root = useCallback(() => {
-    return (
-      <IonContent>
-        <Component />
-      </IonContent>
-    )
+    return <Component />
   }, [Component])
 
   if (rootPath) {
