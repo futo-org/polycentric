@@ -12,10 +12,13 @@ export function toString(ranges: ReadonlyArray<IRange>): string {
     return out;
 }
 
-export function contains(ranges: Array<IRange>, item: Long): boolean {
+export function contains(
+    ranges: ReadonlyArray<IRange>,
+    item: Readonly<Long>,
+): boolean {
     for (const range of ranges) {
         if (
-            item.greaterThanOrEqual(range.low) ||
+            item.greaterThanOrEqual(range.low) &&
             item.lessThanOrEqual(range.high)
         ) {
             return true;
@@ -25,7 +28,7 @@ export function contains(ranges: Array<IRange>, item: Long): boolean {
     return false;
 }
 
-export function insert(ranges: Array<IRange>, item: Long): void {
+export function insert(ranges: Array<IRange>, item: Readonly<Long>): void {
     for (let i = 0; i < ranges.length; i++) {
         // within existing range
         if (
@@ -79,8 +82,8 @@ export function insert(ranges: Array<IRange>, item: Long): void {
 }
 
 export function subtractRange(
-    left: Array<IRange>,
-    right: Array<IRange>,
+    left: ReadonlyArray<IRange>,
+    right: ReadonlyArray<IRange>,
 ): Array<IRange> {
     const result: Array<IRange> = [];
 
@@ -134,8 +137,8 @@ export function subtractRange(
 }
 
 export function takeRangesMaxItems(
-    ranges: Array<IRange>,
-    limit: Long,
+    ranges: ReadonlyArray<IRange>,
+    limit: Readonly<Long>,
 ): Array<IRange> {
     let sum = Long.UZERO;
     const result: Array<IRange> = [];
