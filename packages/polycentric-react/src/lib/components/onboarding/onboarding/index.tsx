@@ -60,7 +60,7 @@ const InternetTodayPanel = ({ nextSlide }: { nextSlide: () => void }) => (
 )
 
 const RequestNotificationsPanel = ({ nextSlide }: { nextSlide: () => void }) => (
-  <OnboardingPanel nextSlide={nextSlide} imgSrc={internetTodayURL}>
+  <OnboardingPanel nextSlide={nextSlide} imgSrc={starterURL}>
     <div className="flex flex-col p-10 gap-y-10">
       <div className="text-4xl font-bold">Enable Notifications</div>
       <p className="text-xl">We need you to enable notifications because chrome is stupid.</p>
@@ -151,7 +151,9 @@ const GenCredsPanelImageUpload = ({
       <h3 className="font-medium">{title}</h3>
       <div className="">
         <label htmlFor="upload-button" className="">
-          <img src={croppedPreviewURL} className="w-16 h-16 rounded-full border overflow-hidden" />
+          <div className="w-16 h-16 rounded-full border overflow-clip">
+            <img src={croppedPreviewURL} />
+          </div>
         </label>
         <input
           id="upload-button"
@@ -212,7 +214,7 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
   const { createHandle: createAccount } = useOnboardingProcessHandleManager()
 
   return (
-    <OnboardingPanel nextSlide={nextSlide} imgSrc={internetTodayURL}>
+    <OnboardingPanel nextSlide={nextSlide} imgSrc={starterURL}>
       <div className="flex flex-col justify-center h-full p-10 gap-y-5">
         <form
           onSubmit={async (e) => {
