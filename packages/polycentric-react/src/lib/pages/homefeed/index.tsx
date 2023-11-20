@@ -1,3 +1,5 @@
+import { IonContent } from '@ionic/react'
+import { useMemo } from 'react'
 import { useIsMobile } from '../../hooks/styleHooks'
 import { DesktopHomeFeed } from './DesktopHomeFeed'
 import { SwipeHomeFeed } from './SwipeHomeFeed'
@@ -5,9 +7,13 @@ import { SwipeHomeFeed } from './SwipeHomeFeed'
 export const HomeFeedPage = () => {
   const isMobile = useIsMobile()
 
-  if (isMobile) {
-    return <SwipeHomeFeed />
-  }
+  const feed = useMemo(() => {
+    return isMobile ? <SwipeHomeFeed /> : <DesktopHomeFeed />
+  }, [isMobile])
 
-  return <DesktopHomeFeed />
+  return (
+    <>
+      <IonContent>{feed}</IonContent>
+    </>
+  )
 }
