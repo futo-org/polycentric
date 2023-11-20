@@ -30,7 +30,7 @@ const WelcomePanel = ({ nextSlide }: { nextSlide: () => void }) => (
       <div className="text-4xl md:font-6xl font-bold">Welcome to Polycentric</div>
       <div className="text-gray-400 text-lg">Posting for communities</div>
       <button
-        className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+        className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
         onClick={nextSlide}
       >
         Try it (no email needed)
@@ -50,7 +50,7 @@ const InternetTodayPanel = ({ nextSlide }: { nextSlide: () => void }) => (
         Polycentric was developed with a love for the old internet, built around communities and respect for you.
       </p>
       <button
-        className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+        className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
         onClick={nextSlide}
       >
         Lets go back
@@ -65,7 +65,7 @@ const RequestNotificationsPanel = ({ nextSlide }: { nextSlide: () => void }) => 
       <div className="text-4xl font-bold">Enable Notifications</div>
       <p className="text-xl">We need you to enable notifications because chrome is stupid.</p>
       <button
-        className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+        className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
         onClick={async () => {
           const permission = await Notification.requestPermission()
           if (permission === 'denied') console.error('Notifications denied')
@@ -172,9 +172,9 @@ const GenCredsPanelImageUpload = ({
         />
       </div>
       {/* X button */}
-      <button className="absolute top-0 right-0 w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+      {/* <button className="absolute top-0 right-0 w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
         <XIcon />
-      </button>
+      </button> */}
       <p className="text-sm text-gray-700">{hint}</p>
       {cropping && cropperURL && (
         <CropProfilePicModal
@@ -182,6 +182,7 @@ const GenCredsPanelImageUpload = ({
           aspect={1}
           open={cropperURL !== undefined}
           setOpen={(open) => {
+            debugger
             if (!open) {
               setCropping(false)
               setCropperURL(undefined)
@@ -256,7 +257,7 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
           />
           <button
             type="submit"
-            className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+            className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
           >
             Lets go
           </button>
