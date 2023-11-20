@@ -1,5 +1,5 @@
 import { Models, Protocol, Queries } from '@polycentric/polycentric-core'
-import { useState } from 'react'
+import { useCallback } from 'react'
 import { ParsedEvent, useIndex, useQueryCursor } from './queryHooks'
 
 export type FeedHookData = ParsedEvent<Protocol.Post>[]
@@ -13,10 +13,15 @@ export const useAuthorFeed: FeedHook = (system: Models.PublicKey.PublicKey) => {
 }
 
 export const useExploreFeed: FeedHook = () => {
-  const [loadCallback] = useState<Queries.QueryCursor.LoadCallback>(() => Queries.QueryCursor.makeGetExploreCallback())
+  const loadCallback = useCallback(Queries.QueryCursor.makeGetExploreCallback(), [])
   return useQueryCursor(loadCallback, Protocol.Post.decode)
 }
 
 export const useTopicFeed: FeedHook = (topic: string) => {
   return [[], () => topic]
+}
+
+export const useSearchFeed: FeedHook = (searchQuery: string) => {
+  const loadCallback = useCallback(Queries.QueryCursor.makeGetSearchCallback(searchQuery), [searchQuery])
+  return useQueryCursor(loadCallback, Protocol.Post.decode)
 }
