@@ -6,10 +6,10 @@ export interface IRange {
 }
 
 export function toString(ranges: ReadonlyArray<IRange>): string {
-    return ranges.reduce(
-        (acc, x) => acc + x.low.toString() + x.high.toString(),
-        '',
-    );
+    const out = ranges
+        .map((r) => r.low.toString() + ',' + r.high.toString())
+        .join(',');
+    return out;
 }
 
 export function contains(ranges: Array<IRange>, item: Long): boolean {
