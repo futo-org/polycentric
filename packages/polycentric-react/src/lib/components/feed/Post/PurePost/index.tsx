@@ -471,7 +471,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                 />
                 <Modal open={mainImageOpen} setOpen={(open) => setMainImageOpen(open)}>
                   <div className="m-5">
-                    <img className="rounded-2xl w-[90%] max-w-[30rem]" src={main.image} />
+                    <img className="rounded-2xl w-[80vw] lg:w-[60vw]" src={main.image} />
                   </div>
                 </Modal>
               </div>

@@ -33,7 +33,7 @@ export const SearchBox = ({
         <input
           type="text"
           placeholder="Search..."
-          className="flex-grow text-lg text-gray-900 ml-4 font-light placeholder:text-gray-300 focus:outline-none"
+          className="flex-grow text-lg text-gray-900 ml-4 font-light placeholder:text-gray-300 focus:outline-none min-w-0"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {

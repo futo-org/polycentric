@@ -1,11 +1,16 @@
+import { NavLink } from 'react-router-dom'
 import polycentricIcon from '../../../../graphics/icons/favicon.ico'
 import { AccountSwitcher } from '../../profile/AccountSwitcher'
-import { Link } from '../../util/link'
 
 const SidebarLink = ({ to, children }: { to: string; children: React.ReactNode }) => (
-  <Link routerLink={to} className="rounded hover:bg-gray-200 p-2 transition-colors duration-200">
+  <NavLink
+    to={to}
+    className="rounded hover:bg-gray-200 p-2 transition-colors duration-200"
+    activeClassName="bg-gray-100"
+    exact={true}
+  >
     {children}
-  </Link>
+  </NavLink>
 )
 
 export const MainSidebar = () => (
@@ -15,8 +20,8 @@ export const MainSidebar = () => (
         <img src={polycentricIcon} className="inline h-[20px]" /> Polycentric
       </h1>
       <div className="flex flex-col space-y-2 text-right">
-        <SidebarLink to="/">Following</SidebarLink>
-        <SidebarLink to="/explore">Explore</SidebarLink>
+        <SidebarLink to="/">Explore</SidebarLink>
+        <SidebarLink to="/following">Following</SidebarLink>
         <SidebarLink to="/settings">Settings</SidebarLink>
       </div>
     </div>

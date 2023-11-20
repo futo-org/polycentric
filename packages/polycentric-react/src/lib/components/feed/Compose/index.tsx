@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { TopicSuggestionBox } from '../TopicSuggestionBox'
 
 const startsWithSlash = /^\/.*/
+const hasNonAlphanumeric = /[^a-zA-Z0-9/]/
 
 const TopicBox = ({
   topic,
@@ -22,20 +23,25 @@ const TopicBox = ({
         autoComplete="off"
         list="autocompleteOff"
         aria-autocomplete="none"
-        className={`bg-transparent w-full h-full p-5 absolute text-xl focus:outline-none peer z-10 font-mono ${
+        className={`bg-transparent w-full h-full p-5 absolute text-xl focus:outline-none peer z-10 font-mono font-light text-gray-900 ${
           disabled ? 'opacity-60' : ''
         }`}
         value={topic}
         onChange={(e) => {
-          const { value } = e.target
+          let { value } = e.target
+
+          if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
+            e.currentTarget.setSelectionRange(1, 1)
+          }
+
+          if (hasNonAlphanumeric.test(value)) {
+            value = value.replace(hasNonAlphanumeric, '')
+          }
+
           if (startsWithSlash.test(value)) {
             setTopic(value)
           } else if (value === '') {
             setTopic('/')
-          }
-
-          if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
-            e.currentTarget.setSelectionRange(1, 1)
           }
         }}
         onKeyDown={(e) => {
@@ -59,7 +65,7 @@ const TopicBox = ({
         disabled={disabled}
       />
       <div
-        className={`absolute top-0 left-0 w-full h-full border bg-white peer-focus:border-3 peer-focus:border-purple-900 peer-focus:border-b-0 rounded-lg -skew-x-[9deg] ${
+        className={`absolute top-0 left-0 w-full h-full border bg-white peer-focus:border-gray-400 peer-focus:border-b-0 rounded-lg -skew-x-[9deg] ${
           disabled ? 'opacity-50' : ''
         }
           ${focused ? ' rounded-b-none' : ''}
@@ -177,7 +183,7 @@ export const Compose = ({
       <div className="w-full flex justify-between pt-4">
         <div className="flex items-start space-x-4">
           <button onClick={() => uploadRef.current?.click()}>
-            <PhotoIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
+            <PhotoIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" strokeWidth="1" />
           </button>
           <input
             type="file"
