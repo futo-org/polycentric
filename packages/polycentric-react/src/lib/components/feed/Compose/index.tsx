@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { TopicSuggestionBox } from '../TopicSuggestionBox'
 
 const startsWithSlash = /^\/.*/
+const hasNonAlphanumeric = /[^a-zA-Z0-9/]/
 
 const TopicBox = ({
   topic,
@@ -22,20 +23,25 @@ const TopicBox = ({
         autoComplete="off"
         list="autocompleteOff"
         aria-autocomplete="none"
-        className={`bg-transparent w-full h-full p-5 absolute text-xl focus:outline-none peer z-10 font-mono ${
+        className={`bg-transparent w-full h-full p-5 absolute text-xl focus:outline-none peer z-10 font-mono font-light text-gray-900 ${
           disabled ? 'opacity-60' : ''
         }`}
         value={topic}
         onChange={(e) => {
-          const { value } = e.target
+          let { value } = e.target
+
+          if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
+            e.currentTarget.setSelectionRange(1, 1)
+          }
+
+          if (hasNonAlphanumeric.test(value)) {
+            value = value.replace(hasNonAlphanumeric, '')
+          }
+
           if (startsWithSlash.test(value)) {
             setTopic(value)
           } else if (value === '') {
             setTopic('/')
-          }
-
-          if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
-            e.currentTarget.setSelectionRange(1, 1)
           }
         }}
         onKeyDown={(e) => {
