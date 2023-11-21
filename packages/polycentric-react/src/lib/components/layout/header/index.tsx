@@ -16,4 +16,6 @@ export const Header = ({ children }: { children?: React.ReactNode }) => {
         <IonTitle>{children}</IonTitle>
       </IonHeader>
     )
+
+  return <></>
 }

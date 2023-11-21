@@ -1,6 +1,7 @@
 import { ArrowRightIcon } from '@heroicons/react/24/solid'
 import { useDebounce } from '@uidotdev/usehooks'
 import { useEffect, useRef, useState } from 'react'
+import { useParams } from '../../../hooks/stackRouterHooks'
 import { Link } from '../../util/link'
 
 interface ResultsPreview {
@@ -15,7 +16,8 @@ export const SearchBox = ({
   getResultsPreview?: (query: string) => Promise<ResultsPreview>
   debounceMs?: number
 }) => {
-  const [query, setQuery] = useState('')
+  const { query: pathQuery } = useParams<{ query?: string }>()
+  const [query, setQuery] = useState(pathQuery ?? '')
   const debouncedQuery = useDebounce(query, debounceMs)
   const [results, setResults] = useState<ResultsPreview | null>(null)
 

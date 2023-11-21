@@ -40,7 +40,13 @@ export const InnerFeed = ({
         {items.map(({ index, measureRef }) => (
           // You can set the item's height with the `size` property
           // TODO: change this to a proper index
-          <Post ref={measureRef} key={encode(data[index]?.signedEvent.signature)} data={data[index]} />
+          <Post
+            ref={measureRef}
+            // @ts-ignore
+            // Typescript can't infer that data[index] is defined
+            key={data[index] !== undefined ? encode(data[index].signedEvent.signature) : index}
+            data={data[index]}
+          />
         ))}
       </div>
       {hasScrolled && (
