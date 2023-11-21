@@ -1,6 +1,6 @@
 import { encode } from '@borderless/base64'
 import useVirtual, { Item, ScrollTo } from '@polycentric/react-cool-virtual'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks'
 import { Post } from '../Post'
 
@@ -40,7 +40,13 @@ export const InnerFeed = ({
         {items.map(({ index, measureRef }) => (
           // You can set the item's height with the `size` property
           // TODO: change this to a proper index
-          <Post ref={measureRef} key={encode(data[index]?.signedEvent.signature)} data={data[index]} />
+          <Post
+            ref={measureRef}
+            // @ts-ignore
+            // Typescript can't infer that data[index] is defined
+            key={data[index] !== undefined ? encode(data[index].signedEvent.signature) : index}
+            data={data[index]}
+          />
         ))}
       </div>
       {hasScrolled && (
@@ -67,6 +73,10 @@ export const Feed = ({ data, advanceFeed }: { data: FeedHookData; advanceFeed: F
     loadMoreCount,
     loadMore: () => advanceFeed(),
   })
+
+  useEffect(() => {
+    advanceFeed()
+  }, [advanceFeed])
 
   const [hasScrolled, setHasScrolled] = useState(false)
 

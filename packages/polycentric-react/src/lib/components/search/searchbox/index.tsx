@@ -1,6 +1,7 @@
 import { ArrowRightIcon } from '@heroicons/react/24/solid'
 import { useDebounce } from '@uidotdev/usehooks'
 import { useEffect, useRef, useState } from 'react'
+import { useParams } from '../../../hooks/stackRouterHooks'
 import { Link } from '../../util/link'
 
 interface ResultsPreview {
@@ -15,7 +16,8 @@ export const SearchBox = ({
   getResultsPreview?: (query: string) => Promise<ResultsPreview>
   debounceMs?: number
 }) => {
-  const [query, setQuery] = useState('')
+  const { query: pathQuery } = useParams<{ query?: string }>()
+  const [query, setQuery] = useState(pathQuery ?? '')
   const debouncedQuery = useDebounce(query, debounceMs)
   const [results, setResults] = useState<ResultsPreview | null>(null)
 
@@ -38,18 +40,18 @@ export const SearchBox = ({
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
-              searchButtonRef.current?.click()
+              if (query.length >= 3) searchButtonRef.current?.click()
             }
           }}
         />
         <Link
           className={`rounded-full border aspect-square h-[2.5rem] w-[2.5rem] flex justify-center items-center ${
-            query !== '' ? 'hover:bg-gray-50' : ''
+            query.length >= 3 ? 'hover:bg-gray-50' : ''
           }`}
-          routerLink={`/search/${query}`}
+          routerLink={query.length >= 3 ? `/search/${query}` : undefined}
           ref={searchButtonRef}
         >
-          <ArrowRightIcon className={`w-6 h-6  ${query === '' ? 'text-gray-300' : 'text-gray-500'}`} />
+          <ArrowRightIcon className={`w-6 h-6  ${query.length >= 3 ? 'text-gray-500' : 'text-gray-300'}`} />
         </Link>
       </div>
       {query.length > 0 && results && (
