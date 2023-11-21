@@ -1,5 +1,6 @@
 import { HomeFeedPage } from '../pages/homefeed'
 import { PostFeedPage } from '../pages/postfeed'
+import { SearchPage } from '../pages/search'
 import { UserFeedPage } from '../pages/userfeed'
 
 export type Page = React.ComponentType
@@ -10,4 +11,5 @@ export const routeData: RouteData = {
   '/t/:topic': { component: HomeFeedPage },
   '/user/:urlInfoString': { component: UserFeedPage },
   '/post/:urlInfoString': { component: PostFeedPage },
+  '/search/:query': { component: SearchPage },
 }

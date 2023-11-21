@@ -427,16 +427,29 @@ export function useQueryCursor<T>(
   loadCallback: Queries.QueryCursor.LoadCallback,
   parse: (buffer: Uint8Array) => T,
   batchSize = 30,
-): [Array<ParsedEvent<T>>, () => void] {
+): [Array<ParsedEvent<T>>, () => void, boolean] {
   const { processHandle } = useProcessHandleManager()
+  const [loaded, setLoaded] = useState<boolean>(false)
   const [state, setState] = useState<Array<ParsedEvent<T>>>([])
   const query = useRef<Queries.QueryCursor.Query | null>(null)
   const [advance, setAdvance] = useState<() => void>(() => {
     return () => {}
   })
 
-  const addNewCells = useCallback(
-    (newCells: Queries.QueryCursor.Cell[]) => {
+  useEffect(() => {
+    setState([])
+    setAdvance(() => () => {})
+    setLoaded(false)
+
+    const cancelContext = new CancelContext.CancelContext()
+
+    const addNewCells = (newCells: Queries.QueryCursor.Cell[]) => {
+      if (cancelContext.cancelled()) {
+        return
+      }
+
+      setLoaded(true)
+
       const newCellsAsSignedEvents = newCells.map((cell) => {
         const { signedEvent } = cell
         const event = Models.Event.fromBuffer(signedEvent.event)
@@ -445,24 +458,20 @@ export function useQueryCursor<T>(
         return new ParsedEvent<T>(signedEvent, event, parsed)
       })
       setState((currentCells) => [...currentCells].concat(newCellsAsSignedEvents))
-    },
-    [parse, processHandle],
-  )
+    }
 
-  useEffect(() => {
-    setState([])
-    setAdvance(() => () => {})
     const newQuery = new Queries.QueryCursor.Query(processHandle, loadCallback, addNewCells, batchSize)
     query.current = newQuery
     setAdvance(() => query.current?.advance.bind(query.current) ?? (() => {}))
     return () => {
+      cancelContext.cancel()
       newQuery.cleanup()
     }
     // NOTE: Currently we don't care about dynamic batch sizes.
     // If we do, the current implementation of this hook will result in clearing the whole feed when the batch size changes.
-  }, [processHandle, loadCallback, addNewCells, batchSize])
+  }, [processHandle, loadCallback, batchSize, parse])
 
-  return [state, advance]
+  return [state, advance, loaded]
 }
 
 export function useQueryEvent<T>(

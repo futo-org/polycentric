@@ -7,6 +7,8 @@ import './style.css'
 import { Transition } from '@headlessui/react'
 import { Controller } from 'swiper/modules'
 import { Swiper, SwiperSlide } from 'swiper/react'
+import { Feed } from '../../../components'
+import { useSearchFeed } from '../../../hooks/feedHooks'
 import { ExploreFeed } from './ExploreFeed/index.js'
 import { TopicFeed } from './TopicFeed.tsx/index.js'
 
@@ -29,6 +31,22 @@ const MenuIcon = () => (
 
 const topics = ['Explore', '/tpot', '/tpot/dating', '/tpot/technology.repair', '/tpot/technology']
 
+const ValidSearchFeed = ({ checkedQuery }: { checkedQuery: string }) => {
+  const [data, advanceFeed] = useSearchFeed(checkedQuery)
+
+  return <Feed data={data} advanceFeed={advanceFeed} />
+}
+
+const InvalidSearchFeed = () => {
+  return <Feed data={[]} advanceFeed={() => {}} />
+}
+
+const SearchFeed = ({ query }: { query: string }) => {
+  const validQuery = query && query.length >= 3
+
+  return validQuery ? <ValidSearchFeed checkedQuery={query} /> : <InvalidSearchFeed />
+}
+
 const TopicSwipeSelect = ({
   topics,
   feedSwiper,
@@ -44,6 +62,7 @@ const TopicSwipeSelect = ({
   const [expandPageAbsolutePositon, setExpandPageAbsolutePosition] = useState({ x: 0, y: 0 })
   const [expanded, setExpanded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeSearchQuery, setActiveSearchQuery] = useState('')
 
   return (
     <div className="relative w-64 h-12">
@@ -66,6 +85,14 @@ const TopicSwipeSelect = ({
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search..."
             value={searchQuery}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                setActiveSearchQuery(searchQuery)
+              }
+            }}
+            onBlur={() => {
+              setActiveSearchQuery(searchQuery)
+            }}
           />
         ) : (
           <Swiper
@@ -115,12 +142,21 @@ const TopicSwipeSelect = ({
           className="fixed top-0 left-0 z-30"
         >
           <div className="h-20 items-center fixed right-4 top-4">
-            <button className="w-12 h-12 border rounded-full relative bg-white" onClick={() => setExpanded(false)}>
+            <button
+              className="w-12 h-12 border rounded-full relative bg-white"
+              onClick={() => {
+                setSearchQuery('')
+                setActiveSearchQuery('')
+                setExpanded(false)
+              }}
+            >
               <div className="absolute w-[1px] h-8 left-1/2 top-2 bg-gray-400 transform rotate-45"></div>
               <div className="absolute w-[1px] h-8 left-1/2 top-2  bg-gray-400 transform -rotate-45"></div>
             </button>
           </div>
-          <div className="fixed w-full top-20"></div>
+          <div className="fixed w-full top-20 h-full">
+            <SearchFeed query={activeSearchQuery} />
+          </div>
         </Transition.Child>
       </Transition>
     </div>

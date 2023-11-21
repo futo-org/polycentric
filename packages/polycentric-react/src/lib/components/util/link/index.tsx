@@ -34,7 +34,7 @@ const LinkComponent = forwardRef<
     children?: React.ReactNode
     className?: string
     routerDirection?: RouterDirection
-  } & React.HTMLAttributes<HTMLElement>
+  } & React.HTMLAttributes<HTMLAnchorElement>
 >(({ routerLink, children, routerDirection, className, ...browserProps }, ref) => {
   const isMobile = useIsMobile()
 
