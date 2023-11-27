@@ -529,3 +529,33 @@ export function useQueryPost(
 ): ParsedEvent<Protocol.Post> | undefined {
   return useQueryEvent(system, process, logicalClock, Protocol.Post.decode)
 }
+
+export const useQueryReferenceEventFeed = <T>(
+  decode: (buffer: Uint8Array) => T,
+  reference?: Protocol.Reference,
+  requestEvents?: Protocol.QueryReferencesRequestEvents,
+  countLwwElementReferences?: Protocol.QueryReferencesRequestCountLWWElementReferences[],
+  countReferences?: Protocol.QueryReferencesRequestCountReferences[],
+) => {
+  const loadCallback: Queries.QueryCursor.LoadCallback = useMemo(() => {
+    return async (server, limit, cursor) => {
+      if (reference === undefined) {
+        return Models.ResultEventsAndRelatedEventsAndCursor.fromEmpty()
+      }
+
+      // limit is hardcoded to 20 serverside right now, which is fine for now.
+      const response = await APIMethods.getQueryReferences(
+        server,
+        reference,
+        cursor,
+        requestEvents,
+        countLwwElementReferences,
+        countReferences,
+      )
+
+      return Models.ResultEventsAndRelatedEventsAndCursor.fromQueryReferencesResponse(response)
+    }
+  }, [countLwwElementReferences, countReferences, reference, requestEvents])
+
+  return useQueryCursor(loadCallback, decode)
+}

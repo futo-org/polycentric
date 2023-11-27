@@ -132,13 +132,15 @@ export class Query {
 
                 if (result.cursor) {
                     this._cursors.set(server, result.cursor);
-                } else {
+                }
+
+                await this._drainReserve();
+
+                if (result.cursor === undefined) {
                     // This means the number of rows returned was less than the limit,
                     // so we can stop querying this server.
                     break;
                 }
-
-                await this._drainReserve();
             }
         } catch (err) {
             console.error(err);
