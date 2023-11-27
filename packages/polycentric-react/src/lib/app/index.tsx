@@ -54,15 +54,13 @@ export const SignedinApp = ({ processHandle }: { processHandle: ProcessHandle.Pr
 
   return (
     <QueryManagerContext.Provider value={queryManager}>
-      <IonApp>
-        <PlatformRouter>
-          <SidebarLayout>
-            <IonRouterOutlet id="main-drawer">
-              <AppRouter />
-            </IonRouterOutlet>
-          </SidebarLayout>
-        </PlatformRouter>
-      </IonApp>
+      <PlatformRouter>
+        <SidebarLayout>
+          <IonRouterOutlet id="main-drawer">
+            <AppRouter />
+          </IonRouterOutlet>
+        </SidebarLayout>
+      </PlatformRouter>
     </QueryManagerContext.Provider>
   )
 }
@@ -102,5 +100,9 @@ export const App = ({ persistenceDriver }: { persistenceDriver: PersistenceDrive
     return <p>Loading...</p>
   }
 
-  return <LoadedMetastoreApp metaStore={metaStore} />
+  return (
+    <IonApp>
+      <LoadedMetastoreApp metaStore={metaStore} />
+    </IonApp>
+  )
 }

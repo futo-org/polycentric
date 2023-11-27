@@ -30,7 +30,7 @@ const WelcomePanel = ({ nextSlide }: { nextSlide: () => void }) => (
       <div className="text-4xl md:font-6xl font-bold">Welcome to Polycentric</div>
       <div className="text-gray-400 text-lg">Posting for communities</div>
       <button
-        className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+        className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
         onClick={nextSlide}
       >
         Try it (no email needed)
@@ -50,7 +50,7 @@ const InternetTodayPanel = ({ nextSlide }: { nextSlide: () => void }) => (
         Polycentric was developed with a love for the old internet, built around communities and respect for you.
       </p>
       <button
-        className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+        className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
         onClick={nextSlide}
       >
         Lets go back
@@ -60,12 +60,12 @@ const InternetTodayPanel = ({ nextSlide }: { nextSlide: () => void }) => (
 )
 
 const RequestNotificationsPanel = ({ nextSlide }: { nextSlide: () => void }) => (
-  <OnboardingPanel nextSlide={nextSlide} imgSrc={internetTodayURL}>
+  <OnboardingPanel nextSlide={nextSlide} imgSrc={starterURL}>
     <div className="flex flex-col p-10 gap-y-10">
       <div className="text-4xl font-bold">Enable Notifications</div>
       <p className="text-xl">We need you to enable notifications because chrome is stupid.</p>
       <button
-        className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+        className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
         onClick={async () => {
           const permission = await Notification.requestPermission()
           if (permission === 'denied') console.error('Notifications denied')
@@ -109,17 +109,6 @@ const GenCredsPanelItem = ({
   </div>
 )
 
-// copy this but for a profile image upload, with a small circle with an upload symbol (just put "u" fo for now) that switches to the uploaded image and an x that appears next to it to remove it
-const XIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-    <path
-      fillRule="evenodd"
-      d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z"
-      clipRule="evenodd"
-    />
-  </svg>
-)
-
 const useCleanupObjectURL = (url?: string) => {
   useEffect(() => {
     return () => {
@@ -151,7 +140,9 @@ const GenCredsPanelImageUpload = ({
       <h3 className="font-medium">{title}</h3>
       <div className="">
         <label htmlFor="upload-button" className="">
-          <img src={croppedPreviewURL} className="w-16 h-16 rounded-full border overflow-hidden" />
+          <div className="w-16 h-16 rounded-full border overflow-clip">
+            <img src={croppedPreviewURL} />
+          </div>
         </label>
         <input
           id="upload-button"
@@ -172,9 +163,9 @@ const GenCredsPanelImageUpload = ({
         />
       </div>
       {/* X button */}
-      <button className="absolute top-0 right-0 w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
+      {/* <button className="absolute top-0 right-0 w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
         <XIcon />
-      </button>
+      </button> */}
       <p className="text-sm text-gray-700">{hint}</p>
       {cropping && cropperURL && (
         <CropProfilePicModal
@@ -182,6 +173,7 @@ const GenCredsPanelImageUpload = ({
           aspect={1}
           open={cropperURL !== undefined}
           setOpen={(open) => {
+            debugger
             if (!open) {
               setCropping(false)
               setCropperURL(undefined)
@@ -211,7 +203,7 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
   const { createHandle: createAccount } = useOnboardingProcessHandleManager()
 
   return (
-    <OnboardingPanel nextSlide={nextSlide} imgSrc={internetTodayURL}>
+    <OnboardingPanel nextSlide={nextSlide} imgSrc={starterURL}>
       <div className="flex flex-col justify-center h-full p-10 gap-y-5">
         <form
           onSubmit={async (e) => {
@@ -256,7 +248,7 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
           />
           <button
             type="submit"
-            className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+            className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
           >
             Lets go
           </button>
