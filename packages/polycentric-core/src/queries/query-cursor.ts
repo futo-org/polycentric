@@ -1,6 +1,6 @@
-import * as ProcessHandle from '../process-handle';
-import * as Models from '../models';
 import * as APIMethods from '../api-methods';
+import * as Models from '../models';
+import * as ProcessHandle from '../process-handle';
 
 export function makeGetExploreCallback(): LoadCallback {
     return APIMethods.getExplore;
@@ -132,6 +132,10 @@ export class Query {
 
                 if (result.cursor) {
                     this._cursors.set(server, result.cursor);
+                } else {
+                    // This means the number of rows returned was less than the limit,
+                    // so we can stop querying this server.
+                    break;
                 }
 
                 await this._drainReserve();
