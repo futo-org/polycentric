@@ -15,7 +15,7 @@ fn process_rows(
     cursor: &::std::option::Option<u64>,
 ) -> ::anyhow::Result<QueryResult> {
     Ok(QueryResult {
-        cursor: if rows.len() == TryInto::<usize>::try_into(limit)? {
+        cursor: if rows.len() > TryInto::<usize>::try_into(limit)? {
             if let Some(position) = cursor {
                 Some(position + limit)
             } else {
