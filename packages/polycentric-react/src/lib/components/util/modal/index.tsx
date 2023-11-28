@@ -23,7 +23,7 @@ export const Modal = ({
   open: boolean
   title?: string
 }): JSX.Element => {
-  const isMobile = useIsMobile()
+  const isMobile = useIsMobile('md')
 
   if (isMobile) {
     return (
@@ -39,7 +39,7 @@ export const Modal = ({
               <XIcon />
             </button>
           </div>
-          <div className="flex-grow px-7 flex flex-col justify-center">{children}</div>
+          <div className="flex-grow px-7 ">{children}</div>
         </div>
       </IonModal>
     )
@@ -71,8 +71,8 @@ export const Modal = ({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="transform overflow-hidden rounded-2xl bg-white border p-6 text-left align-middle shadow-xl transition-all">
-                <div className="flex justify-between items-center px-3">
+              <Dialog.Panel className="transform overflow-hidden rounded-2xl bg-white border py-3 pb-6 px-9 text-left align-middle shadow-xl transition-all">
+                <div className="flex justify-between items-center py-3">
                   <Dialog.Title className="text-2xl font-semibold leading-6 text-gray-900">{title}</Dialog.Title>
                   <button
                     className="flex items-center rounded-full hover:bg-gray-50 border p-2"
