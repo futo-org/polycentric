@@ -5,8 +5,9 @@ import internetTodayURL from '../../../../graphics/onboarding/internettoday.svg'
 import starterURL from '../../../../graphics/onboarding/starter.svg'
 import { useOnboardingProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
 import { useThemeColor } from '../../../hooks/styleHooks'
-import { cropImageToWebp, publishBlobToAvatar } from '../../../util/imageProcessing'
-import { CropProfilePicModal } from '../../profile/CropProfilePic'
+
+import { publishBlobToAvatar } from '../../../util/imageProcessing'
+import { ProfileAvatarInput } from '../../profile/edit/inputs/ProfileAvatarInput'
 import { Carousel } from '../../util/carousel'
 
 const OnboardingPanel = ({ children, imgSrc }: { children: ReactNode; nextSlide: () => void; imgSrc: string }) => (
@@ -109,101 +110,6 @@ const GenCredsPanelItem = ({
   </div>
 )
 
-// copy this but for a profile image upload, with a small circle with an upload symbol (just put "u" fo for now) that switches to the uploaded image and an x that appears next to it to remove it
-const XIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-    <path
-      fillRule="evenodd"
-      d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z"
-      clipRule="evenodd"
-    />
-  </svg>
-)
-
-const useCleanupObjectURL = (url?: string) => {
-  useEffect(() => {
-    return () => {
-      if (url) URL.revokeObjectURL(url)
-    }
-  }, [url])
-}
-
-const GenCredsPanelImageUpload = ({
-  title,
-  hint,
-  setImage,
-}: {
-  title: string
-  hint?: string
-  setImage: (image?: Blob) => void
-}) => {
-  const [rawImage, setRawImage] = useState<File | undefined>(undefined)
-  // react-easy-crop requires an image URL to crop
-  const [cropperURL, setCropperURL] = useState<string | undefined>(undefined)
-  const [cropping, setCropping] = useState(false)
-  const [croppedPreviewURL, setCroppedPreviewURL] = useState<string | undefined>(undefined)
-
-  useCleanupObjectURL(cropperURL)
-  useCleanupObjectURL(croppedPreviewURL)
-
-  return (
-    <div className="flex flex-col gap-y-1">
-      <h3 className="font-medium">{title}</h3>
-      <div className="">
-        <label htmlFor="upload-button" className="">
-          <img src={croppedPreviewURL} className="w-16 h-16 rounded-full border overflow-hidden" />
-        </label>
-        <input
-          id="upload-button"
-          type="file"
-          className="hidden"
-          accept="image/png, image/jpeg, image/webp"
-          onChange={(e) => {
-            setCropping(true)
-            const image = e.target.files?.[0]
-            if (image) {
-              setRawImage(image)
-              setCropperURL(URL.createObjectURL(image))
-            } else {
-              setRawImage(undefined)
-              setCropperURL(undefined)
-            }
-          }}
-        />
-      </div>
-      {/* X button */}
-      <button className="absolute top-0 right-0 w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-        <XIcon />
-      </button>
-      <p className="text-sm text-gray-700">{hint}</p>
-      {cropping && cropperURL && (
-        <CropProfilePicModal
-          src={cropperURL}
-          aspect={1}
-          open={cropperURL !== undefined}
-          setOpen={(open) => {
-            if (!open) {
-              setCropping(false)
-              setCropperURL(undefined)
-            }
-          }}
-          onCrop={async ({ x, y, width, height }) => {
-            if (rawImage) {
-              const croppedImage = await cropImageToWebp(rawImage, x, y, width, height)
-              setCropperURL(undefined)
-              setImage(croppedImage)
-
-              const previewUrl = URL.createObjectURL(croppedImage)
-              setCroppedPreviewURL(previewUrl)
-            }
-            setCropping(false)
-          }}
-        />
-      )}
-    </div>
-  )
-}
-
 const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
   const [avatar, setAvatar] = useState<Blob>()
   const [privateKey] = useState(Models.PrivateKey.random())
@@ -214,6 +120,7 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
     <OnboardingPanel nextSlide={nextSlide} imgSrc={internetTodayURL}>
       <div className="flex flex-col justify-center h-full p-10 gap-y-5">
         <form
+          className="flex flex-col gap-y-5"
           onSubmit={async (e) => {
             e.preventDefault()
 
@@ -237,7 +144,7 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
             }
           }}
         >
-          <GenCredsPanelImageUpload
+          <ProfileAvatarInput
             title="Upload a profile picture (optional)"
             hint="You can change this later"
             setImage={setAvatar}
