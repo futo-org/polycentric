@@ -1,5 +1,6 @@
 import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { useBlobDisplayURL } from '../../../hooks/imageHooks'
 import { TopicSuggestionBox } from '../TopicSuggestionBox'
 
 const startsWithSlash = /^\/.*/
@@ -113,18 +114,7 @@ export const Compose = ({
   const textRef = useRef<HTMLTextAreaElement | null>(null)
   const uploadRef = useRef<HTMLInputElement | null>(null)
 
-  const [imageUrl, setImageUrl] = useState<string | undefined>()
-
-  useEffect(() => {
-    let currentURL: string | undefined
-    if (upload) {
-      currentURL = URL.createObjectURL(upload)
-      setImageUrl(currentURL)
-    }
-    return () => {
-      if (currentURL) URL.revokeObjectURL(currentURL)
-    }
-  }, [upload])
+  const imageUrl = useBlobDisplayURL(upload)
 
   const post = useCallback(() => {
     onPost?.(content, upload).then(() => {
