@@ -1,4 +1,5 @@
 import { Menu } from '@headlessui/react'
+import { IonMenuToggle } from '@ionic/react'
 import { MetaStore, Models } from '@polycentric/polycentric-core'
 import { useState } from 'react'
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
@@ -97,13 +98,15 @@ export const AccountSwitcher = () => {
         )}
         <div className={`flex justify-between p-2 w-full ${expanded ? 'rounded-b-[2rem]' : 'rounded-[2rem]'}`}>
           <div className="flex space-x-2">
-            <Link
-              routerLink={systemLink}
-              routerDirection="root"
-              className="h-[3rem] w-[3rem] rounded-full border overflow-clip"
-            >
-              <img className="" src={avatarURL} />
-            </Link>
+            <IonMenuToggle className="contents">
+              <Link
+                routerLink={systemLink}
+                routerDirection="root"
+                className="h-[3rem] w-[3rem] rounded-full border overflow-clip"
+              >
+                <img className="" src={avatarURL} />
+              </Link>
+            </IonMenuToggle>
             <div className="flex flex-col">
               <p className="bold text-normal">{username}</p>
               <p className="font-light text-gray-400">{key}</p>
