@@ -1,7 +1,7 @@
 import { Models, Protocol } from '@polycentric/polycentric-core'
-import { useCallback, useState } from 'react'
+import { useAvatar } from '../../../../hooks/imageHooks'
 import { useProcessHandleManager } from '../../../../hooks/processHandleManagerHooks'
-import { useAvatar, useQueryIfAdded, useUsernameCRDTQuery } from '../../../../hooks/queryHooks'
+import { useQueryIfAdded, useUsernameCRDTQuery } from '../../../../hooks/queryHooks'
 import { PureMobileFeedProfile } from '../PureMobileFeedProfile'
 
 export const MobileProfileFeed = ({ system }: { system: Models.PublicKey.PublicKey }) => {

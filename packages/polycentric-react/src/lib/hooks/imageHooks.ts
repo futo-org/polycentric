@@ -1,6 +1,8 @@
 import { Models, Protocol } from '@polycentric/polycentric-core'
-import { useCallback, useEffect, useState } from 'react'
-import { useBlobQuery } from './queryHooks'
+import Long from 'long'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { avatarResolutions } from '../util/imageProcessing'
+import { useBlobQuery, useCRDTQuery } from './queryHooks'
 
 export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
   const [blobURL, setBlobURL] = useState<string | undefined>(undefined)
@@ -46,4 +48,38 @@ export const useImageManifestDisplayURL = (
   const imageURL = useBlobDisplayURL(blob)
 
   return imageURL
+}
+
+const decodeAvatarImageBundle = (rawImageBundle: Uint8Array, squareHeight: number) => {
+  const imageBundle = Protocol.ImageBundle.decode(rawImageBundle)
+
+  const manifest = imageBundle.imageManifests.find((manifest) => {
+    return manifest.height.equals(Long.fromNumber(squareHeight)) && manifest.width.equals(Long.fromNumber(squareHeight))
+  })
+
+  if (manifest === undefined) {
+    return undefined
+  }
+
+  return manifest
+}
+
+const makeImageBundleDecoder = (squareHeight: number) => {
+  return (rawImageBundle: Uint8Array) => {
+    return decodeAvatarImageBundle(rawImageBundle, squareHeight)
+  }
+}
+
+export const useAvatar = (
+  system?: Models.PublicKey.PublicKey,
+  size: keyof typeof avatarResolutions = 'lg',
+): string | undefined => {
+  const decoder = useMemo(() => {
+    const squareHeight = avatarResolutions[size]
+    return makeImageBundleDecoder(squareHeight)
+  }, [size])
+
+  const manifest = useCRDTQuery(system, Models.ContentType.ContentTypeAvatar, decoder)
+
+  return useImageManifestDisplayURL(system, manifest)
 }
