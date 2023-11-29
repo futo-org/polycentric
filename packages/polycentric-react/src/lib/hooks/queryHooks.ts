@@ -109,6 +109,12 @@ export const useEventLink = (system: Models.PublicKey.PublicKey, pointer: Models
   return link
 }
 
+export const useTopicLink = (topic: string) => {
+  return useMemo(() => {
+    return '/t/' + encodeURIComponent(topic)
+  }, [topic])
+}
+
 export const useDateFromUnixMS = (unixMS: Long | undefined) => {
   return useMemo<Date | undefined>(() => {
     if (unixMS === undefined) {
