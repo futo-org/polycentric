@@ -34,11 +34,11 @@ export const ProfileAvatarInput = ({
     <div className="flex flex-col gap-y-1">
       <h3 className="font-medium">{title}</h3>
       <div className="">
-        <div className="w-16 h-16 rounded-full border overflow-clip">
-          <label htmlFor="upload-button" className="">
+        <label htmlFor="upload-button" className="">
+          <div className="w-16 h-16 rounded-full border overflow-clip">
             <img src={croppedPreviewURL} className="" />
-          </label>
-        </div>
+          </div>
+        </label>
         <input
           id="upload-button"
           type="file"
