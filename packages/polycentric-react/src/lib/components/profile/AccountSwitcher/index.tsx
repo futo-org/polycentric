@@ -97,7 +97,11 @@ export const AccountSwitcher = () => {
         )}
         <div className={`flex justify-between p-2 w-full ${expanded ? 'rounded-b-[2rem]' : 'rounded-[2rem]'}`}>
           <div className="flex space-x-2">
-            <Link routerLink={systemLink} className="h-[3rem] w-[3rem] rounded-full border overflow-clip">
+            <Link
+              routerLink={systemLink}
+              routerDirection="root"
+              className="h-[3rem] w-[3rem] rounded-full border overflow-clip"
+            >
               <img className="" src={avatarURL} />
             </Link>
             <div className="flex flex-col">
