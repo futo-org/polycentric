@@ -17,7 +17,7 @@ export const PopupComposeReply = ({
     content: string
     publishedAt?: Date
     author: PopupComposeReplyProfile
-    topic: string
+    topic?: string
   }
   sub?: {
     content: string
@@ -102,7 +102,7 @@ export const PopupComposeReplyFullscreen = ({
     content: string
     publishedAt?: Date
     author: PopupComposeReplyProfile
-    topic: string
+    topic?: string
   }
   sub?: {
     content: string

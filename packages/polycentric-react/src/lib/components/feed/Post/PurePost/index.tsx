@@ -202,7 +202,7 @@ export interface PurePostProps {
     content: string
     author: Profile
     publishedAt?: Date
-    topic: string
+    topic?: string
     image?: string
     // URLs aren't synchronous because we need to get the list of servers
     url?: string
@@ -350,7 +350,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   <div className="flex w-full justify-between">
                     <div className="">
                       <address className="font-bold text-md author not-italic">{main.author.name}</address>
-                      {/* <div className="text-gray-300 leading-3">{main.author.pubkey}</div> */}
+                      <div className="text-gray-300 leading-3">{main.topic}</div>
                     </div>
                     <div className="flex space-x-2 text-gray-700 items-center">
                       <time className="text-right sm:text-right pr-3 lg:pr-0 font-light text-gray-500 tracking-tight">
