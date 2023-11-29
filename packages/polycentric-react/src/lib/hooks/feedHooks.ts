@@ -1,4 +1,4 @@
-import { Models, Protocol, Queries } from '@polycentric/polycentric-core'
+import { Models, Protocol, Queries, Util } from '@polycentric/polycentric-core'
 import { useMemo } from 'react'
 import { ParsedEvent, useIndex, useQueryCursor, useQueryReferenceEventFeed } from './queryHooks'
 
@@ -17,10 +17,6 @@ export const useExploreFeed: FeedHook = () => {
   return useQueryCursor(loadCallback, Protocol.Post.decode)
 }
 
-export const useTopicFeed: FeedHook = (topic: string) => {
-  return [[], () => topic]
-}
-
 export const useSearchFeed: FeedHook = (searchQuery: string) => {
   const loadCallback = useMemo(() => Queries.QueryCursor.makeGetSearchCallback(searchQuery), [searchQuery])
   const [data, advanceFn, loaded] = useQueryCursor(loadCallback, Protocol.Post.decode)
@@ -35,6 +31,18 @@ const commentFeedRequestEvents = {
 }
 const emptyArray: [] = []
 
+export const useReferenceFeed = (reference?: Protocol.Reference) => {
+  return useQueryReferenceEventFeed(Protocol.Post.decode, reference, commentFeedRequestEvents, emptyArray, emptyArray)
+}
+
+export const useTopicFeed = (topic: string) => {
+  const reference = useMemo(() => {
+    return Models.bufferToReference(Util.encodeText(topic))
+  }, [topic])
+
+  return useReferenceFeed(reference)
+}
+
 export const useCommentFeed = (post?: Models.SignedEvent.SignedEvent) => {
   const reference = useMemo(() => {
     if (!post) {
@@ -44,5 +52,5 @@ export const useCommentFeed = (post?: Models.SignedEvent.SignedEvent) => {
     return Models.pointerToReference(pointer)
   }, [post])
 
-  return useQueryReferenceEventFeed(Protocol.Post.decode, reference, commentFeedRequestEvents, emptyArray, emptyArray)
+  return useReferenceFeed(reference)
 }

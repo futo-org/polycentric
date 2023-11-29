@@ -348,9 +348,15 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                 {/* Right column */}
                 <div className="flex-grow w-full lg:max-w-[600px]">
                   <div className="flex w-full justify-between">
-                    <div className="">
-                      <address className="font-bold text-md author not-italic">{main.author.name}</address>
-                      <div className="text-gray-300 leading-3">{main.topic}</div>
+                    <div className="" onClick={(e) => e.stopPropagation()}>
+                      <Link routerLink={main.author.URL ?? '#'} className="text-inherit">
+                        <address className="font-bold text-md author not-italic hover:underline">
+                          {main.author.name}
+                        </address>
+                      </Link>
+                      <Link routerLink={`/t/${main.topic}`} className="text-gray-300 leading-3">
+                        {main.topic}
+                      </Link>
                     </div>
                     <div className="flex space-x-2 text-gray-700 items-center">
                       <time className="text-right sm:text-right pr-3 lg:pr-0 font-light text-gray-500 tracking-tight">
