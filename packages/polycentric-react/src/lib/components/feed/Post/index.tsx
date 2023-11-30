@@ -4,7 +4,6 @@ import { useImageManifestDisplayURL } from '../../../hooks/imageHooks'
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
 import {
   ParsedEvent,
-  useAvatar,
   useDateFromUnixMS,
   useEventLink,
   usePostStats,
@@ -13,6 +12,7 @@ import {
   useTextPublicKey,
   useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks'
+import { useAvatar } from '../../../hooks/imageHooks'
 import { PurePost, PurePostProps } from './PurePost'
 
 interface PostProps {
