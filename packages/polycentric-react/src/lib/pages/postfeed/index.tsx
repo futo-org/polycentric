@@ -1,12 +1,13 @@
 import { decode } from '@borderless/base64'
 import { IonContent } from '@ionic/react'
 import { Models, Protocol } from '@polycentric/polycentric-core'
-import { useCallback, useMemo } from 'react'
+import { useMemo } from 'react'
 import { Page } from '../../app/router'
 import { Post } from '../../components'
 import { Header } from '../../components/layout/header'
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol'
 import { UserColumn } from '../../components/profile/sidebarprofile'
+import { useCommentFeed } from '../../hooks/feedHooks'
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks'
 import { useQueryPost } from '../../hooks/queryHooks'
 import { useParams } from '../../hooks/stackRouterHooks'
@@ -26,8 +27,6 @@ export const PostFeedPage: Page = () => {
     return linkInfo
   }, [urlInfoString, processHandle])
 
-  const todoAdvanceComments = useCallback(() => {}, [])
-
   const postEvent = useQueryPost(system, process, logicalClock)
   const post = useMemo(() => {
     return <Post data={postEvent} doesLink={false} autoExpand={true} />
@@ -35,14 +34,16 @@ export const PostFeedPage: Page = () => {
 
   const column = <UserColumn system={system} />
 
+  const [comments, advanceComments] = useCommentFeed(postEvent?.signedEvent)
+
   return (
     <>
       <Header>Post</Header>
 
       <IonContent>
         <InfiniteScrollWithRightCol
-          data={[]}
-          advanceFeed={todoAdvanceComments}
+          data={comments}
+          advanceFeed={advanceComments}
           leftCol={column}
           topFeedComponent={post}
         />
