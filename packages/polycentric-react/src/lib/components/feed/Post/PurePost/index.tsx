@@ -465,6 +465,16 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                     count={stats?.likes}
                     clicked={actions?.liked ?? false}
                   />
+                  {navigator.share && (
+                    <SharePostButton
+                      onClick={() => {
+                        navigator.share({
+                          title: `${main.author.name} posted on Polycentric: ${main.content.substring(0, 20)}...`,
+                          url: main.url,
+                        })
+                      }}
+                    />
+                  )}
                 </div>
               </div>
               <div onClick={(e) => e.stopPropagation()}>
