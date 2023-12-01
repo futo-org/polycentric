@@ -90,8 +90,8 @@ export const useIsAtLeastTailwindBreakpoint = (breakpoint: string) => {
   return breakpointNames.indexOf(currentBreakpoint) >= breakpointNames.indexOf(breakpoint)
 }
 
-export const useIsMobile = () => {
-  return useIsAtLeastTailwindBreakpoint('lg') === false
+export const useIsMobile = (breakpoint = 'lg') => {
+  return useIsAtLeastTailwindBreakpoint(breakpoint) === false
 }
 
 export const useThemeColor = (color: string) => {

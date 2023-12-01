@@ -10,7 +10,6 @@ import {
 } from '@polycentric/polycentric-core'
 import Long from 'long'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { useImageManifestDisplayURL } from './imageHooks'
 import { useProcessHandleManager } from './processHandleManagerHooks'
 
 // Since we create query managers based on the driver passed in, we set the query managers value at the root of the app.
@@ -56,6 +55,10 @@ export function useCRDTQuery<T>(
 
 export const useUsernameCRDTQuery = (system?: Models.PublicKey.PublicKey) => {
   return useCRDTQuery(system, Models.ContentType.ContentTypeUsername, Util.decodeText)
+}
+
+export const useDescriptionCRDTQuery = (system?: Models.PublicKey.PublicKey) => {
+  return useCRDTQuery(system, Models.ContentType.ContentTypeDescription, Util.decodeText)
 }
 
 export const useTextPublicKey = (system: Models.PublicKey.PublicKey, maxLength?: number) => {
@@ -151,26 +154,6 @@ export function useBlobQuery<T>(
   }, [system, process, range, queryManager, parse])
 
   return state
-}
-
-const decodeAvatarImageBundle = (rawImageBundle: Uint8Array) => {
-  const imageBundle = Protocol.ImageBundle.decode(rawImageBundle)
-
-  const manifest = imageBundle.imageManifests.find((manifest) => {
-    return manifest.height.equals(Long.fromNumber(256)) && manifest.width.equals(Long.fromNumber(256))
-  })
-
-  if (manifest === undefined) {
-    return undefined
-  }
-
-  return manifest
-}
-
-export const useAvatar = (system?: Models.PublicKey.PublicKey): string | undefined => {
-  const manifest = useCRDTQuery(system, Models.ContentType.ContentTypeAvatar, decodeAvatarImageBundle)
-
-  return useImageManifestDisplayURL(system, manifest)
 }
 
 export class ParsedEvent<T> {
@@ -528,4 +511,34 @@ export function useQueryPost(
   logicalClock: Long,
 ): ParsedEvent<Protocol.Post> | undefined {
   return useQueryEvent(system, process, logicalClock, Protocol.Post.decode)
+}
+
+export const useQueryReferenceEventFeed = <T>(
+  decode: (buffer: Uint8Array) => T,
+  reference?: Protocol.Reference,
+  requestEvents?: Protocol.QueryReferencesRequestEvents,
+  countLwwElementReferences?: Protocol.QueryReferencesRequestCountLWWElementReferences[],
+  countReferences?: Protocol.QueryReferencesRequestCountReferences[],
+) => {
+  const loadCallback: Queries.QueryCursor.LoadCallback = useMemo(() => {
+    return async (server, limit, cursor) => {
+      if (reference === undefined) {
+        return Models.ResultEventsAndRelatedEventsAndCursor.fromEmpty()
+      }
+
+      // limit is hardcoded to 20 serverside right now, which is fine for now.
+      const response = await APIMethods.getQueryReferences(
+        server,
+        reference,
+        cursor,
+        requestEvents,
+        countLwwElementReferences,
+        countReferences,
+      )
+
+      return Models.ResultEventsAndRelatedEventsAndCursor.fromQueryReferencesResponse(response)
+    }
+  }, [countLwwElementReferences, countReferences, reference, requestEvents])
+
+  return useQueryCursor(loadCallback, decode)
 }
