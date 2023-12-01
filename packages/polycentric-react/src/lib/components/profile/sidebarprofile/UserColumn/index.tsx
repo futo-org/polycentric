@@ -1,11 +1,14 @@
 import { Models, Protocol } from '@polycentric/polycentric-core'
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { useAvatar } from '../../../../hooks/imageHooks'
 import { useProcessHandleManager } from '../../../../hooks/processHandleManagerHooks'
-import { useAvatar, useQueryIfAdded, useUsernameCRDTQuery } from '../../../../hooks/queryHooks'
+import { useDescriptionCRDTQuery, useQueryIfAdded, useUsernameCRDTQuery } from '../../../../hooks/queryHooks'
+import { publishBlobToAvatar } from '../../../../util/imageProcessing'
 import { PureSidebarProfile } from '../PureSidebarProfile'
 
 export const UserColumn = ({ system }: { system: Models.PublicKey.PublicKey }) => {
   const name = useUsernameCRDTQuery(system)
+  const description = useDescriptionCRDTQuery(system)
   const avatarURL = useAvatar(system)
   const { processHandle } = useProcessHandleManager()
 
@@ -31,16 +34,26 @@ export const UserColumn = ({ system }: { system: Models.PublicKey.PublicKey }) =
 
   const iAmFollowing = localFollowing ? localFollowing : remotelyFollowing
 
+  const editProfileActions = useMemo(() => {
+    return {
+      changeUsername: processHandle.setUsername,
+      changeDescription: processHandle.setDescription,
+      changeAvatar: async (blob: Blob) => publishBlobToAvatar(blob, processHandle),
+    }
+  }, [processHandle])
+
   return (
     <PureSidebarProfile
       profile={{
         name,
+        description,
         avatarURL,
         isMyProfile,
         iAmFollowing: iAmFollowing,
         followerCount: followers,
         followingCount: following,
       }}
+      editProfileActions={editProfileActions}
       follow={follow}
       unfollow={unfollow}
     />

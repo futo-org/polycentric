@@ -1,6 +1,8 @@
 import { ProcessHandle, Protocol } from '@polycentric/polycentric-core'
 import Long from 'long'
 
+export const avatarResolutions = { lg: 256, md: 128, sm: 32 }
+
 export async function cropImageToWebp(image: Blob, x: number, y: number, width: number, height: number): Promise<Blob> {
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')

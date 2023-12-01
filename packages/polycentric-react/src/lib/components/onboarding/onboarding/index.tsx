@@ -31,7 +31,7 @@ const WelcomePanel = ({ nextSlide }: { nextSlide: () => void }) => (
       <div className="text-4xl md:font-6xl font-bold">Welcome to Polycentric</div>
       <div className="text-gray-400 text-lg">Posting for communities</div>
       <button
-        className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+        className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
         onClick={nextSlide}
       >
         Try it (no email needed)
@@ -51,7 +51,7 @@ const InternetTodayPanel = ({ nextSlide }: { nextSlide: () => void }) => (
         Polycentric was developed with a love for the old internet, built around communities and respect for you.
       </p>
       <button
-        className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+        className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
         onClick={nextSlide}
       >
         Lets go back
@@ -61,12 +61,12 @@ const InternetTodayPanel = ({ nextSlide }: { nextSlide: () => void }) => (
 )
 
 const RequestNotificationsPanel = ({ nextSlide }: { nextSlide: () => void }) => (
-  <OnboardingPanel nextSlide={nextSlide} imgSrc={internetTodayURL}>
+  <OnboardingPanel nextSlide={nextSlide} imgSrc={starterURL}>
     <div className="flex flex-col p-10 gap-y-10">
       <div className="text-4xl font-bold">Enable Notifications</div>
       <p className="text-xl">We need you to enable notifications because chrome is stupid.</p>
       <button
-        className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+        className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
         onClick={async () => {
           const permission = await Notification.requestPermission()
           if (permission === 'denied') console.error('Notifications denied')
@@ -117,7 +117,7 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
   const { createHandle: createAccount } = useOnboardingProcessHandleManager()
 
   return (
-    <OnboardingPanel nextSlide={nextSlide} imgSrc={internetTodayURL}>
+    <OnboardingPanel nextSlide={nextSlide} imgSrc={starterURL}>
       <div className="flex flex-col justify-center h-full p-10 gap-y-5">
         <form
           className="flex flex-col gap-y-5"
@@ -163,7 +163,7 @@ const GenCredsPanel = ({ nextSlide }: { nextSlide: () => void }) => {
           />
           <button
             type="submit"
-            className="bg-blue-500 text-white border shadow rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+            className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
           >
             Lets go
           </button>
