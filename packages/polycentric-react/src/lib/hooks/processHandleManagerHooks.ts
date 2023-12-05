@@ -96,23 +96,30 @@ export function useProcessHandleManagerBaseComponentHook(
 
   const createHandleFromExportBundle = useCallback(
     async (bundle: string) => {
-      if (bundle.startsWith('polycentric://') === false) {
+      let privateKeyModel: Models.PrivateKey.PrivateKey
+      let exportBundle: Protocol.ExportBundle
+
+      try {
+        if (bundle.startsWith('polycentric://') === false) {
+          throw new Error()
+        }
+
+        const bundleWithoutPrefix = bundle.replace('polycentric://', '')
+        const urlInfo = Protocol.URLInfo.decode(decode(bundleWithoutPrefix))
+        exportBundle = Models.URLInfo.getExportBundle(urlInfo)
+
+        const privateKeyBuffer: Uint8Array | undefined = exportBundle.keyPair?.privateKey
+        if (!privateKeyBuffer) {
+          throw new Error()
+        }
+        const privateKeyProto = Protocol.PrivateKey.create({
+          keyType: exportBundle.keyPair?.keyType,
+          key: privateKeyBuffer,
+        })
+        privateKeyModel = Models.PrivateKey.fromProto(privateKeyProto)
+      } catch (e) {
         throw new Error('Invalid identity string')
       }
-
-      const bundleWithoutPrefix = bundle.replace('polycentric://', '')
-      const urlInfo = Protocol.URLInfo.decode(decode(bundleWithoutPrefix))
-      const exportBundle = Models.URLInfo.getExportBundle(urlInfo)
-
-      const privateKeyBuffer: Uint8Array | undefined = exportBundle.keyPair?.privateKey
-      if (!privateKeyBuffer) {
-        throw new Error('Invalid identity string')
-      }
-      const privateKeyProto = Protocol.PrivateKey.create({
-        keyType: exportBundle.keyPair?.keyType,
-        key: privateKeyBuffer,
-      })
-      const privateKeyModel = Models.PrivateKey.fromProto(privateKeyProto)
 
       const processHandle = await ProcessHandle.createProcessHandleFromKey(metaStore, privateKeyModel)
 
