@@ -10,30 +10,30 @@ import * as Util from '../util';
 export type Callback = (buffer: Uint8Array) => void;
 
 type StateForQuery = {
-    system: Models.PublicKey.PublicKey;
-    process: Models.Process.Process;
-    wantRanges: Array<Ranges.IRange>;
-    haveRanges: Array<Ranges.IRange>;
-    events: Array<Models.Event.Event>;
-    callbacks: Set<Callback>;
+    readonly system: Readonly<Models.PublicKey.PublicKey>;
+    readonly process: Readonly<Models.Process.Process>;
+    readonly wantRanges: ReadonlyArray<Ranges.IRange>;
+    readonly haveRanges: Array<Ranges.IRange>;
+    readonly events: Array<Models.Event.Event>;
+    readonly callbacks: Set<Callback>;
     value: Uint8Array | undefined;
 };
 
 function makeKey(
     system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
-    ranges: Array<Ranges.IRange>,
+    ranges: ReadonlyArray<Ranges.IRange>,
 ): string {
     return (
         Models.PublicKey.toString(system) +
         Models.Process.toString(process) +
-        ranges.toString()
+        Ranges.toString(ranges)
     );
 }
 
 export class QueryManager {
-    private _processHandle: ProcessHandle.ProcessHandle;
-    private _state: Map<string, StateForQuery>;
+    private readonly _processHandle: ProcessHandle.ProcessHandle;
+    private readonly _state: Map<string, StateForQuery>;
     private _useDisk: boolean;
     private _useNetwork: boolean;
 
@@ -55,7 +55,7 @@ export class QueryManager {
     public query(
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
-        ranges: Array<Ranges.IRange>,
+        ranges: ReadonlyArray<Ranges.IRange>,
         callback: Callback,
     ): Shared.UnregisterCallback {
         const key = makeKey(system, process, ranges);
@@ -122,7 +122,7 @@ export class QueryManager {
                     );
 
                 if (signedEvent !== undefined) {
-                    this.update(Models.SignedEvent.fromProto(signedEvent));
+                    this.update(signedEvent);
                 }
             }
         }
@@ -164,9 +164,7 @@ export class QueryManager {
             },
         );
 
-        for (const event of events.events) {
-            this.update(Models.SignedEvent.fromProto(event));
-        }
+        events.events.forEach((x) => this.update(x));
     }
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {

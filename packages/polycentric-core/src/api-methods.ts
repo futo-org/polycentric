@@ -13,14 +13,16 @@ async function checkResponse(name: string, response: Response): Promise<void> {
 
 export async function postEvents(
     server: string,
-    events: Protocol.Events,
+    events: Array<Models.SignedEvent.SignedEvent>,
 ): Promise<void> {
     const response = await fetch(server + '/events', {
         method: 'POST',
         headers: new Headers({
             'content-type': 'application/octet-stream',
         }),
-        body: Protocol.Events.encode(events).finish(),
+        body: Protocol.Events.encode({
+            events: events,
+        }).finish(),
     });
 
     await checkResponse('postEvents', response);
@@ -75,7 +77,7 @@ export async function getEvents(
     server: string,
     system: Models.PublicKey.PublicKey,
     ranges: Protocol.RangesForSystem,
-): Promise<Protocol.Events> {
+): Promise<Models.Events.Type> {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
     );
@@ -97,7 +99,7 @@ export async function getEvents(
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
-    return Protocol.Events.decode(rawBody);
+    return Models.Events.fromBuffer(rawBody);
 }
 
 export async function getResolveClaim(
@@ -134,7 +136,7 @@ export async function getQueryLatest(
     server: string,
     system: Models.PublicKey.PublicKey,
     eventTypes: Array<Models.ContentType.ContentType>,
-): Promise<Protocol.Events> {
+): Promise<Models.Events.Type> {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
     );
@@ -160,7 +162,7 @@ export async function getQueryLatest(
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
-    return Protocol.Events.decode(rawBody);
+    return Models.Events.fromBuffer(rawBody);
 }
 
 export async function getQueryIndex(
@@ -263,7 +265,7 @@ export async function getSearch(
 export async function getHead(
     server: string,
     system: Models.PublicKey.PublicKey,
-): Promise<Protocol.Events> {
+): Promise<Models.Events.Type> {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
     );
@@ -281,7 +283,7 @@ export async function getHead(
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
-    return Protocol.Events.decode(rawBody);
+    return Models.Events.fromBuffer(rawBody);
 }
 
 export async function getExplore(

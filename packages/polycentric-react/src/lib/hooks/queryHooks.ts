@@ -57,6 +57,10 @@ export const useUsernameCRDTQuery = (system?: Models.PublicKey.PublicKey) => {
   return useCRDTQuery(system, Models.ContentType.ContentTypeUsername, Util.decodeText)
 }
 
+export const useDescriptionCRDTQuery = (system?: Models.PublicKey.PublicKey) => {
+  return useCRDTQuery(system, Models.ContentType.ContentTypeDescription, Util.decodeText)
+}
+
 export const useTextPublicKey = (system: Models.PublicKey.PublicKey, maxLength?: number) => {
   return useMemo<string>(() => {
     const string = Models.PublicKey.toString(system)
@@ -150,65 +154,6 @@ export function useBlobQuery<T>(
   }, [system, process, range, queryManager, parse])
 
   return state
-}
-
-const decodeImageManifest = (rawImageBundle: Uint8Array) => {
-  const imageBundle = Protocol.ImageBundle.decode(rawImageBundle)
-
-  const manifest = imageBundle.imageManifests.find((manifest) => {
-    return manifest.height.equals(Long.fromNumber(256)) && manifest.width.equals(Long.fromNumber(256))
-  })
-
-  if (manifest === undefined) {
-    throw new Error('manifest missing 256x256')
-  }
-
-  if (!manifest.process) {
-    throw new Error('manifest missing process')
-  }
-
-  return {
-    process: Models.Process.fromProto(manifest.process),
-    sections: manifest.sections,
-    mime: manifest.mime,
-  }
-}
-
-export const useAvatar = (system?: Models.PublicKey.PublicKey): string | undefined => {
-  const [avatarLink, setAvatarLink] = useState<string | undefined>(undefined)
-
-  const manifest = useCRDTQuery(system, Models.ContentType.ContentTypeAvatar, decodeImageManifest)
-
-  const { process, sections, mime } = manifest ?? {}
-
-  const parseAvatarBlob = useCallback(
-    (buffer: Uint8Array) => {
-      return new Blob([buffer], {
-        type: mime,
-      })
-    },
-    [mime],
-  )
-
-  const avatarBlob = useBlobQuery(system, process, sections, parseAvatarBlob)
-
-  useEffect(() => {
-    let currentURL: string | undefined
-    if (avatarBlob) {
-      currentURL = URL.createObjectURL(avatarBlob)
-      setAvatarLink(currentURL)
-    } else {
-      setAvatarLink(undefined)
-    }
-
-    return () => {
-      if (currentURL) {
-        URL.revokeObjectURL(currentURL)
-      }
-    }
-  }, [avatarBlob])
-
-  return avatarLink
 }
 
 export class ParsedEvent<T> {
@@ -465,14 +410,29 @@ export function useQueryCursor<T>(
   loadCallback: Queries.QueryCursor.LoadCallback,
   parse: (buffer: Uint8Array) => T,
   batchSize = 30,
-): [Array<ParsedEvent<T>>, () => void] {
+): [Array<ParsedEvent<T>>, () => void, boolean] {
   const { processHandle } = useProcessHandleManager()
+  const [loaded, setLoaded] = useState<boolean>(false)
   const [state, setState] = useState<Array<ParsedEvent<T>>>([])
   const query = useRef<Queries.QueryCursor.Query | null>(null)
-  const [advance, setAdvance] = useState<() => void>(() => {})
+  const [advance, setAdvance] = useState<() => void>(() => {
+    return () => {}
+  })
 
-  const addNewCells = useCallback(
-    (newCells: Queries.QueryCursor.Cell[]) => {
+  useEffect(() => {
+    setState([])
+    setAdvance(() => () => {})
+    setLoaded(false)
+
+    const cancelContext = new CancelContext.CancelContext()
+
+    const addNewCells = (newCells: Queries.QueryCursor.Cell[]) => {
+      if (cancelContext.cancelled()) {
+        return
+      }
+
+      setLoaded(true)
+
       const newCellsAsSignedEvents = newCells.map((cell) => {
         const { signedEvent } = cell
         const event = Models.Event.fromBuffer(signedEvent.event)
@@ -481,21 +441,104 @@ export function useQueryCursor<T>(
         return new ParsedEvent<T>(signedEvent, event, parsed)
       })
       setState((currentCells) => [...currentCells].concat(newCellsAsSignedEvents))
-    },
-    [parse, processHandle],
-  )
+    }
 
-  useEffect(() => {
-    setState([])
     const newQuery = new Queries.QueryCursor.Query(processHandle, loadCallback, addNewCells, batchSize)
     query.current = newQuery
     setAdvance(() => query.current?.advance.bind(query.current) ?? (() => {}))
     return () => {
+      cancelContext.cancel()
       newQuery.cleanup()
     }
     // NOTE: Currently we don't care about dynamic batch sizes.
     // If we do, the current implementation of this hook will result in clearing the whole feed when the batch size changes.
-  }, [processHandle, loadCallback, addNewCells, batchSize])
+  }, [processHandle, loadCallback, batchSize, parse])
 
-  return [state, advance]
+  return [state, advance, loaded]
+}
+
+export function useQueryEvent<T>(
+  system: Models.PublicKey.PublicKey,
+  process: Models.Process.Process,
+  logicalClock: Long,
+  parse: (buffer: Uint8Array) => T,
+): ParsedEvent<T> | undefined {
+  const queryManager = useQueryManager()
+
+  const [parsedEvent, setParsedEvent] = useState<ParsedEvent<T> | undefined>(undefined)
+
+  useEffect(() => {
+    setParsedEvent(undefined)
+
+    if (system !== undefined) {
+      const cancelContext = new CancelContext.CancelContext()
+
+      const unregister = queryManager.queryEvent.query(
+        system,
+        process,
+        logicalClock,
+        (signedEvent: Models.SignedEvent.SignedEvent | undefined) => {
+          if (cancelContext.cancelled()) {
+            return
+          }
+
+          let parsedEvent: ParsedEvent<T> | undefined = undefined
+
+          if (signedEvent !== undefined) {
+            const event = Models.Event.fromBuffer(signedEvent.event)
+            const parsed = parse(event.content)
+
+            parsedEvent = new ParsedEvent<T>(signedEvent, event, parsed)
+          }
+
+          setParsedEvent(parsedEvent)
+        },
+      )
+
+      return () => {
+        cancelContext.cancel()
+        unregister()
+      }
+    }
+  }, [queryManager, system, process, logicalClock, parse])
+
+  return parsedEvent
+}
+
+export function useQueryPost(
+  system: Models.PublicKey.PublicKey,
+  process: Models.Process.Process,
+  logicalClock: Long,
+): ParsedEvent<Protocol.Post> | undefined {
+  return useQueryEvent(system, process, logicalClock, Protocol.Post.decode)
+}
+
+export const useQueryReferenceEventFeed = <T>(
+  decode: (buffer: Uint8Array) => T,
+  reference?: Protocol.Reference,
+  requestEvents?: Protocol.QueryReferencesRequestEvents,
+  countLwwElementReferences?: Protocol.QueryReferencesRequestCountLWWElementReferences[],
+  countReferences?: Protocol.QueryReferencesRequestCountReferences[],
+) => {
+  const loadCallback: Queries.QueryCursor.LoadCallback = useMemo(() => {
+    return async (server, limit, cursor) => {
+      if (reference === undefined) {
+        return Models.ResultEventsAndRelatedEventsAndCursor.fromEmpty()
+      }
+
+      // limit is hardcoded to 20 serverside right now, which is fine for now.
+      const response = await APIMethods.getQueryReferences(
+        server,
+        reference,
+        cursor,
+        requestEvents,
+        countLwwElementReferences,
+        countReferences,
+      )
+
+      return Models.ResultEventsAndRelatedEventsAndCursor.fromQueryReferencesResponse(response)
+    }
+  }, [countLwwElementReferences, countReferences, reference, requestEvents])
+
+  return useQueryCursor(loadCallback, decode)
 }

@@ -3,7 +3,13 @@ module.exports = {
     browser: true,
     es2021: true,
   },
-  extends: ['plugin:react/recommended', 'plugin:@typescript-eslint/recommended', 'prettier', 'plugin:storybook/recommended', 'plugin:react-hooks/recommended'],
+  extends: [
+    'plugin:react/recommended',
+    'plugin:@typescript-eslint/recommended',
+    'prettier',
+    'plugin:storybook/recommended',
+    'plugin:react-hooks/recommended',
+  ],
   overrides: [],
   parserOptions: {
     ecmaVersion: 'latest',
@@ -17,12 +23,12 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': 'warn',
     '@typescript-eslint/ban-ts-comment': 'off',
     '@typescript-eslint/no-empty-function': 'off',
-    "react-refresh/only-export-components": "warn",
-    'no-console': 'off'
+    'react-refresh/only-export-components': 'warn',
+    'no-console': ['error', { allow: ['warn', 'error'] }],
   },
   settings: {
     react: {
       version: 'detect',
     },
-  }
+  },
 }

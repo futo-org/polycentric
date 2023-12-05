@@ -1,57 +1,19 @@
 import { decode } from '@borderless/base64'
+import { IonContent } from '@ionic/react'
 import { Models, Protocol } from '@polycentric/polycentric-core'
-import { useCallback, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { PureSidebarProfile } from '../../components'
+import { useMemo } from 'react'
+import { Page } from '../../app/router'
+import { PostCompose } from '../../components/feed/Compose/PostCompose'
+import { Header } from '../../components/layout/header'
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol'
+import { MobileProfileFeed } from '../../components/profile/mobilefeedprofile'
+import { UserColumn } from '../../components/profile/sidebarprofile/UserColumn'
 import { useAuthorFeed } from '../../hooks/feedHooks'
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks'
-import { useAvatar, useQueryIfAdded, useUsernameCRDTQuery } from '../../hooks/queryHooks'
+import { useParams } from '../../hooks/stackRouterHooks'
+import { useIsMobile } from '../../hooks/styleHooks'
 
-const UserColumn = ({ system }: { system: Models.PublicKey.PublicKey }) => {
-  const name = useUsernameCRDTQuery(system)
-  const avatarURL = useAvatar(system)
-  const { processHandle } = useProcessHandleManager()
-
-  const [localFollowing, setLocalFollowing] = useState<boolean | undefined>()
-  const remotelyFollowing = useQueryIfAdded(
-    Models.ContentType.ContentTypeFollow,
-    processHandle.system(),
-    Protocol.PublicKey.encode(system).finish(),
-  )
-
-  const follow = useCallback(() => {
-    processHandle.follow(system).then(() => setLocalFollowing(true))
-  }, [processHandle, system])
-
-  const unfollow = useCallback(() => {
-    processHandle.unfollow(system).then(() => setLocalFollowing(false))
-  }, [processHandle, system])
-
-  const isMyProfile = Models.PublicKey.equal(system, processHandle.system())
-
-  const followers = 0
-  const following = 0
-
-  const iAmFollowing = localFollowing ? localFollowing : remotelyFollowing
-
-  return (
-    <PureSidebarProfile
-      profile={{
-        name,
-        avatarURL,
-        isMyProfile,
-        iAmFollowing: iAmFollowing,
-        followerCount: followers,
-        followingCount: following,
-      }}
-      follow={follow}
-      unfollow={unfollow}
-    />
-  )
-}
-
-export const UserFeedPage = () => {
+export const UserFeedPage: Page = () => {
   const { urlInfoString } = useParams<{ urlInfoString: string }>()
   const { processHandle } = useProcessHandleManager()
 
@@ -70,12 +32,25 @@ export const UserFeedPage = () => {
 
   const column = <UserColumn system={system} />
 
+  const isMobile = useIsMobile()
+  const isMyProfile = Models.PublicKey.equal(system, processHandle.system())
+
+  const topComponent = useMemo(() => {
+    if (isMobile) return <MobileProfileFeed system={system} />
+    return isMyProfile ? <PostCompose /> : undefined
+  }, [isMobile, isMyProfile, system])
+
   return (
-    <InfiniteScrollWithRightCol
-      data={data}
-      advanceFeed={advanceFeed}
-      leftCol={column}
-      showComposeOnDesktop={Models.PublicKey.equal(system, processHandle.system())}
-    />
+    <>
+      <Header>Profile</Header>
+      <IonContent>
+        <InfiniteScrollWithRightCol
+          data={data}
+          advanceFeed={advanceFeed}
+          leftCol={column}
+          topFeedComponent={topComponent}
+        />
+      </IonContent>
+    </>
   )
 }

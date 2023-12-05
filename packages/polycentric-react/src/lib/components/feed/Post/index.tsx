@@ -1,9 +1,9 @@
 import { Models, Protocol, Synchronization } from '@polycentric/polycentric-core'
 import { forwardRef, useCallback, useMemo, useState } from 'react'
+import { useImageManifestDisplayURL } from '../../../hooks/imageHooks'
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
 import {
   ParsedEvent,
-  useAvatar,
   useDateFromUnixMS,
   useEventLink,
   usePostStats,
@@ -12,10 +12,19 @@ import {
   useTextPublicKey,
   useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks'
+import { useAvatar } from '../../../hooks/imageHooks'
 import { PurePost, PurePostProps } from './PurePost'
 
 interface PostProps {
+  data: ParsedEvent<Protocol.Post> | undefined
+  doesLink?: boolean
+  autoExpand?: boolean
+}
+
+interface LoadedPostProps {
   data: ParsedEvent<Protocol.Post>
+  doesLink?: boolean
+  autoExpand?: boolean
 }
 
 const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
@@ -96,13 +105,11 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
   }
 }
 
-// eslint-disable-next-line react/display-name
-export const Post = forwardRef<HTMLDivElement, PostProps>(({ data }, ref) => {
+const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(({ data, doesLink, autoExpand }, ref) => {
   const { value, event, signedEvent } = data
-  const {
-    content,
-    // image,
-  } = value
+  const { content, image } = value
+
+  const imageUrl = useImageManifestDisplayURL(event.system, image)
 
   const pointer = useMemo(() => Models.signedEventToPointer(signedEvent), [signedEvent])
 
@@ -124,14 +131,31 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(({ data }, ref) => {
         pubkey: mainKey,
       },
       content: content ?? '',
+      image: imageUrl,
       topic: 'todo',
       publishedAt: mainDate,
       url: mainURL,
     }),
-    [mainUsername, mainAvatar, content, mainDate, mainURL, mainAuthorURL, mainKey],
+    [mainUsername, mainAvatar, content, mainDate, mainURL, mainAuthorURL, mainKey, imageUrl],
   )
 
   const { actions, stats } = usePostStatsWithLocalActions(pointer)
 
-  return <PurePost ref={ref} main={main} stats={stats} actions={actions} />
+  return <PurePost ref={ref} main={main} stats={stats} actions={actions} doesLink={doesLink} autoExpand={autoExpand} />
 })
+LoadedPost.displayName = 'LoadedPost'
+
+const UnloadedPost = forwardRef<HTMLDivElement>((_, ref) => {
+  return <PurePost ref={ref} main={undefined} />
+})
+UnloadedPost.displayName = 'UnloadedPost'
+
+export const Post = forwardRef<HTMLDivElement, PostProps>(({ data, doesLink, autoExpand }, ref) => {
+  return data ? (
+    <LoadedPost ref={ref} data={data} doesLink={doesLink} autoExpand={autoExpand} />
+  ) : (
+    <UnloadedPost ref={ref} />
+  )
+})
+
+Post.displayName = 'Post'

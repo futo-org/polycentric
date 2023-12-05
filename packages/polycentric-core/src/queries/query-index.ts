@@ -124,10 +124,10 @@ type StateForQuery = {
     callback: Callback;
     totalExpected: number;
     contentType: Models.ContentType.ContentType;
-    earliestTimeBySource: Map<String, Long>;
-    eventsByProcessAndLogicalClock: Map<String, Cell>;
+    earliestTimeBySource: Map<string, Long>;
+    eventsByProcessAndLogicalClock: Map<string, Cell>;
     eventsByTime: Array<Cell>;
-    missingProcessAndLogicalClock: Map<String, Cell>;
+    missingProcessAndLogicalClock: Map<string, Cell>;
 };
 
 type StateForSystem = {
@@ -304,7 +304,7 @@ export class QueryManager {
 
         const systemString = Models.PublicKey.toString(event.system);
 
-        let stateForSystem = this._state.get(systemString);
+        const stateForSystem = this._state.get(systemString);
 
         if (stateForSystem === undefined) {
             return;
@@ -394,7 +394,7 @@ export class QueryManager {
             }
         }
 
-        let missingSlots = [];
+        const missingSlots = [];
 
         for (const missing of missingAfter) {
             const placeholder = {
@@ -449,8 +449,8 @@ export class QueryManager {
 
         let earliestTime = stateForQuery.earliestTimeBySource.get(source);
 
-        let cellsToAdd = [];
-        let cellsToRemove: Set<string> = new Set();
+        const cellsToAdd = [];
+        const cellsToRemove: Set<string> = new Set();
 
         for (const cell of cells) {
             if (!stateForQuery.eventsByProcessAndLogicalClock.has(cell.key)) {

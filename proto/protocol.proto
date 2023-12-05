@@ -145,8 +145,9 @@ message Reference {
 }
 
 message Post {
-    optional string  content = 1;
-    optional Pointer image   = 2;
+    reserved 2;
+    optional string        content = 1;
+    optional ImageManifest image   = 3;
 }
 
 message Claim {

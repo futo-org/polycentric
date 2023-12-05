@@ -47,7 +47,7 @@ const TopicSuggestionBoxPill = ({
           >
             <div className="flex">
               <div className="bg-blue-500 -skew-x-6 px-1.5 py-1 my-0.5 rounded-lg">
-                <div className="skew-x-6 text-white font-mono  text-md">{topic}</div>
+                <div className="skew-x-6 text-white font-mono font-light text-md">{topic}</div>
               </div>
               <div />
             </div>
@@ -85,7 +85,7 @@ export const TopicSuggestionBox = ({
   }, [query, topics])
 
   return (
-    <div className="bg-white p-5 rounded-b-xl border border-3 border-purple-900 w-full">
+    <div className="bg-white p-5 rounded-b-xl border border-gray-400 w-full">
       <TopicSuggestionBoxPill topics={results} path="" setSelected={setSelected} />
     </div>
   )

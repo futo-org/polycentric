@@ -1,11 +1,7 @@
 import { encode } from '@borderless/base64'
-import { Synchronization } from '@polycentric/polycentric-core'
 import useVirtual, { Item, ScrollTo } from '@polycentric/react-cool-virtual'
-import { useCallback, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks'
-import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
-import { useIsMobile } from '../../../hooks/styleHooks'
-import { Compose } from '../Compose'
 import { Post } from '../Post'
 
 const UpArrowIcon = () => (
@@ -28,61 +24,29 @@ export const InnerFeed = ({
   scrollTo,
   hasScrolled,
   data,
-  showComposeOnDesktop = false,
-  mobileTopComponent,
+  topFeedComponent,
 }: {
   innerRef: React.MutableRefObject<HTMLDivElement | null>
   items: Item[]
   scrollTo: ScrollTo
   hasScrolled: boolean
   data: FeedHookData
-  showComposeOnDesktop?: boolean
-  mobileTopComponent?: React.ReactNode
+  topFeedComponent?: React.ReactNode
 }) => {
-  const isMobile = useIsMobile()
-  const showCompose = !isMobile && showComposeOnDesktop
-
-  const { processHandle } = useProcessHandleManager()
-
-  const [postingProgress, setPostingProgress] = useState(0)
-
-  const onPost = useCallback(
-    async (content: string, upload?: File): Promise<boolean> => {
-      try {
-        if (upload) {
-          alert('uploading not yet supported, ask harpo to change ProcessHandle.post to support an image bundle')
-        }
-        setPostingProgress(0.1)
-        await processHandle.post(content)
-        setPostingProgress(0.5)
-        await Synchronization.backFillServers(processHandle, processHandle.system())
-        setPostingProgress(1)
-        setTimeout(() => {
-          setPostingProgress(0)
-        }, 100)
-      } catch (e) {
-        console.error(e)
-        setPostingProgress(0)
-        return false
-      }
-      return true
-    },
-    [processHandle],
-  )
-
-  const topFeedComponent = isMobile ? mobileTopComponent : showCompose ? <Compose onPost={onPost} /> : null
-
   return (
     <div className="w-full lg:w-[700px] xl:w-[776px] relative  bg-white">
-      {topFeedComponent && <div className="py-3 lg:p-10 border-b-2">{topFeedComponent}</div>}
-      {postingProgress > 0 && (
-        <div style={{ height: '4px', width: `${postingProgress * 100}%` }} className="bg-blue-500"></div>
-      )}
+      {topFeedComponent}
       <div ref={innerRef} className="w-full lg:w-[700px] xl:w-[776px]" style={{ height: '100%' }}>
         {items.map(({ index, measureRef }) => (
           // You can set the item's height with the `size` property
           // TODO: change this to a proper index
-          <Post ref={measureRef} key={encode(data[index]?.signedEvent.signature)} data={data[index]} />
+          <Post
+            ref={measureRef}
+            // @ts-ignore
+            // Typescript can't infer that data[index] is defined
+            key={data[index] !== undefined ? encode(data[index].signedEvent.signature) : index}
+            data={data[index]}
+          />
         ))}
       </div>
       {hasScrolled && (
@@ -109,6 +73,10 @@ export const Feed = ({ data, advanceFeed }: { data: FeedHookData; advanceFeed: F
     loadMoreCount,
     loadMore: () => advanceFeed(),
   })
+
+  useEffect(() => {
+    advanceFeed()
+  }, [advanceFeed])
 
   const [hasScrolled, setHasScrolled] = useState(false)
 

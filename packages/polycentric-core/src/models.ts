@@ -5,6 +5,7 @@ import * as Ed from '@noble/ed25519';
 import * as FastSHA256 from 'fast-sha256';
 import Long from 'long';
 
+import { Models } from '.';
 import * as Util from './util';
 
 export namespace ContentType {
@@ -774,6 +775,10 @@ export namespace Events {
 
         return proto as Type;
     }
+
+    export function fromBuffer(buffer: Uint8Array): Type {
+        return fromProto(Protocol.Events.decode(buffer));
+    }
 }
 
 export namespace ResultEventsAndRelatedEventsAndCursor {
@@ -786,6 +791,39 @@ export namespace ResultEventsAndRelatedEventsAndCursor {
     export type Type = Readonly<TypeI> & {
         readonly __tag: unique symbol;
     };
+
+    export function fromEmpty(): Type {
+        const emptyEvents: Array<SignedEvent.SignedEvent> = [];
+
+        return {
+            cursor: undefined,
+            resultEvents: {
+                events: emptyEvents,
+            },
+            relatedEvents: {
+                events: emptyEvents,
+            },
+        } as Type;
+    }
+
+    export function fromQueryReferencesResponse(
+        response: Protocol.QueryReferencesResponse,
+    ): Type {
+        return {
+            cursor: response.cursor,
+            resultEvents: {
+                events: response.items
+                    .map((i) => i.event)
+                    .filter(
+                        (e): e is Models.SignedEvent.SignedEvent =>
+                            e !== undefined,
+                    ),
+            },
+            relatedEvents: {
+                events: response.relatedEvents,
+            },
+        } as Type;
+    }
 
     export function fromProto(
         proto: Protocol.ResultEventsAndRelatedEventsAndCursor,

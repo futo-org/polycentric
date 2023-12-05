@@ -1,4 +1,4 @@
-declare var TextEncoder: any;
+declare const TextEncoder: any;
 
 const textEncoder = new TextEncoder();
 
@@ -6,7 +6,7 @@ export function encodeText(text: string): Uint8Array {
     return textEncoder.encode(text);
 }
 
-declare var TextDecoder: any;
+declare const TextDecoder: any;
 
 const textDecoder = new TextDecoder();
 
@@ -35,7 +35,7 @@ export function bufferSuffixMatch(
     return true;
 }
 
-export function concatBuffers(buffers: Array<Uint8Array>): Uint8Array {
+export function concatBuffers(buffers: ReadonlyArray<Uint8Array>): Uint8Array {
     const result = new Uint8Array(
         buffers.reduce((acc, x) => acc + x.length, 0),
     );

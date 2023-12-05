@@ -69,10 +69,7 @@ export class QueryManager {
         for (const server of systemState.servers()) {
             try {
                 const events = await APIMethods.getHead(server, system);
-
-                events.events.forEach((signedEvent) => {
-                    this.update(Models.SignedEvent.fromProto(signedEvent));
-                });
+                events.events.forEach((x) => this.update(x));
             } catch (err) {
                 console.log(err);
             }
@@ -84,7 +81,7 @@ export class QueryManager {
 
         const systemString = Models.PublicKey.toString(event.system);
 
-        let stateForSystem = this._state.get(systemString);
+        const stateForSystem = this._state.get(systemString);
 
         if (stateForSystem === undefined) {
             return;

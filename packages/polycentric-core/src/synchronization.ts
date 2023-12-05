@@ -12,12 +12,12 @@ async function loadRanges(
     system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
     ranges: Array<Ranges.IRange>,
-): Promise<Array<Protocol.SignedEvent>> {
-    const result: Array<Protocol.SignedEvent> = [];
+): Promise<Array<Models.SignedEvent.SignedEvent>> {
+    const result: Array<Models.SignedEvent.SignedEvent> = [];
 
     for (const range of ranges) {
         for (
-            var i = range.low;
+            let i = range.low;
             i.lessThanOrEqual(range.high);
             i = i.add(Long.UONE)
         ) {
@@ -34,10 +34,10 @@ async function loadRanges(
 
 export async function saveBatch(
     processHandle: ProcessHandle.ProcessHandle,
-    events: Protocol.Events,
+    events: Models.Events.Type,
 ): Promise<void> {
-    for (const rawEvent of events.events) {
-        await processHandle.ingest(Models.SignedEvent.fromProto(rawEvent));
+    for (const signedEvent of events.events) {
+        await processHandle.ingest(signedEvent);
     }
 }
 
@@ -148,9 +148,7 @@ export async function backFillServers(
                     batch,
                 );
 
-                await APIMethods.postEvents(server, {
-                    events: events,
-                });
+                await APIMethods.postEvents(server, events);
 
                 progress = true;
             }

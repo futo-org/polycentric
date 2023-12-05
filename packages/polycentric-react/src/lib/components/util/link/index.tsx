@@ -1,11 +1,11 @@
 import { RouterDirection } from '@ionic/core'
-import { IonContent, IonNavLink, IonPage, IonRouterLink } from '@ionic/react'
+import { IonNavLink, IonPage, IonRouterLink } from '@ionic/react'
 import React, { forwardRef, useCallback, useMemo } from 'react'
 import { matchPath } from 'react-router-dom'
 import { routeData } from '../../../app/router'
+import { useLocation } from '../../../hooks/stackRouterHooks'
 import { useIsMobile } from '../../../hooks/styleHooks'
-
-// Find everything before a colon
+import { MemoryRoutedLinkContext } from './routedmemorylinkcontext'
 
 const getUrlComponent = (url: string) => {
   const path = Object.keys(routeData).find((path) => {
@@ -24,7 +24,7 @@ const MemoryRoutedComponent = ({ routerLink }: { routerLink?: string }) => {
 
   if (!Component) return null
 
-  return <Component memoryPath={routerLink} />
+  return <Component />
 }
 
 const LinkComponent = forwardRef<
@@ -34,20 +34,26 @@ const LinkComponent = forwardRef<
     children?: React.ReactNode
     className?: string
     routerDirection?: RouterDirection
-  } & React.HTMLAttributes<HTMLElement>
+  } & React.HTMLAttributes<HTMLAnchorElement>
 >(({ routerLink, children, routerDirection, className, ...browserProps }, ref) => {
   const isMobile = useIsMobile()
 
   const renderMemoryPage = useCallback(
     () => (
-      <IonPage>
-        <IonContent>
+      <MemoryRoutedLinkContext.Provider value={routerLink}>
+        <IonPage>
           <MemoryRoutedComponent routerLink={routerLink} />
-        </IonContent>
-      </IonPage>
+        </IonPage>
+      </MemoryRoutedLinkContext.Provider>
     ),
     [routerLink],
   )
+
+  const location = useLocation()
+
+  if (routerLink === location) {
+    return <div className={className}>{children}</div>
+  }
 
   if (isMobile && routerDirection !== 'root') {
     return (

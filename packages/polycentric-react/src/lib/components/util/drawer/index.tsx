@@ -42,14 +42,3 @@ export const DrawerTest = () => (
     </IonPage>
   </>
 )
-// }
-// export const DrawerTest = () => (
-//   <div>
-//     <Drawer />
-//     <IonPage>
-//       <IonMenuToggle autoHide={false}>
-//         <button>Click to open the menu</button>
-//       </IonMenuToggle>
-//     </IonPage>
-//   </div>
-// )

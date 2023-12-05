@@ -5,8 +5,11 @@ ENV PATH="${PATH}:/opt/rust/toolchains/stable-x86_64-unknown-linux-gnu/bin"
 ENV PATH="${PATH}:/opt/sccache"
 
 RUN apt-get update -y && \
-	apt-get install -y curl && \
-	curl -sL https://deb.nodesource.com/setup_18.x | bash && \
+	apt-get install -y ca-certificates curl gnupg && \
+	mkdir -p /etc/apt/keyrings && \
+	curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
+	echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_18.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
+	apt-get update -y && \
 	apt-get install -y \
 		make \
 		libicu70 \
@@ -19,7 +22,7 @@ RUN apt-get update -y && \
 		openssl \
 		libssl-dev \
 		net-tools \
-		gdbserver \ 
+		gdbserver \
 		gdb \
 		mkcert && \
 	export RUSTUP_HOME=/opt/rust && \

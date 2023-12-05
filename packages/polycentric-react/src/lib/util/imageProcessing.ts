@@ -1,6 +1,8 @@
 import { ProcessHandle, Protocol } from '@polycentric/polycentric-core'
 import Long from 'long'
 
+export const avatarResolutions = { lg: 256, md: 128, sm: 32 }
+
 export async function cropImageToWebp(image: Blob, x: number, y: number, width: number, height: number): Promise<Blob> {
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
@@ -115,27 +117,41 @@ export const convertBlobToUint8Array = async (blob: Blob): Promise<Uint8Array> =
   return uint8Array
 }
 
+export const publishImageBlob = async (
+  image: Blob,
+  handle: ProcessHandle.ProcessHandle,
+  quality = 0.7,
+  maxResX = 1000,
+  maxResY = 1000,
+  upscale = false,
+) => {
+  const [newBlob, width, height] = await resizeImageToWebp(image, quality, maxResX, maxResY, upscale)
+  const newUint8Array = await convertBlobToUint8Array(newBlob)
+
+  const imageRanges = await handle.publishBlob(newUint8Array)
+
+  const imageManifest = {
+    mime: 'image/webp',
+    width: Long.fromNumber(width),
+    height: Long.fromNumber(height),
+    byteCount: Long.fromNumber(newUint8Array.length),
+    process: handle.process(),
+    sections: imageRanges,
+  }
+
+  return imageManifest
+}
+
 export const publishBlobToAvatar = async (blob: Blob, handle: ProcessHandle.ProcessHandle) => {
   const resolutions: Array<number> = [256, 128, 32]
   const quality = 0.7
   const imageBundle: Protocol.ImageBundle = {
     imageManifests: [],
   }
-  for (const resolution of resolutions) {
-    const [newBlob, width, height] = await resizeImageToWebp(blob, quality, resolution, resolution, true)
-    const newUint8Array = await convertBlobToUint8Array(newBlob)
 
-    const imageRanges = await handle.publishBlob(newUint8Array)
-
-    imageBundle.imageManifests.push({
-      mime: 'image/webp',
-      width: Long.fromNumber(width),
-      height: Long.fromNumber(height),
-      byteCount: Long.fromNumber(newUint8Array.length),
-      process: handle.process(),
-      sections: imageRanges,
-    })
-  }
+  imageBundle.imageManifests = await Promise.all(
+    resolutions.map((resolution) => publishImageBlob(blob, handle, quality, resolution, resolution, true)),
+  )
 
   return await handle.setAvatar(imageBundle)
 }

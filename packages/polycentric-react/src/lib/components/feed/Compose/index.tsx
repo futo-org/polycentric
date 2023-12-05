@@ -1,23 +1,10 @@
 import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { useBlobDisplayURL } from '../../../hooks/imageHooks'
 import { TopicSuggestionBox } from '../TopicSuggestionBox'
 
 const startsWithSlash = /^\/.*/
-
-const testTopics = {
-  polycentric: {
-    updates: {
-      images: {},
-    },
-  },
-  popcornLovers: {
-    butter: {},
-  },
-  tpot: {
-    dating: {},
-  },
-  pakistan: {},
-}
+const hasNonAlphanumeric = /[^a-zA-Z0-9/]/
 
 const TopicBox = ({
   topic,
@@ -37,20 +24,25 @@ const TopicBox = ({
         autoComplete="off"
         list="autocompleteOff"
         aria-autocomplete="none"
-        className={`bg-transparent w-full h-full p-5 absolute text-xl focus:outline-none peer z-10 font-mono ${
+        className={`bg-transparent w-full h-full p-5 absolute text-xl focus:outline-none peer z-10 font-mono font-light text-gray-900 ${
           disabled ? 'opacity-60' : ''
         }`}
         value={topic}
         onChange={(e) => {
-          const { value } = e.target
+          let { value } = e.target
+
+          if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
+            e.currentTarget.setSelectionRange(1, 1)
+          }
+
+          if (hasNonAlphanumeric.test(value)) {
+            value = value.replace(hasNonAlphanumeric, '')
+          }
+
           if (startsWithSlash.test(value)) {
             setTopic(value)
           } else if (value === '') {
             setTopic('/')
-          }
-
-          if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
-            e.currentTarget.setSelectionRange(1, 1)
           }
         }}
         onKeyDown={(e) => {
@@ -74,7 +66,7 @@ const TopicBox = ({
         disabled={disabled}
       />
       <div
-        className={`absolute top-0 left-0 w-full h-full border bg-white peer-focus:border-3 peer-focus:border-purple-900 peer-focus:border-b-0 rounded-lg -skew-x-[9deg] ${
+        className={`absolute top-0 left-0 w-full h-full border bg-white peer-focus:border-gray-400 peer-focus:border-b-0 rounded-lg -skew-x-[9deg] ${
           disabled ? 'opacity-50' : ''
         }
           ${focused ? ' rounded-b-none' : ''}
@@ -84,7 +76,7 @@ const TopicBox = ({
         // What, you've never seen a trig function in CSS before?
         <div className="absolute top-[3rem] w-full ml-[calc(-0.5_*_tan(9deg)_*_3rem)]">
           <TopicSuggestionBox
-            topics={testTopics}
+            topics={{}}
             query={topic}
             setSelected={(s) => {
               setTopic(s)
@@ -122,29 +114,26 @@ export const Compose = ({
   const textRef = useRef<HTMLTextAreaElement | null>(null)
   const uploadRef = useRef<HTMLInputElement | null>(null)
 
-  const [imageUrl, setImageUrl] = useState<string | undefined>()
+  const imageUrl = useBlobDisplayURL(upload)
 
-  useEffect(() => {
-    let currentURL: string | undefined
-    if (upload) {
-      currentURL = URL.createObjectURL(upload)
-      setImageUrl(currentURL)
-    }
-    return () => {
-      if (currentURL) URL.revokeObjectURL(currentURL)
-    }
-  }, [upload])
+  const post = useCallback(() => {
+    onPost?.(content, upload).then(() => {
+      setContent('')
+      setUpload(undefined)
+      if (textRef.current) textRef.current.style.height = `${minTextboxHeightPx}px`
+    })
+  }, [onPost, content, upload, minTextboxHeightPx])
 
   return (
     <div className={`flex flex-col ${flexGrow ? 'flex-grow' : ''}`}>
       {hideTopic ? null : <TopicBox topic={topic} setTopic={setTopic} disabled={topicDisabled} />}
       <div
-        className={`flex flex-col mt-1.5 w-full border rounded-lg focus-within:border-gray-300  ${
+        className={`flex flex-col mt-1.5 w-full border rounded-md focus-within:border-gray-300  ${
           flexGrow ? 'flex-grow' : ''
         }`}
       >
         <textarea
-          className={`w-full resize-none text-2xl rounded-lg p-4 focus:outline-none`}
+          className={`w-full resize-none leading-normal whitespace-pre-line text-lg placeholder:text-gray-300 text-gray-900 font-normal rounded-lg p-3.5 focus:outline-none`}
           style={flexGrow ? { height: '100%' } : { minHeight: minTextboxHeightPx + 'px' }}
           value={content}
           ref={textRef}
@@ -159,7 +148,12 @@ export const Compose = ({
             }
             setContent(e.target.value)
           }}
-          placeholder="What's hapenneing?!?!?!?!"
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.key === 'NumpadEnter')) {
+              post()
+            }
+          }}
+          placeholder="What's going on?"
         />
         {upload && (
           <div>
@@ -179,7 +173,7 @@ export const Compose = ({
       <div className="w-full flex justify-between pt-4">
         <div className="flex items-start space-x-4">
           <button onClick={() => uploadRef.current?.click()}>
-            <PhotoIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
+            <PhotoIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" strokeWidth="1" />
           </button>
           <input
             type="file"
@@ -197,13 +191,8 @@ export const Compose = ({
         </div>
         <button
           disabled={(!content && !upload) || (postingProgress != null && postingProgress > 0)}
-          className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 border text-white rounded-full px-8 py-2 font-bold text-lg tracking-wide"
-          onClick={() =>
-            onPost?.(content, upload).then(() => {
-              setContent('')
-              if (textRef.current) textRef.current.style.height = `${minTextboxHeightPx}px`
-            })
-          }
+          className="bg-slate-50 hover:bg-slate-200 disabled:bg-white border disabled:text-gray-500 text-gray-800 rounded-full px-8 py-2 font-medium text-lg tracking-wide"
+          onClick={post}
         >
           Post
         </button>

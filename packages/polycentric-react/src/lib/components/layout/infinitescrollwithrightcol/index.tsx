@@ -19,14 +19,12 @@ export const InfiniteScrollWithRightCol = ({
   data,
   advanceFeed,
   leftCol,
-  showComposeOnDesktop = false,
-  mobileTopComponent,
+  topFeedComponent,
 }: {
   data: FeedHookData
   advanceFeed: FeedHookAdvanceFn
   leftCol: ReactNode
-  showComposeOnDesktop?: boolean
-  mobileTopComponent?: React.ReactNode
+  topFeedComponent?: ReactNode
 }) => {
   const loadMoreCount = 20
 
@@ -64,15 +62,14 @@ export const InfiniteScrollWithRightCol = ({
           data={data}
           scrollTo={scrollTo}
           hasScrolled={hasScrolled}
-          showComposeOnDesktop={showComposeOnDesktop}
-          mobileTopComponent={mobileTopComponent}
+          topFeedComponent={topFeedComponent}
         />
       </div>
       {isMobile ? (
         <div />
       ) : (
         <div className="h-full sticky top-0 border-x hidden xl:block xl:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:mr-[calc((100vw-1536px)/2)] ">
-          <div className="p-5">
+          <div className="p-5 pb-10">
             <SearchBox />
           </div>
           {leftCol}

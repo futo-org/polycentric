@@ -1,5 +1,7 @@
+import { ArrowRightIcon } from '@heroicons/react/24/solid'
 import { useDebounce } from '@uidotdev/usehooks'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useParams } from '../../../hooks/stackRouterHooks'
 import { Link } from '../../util/link'
 
 interface ResultsPreview {
@@ -14,7 +16,8 @@ export const SearchBox = ({
   getResultsPreview?: (query: string) => Promise<ResultsPreview>
   debounceMs?: number
 }) => {
-  const [query, setQuery] = useState('')
+  const { query: pathQuery } = useParams<{ query?: string }>()
+  const [query, setQuery] = useState(pathQuery ?? '')
   const debouncedQuery = useDebounce(query, debounceMs)
   const [results, setResults] = useState<ResultsPreview | null>(null)
 
@@ -24,15 +27,33 @@ export const SearchBox = ({
     }
   }, [debouncedQuery, getResultsPreview])
 
+  const searchButtonRef = useRef<HTMLElement | null>(null)
+
   return (
     <div className="flex flex-col space-y-2">
-      <input
-        type="text"
-        placeholder="Search..."
-        className="rounded-lg border text-xl p-3 font-light"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
+      <div className="flex rounded-full border focus-within:border-gray-300 p-2 space-x-2">
+        <input
+          type="text"
+          placeholder="Search..."
+          className="flex-grow text-lg text-gray-900 ml-4 font-light placeholder:text-gray-300 focus:outline-none min-w-0"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              if (query.length >= 3) searchButtonRef.current?.click()
+            }
+          }}
+        />
+        <Link
+          className={`rounded-full border aspect-square h-[2.5rem] w-[2.5rem] flex justify-center items-center ${
+            query.length >= 3 ? 'hover:bg-gray-50' : ''
+          }`}
+          routerLink={query.length >= 3 ? `/search/${query}` : undefined}
+          ref={searchButtonRef}
+        >
+          <ArrowRightIcon className={`w-6 h-6  ${query.length >= 3 ? 'text-gray-500' : 'text-gray-300'}`} />
+        </Link>
+      </div>
       {query.length > 0 && results && (
         <div className="relative">
           <div className="flex flex-col space-y-0 border rounded-lg bg-white absolute w-full">

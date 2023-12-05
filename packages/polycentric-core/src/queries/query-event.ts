@@ -107,7 +107,7 @@ export class QueryManager {
             .getSignedEvent(system, process, logicalClock);
 
         if (signedEvent !== undefined) {
-            this.update(Models.SignedEvent.fromProto(signedEvent));
+            this.update(signedEvent);
         }
     }
 
@@ -134,9 +134,7 @@ export class QueryManager {
                     ],
                 });
 
-                events.events.forEach((signedEvent) => {
-                    this.update(Models.SignedEvent.fromProto(signedEvent));
-                });
+                events.events.forEach((x) => this.update(x));
             } catch (err) {
                 console.log(err);
             }
