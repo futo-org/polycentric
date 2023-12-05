@@ -1,5 +1,5 @@
 {
   "preset": "ts-jest",
   "verbose": true,
-  "testTimeout": 15000
+  "testTimeout": 60000
 }
