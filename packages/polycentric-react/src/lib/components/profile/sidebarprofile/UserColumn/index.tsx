@@ -36,8 +36,8 @@ export const UserColumn = ({ system }: { system: Models.PublicKey.PublicKey }) =
 
   const editProfileActions = useMemo(() => {
     return {
-      changeUsername: processHandle.setUsername,
-      changeDescription: processHandle.setDescription,
+      changeUsername: (name: string) => processHandle.setUsername(name),
+      changeDescription: (description: string) => processHandle.setDescription(description),
       changeAvatar: async (blob: Blob) => publishBlobToAvatar(blob, processHandle),
     }
   }, [processHandle])
