@@ -38,12 +38,6 @@
     "test": "jest",
     "test:ci": "jest --ci --reporters=default --reporters=jest-junit"
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
   "homepage": "./",
   "build": {
     "extends": null,
@@ -60,11 +54,11 @@
     "jest": "^29.0.3",
     "jest-junit": "^16.0.0",
     "npm-run-all": "^4.1.5",
+    "sharp": "^0.32.4",
     "ts-jest": "^29.0.1",
     "ts-loader": "^9.4.2",
     "typescript": "^4.8.3",
     "webpack": "^5.74.0",
-    "webpack-cli": "^5.1.1",
-    "sharp": "^0.32.4"
+    "webpack-cli": "^5.1.1"
   }
 }
