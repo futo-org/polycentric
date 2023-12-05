@@ -65,7 +65,7 @@ const InnerPureEditProfile = ({
   const onSave = useCallback(async () => {
     if (!validAndChanged) return
 
-    await Promise.all([
+    Promise.all([
       usernameValidAndChanged && username && actions?.changeUsername(username),
       descriptionValidAndChanged && description && actions?.changeDescription(description),
       avatarValidAndChanged && avatar && actions.changeAvatar(avatar),
