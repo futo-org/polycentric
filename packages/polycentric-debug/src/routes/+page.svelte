@@ -1,6 +1,7 @@
 <script>
     import Constants from "./Constants.svelte";
     import GetEvents from "./GetEvents.svelte";
+    import QueryLatest from "./QueryLatest.svelte";
     import QueryReferencesBuffer from "./QueryReferencesBuffer.svelte";
     import QueryReferencesPointer from "./QueryReferencesPointer.svelte";
     import ResolveClaim from "./ResolveClaim.svelte";
@@ -41,6 +42,9 @@
     <div role="button" tabindex="3" class="tab" class:active={activeTab === 'queryReferencesPointer'} on:click={() => activeTab = 'queryReferencesPointer'}>
         Query References Pointer
     </div>
+    <div role="button" tabindex="3" class="tab" class:active={activeTab === 'queryLatest'} on:click={() => activeTab = 'queryLatest'}>
+        Query Latest
+    </div>
 </div>
 
 {#if activeTab === 'events'}
@@ -51,6 +55,8 @@
     <QueryReferencesBuffer />
 {:else if activeTab === 'queryReferencesPointer'}
     <QueryReferencesPointer />
+{:else if activeTab === 'queryLatest'}
+    <QueryLatest />
 {/if}
 
 <Constants />

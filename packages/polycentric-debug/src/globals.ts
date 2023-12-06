@@ -4,7 +4,7 @@ import Long from 'long';
 export const SERVER = "https://srv1-stg.polycentric.io";
 export const TRUST_ROOT = Core.Models.PublicKey.fromProto(Core.Protocol.PublicKey.create({
     keyType: 1,
-    key: Uint8Array.from(atob("gX0eCWctTm6WHVGot4sMAh7NDAIwWsIM5tRsOz9dX04="), c => c.charCodeAt(0))
+    key: stringToBytes(decodeBase64UrlSafe("gX0eCWctTm6WHVGot4sMAh7NDAIwWsIM5tRsOz9dX04="))
 }));
 
 function contentTypeToString(contentType: Core.Models.ContentType.ContentType): string {
@@ -50,7 +50,7 @@ export function printableEvent(event: Core.Models.Event.Event): any {
     let content: any;
     switch (event.contentType.toInt()) {
         case Core.Models.ContentType.ContentTypePost.toInt():
-            content = String.fromCharCode.apply(null, Array.from(event.content));
+            content = bytesToString(event.content);
             break;
         case Core.Models.ContentType.ContentTypeClaim.toInt():
             const claim = Core.Protocol.Claim.decode(event.content);
@@ -60,7 +60,8 @@ export function printableEvent(event: Core.Models.Event.Event): any {
             };
             break;
         case Core.Models.ContentType.ContentTypeBlobSection.toInt():
-            content = btoa(String.fromCharCode.apply(null, Array.from(event.content)))
+            const bytes = bytesToString(event.content);
+            content = encodeBase64UrlSafe(bytes);
             break;
         default:
             content = event.content;
@@ -72,7 +73,7 @@ export function printableEvent(event: Core.Models.Event.Event): any {
         switch (event.contentType.toInt()) {
             case Core.Models.ContentType.ContentTypeUsername.toInt():
             case Core.Models.ContentType.ContentTypeDescription.toInt():
-                lwwElementValue = String.fromCharCode.apply(null, Array.from(event.lwwElement.value));
+                lwwElementValue = bytesToString(event.lwwElement.value);
                 break;
             case Core.Models.ContentType.ContentTypeAvatar.toInt():
             case Core.Models.ContentType.ContentTypeBanner.toInt():
@@ -92,7 +93,7 @@ export function printableEvent(event: Core.Models.Event.Event): any {
                 refValue = Core.Protocol.Pointer.decode(ref.reference);
                 break;
             case 3:
-                refValue = String.fromCharCode.apply(null, Array.from(ref.reference));                
+                refValue = bytesToString(ref.reference);
                 break;
             default:
                 refValue = ref.reference;
@@ -109,7 +110,7 @@ export function printableEvent(event: Core.Models.Event.Event): any {
     if (event.lwwElementSet) {
         switch (event.contentType.toInt()) {
             case Core.Models.ContentType.ContentTypeServer.toInt():
-                lwwElementSetValue = String.fromCharCode.apply(null, Array.from(event.lwwElementSet.value));
+                lwwElementSetValue = bytesToString(event.lwwElementSet.value);
                 break;
             default:
                 lwwElementSetValue = event.lwwElementSet.value;
@@ -141,11 +142,41 @@ export function printableEvent(event: Core.Models.Event.Event): any {
 
 export function replacer(key: any, value: any) {
     if (value instanceof Uint8Array) {
-        return btoa(String.fromCharCode.apply(null, Array.from(value)));
+        return encodeBase64UrlSafe(bytesToString(value));
     }
     if (Long.isLong(value)) {
         return value.toString();
     }
 
     return value;
+}
+
+export function decodeBase64UrlSafe(base64UrlSafeString: string) {
+    let base64StandardString = base64UrlSafeString.replace(/-/g, '+').replace(/_/g, '/');
+    return atob(base64StandardString);
+}
+
+export function encodeBase64UrlSafe(data: string) {
+    let base64 = btoa(data);
+    let base64UrlSafe = base64.replace(/\+/g, '-').replace(/\//g, '_');
+    base64UrlSafe = base64UrlSafe.replace(/=+$/, '');
+    return base64UrlSafe;
+}
+
+export function bytesToString(bytes: Uint8Array): string {
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return binary;
+}
+
+export function stringToBytes(str: string): Uint8Array {
+    const buffer = new ArrayBuffer(str.length);
+    const bufferView = new Uint8Array(buffer);
+    for (let i = 0; i < str.length; i++) {
+        bufferView[i] = str.charCodeAt(i);
+    }
+    return bufferView;
 }

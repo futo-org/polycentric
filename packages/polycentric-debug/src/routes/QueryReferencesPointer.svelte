@@ -1,6 +1,6 @@
 <script lang="ts">
     import * as Core from '@polycentric/polycentric-core';
-    import { SERVER, printableEvent, replacer } from '../globals';
+    import { SERVER, decodeBase64UrlSafe, printableEvent, replacer, stringToBytes } from '../globals';
 
     let _output = "";
     let _reference = "";
@@ -20,7 +20,7 @@
             fromTypeNum = undefined;
         }
 
-        const bytes = Uint8Array.from(atob(reference), c => c.charCodeAt(0));
+        const bytes = stringToBytes(decodeBase64UrlSafe(reference));
         const ref = Core.Protocol.Reference.create({
             referenceType: 2,
             reference: bytes
