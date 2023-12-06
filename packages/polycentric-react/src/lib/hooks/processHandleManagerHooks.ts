@@ -1,4 +1,5 @@
-import { CancelContext, MetaStore, Models, ProcessHandle, Store } from '@polycentric/polycentric-core'
+import { decode } from '@borderless/base64'
+import { CancelContext, MetaStore, Models, ProcessHandle, Protocol, Store } from '@polycentric/polycentric-core'
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 
 type BaseProcessHandleManagerHookReturn = {
@@ -11,6 +12,7 @@ type BaseProcessHandleManagerHookReturn = {
     servers?: ReadonlyArray<string>,
     username?: string,
   ) => Promise<ProcessHandle.ProcessHandle>
+  createHandleFromExportBundle: (identity: string) => Promise<ProcessHandle.ProcessHandle>
   signOutOtherUser: (account: MetaStore.StoreInfo) => Promise<void>
   metaStore: MetaStore.IMetaStore
 }
@@ -92,6 +94,55 @@ export function useProcessHandleManagerBaseComponentHook(
     [metaStore],
   )
 
+  const createHandleFromExportBundle = useCallback(
+    async (bundle: string) => {
+      let privateKeyModel: Models.PrivateKey.PrivateKey
+      let exportBundle: Protocol.ExportBundle
+
+      try {
+        if (bundle.startsWith('polycentric://') === false) {
+          throw new Error()
+        }
+
+        const bundleWithoutPrefix = bundle.replace('polycentric://', '')
+        const urlInfo = Protocol.URLInfo.decode(decode(bundleWithoutPrefix))
+        exportBundle = Models.URLInfo.getExportBundle(urlInfo)
+
+        const privateKeyBuffer: Uint8Array | undefined = exportBundle.keyPair?.privateKey
+        if (!privateKeyBuffer) {
+          throw new Error()
+        }
+        const privateKeyProto = Protocol.PrivateKey.create({
+          keyType: exportBundle.keyPair?.keyType,
+          key: privateKeyBuffer,
+        })
+        privateKeyModel = Models.PrivateKey.fromProto(privateKeyProto)
+      } catch (e) {
+        throw new Error('Invalid identity string')
+      }
+
+      const processHandle = await ProcessHandle.createProcessHandleFromKey(metaStore, privateKeyModel)
+
+      if (exportBundle.events) {
+        await Promise.all(
+          exportBundle.events.events.map((event) => {
+            const eventModel = Models.SignedEvent.fromProto(event)
+            return processHandle.ingest(eventModel)
+          }),
+        )
+      }
+
+      await metaStore.setActiveStore(processHandle.system(), 0)
+      const activeStore = await metaStore.getActiveStore()
+      setInternalHookState({
+        activeStore,
+        processHandle,
+      })
+      return processHandle
+    },
+    [metaStore],
+  )
+
   const signOutOtherUser = useCallback(
     async (account: MetaStore.StoreInfo) => {
       if (
@@ -132,6 +183,7 @@ export function useProcessHandleManagerBaseComponentHook(
     stores,
     changeHandle,
     createHandle,
+    createHandleFromExportBundle,
     signOutOtherUser,
     metaStore,
   }
