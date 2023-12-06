@@ -25,7 +25,6 @@ export const MainSidebar = () => (
       <div className="flex flex-col text-right">
         <SidebarLink to="/">Explore</SidebarLink>
         <SidebarLink to="/following">Following</SidebarLink>
-        <SidebarLink to="/settings">Settings</SidebarLink>
       </div>
     </div>
     <div>

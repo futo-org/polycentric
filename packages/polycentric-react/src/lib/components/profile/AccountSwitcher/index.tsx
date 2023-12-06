@@ -128,7 +128,10 @@ export const AccountSwitcher = () => {
             )}
             <div className="min-w-[3rem] min-h-[3rem] flex flex-col justify-end items-end">
               <CircleExpandMenuReverse
-                menuItems={[{ label: 'New Account', action: () => changeHandle() }]}
+                menuItems={[
+                  { label: 'New Account', action: () => changeHandle() },
+                  { label: 'Settings', routerLink: '/settings' },
+                ]}
                 title={username}
                 onIsOpenChange={(isOpen) => setSubMenuExpanded(isOpen)}
               />

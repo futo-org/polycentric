@@ -62,7 +62,7 @@ const LinkComponent = forwardRef<
         // We just need the ref for standard HTML attributes, not fancy Ionic stuff
         ref={ref}
         component={renderMemoryPage}
-        className={`${className} text-inherit`}
+        className={`${className}`}
         routerDirection={routerDirection}
         {...browserProps}
       >
@@ -76,7 +76,7 @@ const LinkComponent = forwardRef<
       // @ts-ignore
       ref={ref}
       routerLink={routerLink}
-      className={`${className} text-inherit`}
+      className={`${className}`}
       routerDirection={routerDirection}
       {...browserProps}
     >
