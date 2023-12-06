@@ -1,6 +1,8 @@
-import { Models, Protocol } from '@polycentric/polycentric-core'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useBlobQuery } from './queryHooks'
+import { Models, Protocol } from '@polycentric/polycentric-core';
+import Long from 'long';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { avatarResolutions } from '../util/imageProcessing';
+import { useBlobQuery, useCRDTQuery } from './queryHooks';
 
 const urlCache: Map<Blob, { url: string; count: number; timeoutId?: number }> = new Map()
 
