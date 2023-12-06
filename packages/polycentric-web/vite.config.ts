@@ -23,6 +23,8 @@ if (!fs.existsSync('../../devcert/local-cert.pem')) {
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => ({
     server: {
+        host: '0.0.0.0',
+        port: 3000,
         https: {
             key: '../../devcert/local-key.pem',
             cert: '../../devcert/local-cert.pem',

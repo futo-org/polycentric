@@ -1,5 +1,7 @@
+---
+
 variables: 
-  DOCKERFILE_MD5: 6a5f9dcbe8f7e2a792eac2e1b86234c1
+  DOCKERFILE_MD5: 36397fb555a40a50e16aa1b1dd14ad99
   POSTGRES_IMAGE: "postgres:14"
   SEARCH_IMAGE: "opensearchproject/opensearch:2.1.0"
   FF_USE_FASTZIP: "true"
@@ -10,17 +12,18 @@ variables:
   SCCACHE_DIR: ${CI_PROJECT_DIR}/.sccache
   RUSTC_WRAPPER: /opt/sccache/sccache
 
+image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+
 .node-cache-config: &node-cache-config
   key:
     files:
       - package-lock.json  
   paths:
-    - ~/.npm/
-    - ${CI_PROJECT_DIR}/.node_modules/
+    - ${CI_PROJECT_DIR}/node_modules/
     - ${CI_PROJECT_DIR}/packages/polycentric-react/node_modules/
     - ${CI_PROJECT_DIR}/packages/polycentric-core/node_modules/
     - ${CI_PROJECT_DIR}/packages/harbor-web/node_modules/
-  policy: pull-push
+  policy: pull
 
 .rust-cache-config: &rust-cache-config
   key:
@@ -38,12 +41,11 @@ variables:
     - ${CI_PROJECT_DIR}/server/target
   policy: pull-push
 
-
 stages:
   - check
   - format
-  - lint
   - build
+  - lint
   - test
 
 check:
@@ -98,7 +100,6 @@ check:
 
 format-server: 
   stage: format
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
   script: 
     - ./version.sh
     - cd server
@@ -107,7 +108,6 @@ format-server:
 
 format-core:
   stage: format
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
   script:
     - ./version.sh
     - npx prettier ./packages/polycentric-core/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-core/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
@@ -115,7 +115,6 @@ format-core:
 
 format-react:
   stage: format
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
   script:
     - ./version.sh
     - npx prettier ./packages/polycentric-react/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-react/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
@@ -123,16 +122,13 @@ format-react:
 
 format-web:
   stage: format
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
   script:
     - ./version.sh
     - npx prettier ./packages/polycentric-web/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-web/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
   needs: ["check"]
 
-
 format-desktop:
   stage: format
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
   script:
     - ./version.sh
     - npx prettier ./packages/polycentric-desktop/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-desktop/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
@@ -140,7 +136,6 @@ format-desktop:
 
 format-harbor:
   stage: format
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
   script:
     - ./version.sh
     - npx prettier ./packages/harbor-web/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/harbor-web/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
@@ -148,7 +143,6 @@ format-harbor:
 
 build-server: 
   stage: build
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
   cache: 
    - <<: *rust-cache-config
    - <<: *rust-cache-build-config
@@ -172,73 +166,60 @@ build-server:
       paths:
         - ./build-artifacts
 
-build-core-harbor: 
+build-core:
   stage: build
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
-  cache: *node-cache-config
+  cache:
+    - <<: *node-cache-config
+      policy: pull-push
   script:
     - ./version.sh
+    - npm install
     - make proto
     - cd packages/polycentric-core
-    - npm run build
-    - cd ../harbor-web
     - npm run build
   needs: ["check"]
   artifacts:
       name: "artifacts"
       expire_in: 10 mins
       paths:
-        - ./packages/harbor-web/dist/
         - ./packages/polycentric-core/dist/
 
-build-core-react-web: 
+build-react: 
   stage: build
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
   cache: *node-cache-config
-  script:
-    - ./version.sh
-    - make proto
-    - cd packages/polycentric-core
-    - npm run build
-    - cd ../polycentric-react
-    - npm run build
-    - cd ../polycentric-web
-    - npm run build
-  needs: ["check"]
+  script: cd packages/polycentric-react && npm run build
+  needs: ["check", "build-core"]
   artifacts:
       name: "artifacts"
       expire_in: 10 mins
       paths:
-        - ./packages/polycentric-web/dist/
         - ./packages/polycentric-react/dist/
 
-build-core-react-leveldb-desktop: 
+build-leveldb: 
   stage: build
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
   cache: *node-cache-config
-  script:
-    - ./version.sh
-    - make proto
-    - cd packages/polycentric-core
-    - npm run build
-    - cd ../polycentric-react
-    - npm run build
-    - cd ../polycentric-leveldb
-    - npm run build
-    - cd ../polycentric-desktop
-    - npm run build
-  needs: ["check"]
+  script: cd packages/polycentric-leveldb && npm run build
+  needs: ["check", "build-core"]
   artifacts:
       name: "artifacts"
       expire_in: 10 mins
       paths:
         - ./packages/polycentric-leveldb/dist/
-        - ./packages/polycentric-desktop/dist/
 
+build-web: 
+  stage: build
+  cache: *node-cache-config
+  script: cd packages/polycentric-web && npm run build
+  needs: ["check", "build-react", "build-core"]
+
+build-harbor: 
+  stage: build
+  cache: *node-cache-config
+  script: cd packages/harbor-web && npm run build
+  needs: ["check", "build-core"]
 
 lint-server: 
   stage: lint
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
   cache: 
     - <<: *rust-cache-config
     - <<: *rust-cache-build-config
@@ -247,51 +228,46 @@ lint-server:
     - ./version.sh
     - cd server
     - cargo-clippy --no-deps --locked -- -D warnings
-  needs: ["check"]
+  needs: ["check", "build-server"]
 
 lint-core:
   stage: lint
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  cache: *node-cache-config
   script:
     - ./version.sh
     - cd packages/polycentric-core
-    - npm i eslint-config-react-app
-    - npx eslint ./src --max-warnings=0
-  needs: ["check"]
+    # - npx eslint ./src --max-warnings=0
+  needs: ["check", "build-core"]
 
 lint-harbor:
   stage: lint
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  cache: *node-cache-config
   script:
     - ./version.sh
     - cd packages/harbor-web
-    - npm i eslint-config-react-app
     - npx eslint ./src --max-warnings=0
-  needs: ["check"]
+  needs: ["check", "build-harbor"]
 
 lint-react:
   stage: lint
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  cache: *node-cache-config
   script:
     - ./version.sh
     - cd packages/polycentric-react
-    - npm i eslint-config-react-app
     - npx eslint ./src --max-warnings=0
-  needs: ["check"]
+  needs: ["check", "build-react"]
 
 lint-web:
   stage: lint
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+  cache: *node-cache-config
   script:
     - ./version.sh
     - cd packages/polycentric-web
-    - npm i eslint-config-react-app
     - npx eslint ./src --max-warnings=0
-  needs: ["check"]
+  needs: ["check", "build-web"]
 
 test: 
   stage: test
-  image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
   services: 
     - name: $POSTGRES_IMAGE
       alias: postgres
@@ -313,10 +289,10 @@ test:
     - RUSTC_BOOTSTRAP=1 ./build-artifacts/server-test -Z unstable-options --format junit > junit-server.xml
     - ./build-artifacts/server &
     - cd ./packages/polycentric-core && npm run test:ci
-  needs: ["build-server", "build-core-harbor"]
+  needs: ["build-server", "build-core"]
   dependencies: 
     - build-server
-    - build-core-harbor
+    - build-core
   artifacts:
     when: always
     paths:

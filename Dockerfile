@@ -22,7 +22,7 @@ RUN apt-get update -y && \
 		openssl \
 		libssl-dev \
 		net-tools \
-		gdbserver \ 
+		gdbserver \
 		gdb \
 		mkcert && \
 	export RUSTUP_HOME=/opt/rust && \
