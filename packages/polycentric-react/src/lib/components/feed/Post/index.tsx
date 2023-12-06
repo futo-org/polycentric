@@ -12,7 +12,6 @@ import {
   useTextPublicKey,
   useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks'
-import { useAvatar } from '../../../hooks/imageHooks'
 import { PurePost, PurePostProps } from './PurePost'
 
 interface PostProps {

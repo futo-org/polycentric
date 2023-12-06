@@ -26,28 +26,6 @@ export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
   return blobURL
 }
 
-export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
-  const [blobURL, setBlobURL] = useState<string | undefined>(undefined)
-
-  useEffect(() => {
-    let currentURL: string | undefined
-    if (blob) {
-      currentURL = URL.createObjectURL(blob)
-      setBlobURL(currentURL)
-    } else {
-      setBlobURL(undefined)
-    }
-
-    return () => {
-      if (currentURL) {
-        URL.revokeObjectURL(currentURL)
-      }
-    }
-  }, [blob])
-
-  return blobURL
-}
-
 export const useImageManifestDisplayURL = (
   system?: Models.PublicKey.PublicKey,
   manifest?: Protocol.ImageManifest,
