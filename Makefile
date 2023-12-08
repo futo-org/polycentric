@@ -1,4 +1,4 @@
-.PHONY: proto pretty clean sandbox build-sandbox join-sandbox stop-sandbox join-postgres devcert
+.PHONY: proto pretty clean sandbox build-sandbox join-sandbox stop-sandbox join-postgres devcert deploy-polycentric-spa-staging
 
 CURRENT_UID := $(shell id -u)
 CURRENT_GID := $(shell id -g)
@@ -108,6 +108,10 @@ clean:
 deploy-spa:
 	wrangler pages publish --project-name polycentric-spa \
 		./packages/polycentric-web/dist/
+
+deploy-polycentric-web-staging:
+	wrangler pages deploy --project-name polycentric-spa-staging \
+		./packages/polycentric-web/dist/ --branch master
 
 deploy-harbor-spa:
 	wrangler pages deploy --project-name harbor-social \

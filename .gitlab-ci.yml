@@ -47,6 +47,7 @@ stages:
   - build
   - lint
   - test
+  - deploy
 
 check:
   stage: check
@@ -211,6 +212,11 @@ build-web:
   cache: *node-cache-config
   script: cd packages/polycentric-web && npm run build
   needs: ["check", "build-react", "build-core"]
+  artifacts:
+      name: "artifacts"
+      expire_in: 10 mins
+      paths:
+        - ./packages/polycentric-web/dist/
 
 build-harbor: 
   stage: build
@@ -302,3 +308,11 @@ test:
       junit: 
         - packages/polycentric-core/junit.xml
         - junit-server.xml
+
+deploy-polycentric-web-staging:
+  stage: deploy 
+  script: make deploy-polycentric-web-staging
+  needs: ["check", "test", "build-web"]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+
