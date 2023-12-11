@@ -232,8 +232,8 @@ export function useIndex<T>(
 
     return () => {
       cancelContext.cancel()
-
       latestHandle.current?.unregister()
+      latestHandle.current = undefined
     }
   }, [queryManager, system, contentType, parse, batchSize])
 
@@ -547,4 +547,68 @@ export const useQueryReferenceEventFeed = <T>(
   }, [countLwwElementReferences, countReferences, reference, requestEvents])
 
   return useQueryCursor(loadCallback, decode)
+}
+
+export function useQueryCRDTSet<T>(
+  system: Models.PublicKey.PublicKey | undefined,
+  contentType: Models.ContentType.ContentType,
+  parse: (buffer: Uint8Array) => T,
+  batchSize = 30,
+): [T[], () => void] {
+  const queryManager = useQueryManager()
+  const [state, setState] = useState<{ data: Array<T>; cells: Array<Queries.QueryIndex.Cell> }>({
+    data: [],
+    cells: [],
+  })
+  const [advance, setAdvance] = useState<((batchSize: number) => void) | undefined>(undefined)
+
+  useEffect(() => {
+    setState({
+      data: [],
+      cells: [],
+    })
+
+    if (system !== undefined) {
+      const cancelContext = new CancelContext.CancelContext()
+
+      const handle = queryManager.queryCRDTSet.query(system, contentType, ({ add, remove }) => {
+        if (cancelContext.cancelled()) {
+          return
+        }
+
+        const newValues = add
+          .filter((x) => x.signedEvent !== undefined)
+          .map((x) => {
+            // We know this is defined because of the filter above.
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const event = Models.Event.fromBuffer(x.signedEvent!.event)
+            const parsed = parse(event.lwwElementSet!.value)
+            return parsed
+          })
+
+        const newCells = add.filter((x) => x.signedEvent !== undefined)
+
+        setState(({ cells, data }) => {
+          const concatCells = cells.concat(newCells)
+          return {
+            data: data.concat(newValues).filter((_, i) => !remove.has(concatCells[i].key)),
+            cells: concatCells.filter((cell) => !remove.has(cell.key)),
+          }
+        })
+      })
+
+      setAdvance(() => handle.advance)
+
+      return () => {
+        cancelContext.cancel()
+        handle.unregister()
+      }
+    }
+  }, [queryManager, system, contentType, parse])
+
+  const advanceCallback = useCallback(() => {
+    advance?.(batchSize)
+  }, [advance, batchSize])
+
+  return [state.data, advanceCallback]
 }

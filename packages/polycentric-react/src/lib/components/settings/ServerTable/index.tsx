@@ -1,7 +1,8 @@
 import { CheckIcon, PencilIcon } from '@heroicons/react/24/outline'
-import { CancelContext } from '@polycentric/polycentric-core'
+import { CancelContext, Models, Util } from '@polycentric/polycentric-core'
 import { useEffect, useState } from 'react'
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
+import { useQueryCRDTSet } from '../../../hooks/queryHooks'
 import { useDebouncedEffect } from '../../../hooks/utilHooks'
 
 const XIcon = ({ className }: { className: string }) => {
@@ -135,13 +136,22 @@ const ServerListTableRow = ({
 export const ServerListTable = () => {
   const { processHandle } = useProcessHandleManager()
 
-  const [servers, setServers] = useState<Array<string>>([])
+  const [queriedServers, advance] = useQueryCRDTSet(
+    processHandle.system(),
+    Models.ContentType.ContentTypeServer,
+    Util.decodeText,
+    100,
+  )
+
+  const [servers, setServers] = useState<string[]>(queriedServers)
 
   useEffect(() => {
-    processHandle.loadSystemState(processHandle.system()).then((s) => {
-      setServers(s.servers())
-    })
-  }, [processHandle])
+    advance()
+  }, [advance])
+
+  useEffect(() => {
+    setServers(queriedServers)
+  }, [queriedServers])
 
   return (
     <div className="rounded-[2rem] border overflow-hidden">
