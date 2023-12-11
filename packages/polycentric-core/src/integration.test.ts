@@ -549,4 +549,18 @@ describe('integration', () => {
         );
         expect(descriptionSearchContent).toBe(description);
     }, 10000);
+
+    test('purge', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+        await s1p1.addServer(TEST_SERVER);
+
+        const challenge = await APIMethods.getChallenge(TEST_SERVER);
+
+        const solvedChallenge = await ProcessHandle.solveChallenge(
+            s1p1,
+            challenge,
+        );
+
+        await APIMethods.postPurge(TEST_SERVER, solvedChallenge);
+    });
 });

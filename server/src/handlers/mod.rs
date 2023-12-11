@@ -1,3 +1,4 @@
+pub(crate) mod get_challenge;
 pub(crate) mod get_claim_to_system;
 pub(crate) mod get_events;
 pub(crate) mod get_explore;
@@ -12,3 +13,4 @@ pub(crate) mod get_search;
 pub(crate) mod get_version;
 pub(crate) mod post_censor;
 pub(crate) mod post_events;
+pub(crate) mod post_purge;

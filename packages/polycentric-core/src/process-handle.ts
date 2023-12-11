@@ -629,6 +629,24 @@ export class ProcessHandle {
     }
 }
 
+export async function solveChallenge(
+    processHandle: ProcessHandle,
+    challenge: Readonly<Protocol.HarborChallengeResponse>,
+): Promise<Protocol.HarborValidateRequest> {
+    const challengeBody = Protocol.HarborChallengeResponseBody.decode(
+        challenge.body,
+    );
+
+    return {
+        challenge: challenge,
+        system: processHandle.system(),
+        signature: await Models.PrivateKey.sign(
+            processHandle.processSecret().system,
+            challengeBody.challenge,
+        ),
+    };
+}
+
 export async function createProcessHandle(
     metaStore: MetaStore.IMetaStore,
 ): Promise<ProcessHandle> {
