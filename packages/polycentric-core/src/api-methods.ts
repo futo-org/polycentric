@@ -356,3 +356,35 @@ export async function getFindClaimAndVouch(
 
     return Models.FindClaimAndVouchResponse.fromBuffer(rawBody);
 }
+
+export async function getChallenge(
+    server: string,
+): Promise<Protocol.HarborChallengeResponse> {
+    const response = await fetch(server + '/challenge', {
+        method: 'GET',
+        headers: new Headers({
+            'content-type': 'application/octet-stream',
+        }),
+    });
+
+    await checkResponse('getChallenge', response);
+
+    const rawBody = new Uint8Array(await response.arrayBuffer());
+
+    return Protocol.HarborChallengeResponse.decode(rawBody);
+}
+
+export async function postPurge(
+    server: string,
+    solvedChallenge: Protocol.HarborValidateRequest,
+): Promise<void> {
+    const response = await fetch(server + '/purge', {
+        method: 'POST',
+        headers: new Headers({
+            'content-type': 'application/octet-stream',
+        }),
+        body: Protocol.HarborValidateRequest.encode(solvedChallenge).finish(),
+    });
+
+    await checkResponse('postPurge', response);
+}

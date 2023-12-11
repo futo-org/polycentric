@@ -39,6 +39,7 @@ services:
             RUST_LOG: "server=debug"
             DATABASE_URL: "postgres://postgres:testing@postgres"
             ADMIN_TOKEN: "123"
+            CHALLENGE_KEY: "456"
         user: "${CURRENT_UID}:${CURRENT_GID}"
         volumes:
             - ./:/app
