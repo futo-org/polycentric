@@ -11,6 +11,14 @@ const XIcon = ({ className }: { className: string }) => {
     </svg>
   )
 }
+function isValidURL(s: string) {
+  try {
+      new URL(s);
+      return true;
+  } catch (error) {
+      return false;
+  }
+}
 
 const ServerListTableRow = ({
   originalServer,
@@ -30,6 +38,7 @@ const ServerListTableRow = ({
   useDebouncedEffect(
     () => {
       setIsValidServer(false)
+      if (isValidURL(inputValue) === false) return
       const cancelContext = new CancelContext.CancelContext()
       fetch(`${inputValue}/version`)
         .then((res) => res.json())
