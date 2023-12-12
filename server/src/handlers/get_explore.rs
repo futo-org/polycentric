@@ -13,7 +13,7 @@ pub(crate) async fn handler(
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
     let start_id = if let Some(cursor) = query.cursor {
         u64::from_le_bytes(crate::warp_try_err_500!(crate::warp_try_err_500!(
-            base64::decode(cursor)
+            ::base64::decode_config(cursor, ::base64::URL_SAFE)
         )
         .as_slice()
         .try_into()))
