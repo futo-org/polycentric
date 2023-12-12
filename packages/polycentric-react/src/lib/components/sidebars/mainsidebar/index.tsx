@@ -24,7 +24,6 @@ export const MainSidebar = () => (
       </h1>
       <div className="flex flex-col text-right">
         <SidebarLink to="/">Explore</SidebarLink>
-        <SidebarLink to="/following">Following</SidebarLink>
       </div>
     </div>
     <div>
