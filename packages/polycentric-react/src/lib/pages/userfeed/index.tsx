@@ -10,6 +10,7 @@ import { MobileProfileFeed } from '../../components/profile/mobilefeedprofile'
 import { UserColumn } from '../../components/profile/sidebarprofile/UserColumn'
 import { useAuthorFeed } from '../../hooks/feedHooks'
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks'
+import { useUsernameCRDTQuery } from '../../hooks/queryHooks'
 import { useParams } from '../../hooks/stackRouterHooks'
 import { useIsMobile } from '../../hooks/styleHooks'
 
@@ -35,6 +36,12 @@ export const UserFeedPage: Page = () => {
   const isMobile = useIsMobile()
   const isMyProfile = Models.PublicKey.equal(system, processHandle.system())
 
+  const username = useUsernameCRDTQuery(system)
+  const headerText = useMemo(() => {
+    if (!username) return 'Profile'
+    return `${username}'s Profile`
+  }, [username])
+
   const topComponent = useMemo(() => {
     if (isMobile) return <MobileProfileFeed system={system} />
     return isMyProfile ? <PostCompose /> : undefined
@@ -42,7 +49,7 @@ export const UserFeedPage: Page = () => {
 
   return (
     <>
-      <Header>Profile</Header>
+      <Header>{headerText}</Header>
       <IonContent>
         <InfiniteScrollWithRightCol
           data={data}
