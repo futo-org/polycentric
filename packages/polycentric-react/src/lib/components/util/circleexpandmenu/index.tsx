@@ -28,6 +28,7 @@ const CircleExpandMenuInteriorReverse = ({
               {item.routerLink ? (
                 <Link
                   routerLink={item.routerLink}
+                  routerDirection="root"
                   className={`h-[3rem] px-5 flex items-center text-black hover:bg-gray-${
                     index % 2 === 0 ? '50' : '100'
                   } w-full`}
