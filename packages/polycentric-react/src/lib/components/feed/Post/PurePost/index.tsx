@@ -18,11 +18,11 @@ const dateToAgoString = (date: Date | undefined) => {
   if (hours > 24) {
     return date.toLocaleDateString()
   } else if (hours > 1) {
-    return `${hours} h ago`
+    return `${hours}h ago`
   } else if (minutes > 1) {
-    return `${minutes} m ago`
+    return `${minutes}m ago`
   } else {
-    return `${seconds} s ago`
+    return `${seconds}s ago`
   }
 }
 
