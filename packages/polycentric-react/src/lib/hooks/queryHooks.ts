@@ -188,12 +188,9 @@ export function useIndex<T>(
   const queryManager = useQueryManager()
 
   const [state, setState] = useState<Array<ClaimInfo<T>>>([])
-
-  const latestHandle = useRef<Queries.QueryIndex.QueryHandle | undefined>(undefined)
+  const [advance, setAdvance] = useState<((batchSize: number) => void) | undefined>(undefined)
 
   useEffect(() => {
-    setState([])
-
     const cancelContext = new CancelContext.CancelContext()
 
     const cb = (value: Queries.QueryIndex.CallbackParameters) => {
@@ -226,14 +223,15 @@ export function useIndex<T>(
       })
     }
 
-    latestHandle.current = queryManager.queryIndex.query(system, contentType, cb)
-
-    latestHandle.current.advance(batchSize)
+    const latestHandle = queryManager.queryIndex.query(system, contentType, cb)
+    setAdvance(() => (size: number) => latestHandle.advance(size))
 
     return () => {
-      cancelContext.cancel()
+      setState([])
+      setAdvance(undefined)
 
-      latestHandle.current?.unregister()
+      cancelContext.cancel()
+      latestHandle.unregister()
     }
   }, [queryManager, system, contentType, parse, batchSize])
 
@@ -242,8 +240,8 @@ export function useIndex<T>(
   }, [state])
 
   const advanceCallback = useCallback(() => {
-    latestHandle.current?.advance(batchSize)
-  }, [batchSize])
+    advance?.(batchSize)
+  }, [advance, batchSize])
 
   return [parsedEvents, advanceCallback]
 }
@@ -444,6 +442,7 @@ export function useQueryCursor<T>(
         const event = Models.Event.fromBuffer(signedEvent.event)
         const parsed = parse(event.content)
         processHandle.addAddressHint(event.system, cell.fromServer)
+
         return new ParsedEvent<T>(signedEvent, event, parsed)
       })
       setState((currentCells) => [...currentCells].concat(newCellsAsSignedEvents))
@@ -451,7 +450,12 @@ export function useQueryCursor<T>(
 
     const newQuery = new Queries.QueryCursor.Query(processHandle, loadCallback, addNewCells, batchSize)
     query.current = newQuery
-    setAdvance(() => query.current?.advance.bind(query.current) ?? (() => {}))
+    setAdvance(
+      () =>
+        (() => {
+          query.current?.advance()
+        }) ?? (() => {}),
+    )
     return () => {
       cancelContext.cancel()
       newQuery.cleanup()
