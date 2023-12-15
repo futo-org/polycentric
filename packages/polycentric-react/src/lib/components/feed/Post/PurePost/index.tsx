@@ -311,7 +311,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   {/* Stop pfp link propagation to post link */}
                   <div onClick={(e) => e.stopPropagation()}>
                     <Link routerLink={main.author.URL ?? '#'} routerDirection="forward">
-                      <div className="rounded-full h-10 w-10 md:h-16 md:w-16 lg:h-20 lg:w-20 overflow-clip border">
+                      <div className="rounded-full h-10 w-10 md:h-16 md:w-16 lg:h-20 lg:w-20 overflow-clip border bg-gray-50">
                         <img src={main.author.avatarURL} />
                       </div>
                     </Link>
