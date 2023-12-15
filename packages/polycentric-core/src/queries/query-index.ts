@@ -29,7 +29,8 @@ export function applyPatch(
     return state
         .filter((x) => !patch.remove.has(x.key))
         .concat(patch.add)
-        .sort(compareCells);
+        .sort(compareCells)
+        .reverse();
 }
 
 export function compareCells(a: Cell, b: Cell): number {

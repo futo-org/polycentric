@@ -318,6 +318,6 @@ describe('query index', () => {
 
         handle?.unregister();
 
-        expect(state.map(extractGenericClaim)).toStrictEqual(['1', '3']);
+        expect(state.map(extractGenericClaim)).toStrictEqual(['3', '1']);
     });
 });

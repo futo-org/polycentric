@@ -40,16 +40,14 @@ export class QueryManager {
         const items = new Map();
 
         const queryIndexCallback = (params: QueryIndex.CallbackParameters) => {
-            if (params.remove.size > 0) {
-                throw new Error('delete never expected for QueryCRDTSet');
-            }
-
             const toAdd: Array<QueryIndex.Cell> = [];
             const toRemove: Set<string> = new Set();
 
             for (const cell of params.add) {
                 if (cell.signedEvent === undefined) {
-                    throw new Error('expected signed event');
+                    toAdd.push(cell);
+
+                    continue;
                 }
 
                 const event = Models.Event.fromBuffer(cell.signedEvent.event);
@@ -60,11 +58,11 @@ export class QueryManager {
 
                 const key = Base64.encode(event.lwwElementSet.value);
 
-                const potential = items.get(key);
+                const existing = items.get(key);
 
                 if (
-                    potential === undefined ||
-                    potential.lwwElement.unixMilliseconds.lessThan(
+                    existing === undefined ||
+                    existing.lwwElement.unixMilliseconds.lessThan(
                         event.lwwElementSet.unixMilliseconds,
                     )
                 ) {
@@ -80,10 +78,14 @@ export class QueryManager {
                         toAdd.push(cell);
                     }
 
-                    if (potential) {
-                        toRemove.add(cell.key);
+                    if (existing) {
+                        toRemove.add(existing.key);
                     }
                 }
+            }
+
+            for (const key of params.remove) {
+                toRemove.add(key);
             }
 
             if (toAdd.length > 0 || toRemove.size > 0) {
