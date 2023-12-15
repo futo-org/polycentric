@@ -316,7 +316,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                       </div>
                     </Link>
                   </div>
-                  {(!isMobile || (isMobile && expanded)) && (
+                  {(!isMobile || (isMobile && contentCropped && expanded)) && (
                     <div
                       className={`flex-col space-y-5 md:space-y-2 ${
                         expanded ? 'sticky top-[50vh]' : ''
