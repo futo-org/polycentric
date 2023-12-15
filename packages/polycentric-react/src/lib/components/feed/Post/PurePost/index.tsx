@@ -387,7 +387,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        setMainImageOpen(true)
+                        main.image && setMainImageOpen(true)
                       }}
                     >
                       <img src={main.image} className="rounded-2xl max-h-60 max-w-full w-fit hover:opacity-80 border" />
