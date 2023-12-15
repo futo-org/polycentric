@@ -441,6 +441,14 @@ export function useQueryCursor<T>(
         const { signedEvent } = cell
         const event = Models.Event.fromBuffer(signedEvent.event)
         const parsed = parse(event.content)
+
+        const eventsReferencing = event.references.filter((reference) => reference.referenceType.eq(2))
+        eventsReferencing.forEach((eventReference) => {
+          const pointer = Models.Pointer.fromProto(Protocol.Pointer.decode(eventReference.reference))
+          // TODO: This is a hack to make sure we have the address hint for the pointer.
+          // We should be returning related events from the query and using those instead.
+          processHandle.addAddressHint(pointer.system, cell.fromServer)
+        })
         processHandle.addAddressHint(event.system, cell.fromServer)
 
         return new ParsedEvent<T>(signedEvent, event, parsed)
