@@ -203,6 +203,7 @@ export async function getQueryReferences(
     requestEvents?: Protocol.QueryReferencesRequestEvents,
     countLwwElementReferences?: Protocol.QueryReferencesRequestCountLWWElementReferences[],
     countReferences?: Protocol.QueryReferencesRequestCountReferences[],
+    extraByteReferences?: Array<Uint8Array>,
 ): Promise<Protocol.QueryReferencesResponse> {
     const query: Protocol.QueryReferencesRequest = {
         reference: reference,
@@ -210,6 +211,7 @@ export async function getQueryReferences(
         requestEvents: requestEvents,
         countLwwElementReferences: countLwwElementReferences ?? [],
         countReferences: countReferences ?? [],
+        extraByteReferences: extraByteReferences ?? [],
     };
 
     const encodedQuery = Base64.encodeUrl(

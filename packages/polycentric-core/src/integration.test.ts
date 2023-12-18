@@ -563,4 +563,84 @@ describe('integration', () => {
 
         await APIMethods.postPurge(TEST_SERVER, solvedChallenge);
     });
+
+    test('query multiple references', async () => {
+        const primaryReference = Models.bufferToReference(
+            Util.encodeText('https://fake.com/' + Math.random().toString()),
+        );
+
+        const secondaryReferenceBytes = Util.encodeText(
+            'https://fake.com/' + Math.random().toString(),
+        );
+
+        const secondaryReference = Models.bufferToReference(
+            secondaryReferenceBytes,
+        );
+
+        const s1 = await ProcessHandle.createTestProcessHandle();
+        await s1.addServer(TEST_SERVER);
+        const post1 = await s1.post('a', undefined, primaryReference);
+        await s1.opinion(primaryReference, Models.Opinion.OpinionLike);
+        await ProcessHandle.fullSync(s1);
+
+        const s2 = await ProcessHandle.createTestProcessHandle();
+        await s2.addServer(TEST_SERVER);
+        const post2 = await s2.post('b', undefined, secondaryReference);
+        await s2.opinion(secondaryReference, Models.Opinion.OpinionDislike);
+        await ProcessHandle.fullSync(s2);
+
+        const result = await APIMethods.getQueryReferences(
+            TEST_SERVER,
+            primaryReference,
+            undefined,
+            {
+                fromType: Models.ContentType.ContentTypePost,
+                countLwwElementReferences: [],
+                countReferences: [],
+            },
+            [
+                {
+                    fromType: Models.ContentType.ContentTypeOpinion,
+                    value: Models.Opinion.OpinionLike,
+                },
+                {
+                    fromType: Models.ContentType.ContentTypeOpinion,
+                    value: Models.Opinion.OpinionDislike,
+                },
+            ],
+            [
+                {
+                    fromType: Models.ContentType.ContentTypePost,
+                },
+            ],
+            [secondaryReferenceBytes],
+        );
+
+        // likes
+        expect(result.counts[0].toNumber()).toStrictEqual(1);
+        // dislikes
+        expect(result.counts[1].toNumber()).toStrictEqual(1);
+        // reply count
+        expect(result.counts[2].toNumber()).toStrictEqual(2);
+
+        expect(result.items).toHaveLength(2);
+
+        expect(
+            Models.Pointer.equal(
+                post2,
+                Models.signedEventToPointer(
+                    Models.SignedEvent.fromProto(result.items[0].event!),
+                ),
+            ),
+        ).toStrictEqual(true);
+
+        expect(
+            Models.Pointer.equal(
+                post1,
+                Models.signedEventToPointer(
+                    Models.SignedEvent.fromProto(result.items[1].event!),
+                ),
+            ),
+        ).toStrictEqual(true);
+    });
 });

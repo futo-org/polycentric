@@ -30,27 +30,51 @@ pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
-    let reference = crate::warp_try_err_500!(
+    let reference = crate::warp_try_err_400!(
         crate::model::reference::from_proto(&query.query.reference,)
     );
+
+    let subject = match &reference {
+        crate::model::reference::Reference::Pointer(pointer) => {
+            if query.query.extra_byte_references.is_empty() {
+                return Ok(Box::new(::warp::reply::with_status(
+                    "cannot use extra_byte_references with pointer reference",
+                    ::warp::http::StatusCode::BAD_REQUEST,
+                )));
+            }
+
+            crate::model::PointerOrByteReferences::Pointer(pointer.clone())
+        }
+        crate::model::reference::Reference::Bytes(primary_reference) => {
+            let mut byte_references = query.query.extra_byte_references.clone();
+            byte_references.push(primary_reference.clone());
+            crate::model::PointerOrByteReferences::Bytes(byte_references)
+        }
+        _ => {
+            return Ok(Box::new(::warp::reply::with_status(
+                "unsupported reference type",
+                ::warp::http::StatusCode::BAD_REQUEST,
+            )));
+        }
+    };
+
+    let query_cursor = if let Some(cursor) = query.query.cursor {
+        Some(u64::from_be_bytes(crate::warp_try_err_400!(cursor
+            .as_slice()
+            .try_into())))
+    } else {
+        None
+    };
 
     let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
 
     let mut result = crate::protocol::QueryReferencesResponse::new();
 
     if let Some(request_events) = query.query.request_events.0 {
-        let query_cursor = if let Some(cursor) = query.query.cursor {
-            Some(u64::from_be_bytes(crate::warp_try_err_500!(cursor
-                .as_slice()
-                .try_into())))
-        } else {
-            None
-        };
-
         let query_result = crate::warp_try_err_500!(
             crate::queries::query_references::query_references(
                 &mut transaction,
-                &reference,
+                &subject,
                 &request_events.from_type,
                 &query_cursor,
                 20,
@@ -110,7 +134,7 @@ pub(crate) async fn handler(
                 crate::queries::count_lww_element_references::
                     count_lww_element_references(
                         &mut transaction,
-                        &reference,
+                        &subject,
                         &params.value,
                         &params.from_type,
                     ).await
@@ -121,7 +145,7 @@ pub(crate) async fn handler(
         result.counts.push(crate::warp_try_err_500!(
             crate::queries::count_references::count_references(
                 &mut transaction,
-                &reference,
+                &subject,
                 &params.from_type,
             )
             .await
