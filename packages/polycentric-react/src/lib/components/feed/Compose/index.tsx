@@ -23,7 +23,7 @@ const TopicBox = ({
         name="postTopic"
         autoComplete="off"
         list="autocompleteOff"
-        placeholder='/Topic'
+        placeholder="/Topic"
         aria-autocomplete="none"
         className={`bg-transparent w-full h-full p-5 absolute text-lg placeholder:text-gray-300 focus:outline-none peer z-10 font-light text-gray-900 ${
           disabled ? 'opacity-60' : ''
@@ -71,7 +71,6 @@ const TopicBox = ({
         className={`absolute top-0 left-0 w-full h-full border bg-white peer-focus:border-gray-400 rounded-lg -skew-x-[9deg] ${
           disabled ? 'opacity-50' : ''
         }
-          ${focused ? ' rounded-b-none' : ''}
         `}
       ></div>
       {/* Temporarily disabled */}
