@@ -172,7 +172,7 @@ export const Compose = ({
         )}
       </div>
 
-      <div className="w-full flex justify-between pt-4">
+      <div className="w-full flex justify-between items-center pt-4">
         <div className="flex items-start space-x-4">
           <button onClick={() => uploadRef.current?.click()}>
             <PhotoIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" strokeWidth="1" />
