@@ -209,7 +209,7 @@ export const SwipeHomeFeed = () => {
 
       <Swiper
         // h-full should work here but it doesn't
-        className="w-full calc(100dvh-5rem)"
+        className="w-full h-[calc(100dvh-5rem)]"
         modules={[Controller]}
         onSwiper={setFeedSwiper}
         controller={{ control: headerSwiper }}

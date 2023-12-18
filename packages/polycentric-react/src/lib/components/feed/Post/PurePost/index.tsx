@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, useState } from 'react'
+import { forwardRef, useLayoutEffect, useRef, useState } from 'react'
 import { useIsMobile } from '../../../../hooks/styleHooks'
 import { Profile } from '../../../../types/profile'
 import { PopupComposeReplyFullscreen } from '../../../popup/PopupComposeReply'
@@ -277,17 +277,17 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
 
     const isMobile = useIsMobile()
 
-    useEffect(() => {
+    useLayoutEffect(() => {
       if (mainRef.current != null && expanded === false && autoExpand === false) {
         setContentCropped(mainRef.current.clientHeight < mainRef.current.scrollHeight)
       }
     }, [main, expanded, autoExpand])
 
-    useEffect(() => {
-      if (subContentRef.current != null && subcontentCropped === false) {
+    useLayoutEffect(() => {
+      if (subContentRef.current != null) {
         setsubcontentCropped(subContentRef.current.clientHeight < subContentRef.current.scrollHeight)
       }
-    }, [sub, subcontentCropped])
+    }, [sub])
 
     return (
       <div ref={infiniteScrollRef}>

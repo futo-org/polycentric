@@ -1,73 +1,109 @@
-import useVirtual, { Item, ScrollTo } from '@polycentric/react-cool-virtual'
-import { ReactNode, useEffect, useState } from 'react'
+import { encode } from '@borderless/base64'
+import { ArrowUpIcon } from '@heroicons/react/24/outline'
+import { ReactElement, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Virtuoso, VirtuosoHandle } from 'react-virtuoso'
 import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks'
 import { useIsMobile } from '../../../hooks/styleHooks'
-import { InnerFeed } from '../../feed/Feed'
+import { Post } from '../../feed'
 import { SearchBox } from '../../search/searchbox'
-
-interface InfiniteScrollFeedProps {
-  innerRef: React.MutableRefObject<HTMLDivElement | null>
-  items: Item[]
-  hasScrolled: boolean
-  scrollTo: ScrollTo
-  data: FeedHookData[]
-}
-
-export type InfiniteScrollFeed = (props: InfiniteScrollFeedProps) => ReactNode
 
 export const InfiniteScrollWithRightCol = ({
   data,
   advanceFeed,
   leftCol,
   topFeedComponent,
+  prependCount,
 }: {
   data: FeedHookData
   advanceFeed: FeedHookAdvanceFn
-  leftCol: ReactNode
-  topFeedComponent?: ReactNode
+  leftCol?: ReactElement
+  topFeedComponent?: ReactElement
+  prependCount?: number
 }) => {
-  const loadMoreCount = 20
-
-  const { outerRef, innerRef, items, scrollTo } = useVirtual<HTMLDivElement>({
-    itemCount: data.length,
-    loadMoreCount,
-    loadMore: () => advanceFeed(),
-    overscanCount: 5,
-  })
-
-  const [hasScrolled, setHasScrolled] = useState(false)
+  const outerRef = useRef<HTMLDivElement>(null)
+  const [showScrollUpButton, setShowScrollUpButton] = useState(false)
+  const hasScrolled = useRef(false)
   const isMobile = useIsMobile()
+
+  const [windowHeight] = useState(window.innerHeight)
 
   useEffect(() => {
     advanceFeed()
   }, [advanceFeed])
 
+  const virtuoso = useRef<VirtuosoHandle>(null)
+
+  useLayoutEffect(() => {
+    if (prependCount && prependCount > 0) {
+      if (hasScrolled.current === false) {
+        virtuoso.current?.scrollToIndex(prependCount)
+        setShowScrollUpButton(true)
+      }
+    }
+  }, [prependCount])
+
+  const onScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      if (hasScrolled.current === false) {
+        hasScrolled.current = true
+      }
+      if (e.currentTarget.scrollTop > 200 && !showScrollUpButton) {
+        setShowScrollUpButton(true)
+      } else if (e.currentTarget.scrollTop <= 100 && showScrollUpButton) {
+        setShowScrollUpButton(false)
+      }
+    },
+    [showScrollUpButton],
+  )
+
   return (
     <div
-      // @ts-ignore
-      ref={outerRef} // Attach the `outerRef` to the scroll container
-      className="h-full overflow-auto flex noscrollbar"
-      onScroll={(e) => {
-        if (e.currentTarget.scrollTop > 400 && !hasScrolled) {
-          setHasScrolled(true)
-        } else if (e.currentTarget.scrollTop <= 100 && hasScrolled) {
-          setHasScrolled(false)
-        }
-      }}
+      ref={outerRef} // Attach the `outerRef` to the scroll container as the custom scroll parent so it includes the left column and the padding
+      className="h-full flex overflow-y-scroll"
+      onScroll={isMobile ? undefined : onScroll}
     >
       <div className="w-full lg:w-[700px] xl:w-[776px] relative">
-        <InnerFeed
-          innerRef={innerRef}
-          items={items}
+        <Virtuoso
+          ref={virtuoso}
           data={data}
-          scrollTo={scrollTo}
-          hasScrolled={hasScrolled}
-          topFeedComponent={topFeedComponent}
+          style={{ height: '100%' }}
+          customScrollParent={isMobile ? undefined : outerRef.current ?? undefined}
+          onScroll={isMobile ? onScroll : undefined}
+          itemContent={(index, data) => (
+            <Post
+              key={data !== undefined ? encode(data.signedEvent.signature) : index}
+              autoExpand={prependCount !== undefined && index === 100 - prependCount}
+              data={data}
+            />
+          )}
+          overscan={{
+            reverse: windowHeight * 5,
+            main: windowHeight * 10,
+          }}
+          increaseViewportBy={{
+            top: windowHeight / 2,
+            bottom: windowHeight / 2,
+          }}
+          endReached={() => advanceFeed()}
+          components={{
+            Header: topFeedComponent ? () => topFeedComponent : undefined,
+            Footer: prependCount !== undefined ? () => <div className="h-[200vh]" /> : undefined,
+          }}
         />
+        {showScrollUpButton && (
+          <>
+            <div className="absolute w-full top-1 md:top-5 flex justify-center z-40">
+              <button
+                onClick={() => virtuoso.current?.scrollTo({ top: 0, behavior: 'instant' })}
+                className="bg-blue-500 opacity-80 md:opacity-50 hover:opacity-80 border shadow rounded-full px-14 py-2 md:p-1 text-white fixed"
+              >
+                <ArrowUpIcon className="w-6 h-6" />
+              </button>
+            </div>
+          </>
+        )}
       </div>
-      {isMobile ? (
-        <div />
-      ) : (
+      {isMobile === false && (
         <div className="h-full sticky top-0 border-x hidden xl:block xl:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:mr-[calc((100vw-1536px)/2)] ">
           <div className="p-5 pb-10">
             <SearchBox />
