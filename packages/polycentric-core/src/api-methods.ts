@@ -234,11 +234,17 @@ export async function getQueryReferences(
     return Protocol.QueryReferencesResponse.decode(rawBody);
 }
 
+export enum SearchType {
+    Messages = 'messages',
+    Profiles = 'profiles',
+}
+
 export async function getSearch(
     server: string,
     searchQuery: string,
     limit?: number,
     cursor?: Uint8Array,
+    searchType?: SearchType,
 ): Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type> {
     let path = `/search?search=${encodeURIComponent(searchQuery)}`;
 
@@ -248,6 +254,10 @@ export async function getSearch(
 
     if (limit !== undefined) {
         path += `&limit=${limit.toString()}`;
+    }
+
+    if (searchType !== undefined) {
+        path += `&search_type=${searchType}`;
     }
 
     const response = await fetch(server + path, {
