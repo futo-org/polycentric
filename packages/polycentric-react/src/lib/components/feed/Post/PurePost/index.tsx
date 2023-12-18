@@ -206,6 +206,7 @@ export interface PurePostProps {
     image?: string
     // URLs aren't synchronous because we need to get the list of servers
     url?: string
+    replyingToName?: string
   }
   sub?: {
     content: string
@@ -346,25 +347,30 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   )}
                 </div>
                 {/* Right column */}
-                <div className="flex-grow w-full lg:max-w-[600px]">
+                <div className="flex-grow w-full lg:max-w-[600px] overflow-hidden">
                   <div className="flex w-full justify-between">
-                    <div className="" onClick={(e) => e.stopPropagation()}>
-                      <Link routerLink={main.author.URL ?? '#'} className="text-inherit">
-                        <address className="font-bold text-md author not-italic hover:underline">
-                          {main.author.name}
-                        </address>
-                      </Link>
-                      <Link routerLink={`/t/${main.topic}`} className="text-gray-300 leading-3">
-                        {main.topic}
-                      </Link>
-                    </div>
-                    <div className="flex space-x-2 text-gray-700 items-center">
-                      <time className="text-right sm:text-right pr-3 lg:pr-0 font-light text-gray-500 tracking-tight">
-                        {dateToAgoString(main.publishedAt)}
-                      </time>
-                      {/* <div className="flex flex-col-reverse sm:flex-row">
-                        <BookmarkPostButton onClick={undefined} />
-                      </div> */}
+                    <div className="w-full" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex w-full justify-between">
+                        <Link routerLink={main.author.URL ?? '#'} className="text-inherit">
+                          <address className="font-bold text-base author not-italic hover:underline h-[1.5rem]">
+                            {main.author.name}
+                          </address>
+                        </Link>
+                        <time className="text-right sm:text-right font-light text-gray-500 tracking-tight">
+                          {dateToAgoString(main.publishedAt)}
+                        </time>
+                      </div>
+                      <div className="h-[1.5rem]">
+                        {main.replyingToName ? (
+                          <div>
+                            Replying to <span className="text-gray-500">{main.replyingToName}</span>
+                          </div>
+                        ) : main.topic ? (
+                          <Link routerLink={`/t/${main.topic}`} className="text-gray-300 leading-3">
+                            {main.topic}
+                          </Link>
+                        ) : undefined}
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-col space-y-3">
