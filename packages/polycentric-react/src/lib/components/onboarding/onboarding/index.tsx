@@ -57,7 +57,7 @@ const InternetTodayPanel = ({ nextSlide }: { nextSlide: () => void }) => (
         className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
         onClick={nextSlide}
       >
-        Lets go back
+        Lets go
       </button>
     </div>
   </OnboardingPanel>
