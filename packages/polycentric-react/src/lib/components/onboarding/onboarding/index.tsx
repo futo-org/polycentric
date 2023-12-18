@@ -141,6 +141,7 @@ const CredsPanelSignUp = () => {
         title="What's your username?"
         hint="You can change this later"
         value={username}
+        required={true}
         onChange={(e) => setUsername(e.target.value)}
       />
       <GenCredsPanelItem
