@@ -1,6 +1,7 @@
 import { ArrowRightIcon } from '@heroicons/react/24/solid'
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from '../../../hooks/stackRouterHooks'
+import { ProfilePicture } from '../../profile/ProfilePicture'
 import { Link } from '../../util/link'
 
 interface ResultsPreview {
@@ -79,7 +80,7 @@ export const SearchBox = ({
                     routerLink={account.url}
                     key={account.id}
                   >
-                    <img src={account.avatarURL} className="w-10 h-10 rounded-full " />
+                    <ProfilePicture className="h-10 w-10" src={account.avatarURL} />
                     <div className="flex flex-col">
                       <div className="text-gray-500">{account.name}</div>
                     </div>

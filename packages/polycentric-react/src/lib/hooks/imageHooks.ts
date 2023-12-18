@@ -1,8 +1,10 @@
 import { Models, Protocol } from '@polycentric/polycentric-core'
+import { toSvg } from 'jdenticon'
 import Long from 'long'
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { avatarResolutions } from '../util/imageProcessing'
-import { useBlobQuery, useCRDTQuery } from './queryHooks'
+import { useBlobQuery, useCRDTQuery, useTextPublicKey } from './queryHooks'
 
 export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
   const [blobURL, setBlobURL] = useState<string | undefined>(undefined)
@@ -28,11 +30,15 @@ export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
 
 export const useImageManifestDisplayURL = (
   system?: Models.PublicKey.PublicKey,
-  manifest?: Protocol.ImageManifest,
+  manifest?: Protocol.ImageManifest | null,
 ): string | undefined => {
-  const process = manifest?.process ? Models.Process.fromProto(manifest.process) : undefined
-  const sections = manifest?.sections
-  const mime = manifest?.mime
+  const { process, sections, mime } = useMemo(() => {
+    const process = manifest?.process ? Models.Process.fromProto(manifest.process) : undefined
+    const sections = manifest?.sections
+    const mime = manifest?.mime
+
+    return { process, sections, mime }
+  }, [manifest])
 
   const parseBlob = useCallback(
     (buffer: Uint8Array) => {
@@ -81,5 +87,18 @@ export const useAvatar = (
 
   const manifest = useCRDTQuery(system, Models.ContentType.ContentTypeAvatar, decoder)
 
-  return useImageManifestDisplayURL(system, manifest)
+  const stringKey = useTextPublicKey(system)
+
+  const jdenticonSrc = useMemo(() => {
+    if (manifest == null) {
+      const svgString = toSvg(stringKey, 100)
+      const svg = new Blob([svgString], { type: 'image/svg+xml' })
+      return URL.createObjectURL(svg)
+    }
+  }, [manifest, stringKey])
+
+  const manifestDisplayURL = useImageManifestDisplayURL(system, manifest)
+  const displayURL = manifest === null ? jdenticonSrc : manifestDisplayURL
+
+  return displayURL
 }

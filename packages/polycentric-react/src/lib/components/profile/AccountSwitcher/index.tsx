@@ -7,6 +7,7 @@ import { useProcessHandleManager } from '../../../hooks/processHandleManagerHook
 import { useSystemLink, useTextPublicKey, useUsernameCRDTQuery } from '../../../hooks/queryHooks'
 import { CircleExpandMenuReverse } from '../../util/circleexpandmenu'
 import { Link } from '../../util/link'
+import { ProfilePicture } from '../ProfilePicture'
 
 const UpArrowIcon = () => (
   <svg
@@ -100,12 +101,8 @@ export const AccountSwitcher = () => {
         <div className={`flex justify-between p-2 w-full ${expanded ? 'rounded-b-[2rem]' : 'rounded-[2rem]'}`}>
           <div className="flex space-x-2">
             <IonMenuToggle className="contents">
-              <Link
-                routerLink={systemLink}
-                routerDirection="root"
-                className="h-[3rem] w-[3rem] rounded-full border overflow-clip"
-              >
-                <img className="" src={avatarURL} />
+              <Link routerLink={systemLink} routerDirection="root">
+                <ProfilePicture src={avatarURL} className="h-[3rem] w-[3rem]" />
               </Link>
             </IonMenuToggle>
             <div className="flex flex-col">
