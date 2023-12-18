@@ -7,6 +7,7 @@ import {
   useDateFromUnixMS,
   useEventLink,
   usePostStats,
+  useQueryOpinion,
   useSystemLink,
   useTextPublicKey,
   useUsernameCRDTQuery,
@@ -31,6 +32,14 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
   const reference = useMemo(() => {
     return Models.pointerToReference(pointer)
   }, [pointer])
+
+  const opinionOnMount = useQueryOpinion(processHandle.system(), reference)
+  const likedOnMount = useMemo(() => {
+    if (opinionOnMount === undefined) {
+      return undefined
+    }
+    return Util.buffersEqual(opinionOnMount, Models.Opinion.OpinionLike)
+  }, [opinionOnMount])
 
   const [liked, setLiked] = useState<boolean>(false)
 
@@ -116,13 +125,15 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
     let likes = stats.likes
     if (stats.likes === 0 && liked) {
       likes = stats.likes + 1
+    } else if (liked && likedOnMount === false && stats.likes) {
+      likes = stats.likes + 1
     }
 
     return {
       ...stats,
       likes: likes,
     }
-  }, [stats, liked])
+  }, [stats, liked, likedOnMount])
 
   return {
     stats: locallyModifiedStats,
