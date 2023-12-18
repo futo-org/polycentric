@@ -426,6 +426,35 @@ export const useQueryIfAdded = (
   return state
 }
 
+export const useQueryOpinion = (system?: Models.PublicKey.PublicKey, subject?: Protocol.Reference) => {
+  const { processHandle } = useProcessHandleManager()
+  const [opinion, setOpinion] = useState<Models.Opinion.Opinion | undefined>(undefined)
+
+  useEffect(() => {
+    if (system === undefined || subject === undefined) {
+      setOpinion(undefined)
+      return
+    }
+
+    const cancelContext = new CancelContext.CancelContext()
+    processHandle
+      .store()
+      .opinionIndex.get(system, subject)
+      .then((result) => {
+        if (cancelContext.cancelled()) {
+          return
+        }
+        setOpinion(result)
+      })
+
+    return () => {
+      cancelContext.cancel()
+    }
+  }, [processHandle, system, subject])
+
+  return opinion
+}
+
 export function useQueryCursor<T>(
   loadCallback: Queries.QueryCursor.LoadCallback,
   parse: (buffer: Uint8Array) => T,
