@@ -23,43 +23,45 @@ const TopicBox = ({
         name="postTopic"
         autoComplete="off"
         list="autocompleteOff"
+        placeholder='/Topic'
         aria-autocomplete="none"
-        className={`bg-transparent w-full h-full p-5 absolute text-xl focus:outline-none peer z-10 font-mono font-light text-gray-900 ${
+        className={`bg-transparent w-full h-full p-5 absolute text-lg placeholder:text-gray-300 focus:outline-none peer z-10 font-light text-gray-900 ${
           disabled ? 'opacity-60' : ''
         }`}
         value={topic}
         onChange={(e) => {
-          let { value } = e.target
+          const { value } = e.target
+          setTopic(value)
 
-          if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
-            e.currentTarget.setSelectionRange(1, 1)
-          }
+          //   if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
+          //     e.currentTarget.setSelectionRange(1, 1)
+          //   }
 
-          if (hasNonAlphanumeric.test(value)) {
-            value = value.replace(hasNonAlphanumeric, '')
-          }
+          //   if (hasNonAlphanumeric.test(value)) {
+          //     value = value.replace(hasNonAlphanumeric, '')
+          //   }
 
-          if (startsWithSlash.test(value)) {
-            setTopic(value)
-          } else if (value === '') {
-            setTopic('/')
-          }
-        }}
-        onKeyDown={(e) => {
-          // prevent the user from moving the cursor before the slash
-          if (e.key === 'ArrowLeft' && e.currentTarget.selectionStart != null && e.currentTarget.selectionStart === 1) {
-            e.preventDefault()
-          }
-        }}
-        onTouchStart={(e) => {
-          if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
-            e.currentTarget.setSelectionRange(1, 1)
-          }
-        }}
-        onClick={(e) => {
-          if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
-            e.currentTarget.setSelectionRange(1, 1)
-          }
+          //   if (startsWithSlash.test(value)) {
+          //     setTopic(value)
+          //   } else if (value === '') {
+          //     setTopic('/')
+          //   }
+          // }}
+          // onKeyDown={(e) => {
+          //   // prevent the user from moving the cursor before the slash
+          //   if (e.key === 'ArrowLeft' && e.currentTarget.selectionStart != null && e.currentTarget.selectionStart === 1) {
+          //     e.preventDefault()
+          //   }
+          // }}
+          // onTouchStart={(e) => {
+          //   if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
+          //     e.currentTarget.setSelectionRange(1, 1)
+          //   }
+          // }}
+          // onClick={(e) => {
+          //   if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
+          //     e.currentTarget.setSelectionRange(1, 1)
+          //   }
         }}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
@@ -72,7 +74,8 @@ const TopicBox = ({
           ${focused ? ' rounded-b-none' : ''}
         `}
       ></div>
-      {focused && (
+      {/* Temporarily disabled */}
+      {false && (
         // What, you've never seen a trig function in CSS before?
         <div className="absolute top-[3rem] w-full ml-[calc(-0.5_*_tan(9deg)_*_3rem)]">
           <TopicSuggestionBox
@@ -99,7 +102,7 @@ export const Compose = ({
   minTextboxHeightPx = 125,
   postingProgress,
 }: {
-  onPost?: (content: string, upload?: File) => Promise<boolean>
+  onPost?: (content: string, upload?: File, topic?: string) => Promise<boolean>
   preSetTopic?: string
   hideTopic?: boolean
   topicDisabled?: boolean
@@ -109,7 +112,7 @@ export const Compose = ({
   postingProgress?: number
 }) => {
   const [content, setContent] = useState('')
-  const [topic, setTopic] = useState(preSetTopic ?? '/')
+  const [topic, setTopic] = useState(preSetTopic ?? '')
   const [upload, setUpload] = useState<File | undefined>()
   const textRef = useRef<HTMLTextAreaElement | null>(null)
   const uploadRef = useRef<HTMLInputElement | null>(null)
