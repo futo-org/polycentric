@@ -3,8 +3,8 @@ import { useCallback, useRef, useState } from 'react'
 import { useBlobDisplayURL } from '../../../hooks/imageHooks'
 import { TopicSuggestionBox } from '../TopicSuggestionBox'
 
-const startsWithSlash = /^\/.*/
-const hasNonAlphanumeric = /[^a-zA-Z0-9/]/
+// const startsWithSlash = /^\/.*/
+// const hasNonAlphanumeric = /[^a-zA-Z0-9/]/
 
 const TopicBox = ({
   topic,
@@ -15,7 +15,7 @@ const TopicBox = ({
   setTopic: (s: string) => void
   disabled?: boolean
 }) => {
-  const [focused, setFocused] = useState(false)
+  // const [focused, setFocused] = useState(false)
   return (
     <div className="md:w-96 max-w-screen h-[3rem] relative ml-1">
       <input
@@ -63,8 +63,8 @@ const TopicBox = ({
           //     e.currentTarget.setSelectionRange(1, 1)
           //   }
         }}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        // onFocus={() => setFocused(true)}
+        // onBlur={() => setFocused(false)}
         disabled={disabled}
       />
       <div
