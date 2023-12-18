@@ -36,6 +36,9 @@ const WelcomePanel = ({ nextSlide }: { nextSlide: () => void }) => (
       >
         Try it (no email needed)
       </button>
+      <div className="text-gray-400 text-lg pt-20">
+        Note: Polycentric is still a work in progress, and data on this version may be unavailable in the future
+      </div>
     </div>
   </OnboardingPanel>
 )
