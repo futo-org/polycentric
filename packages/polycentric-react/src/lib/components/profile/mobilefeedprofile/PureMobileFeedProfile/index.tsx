@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ProfilePicture } from '../../ProfilePicture'
 import { EditProfileActions, PureEditProfile } from '../../edit/PureEditProfile'
 import { PureSidebarProfileData } from '../../sidebarprofile/PureSidebarProfile'
 
@@ -40,17 +41,12 @@ export const PureMobileFeedProfile = ({
         open={editProfileOpen}
         setOpen={setEditProfileOpen}
       />
-      <div className="grid grid-cols-2 gap-4 px-4 pt-4">
-        <div className="col-span-2 ">
-          <div className="h-24 w-24 rounded-full border overflow-clip">
-            <img src={profile.avatarURL} className="" />
-          </div>
-        </div>
+      <div className="p-4 mb-4 bg-gray-50 bg-cover bg-center" style={{ backgroundImage: profile.backgroundURL }}>
+        <ProfilePicture src={profile.avatarURL} className="w-24 h-24" />
       </div>
-      <div className="w-full mt-6 mb-4"></div>
-      <div className="grid grid-cols-2 gap-4 px-4 pb-4">
-        <div className="col-span-1 text-2xl font-medium self-center">{profile.name}</div>
-        <div className="col-span-1 flex items-end">
+      <div className="grid grid-cols-2 gap-4 px-4">
+        <div className="text-2xl font-medium self-center">{profile.name}</div>
+        <div className="col-start-2 flex items-end">
           {profile.isMyProfile ? (
             <button
               className="bg-gray-50 text-gray-700 border text-sm px-4 py-2 rounded-full flex-grow"

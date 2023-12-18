@@ -5,6 +5,7 @@ import { EditProfileActions, PureEditProfile } from '../../edit/PureEditProfile'
 export interface PureSidebarProfileData {
   name?: string
   avatarURL?: string
+  backgroundURL?: string
   description?: string
   followerCount?: number
   followingCount?: number
