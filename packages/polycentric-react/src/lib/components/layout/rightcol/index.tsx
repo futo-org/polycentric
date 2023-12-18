@@ -15,7 +15,7 @@ export const RightCol = ({
   return (
     <div className="h-full overflow-auto flex noscrollbar">
       <div className="w-full lg:w-[700px] xl:w-[776px] relative">
-        {desktopTitle && <h1 className="p-10 border-b text-xl font-lg">{desktopTitle}</h1>}
+        {isMobile === false && desktopTitle && <h1 className="p-10 border-b text-xl font-lg">{desktopTitle}</h1>}
         {children}
       </div>
       {isMobile ? (
