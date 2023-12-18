@@ -3,7 +3,6 @@ import { IonContent } from '@ionic/react'
 import { Models, Protocol } from '@polycentric/polycentric-core'
 import { useMemo } from 'react'
 import { Page } from '../../app/router'
-import { Post } from '../../components'
 import { Header } from '../../components/layout/header'
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol'
 import { UserColumn } from '../../components/profile/sidebarprofile'
@@ -28,13 +27,10 @@ export const PostFeedPage: Page = () => {
   }, [urlInfoString, processHandle])
 
   const postEvent = useQueryPost(system, process, logicalClock)
-  const post = useMemo(() => {
-    return <Post data={postEvent} doesLink={false} autoExpand={true} />
-  }, [postEvent])
 
   const column = <UserColumn system={system} />
 
-  const [comments, advanceComments] = useCommentFeed(postEvent?.signedEvent)
+  const [comments, advanceComments, , prependCount] = useCommentFeed(postEvent?.signedEvent)
 
   return (
     <>
@@ -44,8 +40,9 @@ export const PostFeedPage: Page = () => {
         <InfiniteScrollWithRightCol
           data={comments}
           advanceFeed={advanceComments}
+          prependCount={prependCount}
           leftCol={column}
-          topFeedComponent={post}
+          topFeedComponent={undefined}
         />
       </IonContent>
     </>

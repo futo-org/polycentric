@@ -1,5 +1,4 @@
 import { ArrowRightIcon } from '@heroicons/react/24/solid'
-import { useDebounce } from '@uidotdev/usehooks'
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from '../../../hooks/stackRouterHooks'
 import { Link } from '../../util/link'
@@ -7,6 +6,20 @@ import { Link } from '../../util/link'
 interface ResultsPreview {
   accounts: { name: string; avatarURL: string; id: string; url?: string }[]
   topics: string[]
+}
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => clearTimeout(handler)
+  }, [value, delay])
+
+  return debouncedValue
 }
 
 export const SearchBox = ({
