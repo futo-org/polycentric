@@ -1,4 +1,4 @@
-import { Synchronization } from '@polycentric/polycentric-core'
+import { Models, Synchronization, Util } from '@polycentric/polycentric-core'
 import { useCallback, useState } from 'react'
 import { Compose } from '..'
 import { useProcessHandleManager } from '../../../../hooks/processHandleManagerHooks'
@@ -10,16 +10,23 @@ export const PostCompose = () => {
   const [postingProgress, setPostingProgress] = useState(0)
 
   const onPost = useCallback(
-    async (content: string, upload?: File): Promise<boolean> => {
+    async (content: string, upload?: File, topic?: string): Promise<boolean> => {
       try {
         setPostingProgress(0.1)
+        let imageBundle
         if (upload) {
-          const imageBundle = await publishImageBlob(upload, processHandle)
-          setPostingProgress(0.3)
-          await processHandle.post(content, imageBundle)
-        } else {
-          await processHandle.post(content)
+          imageBundle = await publishImageBlob(upload, processHandle)
         }
+        setPostingProgress(0.3)
+
+        let topicReference
+        if (topic && topic.length > 0) {
+          const topicBuffer = Util.encodeText(topic)
+          topicReference = Models.bufferToReference(topicBuffer)
+        }
+
+        await processHandle.post(content, imageBundle, topicReference)
+
         setPostingProgress(0.5)
         await Synchronization.backFillServers(processHandle, processHandle.system())
         setPostingProgress(1)

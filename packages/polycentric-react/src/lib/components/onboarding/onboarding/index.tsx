@@ -36,6 +36,9 @@ const WelcomePanel = ({ nextSlide }: { nextSlide: () => void }) => (
       >
         Try it (no email needed)
       </button>
+      <div className="text-gray-400 text-lg pt-20">
+        Note: Polycentric is still a work in progress, and data on this version may be unavailable in the future
+      </div>
     </div>
   </OnboardingPanel>
 )
@@ -54,7 +57,7 @@ const InternetTodayPanel = ({ nextSlide }: { nextSlide: () => void }) => (
         className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
         onClick={nextSlide}
       >
-        Lets go back
+        Lets go
       </button>
     </div>
   </OnboardingPanel>
@@ -141,6 +144,7 @@ const CredsPanelSignUp = () => {
         title="What's your username?"
         hint="You can change this later"
         value={username}
+        required={true}
         onChange={(e) => setUsername(e.target.value)}
       />
       <GenCredsPanelItem
