@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { cropImageToWebp } from '../../../../../util/imageProcessing'
 import { CropProfilePicModal } from '../../../CropProfilePic'
+import { ProfilePicture } from '../../../ProfilePicture'
 
 const useCleanupObjectURL = (url?: string) => {
   useEffect(() => {
@@ -35,9 +36,7 @@ export const ProfileAvatarInput = ({
       <h3 className="font-medium">{title}</h3>
       <div className="">
         <label htmlFor="upload-button" className="">
-          <div className="w-16 h-16 rounded-full border overflow-clip">
-            <img src={croppedPreviewURL} className="" />
-          </div>
+          <ProfilePicture className="w-16 h-16" src={croppedPreviewURL} />
         </label>
         <input
           id="upload-button"

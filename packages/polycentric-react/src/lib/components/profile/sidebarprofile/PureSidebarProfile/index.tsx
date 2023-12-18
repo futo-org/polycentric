@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ProfilePicture } from '../../ProfilePicture'
 import { EditProfileActions, PureEditProfile } from '../../edit/PureEditProfile'
 
 export interface PureSidebarProfileData {
@@ -32,9 +33,7 @@ export const PureSidebarProfile = ({
         actions={editProfileActions}
       />
       <div className="flex flex-col items-center justify-center space-y-3">
-        <div className="h-24 w-24 rounded-full border overflow-clip">
-          <img src={profile.avatarURL} className="" />
-        </div>
+        <ProfilePicture className="h-24 w-24" src={profile.avatarURL} />
         <div className="text-2xl font-medium">{profile.name}</div>
         {profile.isMyProfile == false ? (
           <button

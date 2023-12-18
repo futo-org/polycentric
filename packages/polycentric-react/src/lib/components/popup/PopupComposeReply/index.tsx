@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useIsMobile } from '../../../hooks/styleHooks'
 import { Compose } from '../../feed/Compose'
+import { ProfilePicture } from '../../profile/ProfilePicture'
 import { Modal } from '../../util/modal'
 
 interface PopupComposeReplyProfile {
@@ -34,9 +35,7 @@ export const PopupComposeReply = ({
     <div className="px-3 py-5 md:px-7 bg-white overflow-clip flex flex-col space-y-0 w-auto md:w-[40rem] h-full">
       <div className="flex relative overflow-clip">
         <div className="mr-3 md:mr-4 flex-shrink-0 flex flex-col overflow-clip">
-          <div className="rounded-full h-16 w-16 md:h-20 md:w-20 overflow-clip border">
-            <img src={main.author.avatarURL} />
-          </div>
+          <ProfilePicture src={main.author.avatarURL} className="h-16 w-16 md:h-20 md:w-20" />
           <div className={`flex-grow flex justify-center items-center ${sub != null ? 'py-3' : 'py-2'}`}>
             <div className={`border h-full ${sub != null ? 'h-full' : 'min-h-[2rem]'}`}></div>
           </div>
@@ -61,7 +60,7 @@ export const PopupComposeReply = ({
               <div className="pb-3">
                 <div className="border rounded-2xl w-full p-5 bg-white overflow-clip flex flex-col space-y-3">
                   <div className="flex">
-                    <img src={sub.author.avatarURL} className="rounded-full h-5 w-5 md:h-10 md:w-10" />
+                    <ProfilePicture src={sub.author.avatarURL} className="h-5 w-5 md:h-10 md:w-10" />
                     <div className="flex flex-col ml-2 w-full">
                       <div className="flex justify-between w-full">
                         <div className="font-bold">{sub.author.name}</div>

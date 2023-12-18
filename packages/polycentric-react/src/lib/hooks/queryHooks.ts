@@ -25,9 +25,10 @@ export function useCRDTQuery<T>(
   system: Models.PublicKey.PublicKey | undefined,
   contentType: Models.ContentType.ContentType,
   parse: (buffer: Uint8Array) => T,
-): T | undefined {
+): T | null | undefined {
   const queryManager = useQueryManager()
-  const [state, setState] = useState<T | undefined>(undefined)
+  // null -> not yet found
+  const [state, setState] = useState<T | null | undefined>(undefined)
 
   useEffect(() => {
     setState(undefined)
@@ -35,13 +36,24 @@ export function useCRDTQuery<T>(
     if (system !== undefined) {
       const cancelContext = new CancelContext.CancelContext()
 
-      const unregister = queryManager.queryCRDT.query(system, contentType, (buffer: Uint8Array) => {
-        if (cancelContext.cancelled()) {
-          return
-        }
+      const unregister = queryManager.queryCRDT.query(
+        system,
+        contentType,
+        (buffer: Uint8Array) => {
+          if (cancelContext.cancelled()) {
+            return
+          }
 
-        setState(parse(buffer))
-      })
+          setState(parse(buffer))
+        },
+        () => {
+          if (cancelContext.cancelled()) {
+            return
+          }
+
+          setState(null)
+        },
+      )
 
       return () => {
         cancelContext.cancel()
@@ -53,16 +65,20 @@ export function useCRDTQuery<T>(
   return state
 }
 
-export const useUsernameCRDTQuery = (system?: Models.PublicKey.PublicKey) => {
-  return useCRDTQuery(system, Models.ContentType.ContentTypeUsername, Util.decodeText)
+export const useUsernameCRDTQuery = (system?: Models.PublicKey.PublicKey): string | undefined => {
+  const username = useCRDTQuery(system, Models.ContentType.ContentTypeUsername, Util.decodeText)
+  return username ?? undefined
 }
 
 export const useDescriptionCRDTQuery = (system?: Models.PublicKey.PublicKey) => {
-  return useCRDTQuery(system, Models.ContentType.ContentTypeDescription, Util.decodeText)
+  const description = useCRDTQuery(system, Models.ContentType.ContentTypeDescription, Util.decodeText)
+  return description ?? undefined
 }
 
-export const useTextPublicKey = (system: Models.PublicKey.PublicKey, maxLength?: number) => {
-  return useMemo<string>(() => {
+export const useTextPublicKey = (system?: Models.PublicKey.PublicKey, maxLength?: number) => {
+  return useMemo(() => {
+    if (system === undefined) return undefined
+
     const string = Models.PublicKey.toString(system)
     if (maxLength) {
       return string.slice(0, maxLength)

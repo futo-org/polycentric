@@ -1,16 +1,18 @@
 import Long from 'long';
 
 import * as APIMethods from '../api-methods';
-import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
+import * as ProcessHandle from '../process-handle';
 import * as Shared from './shared';
 
-export type Callback = (value: Uint8Array) => void;
+export type SuccessCallback = (value: Uint8Array) => void;
+export type NotYetFoundCallback = () => void;
 
 type StateForCRDT = {
     value: Uint8Array;
     unixMilliseconds: Long;
-    callbacks: Set<Callback>;
+    successCallbacks: Set<SuccessCallback>;
+    notYetFoundCallbacks: Set<NotYetFoundCallback>;
     fulfilled: boolean;
 };
 
@@ -48,7 +50,8 @@ export class QueryManager {
     public query(
         system: Models.PublicKey.PublicKey,
         contentType: Models.ContentType.ContentType,
-        callback: Callback,
+        successCallback: SuccessCallback,
+        notYetFoundCallback?: NotYetFoundCallback,
     ): Shared.UnregisterCallback {
         const systemString = Models.PublicKey.toString(system);
 
@@ -70,35 +73,56 @@ export class QueryManager {
             stateForCRDT = {
                 value: new Uint8Array(),
                 unixMilliseconds: Long.UZERO,
-                callbacks: new Set(),
+                successCallbacks: new Set(),
+                notYetFoundCallbacks: new Set(),
                 fulfilled: false,
             };
 
             stateForSystem.state.set(contentTypeString, stateForCRDT);
         }
 
-        stateForCRDT.callbacks.add(callback);
+        stateForCRDT.successCallbacks.add(successCallback);
+        if (notYetFoundCallback) {
+            stateForCRDT.notYetFoundCallbacks.add(notYetFoundCallback);
+        }
 
         if (stateForCRDT.fulfilled === true) {
-            callback(stateForCRDT.value);
+            successCallback(stateForCRDT.value);
         } else {
+            let networkLoadPromise: Promise<void> | undefined;
             if (this._useNetwork === true) {
-                this.loadFromNetwork(system, contentType);
+                networkLoadPromise = this.loadFromNetwork(system, contentType);
             }
 
+            let diskLoadPromise: Promise<void> | undefined;
             if (this._useDisk === true) {
-                this.loadFromDisk(system);
+                diskLoadPromise = this.loadFromDisk(system);
             }
+
+            Promise.allSettled([networkLoadPromise, diskLoadPromise]).then(
+                () => {
+                    if (!stateForCRDT) {
+                        console.error('Impossible');
+                    }
+                    if (stateForCRDT?.fulfilled === false) {
+                        stateForCRDT.notYetFoundCallbacks.forEach(
+                            (callback) => {
+                                callback();
+                            },
+                        );
+                    }
+                },
+            );
         }
 
         return () => {
             if (stateForCRDT !== undefined && stateForSystem !== undefined) {
-                stateForCRDT.callbacks.delete(callback);
+                stateForCRDT.successCallbacks.delete(successCallback);
 
                 let found = false;
 
                 for (const query of stateForSystem.state.values()) {
-                    if (query.callbacks.size !== 0) {
+                    if (query.successCallbacks.size !== 0) {
                         found = true;
 
                         break;
@@ -140,7 +164,8 @@ export class QueryManager {
                 stateForCRDT = {
                     value: item.value,
                     unixMilliseconds: item.unixMilliseconds,
-                    callbacks: new Set(),
+                    successCallbacks: new Set(),
+                    notYetFoundCallbacks: new Set(),
                     fulfilled: true,
                 };
 
@@ -155,7 +180,7 @@ export class QueryManager {
             stateForCRDT.unixMilliseconds = item.unixMilliseconds;
             stateForCRDT.fulfilled = true;
 
-            stateForCRDT.callbacks.forEach((callback) => {
+            stateForCRDT.successCallbacks.forEach((callback) => {
                 callback(stateForCRDT!.value);
             });
         }
@@ -167,13 +192,14 @@ export class QueryManager {
     ): Promise<void> {
         const systemState = await this._processHandle.loadSystemState(system);
 
-        for (const server of systemState.servers()) {
-            try {
-                this.loadFromNetworkSpecific(system, contentType, server);
-            } catch (err) {
-                console.log(err);
-            }
-        }
+        const loadPromises = systemState.servers().map((server) =>
+            this.loadFromNetworkSpecific(system, contentType, server).catch(
+                (err) => {
+                    console.error(err);
+                },
+            ),
+        );
+        await Promise.allSettled(loadPromises);
     }
 
     private async loadFromNetworkSpecific(
@@ -221,7 +247,7 @@ export class QueryManager {
         stateForCRDT.unixMilliseconds = event.lwwElement.unixMilliseconds;
         stateForCRDT.fulfilled = true;
 
-        stateForCRDT.callbacks.forEach((callback) => {
+        stateForCRDT.successCallbacks.forEach((callback) => {
             callback(stateForCRDT.value);
         });
     }
