@@ -82,7 +82,7 @@ const TopicBox = ({
             query={topic}
             setSelected={(s) => {
               setTopic(s)
-              setFocused(false)
+              // setFocused(false)
             }}
           />
         </div>
