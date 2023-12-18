@@ -20,7 +20,7 @@ export const PostCompose = () => {
         setPostingProgress(0.3)
 
         let topicReference
-        if (topic) {
+        if (topic && topic.length > 0) {
           const topicBuffer = Util.encodeText(topic)
           topicReference = Models.bufferToReference(topicBuffer)
         }

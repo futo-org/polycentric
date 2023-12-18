@@ -68,7 +68,7 @@ const TopicBox = ({
         disabled={disabled}
       />
       <div
-        className={`absolute top-0 left-0 w-full h-full border bg-white peer-focus:border-gray-400 peer-focus:border-b-0 rounded-lg -skew-x-[9deg] ${
+        className={`absolute top-0 left-0 w-full h-full border bg-white peer-focus:border-gray-400 rounded-lg -skew-x-[9deg] ${
           disabled ? 'opacity-50' : ''
         }
           ${focused ? ' rounded-b-none' : ''}
@@ -120,12 +120,12 @@ export const Compose = ({
   const imageUrl = useBlobDisplayURL(upload)
 
   const post = useCallback(() => {
-    onPost?.(content, upload).then(() => {
+    onPost?.(content, upload, topic).then(() => {
       setContent('')
       setUpload(undefined)
       if (textRef.current) textRef.current.style.height = `${minTextboxHeightPx}px`
     })
-  }, [onPost, content, upload, minTextboxHeightPx])
+  }, [onPost, content, upload, minTextboxHeightPx, topic])
 
   return (
     <div className={`flex flex-col ${flexGrow ? 'flex-grow' : ''}`}>
