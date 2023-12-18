@@ -29,7 +29,7 @@ const MenuIcon = () => (
   </svg>
 )
 
-const topics = ['Explore', '/tpot', '/tpot/dating', '/tpot/technology.repair', '/tpot/technology']
+const topics = ['Explore']
 
 const ValidSearchFeed = ({ checkedQuery }: { checkedQuery: string }) => {
   const [data, advanceFeed] = useSearchFeed(checkedQuery)
