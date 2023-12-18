@@ -18,11 +18,11 @@ const dateToAgoString = (date: Date | undefined) => {
   if (hours > 24) {
     return date.toLocaleDateString()
   } else if (hours > 1) {
-    return `${hours} h ago`
+    return `${hours}h ago`
   } else if (minutes > 1) {
-    return `${minutes} m ago`
+    return `${minutes}m ago`
   } else {
-    return `${seconds} s ago`
+    return `${seconds}s ago`
   }
 }
 
@@ -297,7 +297,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
         ) : (
           <PostLinkContainer doesLink={doesLink} url={main.url ?? '#'}>
             <article
-              className={`px-3 pt-5 pb-3 lg:px-10 lg:pt-10 lg:pb-8 border-t border-gray-100  overflow-clip inline-block w-full ${
+              className={`px-3 pt-5 pb-3 lg:px-10 lg:pt-10 lg:pb-8 border-b border-gray-100  inline-block w-full ${
                 doesLink ? ' transition-colors duration-200 ease-in-out group' : ''
               } ${doesLink && hoverStylePost ? 'bg-gray-50' : ''} ${hoverStylePost ? 'bg-gray-50' : 'bg-white'}`}
               onMouseEnter={() => {
@@ -311,12 +311,12 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   {/* Stop pfp link propagation to post link */}
                   <div onClick={(e) => e.stopPropagation()}>
                     <Link routerLink={main.author.URL ?? '#'} routerDirection="forward">
-                      <div className="rounded-full h-10 w-10 md:h-16 md:w-16 lg:h-20 lg:w-20 overflow-clip border">
+                      <div className="rounded-full h-10 w-10 md:h-16 md:w-16 lg:h-20 lg:w-20 overflow-clip border bg-gray-50">
                         <img src={main.author.avatarURL} />
                       </div>
                     </Link>
                   </div>
-                  {(!isMobile || (isMobile && expanded)) && (
+                  {(!isMobile || (isMobile && contentCropped && expanded)) && (
                     <div
                       className={`flex-col space-y-5 md:space-y-2 ${
                         expanded ? 'sticky top-[50vh]' : ''
@@ -387,7 +387,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        setMainImageOpen(true)
+                        main.image && setMainImageOpen(true)
                       }}
                     >
                       <img src={main.image} className="rounded-2xl max-h-60 max-w-full w-fit hover:opacity-80 border" />

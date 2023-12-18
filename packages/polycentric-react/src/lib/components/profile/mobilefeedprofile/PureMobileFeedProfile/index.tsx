@@ -33,7 +33,7 @@ export const PureMobileFeedProfile = ({
   const [editProfileOpen, setEditProfileOpen] = useState(false)
 
   return (
-    <div>
+    <div className="border-b">
       <PureEditProfile
         profile={profile}
         actions={editProfileActions}
@@ -47,7 +47,7 @@ export const PureMobileFeedProfile = ({
           </div>
         </div>
       </div>
-      <div className="w-full border-b mt-6 mb-4"></div>
+      <div className="w-full mt-6 mb-4"></div>
       <div className="grid grid-cols-2 gap-4 px-4">
         <div className="col-span-1 text-2xl font-medium self-center">{profile.name}</div>
         <div className="col-span-1 flex items-end">
