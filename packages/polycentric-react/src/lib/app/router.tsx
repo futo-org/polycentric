@@ -10,7 +10,7 @@ type RouteData = Record<string, { component: Page; root?: boolean }>
 
 export const routeData: RouteData = {
   '/': { component: HomeFeedPage, root: true },
-  '/t/:topic': { component: TopicFeedPage },
+  '/t/*': { component: TopicFeedPage },
   '/user/:urlInfoString': { component: UserFeedPage },
   '/post/:urlInfoString': { component: PostFeedPage },
   '/search/:query': { component: SearchPage },

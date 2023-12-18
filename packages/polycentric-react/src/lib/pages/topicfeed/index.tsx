@@ -46,7 +46,16 @@ const TopFeedYoutubeEmbed = ({ id }: { id: string }) => {
 }
 
 export const TopicFeedPage: Page = () => {
-  const { topic } = useParams<{ topic: string }>()
+  const params = useParams<{ 0: string }>()
+  const unescapedTopic = params[0]
+
+  const topic: string = useMemo(() => {
+    if (unescapedTopic.startsWith('-')) {
+      return unescapedTopic.slice(1)
+    } else {
+      return unescapedTopic
+    }
+  }, [unescapedTopic])
 
   const topComponent = useMemo(() => {
     return (

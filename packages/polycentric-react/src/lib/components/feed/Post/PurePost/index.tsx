@@ -1,4 +1,4 @@
-import { forwardRef, useLayoutEffect, useRef, useState } from 'react'
+import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useIsMobile } from '../../../../hooks/styleHooks'
 import { Profile } from '../../../../types/profile'
 import { PopupComposeReplyFullscreen } from '../../../popup/PopupComposeReply'
@@ -274,6 +274,17 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
     const [mainHover, setMainHover] = useState(false)
     const [subHover, setSubHover] = useState(false)
 
+    const topicLink = useMemo(() => {
+      if (main?.topic) {
+        if (main.topic.startsWith('/')) {
+          return `/t/-${main.topic}`
+        }
+        return `/t/${main.topic}`
+      } else {
+        return undefined
+      }
+    }, [main?.topic])
+
     const hoverStylePost = doesLink && mainHover && !subHover
 
     const isMobile = useIsMobile()
@@ -365,7 +376,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                             Replying to <span className="text-gray-500">{main.replyingToName}</span>
                           </div>
                         ) : main.topic ? (
-                          <Link routerLink={`/t/${main.topic}`} className="text-gray-300 leading-3">
+                          <Link routerLink={topicLink} className="text-gray-300 leading-3">
                             {main.topic}
                           </Link>
                         ) : undefined}
