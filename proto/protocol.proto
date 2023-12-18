@@ -209,6 +209,7 @@ message QueryReferencesRequest {
     optional QueryReferencesRequestEvents                    request_events               = 3;
     repeated QueryReferencesRequestCountLWWElementReferences count_lww_element_references = 4;
     repeated QueryReferencesRequestCountReferences           count_references             = 5;
+    repeated bytes                                           extra_byte_references        = 6;
 }
 
 message QueryReferencesRequestEvents {

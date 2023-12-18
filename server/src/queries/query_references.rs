@@ -128,7 +128,7 @@ pub(crate) async fn query_pointer(
 
 pub(crate) async fn query_bytes(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    bytes: &::std::vec::Vec<u8>,
+    bytes: &::std::vec::Vec<::std::vec::Vec<u8>>,
     from_type: &::std::option::Option<u64>,
     cursor: &::std::option::Option<u64>,
     limit: u64,
@@ -145,11 +145,13 @@ pub(crate) async fn query_bytes(
             event_references_bytes.event_id = events.id
         {LIKES_DISLIKES_QUERY_FRAGMENT}
         WHERE
-            event_references_bytes.subject_bytes = $1
+            event_references_bytes.subject_bytes = ANY($1)
         AND
             ($2 IS NULL OR events.content_type = $2)
+        GROUP BY
+            events.id
         ORDER BY
-            (COALESCE(likes.count, 0) - COALESCE(dislikes.count, 0)) DESC,
+            (SUM(COALESCE(likes.count, 0)) - SUM(COALESCE(dislikes.count, 0))) DESC,
             events.id DESC
         OFFSET COALESCE($3, 0)
         LIMIT $4
@@ -181,13 +183,13 @@ pub(crate) async fn query_bytes(
 
 pub(crate) async fn query_references(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    reference: &crate::model::reference::Reference,
+    reference: &crate::model::PointerOrByteReferences,
     from_type: &::std::option::Option<u64>,
     cursor: &::std::option::Option<u64>,
     limit: u64,
 ) -> ::anyhow::Result<QueryResult> {
     match reference {
-        crate::model::reference::Reference::Pointer(pointer) => {
+        crate::model::PointerOrByteReferences::Pointer(pointer) => {
             query_pointer(
                 transaction,
                 pointer.system(),
@@ -199,11 +201,8 @@ pub(crate) async fn query_references(
             )
             .await
         }
-        crate::model::reference::Reference::Bytes(bytes) => {
+        crate::model::PointerOrByteReferences::Bytes(bytes) => {
             query_bytes(transaction, bytes, from_type, cursor, limit).await
-        }
-        _ => {
-            unimplemented!("query identity not implemented");
         }
     }
 }

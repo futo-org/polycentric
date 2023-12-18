@@ -44,7 +44,7 @@ pub(crate) async fn count_references_pointer(
 
 pub(crate) async fn count_references_bytes(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    bytes: &::std::vec::Vec<u8>,
+    bytes: &::std::vec::Vec<::std::vec::Vec<u8>>,
     from_type: &::std::option::Option<u64>,
 ) -> ::anyhow::Result<u64> {
     let query = "
@@ -53,7 +53,7 @@ pub(crate) async fn count_references_bytes(
         FROM
             count_references_bytes
         WHERE
-            subject_bytes = $1
+            subject_bytes = ANY($1)
         AND
             ($2 IS NULL OR from_type = $2)
     ";
@@ -75,11 +75,11 @@ pub(crate) async fn count_references_bytes(
 
 pub(crate) async fn count_references(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    reference: &crate::model::reference::Reference,
+    reference: &crate::model::PointerOrByteReferences,
     from_type: &::std::option::Option<u64>,
 ) -> ::anyhow::Result<u64> {
     match reference {
-        crate::model::reference::Reference::Pointer(pointer) => {
+        crate::model::PointerOrByteReferences::Pointer(pointer) => {
             count_references_pointer(
                 transaction,
                 pointer.system(),
@@ -89,11 +89,8 @@ pub(crate) async fn count_references(
             )
             .await
         }
-        crate::model::reference::Reference::Bytes(bytes) => {
+        crate::model::PointerOrByteReferences::Bytes(bytes) => {
             count_references_bytes(transaction, bytes, from_type).await
-        }
-        _ => {
-            unimplemented!("count_references case not implemented");
         }
     }
 }

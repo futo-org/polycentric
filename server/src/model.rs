@@ -1040,3 +1040,10 @@ pub mod tests {
         assert!(signed_event == parsed_event);
     }
 }
+
+#[allow(clippy::large_enum_variant)]
+#[derive(PartialEq, Clone, Debug)]
+pub enum PointerOrByteReferences {
+    Pointer(crate::model::pointer::Pointer),
+    Bytes(::std::vec::Vec<::std::vec::Vec<u8>>),
+}
