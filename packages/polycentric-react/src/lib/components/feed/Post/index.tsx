@@ -42,6 +42,7 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
   }, [opinionOnMount])
 
   const [liked, setLiked] = useState<boolean>(false)
+  const [locallyDisliked, setLocallyDisliked] = useState<boolean>(false)
 
   const updateIfLiked = useCallback(
     (cancelContext?: CancelContext.CancelContext) => {
@@ -73,6 +74,7 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
       .opinion(reference, Models.Opinion.OpinionLike)
       .then(() => {
         updateIfLiked()
+        setLocallyDisliked(false)
       })
       .then(() => {
         Synchronization.backFillServers(processHandle, pointer.system)
@@ -84,6 +86,7 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
       .opinion(reference, Models.Opinion.OpinionNeutral)
       .then(() => {
         updateIfLiked()
+        setLocallyDisliked(true)
       })
       .then(() => {
         Synchronization.backFillServers(processHandle, pointer.system)
@@ -127,13 +130,15 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
       likes = stats.likes + 1
     } else if (liked && likedOnMount === false && stats.likes) {
       likes = stats.likes + 1
+    } else if (locallyDisliked && stats.likes && stats.likes > 0) {
+      likes = stats.likes - 1
     }
 
     return {
       ...stats,
       likes: likes,
     }
-  }, [stats, liked, likedOnMount])
+  }, [stats, liked, likedOnMount, locallyDisliked])
 
   return {
     stats: locallyModifiedStats,
