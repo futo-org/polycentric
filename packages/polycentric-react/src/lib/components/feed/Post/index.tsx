@@ -128,18 +128,19 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(({ data, doesLink
     return undefined
   }, [event])
 
-  const replyingToSystem = useMemo(() => {
+  const replyingToPointer = useMemo(() => {
     const { references } = event
     const replyingToRef = references.find((ref) => ref.referenceType.eq(2))
 
     if (replyingToRef) {
       const replyingToPointer = Models.Pointer.fromProto(Protocol.Pointer.decode(replyingToRef.reference))
-      return replyingToPointer.system
+      return replyingToPointer
     }
     return undefined
   }, [event])
 
-  const replyingToName = useUsernameCRDTQuery(replyingToSystem)
+  const replyingToName = useUsernameCRDTQuery(replyingToPointer?.system)
+  const replyingToURL = useEventLink(replyingToPointer?.system, replyingToPointer)
 
   const imageUrl = useImageManifestDisplayURL(event.system, image)
 
@@ -163,13 +164,26 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(({ data, doesLink
         pubkey: mainKey,
       },
       replyingToName,
+      replyingToURL,
       content: content ?? '',
       image: imageUrl,
       topic,
       publishedAt: mainDate,
       url: mainURL,
     }),
-    [mainUsername, mainAvatar, content, mainDate, mainURL, mainAuthorURL, mainKey, imageUrl, topic, replyingToName],
+    [
+      mainUsername,
+      mainAvatar,
+      content,
+      mainDate,
+      mainURL,
+      mainAuthorURL,
+      mainKey,
+      imageUrl,
+      topic,
+      replyingToName,
+      replyingToURL,
+    ],
   )
 
   const { actions, stats } = usePostStatsWithLocalActions(pointer)

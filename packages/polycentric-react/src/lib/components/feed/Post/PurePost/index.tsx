@@ -208,6 +208,7 @@ export interface PurePostProps {
     // URLs aren't synchronous because we need to get the list of servers
     url?: string
     replyingToName?: string
+    replyingToURL?: string
   }
   sub?: {
     content: string
@@ -372,9 +373,9 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                       </div>
                       <div className="h-[1.5rem]">
                         {main.replyingToName ? (
-                          <div>
+                          <Link routerLink={main.replyingToURL} className="text-black">
                             Replying to <span className="text-gray-500">{main.replyingToName}</span>
-                          </div>
+                          </Link>
                         ) : main.topic ? (
                           <Link routerLink={topicLink} className="text-gray-300 leading-3">
                             {main.topic}

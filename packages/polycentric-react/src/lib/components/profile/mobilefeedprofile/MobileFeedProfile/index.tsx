@@ -2,13 +2,16 @@ import { Models, Protocol } from '@polycentric/polycentric-core'
 import { useCallback, useMemo, useState } from 'react'
 import { useAvatar } from '../../../../hooks/imageHooks'
 import { useProcessHandleManager } from '../../../../hooks/processHandleManagerHooks'
-import { useQueryIfAdded, useUsernameCRDTQuery } from '../../../../hooks/queryHooks'
+import { useDescriptionCRDTQuery, useQueryIfAdded, useUsernameCRDTQuery } from '../../../../hooks/queryHooks'
 import { publishBlobToAvatar } from '../../../../util/imageProcessing'
 import { PureMobileFeedProfile } from '../PureMobileFeedProfile'
 
 export const MobileProfileFeed = ({ system }: { system: Models.PublicKey.PublicKey }) => {
   const name = useUsernameCRDTQuery(system)
   const avatarURL = useAvatar(system)
+
+  const description = useDescriptionCRDTQuery(system)
+
   const { processHandle } = useProcessHandleManager()
 
   const [localFollowing, setLocalFollowing] = useState<boolean | undefined>()
@@ -41,16 +44,22 @@ export const MobileProfileFeed = ({ system }: { system: Models.PublicKey.PublicK
     }
   }, [processHandle])
 
+  const profile = useMemo(
+    () => ({
+      name,
+      description,
+      avatarURL,
+      isMyProfile,
+      iAmFollowing: iAmFollowing ?? false,
+      followerCount: followers,
+      followingCount: following,
+    }),
+    [name, description, avatarURL, isMyProfile, iAmFollowing, followers, following],
+  )
+
   return (
     <PureMobileFeedProfile
-      profile={{
-        name,
-        avatarURL,
-        isMyProfile,
-        iAmFollowing: iAmFollowing,
-        followerCount: followers,
-        followingCount: following,
-      }}
+      profile={profile}
       editProfileActions={editProfileActions}
       follow={follow}
       unfollow={unfollow}
