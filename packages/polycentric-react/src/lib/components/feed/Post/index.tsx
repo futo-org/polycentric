@@ -37,26 +37,36 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
 
   const [likedLocal, setLikedLocal] = useState<boolean>(false)
 
-  const like = useCallback(async () => {
-    try {
-      const reference = Models.pointerToReference(pointer)
-      await processHandle.opinion(reference, Models.Opinion.OpinionLike)
-      await Synchronization.backFillServers(processHandle, pointer.system)
-      setLikedLocal(true)
-    } catch (e) {
-      console.error(e)
-    }
+  const like = useCallback(() => {
+    setLikedLocal((likedLocal) => {
+      try {
+        const reference = Models.pointerToReference(pointer)
+        if (!likedLocal) {
+          processHandle.opinion(reference, Models.Opinion.OpinionLike).then(() => {
+            Synchronization.backFillServers(processHandle, pointer.system)
+          })
+        }
+        return true
+      } catch (e) {
+        console.error(e)
+        return likedLocal
+      }
+    })
   }, [pointer, processHandle])
 
   const unlike = useCallback(async () => {
-    try {
-      const reference = Models.pointerToReference(pointer)
-      await processHandle.opinion(reference, Models.Opinion.OpinionNeutral)
-      await Synchronization.backFillServers(processHandle, pointer.system)
-      setLikedLocal(false)
-    } catch (e) {
-      console.error(e)
-    }
+    setLikedLocal((likedLocal) => {
+      try {
+        const reference = Models.pointerToReference(pointer)
+        processHandle.opinion(reference, Models.Opinion.OpinionNeutral).then(() => {
+          Synchronization.backFillServers(processHandle, pointer.system)
+        })
+        return false
+      } catch (e) {
+        console.error(e)
+        return likedLocal
+      }
+    })
   }, [pointer, processHandle])
 
   const comment = useCallback(

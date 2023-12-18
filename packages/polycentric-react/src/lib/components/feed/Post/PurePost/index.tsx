@@ -2,6 +2,7 @@ import { forwardRef, useLayoutEffect, useRef, useState } from 'react'
 import { useIsMobile } from '../../../../hooks/styleHooks'
 import { Profile } from '../../../../types/profile'
 import { PopupComposeReplyFullscreen } from '../../../popup/PopupComposeReply'
+import { ProfilePicture } from '../../../profile/ProfilePicture'
 import { Link } from '../../../util/link'
 import { Modal } from '../../../util/modal'
 
@@ -312,9 +313,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   {/* Stop pfp link propagation to post link */}
                   <div onClick={(e) => e.stopPropagation()}>
                     <Link routerLink={main.author.URL ?? '#'} routerDirection="forward">
-                      <div className="rounded-full h-10 w-10 md:h-16 md:w-16 lg:h-20 lg:w-20 overflow-clip border bg-gray-50">
-                        <img src={main.author.avatarURL} />
-                      </div>
+                      <ProfilePicture src={main.author.avatarURL} className="h-16 w-16 md:h-20 md:w-20" />
                     </Link>
                   </div>
                   {(!isMobile || (isMobile && contentCropped && expanded)) && (
@@ -406,9 +405,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                       >
                         <div className="flex">
                           <Link routerLink={sub.author.URL ?? '#'}>
-                            <div className="rounded-full h-5 w-5 lg:h-10 lg:w-10 overflow-clip">
-                              <img src={sub.author.avatarURL} />
-                            </div>
+                            <ProfilePicture src={sub.author.avatarURL} className="h-5 w-5 lg:h-10 lg:w-10" />
                           </Link>
                           <div className="flex flex-col ml-2 w-full">
                             <div className="flex justify-between w-full">
