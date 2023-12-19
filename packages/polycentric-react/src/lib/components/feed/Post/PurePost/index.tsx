@@ -319,9 +319,9 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
               }}
               onMouseLeave={() => setMainHover(false)}
             >
-              <div className="grid grid-cols-[fit-content(100%)_1fr] relative overflow-clip">
+              <div className="grid grid-cols-[fit-content(100%)_1fr] relative">
                 {/* Left column */}
-                <div className="mr-3 lg:mr-4 flex-shrink-0 flex flex-col overflow-clip">
+                <div className="mr-3 lg:mr-4 flex-shrink-0 flex flex-col ">
                   {/* Stop pfp link propagation to post link */}
                   <div onClick={(e) => e.stopPropagation()}>
                     <Link routerLink={main.author.URL ?? '#'} routerDirection="forward">
@@ -330,9 +330,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   </div>
                   {(!isMobile || (isMobile && contentCropped && expanded)) && (
                     <div
-                      className={`flex-col space-y-5 md:space-y-2 ${
-                        expanded ? 'sticky top-[50vh]' : ''
-                      } overflow-clip ${
+                      className={`flex-col space-y-5 md:space-y-2 ${expanded ? 'sticky top-[50vh]' : ''}  ${
                         // sub == null ? 'pt-5' : ''
                         'pt-5'
                       }`}
@@ -358,22 +356,22 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   )}
                 </div>
                 {/* Right column */}
-                <div className="flex-grow w-full lg:max-w-[600px] overflow-hidden">
+                <div className="flex-grow w-full lg:max-w-[600px]">
                   <div className="flex w-full justify-between">
                     <div className="w-full" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex w-full justify-between">
-                        <Link routerLink={main.author.URL ?? '#'} className="text-inherit">
-                          <address className="font-bold text-base author not-italic hover:underline h-[1.5rem]">
+                      <div className="flex w-full justify-between space-x-3">
+                        <Link routerLink={main.author.URL ?? '#'} className="text-inherit flex-shrink min-w-0">
+                          <address className="font-bold text-base author not-italic hover:underline h-[1.5rem] w-full overflow-hidden overflow-ellipsis">
                             {main.author.name}
                           </address>
                         </Link>
-                        <time className="text-right sm:text-right font-light text-gray-500 tracking-tight">
+                        <time className="text-right sm:text-right font-light text-gray-500 tracking-tight flex-grow min-w-max">
                           {dateToAgoString(main.publishedAt)}
                         </time>
                       </div>
-                      <div className="h-[1.5rem]">
+                      <div className="h-[1.5rem] min-w-0 overflow-hidden text-ellipsis text-gray-300">
                         {main.replyingToName ? (
-                          <Link routerLink={main.replyingToURL} className="text-black">
+                          <Link routerLink={main.replyingToURL} className="text-black w-full">
                             Replying to <span className="text-gray-500">{main.replyingToName}</span>
                           </Link>
                         ) : main.topic ? (
@@ -388,7 +386,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                     {/* Actual post content */}
                     <main
                       className={
-                        'pt-4 leading-normal whitespace-pre-line text-lg text-gray-900 font-normal overflow-clip' +
+                        'pt-4 leading-normal whitespace-pre-line text-lg text-gray-900 font-normal overflow-hidden text-pretty break-words' +
                         (expanded ? '' : ' line-clamp-[7]') +
                         (contentCropped && !expanded
                           ? ` line-clamp-[7] relative

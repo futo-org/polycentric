@@ -96,7 +96,7 @@ const InnerPureEditProfile = ({
   )
 
   return (
-    <div className="w-full md:w-[35rem] space-y-2 flex flex-col">
+    <div className="w-full md:w-[35rem] space-y-2">
       <ProfileAvatarInput title="Avatar" setImage={setAvatar} originalImageURL={displayAvatarURL} />
       <ProfileTextInput title="Name" value={displayUsername} onChange={(e) => setUsername(e.target.value)} />
       <ProfileTextArea title="Description" value={displayDescription} onChange={onDescriptionChange} />
