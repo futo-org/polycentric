@@ -1,5 +1,4 @@
 import { Menu } from '@headlessui/react'
-import { IonMenuToggle } from '@ionic/react'
 import { MetaStore, Models } from '@polycentric/polycentric-core'
 import { useState } from 'react'
 import { useAvatar } from '../../../hooks/imageHooks'
@@ -99,15 +98,13 @@ export const AccountSwitcher = () => {
           </>
         )}
         <div className={`flex justify-between p-2 w-full ${expanded ? 'rounded-b-[2rem]' : 'rounded-[2rem]'}`}>
-          <div className="flex space-x-2">
-            <IonMenuToggle className="contents">
-              <Link routerLink={systemLink} routerDirection="root">
-                <ProfilePicture src={avatarURL} className="h-[3rem] w-[3rem]" />
-              </Link>
-            </IonMenuToggle>
-            <div className="flex flex-col">
-              <p className="bold text-normal">{username}</p>
-              <p className="font-light text-gray-400">{key}</p>
+          <div className="flex flex-shrink space-x-2 min-w-0 overflow-hidden overflow-ellipsis">
+            <Link routerLink={systemLink} routerDirection="root">
+              <ProfilePicture src={avatarURL} className="h-[3rem] w-[3rem]" />
+            </Link>
+            <div className="flex flex-col flex-shrink min-w-0">
+              <p className="bold text-normal overflow-hidden overflow-ellipsis">{username}</p>
+              <p className="font-light text-gray-400 overflow-hidden overflow-ellipsis">{key}</p>
             </div>
           </div>
           <div className="flex justify-end space-x-2">

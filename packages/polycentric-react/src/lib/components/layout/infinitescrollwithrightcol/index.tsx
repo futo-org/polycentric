@@ -94,6 +94,7 @@ export const InfiniteScrollWithRightCol = ({
           <>
             <div className="absolute w-full top-1 md:top-5 flex justify-center z-40">
               <button
+                // @ts-ignore
                 onClick={() => virtuoso.current?.scrollTo({ top: 0, behavior: 'instant' })}
                 className="bg-blue-500 opacity-80 md:opacity-50 hover:opacity-80 border shadow rounded-full px-14 py-2 md:p-1 text-white fixed"
               >
@@ -104,11 +105,7 @@ export const InfiniteScrollWithRightCol = ({
         )}
       </div>
       {isMobile === false && (
-        <div
-          className="h-full sticky top-0 border-x hidden xl:block xl:w
--[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:mr-[calc((100
-vw-1536px)/2)] "
-        >
+        <div className="h-full sticky top-0 border-x hidden xl:block xl:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:mr-[calc((100vw-1536px)/2)] ">
           <div className="flex flex-col justify-between h-full w-full">
             <div>
               <div className="p-5 pb-10">

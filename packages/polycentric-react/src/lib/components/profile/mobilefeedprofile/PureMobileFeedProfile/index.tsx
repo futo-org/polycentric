@@ -48,9 +48,9 @@ export const PureMobileFeedProfile = ({
         </div>
       </div>
       <div className="w-full mt-6 mb-4"></div>
-      <div className="grid grid-cols-2 gap-4 px-4 pb-4">
-        <div className="col-span-1 text-2xl font-medium self-center">{profile.name}</div>
-        <div className="col-span-1 flex items-end">
+      <div className="flex gap-4 px-4 pb-4 flex-wrap">
+        <div className="text-2xl font-medium self-center max-w-full break-words">{profile.name}</div>
+        <div className="w-1/2 flex items-end ml-auto">
           {profile.isMyProfile ? (
             <button
               className="bg-gray-50 text-gray-700 border text-sm px-4 py-2 rounded-full flex-grow"
@@ -72,17 +72,17 @@ export const PureMobileFeedProfile = ({
             <ElipsesIcon />
           </button>
         </div>
-        <div className="col-span-1 flex flex-col justify-center">
+        <div className="w-1/2 flex flex-col justify-center">
           <p>
             <span className="font-bold">{profile.followerCount ?? 0}</span> followers
           </p>
         </div>
-        <div className="col-span-1 flex flex-col justify-center">
+        <div className="flex flex-col justify-center">
           <p>
             <span className="font-bold">{profile.followingCount ?? 0}</span> following
           </p>
         </div>
-        <div className="col-span-2 text text-gray-500">{profile.description}</div>
+        <div className="w-full text text-gray-500 min-w-0 break-words">{profile.description}</div>
       </div>
     </div>
   )

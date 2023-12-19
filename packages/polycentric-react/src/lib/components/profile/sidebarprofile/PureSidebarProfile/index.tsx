@@ -34,7 +34,7 @@ export const PureSidebarProfile = ({
       />
       <div className="flex flex-col items-center justify-center space-y-3">
         <ProfilePicture className="h-24 w-24" src={profile.avatarURL} />
-        <div className="text-2xl font-medium">{profile.name}</div>
+        <div className="text-2xl font-medium px-8 break-words max-w-full">{profile.name}</div>
         {profile.isMyProfile == false ? (
           <button
             onClick={profile.iAmFollowing ? unfollow : follow}
@@ -55,7 +55,7 @@ export const PureSidebarProfile = ({
             <span className="font-bold">{profile.followingCount}</span> following
           </p>
         </div>
-        <div className="text text-gray-500">{profile.description}</div>
+        <div className="text-gray-500 text-pretty px-8 break-words max-w-full">{profile.description}</div>
       </div>
     </div>
   )

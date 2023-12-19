@@ -20,7 +20,7 @@ const CircleExpandMenuInteriorReverse = ({
   }, [open, onIsOpenChange])
 
   return (
-    <div className={`absolute rounded-[1.5rem] border bottom-0 right-0 bg-white ${open ? 'z-10' : ''} overflow-hidden`}>
+    <div className={`absolute rounded-[1.5rem] border bottom-0 right-0 bg-white ${open ? 'z-10' : ''} grid`}>
       <Menu.Items as="div">
         <div className="w-[15rem]">
           {menuItems.map((item, index) => (
@@ -47,8 +47,12 @@ const CircleExpandMenuInteriorReverse = ({
           ))}
         </div>
       </Menu.Items>
-      <div className={`flex justify-between items-center w-full ${open ? 'rounded-tr-[1.5rem] border-t' : ''}`}>
-        {open && <h3 className="font-medium pl-5">{title}</h3>}
+      <div
+        className={`flex justify-between items-center w-full min-w-[3rem] ${
+          open ? 'rounded-tr-[1.5rem] border-t' : ''
+        }`}
+      >
+        {open && <h3 className="font-medium pl-5 flex-shrink min-w-0 overflow-hidden overflow-ellipsis">{title}</h3>}
 
         <Menu.Button
           className={`h-[3rem] float-right rounded-full w-auto aspect-square flex justify-center items-center space-x-1 hover:bg-gray-50 ${
