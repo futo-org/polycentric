@@ -1,5 +1,5 @@
-import { Models, Protocol, Synchronization, Util } from '@polycentric/polycentric-core'
-import { forwardRef, useCallback, useMemo, useState } from 'react'
+import { CancelContext, Models, Protocol, Synchronization, Util } from '@polycentric/polycentric-core'
+import { forwardRef, useCallback, useEffect, useMemo, useState } from 'react'
 import { useAvatar, useImageManifestDisplayURL } from '../../../hooks/imageHooks'
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks'
 import {
@@ -7,7 +7,7 @@ import {
   useDateFromUnixMS,
   useEventLink,
   usePostStats,
-  useQueryIfAdded,
+  useQueryOpinion,
   useSystemLink,
   useTextPublicKey,
   useUsernameCRDTQuery,
@@ -29,45 +29,69 @@ interface LoadedPostProps {
 const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
   const { processHandle } = useProcessHandleManager()
 
-  const likedStored: boolean | undefined = useQueryIfAdded(
-    Models.ContentType.ContentTypeOpinion,
-    processHandle.system(),
-    Protocol.PublicKey.encode(pointer.system).finish(),
+  const reference = useMemo(() => {
+    return Models.pointerToReference(pointer)
+  }, [pointer])
+
+  const opinionOnMount = useQueryOpinion(processHandle.system(), reference)
+  const likedOnMount = useMemo(() => {
+    if (opinionOnMount === undefined) {
+      return undefined
+    }
+    return Util.buffersEqual(opinionOnMount, Models.Opinion.OpinionLike)
+  }, [opinionOnMount])
+
+  const [liked, setLiked] = useState<boolean>(false)
+  const [locallyDisliked, setLocallyDisliked] = useState<boolean>(false)
+
+  const updateIfLiked = useCallback(
+    (cancelContext?: CancelContext.CancelContext) => {
+      processHandle
+        .store()
+        .opinionIndex.get(processHandle.system(), reference)
+        .then((result) => {
+          if (cancelContext !== undefined && cancelContext.cancelled()) {
+            return
+          }
+          setLiked(Util.buffersEqual(result, Models.Opinion.OpinionLike))
+        })
+    },
+    [processHandle, reference],
   )
 
-  const [likedLocal, setLikedLocal] = useState<boolean>(false)
+  // Initial load
+  useEffect(() => {
+    const cancelContext = new CancelContext.CancelContext()
+    updateIfLiked(cancelContext)
+
+    return () => {
+      cancelContext.cancel()
+    }
+  }, [updateIfLiked])
 
   const like = useCallback(() => {
-    setLikedLocal((likedLocal) => {
-      try {
-        const reference = Models.pointerToReference(pointer)
-        if (!likedLocal) {
-          processHandle.opinion(reference, Models.Opinion.OpinionLike).then(() => {
-            Synchronization.backFillServers(processHandle, pointer.system)
-          })
-        }
-        return true
-      } catch (e) {
-        console.error(e)
-        return likedLocal
-      }
-    })
-  }, [pointer, processHandle])
+    processHandle
+      .opinion(reference, Models.Opinion.OpinionLike)
+      .then(() => {
+        updateIfLiked()
+        setLocallyDisliked(false)
+      })
+      .then(() => {
+        Synchronization.backFillServers(processHandle, pointer.system)
+      })
+  }, [pointer, reference, processHandle, updateIfLiked])
 
-  const unlike = useCallback(async () => {
-    setLikedLocal((likedLocal) => {
-      try {
-        const reference = Models.pointerToReference(pointer)
-        processHandle.opinion(reference, Models.Opinion.OpinionNeutral).then(() => {
-          Synchronization.backFillServers(processHandle, pointer.system)
-        })
-        return false
-      } catch (e) {
-        console.error(e)
-        return likedLocal
-      }
-    })
-  }, [pointer, processHandle])
+  const unlike = useCallback(() => {
+    processHandle
+      .opinion(reference, Models.Opinion.OpinionNeutral)
+      .then(() => {
+        updateIfLiked()
+        setLocallyDisliked(true)
+      })
+      .then(() => {
+        Synchronization.backFillServers(processHandle, pointer.system)
+      })
+  }, [pointer, reference, processHandle, updateIfLiked])
 
   const comment = useCallback(
     async (text: string) => {
@@ -86,13 +110,13 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
 
   const actions = useMemo(() => {
     return {
-      liked: likedStored || likedLocal,
+      liked,
       like,
       unlike,
       comment,
       repost: () => {},
     }
-  }, [likedStored, likedLocal, like, comment, unlike])
+  }, [liked, like, comment, unlike])
 
   const stats = usePostStats(pointer)
 
@@ -100,13 +124,21 @@ const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) => {
     likes?: number
     comments?: number
     reposts?: number
-  } = useMemo(
-    () => ({
+  } = useMemo(() => {
+    let likes = stats.likes
+    if (stats.likes === 0 && liked) {
+      likes = stats.likes + 1
+    } else if (liked && likedOnMount === false && stats.likes) {
+      likes = stats.likes + 1
+    } else if (locallyDisliked && stats.likes && stats.likes > 0) {
+      likes = stats.likes - 1
+    }
+
+    return {
       ...stats,
-      likes: stats.likes === undefined ? undefined : stats.likes + (likedLocal && !likedStored ? 1 : 0),
-    }),
-    [stats, likedLocal, likedStored],
-  )
+      likes: likes,
+    }
+  }, [stats, liked, likedOnMount, locallyDisliked])
 
   return {
     stats: locallyModifiedStats,
