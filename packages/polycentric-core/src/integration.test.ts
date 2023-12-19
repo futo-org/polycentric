@@ -528,6 +528,9 @@ describe('integration', () => {
         const usernameSearchResults = await APIMethods.getSearch(
             TEST_SERVER,
             'Pennsylvania',
+            undefined,
+            undefined,
+            APIMethods.SearchType.Profiles,
         );
         const usernameSearchContent = lwwEventToContent(
             getAndCheckFirstEvent(usernameSearchResults),
@@ -537,12 +540,18 @@ describe('integration', () => {
         const oldUsernameSearchResults = await APIMethods.getSearch(
             TEST_SERVER,
             username,
+            undefined,
+            undefined,
+            APIMethods.SearchType.Profiles,
         );
         expect(oldUsernameSearchResults.resultEvents?.events.length).toBe(0);
 
         const descriptionSearchResults = await APIMethods.getSearch(
             TEST_SERVER,
             'Alerts',
+            undefined,
+            undefined,
+            APIMethods.SearchType.Profiles,
         );
         const descriptionSearchContent = lwwEventToContent(
             getAndCheckFirstEvent(descriptionSearchResults),
