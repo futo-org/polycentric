@@ -24,6 +24,7 @@ export const Feed = ({
     <Virtuoso
       data={data}
       style={{ height: '100%' }}
+      className="noscrollbar"
       itemContent={(index, data) => (
         <Post key={data !== undefined ? encode(data.signedEvent.signature) : index} data={data} />
       )}
