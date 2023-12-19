@@ -36,7 +36,7 @@ pub(crate) async fn handler(
 
     let subject = match &reference {
         crate::model::reference::Reference::Pointer(pointer) => {
-            if query.query.extra_byte_references.is_empty() {
+            if !query.query.extra_byte_references.is_empty() {
                 return Ok(Box::new(::warp::reply::with_status(
                     "cannot use extra_byte_references with pointer reference",
                     ::warp::http::StatusCode::BAD_REQUEST,
