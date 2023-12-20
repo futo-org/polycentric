@@ -65,11 +65,19 @@ const InnerPureEditProfile = ({
   const onSave = useCallback(async () => {
     if (!validAndChanged) return
 
-    Promise.all([
-      usernameValidAndChanged && username && actions?.changeUsername(username),
-      descriptionValidAndChanged && description && actions?.changeDescription(description),
-      avatarValidAndChanged && avatar && actions.changeAvatar(avatar),
-    ])
+    // These actions aren't concurrency safe, but we also don't want to block the UI on their completion
+    const update = async () => {
+      if (usernameValidAndChanged && username) {
+        await actions.changeUsername(username)
+      }
+      if (descriptionValidAndChanged && description) {
+        await actions.changeDescription(description)
+      }
+      if (avatarValidAndChanged && avatar) {
+        await actions.changeAvatar(avatar)
+      }
+    }
+    update()
 
     setOpen(false)
   }, [
