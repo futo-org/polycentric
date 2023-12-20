@@ -16,11 +16,13 @@ export const Modal = ({
   setOpen,
   open,
   title,
+  shrink = true,
 }: {
   children: React.ReactNode
   setOpen: (open: boolean) => void
   open: boolean
   title?: string
+  shrink?: boolean
 }): JSX.Element => {
   const isMobile = useIsMobile('md')
 
@@ -49,9 +51,9 @@ export const Modal = ({
             leaveFrom="translate-y-0"
             leaveTo="translate-y-full"
           >
-            <Dialog.Panel className="transform w-screen h-screen bg-white text-left align-middle transition-all grid grid-cols-[min-content]">
-              <div className="flex justify-between items-center py-5 px-7">
-                <Dialog.Title className="text-2xl font-semibold leading-6 text-gray-900 break-words">
+            <Dialog.Panel className="transform w-screen h-screen bg-white text-left align-middle transition-all ">
+              <div className="flex justify-between items-center py-5 px-7 w-full">
+                <Dialog.Title className="text-2xl font-semibold leading-6 text-gray-900 break-words flex-shrink min-w-0 overflow-hidden text-ellipsis">
                   {title}
                 </Dialog.Title>
                 <button
@@ -97,7 +99,11 @@ export const Modal = ({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="transform overflow-hidden rounded-2xl bg-white border py-3 pb-6 px-9 text-left align-middle shadow-xl transition-all grid grid-cols-[min-content]">
+              <Dialog.Panel
+                className={`transform overflow-hidden rounded-2xl bg-white border py-3 pb-6 px-9 text-left align-middle shadow-xl transition-all grid ${
+                  shrink ? 'grid-cols-[min-content]' : ''
+                }`}
+              >
                 <div className="flex justify-between items-center py-3 w-full break-all">
                   <Dialog.Title className="text-2xl font-semibold leading-6 text-gray-900 max-w-full break-words">
                     {title}
