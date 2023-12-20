@@ -74,12 +74,10 @@ export function useProcessHandleManagerBaseComponentHook(
       }
 
       if (servers) {
-        await Promise.all(
-          servers?.map((server) => {
-            processHandle.addAddressHint(processHandle.system(), server)
-            processHandle.addServer(server)
-          }),
-        )
+        for (const server of servers) {
+          processHandle.addAddressHint(processHandle.system(), server)
+          await processHandle.addServer(server)
+        }
       }
 
       // TODO: Add proper store version numbering
@@ -124,12 +122,10 @@ export function useProcessHandleManagerBaseComponentHook(
       const processHandle = await ProcessHandle.createProcessHandleFromKey(metaStore, privateKeyModel)
 
       if (exportBundle.events) {
-        await Promise.all(
-          exportBundle.events.events.map((event) => {
-            const eventModel = Models.SignedEvent.fromProto(event)
-            return processHandle.ingest(eventModel)
-          }),
-        )
+        for (const event of exportBundle.events.events) {
+          const eventModel = Models.SignedEvent.fromProto(event)
+          await processHandle.ingest(eventModel)
+        }
       }
 
       await metaStore.setActiveStore(processHandle.system(), 0)
