@@ -26,11 +26,11 @@ export const CropProfilePic = ({
           image={src}
           crop={crop}
           zoom={zoom}
-          aspect={1}
+          aspect={aspect}
           onCropChange={setCrop}
           onZoomChange={setZoom}
           onCropComplete={onCropComplete}
-          objectFit="cover"
+          objectFit="horizontal-cover"
           classes={{
             containerClassName: 'rounded-lg',
             cropAreaClassName: 'rounded-full',
@@ -86,8 +86,8 @@ export const CropProfilePicModal = ({
   open: boolean
   setOpen: (open: boolean) => void
 }) => (
-  <Modal title="Crop" open={open} setOpen={setOpen}>
-    <div className="max-w-[30rem]">
+  <Modal title="Crop" open={open} setOpen={setOpen} shrink={false}>
+    <div className="w-[30rem] max-w-full">
       <CropProfilePic src={src} aspect={aspect} onCrop={onCrop} />
     </div>
   </Modal>

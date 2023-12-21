@@ -124,13 +124,13 @@ export const publishImageBlob = async (
   maxResX = 1000,
   maxResY = 1000,
   upscale = false,
-) => {
+): Promise<Protocol.ImageManifest> => {
   const [newBlob, width, height] = await resizeImageToWebp(image, quality, maxResX, maxResY, upscale)
   const newUint8Array = await convertBlobToUint8Array(newBlob)
 
   const imageRanges = await handle.publishBlob(newUint8Array)
 
-  const imageManifest = {
+  const imageManifest: Protocol.ImageManifest = {
     mime: 'image/webp',
     width: Long.fromNumber(width),
     height: Long.fromNumber(height),
@@ -149,9 +149,13 @@ export const publishBlobToAvatar = async (blob: Blob, handle: ProcessHandle.Proc
     imageManifests: [],
   }
 
-  imageBundle.imageManifests = await Promise.all(
-    resolutions.map((resolution) => publishImageBlob(blob, handle, quality, resolution, resolution, true)),
-  )
+  const imageManifests = []
+  for (const resolution of resolutions) {
+    const manifest = await publishImageBlob(blob, handle, quality, resolution, resolution, true)
+    imageManifests.push(manifest)
+  }
+
+  imageBundle.imageManifests = imageManifests
 
   return await handle.setAvatar(imageBundle)
 }

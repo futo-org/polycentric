@@ -138,7 +138,7 @@ const CredsPanelSignUp = () => {
       <ProfileAvatarInput
         title="Upload a profile picture (optional)"
         hint="You can change this later"
-        setImage={setAvatar}
+        setCroppedImage={setAvatar}
       />
       <GenCredsPanelItem
         title="What's your username?"

@@ -1,42 +1,35 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useBlobDisplayURL } from '../../../../../hooks/imageHooks'
 import { cropImageToWebp } from '../../../../../util/imageProcessing'
 import { CropProfilePicModal } from '../../../CropProfilePic'
 import { ProfilePicture } from '../../../ProfilePicture'
 
-const useCleanupObjectURL = (url?: string) => {
-  useEffect(() => {
-    return () => {
-      if (url) URL.revokeObjectURL(url)
-    }
-  }, [url])
-}
-
 export const ProfileAvatarInput = ({
   title,
   hint,
-  setImage,
+  setCroppedImage,
   originalImageURL,
 }: {
   title: string
   hint?: string
-  setImage: (image?: Blob) => void
+  setCroppedImage: (image?: Blob) => void
   originalImageURL?: string
 }) => {
   const [rawImage, setRawImage] = useState<File | undefined>(undefined)
   // react-easy-crop requires an image URL to crop
-  const [cropperURL, setCropperURL] = useState<string | undefined>(undefined)
+  const rawImageURL = useBlobDisplayURL(rawImage)
   const [cropping, setCropping] = useState(false)
-  const [croppedPreviewURL, setCroppedPreviewURL] = useState<string | undefined>(originalImageURL)
+  const [internalCroppedImage, setInternalCroppedImage] = useState<Blob | undefined>()
+  const croppedPreviewURL = useBlobDisplayURL(internalCroppedImage)
 
-  useCleanupObjectURL(cropperURL)
-  useCleanupObjectURL(croppedPreviewURL)
+  const previewURL = croppedPreviewURL ?? originalImageURL
 
   return (
     <div className="flex flex-col gap-y-1">
       <h3 className="font-medium">{title}</h3>
       <div className="">
         <label htmlFor="upload-button" className="">
-          <ProfilePicture className="w-16 h-16" src={croppedPreviewURL} />
+          <ProfilePicture className="w-16 h-16" src={previewURL} />
         </label>
         <input
           id="upload-button"
@@ -48,34 +41,29 @@ export const ProfileAvatarInput = ({
             const image = e.target.files?.[0]
             if (image) {
               setRawImage(image)
-              setCropperURL(URL.createObjectURL(image))
             } else {
               setRawImage(undefined)
-              setCropperURL(undefined)
             }
           }}
         />
       </div>
       <p className="text-sm text-gray-700">{hint}</p>
-      {cropping && cropperURL && (
+      {cropping && rawImageURL && (
         <CropProfilePicModal
-          src={cropperURL}
+          src={rawImageURL}
           aspect={1}
-          open={cropperURL !== undefined}
+          open={rawImageURL !== undefined}
           setOpen={(open) => {
             if (!open) {
               setCropping(false)
-              setCropperURL(undefined)
+              setRawImage(undefined)
             }
           }}
           onCrop={async ({ x, y, width, height }) => {
             if (rawImage) {
               const croppedImage = await cropImageToWebp(rawImage, x, y, width, height)
-              setCropperURL(undefined)
-              setImage(croppedImage)
-
-              const previewUrl = URL.createObjectURL(croppedImage)
-              setCroppedPreviewURL(previewUrl)
+              setInternalCroppedImage(croppedImage)
+              setCroppedImage(croppedImage)
             }
             setCropping(false)
           }}
