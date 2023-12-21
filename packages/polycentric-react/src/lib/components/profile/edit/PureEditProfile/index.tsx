@@ -28,10 +28,10 @@ const InnerPureEditProfile = ({
   const [avatar, setAvatarState] = useState<Blob | undefined>(undefined)
   const [avatarChanged, setAvatarChanged] = useState(false)
 
-  const blobUrl = useBlobDisplayURL(avatar)
   const displayUsername = useMemo(() => username ?? profile.name, [username, profile.name])
   const displayDescription = useMemo(() => description ?? profile.description, [description, profile.description])
-  const displayAvatarURL = useMemo(() => blobUrl ?? profile.avatarURL, [blobUrl, profile.avatarURL])
+  const blobUrl = useBlobDisplayURL(avatar)
+  const currentAvatarURL = useMemo(() => blobUrl ?? profile.avatarURL, [blobUrl, profile.avatarURL])
 
   const { avatarValidAndChanged, descriptionValidAndChanged, usernameValidAndChanged, validAndChanged } =
     useMemo(() => {
@@ -105,7 +105,7 @@ const InnerPureEditProfile = ({
 
   return (
     <div className="w-full md:w-[35rem] space-y-2">
-      <ProfileAvatarInput title="Avatar" setImage={setAvatar} originalImageURL={displayAvatarURL} />
+      <ProfileAvatarInput title="Avatar" setCroppedImage={setAvatar} originalImageURL={currentAvatarURL} />
       <ProfileTextInput title="Name" value={displayUsername} onChange={(e) => setUsername(e.target.value)} />
       <ProfileTextArea title="Description" value={displayDescription} onChange={onDescriptionChange} />
       <div className="h-3" />

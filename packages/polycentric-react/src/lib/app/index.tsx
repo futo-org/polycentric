@@ -79,10 +79,10 @@ const LoadedMetastoreApp = ({ metaStore }: { metaStore: MetaStore.IMetaStore }) 
       </OnboardingProcessHandleManagerContext.Provider>
     )
   } else {
-    // Typescript is dumb and doesn't understand that we've already checked for null
-    const contextProps = { ...storeManagerProps, processHandle, activeStore }
     return (
-      <ProcessHandleManagerContext.Provider value={contextProps}>
+      // Typescript is dumb and doesn't understand that we've already checked for null
+      // @ts-ignore
+      <ProcessHandleManagerContext.Provider value={storeManagerProps}>
         <SignedinApp processHandle={processHandle} />
       </ProcessHandleManagerContext.Provider>
     )
