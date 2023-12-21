@@ -405,7 +405,10 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                         main.image && setMainImageOpen(true)
                       }}
                     >
-                      <img src={main.image} className="rounded-2xl max-h-60 max-w-full w-fit hover:opacity-80 border" />
+                      <img
+                        src={main.image}
+                        className="rounded-2xl max-h-60 max-w-full w-auto hover:opacity-80 border"
+                      />
                     </button>
                     {/* sub.post */}
                     {sub && (
@@ -498,9 +501,9 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   setOpen={(open) => setCommentPanelOpen(open)}
                   onComment={actions?.comment}
                 />
-                <Modal open={mainImageOpen} setOpen={(open) => setMainImageOpen(open)}>
+                <Modal open={mainImageOpen} setOpen={(open) => setMainImageOpen(open)} shrink={false}>
                   <div className="m-5">
-                    <img className="rounded-2xl w-[80vw] lg:w-[60vw]" src={main.image} />
+                    <img className="rounded-2xl w-[80vw] lg:w-[60vw] h-auto" src={main.image} />
                   </div>
                 </Modal>
               </div>
