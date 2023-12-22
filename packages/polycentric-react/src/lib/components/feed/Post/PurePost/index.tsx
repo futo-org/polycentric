@@ -31,46 +31,57 @@ export const PostActionButton = ({
   name,
   DefaultIcon,
   ClickedIcon,
-  iconColor,
-  clickedIconColor,
+  className = 'h-6 w-6 text-black',
+  clickedIconClassName,
   onClick,
   count,
-  className,
   clicked = false,
 }: {
   name: string
-  DefaultIcon: React.FC<{ color?: string }>
-  ClickedIcon?: React.FC<{ color?: string }>
-  iconColor?: string
-  clickedIconColor?: string
-  onClick: () => void
+  DefaultIcon: React.FC<{ className?: string }>
+  ClickedIcon?: React.FC<{ className?: string }>
   className?: string
+  clickedIconClassName?: string
+  onClick: () => void
   count?: number
   clicked?: boolean
 }) => {
   const Icon = (clicked ? ClickedIcon : DefaultIcon) ?? DefaultIcon
-  const color = (clicked ? clickedIconColor : iconColor) ?? 'text-black'
+  const displayClassName = clicked ? clickedIconClassName : className
   return (
     <button
       onClick={(e) => {
         e.stopPropagation()
         onClick()
       }}
-      className={'flex items-center space-x-1 ' + className}
+      className={'flex items-center space-x-1'}
     >
       <div className="" aria-label={name}>
-        <Icon color={color} />
+        <Icon className={displayClassName} />
       </div>
       {count != null && <span className="text-gray-500 text-sm">{count}</span>}
     </button>
   )
 }
 
-const HeartIconOutline = ({ color }: { color?: string }) => (
+const DownvoteButton = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    className={className}
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3" />
+  </svg>
+)
+
+const HeartIconOutline = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
-    className={`w-6 h-6 ${color}`}
+    className={className}
     fill="none"
     strokeWidth={1.5}
     stroke="currentColor"
@@ -83,37 +94,20 @@ const HeartIconOutline = ({ color }: { color?: string }) => (
   </svg>
 )
 
-const HeartIconSolid = ({ color }: { color?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`w-6 h-6 ${color}`}>
+const HeartIconSolid = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
     <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
   </svg>
 )
 
-const RePostIconSolid = () => (
+const CommentIconOutline = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     fill="none"
     viewBox="0 0 24 24"
     strokeWidth={1.5}
     stroke="currentColor"
-    className="w-6 h-6"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-    />
-  </svg>
-)
-
-const CommentIconOutline = ({ color }: { color?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    strokeWidth={1.5}
-    stroke="currentColor"
-    className={`w-6 h-6 ${color}`}
+    className={className}
   >
     <path
       strokeLinecap="round"
@@ -123,14 +117,14 @@ const CommentIconOutline = ({ color }: { color?: string }) => (
   </svg>
 )
 
-const ShareButton = () => (
+const ShareIcon = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     fill="none"
     viewBox="0 0 24 24"
     strokeWidth={1.5}
     stroke="currentColor"
-    className="w-6 h-6"
+    className={className}
   >
     <path
       strokeLinecap="round"
@@ -140,27 +134,9 @@ const ShareButton = () => (
   </svg>
 )
 
-const BookmarkIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    strokeWidth={1.5}
-    stroke="currentColor"
-    className="w-6 h-6"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
-    />
-  </svg>
-)
-
 export const LikeButton = ({
   onClick,
   count,
-  className,
   clicked = false,
 }: {
   onClick: () => void
@@ -171,10 +147,9 @@ export const LikeButton = ({
   return (
     <PostActionButton
       name="Like"
-      className={className}
       DefaultIcon={HeartIconOutline}
       ClickedIcon={HeartIconSolid}
-      clickedIconColor="text-rose-700"
+      clickedIconClassName="w-6 h-6 text-rose-700"
       onClick={onClick}
       count={count}
       clicked={clicked}
@@ -182,20 +157,35 @@ export const LikeButton = ({
   )
 }
 
-export const RePostButton = ({ onClick, count }: { onClick: () => void; count?: number }) => {
-  return <PostActionButton name="RePost" DefaultIcon={RePostIconSolid} onClick={onClick} count={count} />
+export const DislikeButton = ({
+  onClick,
+  count,
+  clicked = false,
+}: {
+  onClick: () => void
+  count?: number
+  className?: string
+  clicked: boolean
+}) => {
+  return (
+    <PostActionButton
+      name="Dislike"
+      DefaultIcon={DownvoteButton}
+      className="h-5 w-5 m-0.5 text-black"
+      clickedIconClassName="h-6 w-6 stroke-2"
+      onClick={onClick}
+      count={count}
+      clicked={clicked}
+    />
+  )
 }
 
-export const CommentButton = ({ onClick, count }: { onClick: () => void; count?: number }) => {
+const CommentButton = ({ onClick, count }: { onClick: () => void; count?: number }) => {
   return <PostActionButton name="Comment" DefaultIcon={CommentIconOutline} onClick={onClick} count={count} />
 }
 
-export const SharePostButton = ({ onClick }: { onClick: () => void }) => {
-  return <PostActionButton name="Share" DefaultIcon={ShareButton} onClick={onClick} />
-}
-
-export const BookmarkPostButton = ({ onClick }: { onClick: () => void }) => {
-  return <PostActionButton name="Bookmark" DefaultIcon={BookmarkIcon} onClick={onClick} />
+const SharePostButton = ({ onClick }: { onClick: () => void }) => {
+  return <PostActionButton name="Share" DefaultIcon={ShareIcon} onClick={onClick} />
 }
 
 export interface PurePostProps {
@@ -221,13 +211,14 @@ export interface PurePostProps {
   }
   stats?: {
     likes?: number
-    reposts?: number
+    dislikes?: number
+    opinion: 'liked' | 'disliked' | 'neutral'
     comments?: number
   }
   actions?: {
     like?: () => void
-    unlike?: () => void
-    liked?: boolean
+    dislike?: () => void
+    neutralopinion?: () => void
     repost: () => void
     comment: (content: string, upload?: File) => Promise<boolean>
   }
@@ -335,9 +326,20 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                         'pt-5'
                       }`}
                     >
+                      <LikeButton
+                        onClick={() => (stats?.opinion === 'liked' ? actions?.neutralopinion?.() : actions?.like?.())}
+                        count={isMobile ? undefined : stats?.likes}
+                        clicked={stats?.opinion === 'liked' ?? false}
+                      />
+                      <DislikeButton
+                        onClick={() =>
+                          stats?.opinion === 'disliked' ? actions?.neutralopinion?.() : actions?.dislike?.()
+                        }
+                        count={isMobile ? undefined : stats?.dislikes}
+                        clicked={stats?.opinion === 'disliked' ?? false}
+                      />
                       {isMobile === false && (
                         <>
-                          <RePostButton onClick={() => {}} count={isMobile ? undefined : stats?.reposts} />
                           <CommentButton
                             onClick={() => {
                               setCommentPanelOpen(true)
@@ -346,12 +348,6 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                           />
                         </>
                       )}
-                      <LikeButton
-                        className="justify-center w-full md:justify-normal md:w-auto"
-                        onClick={() => (actions?.liked ? actions?.unlike?.() : actions?.like?.())}
-                        count={isMobile ? undefined : stats?.likes}
-                        clicked={actions?.liked ?? false}
-                      />
                     </div>
                   )}
                 </div>
@@ -464,22 +460,21 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                 )}
                 {/* Left column */}
                 <div className="col-start-2 lg:hidden flex justify-between pt-6">
-                  <RePostButton
-                    onClick={() => {
-                      return
-                    }}
-                    count={stats?.reposts}
-                  />
                   <CommentButton
                     onClick={() => {
                       setCommentPanelOpen(true)
                     }}
                     count={stats?.comments}
                   />
+                  <DislikeButton
+                    onClick={() => (stats?.opinion === 'disliked' ? actions?.neutralopinion?.() : actions?.dislike?.())}
+                    count={stats?.dislikes}
+                    clicked={stats?.opinion === 'disliked' ?? false}
+                  />
                   <LikeButton
-                    onClick={() => (actions?.liked ? actions?.unlike?.() : actions?.like?.())}
+                    onClick={() => (stats?.opinion === 'liked' ? actions?.neutralopinion?.() : actions?.like?.())}
                     count={stats?.likes}
-                    clicked={actions?.liked ?? false}
+                    clicked={stats?.opinion === 'liked' ?? false}
                   />
                   {navigator.share && (
                     <SharePostButton
