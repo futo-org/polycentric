@@ -37,6 +37,19 @@ export const Route = ({
       )
   }, [navref])
 
+  useEffect(() => {
+    const listener = () => {
+      // @ts-ignore
+      navref.current?.pop()
+    }
+
+    window.addEventListener('popstate', listener)
+
+    return () => {
+      window.removeEventListener('popstate', listener)
+    }
+  }, [])
+
   const root = useCallback(() => {
     return <Component />
   }, [Component])
@@ -45,7 +58,7 @@ export const Route = ({
     return (
       <RouterRoute path={path} exact={true}>
         <IonPage>
-          <IonNav root={root} ref={navref} />
+          <IonNav root={root} ref={navref} swipeGesture={true} />
         </IonPage>
       </RouterRoute>
     )

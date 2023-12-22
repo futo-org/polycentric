@@ -13,9 +13,7 @@ import {
 } from '../hooks/processHandleManagerHooks'
 import { QueryManagerContext } from '../hooks/queryHooks'
 
-setupIonicReact({
-  mode: 'ios',
-})
+setupIonicReact({})
 
 // Check if we're in electron or not
 const isElectron = () => {

@@ -1,5 +1,5 @@
 import { RouterDirection } from '@ionic/core'
-import { IonNavLink, IonPage, IonRouterLink } from '@ionic/react'
+import { IonNavLink, IonPage, IonRouterLink, isPlatform } from '@ionic/react'
 import React, { forwardRef, useCallback, useMemo } from 'react'
 import { matchPath } from 'react-router-dom'
 import { routeData } from '../../../app/router'
@@ -37,6 +37,7 @@ const LinkComponent = forwardRef<
   } & React.HTMLAttributes<HTMLAnchorElement>
 >(({ routerLink, children, routerDirection, className, ...browserProps }, ref) => {
   const isMobile = useIsMobile()
+  const isIOS = useMemo(() => isMobile && isPlatform('ios'), [isMobile])
 
   const renderMemoryPage = useCallback(
     () => (
@@ -57,17 +58,28 @@ const LinkComponent = forwardRef<
 
   if (isMobile && routerDirection !== 'root') {
     return (
-      <IonNavLink
-        // @ts-ignore
-        // We just need the ref for standard HTML attributes, not fancy Ionic stuff
-        ref={ref}
-        component={renderMemoryPage}
-        className={`${className}`}
-        routerDirection={routerDirection}
-        {...browserProps}
+      <div
+        onClick={() => {
+          // On Android, since we're using back button navigation,
+          // we need to push a random query string to the history so that we can use the back button
+          if (isIOS === false && routerDirection !== 'back') {
+            // push random query string to history so we can go back
+            window.history.pushState({}, '', window.location.pathname + '?')
+          }
+        }}
       >
-        {children}
-      </IonNavLink>
+        <IonNavLink
+          // @ts-ignore
+          // We just need the ref for standard HTML attributes, not fancy Ionic stuff
+          ref={ref}
+          component={renderMemoryPage}
+          className={`${className}`}
+          routerDirection={routerDirection}
+          {...browserProps}
+        >
+          {children}
+        </IonNavLink>
+      </div>
     )
   }
 
