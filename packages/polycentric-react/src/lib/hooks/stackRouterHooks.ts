@@ -19,7 +19,7 @@ export function useLocation() {
   const memoryPath = useContext(MemoryRoutedLinkContext)
   const reactRouterPath = useRouterLocation()
 
-  return useMemo(() => memoryPath ?? reactRouterPath.pathname, [memoryPath, reactRouterPath])
+  return useMemo(() => memoryPath ?? reactRouterPath.pathname + reactRouterPath.search, [memoryPath, reactRouterPath])
 }
 
 export function useParams<Params extends { [K in keyof Params]?: string }>(): Params | emptyObject {

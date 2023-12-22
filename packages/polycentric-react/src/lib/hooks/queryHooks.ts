@@ -273,6 +273,7 @@ export const useQueryReferences = (
   requestEvents?: Protocol.QueryReferencesRequestEvents,
   countLwwElementReferences?: Protocol.QueryReferencesRequestCountLWWElementReferences[],
   countReferences?: Protocol.QueryReferencesRequestCountReferences[],
+  extraByteReferences?: Uint8Array[],
 ): Protocol.QueryReferencesResponse[] | undefined => {
   const [state, setState] = useState<Protocol.QueryReferencesResponse[] | undefined>(undefined)
   const { processHandle } = useProcessHandleManager()
@@ -298,6 +299,7 @@ export const useQueryReferences = (
               requestEvents,
               countLwwElementReferences,
               countReferences,
+              extraByteReferences,
             ),
           ),
         )
@@ -318,7 +320,16 @@ export const useQueryReferences = (
     return () => {
       cancelContext.cancel()
     }
-  }, [system, reference, cursor, requestEvents, countLwwElementReferences, countReferences, processHandle])
+  }, [
+    system,
+    reference,
+    cursor,
+    requestEvents,
+    countLwwElementReferences,
+    countReferences,
+    extraByteReferences,
+    processHandle,
+  ])
 
   return state
 }
@@ -586,6 +597,7 @@ export const useQueryReferenceEventFeed = <T>(
   requestEvents?: Protocol.QueryReferencesRequestEvents,
   countLwwElementReferences?: Protocol.QueryReferencesRequestCountLWWElementReferences[],
   countReferences?: Protocol.QueryReferencesRequestCountReferences[],
+  extraByteReferences?: Uint8Array[],
 ) => {
   const loadCallback: Queries.QueryCursor.LoadCallback = useMemo(() => {
     return async (server, limit, cursor) => {
@@ -601,11 +613,12 @@ export const useQueryReferenceEventFeed = <T>(
         requestEvents,
         countLwwElementReferences,
         countReferences,
+        extraByteReferences,
       )
 
       return Models.ResultEventsAndRelatedEventsAndCursor.fromQueryReferencesResponse(response)
     }
-  }, [countLwwElementReferences, countReferences, reference, requestEvents])
+  }, [countLwwElementReferences, countReferences, reference, requestEvents, extraByteReferences])
 
   return useQueryCursor(loadCallback, decode)
 }
