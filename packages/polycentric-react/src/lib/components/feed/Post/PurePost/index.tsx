@@ -365,7 +365,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   )}
                 </div>
                 {/* Right column */}
-                <div className="flex-grow w-full lg:max-w-[600px]">
+                <div className="flex-grow w-full min-w-0 lg:max-w-[600px]">
                   <div className="flex w-full justify-between">
                     <div className="w-full" onClick={(e) => e.stopPropagation()}>
                       <div className="flex w-full justify-between space-x-3">
