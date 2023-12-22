@@ -1,48 +1,20 @@
 import { IonContent } from '@ionic/react'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Page } from '../../app/router'
 import { Header } from '../../components/layout/header'
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol'
 import { useTopicFeed } from '../../hooks/feedHooks'
 import { useParams } from '../../hooks/stackRouterHooks'
+import { TopFeedVideo } from './TopFeedVideo'
+import { shittyTestIfYoutubeIDRegex, youtubeURLRegex } from './platformRegex'
 
-const shittyTestIfYouTubeID = /([a-zA-Z0-9_-]{11})/
-
-const TopFeedYoutubeEmbed = ({ id }: { id: string }) => {
-  const [acceptedThirdParty, setAcceptedThirdParty] = useState(false)
-  return (
-    <div
-      className={`aspect-video w-full flex flex-col justify-center items-center space-y-3 ${
-        acceptedThirdParty ? 'sticky top-0 z-50' : ''
-      }`}
-    >
-      {acceptedThirdParty ? (
-        <iframe
-          width="100%"
-          height="auto"
-          className="aspect-video"
-          src={`https://www.youtube.com/embed/${id}`}
-          title="YouTube video player"
-          allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
-      ) : (
-        <>
-          <h3 className="max-w-[30rem]">
-            {
-              "This video is hosted on YouTube. By clicking play, you agree to YouTube's privacy policy and sending Google data."
-            }
-          </h3>
-          <button
-            onClick={() => setAcceptedThirdParty(true)}
-            className="px-3 py-2 border rounded-full hover:bg-gray-50"
-          >
-            Accept
-          </button>
-        </>
-      )}
-    </div>
-  )
+function isValidURL(str: string) {
+  try {
+    new URL(str)
+    return true
+  } catch (_) {
+    return false
+  }
 }
 
 export const TopicFeedPage: Page = () => {
@@ -58,17 +30,40 @@ export const TopicFeedPage: Page = () => {
   }, [unescapedTopic])
 
   const topComponent = useMemo(() => {
+    const isTopicURL = isValidURL(topic)
     return (
       <div className="w-full">
         <div className="w-full h-16 text-center flex justify-center items-center border-b">
-          <h1 className="text-lg text-gray-800">{topic}</h1>
+          {isTopicURL ? (
+            // Open in new tab
+            <a className="text-lg text-gray-800" href={topic} target="_blank" rel="noopener noreferrer">
+              <h1 className="text-lg text-gray-800">{topic}</h1>
+            </a>
+          ) : (
+            <h1 className="text-lg text-gray-800">{topic}</h1>
+          )}
         </div>
-        {shittyTestIfYouTubeID.test(topic) && <TopFeedYoutubeEmbed id={topic} />}
+        <TopFeedVideo topic={topic} />
       </div>
     )
   }, [topic])
 
-  const [comments, advanceComments] = useTopicFeed(topic)
+  const alternativeTopicRepresentations = useMemo(() => {
+    switch (true) {
+      case youtubeURLRegex.test(topic): {
+        // return video id
+        const youtubeMatch = topic.match(youtubeURLRegex)
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const youtubeID = youtubeMatch![1]
+        return [youtubeID]
+      }
+      case shittyTestIfYoutubeIDRegex.test(topic): {
+        return [`https://www.youtube.com/watch?v=${topic}`]
+      }
+    }
+  }, [topic])
+
+  const [comments, advanceComments] = useTopicFeed(topic, alternativeTopicRepresentations)
 
   return (
     <>

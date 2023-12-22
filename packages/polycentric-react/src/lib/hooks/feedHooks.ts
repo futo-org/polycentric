@@ -32,16 +32,27 @@ const commentFeedRequestEvents = {
 }
 const emptyArray: [] = []
 
-export const useReferenceFeed = (reference?: Protocol.Reference) => {
-  return useQueryReferenceEventFeed(Protocol.Post.decode, reference, commentFeedRequestEvents, emptyArray, emptyArray)
+export const useReferenceFeed = (reference?: Protocol.Reference, extraByteReferences?: Uint8Array[]) => {
+  return useQueryReferenceEventFeed(
+    Protocol.Post.decode,
+    reference,
+    commentFeedRequestEvents,
+    emptyArray,
+    emptyArray,
+    extraByteReferences,
+  )
 }
 
-export const useTopicFeed = (topic: string) => {
+export const useTopicFeed = (topic: string, alternateTopicRepresentations?: string[]) => {
   const reference = useMemo(() => {
     return Models.bufferToReference(Util.encodeText(topic))
   }, [topic])
 
-  return useReferenceFeed(reference)
+  const extraByteReferences = useMemo(() => {
+    return alternateTopicRepresentations?.map((topic) => Util.encodeText(topic))
+  }, [alternateTopicRepresentations])
+
+  return useReferenceFeed(reference, extraByteReferences)
 }
 
 export const useCommentFeed = (
