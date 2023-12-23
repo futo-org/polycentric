@@ -47,14 +47,14 @@ export const PureSidebarProfile = ({
             Edit profile
           </button>
         )}
-        <div className="flex space-x-2">
+        {/* <div className="flex space-x-2">
           <p>
             <span className="font-bold">{profile.followerCount}</span> followers
           </p>
           <p>
             <span className="font-bold">{profile.followingCount}</span> following
           </p>
-        </div>
+        </div> */}
         <div className="text-gray-500 text-pretty px-8 break-words max-w-full">{profile.description}</div>
       </div>
     </div>
