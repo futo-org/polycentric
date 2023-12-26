@@ -1,8 +1,8 @@
 import { IonApp, IonRouterOutlet, setupIonicReact } from '@ionic/react'
 import { IonReactHashRouter, IonReactMemoryRouter, IonReactRouter } from '@ionic/react-router'
-import { MetaStore, PersistenceDriver, ProcessHandle, Queries } from '@polycentric/polycentric-core'
+import { MetaStore, PersistenceDriver, ProcessHandle } from '@polycentric/polycentric-core'
 import { createMemoryHistory } from 'history'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { SidebarLayout } from '../components/layout/sidebarlayout'
 import { Onboarding } from '../components/onboarding'
 import { AppRouter } from '../components/util/approuter'
@@ -42,13 +42,7 @@ const PlatformRouter = ({ children }: { children: React.ReactNode }) => {
 
 // Currently, Polycentric can only be used while signed in
 export const SignedinApp = ({ processHandle }: { processHandle: ProcessHandle.ProcessHandle }) => {
-  const [queryManager, setQueryManager] = useState<Queries.QueryManager.QueryManager>(
-    () => new Queries.QueryManager.QueryManager(processHandle),
-  )
-
-  useEffect(() => {
-    setQueryManager(new Queries.QueryManager.QueryManager(processHandle))
-  }, [processHandle])
+  const queryManager = useMemo(() => processHandle.queryManager, [processHandle])
 
   return (
     <QueryManagerContext.Provider value={queryManager}>
