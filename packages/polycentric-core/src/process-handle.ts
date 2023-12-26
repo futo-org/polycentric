@@ -442,6 +442,37 @@ export class ProcessHandle {
 
         const systemState = protoSystemStateToSystemState(protoSystemState);
 
+        const loadCRDTElementSetItems = async (
+            contentType: Models.ContentType.ContentType,
+        ) => {
+            return await this._store.crdtElementSetIndex.query(
+                system,
+                contentType,
+                undefined,
+                10,
+            );
+        };
+
+        systemState
+            .servers()
+            .push(
+                ...(
+                    await loadCRDTElementSetItems(
+                        Models.ContentType.ContentTypeServer,
+                    )
+                ).map(Util.decodeText),
+            );
+
+        systemState
+            .authorities()
+            .push(
+                ...(
+                    await loadCRDTElementSetItems(
+                        Models.ContentType.ContentTypeAuthority,
+                    )
+                ).map(Util.decodeText),
+            );
+
         const addressHints = this.getAddressHints(system);
 
         for (const address1 of addressHints) {
