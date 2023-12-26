@@ -86,8 +86,8 @@ export const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) =>
           const opinion = Util.buffersEqual(result, Models.Opinion.OpinionLike)
             ? 'liked'
             : Util.buffersEqual(result, Models.Opinion.OpinionDislike)
-            ? 'disliked'
-            : 'neutral'
+              ? 'disliked'
+              : 'neutral'
           setOpinion(opinion)
         })
     },

@@ -34,9 +34,8 @@ async function runBot(
         },
     );
 
-    const processHandle = await Core.ProcessHandle.createProcessHandle(
-        metaStore,
-    );
+    const processHandle =
+        await Core.ProcessHandle.createProcessHandle(metaStore);
 
     {
         const servers = process.env.POLYCENTRIC_SERVERS?.split(',') ?? [];
