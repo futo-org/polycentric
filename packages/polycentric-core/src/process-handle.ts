@@ -438,9 +438,7 @@ export class ProcessHandle {
     public async loadSystemState(
         system: Models.PublicKey.PublicKey,
     ): Promise<SystemState> {
-        console.log("load system state 1");
         const protoSystemState = await this._store.getSystemState(system);
-        console.log("load system state 2");
 
         const systemState = protoSystemStateToSystemState(protoSystemState);
 
@@ -460,7 +458,6 @@ export class ProcessHandle {
                 systemState.servers().push(address1);
             }
         }
-        console.log("load system state end");
 
         return systemState;
     }
@@ -609,9 +606,7 @@ export class ProcessHandle {
             this._listener(signedEvent);
         }
 
-        console.log("running update");
         this.queryManager.update(signedEvent);
-        console.log("running hint");
         this.synchronizer.synchronizationHint();
 
         return Models.signedEventToPointer(signedEvent);

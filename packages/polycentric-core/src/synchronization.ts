@@ -197,17 +197,12 @@ export class Synchronizer {
     }
 
     public async debugWaitUntilSynchronizationComplete(): Promise<void> {
-        console.log("debug wait until");
         while (true) {
-            console.log("blah");
             if (this.complete) {
                 return;
             }
 
-            console.log("sleep");
             await Util.sleep(100);
-
-            console.log("looping");
         }
     }
 
@@ -250,22 +245,11 @@ export class Synchronizer {
         }
 
         this.servers = servers;
-    
-        console.log("a", this.servers.values());
 
         this.synchronizationHint();
     }
-    
-    public async synchronizationHint(): Promise<void> {
-        try {
-            await this.synchronizationHint2();
-        } catch (err) {
-            console.log(err);
-        }
-    }
 
-    public async synchronizationHint2(): Promise<void> {
-        console.log("1");
+    public async synchronizationHint(): Promise<void> {
         for (const server of this.servers) {
             let serverState = this.serverState.get(server);
 
@@ -285,17 +269,12 @@ export class Synchronizer {
 
         // if every server currently being backfilled then skip
         if ([...this.serverState.values()].every((state) => state.active)) {
-            console.log("break");
             return;
         }
-        
-        console.log("2");
 
         const systemState = await this.processHandle.loadSystemState(
             this.processHandle.system(),
         );
-
-        console.log("3");
 
         const processesRanges: Map<
             Readonly<Models.Process.Process>,
@@ -312,46 +291,39 @@ export class Synchronizer {
 
         let incomplete = false;
 
-        console.log(this.servers.values());
+        for (const server of this.servers.values()) {
+            const serverState = this.serverState.get(server);
 
-        await Promise.all(
-            Array.from(this.servers.values()).map(async (server) => {
-                const serverState = this.serverState.get(server);
+            if (serverState === undefined) {
+                throw new Error('impossible');
+            }
 
-                if (serverState === undefined) {
-                    throw new Error('impossible');
-                }
+            // already synchronizing so skip
+            if (serverState.active) {
+                return;
+            }
 
-                // already synchronizing so skip
-                if (serverState.active) {
-                    return;
-                }
+            const generation = serverState.generation;
 
-                const generation = serverState.generation;
+            serverState.active = true;
 
-                serverState.active = true;
+            try {
+                await this.backfillServer(server, processesRanges);
+            } catch (err) {
+                incomplete = true;
 
-                try {
-                    this.backfillServer(server, processesRanges);
-                } catch (err) {
-                    incomplete = true;
+                console.warn(err);
+            }
 
-                    console.warn(err);
-                }
+            serverState.active = false;
 
-                serverState.active = false;
+            // our view of the world became outdated while synchronizing
+            if (generation < serverState.generation) {
+                incomplete = true;
 
-                // our view of the world became outdated while synchronizing
-                if (generation < serverState.generation) {
-                    incomplete = true;
-
-                    this.synchronizationHint();
-                    console.log("outdated");
-                }
-            }),
-        );
-
-        console.log("done sending");
+                this.synchronizationHint();
+            }
+        }
 
         if (!incomplete) {
             this.complete = true;
@@ -365,6 +337,8 @@ export class Synchronizer {
             ReadonlyArray<Ranges.IRange>
         >,
     ): Promise<void> {
+        console.log('backfilling server', server);
+
         const remoteRangesForSystem = await APIMethods.getRanges(
             server,
             this.processHandle.system(),
@@ -376,6 +350,11 @@ export class Synchronizer {
         > = new Map();
 
         for (const [process, localRanges] of localProcessesRanges.entries()) {
+            remoteNeedsByProcess.set(
+                process,
+                Ranges.deepCopy(localRanges) as Array<Ranges.IRange>,
+            );
+
             for (const item of remoteRangesForSystem.rangesForProcesses) {
                 if (!item.process) {
                     console.warn('remoteRangesForSystem no process in item');
@@ -406,6 +385,8 @@ export class Synchronizer {
         let progress = true;
 
         while (progress) {
+            progress = false;
+
             for (const [
                 process,
                 remoteNeeds,
@@ -445,6 +426,8 @@ export class Synchronizer {
                 await APIMethods.postEvents(server, events);
             }
         }
+
+        console.log('done backfilling server', server);
     }
 
     public cleanup(): void {

@@ -28,6 +28,15 @@ export function contains(
     return false;
 }
 
+export function deepCopy(ranges: ReadonlyArray<IRange>): Array<IRange> {
+    return ranges.map((item) => {
+        return {
+            low: new Long(item.low.low, item.low.high, item.low.unsigned),
+            high: new Long(item.high.low, item.high.high, item.high.unsigned),
+        };
+    });
+}
+
 export function insert(ranges: Array<IRange>, item: Readonly<Long>): void {
     for (let i = 0; i < ranges.length; i++) {
         // within existing range

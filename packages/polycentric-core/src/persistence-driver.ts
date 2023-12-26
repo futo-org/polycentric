@@ -34,7 +34,6 @@ export async function tryLoadKey(
     try {
         return await table.get(key);
     } catch (err) {
-        console.log(err);
         return undefined;
     }
 }

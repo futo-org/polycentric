@@ -51,7 +51,6 @@ async function createHandleWithName(username: string) {
 
 describe('integration', () => {
     test('sync', async () => {
-        console.log("start sync test");
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         await s1p1.addServer(TEST_SERVER);
         await s1p1.setDescription('hello');
@@ -61,7 +60,6 @@ describe('integration', () => {
         const claimPointer = await s1p1.claim(claim);
         const vouchPointer = await s1p1.vouch(claimPointer);
 
-        console.log("start sync test");
         await s1p1.synchronizer.debugWaitUntilSynchronizationComplete();
 
         const s2p1 = await ProcessHandle.createTestProcessHandle();
