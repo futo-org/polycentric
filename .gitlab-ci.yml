@@ -1,7 +1,7 @@
 ---
 
 variables: 
-  DOCKERFILE_MD5: 36397fb555a40a50e16aa1b1dd14ad99
+  DOCKERFILE_MD5: c8420899f90a361bc5189c4c738eb8db
   POSTGRES_IMAGE: "postgres:14"
   SEARCH_IMAGE: "opensearchproject/opensearch:2.1.0"
   FF_USE_FASTZIP: "true"
