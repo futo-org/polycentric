@@ -7,7 +7,7 @@ export interface IRange {
 
 export function toString(ranges: ReadonlyArray<IRange>): string {
     const out = ranges
-        .map((r) => r.low.toString() + ',' + r.high.toString())
+        .map((r) => r.low.toString() + '-' + r.high.toString())
         .join(',');
     return out;
 }

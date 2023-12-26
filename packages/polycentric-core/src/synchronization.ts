@@ -415,7 +415,7 @@ export class Synchronizer {
                     'process',
                     Models.Process.toString(process),
                     'ranges',
-                    batch,
+                    Ranges.toString(batch),
                 );
 
                 await APIMethods.postEvents(server, events);
