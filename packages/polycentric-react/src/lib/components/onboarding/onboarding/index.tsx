@@ -1,5 +1,5 @@
 import { encode } from '@borderless/base64'
-import { Models, Synchronization } from '@polycentric/polycentric-core'
+import { Models } from '@polycentric/polycentric-core'
 import { InputHTMLAttributes, ReactNode, useEffect, useState } from 'react'
 import internetTodayURL from '../../../../graphics/onboarding/internettoday.svg'
 import starterURL from '../../../../graphics/onboarding/starter.svg'

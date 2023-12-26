@@ -1,4 +1,4 @@
-import { Models, Synchronization, Util } from '@polycentric/polycentric-core'
+import { Models, Util } from '@polycentric/polycentric-core'
 import { useCallback, useState } from 'react'
 import { Compose } from '..'
 import { useProcessHandleManager } from '../../../../hooks/processHandleManagerHooks'

@@ -1,4 +1,4 @@
-import { CancelContext, Models, Synchronization, Util } from '@polycentric/polycentric-core'
+import { CancelContext, Models, Util } from '@polycentric/polycentric-core'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useProcessHandleManager } from './processHandleManagerHooks'
 import { useQueryOpinion, useQueryPointerReferences } from './queryHooks'
@@ -109,21 +109,21 @@ export const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) =>
       refreshOpinion()
       setLocallyNeutral(false)
     })
-  }, [pointer, reference, processHandle, refreshOpinion])
+  }, [reference, processHandle, refreshOpinion])
 
   const neutralopinion = useCallback(() => {
     processHandle.opinion(reference, Models.Opinion.OpinionNeutral).then(() => {
       refreshOpinion()
       setLocallyNeutral(true)
     })
-  }, [pointer, reference, processHandle, refreshOpinion])
+  }, [reference, processHandle, refreshOpinion])
 
   const dislike = useCallback(() => {
     processHandle.opinion(reference, Models.Opinion.OpinionDislike).then(() => {
       refreshOpinion()
       setLocallyNeutral(false)
     })
-  }, [pointer, reference, processHandle, refreshOpinion])
+  }, [reference, processHandle, refreshOpinion])
 
   const stats = usePostStats(pointer)
   const opinionOnMount = useQueryOpinion(processHandle.system(), reference)
