@@ -37,11 +37,7 @@ const InnerPureEditProfile = ({
     useMemo(() => {
       // We check to make sure profile.name is defined because it's possible that the profile hasn't loaded yet and that would count as a difference
       const usernameValidAndChanged =
-        profile.name !== undefined &&
-        username !== undefined &&
-        username !== profile.name &&
-        username.length > 0 &&
-        username.length <= 32
+        username !== undefined && username !== profile.name && username.length > 0 && username.length <= 32
       const descriptionValidAndChanged =
         description &&
         (profile.description ?? '') !== description &&
@@ -131,7 +127,7 @@ export const PureEditProfile = ({
   open: boolean
   setOpen: (b: boolean) => void
 }) => {
-  const [title, setTitle] = useState<string | undefined>(`${profile.name ?? ''}'s profile`)
+  const [title, setTitle] = useState<string | undefined>(() => (profile.name ? `${profile.name}'s profile` : 'Profile'))
 
   return (
     // we use an inner component so that we can reset the state when the modal is closed
