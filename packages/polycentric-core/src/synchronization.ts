@@ -167,12 +167,6 @@ type ServerState = {
     active: boolean;
 };
 
-type ServerState2 = {
-    generation: number;
-    active: boolean;
-    cell: Queries.QueryIndex.Cell;
-};
-
 export class Synchronizer {
     private queryState: Array<Queries.QueryIndex.Cell>;
     private servers: Set<string>;
