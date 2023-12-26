@@ -242,7 +242,7 @@ const PostLinkContainer = ({
 }: {
   children: React.ReactNode
   doesLink?: boolean
-  url: string
+  url?: string
 }) => {
   const linkRef = useRef<HTMLElement>(null)
 
@@ -261,6 +261,8 @@ const PostLinkContainer = ({
     </>
   )
 }
+
+const basicURLRegex = /^(https?:\/\/)?(www\.)?/
 
 // eslint-disable-next-line react/display-name
 export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
@@ -286,9 +288,16 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
       }
     }, [main?.topic])
 
-    const hoverStylePost = doesLink && mainHover && !subHover
-
     const isMobile = useIsMobile()
+    const displayTopic = useMemo(() => {
+      if (main?.topic && isMobile) {
+        return main.topic.replace(basicURLRegex, '')
+      } else {
+        return main?.topic
+      }
+    }, [main?.topic, isMobile])
+
+    const hoverStylePost = doesLink && mainHover && !subHover
 
     useLayoutEffect(() => {
       if (mainRef.current != null && expanded === false && autoExpand === false) {
@@ -309,7 +318,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
             <div className="w-full animate-pulse border border-blue-100 rounded-2xl h-5"></div>
           </div>
         ) : (
-          <PostLinkContainer doesLink={doesLink} url={main.url ?? '#'}>
+          <PostLinkContainer doesLink={doesLink} url={main.url}>
             <article
               className={`px-3 pt-5 pb-3 lg:px-10 lg:pt-10 lg:pb-8 border-b border-gray-100  inline-block w-full ${
                 doesLink ? ' transition-colors duration-200 ease-in-out group' : ''
@@ -324,7 +333,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                 <div className="mr-3 lg:mr-4 flex-shrink-0 flex flex-col ">
                   {/* Stop pfp link propagation to post link */}
                   <div onClick={(e) => e.stopPropagation()}>
-                    <Link routerLink={main.author.URL ?? '#'} routerDirection="forward">
+                    <Link routerLink={main.author.URL} routerDirection="forward">
                       <ProfilePicture src={main.author.avatarURL} className="h-16 w-16 md:h-20 md:w-20" />
                     </Link>
                   </div>
@@ -356,11 +365,11 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   )}
                 </div>
                 {/* Right column */}
-                <div className="flex-grow w-full lg:max-w-[600px]">
+                <div className="flex-grow w-full min-w-0 lg:max-w-[600px]">
                   <div className="flex w-full justify-between">
                     <div className="w-full" onClick={(e) => e.stopPropagation()}>
                       <div className="flex w-full justify-between space-x-3">
-                        <Link routerLink={main.author.URL ?? '#'} className="text-inherit flex-shrink min-w-0">
+                        <Link routerLink={main.author.URL} className="text-inherit flex-shrink min-w-0">
                           <address className="font-bold text-base author not-italic hover:underline h-[1.5rem] w-full overflow-hidden overflow-ellipsis">
                             {main.author.name}
                           </address>
@@ -376,7 +385,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                           </Link>
                         ) : main.topic ? (
                           <Link routerLink={topicLink} className="text-gray-300 leading-3">
-                            {main.topic}
+                            {displayTopic}
                           </Link>
                         ) : undefined}
                       </div>
@@ -417,7 +426,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                         routerLink={sub.url}
                       >
                         <div className="flex">
-                          <Link routerLink={sub.author.URL ?? '#'}>
+                          <Link routerLink={sub.author.URL}>
                             <ProfilePicture src={sub.author.avatarURL} className="h-5 w-5 lg:h-10 lg:w-10" />
                           </Link>
                           <div className="flex flex-col ml-2 w-full">
@@ -484,10 +493,12 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   {navigator.share && (
                     <SharePostButton
                       onClick={() => {
-                        navigator.share({
-                          title: `${main.author.name} posted on Polycentric: ${main.content.substring(0, 20)}...`,
-                          url: main.url,
-                        })
+                        main.url &&
+                          main.author.name &&
+                          navigator.share({
+                            title: `${main.author.name} posted on Polycentric: ${main.content.substring(0, 20)}...`,
+                            url: main.url,
+                          })
                       }}
                     />
                   )}
