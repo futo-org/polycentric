@@ -1,7 +1,7 @@
-import { CancelContext, Models, Protocol, Synchronization, Util } from '@polycentric/polycentric-core'
+import { CancelContext, Models, Synchronization, Util } from '@polycentric/polycentric-core'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useProcessHandleManager } from './processHandleManagerHooks'
-import { useQueryOpinion, useQueryPointerReferences, useQueryReferences } from './queryHooks'
+import { useQueryOpinion, useQueryPointerReferences } from './queryHooks'
 
 // Declare explicitly so they don't cause a useEffect rerender
 const postStatsRequestEvents = {
