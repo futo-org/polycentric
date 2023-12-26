@@ -374,13 +374,19 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                           {dateToAgoString(main.publishedAt)}
                         </time>
                       </div>
-                      <div className="h-[1.5rem] min-w-0 overflow-hidden text-ellipsis text-gray-300">
+                      <div className="h-[1.5rem] w-4/5 min-w-0 text-gray-300 whitespace-nowrap">
                         {main.replyingToName ? (
-                          <Link routerLink={main.replyingToURL} className="text-black w-full">
+                          <Link
+                            routerLink={main.replyingToURL}
+                            className="text-black w-full block overflow-hidden text-ellipsis"
+                          >
                             Replying to <span className="text-gray-500">{main.replyingToName}</span>
                           </Link>
                         ) : main.topic ? (
-                          <Link routerLink={topicLink} className="text-gray-300 leading-3">
+                          <Link
+                            routerLink={topicLink}
+                            className="text-gray-300 w-full block overflow-hidden text-ellipsis"
+                          >
                             {displayTopic}
                           </Link>
                         ) : undefined}

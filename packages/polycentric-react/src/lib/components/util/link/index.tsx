@@ -53,7 +53,7 @@ const LinkComponent = forwardRef<
   const location = useLocation()
 
   if (routerLink === location || routerLink == null) {
-    return <div className={className}>{children}</div>
+    return <div className={` ${className}`}>{children}</div>
   }
 
   if (isMobile && routerDirection !== 'root') {
