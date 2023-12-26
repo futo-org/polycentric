@@ -65,3 +65,5 @@ export function compareBuffers(x: Uint8Array, y: Uint8Array): number {
 
     return 0;
 }
+
+export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

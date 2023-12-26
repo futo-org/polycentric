@@ -171,6 +171,7 @@ export class Synchronizer {
     private queryState: Array<Queries.QueryIndex.Cell>;
     private servers: Set<string>;
     private serverState: Map<string, ServerState>;
+    private complete: boolean;
 
     private readonly processHandle: ProcessHandle.ProcessHandle;
     private readonly queryHandle: Queries.QueryCRDTSet.QueryHandle;
@@ -182,6 +183,7 @@ export class Synchronizer {
         this.queryState = [];
         this.servers = new Set();
         this.serverState = new Map();
+        this.complete = false;
 
         this.processHandle = processHandle;
 
@@ -192,6 +194,16 @@ export class Synchronizer {
         );
 
         this.queryHandle.advance(10);
+    }
+
+    public async debugWaitUntilSynchronizationComplete(): Promise<void> {
+        while (true) {
+            if (this.complete) {
+                return;
+            }
+
+            await Util.sleep(100);
+        }
     }
 
     private updateServerList(
@@ -277,34 +289,46 @@ export class Synchronizer {
             processesRanges.set(process, processState.ranges);
         }
 
-        for (const server of this.servers) {
-            const serverState = this.serverState.get(server);
+        let incomplete = false;
 
-            if (serverState === undefined) {
-                throw new Error('impossible');
-            }
+        await Promise.all(
+            Array.from(this.servers.values()).map(async (server) => {
+                const serverState = this.serverState.get(server);
 
-            // already synchronizing so skip
-            if (serverState.active) {
-                continue;
-            }
+                if (serverState === undefined) {
+                    throw new Error('impossible');
+                }
 
-            const generation = serverState.generation;
+                // already synchronizing so skip
+                if (serverState.active) {
+                    return;
+                }
 
-            serverState.active = true;
+                const generation = serverState.generation;
 
-            try {
-                this.backfillServer(server, processesRanges);
-            } catch (err) {
-                console.warn(err);
-            }
+                serverState.active = true;
 
-            serverState.active = false;
+                try {
+                    this.backfillServer(server, processesRanges);
+                } catch (err) {
+                    incomplete = true;
 
-            // our view of the world became outdated while synchronizing
-            if (generation < serverState.generation) {
-                this.synchronizationHint();
-            }
+                    console.warn(err);
+                }
+
+                serverState.active = false;
+
+                // our view of the world became outdated while synchronizing
+                if (generation < serverState.generation) {
+                    incomplete = true;
+
+                    this.synchronizationHint();
+                }
+            }),
+        );
+
+        if (!incomplete) {
+            this.complete = true;
         }
     }
 

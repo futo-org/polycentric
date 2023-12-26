@@ -637,6 +637,8 @@ export class ProcessHandle {
             this._listener(signedEvent);
         }
 
+        this.queryManager.update(signedEvent);
+
         return Models.signedEventToPointer(signedEvent);
     }
 }
