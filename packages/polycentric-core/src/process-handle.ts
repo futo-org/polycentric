@@ -9,6 +9,7 @@ import * as Ranges from './ranges';
 import * as Store from './store';
 import * as Synchronization from './synchronization';
 import * as Util from './util';
+import * as Queries from './queries';
 
 export class SystemState {
     private _servers: Array<string>;
@@ -110,13 +111,19 @@ function protoSystemStateToSystemState(
 }
 
 export class ProcessHandle {
-    private _processSecret: Models.ProcessSecret.ProcessSecret;
-    private _store: Store.Store;
-    private _system: Models.PublicKey.PublicKey;
+    private readonly _processSecret: Models.ProcessSecret.ProcessSecret;
+    private readonly _store: Store.Store;
+    private readonly _system: Models.PublicKey.PublicKey;
     private _listener:
         | ((signedEvent: Models.SignedEvent.SignedEvent) => void)
         | undefined;
-    private _addressHints: Map<Models.PublicKey.PublicKeyString, Set<string>>;
+    private readonly _addressHints: Map<
+        Models.PublicKey.PublicKeyString,
+        Set<string>
+    >;
+
+    public readonly queryManager: Queries.QueryManager.QueryManager;
+    private readonly synchronizer: Synchronization.Synchronizer;
 
     private constructor(
         store: Store.Store,
@@ -128,6 +135,11 @@ export class ProcessHandle {
         this._system = system;
         this._listener = undefined;
         this._addressHints = new Map();
+        this.queryManager = new Queries.QueryManager.QueryManager(this);
+        this.synchronizer = new Synchronization.Synchronizer(
+            this,
+            this.queryManager,
+        );
     }
 
     public addAddressHint(
