@@ -30,16 +30,19 @@ describe('processHandle', () => {
     test('addAndRemoveServer', async () => {
         const processHandle = await ProcessHandle.createTestProcessHandle();
 
-        await processHandle.addServer('127.0.0.1');
-        await processHandle.addServer('127.0.0.2');
-        await processHandle.addServer('127.0.0.3');
-        await processHandle.removeServer('127.0.0.1');
+        await processHandle.addServer('http://127.0.0.1');
+        await processHandle.addServer('http://127.0.0.2');
+        await processHandle.addServer('http://127.0.0.3');
+        await processHandle.removeServer('http://127.0.0.1');
 
         const serverState = await processHandle.loadSystemState(
             processHandle.system(),
         );
 
-        expect(serverState.servers()).toStrictEqual(['127.0.0.2', '127.0.0.3']);
+        expect(serverState.servers()).toStrictEqual([
+            'http://127.0.0.2',
+            'http://127.0.0.3',
+        ]);
     });
 
     test('username', async () => {
