@@ -372,10 +372,6 @@ export class Synchronizer {
                         item.ranges,
                     );
 
-                    if (remoteNeeds.length === 0) {
-                        continue;
-                    }
-
                     remoteNeedsByProcess.set(process, remoteNeeds);
                 }
             }
