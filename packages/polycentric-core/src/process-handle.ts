@@ -123,7 +123,7 @@ export class ProcessHandle {
     >;
 
     public readonly queryManager: Queries.QueryManager.QueryManager;
-    private readonly synchronizer: Synchronization.Synchronizer;
+    public readonly synchronizer: Synchronization.Synchronizer;
 
     private constructor(
         store: Store.Store,
@@ -438,40 +438,11 @@ export class ProcessHandle {
     public async loadSystemState(
         system: Models.PublicKey.PublicKey,
     ): Promise<SystemState> {
+        console.log("load system state 1");
         const protoSystemState = await this._store.getSystemState(system);
+        console.log("load system state 2");
 
         const systemState = protoSystemStateToSystemState(protoSystemState);
-
-        const loadCRDTElementSetItems = async (
-            contentType: Models.ContentType.ContentType,
-        ) => {
-            return await this._store.crdtElementSetIndex.query(
-                system,
-                contentType,
-                undefined,
-                10,
-            );
-        };
-
-        systemState
-            .servers()
-            .push(
-                ...(
-                    await loadCRDTElementSetItems(
-                        Models.ContentType.ContentTypeServer,
-                    )
-                ).map(Util.decodeText),
-            );
-
-        systemState
-            .authorities()
-            .push(
-                ...(
-                    await loadCRDTElementSetItems(
-                        Models.ContentType.ContentTypeAuthority,
-                    )
-                ).map(Util.decodeText),
-            );
 
         const addressHints = this.getAddressHints(system);
 
@@ -489,6 +460,7 @@ export class ProcessHandle {
                 systemState.servers().push(address1);
             }
         }
+        console.log("load system state end");
 
         return systemState;
     }
@@ -637,7 +609,10 @@ export class ProcessHandle {
             this._listener(signedEvent);
         }
 
+        console.log("running update");
         this.queryManager.update(signedEvent);
+        console.log("running hint");
+        this.synchronizer.synchronizationHint();
 
         return Models.signedEventToPointer(signedEvent);
     }

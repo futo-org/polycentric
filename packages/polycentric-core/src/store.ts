@@ -431,10 +431,12 @@ export class Store {
     public async getSystemState(
         system: Models.PublicKey.PublicKey,
     ): Promise<Protocol.StorageTypeSystemState> {
+        console.log("try load key 1"); 
         const attempt = await PersistenceDriver.tryLoadKey(
             this.levelSystemStates,
             makeSystemStateKey(system),
         );
+        console.log("try load key 2"); 
 
         if (attempt === undefined) {
             return {

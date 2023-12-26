@@ -197,12 +197,17 @@ export class Synchronizer {
     }
 
     public async debugWaitUntilSynchronizationComplete(): Promise<void> {
+        console.log("debug wait until");
         while (true) {
+            console.log("blah");
             if (this.complete) {
                 return;
             }
 
+            console.log("sleep");
             await Util.sleep(100);
+
+            console.log("looping");
         }
     }
 
@@ -245,11 +250,22 @@ export class Synchronizer {
         }
 
         this.servers = servers;
+    
+        console.log("a", this.servers.values());
 
         this.synchronizationHint();
     }
-
+    
     public async synchronizationHint(): Promise<void> {
+        try {
+            await this.synchronizationHint2();
+        } catch (err) {
+            console.log(err);
+        }
+    }
+
+    public async synchronizationHint2(): Promise<void> {
+        console.log("1");
         for (const server of this.servers) {
             let serverState = this.serverState.get(server);
 
@@ -268,13 +284,18 @@ export class Synchronizer {
         }
 
         // if every server currently being backfilled then skip
-        if (![...this.serverState.values()].some((state) => state.active)) {
+        if ([...this.serverState.values()].every((state) => state.active)) {
+            console.log("break");
             return;
         }
+        
+        console.log("2");
 
         const systemState = await this.processHandle.loadSystemState(
             this.processHandle.system(),
         );
+
+        console.log("3");
 
         const processesRanges: Map<
             Readonly<Models.Process.Process>,
@@ -290,6 +311,8 @@ export class Synchronizer {
         }
 
         let incomplete = false;
+
+        console.log(this.servers.values());
 
         await Promise.all(
             Array.from(this.servers.values()).map(async (server) => {
@@ -323,9 +346,12 @@ export class Synchronizer {
                     incomplete = true;
 
                     this.synchronizationHint();
+                    console.log("outdated");
                 }
             }),
         );
+
+        console.log("done sending");
 
         if (!incomplete) {
             this.complete = true;
