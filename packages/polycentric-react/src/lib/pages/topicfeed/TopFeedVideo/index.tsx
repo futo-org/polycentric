@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, Fragment } from 'react'
 import { lbryURIRegex, mp4URLRegex, vimeoURLRegex, youtubeURLRegex } from '../platformRegex'
 
 const IframeEmbed = ({ src, ...rest }: { src: string } & React.IframeHTMLAttributes<HTMLIFrameElement>) => {
@@ -111,4 +111,6 @@ export const TopFeedVideo = ({ topic }: { topic: string }) => {
   if (player && platformName) {
     return <TopFeedVideoContainer platformName={platformName}>{player}</TopFeedVideoContainer>
   }
+
+  return <Fragment />
 }

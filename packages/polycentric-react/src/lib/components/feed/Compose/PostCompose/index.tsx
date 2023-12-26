@@ -17,7 +17,7 @@ export const PostCompose = () => {
         if (upload) {
           imageBundle = await publishImageBlob(upload, processHandle)
         }
-        setPostingProgress(0.3)
+        setPostingProgress(0.5)
 
         let topicReference
         if (topic && topic.length > 0) {
@@ -27,8 +27,6 @@ export const PostCompose = () => {
 
         await processHandle.post(content, imageBundle, topicReference)
 
-        setPostingProgress(0.5)
-        await Synchronization.backFillServers(processHandle, processHandle.system())
         setPostingProgress(1)
         setTimeout(() => {
           setPostingProgress(0)

@@ -120,8 +120,6 @@ const CredsPanelSignUp = () => {
 
         if (avatar) await publishBlobToAvatar(avatar, processHandle)
 
-        await Synchronization.backFillServers(processHandle, processHandle.system())
-
         // if supported, save private key to credential manager api
         // @ts-ignore
         if (window.PasswordCredential) {
