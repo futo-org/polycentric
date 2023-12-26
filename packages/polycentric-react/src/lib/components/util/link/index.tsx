@@ -52,7 +52,7 @@ const LinkComponent = forwardRef<
 
   const location = useLocation()
 
-  if (routerLink === location) {
+  if (routerLink === location || routerLink == null) {
     return <div className={className}>{children}</div>
   }
 
