@@ -215,7 +215,6 @@ export class Synchronizer {
             patch.add.length > 0 &&
             patch.add[patch.add.length - 1].signedEvent !== undefined
         ) {
-            console.log('done loading server list');
         } else {
             this.queryHandle.advance(10);
         }
@@ -250,6 +249,8 @@ export class Synchronizer {
     }
 
     public async synchronizationHint(): Promise<void> {
+        this.complete = false;
+
         for (const server of this.servers) {
             let serverState = this.serverState.get(server);
 
@@ -337,8 +338,6 @@ export class Synchronizer {
             ReadonlyArray<Ranges.IRange>
         >,
     ): Promise<void> {
-        console.log('backfilling server', server);
-
         const remoteRangesForSystem = await APIMethods.getRanges(
             server,
             this.processHandle.system(),
@@ -426,8 +425,6 @@ export class Synchronizer {
                 await APIMethods.postEvents(server, events);
             }
         }
-
-        console.log('done backfilling server', server);
     }
 
     public cleanup(): void {
