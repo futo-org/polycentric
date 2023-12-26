@@ -262,6 +262,8 @@ const PostLinkContainer = ({
   )
 }
 
+const basicURLRegex = /^(https?:\/\/)?(www\.)?/
+
 // eslint-disable-next-line react/display-name
 export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
   ({ main, sub, stats, actions, doesLink = true, autoExpand = false }: PurePostProps, infiniteScrollRef) => {
@@ -286,9 +288,16 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
       }
     }, [main?.topic])
 
-    const hoverStylePost = doesLink && mainHover && !subHover
-
     const isMobile = useIsMobile()
+    const displayTopic = useMemo(() => {
+      if (main?.topic && isMobile) {
+        return main.topic.replace(basicURLRegex, '')
+      } else {
+        return main?.topic
+      }
+    }, [main?.topic, isMobile])
+
+    const hoverStylePost = doesLink && mainHover && !subHover
 
     useLayoutEffect(() => {
       if (mainRef.current != null && expanded === false && autoExpand === false) {
@@ -356,7 +365,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   )}
                 </div>
                 {/* Right column */}
-                <div className="flex-grow w-full lg:max-w-[600px]">
+                <div className="flex-grow w-full min-w-0 lg:max-w-[600px]">
                   <div className="flex w-full justify-between">
                     <div className="w-full" onClick={(e) => e.stopPropagation()}>
                       <div className="flex w-full justify-between space-x-3">
@@ -376,7 +385,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                           </Link>
                         ) : main.topic ? (
                           <Link routerLink={topicLink} className="text-gray-300 leading-3">
-                            {main.topic}
+                            {displayTopic}
                           </Link>
                         ) : undefined}
                       </div>
