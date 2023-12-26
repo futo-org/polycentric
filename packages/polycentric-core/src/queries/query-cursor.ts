@@ -19,23 +19,23 @@ export type LoadCallback = (
 ) => Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type>;
 
 export type Cell = {
-    fromServer: string;
-    signedEvent: Models.SignedEvent.SignedEvent;
+    readonly fromServer: string;
+    readonly signedEvent: Models.SignedEvent.SignedEvent;
 };
 
-export type ResultCallback = (cells: Array<Cell>) => void;
+export type ResultCallback = (cells: ReadonlyArray<Cell>) => void;
 
 export class Query {
-    private _processHandle: ProcessHandle.ProcessHandle;
-    private _loadCallback: LoadCallback;
-    private _cursors: Map<string, Uint8Array>;
-    private _active: Set<string>;
-    private _loaded: Set<Models.Pointer.PointerString>;
+    private readonly _processHandle: ProcessHandle.ProcessHandle;
+    private readonly _loadCallback: LoadCallback;
+    private readonly _cursors: Map<string, Uint8Array>;
+    private readonly _active: Set<string>;
+    private readonly _loaded: Set<Models.Pointer.PointerString>;
     private _expected: number;
     private _cancelled: boolean;
-    private _reserve: Array<Cell>;
-    private _resultCallback: ResultCallback;
-    private _batchSize: number;
+    private readonly _reserve: Array<Cell>;
+    private readonly _resultCallback: ResultCallback;
+    private readonly _batchSize: number;
 
     constructor(
         processHandle: ProcessHandle.ProcessHandle,

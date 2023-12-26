@@ -12,18 +12,18 @@ export interface QueryHandle {
 }
 
 export type Cell = {
-    unixMilliseconds: Long;
-    process: Models.Process.Process;
-    logicalClock: Long;
-    contentType: Models.ContentType.ContentType;
-    next: Long | undefined;
-    signedEvent: Models.SignedEvent.SignedEvent | undefined;
-    key: string;
-    isDelete: boolean;
+    readonly unixMilliseconds: Long;
+    readonly process: Models.Process.Process;
+    readonly logicalClock: Long;
+    readonly contentType: Models.ContentType.ContentType;
+    readonly next: Long | undefined;
+    readonly signedEvent: Models.SignedEvent.SignedEvent | undefined;
+    readonly key: string;
+    readonly isDelete: boolean;
 };
 
 export function applyPatch(
-    state: Array<Cell>,
+    state: ReadonlyArray<Cell>,
     patch: CallbackParameters,
 ): Array<Cell> {
     return state
@@ -33,7 +33,7 @@ export function applyPatch(
         .reverse();
 }
 
-export function compareCells(a: Cell, b: Cell): number {
+export function compareCells(a: Readonly<Cell>, b: Readonly<Cell>): number {
     const timeComparison = a.unixMilliseconds.compare(b.unixMilliseconds);
 
     if (timeComparison !== 0) {
@@ -108,8 +108,8 @@ function rawEventToCell(rawEvent: Protocol.SignedEvent): Cell {
 }
 
 export type CallbackParameters = {
-    add: Array<Cell>;
-    remove: Set<string>;
+    add: ReadonlyArray<Cell>;
+    remove: ReadonlySet<string>;
 };
 
 export type Callback = (state: CallbackParameters) => void;
@@ -122,22 +122,25 @@ function processAndLogicalClockToString(
 }
 
 type StateForQuery = {
-    callback: Callback;
+    readonly callback: Callback;
     totalExpected: number;
-    contentType: Models.ContentType.ContentType;
-    earliestTimeBySource: Map<string, Long>;
-    eventsByProcessAndLogicalClock: Map<string, Cell>;
-    eventsByTime: Array<Cell>;
-    missingProcessAndLogicalClock: Map<string, Cell>;
+    readonly contentType: Models.ContentType.ContentType;
+    readonly earliestTimeBySource: Map<string, Long>;
+    readonly eventsByProcessAndLogicalClock: Map<string, Cell>;
+    readonly eventsByTime: Array<Cell>;
+    readonly missingProcessAndLogicalClock: Map<string, Cell>;
 };
 
 type StateForSystem = {
-    queries: Map<Callback, StateForQuery>;
+    readonly queries: Map<Callback, StateForQuery>;
 };
 
 export class QueryManager {
-    private _processHandle: ProcessHandle.ProcessHandle;
-    private _state: Map<Models.PublicKey.PublicKeyString, StateForSystem>;
+    private readonly _processHandle: ProcessHandle.ProcessHandle;
+    private readonly _state: Map<
+        Models.PublicKey.PublicKeyString,
+        StateForSystem
+    >;
     private _useDisk: boolean;
     private _useNetwork: boolean;
 
@@ -322,7 +325,7 @@ export class QueryManager {
     }
 
     private validateBatchIsRelevant(
-        events: Array<Cell>,
+        events: ReadonlyArray<Cell>,
         contentType: Models.ContentType.ContentType,
     ): boolean {
         return events.every((cell) => cell.contentType.equals(contentType));

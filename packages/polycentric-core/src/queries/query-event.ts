@@ -12,7 +12,7 @@ export type Callback = (
 
 type StateForEvent = {
     signedEvent: Models.SignedEvent.SignedEvent | undefined;
-    callbacks: Set<Callback>;
+    readonly callbacks: Set<Callback>;
     fulfilled: boolean;
 };
 
@@ -30,8 +30,8 @@ function makeEventKey(
 }
 
 export class QueryManager {
-    private _processHandle: ProcessHandle.ProcessHandle;
-    private _state: Map<string, StateForEvent>;
+    private readonly _processHandle: ProcessHandle.ProcessHandle;
+    private readonly _state: Map<string, StateForEvent>;
     private _useDisk: boolean;
     private _useNetwork: boolean;
 

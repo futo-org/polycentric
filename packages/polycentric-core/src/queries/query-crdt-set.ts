@@ -5,13 +5,13 @@ import * as Protocol from '../protocol';
 import * as QueryIndex from './query-index';
 
 type StateForItem = {
-    cell: QueryIndex.Cell;
-    lwwElement: Protocol.LWWElementSet;
+    readonly cell: QueryIndex.Cell;
+    readonly lwwElement: Protocol.LWWElementSet;
 };
 
 type StateForQuery = {
-    queryIndexCallback: QueryIndex.Callback;
-    items: Map<string, StateForItem>;
+    readonly queryIndexCallback: QueryIndex.Callback;
+    readonly items: Map<string, StateForItem>;
 };
 
 export interface QueryHandle {
@@ -20,8 +20,8 @@ export interface QueryHandle {
 }
 
 export class QueryManager {
-    private _queryIndex: QueryIndex.QueryManager;
-    private _state: Map<QueryIndex.Callback, StateForQuery>;
+    private readonly _queryIndex: QueryIndex.QueryManager;
+    private readonly _state: Map<QueryIndex.Callback, StateForQuery>;
 
     constructor(queryIndex: QueryIndex.QueryManager) {
         this._queryIndex = queryIndex;

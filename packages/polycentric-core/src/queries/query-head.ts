@@ -5,17 +5,22 @@ import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import * as Shared from './shared';
 
-type Callback = (value: Map<Models.Process.ProcessString, Long>) => void;
+type Callback = (
+    value: ReadonlyMap<Models.Process.ProcessString, Long>,
+) => void;
 
 type StateForSystem = {
-    head: Map<Models.Process.ProcessString, Long>;
-    queries: Set<Callback>;
+    readonly head: Map<Models.Process.ProcessString, Long>;
+    readonly queries: Set<Callback>;
     fulfilled: boolean;
 };
 
 export class QueryManager {
-    private _processHandle: ProcessHandle.ProcessHandle;
-    private _state: Map<Models.PublicKey.PublicKeyString, StateForSystem>;
+    private readonly _processHandle: ProcessHandle.ProcessHandle;
+    private readonly _state: Map<
+        Models.PublicKey.PublicKeyString,
+        StateForSystem
+    >;
 
     constructor(processHandle: ProcessHandle.ProcessHandle) {
         this._processHandle = processHandle;
