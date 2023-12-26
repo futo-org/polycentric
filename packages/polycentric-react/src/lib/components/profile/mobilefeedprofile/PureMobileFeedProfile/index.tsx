@@ -72,7 +72,7 @@ export const PureMobileFeedProfile = ({
             <ElipsesIcon />
           </button>
         </div>
-        <div className="w-1/2 flex flex-col justify-center">
+        {/* <div className="w-1/2 flex flex-col justify-center">
           <p>
             <span className="font-bold">{profile.followerCount ?? 0}</span> followers
           </p>
@@ -81,7 +81,7 @@ export const PureMobileFeedProfile = ({
           <p>
             <span className="font-bold">{profile.followingCount ?? 0}</span> following
           </p>
-        </div>
+        </div> */}
         <div className="w-full text text-gray-500 min-w-0 break-words">{profile.description}</div>
       </div>
     </div>
