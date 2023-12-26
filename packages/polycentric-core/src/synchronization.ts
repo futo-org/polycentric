@@ -162,9 +162,15 @@ export async function backFillServers(
     return progress;
 }
 
+type ServerState = {
+    generation: number;
+    active: boolean;
+};
+
 export class Synchronizer {
     private queryState: Array<Queries.QueryIndex.Cell>;
     private servers: Set<string>;
+    private serverState: Map<string, ServerState>;
 
     private readonly processHandle: ProcessHandle.ProcessHandle;
     private readonly queryHandle: Queries.QueryCRDTSet.QueryHandle;
@@ -175,6 +181,7 @@ export class Synchronizer {
     ) {
         this.queryState = [];
         this.servers = new Set();
+        this.serverState = new Map();
 
         this.processHandle = processHandle;
 
@@ -231,6 +238,28 @@ export class Synchronizer {
     }
 
     public async synchronizationHint(): Promise<void> {
+        for (const server of this.servers) {
+            let serverState = this.serverState.get(server);
+
+            if (serverState === undefined) {
+                serverState = {
+                    active: false,
+                    generation: 0,
+                };
+
+                this.serverState.set(server, serverState);
+            }
+        }
+
+        for (const serverState of this.serverState.values()) {
+            serverState.generation++;
+        }
+
+        // if every server currently being backfilled then skip
+        if (![...this.serverState.values()].some((state) => state.active)) {
+            return;
+        }
+
         const systemState = await this.processHandle.loadSystemState(
             this.processHandle.system(),
         );
@@ -249,10 +278,32 @@ export class Synchronizer {
         }
 
         for (const server of this.servers) {
+            const serverState = this.serverState.get(server);
+
+            if (serverState === undefined) {
+                throw new Error('impossible');
+            }
+
+            // already synchronizing so skip
+            if (serverState.active) {
+                continue;
+            }
+
+            const generation = serverState.generation;
+
+            serverState.active = true;
+
             try {
                 this.backfillServer(server, processesRanges);
             } catch (err) {
                 console.warn(err);
+            }
+
+            serverState.active = false;
+
+            // our view of the world became outdated while synchronizing
+            if (generation < serverState.generation) {
+                this.synchronizationHint();
             }
         }
     }
