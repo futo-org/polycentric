@@ -490,7 +490,7 @@ export function useQueryCursor<T>(
 
     const cancelContext = new CancelContext.CancelContext()
 
-    const addNewCells = (newCells: Queries.QueryCursor.Cell[]) => {
+    const addNewCells = (newCells: ReadonlyArray<Queries.QueryCursor.Cell>) => {
       if (cancelContext.cancelled()) {
         return
       }

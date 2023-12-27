@@ -170,7 +170,7 @@ type ServerState = {
 export class Synchronizer {
     private queryState: Array<Queries.QueryIndex.Cell>;
     private servers: Set<string>;
-    private serverState: Map<string, ServerState>;
+    private readonly serverState: Map<string, ServerState>;
     private complete: boolean;
 
     private readonly processHandle: ProcessHandle.ProcessHandle;
