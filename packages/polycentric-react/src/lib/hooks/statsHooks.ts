@@ -1,4 +1,4 @@
-import { CancelContext, Models, Synchronization, Util } from '@polycentric/polycentric-core'
+import { CancelContext, Models, Util } from '@polycentric/polycentric-core'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useProcessHandleManager } from './processHandleManagerHooks'
 import { useQueryOpinion, useQueryPointerReferences } from './queryHooks'
@@ -105,40 +105,25 @@ export const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) =>
   }, [refreshOpinion])
 
   const like = useCallback(() => {
-    processHandle
-      .opinion(reference, Models.Opinion.OpinionLike)
-      .then(() => {
-        refreshOpinion()
-        setLocallyNeutral(false)
-      })
-      .then(() => {
-        Synchronization.backFillServers(processHandle, pointer.system)
-      })
-  }, [pointer, reference, processHandle, refreshOpinion])
+    processHandle.opinion(reference, Models.Opinion.OpinionLike).then(() => {
+      refreshOpinion()
+      setLocallyNeutral(false)
+    })
+  }, [reference, processHandle, refreshOpinion])
 
   const neutralopinion = useCallback(() => {
-    processHandle
-      .opinion(reference, Models.Opinion.OpinionNeutral)
-      .then(() => {
-        refreshOpinion()
-        setLocallyNeutral(true)
-      })
-      .then(() => {
-        Synchronization.backFillServers(processHandle, pointer.system)
-      })
-  }, [pointer, reference, processHandle, refreshOpinion])
+    processHandle.opinion(reference, Models.Opinion.OpinionNeutral).then(() => {
+      refreshOpinion()
+      setLocallyNeutral(true)
+    })
+  }, [reference, processHandle, refreshOpinion])
 
   const dislike = useCallback(() => {
-    processHandle
-      .opinion(reference, Models.Opinion.OpinionDislike)
-      .then(() => {
-        refreshOpinion()
-        setLocallyNeutral(false)
-      })
-      .then(() => {
-        Synchronization.backFillServers(processHandle, pointer.system)
-      })
-  }, [pointer, reference, processHandle, refreshOpinion])
+    processHandle.opinion(reference, Models.Opinion.OpinionDislike).then(() => {
+      refreshOpinion()
+      setLocallyNeutral(false)
+    })
+  }, [reference, processHandle, refreshOpinion])
 
   const stats = usePostStats(pointer)
   const opinionOnMount = useQueryOpinion(processHandle.system(), reference)
@@ -179,12 +164,6 @@ export const usePostStatsWithLocalActions = (pointer: Models.Pointer.Pointer) =>
     async (text: string) => {
       const reference = Models.pointerToReference(pointer)
       await processHandle.post(text, undefined, reference)
-      try {
-        await Synchronization.backFillServers(processHandle, pointer.system)
-      } catch (e) {
-        console.error(e)
-        return false
-      }
       return true
     },
     [pointer, processHandle],

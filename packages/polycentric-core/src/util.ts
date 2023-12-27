@@ -65,3 +65,23 @@ export function compareBuffers(x: Uint8Array, y: Uint8Array): number {
 
     return 0;
 }
+
+export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export function memo<Key extends object, Value>(
+    cache: WeakMap<Key, Value>,
+    operation: (key: Key) => Value,
+    key: Key,
+): Value {
+    const existing = cache.get(key);
+
+    if (existing) {
+        return existing;
+    } else {
+        const value = operation(key);
+
+        cache.set(key, value);
+
+        return value;
+    }
+}

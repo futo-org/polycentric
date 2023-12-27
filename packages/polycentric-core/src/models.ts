@@ -79,10 +79,18 @@ export namespace PublicKey {
         return proto as PublicKey;
     }
 
+    const toStringCache: WeakMap<PublicKey, PublicKeyString> = new WeakMap();
+
     export function toString(key: PublicKey): PublicKeyString {
-        return Base64.encode(
-            Protocol.PublicKey.encode(key).finish(),
-        ) as PublicKeyString;
+        return Util.memo(
+            toStringCache,
+            (key) => {
+                return Base64.encode(
+                    Protocol.PublicKey.encode(key).finish(),
+                ) as PublicKeyString;
+            },
+            key,
+        );
     }
 
     export function equal(a: PublicKey, b: PublicKey): boolean {
@@ -185,10 +193,18 @@ export namespace Process {
         return proto as Process;
     }
 
+    const toStringCache: WeakMap<Process, ProcessString> = new WeakMap();
+
     export function toString(process: Process): ProcessString {
-        return Base64.encode(
-            Protocol.Process.encode(process).finish(),
-        ) as ProcessString;
+        return Util.memo(
+            toStringCache,
+            (process) => {
+                return Base64.encode(
+                    Protocol.Process.encode(process).finish(),
+                ) as ProcessString;
+            },
+            process,
+        );
     }
 
     export function equal(a: Process, b: Process): boolean {
@@ -238,10 +254,18 @@ export namespace Pointer {
         return proto as Pointer;
     }
 
+    const toStringCache: WeakMap<Pointer, PointerString> = new WeakMap();
+
     export function toString(pointer: Pointer): PointerString {
-        return Base64.encode(
-            Protocol.Pointer.encode(pointer).finish(),
-        ) as PointerString;
+        return Util.memo(
+            toStringCache,
+            (pointer) => {
+                return Base64.encode(
+                    Protocol.Pointer.encode(pointer).finish(),
+                ) as PointerString;
+            },
+            pointer,
+        );
     }
 
     export function fromBuffer(buffer: Uint8Array): Pointer {
@@ -352,8 +376,16 @@ export namespace Event {
         return proto as Event;
     }
 
+    const fromBufferCache: WeakMap<Uint8Array, Event> = new WeakMap();
+
     export function fromBuffer(buffer: Uint8Array): Event {
-        return fromProto(Protocol.Event.decode(buffer));
+        return Util.memo(
+            fromBufferCache,
+            (buffer) => {
+                return fromProto(Protocol.Event.decode(buffer));
+            },
+            buffer,
+        );
     }
 }
 

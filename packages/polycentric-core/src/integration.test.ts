@@ -60,7 +60,7 @@ describe('integration', () => {
         const claimPointer = await s1p1.claim(claim);
         const vouchPointer = await s1p1.vouch(claimPointer);
 
-        await Synchronization.backFillServers(s1p1, s1p1.system());
+        await s1p1.synchronizer.debugWaitUntilSynchronizationComplete();
 
         const s2p1 = await ProcessHandle.createTestProcessHandle();
 
@@ -134,7 +134,7 @@ describe('integration', () => {
 
         await setAvatarImage(s1p1, './src/rossmann.jpg');
 
-        await Synchronization.backFillServers(s1p1, s1p1.system());
+        await s1p1.synchronizer.debugWaitUntilSynchronizationComplete();
 
         const s2p1 = await ProcessHandle.createTestProcessHandle();
         await s2p1.addServer(TEST_SERVER);
@@ -145,7 +145,7 @@ describe('integration', () => {
 
         await setAvatarImage(s2p1, './src/futo.jpg');
 
-        await Synchronization.backFillServers(s2p1, s2p1.system());
+        await s2p1.synchronizer.debugWaitUntilSynchronizationComplete();
 
         // console.log('futo system:' + systemToBase64(s2p1.system()));
     });
@@ -204,7 +204,7 @@ describe('integration', () => {
         ).toStrictEqual(true);
 
         await bernstein.opinion(subject, Models.Opinion.OpinionLike);
-        await ProcessHandle.fullSync(bernstein);
+        await bernstein.synchronizer.debugWaitUntilSynchronizationComplete();
 
         expect(await getLikesAndDislikes()).toStrictEqual({
             likes: 1,
@@ -221,7 +221,7 @@ describe('integration', () => {
         ).toStrictEqual(true);
 
         await shamir.opinion(subject, Models.Opinion.OpinionLike);
-        await ProcessHandle.fullSync(shamir);
+        await shamir.synchronizer.debugWaitUntilSynchronizationComplete();
 
         expect(await getLikesAndDislikes()).toStrictEqual({
             likes: 2,
@@ -229,7 +229,7 @@ describe('integration', () => {
         });
 
         await bernstein.opinion(subject, Models.Opinion.OpinionDislike);
-        await ProcessHandle.fullSync(bernstein);
+        await bernstein.synchronizer.debugWaitUntilSynchronizationComplete();
 
         expect(await getLikesAndDislikes()).toStrictEqual({
             likes: 1,
@@ -246,10 +246,10 @@ describe('integration', () => {
         ).toStrictEqual(true);
 
         await bernstein.opinion(subject, Models.Opinion.OpinionNeutral);
-        await ProcessHandle.fullSync(bernstein);
+        await bernstein.synchronizer.debugWaitUntilSynchronizationComplete();
 
         await shamir.opinion(subject, Models.Opinion.OpinionNeutral);
-        await ProcessHandle.fullSync(shamir);
+        await shamir.synchronizer.debugWaitUntilSynchronizationComplete();
 
         expect(await getLikesAndDislikes()).toStrictEqual({
             likes: 0,
@@ -319,10 +319,10 @@ describe('integration', () => {
             await turing.post(i.toString(), undefined, rootPosts[1]);
         }
 
-        await ProcessHandle.fullSync(vonNeumann);
-        await ProcessHandle.fullSync(godel);
-        await ProcessHandle.fullSync(babbage);
-        await ProcessHandle.fullSync(turing);
+        await vonNeumann.synchronizer.debugWaitUntilSynchronizationComplete();
+        await godel.synchronizer.debugWaitUntilSynchronizationComplete();
+        await babbage.synchronizer.debugWaitUntilSynchronizationComplete();
+        await turing.synchronizer.debugWaitUntilSynchronizationComplete();
 
         // query comments from a server
         const queryReferences = await APIMethods.getQueryReferences(
@@ -480,7 +480,7 @@ describe('integration', () => {
             await s1p1.post(post3Content);
         }
 
-        await Synchronization.backFillServers(s1p1, s1p1.system());
+        await s1p1.synchronizer.debugWaitUntilSynchronizationComplete();
 
         // give opensearch time to index everything
         await new Promise((r) => setTimeout(r, 5000));
@@ -590,13 +590,13 @@ describe('integration', () => {
         await s1.addServer(TEST_SERVER);
         const post1 = await s1.post('a', undefined, primaryReference);
         await s1.opinion(primaryReference, Models.Opinion.OpinionLike);
-        await ProcessHandle.fullSync(s1);
+        await s1.synchronizer.debugWaitUntilSynchronizationComplete();
 
         const s2 = await ProcessHandle.createTestProcessHandle();
         await s2.addServer(TEST_SERVER);
         const post2 = await s2.post('b', undefined, secondaryReference);
         await s2.opinion(secondaryReference, Models.Opinion.OpinionDislike);
-        await ProcessHandle.fullSync(s2);
+        await s2.synchronizer.debugWaitUntilSynchronizationComplete();
 
         const result = await APIMethods.getQueryReferences(
             TEST_SERVER,

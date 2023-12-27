@@ -11,13 +11,13 @@ export type NotYetFoundCallback = () => void;
 type StateForCRDT = {
     value: Uint8Array;
     unixMilliseconds: Long;
-    successCallbacks: Set<SuccessCallback>;
-    notYetFoundCallbacks: Set<NotYetFoundCallback>;
+    readonly successCallbacks: Set<SuccessCallback>;
+    readonly notYetFoundCallbacks: Set<NotYetFoundCallback>;
     fulfilled: boolean;
 };
 
 type StateForSystem = {
-    state: Map<string, StateForCRDT>;
+    readonly state: Map<string, StateForCRDT>;
 };
 
 function makeContentTypeKey(
@@ -27,8 +27,11 @@ function makeContentTypeKey(
 }
 
 export class QueryManager {
-    private _processHandle: ProcessHandle.ProcessHandle;
-    private _state: Map<Models.PublicKey.PublicKeyString, StateForSystem>;
+    private readonly _processHandle: ProcessHandle.ProcessHandle;
+    private readonly _state: Map<
+        Models.PublicKey.PublicKeyString,
+        StateForSystem
+    >;
     private _useDisk: boolean;
     private _useNetwork: boolean;
 
