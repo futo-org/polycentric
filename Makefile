@@ -75,13 +75,13 @@ build-production: proto
 	npm install
 
 	cd packages/polycentric-core && \
-		npm run build:production
+		npm run build
 
 	cd packages/polycentric-react && \
-		npm run build:production
+		npm run build
 
 	cd packages/polycentric-web && \
-		npm run build:production
+		npm run build
 
 	cd server && \
 		cargo build
