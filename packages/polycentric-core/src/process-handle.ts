@@ -1,6 +1,7 @@
 import * as Base64 from '@borderless/base64';
-
+import AsyncLock from 'async-lock';
 import Long from 'long';
+
 import * as MetaStore from './meta-store';
 import * as Models from './models';
 import * as PersistenceDriver from './persistence-driver';
@@ -121,6 +122,7 @@ export class ProcessHandle {
         Models.PublicKey.PublicKeyString,
         Set<string>
     >;
+    private readonly _ingestLock: AsyncLock;
 
     public readonly queryManager: Queries.QueryManager.QueryManager;
     public readonly synchronizer: Synchronization.Synchronizer;
@@ -135,6 +137,7 @@ export class ProcessHandle {
         this._system = system;
         this._listener = undefined;
         this._addressHints = new Map();
+        this._ingestLock = new AsyncLock();
         this.queryManager = new Queries.QueryManager.QueryManager(this);
         this.synchronizer = new Synchronization.Synchronizer(
             this,
@@ -500,43 +503,65 @@ export class ProcessHandle {
         lwwElement: Protocol.LWWElement | undefined,
         references: Array<Protocol.Reference>,
     ): Promise<Models.Pointer.Pointer> {
-        const processState = await this._store.getProcessState(
-            this._system,
-            this._processSecret.process,
+        return await this._ingestLock.acquire(
+            Models.PublicKey.toString(this._system),
+            async () => {
+                const processState = await this._store.getProcessState(
+                    this._system,
+                    this._processSecret.process,
+                );
+
+                if (processState.indices === undefined) {
+                    throw new Error('expected indices');
+                }
+
+                const event = Models.Event.fromProto({
+                    system: this._system,
+                    process: this._processSecret.process,
+                    logicalClock: processState.logicalClock
+                        .add(Long.UONE)
+                        .toUnsigned(),
+                    contentType: contentType,
+                    content: content,
+                    vectorClock: { logicalClocks: [] },
+                    lwwElementSet: lwwElementSet,
+                    lwwElement: lwwElement,
+                    references: references,
+                    indices: processState.indices,
+                    unixMilliseconds: Long.fromNumber(Date.now(), true),
+                });
+
+                const eventBuffer = Protocol.Event.encode(event).finish();
+
+                const signedEvent = Models.SignedEvent.fromProto({
+                    signature: await Models.PrivateKey.sign(
+                        this._processSecret.system,
+                        eventBuffer,
+                    ),
+                    event: eventBuffer,
+                });
+
+                return await this.ingestWithoutLock(signedEvent);
+            },
         );
-
-        if (processState.indices === undefined) {
-            throw new Error('expected indices');
-        }
-
-        const event = Models.Event.fromProto({
-            system: this._system,
-            process: this._processSecret.process,
-            logicalClock: processState.logicalClock.add(Long.UONE).toUnsigned(),
-            contentType: contentType,
-            content: content,
-            vectorClock: { logicalClocks: [] },
-            lwwElementSet: lwwElementSet,
-            lwwElement: lwwElement,
-            references: references,
-            indices: processState.indices,
-            unixMilliseconds: Long.fromNumber(Date.now(), true),
-        });
-
-        const eventBuffer = Protocol.Event.encode(event).finish();
-
-        const signedEvent = Models.SignedEvent.fromProto({
-            signature: await Models.PrivateKey.sign(
-                this._processSecret.system,
-                eventBuffer,
-            ),
-            event: eventBuffer,
-        });
-
-        return await this.ingest(signedEvent);
     }
 
     public async ingest(
+        signedEvent: Models.SignedEvent.SignedEvent,
+    ): Promise<Models.Pointer.Pointer> {
+        const event = Models.Event.fromProto(
+            Protocol.Event.decode(signedEvent.event),
+        );
+
+        return await this._ingestLock.acquire(
+            Models.PublicKey.toString(event.system),
+            async () => {
+                return await this.ingestWithoutLock(signedEvent);
+            },
+        );
+    }
+
+    private async ingestWithoutLock(
         signedEvent: Models.SignedEvent.SignedEvent,
     ): Promise<Models.Pointer.Pointer> {
         const event = Models.Event.fromProto(
