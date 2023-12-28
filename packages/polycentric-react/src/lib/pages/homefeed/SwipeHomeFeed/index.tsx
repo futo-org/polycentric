@@ -9,6 +9,7 @@ import { Controller } from 'swiper/modules'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Feed } from '../../../components'
 import { useSearchFeed } from '../../../hooks/feedHooks'
+import { useGestureWall } from '../../../hooks/ionicHooks'
 import { ExploreFeed } from './ExploreFeed/index.js'
 import { TopicFeed } from './TopicFeed.tsx/index.js'
 
@@ -63,6 +64,8 @@ const TopicSwipeSelect = ({
   const [expanded, setExpanded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeSearchQuery, setActiveSearchQuery] = useState('')
+
+  useGestureWall(expanded)
 
   return (
     <div className="relative w-64 h-12">
