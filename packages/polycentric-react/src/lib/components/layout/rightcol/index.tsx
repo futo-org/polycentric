@@ -20,9 +20,7 @@ export const RightCol = ({
       </div>
       {isMobile === false && (
         <div
-          className="h-full sticky top-0 border-x hidden xl:block xl:w
--[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:mr-[calc((100
-vw-1536px)/2)] "
+          className="h-full sticky top-0 border-x hidden xl:block xl:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:mr-[calc((100vw-1536px)/2)] "
         >
           <div className="flex flex-col justify-between h-full w-full">
             <div>
