@@ -1,3 +1,4 @@
+import { ArrowUpOnSquareIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
 import { EditProfileActions, PureEditProfile } from '../../edit/PureEditProfile'
 import { PureSidebarProfileData } from '../../sidebarprofile/PureSidebarProfile'
@@ -23,11 +24,13 @@ export const PureMobileFeedProfile = ({
   profile,
   follow,
   unfollow,
+  share,
   editProfileActions,
 }: {
   profile: PureSidebarProfileData
   follow: () => void
   unfollow: () => void
+  share: () => void
   editProfileActions: EditProfileActions
 }) => {
   const [editProfileOpen, setEditProfileOpen] = useState(false)
@@ -68,8 +71,11 @@ export const PureMobileFeedProfile = ({
               {profile.iAmFollowing ? 'Unfollow' : 'Follow'}
             </button>
           )}
-          <button className="bg-gray-50 text-gray-500 h-full flex justify-center items-center rounded-full ml-2 border aspect-square">
-            <ElipsesIcon />
+          <button
+            onClick={share}
+            className="bg-gray-50 text-gray-500 h-full flex justify-center items-center rounded-full ml-2 border aspect-square"
+          >
+            <ArrowUpOnSquareIcon className="w-6 h-6" />
           </button>
         </div>
         {/* <div className="w-1/2 flex flex-col justify-center">
