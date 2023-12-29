@@ -7,7 +7,7 @@ import { ServerListTable } from '../../components/settings/ServerTable'
 export const SettingsPage: Page = () => {
   return (
     <>
-      <Header hasBack={false}>Settings</Header>
+      <Header canHaveBackButton={false}>Settings</Header>
 
       <IonContent>
         <RightCol leftCol={<div />} desktopTitle="Settings">
