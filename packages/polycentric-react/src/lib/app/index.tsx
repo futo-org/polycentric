@@ -1,4 +1,5 @@
-import { IonApp, IonRouterOutlet, setupIonicReact } from '@ionic/react'
+import { ArrowUpOnSquareIcon, EllipsisVerticalIcon } from '@heroicons/react/24/outline'
+import { IonApp, IonRouterOutlet, isPlatform, setupIonicReact } from '@ionic/react'
 import { IonReactHashRouter, IonReactMemoryRouter, IonReactRouter } from '@ionic/react-router'
 import { MetaStore, PersistenceDriver, ProcessHandle } from '@polycentric/polycentric-core'
 import { createMemoryHistory } from 'history'
@@ -81,6 +82,35 @@ const LoadedMetastoreApp = ({ metaStore }: { metaStore: MetaStore.IMetaStore }) 
   }
 }
 
+const AddToHomeScreenBarrier = ({ children }: { children: React.ReactNode }) => {
+  const showBarrier = useMemo(() => {
+    return isPlatform('mobile') && !isPlatform('pwa')
+  }, [])
+
+  const isAndroid = useMemo(() => {
+    return isPlatform('android')
+  }, [])
+
+  return (
+    <>
+      {showBarrier && (
+        <div className="z-50 fixed w-full h-full bg-gray-600 bg-opacity-60 flex flex-col items-center p-10 pt-[33%]">
+          <div className="w-full p-10 aspect-square rounded-full bg-white overflow-hidden flex flex-col justify-center items-center space-y-2.5">
+            <h1 className="text-2xl text- font-medium break-words">Add Polycentric to your home screen to continue</h1>
+
+            {isAndroid ? (
+              <EllipsisVerticalIcon className="w-10 h-10 border rounded-full text-gray-500" />
+            ) : (
+              <ArrowUpOnSquareIcon className="w-10 h-10" />
+            )}
+          </div>
+        </div>
+      )}
+      {children}
+    </>
+  )
+}
+
 export const App = ({ persistenceDriver }: { persistenceDriver: PersistenceDriver.IPersistenceDriver }) => {
   const [metaStore, setMetaStore] = useState<MetaStore.IMetaStore>()
 
@@ -94,7 +124,9 @@ export const App = ({ persistenceDriver }: { persistenceDriver: PersistenceDrive
 
   return (
     <IonApp>
-      <LoadedMetastoreApp metaStore={metaStore} />
+      <AddToHomeScreenBarrier>
+        <LoadedMetastoreApp metaStore={metaStore} />
+      </AddToHomeScreenBarrier>
     </IonApp>
   )
 }
