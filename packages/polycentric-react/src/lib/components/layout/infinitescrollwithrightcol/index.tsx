@@ -1,5 +1,5 @@
 import { encode } from '@borderless/base64'
-import { ArrowUpIcon } from '@heroicons/react/24/outline'
+import { ArrowUpIcon, Bars3Icon } from '@heroicons/react/24/outline'
 import { ReactElement, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso'
 import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks'
@@ -56,6 +56,8 @@ export const InfiniteScrollWithRightCol = ({
     [showScrollUpButton],
   )
 
+  const [verticalIpadExpanded, setVerticalIpadExpanded] = useState(false)
+
   return (
     <div
       ref={outerRef} // Attach the `outerRef` to the scroll container as the custom scroll parent so it includes the left column and the padding
@@ -106,29 +108,48 @@ export const InfiniteScrollWithRightCol = ({
         )}
       </div>
       {isMobile === false && (
-        <div className="h-full sticky top-0 border-x hidden xl:block xl:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:mr-[calc((100vw-1536px)/2)] ">
-          <div className="flex flex-col justify-between h-full w-full">
-            <div>
-              <div className="p-5 pb-10">
-                <SearchBox />
+        <>
+          {/* Expand Button for ipad viewport only */}
+          <div
+            className={`xl:hidden fixed top-5 h-16 w-16 rounded-full bg-white border shadow-lg z-50 flex items-center justify-center ${
+              verticalIpadExpanded ? 'right-[22rem]' : 'right-5'
+            }`}
+          >
+            <Bars3Icon className="w-6 h-6 text-gray-600" onClick={() => setVerticalIpadExpanded((e) => !e)} />
+          </div>
+          <div
+            className={`h-full top-0 border-x bg-white ${
+              /* for ipad viewport */ verticalIpadExpanded ? 'z-20 absolute right-0' : 'hidden sticky'
+            } xl:block xl:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:mr-[calc((100vw-1536px)/2)] `}
+          >
+            <div className="flex flex-col justify-between h-full w-full">
+              <div>
+                <div className="p-5 pb-10">
+                  <SearchBox />
+                </div>
+                {leftCol}
               </div>
-              {leftCol}
-            </div>
-            <div className="p-5 w-full text-right text-gray-400 text-sm">
-              <a
-                href="https://gitlab.futo.org/polycentric/polycentric"
-                target="_blank"
-                rel="noreferrer"
-                className="block"
-              >
-                Source Code
-              </a>
-              <a href="https://docs.polycentric.io/privacy-policy/" target="_blank" rel="noreferrer" className="block">
-                Privacy Policy
-              </a>
+              <div className="p-5 w-full text-right text-gray-400 text-sm">
+                <a
+                  href="https://gitlab.futo.org/polycentric/polycentric"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block"
+                >
+                  Source Code
+                </a>
+                <a
+                  href="https://docs.polycentric.io/privacy-policy/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block"
+                >
+                  Privacy Policy
+                </a>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   )
