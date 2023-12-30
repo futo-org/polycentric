@@ -6,21 +6,36 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { avatarResolutions } from '../util/imageProcessing'
 import { useBlobQuery, useCRDTQuery, useTextPublicKey } from './queryHooks'
 
+const blobURLCache = new Map<Blob, { url: string; count: number }>()
+
 export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
   const [blobURL, setBlobURL] = useState<string | undefined>(undefined)
 
   useEffect(() => {
-    let currentURL: string | undefined
     if (blob) {
-      currentURL = URL.createObjectURL(blob)
-      setBlobURL(currentURL)
+      let cacheEntry = blobURLCache.get(blob)
+      if (!cacheEntry) {
+        const newURL = URL.createObjectURL(blob)
+        cacheEntry = { url: newURL, count: 1 }
+        blobURLCache.set(blob, cacheEntry)
+      } else {
+        cacheEntry.count++
+      }
+      setBlobURL(cacheEntry.url)
     } else {
       setBlobURL(undefined)
     }
 
     return () => {
-      if (currentURL) {
-        URL.revokeObjectURL(currentURL)
+      if (blob) {
+        const cacheEntry = blobURLCache.get(blob)
+        if (cacheEntry) {
+          cacheEntry.count--
+          if (cacheEntry.count === 0) {
+            URL.revokeObjectURL(cacheEntry.url)
+            blobURLCache.delete(blob)
+          }
+        }
       }
     }
   }, [blob])

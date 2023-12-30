@@ -31,8 +31,6 @@ export function useCRDTQuery<T>(
   const [state, setState] = useState<T | null | undefined>(undefined)
 
   useEffect(() => {
-    setState(undefined)
-
     if (system !== undefined) {
       const cancelContext = new CancelContext.CancelContext()
 
@@ -58,6 +56,7 @@ export function useCRDTQuery<T>(
       return () => {
         cancelContext.cancel()
         unregister()
+        setState(undefined)
       }
     }
   }, [queryManager, system, contentType, parse])
@@ -93,7 +92,6 @@ export const useSystemLink = (system: Models.PublicKey.PublicKey) => {
 
   const [link, setLink] = useState<string | undefined>(undefined)
   useEffect(() => {
-    setLink(undefined)
     const cancelContext = new CancelContext.CancelContext()
     ProcessHandle.makeSystemLink(processHandle, system).then((link) => {
       if (cancelContext.cancelled()) {
@@ -103,6 +101,7 @@ export const useSystemLink = (system: Models.PublicKey.PublicKey) => {
     })
     return () => {
       cancelContext.cancel()
+      setLink(undefined)
     }
   }, [processHandle, system])
 
@@ -125,8 +124,8 @@ export const useEventLink = (system?: Models.PublicKey.PublicKey, pointer?: Mode
       setLink('/post/' + link)
     })
     return () => {
-      setLink(undefined)
       cancelContext.cancel()
+      setLink(undefined)
     }
   }, [processHandle, system, pointer])
   return link
@@ -158,8 +157,6 @@ export function useBlobQuery<T>(
   const [state, setState] = useState<T | undefined>(undefined)
 
   useEffect(() => {
-    setState(undefined)
-
     if (system !== undefined && process !== undefined && range !== undefined) {
       const cancelContext = new CancelContext.CancelContext()
 
@@ -173,8 +170,8 @@ export function useBlobQuery<T>(
 
       return () => {
         cancelContext.cancel()
-
         unregister()
+        setState(undefined)
       }
     }
   }, [system, process, range, queryManager, parse])
@@ -247,10 +244,9 @@ export function useIndex<T>(
     setAdvance(() => (size: number) => latestHandle.advance(size))
 
     return () => {
+      cancelContext.cancel()
       setState([])
       setAdvance(undefined)
-
-      cancelContext.cancel()
       latestHandle.unregister()
     }
   }, [queryManager, system, contentType, parse, batchSize])
@@ -279,8 +275,6 @@ export const useQueryReferences = (
   const { processHandle } = useProcessHandleManager()
 
   useEffect(() => {
-    setState(undefined)
-
     if (system === undefined || reference === undefined) return
 
     const cancelContext = new CancelContext.CancelContext()
@@ -319,6 +313,7 @@ export const useQueryReferences = (
 
     return () => {
       cancelContext.cancel()
+      setState(undefined)
     }
   }, [
     system,
@@ -418,7 +413,6 @@ export const useQueryIfAdded = (
 
   useEffect(() => {
     if (system === undefined || value === undefined) {
-      setState(undefined)
       return
     }
 
@@ -435,6 +429,7 @@ export const useQueryIfAdded = (
 
     return () => {
       cancelContext.cancel()
+      setState(undefined)
     }
   }, [processHandle, system, contentType, value])
 
@@ -546,8 +541,6 @@ export function useQueryEvent<T>(
   const [parsedEvent, setParsedEvent] = useState<ParsedEvent<T> | undefined>(undefined)
 
   useEffect(() => {
-    setParsedEvent(undefined)
-
     if (system !== undefined) {
       const cancelContext = new CancelContext.CancelContext()
 
@@ -576,6 +569,7 @@ export function useQueryEvent<T>(
       return () => {
         cancelContext.cancel()
         unregister()
+        setParsedEvent(undefined)
       }
     }
   }, [queryManager, system, process, logicalClock, parse])

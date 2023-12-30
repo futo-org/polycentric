@@ -10,7 +10,7 @@ import { MobileProfileFeed } from '../../components/profile/mobilefeedprofile'
 import { UserColumn } from '../../components/profile/sidebarprofile/UserColumn'
 import { useAuthorFeed } from '../../hooks/feedHooks'
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks'
-import { useUsernameCRDTQuery } from '../../hooks/queryHooks'
+import { useTextPublicKey, useUsernameCRDTQuery } from '../../hooks/queryHooks'
 import { useParams } from '../../hooks/stackRouterHooks'
 import { useIsMobile } from '../../hooks/styleHooks'
 
@@ -34,7 +34,7 @@ export const UserFeedPage: Page = () => {
   const column = <UserColumn system={system} />
 
   const isMobile = useIsMobile()
-  const isMyProfile = Models.PublicKey.equal(system, processHandle.system())
+  const isMyProfile = useMemo(() => Models.PublicKey.equal(system, processHandle.system()), [system, processHandle])
 
   const username = useUsernameCRDTQuery(system)
   const headerText = useMemo(() => {
@@ -42,10 +42,12 @@ export const UserFeedPage: Page = () => {
     return `${username}'s Profile`
   }, [username])
 
+  const stringKey = useTextPublicKey(system)
+
   const topComponent = useMemo(() => {
-    if (isMobile) return <MobileProfileFeed system={system} />
+    if (isMobile) return <MobileProfileFeed system={system} key={stringKey} />
     return isMyProfile ? <PostCompose /> : undefined
-  }, [isMobile, isMyProfile, system])
+  }, [isMobile, isMyProfile, system, stringKey])
 
   return (
     <>

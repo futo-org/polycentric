@@ -1,6 +1,6 @@
 import { encode } from '@borderless/base64'
 import { ArrowUpIcon, Bars3Icon } from '@heroicons/react/24/outline'
-import { ReactElement, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, ReactElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso'
 import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks'
 import { useIsMobile } from '../../../hooks/styleHooks'
@@ -56,6 +56,16 @@ export const InfiniteScrollWithRightCol = ({
     [showScrollUpButton],
   )
 
+  const Header = useMemo(() => {
+    // eslint-disable-next-line react/display-name
+    return () => topFeedComponent ?? <Fragment />
+  }, [topFeedComponent])
+
+  const Footer = useMemo(() => {
+    // eslint-disable-next-line react/display-name
+    return () => <div className="h-[200vh]" />
+  }, [])
+
   const [verticalIpadExpanded, setVerticalIpadExpanded] = useState(false)
 
   return (
@@ -89,8 +99,8 @@ export const InfiniteScrollWithRightCol = ({
           }}
           endReached={() => advanceFeed()}
           components={{
-            Header: topFeedComponent ? () => topFeedComponent : undefined,
-            Footer: prependCount !== undefined ? () => <div className="h-[200vh]" /> : undefined,
+            Header,
+            Footer,
           }}
         />
         {showScrollUpButton && (

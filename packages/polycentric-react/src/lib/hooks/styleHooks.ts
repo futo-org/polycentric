@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 
 const tailwindColors = [
   'red-500',
@@ -71,7 +71,7 @@ function getBreakpoint(width: number) {
 export const useTailwindBreakpoint = () => {
   const [breakpoint, setBreakpoint] = useState(getBreakpoint(window.innerWidth))
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const onResize = () => {
       const newBreakpoint = getBreakpoint(window.innerWidth)
       if (breakpoint !== newBreakpoint) setBreakpoint(newBreakpoint)
