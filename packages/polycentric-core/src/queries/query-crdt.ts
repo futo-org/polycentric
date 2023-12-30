@@ -1,4 +1,5 @@
 import Long from 'long';
+import * as RXJS from 'rxjs';
 
 import * as APIMethods from '../api-methods';
 import * as Models from '../models';
@@ -254,4 +255,23 @@ export class QueryManager {
             callback(stateForCRDT.value);
         });
     }
+}
+
+export function observableQuery(
+    queryManager: QueryManager,
+    system: Models.PublicKey.PublicKey,
+    contentType: Models.ContentType.ContentType,
+): RXJS.Observable<Uint8Array | undefined> {
+    return new RXJS.Observable((subscriber) => {
+        return queryManager.query(
+            system,
+            contentType,
+            (value) => {
+                subscriber.next(value);
+            },
+            () => {
+                subscriber.next(undefined);
+            },
+        );
+    });
 }
