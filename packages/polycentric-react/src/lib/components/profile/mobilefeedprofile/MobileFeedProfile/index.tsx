@@ -2,7 +2,12 @@ import { Models, Protocol } from '@polycentric/polycentric-core'
 import { useCallback, useMemo, useState } from 'react'
 import { useAvatar } from '../../../../hooks/imageHooks'
 import { useProcessHandleManager } from '../../../../hooks/processHandleManagerHooks'
-import { useDescriptionCRDTQuery, useQueryIfAdded, useUsernameCRDTQuery } from '../../../../hooks/queryHooks'
+import {
+  useDescriptionCRDTQuery,
+  useQueryIfAdded,
+  useSystemLink,
+  useUsernameCRDTQuery,
+} from '../../../../hooks/queryHooks'
 import { publishBlobToAvatar } from '../../../../util/imageProcessing'
 import { PureMobileFeedProfile } from '../PureMobileFeedProfile'
 
@@ -57,12 +62,24 @@ export const MobileProfileFeed = ({ system }: { system: Models.PublicKey.PublicK
     [name, description, avatarURL, isMyProfile, iAmFollowing, followers, following],
   )
 
+  const profileURL = useSystemLink(system)
+
+  const share = useCallback(() => {
+    profileURL &&
+      navigator.share({
+        title: `${name} on Polycentric`,
+        text: 'Check out this profile on Polycentric',
+        url: profileURL,
+      })
+  }, [profileURL, name])
+
   return (
     <PureMobileFeedProfile
       profile={profile}
       editProfileActions={editProfileActions}
       follow={follow}
       unfollow={unfollow}
+      share={share}
     />
   )
 }

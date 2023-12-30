@@ -1,33 +1,19 @@
+import { ArrowUpOnSquareIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
 import { EditProfileActions, PureEditProfile } from '../../edit/PureEditProfile'
 import { PureSidebarProfileData } from '../../sidebarprofile/PureSidebarProfile'
-
-const ElipsesIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    strokeWidth={1.5}
-    stroke="currentColor"
-    className="w-6 h-6"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"
-    />
-  </svg>
-)
 
 export const PureMobileFeedProfile = ({
   profile,
   follow,
   unfollow,
+  share,
   editProfileActions,
 }: {
   profile: PureSidebarProfileData
   follow: () => void
   unfollow: () => void
+  share: () => void
   editProfileActions: EditProfileActions
 }) => {
   const [editProfileOpen, setEditProfileOpen] = useState(false)
@@ -68,8 +54,11 @@ export const PureMobileFeedProfile = ({
               {profile.iAmFollowing ? 'Unfollow' : 'Follow'}
             </button>
           )}
-          <button className="bg-gray-50 text-gray-500 h-full flex justify-center items-center rounded-full ml-2 border aspect-square">
-            <ElipsesIcon />
+          <button
+            onClick={share}
+            className="bg-gray-50 text-gray-500 h-full flex justify-center items-center rounded-full ml-2 border aspect-square"
+          >
+            <ArrowUpOnSquareIcon className="w-6 h-6" />
           </button>
         </div>
         {/* <div className="w-1/2 flex flex-col justify-center">
