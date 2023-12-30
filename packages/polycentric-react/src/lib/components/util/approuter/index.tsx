@@ -39,8 +39,11 @@ export const Route = ({
 
   useEffect(() => {
     const listener = () => {
-      // @ts-ignore
-      navref.current?.pop()
+      navref.current?.canGoBack().then((canGoBack) => {
+        if (canGoBack) {
+          navref.current?.pop()
+        }
+      })
     }
 
     window.addEventListener('popstate', listener)
