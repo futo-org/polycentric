@@ -6,7 +6,7 @@ const XIcon = () => (
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
         fill="currentColor"
-        className="w-6 h-6"
+        className="w-8 h-8"
     >
         <path
             fillRule="evenodd"
@@ -34,11 +34,7 @@ export const Modal = ({
     if (isMobile) {
         return (
             <Transition appear show={open} as={Fragment}>
-                <Dialog
-                    as="div"
-                    className="relative z-10"
-                    onClose={() => setOpen(false)}
-                >
+                <div className="fixed inset-0 w-screen h-screen overflow-hidden z-20">
                     <Transition.Child
                         as={Fragment}
                         enter="ease-out duration-100"
@@ -53,9 +49,9 @@ export const Modal = ({
                             onClick={() => setOpen(false)}
                         />
                     </Transition.Child>
-
                     <Transition.Child
-                        as={Fragment}
+                        as={'div'}
+                        className="transform-gpu w-screen h-screen bg-white text-left align-middle transition-all"
                         enter="ease-[cubic-bezier(0.32,0.72,0,1)] duration-500"
                         enterFrom="translate-y-full"
                         enterTo="translate-y-0"
@@ -63,24 +59,22 @@ export const Modal = ({
                         leaveFrom="translate-y-0"
                         leaveTo="translate-y-full"
                     >
-                        <Dialog.Panel className="transform w-screen h-screen bg-white text-left align-middle transition-all ">
-                            <div className="flex justify-between items-center py-5 px-7 w-full">
-                                <Dialog.Title className="text-2xl font-semibold leading-6 text-gray-900 break-words flex-shrink min-w-0 overflow-hidden text-ellipsis">
-                                    {title}
-                                </Dialog.Title>
-                                <button
-                                    className="flex items-center rounded-full hover:bg-gray-50 border p-2"
-                                    aria-label="Close"
-                                    onClick={() => setOpen(false)}
-                                >
-                                    <XIcon />
-                                </button>
-                            </div>
+                        <div className="flex justify-between items-center py-5 px-7 w-full">
+                            <h2 className="text-2xl font-semibold leading-6 text-gray-900 break-words flex-shrink min-w-0 overflow-hidden text-ellipsis">
+                                {title}
+                            </h2>
+                            <button
+                                className="flex items-center rounded-full hover:bg-gray-50 border p-2 focus:outline-none"
+                                aria-label="Close"
+                                onClick={() => setOpen(false)}
+                            >
+                                <XIcon />
+                            </button>
+                        </div>
 
-                            <div className="flex-grow px-7 ">{children}</div>
-                        </Dialog.Panel>
+                        <div className="flex-grow px-7 ">{children}</div>
                     </Transition.Child>
-                </Dialog>
+                </div>
             </Transition>
         );
     }
