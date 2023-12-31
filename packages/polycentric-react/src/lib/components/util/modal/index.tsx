@@ -1,5 +1,6 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
+import { useGestureWall } from '../../../hooks/ionicHooks';
 import { useIsMobile } from '../../../hooks/styleHooks';
 const XIcon = () => (
     <svg
@@ -30,6 +31,7 @@ export const Modal = ({
     shrink?: boolean;
 }): JSX.Element => {
     const isMobile = useIsMobile('md');
+    useGestureWall(open)
 
     if (isMobile) {
         return (
