@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const useDebouncedEffect = (
     effect: () => void,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     deps: any[],
     delay: number,
 ) => {

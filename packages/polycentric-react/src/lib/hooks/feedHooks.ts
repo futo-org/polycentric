@@ -20,8 +20,8 @@ export type FeedHookData = ReadonlyArray<
 >;
 export type FeedHookAdvanceFn = () => void;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FeedHook = (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...args: any[]
 ) => [FeedHookData, FeedHookAdvanceFn, boolean?];
 
