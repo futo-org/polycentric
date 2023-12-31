@@ -1,3 +1,5 @@
-import { createContext } from 'react'
+import { createContext } from 'react';
 
-export const MemoryRoutedLinkContext = createContext<string | undefined>(undefined)
+export const MemoryRoutedLinkContext = createContext<string | undefined>(
+    undefined,
+);
