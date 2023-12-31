@@ -244,9 +244,9 @@ export type ProcessHandleManagerHookReturn =
         activeStore: MetaStore.StoreInfo;
     };
 
-//@ts-ignore
 // No default value once again because the hook must be used within a provider, and we enforce this below
 export const ProcessHandleManagerContext =
+    //@ts-ignore
     createContext<ProcessHandleManagerHookReturn>();
 
 export function useProcessHandleManager(): ProcessHandleManagerHookReturn {
@@ -262,8 +262,8 @@ export function useProcessHandleManager(): ProcessHandleManagerHookReturn {
     return context;
 }
 
-//@ts-ignore
 export const OnboardingProcessHandleManagerContext =
+    //@ts-ignore
     createContext<BaseProcessHandleManagerHookReturn>();
 
 export function useOnboardingProcessHandleManager(): BaseProcessHandleManagerHookReturn {
