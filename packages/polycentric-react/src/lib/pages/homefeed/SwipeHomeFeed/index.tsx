@@ -5,9 +5,10 @@ import 'swiper/css';
 import './style.css';
 
 import { Transition } from '@headlessui/react';
+import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import { Controller } from 'swiper/modules';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Feed } from '../../../components';
+import { Feed, PopupComposeFullscreen } from '../../../components';
 import { useSearchFeed } from '../../../hooks/feedHooks';
 import { useGestureWall } from '../../../hooks/ionicHooks';
 import { ExploreFeed } from './ExploreFeed/index.js';
@@ -200,6 +201,8 @@ export const SwipeHomeFeed = () => {
         if (feedSwiper) handleSlideChange(feedSwiper);
     }, [headerSwiper, feedSwiper, handleSlideChange]);
 
+    const [composeModalOpen, setComposeModalOpen] = useState(false);
+
     return (
         <>
             <IonHeader className="xl:hidden sticky top-0">
@@ -241,6 +244,16 @@ export const SwipeHomeFeed = () => {
                     </SwiperSlide>
                 ))}
             </Swiper>
+            <button
+                onClick={() => setComposeModalOpen(true)}
+                className="fixed bottom-4 right-4 w-16 h-16 bg-blue-500 rounded-full flex justify-center items-center z-10"
+            >
+                <PencilSquareIcon className="w-8 h-8 text-white" />
+            </button>
+            <PopupComposeFullscreen
+                open={composeModalOpen}
+                setOpen={setComposeModalOpen}
+            />
         </>
     );
 };
