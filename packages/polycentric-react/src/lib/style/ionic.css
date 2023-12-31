@@ -12,3 +12,7 @@ body {
 * {
     -webkit-tap-highlight-color: transparent;
 }
+
+ion-header {
+    z-index: 0;
+}
