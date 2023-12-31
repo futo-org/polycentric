@@ -1,2 +1,2 @@
-export * from './PureSidebarProfile'
-export * from './UserColumn'
+export * from './PureSidebarProfile';
+export * from './UserColumn';

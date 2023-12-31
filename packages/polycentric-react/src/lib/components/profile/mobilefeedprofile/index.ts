@@ -1,2 +1,2 @@
-export * from './MobileFeedProfile'
-export * from './PureMobileFeedProfile'
+export * from './MobileFeedProfile';
+export * from './PureMobileFeedProfile';

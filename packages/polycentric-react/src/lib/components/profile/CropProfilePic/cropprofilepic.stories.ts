@@ -1,12 +1,12 @@
-import { CropProfilePic } from '.'
+import { CropProfilePic } from '.';
 
 export default {
-  title: 'Components/CropProfilePic',
-  component: CropProfilePic,
-}
+    title: 'Components/CropProfilePic',
+    component: CropProfilePic,
+};
 
 export const Default = {
-  args: {
-    src: 'https://i.pravatar.cc/300',
-  },
-}
+    args: {
+        src: 'https://i.pravatar.cc/300',
+    },
+};
