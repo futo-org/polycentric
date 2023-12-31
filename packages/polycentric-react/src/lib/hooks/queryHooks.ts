@@ -22,8 +22,8 @@ import { useProcessHandleManager } from './processHandleManagerHooks';
 
 // Since we create query managers based on the driver passed in, we set the query managers value at the root of the app.
 // With this, it will never be undefined - but since typescript doesn't know that, we ignore the error.
-// @ts-ignore
 export const QueryManagerContext =
+    // @ts-ignore
     createContext<Queries.QueryManager.QueryManager>();
 
 export function useQueryManager(): Queries.QueryManager.QueryManager {
