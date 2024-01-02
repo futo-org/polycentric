@@ -101,7 +101,7 @@ export const Compose = ({
     minTextboxHeightPx = 125,
     postingProgress,
 }: {
-    onPost?: (
+    onPost: (
         content: string,
         upload?: File,
         topic?: string,
