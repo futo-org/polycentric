@@ -100,17 +100,21 @@ export const useIsMobile = (breakpoint = 'lg') => {
 };
 
 export const useThemeColor = (color: string) => {
-    const originalColor = document
-        .querySelector('meta[name="theme-color"]')
-        ?.getAttribute('content');
-
-    if (originalColor !== color) {
-        document
-            .querySelector('meta[name="theme-color"]')
-            ?.setAttribute('content', color);
-    }
+    const originalColor = useMemo(
+        () =>
+            document
+                .querySelector('meta[name="theme-color"]')
+                ?.getAttribute('content'),
+        [],
+    );
 
     useEffect(() => {
+        if (originalColor !== color) {
+            document
+                .querySelector('meta[name="theme-color"]')
+                ?.setAttribute('content', color);
+        }
+
         return () => {
             if (originalColor) {
                 document
@@ -118,5 +122,5 @@ export const useThemeColor = (color: string) => {
                     ?.setAttribute('content', originalColor);
             }
         };
-    }, [originalColor]);
+    }, [color, originalColor]);
 };
