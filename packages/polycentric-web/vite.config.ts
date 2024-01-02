@@ -40,8 +40,8 @@ export default defineConfig(({ command }) => ({
             manifest: {
                 name: 'Polycentric',
                 short_name: 'Polycentric',
-                theme_color: '#ffffff',
-                background_color: '#ffffff',
+                theme_color: '#000000',
+                background_color: '#000000',
                 display: 'standalone',
                 orientation: 'portrait',
                 scope: '/',
