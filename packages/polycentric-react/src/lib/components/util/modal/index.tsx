@@ -31,7 +31,7 @@ export const Modal = ({
     shrink?: boolean;
 }): JSX.Element => {
     const isMobile = useIsMobile('md');
-    useGestureWall(open)
+    useGestureWall(open);
 
     if (isMobile) {
         return (
