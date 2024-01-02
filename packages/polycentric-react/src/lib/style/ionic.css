@@ -1,1 +1,18 @@
 @import '@ionic/react/css/core.css';
+
+body {
+    touch-action: manipulation;
+}
+
+html,
+body {
+    overscroll-behavior-y: none;
+}
+
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+ion-header {
+    z-index: 0;
+}

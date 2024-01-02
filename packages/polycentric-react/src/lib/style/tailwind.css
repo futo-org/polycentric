@@ -11,12 +11,3 @@
         display: none; /* Safari and Chrome */
     }
 }
-
-html,
-body {
-    overscroll-behavior-y: none;
-}
-
-* {
-    -webkit-tap-highlight-color: transparent;
-}
