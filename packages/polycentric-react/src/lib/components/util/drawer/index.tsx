@@ -28,6 +28,7 @@ export const Drawer = ({
             side={side === 'left' ? 'start' : 'end'}
             type={type}
             contentId={contentId}
+            maxEdgeStart={10000}
         >
             <div className="flex h-full flex-col overflow-y-auto bg-white py-6 shadow-xl">
                 <div className="px-4 sm:px-6">
