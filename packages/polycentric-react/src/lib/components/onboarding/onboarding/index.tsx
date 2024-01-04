@@ -1,6 +1,12 @@
 import { encode } from '@borderless/base64';
 import { Models } from '@polycentric/polycentric-core';
-import { InputHTMLAttributes, ReactNode, useEffect, useState } from 'react';
+import {
+    InputHTMLAttributes,
+    ReactNode,
+    Fragment,
+    useEffect,
+    useState,
+} from 'react';
 import internetTodayURL from '../../../../graphics/onboarding/internettoday.svg';
 import starterURL from '../../../../graphics/onboarding/starter.svg';
 import { useOnboardingProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
@@ -75,33 +81,83 @@ const InternetTodayPanel = ({ nextSlide }: { nextSlide: () => void }) => (
     </OnboardingPanel>
 );
 
-const RequestNotificationsPanel = ({
-    nextSlide,
-}: {
-    nextSlide: () => void;
-}) => (
-    <OnboardingPanel imgSrc={starterURL}>
-        <div className="flex flex-col p-10 gap-y-10">
-            <div className="text-4xl font-bold">Enable Notifications</div>
-            <p className="text-xl">
-                We need you to enable notifications because chrome is stupid.
-            </p>
-            <button
-                className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
-                onClick={async () => {
-                    const permission = await Notification.requestPermission();
-                    if (permission === 'denied')
-                        console.error('Notifications denied');
-                    await navigator.storage.persist();
+const RequestPersistencePanel = ({ nextSlide }: { nextSlide: () => void }) => {
+    const [permissionDenied, setPermissionDenied] = useState(false);
 
-                    nextSlide();
-                }}
-            >
-                Enable notifications
-            </button>
-        </div>
-    </OnboardingPanel>
-);
+    const advanceIfPersisted = async () => {
+        if (await navigator.storage.persist()) {
+            nextSlide();
+        }
+    };
+
+    const askPermission = async () => {
+        let persisted = false;
+
+        if (navigator.userAgent.includes('Chrome')) {
+            const verdict = await Notification.requestPermission();
+
+            if (verdict === 'granted') {
+                persisted = await navigator.storage.persist();
+            }
+        } else {
+            persisted = await navigator.storage.persist();
+            console.log("persisted1", persisted);
+        }
+
+        console.log("persisted2", persisted);
+        console.log("persisted3", await navigator.storage.persisted());
+        if (persisted) {
+            nextSlide();
+        } else {
+            setPermissionDenied(true);
+        }
+    };
+
+    return (
+        <OnboardingPanel imgSrc={starterURL}>
+            <div className="flex flex-col p-10 gap-y-10">
+                <div className="text-4xl font-bold">Enable Persistence</div>
+                {!permissionDenied ? (
+                    <Fragment>
+                        <p className="text-xl">
+                            It looks like persistence is not enabled in your
+                            browser. Polycentric needs persistence in order to
+                            save your identity.
+                        </p>
+                        <p className="text-xl">
+                            On Chrome notifications are required for
+                            persistence.
+                        </p>
+                        <button
+                            className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+                            onClick={() => {
+                                askPermission();
+                            }}
+                        >
+                            Ask for permission
+                        </button>
+                    </Fragment>
+                ) : (
+                    <Fragment>
+                        <p className="text-xl">
+                            It looks like persistence was not enabled.
+                            Polycentric needs persistence in order to save your
+                            identity.
+                        </p>
+                        <button
+                            className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+                            onClick={() => {
+                                advanceIfPersisted();
+                            }}
+                        >
+                            I updated my permissions
+                        </button>
+                    </Fragment>
+                )}
+            </div>
+        </OnboardingPanel>
+    );
+};
 
 const GenCredsPanelItem = ({
     title,
@@ -267,21 +323,10 @@ const CredsPanel = ({}: { nextSlide: () => void }) => {
 export const Onboarding = () => {
     useThemeColor('#0096E6');
 
-    const isChromium = navigator.userAgent.includes('Chrome');
-
-    useEffect(() => {
-        const isChromium = navigator.userAgent.includes('Chrome');
-        if (isChromium === false) {
-            navigator.storage.persist();
-        }
-    }, []);
-
     const childComponents = [
         WelcomePanel,
-        // I literally submitted a proposal to the EMCAscript spec to avoid this syntax but it got rejected
-        // https://es.discourse.group/t/conditionally-add-elements-to-declaratively-defined-arrays/1041
-        ...(isChromium ? [RequestNotificationsPanel] : []),
         InternetTodayPanel,
+        RequestPersistencePanel,
         CredsPanel,
     ];
 
