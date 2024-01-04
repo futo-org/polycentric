@@ -104,11 +104,11 @@ export const PopupComposeReply = ({
             </div>
             <Compose
                 hideTopic={true}
+                minTextboxHeightPx={200}
                 maxTextboxHeightPx={isMobile ? 0 : 250}
                 topicDisabled={true}
                 preSetTopic={main.topic}
                 onPost={onComment}
-                flexGrow={isMobile}
             />
         </div>
     );
