@@ -48,7 +48,7 @@ export const ReplyCompose = {
 export const Compose = {
     args: {
         open: true,
-        children: <PopupCompose />,
+        children: <PopupCompose onPost={async () => false} />,
     },
 };
 
