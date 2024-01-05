@@ -1,4 +1,4 @@
-import { IonHeader, IonMenuToggle } from '@ionic/react';
+import { IonContent, IonHeader, IonMenuToggle } from '@ionic/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Swiper as SwyperType } from 'swiper';
 import 'swiper/css';
@@ -205,7 +205,7 @@ export const SwipeHomeFeed = () => {
 
     return (
         <>
-            <IonHeader className="xl:hidden sticky top-0">
+            <IonHeader className="">
                 <div className="flex items-center justify-between bg-white h-20 border-b">
                     <IonMenuToggle>
                         <div className="p-3">
@@ -223,37 +223,38 @@ export const SwipeHomeFeed = () => {
                     </div>
                 </div>
             </IonHeader>
-
-            <Swiper
-                // h-full should work here but it doesn't
-                className="w-full h-[calc(100dvh-5rem)]"
-                modules={[Controller]}
-                onSwiper={setFeedSwiper}
-                controller={{ control: headerSwiper }}
-                edgeSwipeDetection={true}
-                edgeSwipeThreshold={50}
-                onSlideChange={handleSlideChange}
-            >
-                {topics.map((topic) => (
-                    <SwiperSlide key={topic} style={{ overflow: 'auto' }}>
-                        {topic === 'Explore' ? (
-                            <ExploreFeed />
-                        ) : (
-                            <TopicFeed topic={topic} />
-                        )}
-                    </SwiperSlide>
-                ))}
-            </Swiper>
-            <button
-                onClick={() => setComposeModalOpen(true)}
-                className="fixed bottom-4 right-4 w-16 h-16 bg-blue-500 rounded-full flex justify-center items-center z-10"
-            >
-                <PencilSquareIcon className="w-8 h-8 text-white" />
-            </button>
-            <PopupComposeFullscreen
-                open={composeModalOpen}
-                setOpen={setComposeModalOpen}
-            />
+            <IonContent className="h-[calc(100dvh-5rem)]">
+                <Swiper
+                    // h-full should work here but it doesn't
+                    className="w-full h-full"
+                    modules={[Controller]}
+                    onSwiper={setFeedSwiper}
+                    controller={{ control: headerSwiper }}
+                    edgeSwipeDetection={true}
+                    edgeSwipeThreshold={50}
+                    onSlideChange={handleSlideChange}
+                >
+                    {topics.map((topic) => (
+                        <SwiperSlide key={topic} style={{ overflow: 'auto' }}>
+                            {topic === 'Explore' ? (
+                                <ExploreFeed />
+                            ) : (
+                                <TopicFeed topic={topic} />
+                            )}
+                        </SwiperSlide>
+                    ))}
+                </Swiper>
+                <button
+                    onClick={() => setComposeModalOpen(true)}
+                    className="fixed bottom-4 right-4 w-16 h-16 bg-blue-500 rounded-full flex justify-center items-center z-10"
+                >
+                    <PencilSquareIcon className="w-8 h-8 text-white" />
+                </button>
+                <PopupComposeFullscreen
+                    open={composeModalOpen}
+                    setOpen={setComposeModalOpen}
+                />
+            </IonContent>
         </>
     );
 };
