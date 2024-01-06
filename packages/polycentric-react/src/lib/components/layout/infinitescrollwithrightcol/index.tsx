@@ -21,12 +21,14 @@ export const InfiniteScrollWithRightCol = ({
     advanceFeed,
     leftCol,
     topFeedComponent,
+    topFeedComponentSticky = false,
     prependCount,
 }: {
     data: FeedHookData;
     advanceFeed: FeedHookAdvanceFn;
     leftCol?: ReactElement;
     topFeedComponent?: ReactElement;
+    topFeedComponentSticky?: boolean;
     prependCount?: number;
 }) => {
     const outerRef = useRef<HTMLDivElement>(null);
@@ -83,62 +85,70 @@ export const InfiniteScrollWithRightCol = ({
             className="h-full flex overflow-y-scroll noscrollbar"
             onScroll={isMobile ? undefined : onScroll}
         >
-            <div className="w-full lg:w-[700px] xl:w-[776px] relative">
-                <Virtuoso
-                    ref={virtuoso}
-                    data={data}
-                    className="noscrollbar"
-                    style={{ height: '100%' }}
-                    customScrollParent={
-                        isMobile ? undefined : outerRef.current ?? undefined
-                    }
-                    onScroll={isMobile ? onScroll : undefined}
-                    itemContent={(index, data) => (
-                        <Post
-                            key={
-                                data !== undefined
-                                    ? encode(data.signedEvent.signature)
-                                    : index
-                            }
-                            autoExpand={
-                                prependCount !== undefined &&
-                                index === 100 - prependCount
-                            }
-                            data={data}
-                        />
-                    )}
-                    overscan={{
-                        reverse: windowHeight * 5,
-                        main: windowHeight * 10,
-                    }}
-                    increaseViewportBy={{
-                        top: windowHeight / 2,
-                        bottom: windowHeight / 2,
-                    }}
-                    endReached={() => advanceFeed()}
-                    components={{
-                        Header,
-                        Footer,
-                    }}
-                />
-                {showScrollUpButton && (
-                    <>
-                        <div className="absolute w-full top-1 md:top-5 flex justify-center z-40">
-                            <button
-                                // @ts-ignore
-                                onClick={() =>
-                                    virtuoso.current?.scrollTo({
-                                        top: 0,
-                                        behavior: 'instant',
-                                    })
-                                }
-                                className="bg-blue-500 opacity-80 md:opacity-50 hover:opacity-80 border shadow rounded-full px-14 py-2 md:p-1 text-white fixed"
-                            >
-                                <ArrowUpIcon className="w-6 h-6" />
-                            </button>
-                        </div>
-                    </>
+            <div className="w-full lg:w-[700px] xl:w-[776px]">
+                {topFeedComponentSticky && topFeedComponent && (
+                    <div className="sticky top-0">{topFeedComponent}</div>
                 )}
+                <div className="w-full h-full relative">
+                    <Virtuoso
+                        ref={virtuoso}
+                        data={data}
+                        className="noscrollbar"
+                        style={{ height: '100%' }}
+                        customScrollParent={
+                            isMobile ? undefined : outerRef.current ?? undefined
+                        }
+                        onScroll={isMobile ? onScroll : undefined}
+                        itemContent={(index, data) => (
+                            <Post
+                                key={
+                                    data !== undefined
+                                        ? encode(data.signedEvent.signature)
+                                        : index
+                                }
+                                autoExpand={
+                                    prependCount !== undefined &&
+                                    index === 100 - prependCount
+                                }
+                                data={data}
+                            />
+                        )}
+                        overscan={{
+                            reverse: windowHeight * 5,
+                            main: windowHeight * 10,
+                        }}
+                        increaseViewportBy={{
+                            top: windowHeight / 2,
+                            bottom: windowHeight / 2,
+                        }}
+                        endReached={() => advanceFeed()}
+                        components={{
+                            Header:
+                                topFeedComponentSticky === false
+                                    ? Header
+                                    : undefined,
+                            Footer,
+                        }}
+                    />
+                    {showScrollUpButton && (
+                        <>
+                            <div className="absolute w-full top-1 md:top-5 flex justify-center z-40">
+                                <button
+                                    // @ts-ignore
+                                    onClick={() =>
+                                        virtuoso.current?.scrollTo({
+                                            top: 0,
+                                            behavior: 'instant',
+                                        })
+                                    }
+                                    className="bg-blue-500 opacity-80 md:opacity-50 hover:opacity-80 border shadow rounded-full px-14 py-2 md:p-1 text-white fixed"
+                                >
+                                    <ArrowUpIcon className="w-6 h-6" />
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
             {isMobile === false && (
                 <>

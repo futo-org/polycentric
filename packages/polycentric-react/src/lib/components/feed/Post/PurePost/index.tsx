@@ -398,9 +398,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                             expanded)) && (
                                         <div
                                             className={`flex-col space-y-5 md:space-y-2 ${
-                                                expanded
-                                                    ? 'sticky top-[50vh]'
-                                                    : ''
+                                                expanded ? 'sticky top-1/2' : ''
                                             }  ${
                                                 // sub == null ? 'pt-5' : ''
                                                 'pt-5'
@@ -467,7 +465,12 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                         >
                                             <div className="flex w-full justify-between space-x-3">
                                                 <Link
-                                                    routerLink={main.author.URL}
+                                                    routerLink={
+                                                        // On mobile, don't allow this to be a link so the topic is easier to click
+                                                        isMobile
+                                                            ? undefined
+                                                            : main.author.URL
+                                                    }
                                                     className="text-inherit flex-shrink min-w-0"
                                                 >
                                                     <address className="font-bold text-base author not-italic hover:underline h-[1.5rem] w-full overflow-hidden overflow-ellipsis">

@@ -37,7 +37,13 @@ const LinkComponent = forwardRef<
     } & React.HTMLAttributes<HTMLAnchorElement>
 >(
     (
-        { routerLink, children, routerDirection, className, ...browserProps },
+        {
+            routerLink,
+            children,
+            routerDirection = 'forward',
+            className,
+            ...browserProps
+        },
         ref,
     ) => {
         const isMobile = useIsMobile();

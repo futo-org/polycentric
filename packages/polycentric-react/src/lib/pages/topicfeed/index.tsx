@@ -5,6 +5,7 @@ import { Header } from '../../components/layout/header';
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol';
 import { useTopicFeed } from '../../hooks/feedHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
+import { useIsMobile } from '../../hooks/styleHooks';
 import { TopFeedVideo } from './TopFeedVideo';
 import { shittyTestIfYoutubeIDRegex, youtubeURLRegex } from './platformRegex';
 
@@ -17,9 +18,13 @@ function isValidURL(str: string) {
     }
 }
 
+const wwwDotRegex = /^www\./;
+const httpsRegex = /^http(?:s|):\/\//;
+
 export const TopicFeedPage: Page = () => {
     const params = useParams<{ 0: string }>();
     const unescapedTopic = params[0];
+    const isMobile = useIsMobile();
 
     const topic: string = useMemo(() => {
         if (unescapedTopic.startsWith('-')) {
@@ -29,29 +34,45 @@ export const TopicFeedPage: Page = () => {
         }
     }, [unescapedTopic]);
 
+    const displayTopic = useMemo(() => {
+        let displayTopic = topic;
+        if (httpsRegex.test(displayTopic)) {
+            displayTopic = displayTopic.replace(httpsRegex, '');
+        }
+        if (wwwDotRegex.test(displayTopic)) {
+            displayTopic = displayTopic.replace(wwwDotRegex, '');
+        }
+        return displayTopic;
+    }, [topic]);
+
     const topComponent = useMemo(() => {
         const isTopicURL = isValidURL(topic);
-        return (
-            <div className="w-full">
-                <div className="w-full h-16 text-center flex justify-center items-center border-b">
-                    {isTopicURL ? (
-                        // Open in new tab
-                        <a
-                            className="text-lg text-gray-800"
-                            href={topic}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            <h1 className="text-lg text-gray-800">{topic}</h1>
-                        </a>
-                    ) : (
+
+        const desktopTitleBar = (
+            <div className="w-full h-16 text-center flex justify-center items-center border-b">
+                {isTopicURL ? (
+                    // Open in new tab
+                    <a
+                        className="text-lg text-gray-800"
+                        href={topic}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
                         <h1 className="text-lg text-gray-800">{topic}</h1>
-                    )}
-                </div>
+                    </a>
+                ) : (
+                    <h1 className="text-lg text-gray-800">{topic}</h1>
+                )}
+            </div>
+        );
+
+        return (
+            <div className="w-full bg-white">
+                {isMobile === false && desktopTitleBar}
                 <TopFeedVideo topic={topic} />
             </div>
         );
-    }, [topic]);
+    }, [topic, isMobile]);
 
     const alternativeTopicRepresentations = useMemo(() => {
         switch (true) {
@@ -75,13 +96,14 @@ export const TopicFeedPage: Page = () => {
 
     return (
         <>
-            <Header>{topic}</Header>
+            <Header>{displayTopic}</Header>
 
             <IonContent>
                 <InfiniteScrollWithRightCol
                     data={comments}
                     advanceFeed={advanceComments}
                     topFeedComponent={topComponent}
+                    topFeedComponentSticky={isMobile}
                     leftCol={<div />}
                 />
             </IonContent>
