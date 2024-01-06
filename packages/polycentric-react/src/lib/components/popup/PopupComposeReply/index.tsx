@@ -32,7 +32,7 @@ export const PopupComposeReply = ({
     const isMobile = useIsMobile();
 
     return (
-        <div className="px-3 py-5 md:px-7 bg-white flex flex-col space-y-0 w-auto md:w-[40rem] h-full">
+        <div className="px-3 py-5 md:px-7 md:pb-10 bg-white flex flex-col space-y-0 w-auto md:w-[40rem] h-full">
             <div className="flex relative overflow-clip">
                 <div className="mr-3 md:mr-4 flex-shrink-0 flex flex-col">
                     <ProfilePicture
@@ -104,11 +104,11 @@ export const PopupComposeReply = ({
             </div>
             <Compose
                 hideTopic={true}
+                minTextboxHeightPx={200}
                 maxTextboxHeightPx={isMobile ? 0 : 250}
                 topicDisabled={true}
                 preSetTopic={main.topic}
                 onPost={onComment}
-                flexGrow={isMobile}
             />
         </div>
     );

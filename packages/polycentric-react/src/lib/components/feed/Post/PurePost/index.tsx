@@ -474,7 +474,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                         {main.author.name}
                                                     </address>
                                                 </Link>
-                                                <time className="text-right sm:text-right font-light text-gray-500 tracking-tight flex-grow min-w-max">
+                                                <time className="text-right sm:text-right font-light text-gray-400 sm:text-sm flex-grow min-w-max">
                                                     {dateToAgoString(
                                                         main.publishedAt,
                                                     )}

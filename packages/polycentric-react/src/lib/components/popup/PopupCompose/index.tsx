@@ -5,7 +5,36 @@ import { publishImageBlob } from '../../../util/imageProcessing';
 import { Compose } from '../../feed/Compose';
 import { Modal } from '../../util/modal';
 
-export const PopupCompose = () => {
+export const PopupCompose = ({
+    onPost,
+}: {
+    onPost: (
+        content: string,
+        upload?: File | undefined,
+        topic?: string | undefined,
+    ) => Promise<boolean>;
+}) => {
+    return (
+        <div className="md:px-7 bg-white overflow-clip flex flex-col space-y-0 w-auto md:w-[40rem]">
+            <div>
+                <Compose
+                    onPost={onPost}
+                    hideTopic={true}
+                    maxTextboxHeightPx={250}
+                    minTextboxHeightPx={200}
+                />
+            </div>
+        </div>
+    );
+};
+
+export const PopupComposeFullscreen = ({
+    open,
+    setOpen,
+}: {
+    open: boolean;
+    setOpen: (b: boolean) => void;
+}) => {
     const { processHandle } = useProcessHandleManager();
 
     const onPost = useCallback(
@@ -31,35 +60,15 @@ export const PopupCompose = () => {
                 console.error(e);
                 return false;
             }
+            setOpen(false);
             return true;
         },
-        [processHandle],
+        [processHandle, setOpen],
     );
 
-    return (
-        <div className="md:px-7 bg-white overflow-clip flex flex-col space-y-0 w-auto md:w-[40rem]">
-            <div>
-                <Compose
-                    onPost={onPost}
-                    hideTopic={true}
-                    maxTextboxHeightPx={250}
-                    minTextboxHeightPx={200}
-                />
-            </div>
-        </div>
-    );
-};
-
-export const PopupComposeFullscreen = ({
-    open,
-    setOpen,
-}: {
-    open: boolean;
-    setOpen: (b: boolean) => void;
-}) => {
     return (
         <Modal open={open} setOpen={setOpen}>
-            <PopupCompose />
+            <PopupCompose onPost={onPost} />
         </Modal>
     );
 };
