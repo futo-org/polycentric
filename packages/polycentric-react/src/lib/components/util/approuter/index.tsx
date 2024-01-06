@@ -1,9 +1,9 @@
-import { IonNav, IonPage } from '@ionic/react';
-import { useCallback, useEffect, useRef } from 'react';
+import { IonNav, IonPage, isPlatform } from '@ionic/react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { Route as RouterRoute } from 'react-router-dom';
-import { createSwipeBackGesture } from '../../../util/ionicfullpageswipebackgesture';
 
 import { Page, routeData } from '../../../app/router';
+import { createSwipeBackGesture } from '../../../util/ionicfullpageswipebackgesture';
 
 export const Route = ({
     Component,
@@ -16,26 +16,43 @@ export const Route = ({
 }) => {
     const navref = useRef<HTMLIonNavElement>(null);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         // Allow swiping back anywhere on page
         // The only other way to do this is to distribute our own ionic build
         // https://github.com/ionic-team/ionic-framework/blob/83f9ac0face445c7f4654dea1a6a43e4565fb800/core/src/components/nav/nav.tsx#L135
         // https://github.com/ionic-team/ionic-framework/blob/main/core/src/utils/gesture/swipe-back.ts
-        if (navref.current)
+
+        if (!navref.current) return;
+
+        const isIOS = isPlatform('ios');
+
+        if (!isIOS) return;
+
+        const gesture = createSwipeBackGesture(
             // @ts-ignore
-            navref.current.gesture = createSwipeBackGesture(
-                navref.current,
+            navref.current.el,
+            (...args) => {
                 // @ts-ignore
-                navref.current.canStart.bind(navref.current),
+                // Don't ask me why this is necessary
+                navref.current.swipeGesture = true;
                 // @ts-ignore
-                navref.current.onStart.bind(navref.current),
-                // @ts-ignore
-                navref.current.onMove.bind(navref.current),
-                // @ts-ignore
-                navref.current.onEnd.bind(navref.current),
-                1000,
-            );
-    }, [navref]);
+                return navref.current.canStart(...args);
+            },
+            // @ts-ignore
+            navref.current.onStart.bind(navref.current),
+            // @ts-ignore
+            navref.current.onMove.bind(navref.current),
+            // @ts-ignore
+            navref.current.onEnd.bind(navref.current),
+            1000,
+        );
+
+        gesture.enable(true);
+
+        return () => {
+            gesture.destroy();
+        };
+    }, []);
 
     useEffect(() => {
         const listener = () => {
@@ -61,7 +78,7 @@ export const Route = ({
         return (
             <RouterRoute path={path} exact={true}>
                 <IonPage>
-                    <IonNav root={root} ref={navref} swipeGesture={true} />
+                    <IonNav root={root} ref={navref} swipeGesture={false} />
                 </IonPage>
             </RouterRoute>
         );
