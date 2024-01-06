@@ -1,4 +1,4 @@
-import { useMemo, useState, Fragment } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import {
     lbryURIRegex,
     mp4URLRegex,
@@ -49,7 +49,7 @@ const TopFeedVideoContainer = ({
     const [acceptedThirdParty, setAcceptedThirdParty] = useState(false);
     return (
         <div
-            className={`aspect-video w-full flex flex-col justify-center items-center space-y-3 border-b ${
+            className={`aspect-video w-full  border-b ${
                 acceptedThirdParty ? 'sticky top-0 z-50' : ''
             }`}
         >
@@ -57,15 +57,17 @@ const TopFeedVideoContainer = ({
                 children
             ) : (
                 <>
-                    <h3 className="max-w-[30rem]">
-                        {`This video is hosted on ${platformName}. By clicking play, you agree to ${platformName}'s privacy policy and sending them data.`}
-                    </h3>
-                    <button
-                        onClick={() => setAcceptedThirdParty(true)}
-                        className="px-3 py-2 border rounded-full hover:bg-gray-50"
-                    >
-                        Accept
-                    </button>
+                    <div className="p-10 h-full flex flex-col justify-center items-center space-y-3">
+                        <h3 className="max-w-[30rem]">
+                            {`This video is hosted on ${platformName}. By clicking play, you agree to ${platformName}'s privacy policy and sending them data.`}
+                        </h3>
+                        <button
+                            onClick={() => setAcceptedThirdParty(true)}
+                            className="px-3 py-2 border rounded-full hover:bg-gray-50"
+                        >
+                            Accept
+                        </button>
+                    </div>
                 </>
             )}
         </div>
