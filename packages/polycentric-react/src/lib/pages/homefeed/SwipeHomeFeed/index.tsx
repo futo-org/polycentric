@@ -137,8 +137,8 @@ const TopicSwipeSelect = ({
                     enterFrom="h-12 w-64 rounded-[1.5rem] border-gray-200"
                     enterTo="h-screen w-screen forcezerotopleft rounded-0 border-0 border-transparent"
                     leave="transition-all duration-200"
-                    leaveFrom="h-screen w-screen forcezerotopleft rounded-[1.5rem] border-transparent"
-                    leaveTo="h-12 w-64 rounded-0 border-gray-200"
+                    leaveFrom="h-screen w-screen forcezerotopleft rounded-0 border-transparent"
+                    leaveTo="h-12 w-64 rounded-0 border-gray-200 rounded-[1.5rem]"
                     className={'fixed z-20 bg-white overflow-clip ease-in-out'}
                 >
                     <div className="fixed top-0 left-0  w-screen h-screen"></div>
