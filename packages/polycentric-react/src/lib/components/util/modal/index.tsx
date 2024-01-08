@@ -1,5 +1,6 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
+import { createPortal } from 'react-dom';
 import { useGestureWall } from '../../../hooks/ionicHooks';
 import { useIsMobile } from '../../../hooks/styleHooks';
 const XIcon = () => (
@@ -34,7 +35,7 @@ export const Modal = ({
     useGestureWall(open);
 
     if (isMobile) {
-        return (
+        const modalContent = (
             <Transition appear show={open} as={Fragment}>
                 <div className="fixed inset-0 w-screen h-screen overflow-hidden z-20">
                     <Transition.Child
@@ -79,6 +80,8 @@ export const Modal = ({
                 </div>
             </Transition>
         );
+
+        return createPortal(modalContent, document.body);
     }
 
     return (
