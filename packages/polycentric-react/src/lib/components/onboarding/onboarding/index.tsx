@@ -1,10 +1,16 @@
 import { encode } from '@borderless/base64';
 import { Models } from '@polycentric/polycentric-core';
-import { InputHTMLAttributes, ReactNode, useEffect, useState } from 'react';
+import {
+    InputHTMLAttributes,
+    ReactNode,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react';
 import internetTodayURL from '../../../../graphics/onboarding/internettoday.svg';
 import starterURL from '../../../../graphics/onboarding/starter.svg';
 import { useOnboardingProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
-import { useThemeColor } from '../../../hooks/styleHooks';
+import { useIsMobile, useThemeColor } from '../../../hooks/styleHooks';
 
 import { publishBlobToAvatar } from '../../../util/imageProcessing';
 import { ProfileAvatarInput } from '../../profile/edit/inputs/ProfileAvatarInput';
@@ -54,7 +60,7 @@ const WelcomePanel = ({ nextSlide }: { nextSlide: () => void }) => (
 
 const InternetTodayPanel = ({ nextSlide }: { nextSlide: () => void }) => (
     <OnboardingPanel imgSrc={internetTodayURL}>
-        <div className="flex flex-col p-10 gap-y-10">
+        <div className="flex flex-col p-10 gap-y-10 h-full justify-center">
             <div className="text-4xl font-bold">This is the internet today</div>
             <p className="text-xl">
                 {
@@ -79,29 +85,145 @@ const RequestNotificationsPanel = ({
     nextSlide,
 }: {
     nextSlide: () => void;
-}) => (
-    <OnboardingPanel imgSrc={starterURL}>
-        <div className="flex flex-col p-10 gap-y-10">
-            <div className="text-4xl font-bold">Enable Notifications</div>
-            <p className="text-xl">
-                We need you to enable notifications because chrome is stupid.
-            </p>
-            <button
-                className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
-                onClick={async () => {
-                    const permission = await Notification.requestPermission();
-                    if (permission === 'denied')
-                        console.error('Notifications denied');
-                    await navigator.storage.persist();
+}) => {
+    const [state, setState] = useState<
+        | 'init'
+        | 'notifications_request_failed'
+        | 'persist_call_failed'
+        | 'persisted'
+    >('init');
 
-                    nextSlide();
-                }}
-            >
-                Enable notifications
-            </button>
-        </div>
-    </OnboardingPanel>
-);
+    useEffect(() => {
+        // Check on an interval if the user enables notifications manually (since we can't listen for it)
+        const interval = setInterval(() => {
+            if (Notification.permission === 'granted') {
+                clearInterval(interval);
+                // It's fine if this races with the other call, since it's a noop if it's already persisted
+                navigator.storage.persist().then((successfullyPersisted) => {
+                    setState(
+                        successfullyPersisted
+                            ? 'persisted'
+                            : 'persist_call_failed',
+                    );
+                });
+            }
+        }, 1000);
+
+        return () => {
+            clearInterval(interval);
+        };
+    }, []);
+
+    return (
+        <OnboardingPanel imgSrc={starterURL}>
+            <div className="flex flex-col p-10 gap-y-10 justify-center h-full">
+                <div className="text-4xl font-bold">Enable Persistence</div>
+                <p className="text-xl">
+                    {
+                        "To save your data, your browser needs you to enable notifications (we won't send you any)."
+                    }
+                </p>
+                <button
+                    disabled={
+                        state === 'persist_call_failed' || state === 'persisted'
+                    }
+                    className="bg-blue-500 disabled:bg-blue-200 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+                    onClick={async () => {
+                        const permission =
+                            await Notification.requestPermission();
+
+                        if (permission === 'denied') {
+                            setState('notifications_request_failed');
+                            return;
+                        } else {
+                            navigator.storage
+                                .persist()
+                                .then((successfullyPersisted) => {
+                                    setState(
+                                        successfullyPersisted
+                                            ? 'persisted'
+                                            : 'persist_call_failed',
+                                    );
+                                });
+                        }
+                    }}
+                >
+                    Request notifications
+                </button>
+                <button
+                    disabled={state !== 'persisted'}
+                    onClick={nextSlide}
+                    className="bg-blue-500 disabled:bg-blue-200 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+                >
+                    {state === 'notifications_request_failed'
+                        ? 'Notifications request denied'
+                        : state === 'persist_call_failed'
+                          ? 'Something went wrong'
+                          : 'Continue'}
+                </button>
+            </div>
+        </OnboardingPanel>
+    );
+};
+
+const RequestPersistencePanel = ({ nextSlide }: { nextSlide: () => void }) => {
+    const [state, setState] = useState<
+        'init' | 'persist_call_failed' | 'persisted'
+    >('init');
+
+    useEffect(() => {
+        // Check on an interval if the user enables notifications manually (since we can't listen for it)
+        const interval = setInterval(() => {
+            navigator.storage.persisted().then((persisted) => {
+                if (persisted) {
+                    clearInterval(interval);
+                    setState('persisted');
+                }
+            });
+        }, 1000);
+
+        return () => {
+            clearInterval(interval);
+        };
+    }, []);
+
+    return (
+        <OnboardingPanel imgSrc={starterURL}>
+            <div className="flex flex-col p-10 gap-y-10 justify-center h-full">
+                <div className="text-4xl font-bold">Enable Persistence</div>
+                <p className="text-xl">
+                    {'To save your data, please enable persistence.'}
+                </p>
+                <button
+                    disabled={
+                        state === 'persisted' || state === 'persist_call_failed'
+                    }
+                    className="bg-blue-500 disabled:bg-blue-200 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+                    onClick={() => {
+                        navigator.storage.persist().then((persisted) => {
+                            setState(
+                                persisted ? 'persisted' : 'persist_call_failed',
+                            );
+                        });
+                    }}
+                >
+                    {state === 'persist_call_failed'
+                        ? "Please enable persistence in your browser's settings"
+                        : 'Enable persistence'}
+                </button>
+                <button
+                    disabled={state !== 'persisted'}
+                    onClick={nextSlide}
+                    className="bg-blue-500 disabled:bg-blue-200 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+                >
+                    {state === 'persist_call_failed'
+                        ? 'Persistence request denied'
+                        : 'Continue'}
+                </button>
+            </div>
+        </OnboardingPanel>
+    );
+};
 
 const GenCredsPanelItem = ({
     title,
@@ -244,7 +366,7 @@ const CredsPanel = ({}: { nextSlide: () => void }) => {
     return (
         <OnboardingPanel imgSrc={starterURL}>
             <div className="flex flex-col justify-center h-full p-10 gap-y-5">
-                <div className="-mt-[5rem]">
+                <div className="md:-mt-[5rem]">
                     <button
                         className="float-right bg-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
                         onClick={() =>
@@ -267,23 +389,44 @@ const CredsPanel = ({}: { nextSlide: () => void }) => {
 export const Onboarding = () => {
     useThemeColor('#0096E6');
 
-    const isChromium = navigator.userAgent.includes('Chrome');
+    const [alreadyPersisted, setAlreadyPersisted] = useState(false);
+
+    // @ts-ignore
+    const isChromium = !!window.chrome;
 
     useEffect(() => {
-        const isChromium = navigator.userAgent.includes('Chrome');
-        if (isChromium === false) {
-            navigator.storage.persist();
-        }
-    }, []);
+        navigator.storage.persisted().then((persisted) => {
+            setAlreadyPersisted(persisted);
 
-    const childComponents = [
-        WelcomePanel,
-        // I literally submitted a proposal to the EMCAscript spec to avoid this syntax but it got rejected
-        // https://es.discourse.group/t/conditionally-add-elements-to-declaratively-defined-arrays/1041
-        ...(isChromium ? [RequestNotificationsPanel] : []),
-        InternetTodayPanel,
-        CredsPanel,
-    ];
+            // In case we don't have persistence, but we already have notifications on chromium
+            if (
+                persisted === false &&
+                isChromium &&
+                Notification.permission === 'granted'
+            ) {
+                navigator.storage.persist();
+                setAlreadyPersisted(true);
+            }
+        });
+    }, [isChromium]);
+
+    const isMobile = useIsMobile();
+
+    const RequestPersistenceComponent = isChromium
+        ? RequestNotificationsPanel
+        : RequestPersistencePanel;
+
+    const childComponents = useMemo(
+        () => [
+            WelcomePanel,
+            // I literally submitted a proposal to the EMCAscript spec to avoid this syntax but it got rejected
+            // https://es.discourse.group/t/conditionally-add-elements-to-declaratively-defined-arrays/1041
+            ...(isMobile ? [] : [InternetTodayPanel]),
+            ...(alreadyPersisted ? [] : [RequestPersistenceComponent]),
+            CredsPanel,
+        ],
+        [isMobile, alreadyPersisted, RequestPersistenceComponent],
+    );
 
     return (
         <div className="md:flex justify-center items-center">

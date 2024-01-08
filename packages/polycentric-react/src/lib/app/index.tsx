@@ -121,9 +121,17 @@ const AddToHomeScreenBarrier = ({
 }: {
     children: React.ReactNode;
 }) => {
-    const showBarrier = useMemo(() => {
-        return isPlatform('mobile') && !isPlatform('pwa');
+    const isDesktopSafari = useMemo(() => {
+        const ua = navigator.userAgent.toLowerCase();
+        const isSafari =
+            ua.indexOf('safari') !== -1 && ua.indexOf('chrome') === -1;
+        const isDesktop = isPlatform('desktop');
+        return isSafari && isDesktop;
     }, []);
+
+    const showBarrier = useMemo(() => {
+        return (isPlatform('mobile') && !isPlatform('pwa')) || isDesktopSafari;
+    }, [isDesktopSafari]);
 
     const isAndroid = useMemo(() => {
         return isPlatform('android');
@@ -132,16 +140,20 @@ const AddToHomeScreenBarrier = ({
     return (
         <>
             {showBarrier && (
-                <div className="z-50 fixed w-full h-full bg-gray-600 bg-opacity-60 flex flex-col items-center p-10 pt-[33%]">
-                    <div className="w-full p-10 aspect-square rounded-full bg-white overflow-hidden flex flex-col justify-center items-center space-y-2.5">
+                <div className="z-50 fixed w-full h-full bg-gray-600 bg-opacity-60 flex flex-col items-center lg:just p-10 pt-[33%] lg:pt-10">
+                    <div className="w-full lg:max-w-[28rem] p-10 aspect-square rounded-full bg-white overflow-hidden flex flex-col justify-center items-center space-y-2.5">
                         <h1 className="text-2xl text- font-medium break-words">
-                            Add Polycentric to your home screen to continue
+                            {isDesktopSafari
+                                ? 'In order for Safari to persist your information, please add this page to your dock, or use a different browser to continue'
+                                : 'Add Polycentric to your home screen to continue'}
                         </h1>
 
                         {isAndroid ? (
                             <EllipsisVerticalIcon className="w-10 h-10 border rounded-full text-gray-500" />
-                        ) : (
+                        ) : !isDesktopSafari ? (
                             <ArrowUpOnSquareIcon className="w-10 h-10" />
+                        ) : (
+                            <></>
                         )}
                     </div>
                 </div>
