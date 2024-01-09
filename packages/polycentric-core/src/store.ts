@@ -327,6 +327,129 @@ export class OpinionIndex {
     }
 }
 
+// used for ordering posts by time
+namespace ContentTypeUnixMillisecondsSystemProcessClockIndex2 {
+    export type Key = Readonly<Uint8Array> & { readonly __tag: unique symbol };
+
+    export type QueryResult = {
+        items: Array<Uint8Array>;
+        cursor: Key | undefined;
+    };
+
+    function makePrefixKey(contentType: Models.ContentType.ContentType): Key {
+        return new Uint8Array(contentType.toBytesBE()) as Key;
+    }
+
+    function makeKey(
+        contentType: Models.ContentType.ContentType,
+        unixMilliseconds: Long,
+        system: Models.PublicKey.PublicKey,
+        process: Models.Process.Process,
+        logicalClock: Long,
+    ): Key {
+        return Util.concatBuffers([
+            new Uint8Array(contentType.toBytesBE()),
+            new Uint8Array(unixMilliseconds.toBytesBE()),
+            Protocol.PublicKey.encode(system).finish(),
+            Protocol.Process.encode(process).finish(),
+            new Uint8Array(logicalClock.toBytesBE()),
+        ]) as Key;
+    }
+
+    export class Index {
+        private _level: PersistenceDriver.BinaryAbstractSubLevel;
+
+        constructor(level: PersistenceDriver.BinaryAbstractSubLevel) {
+            this._level = level;
+        }
+
+        public async ingest(
+            signedEvent: Models.SignedEvent.SignedEvent,
+        ): Promise<Array<PersistenceDriver.BinaryUpdateLevel>> {
+            const event = Models.Event.fromBuffer(signedEvent.event);
+
+            if (
+                event.contentType.equals(Models.ContentType.ContentTypeDelete)
+            ) {
+                const body = Models.Delete.fromBuffer(event.content);
+
+                if (body.unixMilliseconds === undefined) {
+                    return [];
+                }
+
+                const key = makeKey(
+                    body.contentType,
+                    body.unixMilliseconds,
+                    event.system,
+                    body.process,
+                    body.logicalClock,
+                );
+
+                return [
+                    {
+                        type: 'del',
+                        key: key,
+                        sublevel: this._level,
+                    },
+                ];
+            } else {
+                if (event.unixMilliseconds === undefined) {
+                    return [];
+                }
+
+                const key = makeKey(
+                    event.contentType,
+                    event.unixMilliseconds,
+                    event.system,
+                    event.process,
+                    event.logicalClock,
+                );
+
+                const value = makeEventKey(
+                    event.system,
+                    event.process,
+                    event.logicalClock,
+                );
+
+                return [
+                    {
+                        type: 'put',
+                        key: key,
+                        value: value,
+                        sublevel: this._level,
+                    },
+                ];
+            }
+        }
+
+        public async query(
+            contentType: Models.ContentType.ContentType,
+            cursor: Key | undefined,
+            limit: number,
+        ): Promise<QueryResult> {
+            const prefix = makePrefixKey(contentType);
+
+            const key = cursor ?? prefix;
+
+            const rows = await this._level
+                .iterator({
+                    lte: key,
+                    gt: makePrefixKey(
+                        contentType.add(1) as Models.ContentType.ContentType,
+                    ),
+                    limit: limit,
+                    reverse: true,
+                })
+                .all();
+
+            return {
+                items: rows.map(([_, value]) => value),
+                cursor: rows.length > 0 ? rows[rows.length - 1][0] : undefined,
+            };
+        }
+    }
+}
+
 export class Store {
     level: PersistenceDriver.BinaryAbstractLevel;
     levelSystemStates: PersistenceDriver.BinaryAbstractSubLevel;
