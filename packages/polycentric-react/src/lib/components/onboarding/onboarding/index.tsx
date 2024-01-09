@@ -12,6 +12,8 @@ import starterURL from '../../../../graphics/onboarding/starter.svg';
 import { useOnboardingProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import { useIsMobile, useThemeColor } from '../../../hooks/styleHooks';
 
+import { useHistory } from 'react-router-dom';
+import { useGestureWall } from '../../../hooks/ionicHooks';
 import { publishBlobToAvatar } from '../../../util/imageProcessing';
 import { ProfileAvatarInput } from '../../profile/edit/inputs/ProfileAvatarInput';
 import { Carousel } from '../../util/carousel';
@@ -254,6 +256,8 @@ const CredsPanelSignUp = () => {
     const [username, setUsername] = useState('');
     const { createHandle } = useOnboardingProcessHandleManager();
 
+    const history = useHistory();
+
     return (
         <form
             className="contents"
@@ -267,6 +271,11 @@ const CredsPanelSignUp = () => {
                     defaultServers,
                     username,
                 );
+
+                if (history) {
+                    // if we're here, we're already signed in to another account. go to feed
+                    history.push('/');
+                }
 
                 if (avatar) await publishBlobToAvatar(avatar, processHandle);
 
@@ -386,8 +395,27 @@ const CredsPanel = ({}: { nextSlide: () => void }) => {
     );
 };
 
+const OnboardingBackButton = () => {
+    const history = useHistory();
+    return (
+        <button
+            className="absolute top-5 left-5 bg-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg z-20"
+            onClick={() => {
+                if (history.length > 1) {
+                    history.goBack();
+                } else {
+                    history.push('/');
+                }
+            }}
+        >
+            Go back
+        </button>
+    );
+};
+
 export const Onboarding = () => {
     useThemeColor('#0096E6');
+    useGestureWall();
 
     const [alreadyPersisted, setAlreadyPersisted] = useState(false);
 
@@ -428,9 +456,18 @@ export const Onboarding = () => {
         [isMobile, alreadyPersisted, RequestPersistenceComponent],
     );
 
+    const history = useHistory();
+    const showBackButton =
+        history !== undefined && history?.length > 1 && isMobile;
+
     return (
-        <div className="md:flex justify-center items-center">
+        <div className="md:flex justify-center items-center relative bg-[#0096E6] md:bg-white">
+            {
+                // @ts-ignore
+                showBackButton && <OnboardingBackButton />
+            }
             <Carousel
+                swiperClassName={showBackButton ? 'mt-20' : undefined}
                 childComponents={childComponents}
                 className="w-full md:max-w-7xl"
             />

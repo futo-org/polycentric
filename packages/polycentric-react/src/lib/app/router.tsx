@@ -1,3 +1,4 @@
+import { Onboarding } from '../components';
 import { HomeFeedPage } from '../pages/homefeed';
 import { PostFeedPage } from '../pages/postfeed';
 import { SearchPage } from '../pages/search';
@@ -15,4 +16,5 @@ export const routeData: RouteData = {
     '/post/:urlInfoString': { component: PostFeedPage },
     '/search/:query': { component: SearchPage },
     '/settings': { component: SettingsPage },
+    '/add-account': { component: Onboarding },
 };

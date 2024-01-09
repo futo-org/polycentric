@@ -245,12 +245,12 @@ export type ProcessHandleManagerHookReturn =
     };
 
 // No default value once again because the hook must be used within a provider, and we enforce this below
-export const ProcessHandleManagerContext =
+export const BaseProcessHandleManagerContext =
     //@ts-ignore
-    createContext<ProcessHandleManagerHookReturn>();
+    createContext<BaseProcessHandleManagerHookReturn>();
 
 export function useProcessHandleManager(): ProcessHandleManagerHookReturn {
-    const context = useContext(ProcessHandleManagerContext);
+    const context = useContext(BaseProcessHandleManagerContext);
     if (
         context.processHandle === undefined ||
         context.activeStore === undefined
@@ -259,13 +259,11 @@ export function useProcessHandleManager(): ProcessHandleManagerHookReturn {
             'useProcessHandleManager must be used within a ProcessHandleManagerProvider',
         );
     }
+    // @ts-ignore
     return context;
 }
 
-export const OnboardingProcessHandleManagerContext =
-    //@ts-ignore
-    createContext<BaseProcessHandleManagerHookReturn>();
-
 export function useOnboardingProcessHandleManager(): BaseProcessHandleManagerHookReturn {
-    return useContext(OnboardingProcessHandleManagerContext);
+    // No filtering, process handle may be undefined
+    return useContext(BaseProcessHandleManagerContext);
 }

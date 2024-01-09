@@ -1,4 +1,5 @@
 import { Menu } from '@headlessui/react';
+import { IonMenuToggle } from '@ionic/react';
 import { MetaStore, Models } from '@polycentric/polycentric-core';
 import { useState } from 'react';
 import { useAvatar } from '../../../hooks/imageHooks';
@@ -76,7 +77,7 @@ export const AccountSwitcher = () => {
     const [expanded, setExpanded] = useState(false);
     const [subMenuExpanded, setSubMenuExpanded] = useState(false);
 
-    const { stores, processHandle, changeHandle } = useProcessHandleManager();
+    const { stores, processHandle } = useProcessHandleManager();
 
     const username = useUsernameCRDTQuery(processHandle.system());
     const avatarURL = useAvatar(processHandle.system());
@@ -122,12 +123,17 @@ export const AccountSwitcher = () => {
                     }`}
                 >
                     <div className="flex flex-shrink space-x-2 min-w-0 overflow-hidden overflow-ellipsis">
-                        <Link routerLink={systemLink} routerDirection="root">
-                            <ProfilePicture
-                                src={avatarURL}
-                                className="h-[3rem] w-[3rem]"
-                            />
-                        </Link>
+                        <IonMenuToggle className="contents">
+                            <Link
+                                routerLink={systemLink}
+                                routerDirection="root"
+                            >
+                                <ProfilePicture
+                                    src={avatarURL}
+                                    className="h-[3rem] w-[3rem]"
+                                />
+                            </Link>
+                        </IonMenuToggle>
                         <div className="flex flex-col flex-shrink min-w-0">
                             <p className="bold text-normal overflow-hidden overflow-ellipsis">
                                 {username}
@@ -154,8 +160,8 @@ export const AccountSwitcher = () => {
                             <CircleExpandMenuReverse
                                 menuItems={[
                                     {
-                                        label: 'New Account',
-                                        action: () => changeHandle(),
+                                        label: 'Add Account',
+                                        routerLink: '/add-account',
                                     },
                                     {
                                         label: 'Settings',
