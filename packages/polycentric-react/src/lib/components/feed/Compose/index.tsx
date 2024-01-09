@@ -17,7 +17,7 @@ const TopicBox = ({
 }) => {
     // const [focused, setFocused] = useState(false)
     return (
-        <div className="md:w-96 max-w-screen h-[3rem] relative ml-1">
+        <div className="md:w-96 max-w-[calc(100vw-76px)] h-[3rem] relative ml-1">
             <input
                 type="text"
                 name="postTopic"

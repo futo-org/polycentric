@@ -19,7 +19,6 @@ export const PopupCompose = ({
             <div>
                 <Compose
                     onPost={onPost}
-                    hideTopic={true}
                     maxTextboxHeightPx={250}
                     minTextboxHeightPx={200}
                 />
