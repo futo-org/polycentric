@@ -1,4 +1,5 @@
 import { Menu } from '@headlessui/react';
+import { IonMenuToggle } from '@ionic/react';
 import { useEffect } from 'react';
 import { Link } from '../link';
 
@@ -29,26 +30,28 @@ const CircleExpandMenuInteriorReverse = ({
                 <div className="w-[15rem]">
                     {menuItems.map((item, index) => (
                         <Menu.Item key={index}>
-                            {item.routerLink ? (
-                                <Link
-                                    routerLink={item.routerLink}
-                                    routerDirection="root"
-                                    className={`h-[3rem] px-5 flex items-center text-black hover:bg-gray-${
-                                        index % 2 === 0 ? '50' : '100'
-                                    } w-full`}
-                                >
-                                    {item.label}
-                                </Link>
-                            ) : (
-                                <button
-                                    className={`h-[3rem] px-5 flex items-center hover:bg-gray-${
-                                        index % 2 === 0 ? '50' : '100'
-                                    } w-full`}
-                                    onClick={item.action}
-                                >
-                                    {item.label}
-                                </button>
-                            )}
+                            <IonMenuToggle className="contents">
+                                {item.routerLink ? (
+                                    <Link
+                                        routerLink={item.routerLink}
+                                        routerDirection="root"
+                                        className={`h-[3rem] px-5 flex items-center text-black hover:bg-gray-${
+                                            index % 2 === 0 ? '50' : '100'
+                                        } w-full`}
+                                    >
+                                        {item.label}
+                                    </Link>
+                                ) : (
+                                    <button
+                                        className={`h-[3rem] px-5 flex items-center hover:bg-gray-${
+                                            index % 2 === 0 ? '50' : '100'
+                                        } w-full`}
+                                        onClick={item.action}
+                                    >
+                                        {item.label}
+                                    </button>
+                                )}
+                            </IonMenuToggle>
                         </Menu.Item>
                     ))}
                 </div>

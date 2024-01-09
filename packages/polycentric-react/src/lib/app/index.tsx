@@ -24,8 +24,7 @@ import { SidebarLayout } from '../components/layout/sidebarlayout';
 import { Onboarding } from '../components/onboarding';
 import { AppRouter } from '../components/util/approuter';
 import {
-    OnboardingProcessHandleManagerContext,
-    ProcessHandleManagerContext,
+    BaseProcessHandleManagerContext,
     useProcessHandleManagerBaseComponentHook,
 } from '../hooks/processHandleManagerHooks';
 import { QueryManagerContext } from '../hooks/queryHooks';
@@ -97,21 +96,17 @@ const LoadedMetastoreApp = ({
 
     if (processHandle === undefined || activeStore === undefined) {
         return <p>loading</p>;
-    } else if (processHandle === null || activeStore === null) {
-        return (
-            <OnboardingProcessHandleManagerContext.Provider
-                value={storeManagerProps}
-            >
-                <Onboarding />
-            </OnboardingProcessHandleManagerContext.Provider>
-        );
     } else {
         return (
             // Typescript is dumb and doesn't understand that we've already checked for null
             // @ts-ignore
-            <ProcessHandleManagerContext.Provider value={storeManagerProps}>
-                <SignedinApp processHandle={processHandle} />
-            </ProcessHandleManagerContext.Provider>
+            <BaseProcessHandleManagerContext.Provider value={storeManagerProps}>
+                {processHandle === null || activeStore === null ? (
+                    <Onboarding />
+                ) : (
+                    <SignedinApp processHandle={processHandle} />
+                )}
+            </BaseProcessHandleManagerContext.Provider>
         );
     }
 };
