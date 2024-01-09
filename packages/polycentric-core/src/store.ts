@@ -36,7 +36,7 @@ function makeProcessStateKey(
     );
 }
 
-function makeEventKey(
+export function makeEventKey(
     system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
     logicalClock: Long,
@@ -327,8 +327,8 @@ export class OpinionIndex {
     }
 }
 
-// used for ordering posts by time
-namespace ContentTypeUnixMillisecondsSystemProcessClockIndex2 {
+// currently used for ordering posts by time
+export namespace ContentTypeUnixMillisecondsSystemProcessClockIndex {
     export type Key = Readonly<Uint8Array> & { readonly __tag: unique symbol };
 
     export type QueryResult = {
@@ -363,9 +363,9 @@ namespace ContentTypeUnixMillisecondsSystemProcessClockIndex2 {
             this._level = level;
         }
 
-        public async ingest(
+        public ingest(
             signedEvent: Models.SignedEvent.SignedEvent,
-        ): Promise<Array<PersistenceDriver.BinaryUpdateLevel>> {
+        ): Array<PersistenceDriver.BinaryUpdateLevel> {
             const event = Models.Event.fromBuffer(signedEvent.event);
 
             if (
@@ -424,19 +424,21 @@ namespace ContentTypeUnixMillisecondsSystemProcessClockIndex2 {
 
         public async query(
             contentType: Models.ContentType.ContentType,
-            cursor: Key | undefined,
             limit: number,
+            cursor: Key | undefined,
         ): Promise<QueryResult> {
-            const prefix = makePrefixKey(contentType);
+            const end = makePrefixKey(
+                contentType.subtract(1) as Models.ContentType.ContentType
+            );
 
-            const key = cursor ?? prefix;
+            const key = cursor ?? makePrefixKey(
+                contentType.add(1) as Models.ContentType.ContentType
+            );
 
             const rows = await this._level
                 .iterator({
-                    lte: key,
-                    gt: makePrefixKey(
-                        contentType.add(1) as Models.ContentType.ContentType,
-                    ),
+                    lt: key,
+                    gt: end,
                     limit: limit,
                     reverse: true,
                 })
@@ -448,6 +450,8 @@ namespace ContentTypeUnixMillisecondsSystemProcessClockIndex2 {
             };
         }
     }
+
+    
 }
 
 export class Store {
