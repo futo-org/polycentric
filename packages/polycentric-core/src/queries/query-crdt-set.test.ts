@@ -1,9 +1,9 @@
 /* eslint jest/no-conditional-expect: 0 */
-import * as ProcessHandle from '../process-handle';
-import * as QueryIndex from './query-index';
-import * as QueryCRDTSet from './query-crdt-set';
 import * as Models from '../models';
+import * as ProcessHandle from '../process-handle';
 import * as Protocol from '../protocol';
+import * as QueryCRDTSet from './query-crdt-set';
+import * as QueryIndex from './query-index';
 
 function setupQueryManager(
     processHandle: ProcessHandle.ProcessHandle,
@@ -128,6 +128,28 @@ describe('query crdt set', () => {
     });
 
     test('hit disk', async () => {
+        function expectState(
+            state: Array<QueryIndex.Cell>,
+            expected: Array<Models.PublicKey.PublicKey | undefined>,
+        ) {
+            expect(state.length).toStrictEqual(expected.length);
+
+            for (let i = 0; i < expected.length; i++) {
+                const current = expected[i];
+
+                if (current == undefined) {
+                    expect(state[i].signedEvent).toStrictEqual(undefined);
+                } else {
+                    expect(
+                        Models.PublicKey.equal(
+                            current,
+                            extractSystem(state[i]),
+                        ),
+                    ).toStrictEqual(true);
+                }
+            }
+        }
+
         const s1p1 = await ProcessHandle.createTestProcessHandle();
 
         const s2p1 = await ProcessHandle.createTestProcessHandle();
@@ -137,57 +159,77 @@ describe('query crdt set', () => {
 
         const queryManager = setupQueryManager(s1p1, false, true);
 
+        let stage = 0;
+        let state1: Array<QueryIndex.Cell> = [];
+
+        const handle1 = queryManager.query(
+            s1p1.system(),
+            Models.ContentType.ContentTypeFollow,
+            (patch) => {
+                state1 = QueryIndex.applyPatch(state1, patch);
+                if (stage === 0) {
+                    expectState(state1, [s2p1.system()]);
+                } else if (stage === 1) {
+                    expectState(state1, [s3p1.system(), s2p1.system()]);
+                } else if (stage === 2) {
+                    expectState(state1, [
+                        s4p1.system(),
+                        s3p1.system(),
+                        s2p1.system(),
+                    ]);
+                } else if (stage === 3) {
+                    expectState(state1, [s4p1.system(), s2p1.system()]);
+                } else if (stage === 4) {
+                    expectState(state1, [
+                        s5p1.system(),
+                        s4p1.system(),
+                        s2p1.system(),
+                    ]);
+                }
+                stage++;
+            },
+        );
+
+        handle1.advance(10);
+
         await s1p1.follow(s2p1.system());
         await s1p1.follow(s3p1.system());
         await s1p1.follow(s4p1.system());
         await s1p1.unfollow(s3p1.system());
         await s1p1.follow(s5p1.system());
 
-        let handle: QueryCRDTSet.QueryHandle | undefined;
+        let handle2: QueryCRDTSet.QueryHandle | undefined;
 
         await new Promise<void>(async (resolve) => {
             let stage = 0;
 
-            let state: Array<QueryIndex.Cell> = [];
-
-            function expectState(
-                expected: Array<Models.PublicKey.PublicKey | undefined>,
-            ) {
-                expect(state.length).toStrictEqual(expected.length);
-
-                for (let i = 0; i < expected.length; i++) {
-                    const current = expected[i];
-
-                    if (current == undefined) {
-                        expect(state[i].signedEvent).toStrictEqual(undefined);
-                    } else {
-                        expect(
-                            Models.PublicKey.equal(
-                                current,
-                                extractSystem(state[i]),
-                            ),
-                        ).toStrictEqual(true);
-                    }
-                }
-            }
+            let state2: Array<QueryIndex.Cell> = [];
 
             const cb = (patch: QueryIndex.CallbackParameters) => {
                 if (stage === 0) {
-                    state = QueryIndex.applyPatch(state, patch);
+                    state2 = QueryIndex.applyPatch(state2, patch);
 
-                    expectState([s5p1.system(), undefined]);
+                    expectState(state2, [s5p1.system(), undefined]);
 
-                    handle?.advance(2);
+                    handle2?.advance(2);
                 } else if (stage === 1) {
-                    state = QueryIndex.applyPatch(state, patch);
+                    state2 = QueryIndex.applyPatch(state2, patch);
 
-                    expectState([s5p1.system(), s4p1.system(), undefined]);
+                    expectState(state2, [
+                        s5p1.system(),
+                        s4p1.system(),
+                        undefined,
+                    ]);
 
-                    handle?.advance(2);
+                    handle2?.advance(2);
                 } else if (stage === 2) {
-                    state = QueryIndex.applyPatch(state, patch);
+                    state2 = QueryIndex.applyPatch(state2, patch);
 
-                    expectState([s5p1.system(), s4p1.system(), s2p1.system()]);
+                    expectState(state2, [
+                        s5p1.system(),
+                        s4p1.system(),
+                        s2p1.system(),
+                    ]);
 
                     resolve();
                 } else {
@@ -197,15 +239,16 @@ describe('query crdt set', () => {
                 stage++;
             };
 
-            handle = queryManager.query(
+            handle2 = queryManager.query(
                 s1p1.system(),
                 Models.ContentType.ContentTypeFollow,
                 cb,
             );
 
-            handle.advance(2);
+            handle2.advance(2);
         });
 
-        handle?.unregister();
+        handle1.unregister();
+        handle2?.unregister();
     });
 });
