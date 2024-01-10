@@ -37,7 +37,10 @@ export class QueryManager {
             throw new Error('duplicated callback QueryCRDTSet');
         }
 
-        const items = new Map();
+        const items = new Map<
+            string,
+            { cell: QueryIndex.Cell; lwwElement: Protocol.LWWElementSet }
+        >();
 
         const queryIndexCallback = (params: QueryIndex.CallbackParameters) => {
             const toAdd: Array<QueryIndex.Cell> = [];
@@ -79,7 +82,7 @@ export class QueryManager {
                     }
 
                     if (existing) {
-                        toRemove.add(existing.key);
+                        toRemove.add(existing.cell.key);
                     }
                 }
             }
