@@ -169,7 +169,7 @@ export const ServerListTable = () => {
                     </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                    {servers.map((s, i) => (
+                    {servers.map((s) => (
                         <ServerListTableRow key={s} originalServer={s} />
                     ))}
                 </tbody>
