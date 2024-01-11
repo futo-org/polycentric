@@ -1,7 +1,8 @@
 import { CheckIcon, PencilIcon } from '@heroicons/react/24/outline';
-import { CancelContext } from '@polycentric/polycentric-core';
+import { CancelContext, Models, Util } from '@polycentric/polycentric-core';
 import { useEffect, useState } from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
+import { useQueryCRDTSet } from '../../../hooks/queryHooks';
 import { useDebouncedEffect } from '../../../hooks/utilHooks';
 
 const XIcon = ({ className }: { className: string }) => {
@@ -23,15 +24,7 @@ const XIcon = ({ className }: { className: string }) => {
     );
 };
 
-const ServerListTableRow = ({
-    originalServer,
-    onServerChange,
-    onServerDelete,
-}: {
-    originalServer: string;
-    onServerChange: (server: string) => void;
-    onServerDelete: () => void;
-}) => {
+const ServerListTableRow = ({ originalServer }: { originalServer: string }) => {
     const { processHandle } = useProcessHandleManager();
     const [currentSetServer, setCurrentSetServer] =
         useState<string>(originalServer);
@@ -61,7 +54,7 @@ const ServerListTableRow = ({
             return () => cancelContext.cancel();
         },
         [inputValue],
-        1500,
+        1000,
     );
 
     const preEditPostButtons = (
@@ -75,9 +68,7 @@ const ServerListTableRow = ({
             <button
                 className="btn btn-primary rounded-full h-[2.25rem] w-[2.25rem] flex justify-center items-center border bg-white hover:bg-gray-50"
                 onClick={() => {
-                    processHandle.removeServer(currentSetServer).then(() => {
-                        onServerDelete();
-                    });
+                    processHandle.removeServer(currentSetServer);
                 }}
             >
                 <XIcon className="h-5 w-5 text-red-500" />
@@ -90,7 +81,6 @@ const ServerListTableRow = ({
             {/* Undo */}
             <button
                 onClick={() => {
-                    if (currentSetServer === '') onServerDelete();
                     setInputValue(currentSetServer);
                     setIsEditing(false);
                 }}
@@ -106,7 +96,6 @@ const ServerListTableRow = ({
                         processHandle.removeServer(currentSetServer);
                     processHandle.addServer(inputValue).then(() => {
                         setCurrentSetServer(inputValue);
-                        onServerChange(inputValue);
                         setIsEditing(false);
                     });
                 }}
@@ -149,11 +138,22 @@ export const ServerListTable = () => {
 
     const [servers, setServers] = useState<Array<string>>([]);
 
+    const [queriedServers, advance] = useQueryCRDTSet(
+        processHandle.system(),
+        Models.ContentType.ContentTypeServer,
+    );
+
     useEffect(() => {
-        processHandle.loadSystemState(processHandle.system()).then((s) => {
-            setServers(s.servers());
-        });
-    }, [processHandle]);
+        advance();
+    }, [advance]);
+
+    useEffect(() => {
+        const newServers = queriedServers
+            .filter((s) => s.lwwElementSet?.value !== undefined)
+            // @ts-ignore
+            .map((s) => Util.decodeText(s.lwwElementSet?.value));
+        setServers(newServers);
+    }, [queriedServers]);
 
     return (
         <div className="rounded-[2rem] border overflow-hidden">
@@ -170,22 +170,7 @@ export const ServerListTable = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                     {servers.map((s, i) => (
-                        <ServerListTableRow
-                            key={s}
-                            originalServer={s}
-                            onServerDelete={() => {
-                                setServers((servers) =>
-                                    servers.filter((_, index) => index !== i),
-                                );
-                            }}
-                            onServerChange={(server) => {
-                                setServers((servers) => {
-                                    const newServers = [...servers];
-                                    newServers[i] = server;
-                                    return newServers;
-                                });
-                            }}
-                        />
+                        <ServerListTableRow key={s} originalServer={s} />
                     ))}
                 </tbody>
                 <tfoot className="">
