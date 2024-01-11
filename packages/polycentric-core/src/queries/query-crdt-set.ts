@@ -37,7 +37,7 @@ export class QueryManager {
             throw new Error('duplicated callback QueryCRDTSet');
         }
 
-        const items = new Map();
+        const items: Map<string, StateForItem> = new Map();
 
         const queryIndexCallback = (params: QueryIndex.CallbackParameters) => {
             const toAdd: Array<QueryIndex.Cell> = [];
@@ -79,7 +79,7 @@ export class QueryManager {
                     }
 
                     if (existing) {
-                        toRemove.add(existing.key);
+                        toRemove.add(existing.cell.key);
                     }
                 }
             }
