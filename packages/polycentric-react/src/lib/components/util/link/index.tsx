@@ -69,6 +69,7 @@ const LinkComponent = forwardRef<
         if (isMobile && routerDirection !== 'root') {
             return (
                 <div
+                    className="contents"
                     onClick={() => {
                         // On Android, since we're using back button navigation,
                         // we need to push a random query string to the history so that we can use the back button
@@ -87,7 +88,7 @@ const LinkComponent = forwardRef<
                         // We just need the ref for standard HTML attributes, not fancy Ionic stuff
                         ref={ref}
                         component={renderMemoryPage}
-                        className={`${className}`}
+                        className={`${className} cursor-pointer`}
                         routerDirection={routerDirection}
                         {...browserProps}
                     >
@@ -102,7 +103,7 @@ const LinkComponent = forwardRef<
                 // @ts-ignore
                 ref={ref}
                 routerLink={routerLink}
-                className={`${className}`}
+                className={`${className} cursor-pointer`}
                 routerDirection={routerDirection}
                 {...browserProps}
             >
