@@ -30,7 +30,7 @@ export const UserColumn = ({
     const remotelyFollowing = useQueryIfAdded(
         Models.ContentType.ContentTypeFollow,
         processHandle.system(),
-        encodedSystem
+        encodedSystem,
     );
 
     const follow = useCallback(() => {
