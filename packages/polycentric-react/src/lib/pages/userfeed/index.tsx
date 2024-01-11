@@ -31,7 +31,7 @@ export const UserFeedPage: Page = () => {
 
     const [data, advanceFeed] = useAuthorFeed(system);
 
-    const column = <UserColumn system={system} />;
+    const column = useMemo(() => <UserColumn system={system} />, [system]);
 
     const isMobile = useIsMobile();
     const isMyProfile = useMemo(

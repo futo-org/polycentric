@@ -54,7 +54,7 @@ export const Modal = ({
                     </Transition.Child>
                     <Transition.Child
                         as={'div'}
-                        className="transform-gpu w-screen h-screen bg-white text-left align-middle transition-all"
+                        className="transform-gpu w-screen h-screen bg-white text-left align-middle transition-all flex flex-col"
                         enter="ease-[cubic-bezier(0.32,0.72,0,1)] duration-500"
                         enterFrom="translate-y-full"
                         enterTo="translate-y-0"
@@ -75,7 +75,9 @@ export const Modal = ({
                             </button>
                         </div>
 
-                        <div className="flex-grow px-7 ">{children}</div>
+                        <div className="flex flex-col flex-grow px-7">
+                            {children}
+                        </div>
                     </Transition.Child>
                 </div>
             </Transition>

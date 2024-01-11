@@ -153,16 +153,14 @@ export const InfiniteScrollWithRightCol = ({
             {isMobile === false && (
                 <>
                     {/* Expand Button for ipad viewport only */}
-                    <div
+                    <button
                         className={`xl:hidden fixed top-5 h-16 w-16 rounded-full bg-white border shadow-lg z-50 flex items-center justify-center ${
                             verticalIpadExpanded ? 'right-[22rem]' : 'right-5'
                         }`}
+                        onClick={() => setVerticalIpadExpanded((e) => !e)}
                     >
-                        <Bars3Icon
-                            className="w-6 h-6 text-gray-600"
-                            onClick={() => setVerticalIpadExpanded((e) => !e)}
-                        />
-                    </div>
+                        <Bars3Icon className="w-6 h-6 text-gray-600" />
+                    </button>
                     <div
                         className={`h-full top-0 border-x bg-white ${
                             /* for ipad viewport */ verticalIpadExpanded
