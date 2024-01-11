@@ -3,6 +3,7 @@ import Long from 'long';
 import * as APIMethods from '../api-methods';
 import * as Models from '../models';
 import * as ProcessHandle from '../process-handle';
+import * as Synchronization from '../synchronization';
 import * as Shared from './shared';
 
 export type SuccessCallback = (value: Uint8Array) => void;
@@ -62,7 +63,7 @@ export class QueryManager {
 
         if (stateForSystem === undefined) {
             stateForSystem = {
-                state: new Map(),
+                state: new Map<string, StateForCRDT>(),
             };
 
             this._state.set(systemString, stateForSystem);
@@ -215,6 +216,7 @@ export class QueryManager {
         ]);
 
         events.events.forEach((x) => this.update(x));
+        Synchronization.saveBatch(this._processHandle, events);
     }
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {
