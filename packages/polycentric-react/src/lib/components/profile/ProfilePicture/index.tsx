@@ -1,8 +1,10 @@
 export const ProfilePicture = ({
     src,
+    alt,
     className,
 }: {
     src?: string | undefined;
+    alt?: string;
     className: string;
 }) => {
     return (
@@ -10,7 +12,7 @@ export const ProfilePicture = ({
             {src === undefined ? (
                 <div className="w-full h-full bg-gray-200"></div>
             ) : (
-                <img className="w-full h-full" src={src} />
+                <img className="w-full h-full" src={src} alt={alt} />
             )}
         </div>
     );
