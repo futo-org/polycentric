@@ -24,10 +24,16 @@ export const MobileProfileFeed = ({
     const { processHandle } = useProcessHandleManager();
 
     const [localFollowing, setLocalFollowing] = useState<boolean | undefined>();
+
+    const encodedSystem = useMemo(
+        () => Protocol.PublicKey.encode(system).finish(),
+        [system],
+    );
+
     const remotelyFollowing = useQueryIfAdded(
         Models.ContentType.ContentTypeFollow,
         processHandle.system(),
-        Protocol.PublicKey.encode(system).finish(),
+        encodedSystem,
     );
 
     const follow = useCallback(() => {
@@ -64,6 +70,7 @@ export const MobileProfileFeed = ({
             iAmFollowing: iAmFollowing ?? false,
             followerCount: followers,
             followingCount: following,
+            system,
         }),
         [
             name,
@@ -73,6 +80,7 @@ export const MobileProfileFeed = ({
             iAmFollowing,
             followers,
             following,
+            system,
         ],
     );
 
