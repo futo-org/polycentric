@@ -36,6 +36,7 @@ export function useCRDTQuery<T>(
     parse: (buffer: Uint8Array) => T,
 ): T | null | undefined {
     const queryManager = useQueryManager();
+
     // null -> not yet found
     const [state, setState] = useState<T | null | undefined>(undefined);
 
@@ -728,3 +729,55 @@ export const useQueryReferenceEventFeed = <T>(
 
     return useQueryCursor(loadCallback, decode);
 };
+
+export function useQueryCRDTSet(
+    system: Models.PublicKey.PublicKey | undefined,
+    contentType: Models.ContentType.ContentType,
+    batchSize = 100,
+): [Array<Models.Event.Event>, () => void] {
+    const queryManager = useQueryManager();
+    const [state, setState] = useState<Array<Queries.QueryIndex.Cell>>([]);
+    const [advance, setAdvance] = useState<() => void>(() => () => {});
+
+    useEffect(() => {
+        if (system !== undefined) {
+            const cancelContext = new CancelContext.CancelContext();
+
+            const { advance, unregister } = queryManager.queryCRDTSet.query(
+                system,
+                contentType,
+                (patch) => {
+                    if (cancelContext.cancelled()) {
+                        return;
+                    }
+
+                    setState((state) => {
+                        const out = Queries.QueryIndex.applyPatch(state, patch);
+                        return out;
+                    });
+                },
+            );
+
+            setAdvance(() => () => advance(batchSize));
+
+            return () => {
+                cancelContext.cancel();
+                unregister();
+                setState([]);
+                setAdvance(() => () => {});
+            };
+        }
+    }, [queryManager, system, contentType, batchSize]);
+
+    const events = useMemo(() => {
+        return state
+            .filter((cell) => cell.signedEvent !== undefined)
+            .map((cell) => {
+                // @ts-ignore
+                const event = Models.Event.fromBuffer(cell.signedEvent.event);
+                return event;
+            });
+    }, [state]);
+
+    return [events, advance];
+}
