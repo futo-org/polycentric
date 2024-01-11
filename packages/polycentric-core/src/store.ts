@@ -336,8 +336,21 @@ export namespace ContentTypeUnixMillisecondsSystemProcessClockIndex {
         cursor: Key | undefined;
     };
 
-    function makePrefixKey(contentType: Models.ContentType.ContentType): Key {
-        return new Uint8Array(contentType.toBytesBE()) as Key;
+    const buffer255 = new Uint8Array([255]);
+
+    function makeSmallestKey(contentType: Models.ContentType.ContentType): Key {
+        return Util.concatBuffers([
+            Util.encodeText(contentType.toNumber().toString(16)),
+            buffer255,
+        ]) as Key;
+    }
+
+    function makeLargestKey(contentType: Models.ContentType.ContentType): Key {
+        return Util.concatBuffers([
+            Util.encodeText((contentType.toNumber()).toString(16)),
+            buffer255,
+            buffer255,
+        ]) as Key;
     }
 
     function makeKey(
@@ -348,11 +361,16 @@ export namespace ContentTypeUnixMillisecondsSystemProcessClockIndex {
         logicalClock: Long,
     ): Key {
         return Util.concatBuffers([
-            new Uint8Array(contentType.toBytesBE()),
-            new Uint8Array(unixMilliseconds.toBytesBE()),
-            Protocol.PublicKey.encode(system).finish(),
-            Protocol.Process.encode(process).finish(),
-            new Uint8Array(logicalClock.toBytesBE()),
+            Util.encodeText(contentType.toNumber().toString(16)),
+            buffer255,
+            Util.encodeText(unixMilliseconds.toNumber().toString(16)),
+            buffer255,
+            Util.encodeText(Models.PublicKey.toString(system)),
+            buffer255,
+            Util.encodeText(Models.Process.toString(process)),
+            buffer255,
+            Util.encodeText(logicalClock.toNumber().toString(16)),
+            buffer255,
         ]) as Key;
     }
 
@@ -427,18 +445,14 @@ export namespace ContentTypeUnixMillisecondsSystemProcessClockIndex {
             limit: number,
             cursor: Key | undefined,
         ): Promise<QueryResult> {
-            const end = makePrefixKey(
-                contentType.subtract(1) as Models.ContentType.ContentType
-            );
-
-            const key = cursor ?? makePrefixKey(
-                contentType.add(1) as Models.ContentType.ContentType
+            const key = cursor ?? makeLargestKey(
+                contentType
             );
 
             const rows = await this._level
                 .iterator({
                     lt: key,
-                    gt: end,
+                    gt: makeSmallestKey(contentType),
                     limit: limit,
                     reverse: true,
                 })
