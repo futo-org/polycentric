@@ -1,5 +1,6 @@
 import { ArrowUpOnSquareIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
+import { FollowingList } from '../../FollowingList';
 import {
     EditProfileActions,
     PureEditProfile,
@@ -20,6 +21,7 @@ export const PureMobileFeedProfile = ({
     editProfileActions: EditProfileActions;
 }) => {
     const [editProfileOpen, setEditProfileOpen] = useState(false);
+    const [followingPanelOpen, setFollowingPanelOpen] = useState(false);
 
     return (
         <div className="border-b">
@@ -28,6 +30,11 @@ export const PureMobileFeedProfile = ({
                 actions={editProfileActions}
                 open={editProfileOpen}
                 setOpen={setEditProfileOpen}
+            />
+            <FollowingList
+                system={profile.system}
+                open={followingPanelOpen}
+                setOpen={setFollowingPanelOpen}
             />
             <div className="grid grid-cols-2 gap-4 px-4 pt-4">
                 <div className="col-span-2 ">
@@ -66,16 +73,19 @@ export const PureMobileFeedProfile = ({
                         <ArrowUpOnSquareIcon className="w-6 h-6" />
                     </button>
                 </div>
-                {/* <div className="w-1/2 flex flex-col justify-center">
-          <p>
-            <span className="font-bold">{profile.followerCount ?? 0}</span> followers
-          </p>
-        </div>
-        <div className="flex flex-col justify-center">
-          <p>
-            <span className="font-bold">{profile.followingCount ?? 0}</span> following
-          </p>
-        </div> */}
+                <div className="w-1/2">
+                    <button onClick={() => setFollowingPanelOpen(true)}>
+                        See following
+                    </button>
+                </div>
+                <div className="flex flex-col justify-center">
+                    {/* <p>
+                        <span className="font-bold">
+                            {profile.followerCount ?? 0}
+                        </span>{' '}
+                        followers
+                    </p> */}
+                </div>
                 <div className="w-full text text-gray-500 min-w-0 break-words">
                     {profile.description}
                 </div>
