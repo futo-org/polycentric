@@ -1,7 +1,11 @@
 import { Models, Util } from '@polycentric/polycentric-core';
 import { Virtuoso } from 'react-virtuoso';
 import { useAvatar } from '../../../hooks/imageHooks';
-import { useSystemLink, useUsernameCRDTQuery } from '../../../hooks/queryHooks';
+import {
+    useDescriptionCRDTQuery,
+    useSystemLink,
+    useUsernameCRDTQuery,
+} from '../../../hooks/queryHooks';
 import { Link } from '../../util/link';
 import { Modal } from '../../util/modal';
 import { ProfilePicture } from '../ProfilePicture';
@@ -15,6 +19,7 @@ const AccountListItem = ({
 }) => {
     const avatarURL = useAvatar(system);
     const name = useUsernameCRDTQuery(system);
+    const description = useDescriptionCRDTQuery(system);
     const link = useSystemLink(system);
 
     return (
@@ -29,13 +34,13 @@ const AccountListItem = ({
                         alt={name}
                         className="w-12 h-12 rounded-full"
                     />
-                    <div className="flex flex-col ml-2">
-                        <span className="text-sm font-semibold text-gray-800">
+                    <div className="flex flex-col ml-2 flex-shrink min-w-0">
+                        <span className="text-sm font-semibold text-gray-800 overflow-hidden text-ellipsis whitespace-nowrap">
                             {name}
                         </span>
-                        {/* <span className="text-xs font-normal text-gray-500">
-                            Alt text
-                        </span> */}
+                        <span className="text-xs font-normal text-gray-500 overflow-hidden text-ellipsis whitespace-nowrap">
+                            {description}
+                        </span>
                     </div>
                 </div>
             </Link>
