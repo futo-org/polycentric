@@ -1,4 +1,4 @@
-import { Models, Util } from '@polycentric/polycentric-core';
+import { Models } from '@polycentric/polycentric-core';
 import { Virtuoso } from 'react-virtuoso';
 import { useAvatar } from '../../../hooks/imageHooks';
 import {
@@ -65,7 +65,7 @@ export const AccountList = ({
             itemContent={(index) => (
                 <AccountListItem
                     system={systems[index]}
-                    key={Util.decodeText(systems[index].key)}
+                    key={Models.PublicKey.toString(systems[index])}
                     onClick={() => onItemClick?.(index)}
                 />
             )}
