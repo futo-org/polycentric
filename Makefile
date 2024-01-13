@@ -66,6 +66,8 @@ pretty:
 		packages/harbor-web/src/ \
 		packages/polycentric-desktop/src/ \
 		packages/polycentric-bot/src/ \
+		packages/polycentric-desktop/src/ \
+		packages/polycentric-desktop/electron/ \
 		packages/test-data-generator/src/
 
 build-production: proto

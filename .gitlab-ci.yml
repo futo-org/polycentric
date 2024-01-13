@@ -22,6 +22,7 @@ image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_
     - ${CI_PROJECT_DIR}/node_modules/
     - ${CI_PROJECT_DIR}/packages/polycentric-react/node_modules/
     - ${CI_PROJECT_DIR}/packages/polycentric-core/node_modules/
+    - ${CI_PROJECT_DIR}/packages/polycentric-desktop/node_modules/
     - ${CI_PROJECT_DIR}/packages/harbor-web/node_modules/
   policy: pull
 
@@ -133,6 +134,7 @@ format-desktop:
   script:
     - ./version.sh
     - npx prettier ./packages/polycentric-desktop/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-desktop/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
+    - npx prettier ./packages/polycentric-desktop/electron/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-desktop/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
   needs: ["check"]
 
 format-harbor:
@@ -206,6 +208,12 @@ build-leveldb:
       expire_in: 10 mins
       paths:
         - ./packages/polycentric-leveldb/dist/
+
+build-desktop: 
+  stage: build
+  cache: *node-cache-config
+  script: cd packages/polycentric-desktop && npm run build
+  needs: ["check", "build-core", "build-react", "build-leveldb"]
 
 build-web: 
   stage: build
