@@ -16,7 +16,7 @@ describe('head', () => {
 
         s1p1.setListener((event) => queryManager.update(event));
 
-        const unregister = queryManager.query(s1p1.system(), (value) => {
+        const unregister = queryManager.query(s1p1.system(), () => {
             throw Error('unexpected');
         });
 

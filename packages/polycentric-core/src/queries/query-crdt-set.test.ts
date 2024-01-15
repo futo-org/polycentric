@@ -50,7 +50,7 @@ describe('query crdt set', () => {
         const handle = queryManager.query(
             s1p1.system(),
             Models.ContentType.ContentTypeFollow,
-            (value) => {
+            () => {
                 throw Error('unexpected');
             },
         );

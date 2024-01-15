@@ -73,8 +73,12 @@ function signedEventToCell(signedEvent: Models.SignedEvent.SignedEvent): Cell {
     if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
         const content = Models.Delete.fromBuffer(event.content);
 
+        if (content.unixMilliseconds === undefined) {
+            throw Error('content.unixMilliseconds');
+        }
+
         return {
-            unixMilliseconds: content.unixMilliseconds!,
+            unixMilliseconds: content.unixMilliseconds,
             process: content.process,
             logicalClock: content.logicalClock,
             contentType: content.contentType,
@@ -87,8 +91,12 @@ function signedEventToCell(signedEvent: Models.SignedEvent.SignedEvent): Cell {
             isDelete: true,
         };
     } else {
+        if (event.unixMilliseconds === undefined) {
+            throw Error('event.unixMilliseconds');
+        }
+
         return {
-            unixMilliseconds: event.unixMilliseconds!,
+            unixMilliseconds: event.unixMilliseconds,
             process: event.process,
             logicalClock: event.logicalClock,
             contentType: event.contentType,
@@ -387,9 +395,13 @@ export class QueryManager {
                     continue;
                 }
 
+                if (nextEventByTime.unixMilliseconds === undefined) {
+                    throw Error('expected nextEventByTime.unixMilliseconds');
+                }
+
                 if (
                     nextEventByClock.unixMilliseconds.greaterThanOrEqual(
-                        nextEventByTime.unixMilliseconds!,
+                        nextEventByTime.unixMilliseconds,
                     )
                 ) {
                     missingAfter.push(currentEvent);
@@ -486,7 +498,11 @@ export class QueryManager {
             }
         }
 
-        stateForQuery.earliestTimeBySource.set(source, earliestTime!);
+        if (earliestTime === undefined) {
+            throw Error('impossible');
+        }
+
+        stateForQuery.earliestTimeBySource.set(source, earliestTime);
 
         for (const cell of allCells) {
             stateForQuery.eventsByProcessAndLogicalClock.set(cell.key, cell);

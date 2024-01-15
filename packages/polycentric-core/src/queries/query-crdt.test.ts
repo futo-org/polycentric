@@ -20,7 +20,7 @@ describe('query crdt', () => {
         const unregister = queryManager.query(
             s1p1.system(),
             Models.ContentType.ContentTypeUsername,
-            (value) => {
+            () => {
                 throw Error('unexpected');
             },
         );

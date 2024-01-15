@@ -60,7 +60,7 @@ export function createPersistenceDriverMemory(): IPersistenceDriver {
         return 'Memory';
     };
 
-    const openStore = async (path: string) => {
+    const openStore = async () => {
         return new MemoryLevel.MemoryLevel<Uint8Array, Uint8Array>({
             keyEncoding: 'buffer',
             valueEncoding: 'buffer',
@@ -78,7 +78,8 @@ export function createPersistenceDriverMemory(): IPersistenceDriver {
         return false;
     };
 
-    const destroyStore = async (path: string) => {};
+    /* eslint @typescript-eslint/no-empty-function: 0 */
+    const destroyStore = async () => {};
 
     return {
         getImplementationName: getImplementationName,

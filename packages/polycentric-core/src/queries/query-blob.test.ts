@@ -29,7 +29,7 @@ describe('query blob', () => {
             s1p1.system(),
             s1p1.process(),
             [],
-            (value) => {
+            () => {
                 throw Error('unexpected');
             },
         );

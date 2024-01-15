@@ -162,19 +162,25 @@ export class QueryManager {
                 item.contentType as Models.ContentType.ContentType,
             );
 
-            let stateForCRDT = stateForSystem.state.get(contentTypeKey);
+            const stateForCRDT = (() => {
+                const existingState = stateForSystem.state.get(contentTypeKey);
 
-            if (stateForCRDT === undefined) {
-                stateForCRDT = {
-                    value: item.value,
-                    unixMilliseconds: item.unixMilliseconds,
-                    successCallbacks: new Set(),
-                    notYetFoundCallbacks: new Set(),
-                    fulfilled: true,
-                };
+                if (existingState === undefined) {
+                    const initialState = {
+                        value: item.value,
+                        unixMilliseconds: item.unixMilliseconds,
+                        successCallbacks: new Set<SuccessCallback>(),
+                        notYetFoundCallbacks: new Set<NotYetFoundCallback>(),
+                        fulfilled: true,
+                    };
 
-                stateForSystem.state.set(contentTypeKey, stateForCRDT);
-            }
+                    stateForSystem.state.set(contentTypeKey, initialState);
+
+                    return initialState;
+                } else {
+                    return existingState;
+                }
+            })();
 
             if (stateForCRDT.unixMilliseconds >= item.unixMilliseconds) {
                 continue;
@@ -185,7 +191,7 @@ export class QueryManager {
             stateForCRDT.fulfilled = true;
 
             stateForCRDT.successCallbacks.forEach((callback) => {
-                callback(stateForCRDT!.value);
+                callback(stateForCRDT.value);
             });
         }
     }

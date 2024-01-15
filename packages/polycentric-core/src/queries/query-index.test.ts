@@ -11,7 +11,7 @@ function extractGenericClaim(cell: QueryIndex.Cell): string | undefined {
         return undefined;
     }
 
-    const event = Models.Event.fromBuffer(cell.signedEvent!.event);
+    const event = Models.Event.fromBuffer(cell.signedEvent.event);
 
     if (event.contentType.notEquals(Models.ContentType.ContentTypeClaim)) {
         throw Error('expected ContentTypeClaim');
@@ -23,7 +23,11 @@ function extractGenericClaim(cell: QueryIndex.Cell): string | undefined {
         throw Error('expected Generic');
     }
 
-    return claim.claimFields[0]!.value;
+    if (claim.claimFields.length === 0) {
+        throw Error('expected claim field');
+    }
+
+    return claim.claimFields[0].value;
 }
 
 async function copyEventBetweenHandles(
@@ -31,17 +35,15 @@ async function copyEventBetweenHandles(
     from: ProcessHandle.ProcessHandle,
     to: ProcessHandle.ProcessHandle,
 ): Promise<void> {
-    await to.ingest(
-        Models.SignedEvent.fromProto(
-            (await from
-                .store()
-                .getSignedEvent(
-                    pointer.system,
-                    pointer.process,
-                    pointer.logicalClock,
-                ))!,
-        ),
-    );
+    const signedEvent = await from
+        .store()
+        .getSignedEvent(pointer.system, pointer.process, pointer.logicalClock);
+
+    if (signedEvent === undefined) {
+        throw new Error('expected signedEvent');
+    }
+
+    await to.ingest(signedEvent);
 }
 
 describe('query index', () => {
@@ -57,7 +59,7 @@ describe('query index', () => {
         const handle = queryManager.query(
             s1p1.system(),
             Models.ContentType.ContentTypeClaim,
-            (value) => {
+            () => {
                 throw Error('unexpected');
             },
         );

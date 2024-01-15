@@ -12,8 +12,10 @@ module.exports = {
     sourceType: 'module',
     project: './tsconfig.json',
   },
-  plugins: ['react', 'react-refresh'],
-  rules: {},
+  plugins: ['react', 'react-refresh', 'jest'],
+  rules: {
+    "@typescript-eslint/no-namespace": "off"
+  },
   settings: {
     react: {
       version: 'detect',

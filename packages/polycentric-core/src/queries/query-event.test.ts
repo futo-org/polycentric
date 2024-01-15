@@ -24,7 +24,11 @@ function extractGenericClaim(
         throw Error('expected Generic');
     }
 
-    return claim.claimFields[0]!.value;
+    if (claim.claimFields.length == 0) {
+        throw Error('expected claimField');
+    }
+
+    return claim.claimFields[0].value;
 }
 
 describe('query event', () => {
@@ -41,7 +45,7 @@ describe('query event', () => {
             s1p1.system(),
             s1p1.processSecret().process,
             Long.UZERO,
-            (value) => {
+            () => {
                 throw Error('unexpected');
             },
         );
@@ -62,7 +66,11 @@ describe('query event', () => {
 
         const cb = (value: Models.SignedEvent.SignedEvent | undefined) => {
             if (stage === 0) {
-                expect(extractGenericClaim(value!)).toStrictEqual('1');
+                if (value == undefined) {
+                    throw Error('expected value');
+                }
+
+                expect(extractGenericClaim(value)).toStrictEqual('1');
             } else if (stage === 1) {
                 expect(value).toBeUndefined();
             } else {
@@ -102,7 +110,10 @@ describe('query event', () => {
 
         await new Promise<void>((resolve) => {
             const cb = (value: Models.SignedEvent.SignedEvent | undefined) => {
-                expect(extractGenericClaim(value!)).toStrictEqual('1');
+                if (value === undefined) {
+                    throw Error('expected value');
+                }
+                expect(extractGenericClaim(value)).toStrictEqual('1');
                 resolve();
             };
 
@@ -125,7 +136,10 @@ describe('query event', () => {
 
         await new Promise<void>((resolve) => {
             const cb = (value: Models.SignedEvent.SignedEvent | undefined) => {
-                expect(extractGenericClaim(value!)).toStrictEqual('1');
+                if (value === undefined) {
+                    throw Error('expected value');
+                }
+                expect(extractGenericClaim(value)).toStrictEqual('1');
                 resolve();
             };
 
