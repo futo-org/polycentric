@@ -1,3 +1,5 @@
+/* eslint @typescript-eslint/no-non-null-assertion: 0 */
+
 import Long from 'long';
 
 import * as Base64 from '@borderless/base64';
@@ -84,6 +86,7 @@ describe('integration', () => {
         );
 
         expect(resolved.matches.length).toStrictEqual(1);
+        expect(resolved.matches[0].claim).toBeDefined();
 
         expect(
             Models.Pointer.equal(
