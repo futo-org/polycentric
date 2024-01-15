@@ -111,10 +111,6 @@ function signedEventToCell(signedEvent: Models.SignedEvent.SignedEvent): Cell {
     }
 }
 
-function rawEventToCell(rawEvent: Protocol.SignedEvent): Cell {
-    return signedEventToCell(Models.SignedEvent.fromProto(rawEvent));
-}
-
 export type CallbackParameters = {
     add: ReadonlyArray<Cell>;
     remove: ReadonlySet<string>;
@@ -259,7 +255,7 @@ export class QueryManager {
             );
 
         this.updateQueryBatch(
-            events.map(rawEventToCell),
+            events.map(signedEventToCell),
             [],
             'disk',
             stateForQuery,
@@ -304,8 +300,8 @@ export class QueryManager {
         );
 
         this.updateQueryBatch(
-            response.events.map(rawEventToCell),
-            response.proof.map(rawEventToCell),
+            response.events.map(signedEventToCell),
+            response.proof.map(signedEventToCell),
             server,
             stateForQuery,
         );
@@ -324,7 +320,7 @@ export class QueryManager {
 
         for (const stateForQuery of stateForSystem.queries.values()) {
             this.updateQueryBatch(
-                [rawEventToCell(signedEvent)],
+                [signedEventToCell(signedEvent)],
                 [],
                 'unknown',
                 stateForQuery,

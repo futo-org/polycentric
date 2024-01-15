@@ -90,9 +90,7 @@ describe('integration', () => {
 
         expect(
             Models.Pointer.equal(
-                Models.signedEventToPointer(
-                    Models.SignedEvent.fromProto(resolved.matches[0].claim!),
-                ),
+                Models.signedEventToPointer(resolved.matches[0].claim!),
                 claimPointer,
             ),
         ).toStrictEqual(true);
@@ -102,9 +100,7 @@ describe('integration', () => {
         expect(
             Models.Pointer.equal(
                 Models.signedEventToPointer(
-                    Models.SignedEvent.fromProto(
-                        resolved.matches[0]!.proofChain[0]!,
-                    ),
+                    resolved.matches[0]!.proofChain[0]!,
                 ),
                 vouchPointer,
             ),

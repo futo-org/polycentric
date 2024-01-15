@@ -107,7 +107,7 @@ export async function getResolveClaim(
     trustRoot: Models.PublicKey.PublicKey,
     claimType: Models.ClaimType.ClaimType,
     matchAnyField: string,
-): Promise<Protocol.QueryClaimToSystemResponse> {
+): Promise<Models.QueryClaimToSystemResponse.ResponseType> {
     const query = Base64.encodeUrl(
         Protocol.QueryClaimToSystemRequest.encode({
             claimType: claimType,
@@ -129,7 +129,7 @@ export async function getResolveClaim(
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
-    return Protocol.QueryClaimToSystemResponse.decode(rawBody);
+    return Models.QueryClaimToSystemResponse.responseTypeFromBuffer(rawBody);
 }
 
 export async function getQueryLatest(
@@ -171,7 +171,7 @@ export async function getQueryIndex(
     contentType: Models.ContentType.ContentType,
     after?: Long,
     limit?: Long,
-): Promise<Protocol.QueryIndexResponse> {
+): Promise<Models.QueryIndexResponse.Type> {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
     );
@@ -193,7 +193,7 @@ export async function getQueryIndex(
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
-    return Protocol.QueryIndexResponse.decode(rawBody);
+    return Models.QueryIndexResponse.fromBuffer(rawBody);
 }
 
 export async function getQueryReferences(
