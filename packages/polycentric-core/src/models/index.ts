@@ -1,12 +1,14 @@
-import * as Protocol from './protocol';
+import * as Protocol from '../protocol';
 
 import * as Base64 from '@borderless/base64';
 import * as Ed from '@noble/ed25519';
 import * as FastSHA256 from 'fast-sha256';
 import Long from 'long';
 
-import { Models } from '.';
-import * as Util from './util';
+import * as Util from '../util';
+
+export * as QueryClaimToSystemResponse from './query-claim-to-system-response';
+export * as QueryIndexResponse from './query-index-response';
 
 export namespace ContentType {
     export type ContentType = Readonly<Long> & {
@@ -847,8 +849,7 @@ export namespace ResultEventsAndRelatedEventsAndCursor {
                 events: response.items
                     .map((i) => i.event)
                     .filter(
-                        (e): e is Models.SignedEvent.SignedEvent =>
-                            e !== undefined,
+                        (e): e is SignedEvent.SignedEvent => e !== undefined,
                     ),
             },
             relatedEvents: {
