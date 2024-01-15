@@ -453,6 +453,10 @@ export class QueryManager {
     ): void {
         const allCells = cells.concat(proofCells);
 
+        if (cells.length === 0) {
+            return;
+        }
+
         if (!this.validateBatchIsRelevant(cells, stateForQuery.contentType)) {
             return;
         }
