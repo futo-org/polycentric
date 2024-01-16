@@ -2,6 +2,7 @@ import { IonContent } from '@ionic/react';
 import { Page } from '../../app/router';
 import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
+import { ExportKey } from '../../components/settings/ExportKey';
 import { ServerListTable } from '../../components/settings/ServerTable';
 
 export const SettingsPage: Page = () => {
@@ -11,9 +12,17 @@ export const SettingsPage: Page = () => {
 
             <IonContent>
                 <RightCol leftCol={<div />} desktopTitle="Settings">
-                    <div className="p-5 md:p-10 flex flex-col space-y-3">
-                        <h2 className="font-medium">Edit Servers</h2>
-                        <ServerListTable />
+                    <div className="p-5 md:p-10 flex flex-col space-y-6 text-sm">
+                        <div className="flex flex-col space-y-3">
+                            <h2 className="font-medium">Edit Servers</h2>
+                            <ServerListTable />
+                        </div>
+                        <div className="flex flex-col space-y-3">
+                            <h2 className="font-medium">
+                                Backup account login token
+                            </h2>
+                            <ExportKey />
+                        </div>
                     </div>
                 </RightCol>
             </IonContent>

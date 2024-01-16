@@ -39,6 +39,7 @@
     "@types/react-router-dom": "^5.3.3",
     "jdenticon": "^3.2.0",
     "react-easy-crop": "^5.0.4",
+    "react-qr-code": "^2.0.12",
     "react-router-dom": "^5.3.4",
     "react-virtuoso": "^4.6.2",
     "swiper": "^10.3.1",

@@ -6,11 +6,11 @@ import * as MetaStore from './meta-store';
 import * as Models from './models';
 import * as PersistenceDriver from './persistence-driver';
 import * as Protocol from './protocol';
+import * as Queries from './queries';
 import * as Ranges from './ranges';
 import * as Store from './store';
 import * as Synchronization from './synchronization';
 import * as Util from './util';
-import * as Queries from './queries';
 
 export class SystemState {
     private _servers: Array<string>;
@@ -666,6 +666,50 @@ export class ProcessHandle {
         this.synchronizer.synchronizationHint();
 
         return Models.signedEventToPointer(signedEvent);
+    }
+
+    private async getCurrentSignedServerEvents(): Promise<
+        Models.SignedEvent.SignedEvent[]
+    > {
+        return new Promise((resolve) => {
+            const { advance, unregister } =
+                this.queryManager.queryCRDTSet.query(
+                    this.system(),
+                    Models.ContentType.ContentTypeServer,
+                    (state) => {
+                        unregister();
+                        const serverCellList = Queries.QueryIndex.applyPatch(
+                            [],
+                            state,
+                        );
+                        const signedServerEvents = serverCellList
+                            .map((cell) => cell.signedEvent)
+                            .filter(
+                                (e) => e !== undefined,
+                            ) as Models.SignedEvent.SignedEvent[];
+
+                        resolve(signedServerEvents);
+                    },
+                );
+            advance(100);
+        });
+    }
+
+    async createExportBundle(): Promise<Protocol.ExportBundle> {
+        const signedServerEvents = await this.getCurrentSignedServerEvents();
+
+        const keyPair = {
+            keyType: this.processSecret().system.keyType,
+            privateKey: this.processSecret().system.key,
+            publicKey: this.system().key,
+        };
+
+        return {
+            keyPair: keyPair,
+            events: {
+                events: [...signedServerEvents],
+            },
+        };
     }
 }
 
