@@ -230,6 +230,7 @@ const RequestPersistencePanel = ({ nextSlide }: { nextSlide: () => void }) => {
 const GenCredsPanelItem = ({
     title,
     hint,
+    type = 'text',
     ...rest
 }: {
     value?: string;
@@ -238,12 +239,13 @@ const GenCredsPanelItem = ({
     hint?: string;
     autoComplete?: string;
     readOnly?: boolean;
+    type?: string;
 } & InputHTMLAttributes<HTMLInputElement>) => (
     <div className="flex flex-col gap-y-1">
         <h3 className="font-medium">{title}</h3>
         <input
-            type="text"
             className="rounded-lg border text-xl p-3"
+            type={type}
             {...rest}
         />
         <p className="text-sm text-gray-700">{hint}</p>
@@ -333,6 +335,7 @@ const CredsPanelSignIn = () => {
                 title="What's your Polycentric backup key?"
                 value={backupKey}
                 placeholder="polycentric://"
+                type="password"
                 onChange={(e) => {
                     if (backupKeyError) setBackupKeyError(null);
                     setBackupKey(e.target.value);
