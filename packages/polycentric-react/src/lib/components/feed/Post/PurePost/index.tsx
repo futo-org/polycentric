@@ -65,6 +65,7 @@ export const PostActionButton = ({
                 onClick();
             }}
             className={'flex items-center space-x-1'}
+            disabled={placeholderMode}
         >
             <div aria-label={name}>
                 <Icon
@@ -76,7 +77,7 @@ export const PostActionButton = ({
             {(count != null || placeholderMode) && (
                 <span className="text-gray-500 text-sm">
                     {placeholderMode ? (
-                        <Placeholder className=" aspect-square w-auto h-[1.5em]" />
+                        <div className="leading-none animate-pulse bg-slate-200 rounded-full aspect-square w-auto h-[1.5em]" />
                     ) : (
                         count
                     )}
