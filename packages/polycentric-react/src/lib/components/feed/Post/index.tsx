@@ -1,5 +1,5 @@
 import { Models, Protocol, Util } from '@polycentric/polycentric-core';
-import { forwardRef, useMemo } from 'react';
+import { forwardRef, useEffect, useMemo } from 'react';
 import {
     useAvatar,
     useImageManifestDisplayURL,
@@ -15,20 +15,20 @@ import {
 import { usePostStatsWithLocalActions } from '../../../hooks/statsHooks';
 import { PurePost, PurePostProps } from './PurePost';
 
-interface PostProps {
+export interface PostProps {
     data: ParsedEvent<Protocol.Post> | undefined;
     doesLink?: boolean;
     autoExpand?: boolean;
+    onBasicsLoaded?: () => void;
+    showPlaceholders?: boolean;
 }
 
-interface LoadedPostProps {
+type LoadedPostProps = PostProps & {
     data: ParsedEvent<Protocol.Post>;
-    doesLink?: boolean;
-    autoExpand?: boolean;
-}
+};
 
 const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
-    ({ data, doesLink, autoExpand }, ref) => {
+    ({ data, doesLink, autoExpand, onBasicsLoaded, showPlaceholders }, ref) => {
         const { value, event, signedEvent } = data;
         const { content, image } = value;
 
@@ -113,6 +113,15 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
 
         const { actions, stats } = usePostStatsWithLocalActions(pointer);
 
+        useEffect(() => {
+            const basicsLoaded =
+                mainUsername !== undefined && mainAvatar !== undefined;
+
+            if (basicsLoaded) {
+                onBasicsLoaded?.();
+            }
+        }, [mainUsername, mainAvatar, onBasicsLoaded]);
+
         return (
             <PurePost
                 ref={ref}
@@ -121,6 +130,7 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
                 actions={actions}
                 doesLink={doesLink}
                 autoExpand={autoExpand}
+                showPlaceholders={showPlaceholders}
             />
         );
     },
@@ -128,23 +138,17 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
 LoadedPost.displayName = 'LoadedPost';
 
 const UnloadedPost = forwardRef<HTMLDivElement>((_, ref) => {
-    return <PurePost ref={ref} main={undefined} />;
+    return <PurePost ref={ref} main={undefined} showPlaceholders={true} />;
 });
 UnloadedPost.displayName = 'UnloadedPost';
 
-export const Post = forwardRef<HTMLDivElement, PostProps>(
-    ({ data, doesLink, autoExpand }, ref) => {
-        return data ? (
-            <LoadedPost
-                ref={ref}
-                data={data}
-                doesLink={doesLink}
-                autoExpand={autoExpand}
-            />
-        ) : (
-            <UnloadedPost ref={ref} />
-        );
-    },
-);
+export const Post = forwardRef<HTMLDivElement, PostProps>((props, ref) => {
+    const { data } = props;
+    return data ? (
+        <LoadedPost ref={ref} {...props} data={data} />
+    ) : (
+        <UnloadedPost ref={ref} />
+    );
+});
 
 Post.displayName = 'Post';

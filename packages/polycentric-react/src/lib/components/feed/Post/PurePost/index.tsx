@@ -27,6 +27,24 @@ const dateToAgoString = (date: Date | undefined) => {
     }
 };
 
+const Placeholder = ({ className }: { className?: string }) => (
+    <div
+        className={`${className} leading-none animate-pulse bg-slate-200 rounded-full h-[1em]`}
+    />
+);
+
+interface BasePostActionButtonProps {
+    name: string;
+    DefaultIcon: React.FC<{ className?: string }>;
+    ClickedIcon?: React.FC<{ className?: string }>;
+    className?: string;
+    clickedIconClassName?: string;
+    onClick: () => void;
+    count?: number;
+    clicked?: boolean;
+    placeholderMode?: boolean;
+}
+
 export const PostActionButton = ({
     name,
     DefaultIcon,
@@ -36,16 +54,8 @@ export const PostActionButton = ({
     onClick,
     count,
     clicked = false,
-}: {
-    name: string;
-    DefaultIcon: React.FC<{ className?: string }>;
-    ClickedIcon?: React.FC<{ className?: string }>;
-    className?: string;
-    clickedIconClassName?: string;
-    onClick: () => void;
-    count?: number;
-    clicked?: boolean;
-}) => {
+    placeholderMode = false,
+}: BasePostActionButtonProps) => {
     const Icon = (clicked ? ClickedIcon : DefaultIcon) ?? DefaultIcon;
     const displayClassName = clicked ? clickedIconClassName : className;
     return (
@@ -56,11 +66,21 @@ export const PostActionButton = ({
             }}
             className={'flex items-center space-x-1'}
         >
-            <div className="" aria-label={name}>
-                <Icon className={displayClassName} />
+            <div aria-label={name}>
+                <Icon
+                    className={`${
+                        placeholderMode ? 'text-slate-200 animate-pulse' : ''
+                    } ${displayClassName}`}
+                />
             </div>
-            {count != null && (
-                <span className="text-gray-500 text-sm">{count}</span>
+            {(count != null || placeholderMode) && (
+                <span className="text-gray-500 text-sm">
+                    {placeholderMode ? (
+                        <Placeholder className=" aspect-square w-auto h-[1.5em]" />
+                    ) : (
+                        count
+                    )}
+                </span>
             )}
         </button>
     );
@@ -145,65 +165,42 @@ const ShareIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
-export const LikeButton = ({
-    onClick,
-    count,
-    clicked = false,
-}: {
-    onClick: () => void;
-    count?: number;
-    className?: string;
-    clicked: boolean;
-}) => {
+// BasePostActionButtonProps without name and DefaultIcon
+export type PostActionButtonProps = Omit<
+    BasePostActionButtonProps,
+    'name' | 'DefaultIcon'
+>;
+
+export const LikeButton = (props: PostActionButtonProps) => {
     return (
         <PostActionButton
+            {...props}
             name="Like"
             DefaultIcon={HeartIconOutline}
             ClickedIcon={HeartIconSolid}
             clickedIconClassName="w-6 h-6 text-rose-700"
-            onClick={onClick}
-            count={count}
-            clicked={clicked}
         />
     );
 };
 
-export const DislikeButton = ({
-    onClick,
-    count,
-    clicked = false,
-}: {
-    onClick: () => void;
-    count?: number;
-    className?: string;
-    clicked: boolean;
-}) => {
+export const DislikeButton = (props: PostActionButtonProps) => {
     return (
         <PostActionButton
+            {...props}
             name="Dislike"
             DefaultIcon={DownvoteButton}
             className="h-5 w-5 m-0.5 text-black"
             clickedIconClassName="h-6 w-6 stroke-2"
-            onClick={onClick}
-            count={count}
-            clicked={clicked}
         />
     );
 };
 
-const CommentButton = ({
-    onClick,
-    count,
-}: {
-    onClick: () => void;
-    count?: number;
-}) => {
+const CommentButton = (props: PostActionButtonProps) => {
     return (
         <PostActionButton
+            {...props}
             name="Comment"
             DefaultIcon={CommentIconOutline}
-            onClick={onClick}
-            count={count}
         />
     );
 };
@@ -254,6 +251,7 @@ export interface PurePostProps {
     };
     doesLink?: boolean;
     autoExpand?: boolean;
+    showPlaceholders?: boolean;
 }
 
 const PostLinkContainer = ({
@@ -300,6 +298,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
             actions,
             doesLink = true,
             autoExpand = false,
+            showPlaceholders = false,
         }: PurePostProps,
         infiniteScrollRef,
     ) => {
@@ -388,6 +387,9 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                         >
                                             <ProfilePicture
                                                 src={main.author.avatarURL}
+                                                showPlaceholder={
+                                                    showPlaceholders
+                                                }
                                                 className="h-16 w-16 md:h-20 md:w-20"
                                             />
                                         </Link>
@@ -419,6 +421,9 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                     stats?.opinion ===
                                                         'liked' ?? false
                                                 }
+                                                placeholderMode={
+                                                    showPlaceholders
+                                                }
                                             />
                                             <DislikeButton
                                                 onClick={() =>
@@ -436,6 +441,9 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                     stats?.opinion ===
                                                         'disliked' ?? false
                                                 }
+                                                placeholderMode={
+                                                    showPlaceholders
+                                                }
                                             />
                                             {isMobile === false && (
                                                 <>
@@ -449,6 +457,9 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                             isMobile
                                                                 ? undefined
                                                                 : stats?.comments
+                                                        }
+                                                        placeholderMode={
+                                                            showPlaceholders
                                                         }
                                                     />
                                                 </>
@@ -474,7 +485,11 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                     className="text-inherit flex-shrink min-w-0"
                                                 >
                                                     <address className="font-bold text-base author not-italic hover:underline h-[1.5rem] w-full overflow-hidden overflow-ellipsis">
-                                                        {main.author.name}
+                                                        {showPlaceholders ? (
+                                                            <Placeholder className="w-28" />
+                                                        ) : (
+                                                            main.author.name
+                                                        )}
                                                     </address>
                                                 </Link>
                                                 <time className="text-right sm:text-right font-light text-gray-400 sm:text-sm flex-grow min-w-max">
@@ -491,19 +506,29 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                         }
                                                         className="text-black w-full block overflow-hidden text-ellipsis"
                                                     >
-                                                        Replying to{' '}
-                                                        <span className="text-gray-500">
-                                                            {
-                                                                main.replyingToName
-                                                            }
-                                                        </span>
+                                                        {showPlaceholders ? (
+                                                            <Placeholder className="w-72" />
+                                                        ) : (
+                                                            <>
+                                                                Replying to{' '}
+                                                                <span className="text-gray-500">
+                                                                    {
+                                                                        main.replyingToName
+                                                                    }
+                                                                </span>
+                                                            </>
+                                                        )}
                                                     </Link>
                                                 ) : main.topic ? (
                                                     <Link
                                                         routerLink={topicLink}
                                                         className="text-gray-300 w-full block overflow-hidden text-ellipsis"
                                                     >
-                                                        {displayTopic}
+                                                        {showPlaceholders ? (
+                                                            <Placeholder className="w-72" />
+                                                        ) : (
+                                                            displayTopic
+                                                        )}
                                                     </Link>
                                                 ) : undefined}
                                             </div>
@@ -528,7 +553,9 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                             }
                                             ref={mainRef}
                                         >
-                                            {main.content}
+                                            {showPlaceholders
+                                                ? undefined
+                                                : main.content}
                                         </main>
                                         <button
                                             onClick={(e) => {
