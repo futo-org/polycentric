@@ -1,4 +1,5 @@
 import Long from 'long';
+import * as RXJS from 'rxjs';
 
 import * as APIMethods from '../api-methods';
 import * as ProcessHandle from '../process-handle';
@@ -207,4 +208,17 @@ export class QueryManager {
             }
         }
     }
+}
+
+export function observableQuery(
+    queryManager: QueryManager,
+    system: Models.PublicKey.PublicKey,
+    process: Models.Process.Process,
+    ranges: ReadonlyArray<Ranges.IRange>,
+): RXJS.Observable<Uint8Array> {
+    return new RXJS.Observable((subscriber) => {
+        return queryManager.query(system, process, ranges, (value) => {
+            subscriber.next(value);
+        });
+    });
 }

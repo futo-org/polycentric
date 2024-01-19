@@ -1,10 +1,12 @@
-import { Models, Protocol } from '@polycentric/polycentric-core';
+import { Models, Protocol, Queries } from '@polycentric/polycentric-core';
 import { toSvg } from 'jdenticon';
 import Long from 'long';
+import * as RXJS from 'rxjs';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { avatarResolutions } from '../util/imageProcessing';
-import { useBlobQuery, useCRDTQuery, useTextPublicKey } from './queryHooks';
+import { useBlobQuery, useQueryManager } from './queryHooks';
+import { ObservableCacheItem, useObservableWithCache } from './utilHooks';
 
 const blobURLCache = new Map<Blob, { url: string; count: number }>();
 
@@ -73,59 +75,98 @@ export const useImageManifestDisplayURL = (
     return imageURL;
 };
 
-const decodeAvatarImageBundle = (
-    rawImageBundle: Uint8Array,
-    squareHeight: number,
-) => {
-    const imageBundle = Protocol.ImageBundle.decode(rawImageBundle);
+function observableBlobToURL(blob: Blob): RXJS.Observable<string> {
+    return new RXJS.Observable((subscriber) => {
+        const url = URL.createObjectURL(blob);
+        subscriber.next(url);
+        return () => {
+            URL.revokeObjectURL(url);
+        };
+    });
+}
 
-    const manifest = imageBundle.imageManifests.find((manifest) => {
-        return (
-            manifest.height.equals(Long.fromNumber(squareHeight)) &&
-            manifest.width.equals(Long.fromNumber(squareHeight))
+function observableSystemToBlob(
+    system: Models.PublicKey.PublicKey,
+): RXJS.Observable<Blob> {
+    return new RXJS.Observable((subscriber) => {
+        subscriber.next(
+            new Blob([toSvg(Models.PublicKey.toString(system), 100)], {
+                type: 'image/svg+xml',
+            }),
         );
     });
+}
 
-    if (manifest === undefined) {
-        return undefined;
-    }
-
-    return manifest;
-};
-
-const makeImageBundleDecoder = (squareHeight: number) => {
-    return (rawImageBundle: Uint8Array) => {
-        return decodeAvatarImageBundle(rawImageBundle, squareHeight);
-    };
-};
-
-export const useAvatar = (
-    system?: Models.PublicKey.PublicKey,
+const observableAvatar = (
+    queryManager: Queries.QueryManager.QueryManager,
+    system: Readonly<Models.PublicKey.PublicKey>,
     size: keyof typeof avatarResolutions = 'lg',
-): string | undefined => {
-    const decoder = useMemo(() => {
-        const squareHeight = avatarResolutions[size];
-        return makeImageBundleDecoder(squareHeight);
-    }, [size]);
-
-    const manifest = useCRDTQuery(
+): RXJS.Observable<string> => {
+    return Queries.QueryCRDT.observableQuery(
+        queryManager.queryCRDT,
         system,
         Models.ContentType.ContentTypeAvatar,
-        decoder,
-    );
+    )
+        .pipe(
+            RXJS.switchMap((rawImageBundle) => {
+                if (rawImageBundle) {
+                    const imageBundle =
+                        Protocol.ImageBundle.decode(rawImageBundle);
+                    const resolution = Long.fromNumber(avatarResolutions[size]);
+                    const manifest = imageBundle.imageManifests.find(
+                        (manifest) => {
+                            return (
+                                manifest.height.equals(resolution) &&
+                                manifest.width.equals(resolution)
+                            );
+                        },
+                    );
 
-    const stringKey = useTextPublicKey(system);
+                    if (
+                        manifest === undefined ||
+                        manifest.process === undefined
+                    ) {
+                        console.warn('manifest or manifest.process missing');
+                        return observableSystemToBlob(system);
+                    }
 
-    const jdenticonSrc = useMemo(() => {
-        if (manifest == null) {
-            const svgString = toSvg(stringKey, 100);
-            const svg = new Blob([svgString], { type: 'image/svg+xml' });
-            return URL.createObjectURL(svg);
-        }
-    }, [manifest, stringKey]);
+                    return Queries.QueryBlob.observableQuery(
+                        queryManager.queryBlob,
+                        system,
+                        Models.Process.fromProto(manifest.process),
+                        manifest.sections,
+                    ).pipe(
+                        RXJS.switchMap((buffer) => {
+                            return RXJS.of(
+                                new Blob([buffer], {
+                                    type: manifest.mime,
+                                }),
+                            );
+                        }),
+                    );
+                } else {
+                    return observableSystemToBlob(system);
+                }
+            }),
+        )
+        .pipe(RXJS.switchMap((blob) => observableBlobToURL(blob)));
+};
 
-    const manifestDisplayURL = useImageManifestDisplayURL(system, manifest);
-    const displayURL = manifest === null ? jdenticonSrc : manifestDisplayURL;
+const useAvatarCache: Map<string, ObservableCacheItem<string>> = new Map();
 
-    return displayURL;
+export const useAvatar = (
+    system: Readonly<Models.PublicKey.PublicKey>,
+    size: keyof typeof avatarResolutions = 'lg',
+): string | undefined => {
+    const queryManager = useQueryManager();
+
+    const cacheKey = useMemo(() => {
+        return Models.PublicKey.toString(system) + size;
+    }, [system, size]);
+
+    const observable = useMemo(() => {
+        return observableAvatar(queryManager, system, size);
+    }, [queryManager, system, size]);
+
+    return useObservableWithCache(useAvatarCache, cacheKey, 100, observable);
 };
