@@ -132,6 +132,7 @@ export class ProcessHandle {
         processSecret: Models.ProcessSecret.ProcessSecret,
         system: Models.PublicKey.PublicKey,
     ) {
+        store.system = system;
         this._store = store;
         this._processSecret = processSecret;
         this._system = system;
@@ -655,6 +656,8 @@ export class ProcessHandle {
                 event,
             )),
         );
+
+        actions.push(...(await this._store.indexFeed.ingest(signedEvent)));
 
         await this._store.level.batch(actions);
 

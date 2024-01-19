@@ -1,10 +1,13 @@
 import Long from 'long';
 import * as Base64 from '@borderless/base64';
 
-import * as Util from './util';
-import * as Models from './models';
-import * as Protocol from './protocol';
-import * as PersistenceDriver from './persistence-driver';
+import * as Util from '../util';
+import * as Models from '../models';
+import * as Protocol from '../protocol';
+import * as PersistenceDriver from '../persistence-driver';
+import * as IndexFeed from './index-feed';
+
+export * as IndexFeed from './index-feed';
 
 const PROCESS_SECRET_KEY: Uint8Array = Util.encodeText('PROCESS_SECRET');
 
@@ -36,7 +39,7 @@ function makeProcessStateKey(
     );
 }
 
-function makeEventKey(
+export function makeEventKey(
     system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
     logicalClock: Long,
@@ -328,13 +331,16 @@ export class OpinionIndex {
 }
 
 export class Store {
-    level: PersistenceDriver.BinaryAbstractLevel;
-    levelSystemStates: PersistenceDriver.BinaryAbstractSubLevel;
-    levelProcessStates: PersistenceDriver.BinaryAbstractSubLevel;
-    levelEvents: PersistenceDriver.BinaryAbstractSubLevel;
-    levelIndexSystemContentTypeUnixMillisecondsProcess: PersistenceDriver.BinaryAbstractSubLevel;
-    opinionIndex: OpinionIndex;
-    crdtElementSetIndex: CRDTElementSetIndex;
+    readonly level: PersistenceDriver.BinaryAbstractLevel;
+    readonly levelSystemStates: PersistenceDriver.BinaryAbstractSubLevel;
+    readonly levelProcessStates: PersistenceDriver.BinaryAbstractSubLevel;
+    readonly levelEvents: PersistenceDriver.BinaryAbstractSubLevel;
+    readonly levelIndexSystemContentTypeUnixMillisecondsProcess: PersistenceDriver.BinaryAbstractSubLevel;
+    readonly opinionIndex: OpinionIndex;
+    readonly crdtElementSetIndex: CRDTElementSetIndex;
+    readonly indexFeed: IndexFeed.IndexFeed;
+
+    system: Models.PublicKey.PublicKey | undefined;
 
     constructor(level: PersistenceDriver.BinaryAbstractLevel) {
         this.level = level;
@@ -376,6 +382,10 @@ export class Store {
                 valueEncoding: 'buffer',
             }) as PersistenceDriver.BinaryAbstractSubLevel,
         );
+
+        this.indexFeed = new IndexFeed.IndexFeed(this);
+
+        this.system = undefined;
     }
 
     public async setProcessSecret(
