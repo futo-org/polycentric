@@ -51,7 +51,9 @@ export const Feed = ({
 
     // we're going to use the sparsity of js arrays to our advantage here
     // TODO: figure out if we need to reset this on feed change
-    const [batchNumberLoaded, setBatchNumberLoaded] = useState<Array<undefined | true>>([]);
+    const [batchNumberLoaded, setBatchNumberLoaded] = useState<
+        Array<undefined | true>
+    >([]);
     const indexLoaded = useRef<Array<undefined | boolean>>([]);
 
     const onBasicsLoaded = useCallback(
@@ -91,7 +93,8 @@ export const Feed = ({
                             ? encode(data.signedEvent.signature)
                             : index
                     }-${
-                        batchNumberLoaded[Math.floor(index / batchLoadSize)] !== true
+                        batchNumberLoaded[Math.floor(index / batchLoadSize)] !==
+                        true
                             ? 'placeholder'
                             : 'post'
                     }}`}
@@ -99,7 +102,8 @@ export const Feed = ({
                     index={index}
                     onBasicsLoaded={onBasicsLoaded}
                     showPlaceholders={
-                        batchNumberLoaded[Math.floor(index / batchLoadSize)] !== true
+                        batchNumberLoaded[Math.floor(index / batchLoadSize)] !==
+                        true
                     }
                 />
             )}
