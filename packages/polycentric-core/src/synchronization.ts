@@ -23,7 +23,11 @@ async function loadRanges(
             i.lessThanOrEqual(range.high);
             i = i.add(Long.UONE)
         ) {
-            const event = await store.getSignedEvent(system, process, i);
+            const event = await store.indexEvents.getSignedEvent(
+                system,
+                process,
+                i,
+            );
 
             if (event) {
                 result.push(event);
@@ -59,7 +63,10 @@ export async function backfillClient(
 
         const processState = await processHandle
             .store()
-            .getProcessState(system, Models.Process.fromProto(item.process));
+            .indexProcessStates.getProcessState(
+                system,
+                Models.Process.fromProto(item.process),
+            );
 
         const clientNeeds = Ranges.subtractRange(
             item.ranges,
@@ -127,7 +134,7 @@ export async function backFillServers(
 
                 const processState = await processHandle
                     .store()
-                    .getProcessState(system, process);
+                    .indexProcessStates.getProcessState(system, process);
 
                 const serverNeeds = Ranges.subtractRange(
                     processState.ranges,
@@ -284,7 +291,10 @@ export class Synchronizer {
         for (const process of systemState.processes()) {
             const processState = await this.processHandle
                 .store()
-                .getProcessState(this.processHandle.system(), process);
+                .indexProcessStates.getProcessState(
+                    this.processHandle.system(),
+                    process,
+                );
 
             processesRanges.set(process, processState.ranges);
         }

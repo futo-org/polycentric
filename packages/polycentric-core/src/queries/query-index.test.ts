@@ -37,7 +37,11 @@ async function copyEventBetweenHandles(
 ): Promise<void> {
     const signedEvent = await from
         .store()
-        .getSignedEvent(pointer.system, pointer.process, pointer.logicalClock);
+        .indexEvents.getSignedEvent(
+            pointer.system,
+            pointer.process,
+            pointer.logicalClock,
+        );
 
     if (signedEvent === undefined) {
         throw new Error('expected signedEvent');

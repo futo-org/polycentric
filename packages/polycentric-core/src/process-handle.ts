@@ -390,7 +390,7 @@ export class ProcessHandle {
         process: Models.Process.Process,
         logicalClock: Long,
     ): Promise<Models.Pointer.Pointer | undefined> {
-        const signedEvent = await this._store.getSignedEvent(
+        const signedEvent = await this._store.indexEvents.getSignedEvent(
             this._system,
             process,
             logicalClock,
@@ -442,14 +442,15 @@ export class ProcessHandle {
     public async loadSystemState(
         system: Models.PublicKey.PublicKey,
     ): Promise<SystemState> {
-        const protoSystemState = await this._store.getSystemState(system);
+        const protoSystemState =
+            await this._store.indexSystemStates.getSystemState(system);
 
         const systemState = protoSystemStateToSystemState(protoSystemState);
 
         const loadCRDTElementSetItems = async (
             contentType: Models.ContentType.ContentType,
         ) => {
-            return await this._store.crdtElementSetIndex.query(
+            return await this._store.indexCRDTElementSet.query(
                 system,
                 contentType,
                 undefined,
@@ -507,10 +508,11 @@ export class ProcessHandle {
         return await this._ingestLock.acquire(
             Models.PublicKey.toString(this._system),
             async () => {
-                const processState = await this._store.getProcessState(
-                    this._system,
-                    this._processSecret.process,
-                );
+                const processState =
+                    await this._store.indexProcessStates.getProcessState(
+                        this._system,
+                        this._processSecret.process,
+                    );
 
                 if (processState.indices === undefined) {
                     throw new Error('expected indices');
@@ -565,101 +567,7 @@ export class ProcessHandle {
     private async ingestWithoutLock(
         signedEvent: Models.SignedEvent.SignedEvent,
     ): Promise<Models.Pointer.Pointer> {
-        const event = Models.Event.fromProto(
-            Protocol.Event.decode(signedEvent.event),
-        );
-
-        const systemState = await this._store.getSystemState(event.system);
-
-        const processState = await this._store.getProcessState(
-            event.system,
-            event.process,
-        );
-
-        const actions = [];
-
-        if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
-            const deleteProto = Protocol.Delete.decode(event.content);
-
-            if (!deleteProto.process) {
-                throw new Error('delete expected process');
-            }
-
-            const deleteProcess = Models.Process.fromProto(deleteProto.process);
-
-            let deleteProcessState = processState;
-
-            if (!Models.Process.equal(event.process, deleteProcess)) {
-                deleteProcessState = await this._store.getProcessState(
-                    event.system,
-                    deleteProcess,
-                );
-            }
-
-            Ranges.insert(deleteProcessState.ranges, deleteProto.logicalClock);
-
-            actions.push(
-                this._store.putTombstone(
-                    event.system,
-                    deleteProcess,
-                    deleteProto.logicalClock,
-                    Models.signedEventToPointer(signedEvent),
-                ),
-            );
-        }
-
-        actions.push(
-            this._store.putIndexSystemContentTypeUnixMillisecondsProcess(event),
-        );
-
-        updateSystemState(systemState, event);
-        updateProcessState(processState, event);
-
-        actions.push(this._store.putSystemState(event.system, systemState));
-
-        actions.push(
-            this._store.putProcessState(
-                event.system,
-                event.process,
-                processState,
-            ),
-        );
-
-        actions.push(
-            this._store.putEvent(
-                event.system,
-                event.process,
-                event.logicalClock,
-                signedEvent,
-            ),
-        );
-
-        if (
-            event.contentType.equals(Models.ContentType.ContentTypeOpinion) &&
-            event.references.length === 1 &&
-            event.lwwElement
-        ) {
-            const action = await this._store.opinionIndex.put(
-                event.system,
-                event.references[0],
-                event.lwwElement,
-            );
-
-            if (action) {
-                actions.push(action);
-            }
-        }
-
-        actions.push(
-            ...(await this._store.crdtElementSetIndex.ingest(
-                signedEvent,
-                event,
-            )),
-        );
-
-        actions.push(...(await this._store.indexFeed.ingest(signedEvent)));
-
-        await this._store.level.batch(actions);
+        await this._store.ingest(signedEvent);
 
         if (this._listener !== undefined) {
             this._listener(signedEvent);
@@ -774,93 +682,6 @@ export async function createProcessHandleFromKey(
     await store.setProcessSecret(processSecret);
     await metaStore.setStoreReady(publicKey, 0);
     return ProcessHandle.load(store);
-}
-
-function updateSystemState(
-    state: Protocol.StorageTypeSystemState,
-    event: Models.Event.Event,
-): void {
-    {
-        const lwwElement = event.lwwElement;
-
-        if (lwwElement) {
-            let found: Protocol.StorageTypeCRDTItem | undefined = undefined;
-
-            for (const item of state.crdtItems) {
-                if (item.contentType.equals(event.contentType)) {
-                    found = item;
-                    break;
-                }
-            }
-
-            if (found && found.unixMilliseconds < lwwElement.unixMilliseconds) {
-                found.unixMilliseconds = lwwElement.unixMilliseconds;
-                found.value = lwwElement.value;
-            } else {
-                state.crdtItems.push({
-                    contentType: event.contentType,
-                    value: lwwElement.value,
-                    unixMilliseconds: lwwElement.unixMilliseconds,
-                });
-            }
-        }
-    }
-
-    {
-        let foundProcess = false;
-
-        for (const rawProcess of state.processes) {
-            if (
-                Models.Process.equal(
-                    Models.Process.fromProto(rawProcess),
-                    event.process,
-                )
-            ) {
-                foundProcess = true;
-                break;
-            }
-        }
-
-        if (!foundProcess) {
-            state.processes.push(event.process);
-        }
-    }
-}
-
-function updateProcessState(
-    state: Protocol.StorageTypeProcessState,
-    event: Models.Event.Event,
-): void {
-    if (event.logicalClock.compare(state.logicalClock) === 1) {
-        state.logicalClock = event.logicalClock;
-    }
-
-    if (state.indices === undefined) {
-        throw new Error('expected indices');
-    }
-
-    Ranges.insert(state.ranges, event.logicalClock);
-
-    {
-        let foundIndex = false;
-
-        for (const index of state.indices.indices) {
-            if (index.indexType.equals(event.contentType)) {
-                foundIndex = true;
-
-                if (event.logicalClock.compare(index.logicalClock) === 1) {
-                    index.logicalClock = event.logicalClock;
-                }
-            }
-        }
-
-        if (!foundIndex) {
-            state.indices.indices.push({
-                indexType: event.contentType,
-                logicalClock: event.logicalClock,
-            });
-        }
-    }
 }
 
 export async function makeEventLink(

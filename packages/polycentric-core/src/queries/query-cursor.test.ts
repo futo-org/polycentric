@@ -34,7 +34,7 @@ describe('query cursor', () => {
 
             const signedEvent = await s1p1
                 .store()
-                .getSignedEvent(
+                .indexEvents.getSignedEvent(
                     pointer.system,
                     pointer.process,
                     pointer.logicalClock,

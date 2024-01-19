@@ -495,7 +495,7 @@ export const useQueryIfAdded = (
         const cancelContext = new CancelContext.CancelContext();
         processHandle
             .store()
-            .crdtElementSetIndex.queryIfAdded(system, contentType, value)
+            .indexCRDTElementSet.queryIfAdded(system, contentType, value)
             .then((result) => {
                 if (cancelContext.cancelled()) {
                     return;
@@ -530,7 +530,7 @@ export const useQueryOpinion = (
         const cancelContext = new CancelContext.CancelContext();
         processHandle
             .store()
-            .opinionIndex.get(system, subject)
+            .indexOpinion.get(system, subject)
             .then((result) => {
                 if (cancelContext.cancelled()) {
                     return;

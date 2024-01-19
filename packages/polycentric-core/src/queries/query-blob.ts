@@ -116,7 +116,7 @@ export class QueryManager {
             ) {
                 const signedEvent = await this._processHandle
                     .store()
-                    .getSignedEvent(
+                    .indexEvents.getSignedEvent(
                         stateForQuery.system,
                         stateForQuery.process,
                         i,

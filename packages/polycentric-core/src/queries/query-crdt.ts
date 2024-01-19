@@ -148,7 +148,7 @@ export class QueryManager {
     ): Promise<void> {
         const systemStateStore = await this._processHandle
             .store()
-            .getSystemState(system);
+            .indexSystemStates.getSystemState(system);
 
         const stateForSystem = this._state.get(
             Models.PublicKey.toString(system),

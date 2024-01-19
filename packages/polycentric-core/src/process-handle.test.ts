@@ -119,7 +119,7 @@ describe('processHandle', () => {
             expect(
                 await processHandle
                     .store()
-                    .crdtElementSetIndex.queryIfAdded(
+                    .indexCRDTElementSet.queryIfAdded(
                         processHandle.system(),
                         Models.ContentType.ContentTypeFollow,
                         Protocol.PublicKey.encode(

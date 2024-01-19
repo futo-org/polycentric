@@ -197,7 +197,7 @@ describe('integration', () => {
             Models.Opinion.equal(
                 await bernstein
                     .store()
-                    .opinionIndex.get(bernstein.system(), subject),
+                    .indexOpinion.get(bernstein.system(), subject),
                 Models.Opinion.OpinionNeutral,
             ),
         ).toStrictEqual(true);
@@ -214,7 +214,7 @@ describe('integration', () => {
             Models.Opinion.equal(
                 await bernstein
                     .store()
-                    .opinionIndex.get(bernstein.system(), subject),
+                    .indexOpinion.get(bernstein.system(), subject),
                 Models.Opinion.OpinionLike,
             ),
         ).toStrictEqual(true);
@@ -239,7 +239,7 @@ describe('integration', () => {
             Models.Opinion.equal(
                 await bernstein
                     .store()
-                    .opinionIndex.get(bernstein.system(), subject),
+                    .indexOpinion.get(bernstein.system(), subject),
                 Models.Opinion.OpinionDislike,
             ),
         ).toStrictEqual(true);
@@ -259,7 +259,7 @@ describe('integration', () => {
             Models.Opinion.equal(
                 await bernstein
                     .store()
-                    .opinionIndex.get(bernstein.system(), subject),
+                    .indexOpinion.get(bernstein.system(), subject),
                 Models.Opinion.OpinionNeutral,
             ),
         ).toStrictEqual(true);

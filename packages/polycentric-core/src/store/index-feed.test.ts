@@ -57,7 +57,7 @@ describe('IndexFeed', () => {
 
         const extracted = Store.IndexFeed.extractEventKeyFromCursor(cursor);
 
-        const expected = Store.makeEventKey(
+        const expected = Store.IndexEvents.makeEventKey(
             publicKey,
             process,
             Long.fromNumber(52, true),

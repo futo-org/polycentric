@@ -82,7 +82,7 @@ export const usePostStatsWithLocalActions = (
         (cancelContext?: CancelContext.CancelContext) => {
             processHandle
                 .store()
-                .opinionIndex.get(processHandle.system(), reference)
+                .indexOpinion.get(processHandle.system(), reference)
                 .then((result) => {
                     if (
                         cancelContext !== undefined &&

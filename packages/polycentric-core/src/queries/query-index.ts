@@ -247,7 +247,7 @@ export class QueryManager {
     ): Promise<void> {
         const events = await this._processHandle
             .store()
-            .queryIndexSystemContentTypeUnixMillisecondsProcess(
+            .indexEventsForSystemByTime.queryIndexSystemContentTypeUnixMillisecondsProcess(
                 system,
                 stateForQuery.contentType,
                 stateForQuery.earliestTimeBySource.get('disk'),

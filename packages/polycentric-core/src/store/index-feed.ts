@@ -5,6 +5,8 @@ import * as Models from '../models';
 import * as Util from '../util';
 import * as Protocol from '../protocol';
 import * as Store from '.';
+import * as IndexEvents from './index-events';
+import { HasIngest } from './has-ingest';
 
 export type IndexFeedCursor = Readonly<Uint8Array> & {
     readonly __tag: unique symbol;
@@ -26,7 +28,7 @@ export function makeKey(
     return Util.concatBuffers([
         Util.encodeText(unixMilliseconds.toNumber().toString(16)),
         buffer255,
-        Store.makeEventKey(system, process, logicalClock),
+        IndexEvents.makeEventKey(system, process, logicalClock),
     ]) as IndexFeedCursor;
 }
 
@@ -65,17 +67,19 @@ export function extractEventKeyFromCursor(cursor: IndexFeedCursor): Uint8Array {
     return cursor.subarray(startOfEventKey);
 }
 
-export class IndexFeed {
+export class IndexFeed extends HasIngest {
     private readonly level: PersistenceDriver.BinaryAbstractSubLevel;
     private readonly store: Store.Store;
 
-    constructor(store: Store.Store) {
-        this.level = store.level.sublevel('indexFeed', {
-            keyEncoding: 'buffer',
-            valueEncoding: 'buffer',
-        }) as PersistenceDriver.BinaryAbstractSubLevel;
+    constructor(
+        store: Store.Store,
+        registerSublevel: (
+            prefix: string,
+        ) => PersistenceDriver.BinaryAbstractSubLevel,
+    ) {
+        super();
 
-        this.store = store;
+        (this.store = store), (this.level = registerSublevel('indexFeed'));
     }
 
     public async ingest(
@@ -161,16 +165,17 @@ export class IndexFeed {
                 const system = extractSystemFromCursor(key as IndexFeedCursor);
 
                 const following =
-                    await this.store.crdtElementSetIndex.queryIfAdded(
+                    await this.store.indexCRDTElementSet.queryIfAdded(
                         storeSystem,
                         Models.ContentType.ContentTypeFollow,
                         Protocol.PublicKey.encode(system).finish(),
                     );
 
                 if (following) {
-                    const signedEvent = await this.store.getSignedEventByKey(
-                        extractEventKeyFromCursor(key as IndexFeedCursor),
-                    );
+                    const signedEvent =
+                        await this.store.indexEvents.getSignedEventByKey(
+                            extractEventKeyFromCursor(key as IndexFeedCursor),
+                        );
 
                     if (signedEvent) {
                         result.push(signedEvent);
