@@ -104,7 +104,7 @@ export class QueryManager {
     ): Promise<void> {
         const signedEvent = await this._processHandle
             .store()
-            .getSignedEvent(system, process, logicalClock);
+            .indexEvents.getSignedEvent(system, process, logicalClock);
 
         if (signedEvent !== undefined) {
             this.update(signedEvent);
