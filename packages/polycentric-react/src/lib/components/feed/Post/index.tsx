@@ -1,5 +1,5 @@
 import { Models, Protocol, Util } from '@polycentric/polycentric-core';
-import { forwardRef, useEffect, useMemo } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
 import {
     useAvatar,
     useImageManifestDisplayURL,
@@ -113,14 +113,23 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
 
         const { actions, stats } = usePostStatsWithLocalActions(pointer);
 
+        const [avatarLoaded, setAvatarLoaded] = useState(false);
+        const onAvatarLoaded = useCallback(() => {
+            requestAnimationFrame(() => {
+                setAvatarLoaded(true);
+            });
+        }, []);
+
         useEffect(() => {
             const basicsLoaded =
-                mainUsername !== undefined && mainAvatar !== undefined;
+                mainUsername !== undefined &&
+                mainAvatar !== undefined &&
+                avatarLoaded;
 
             if (basicsLoaded) {
                 onBasicsLoaded?.();
             }
-        }, [mainUsername, mainAvatar, onBasicsLoaded]);
+        }, [mainUsername, mainAvatar, avatarLoaded, onBasicsLoaded]);
 
         return (
             <PurePost
@@ -131,6 +140,7 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
                 doesLink={doesLink}
                 autoExpand={autoExpand}
                 showPlaceholders={showPlaceholders}
+                onAvatarLoaded={onAvatarLoaded}
             />
         );
     },

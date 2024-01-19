@@ -253,6 +253,7 @@ export interface PurePostProps {
     doesLink?: boolean;
     autoExpand?: boolean;
     showPlaceholders?: boolean;
+    onAvatarLoaded?: () => void;
 }
 
 const PostLinkContainer = ({
@@ -300,6 +301,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
             doesLink = true,
             autoExpand = false,
             showPlaceholders = false,
+            onAvatarLoaded,
         }: PurePostProps,
         infiniteScrollRef,
     ) => {
@@ -392,6 +394,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                     showPlaceholders
                                                 }
                                                 className="h-16 w-16 md:h-20 md:w-20"
+                                                onLoad={onAvatarLoaded}
                                             />
                                         </Link>
                                     </div>

@@ -62,7 +62,7 @@ export const Feed = ({
                 indexLoaded.current[index] = true;
                 // find the nearest multiple of batchLoadSize going down
                 const low = Math.floor(index / batchLoadSize) * batchLoadSize;
-                const high = low + batchLoadSize;
+                const high = Math.min(low + batchLoadSize, data.length);
                 // check if all the posts in the batch are loaded
                 const allLoaded = indexLoaded.current
                     .slice(low, high)
