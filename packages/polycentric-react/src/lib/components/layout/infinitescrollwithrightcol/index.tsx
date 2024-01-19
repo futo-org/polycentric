@@ -13,7 +13,7 @@ import {
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks';
 import { useIsMobile } from '../../../hooks/styleHooks';
-import { Post } from '../../feed';
+import { AutoBatchedPlaceholderPost } from '../../feed';
 import { SearchBox } from '../../search/searchbox';
 
 export const InfiniteScrollWithRightCol = ({
@@ -24,6 +24,7 @@ export const InfiniteScrollWithRightCol = ({
     topFeedComponentSticky = false,
     prependCount,
     bottomPadding = true,
+    batchLoadSize = 3,
 }: {
     data: FeedHookData;
     advanceFeed: FeedHookAdvanceFn;
@@ -32,6 +33,7 @@ export const InfiniteScrollWithRightCol = ({
     topFeedComponentSticky?: boolean;
     prependCount?: number;
     bottomPadding?: boolean;
+    batchLoadSize?: number;
 }) => {
     const outerRef = useRef<HTMLDivElement>(null);
     const [showScrollUpButton, setShowScrollUpButton] = useState(false);
@@ -81,6 +83,37 @@ export const InfiniteScrollWithRightCol = ({
 
     const [verticalIpadExpanded, setVerticalIpadExpanded] = useState(false);
 
+    // we're going to use the sparsity of js arrays to our advantage here
+    // TODO: figure out if we need to reset this on feed change
+    // todo: rename
+    const [batchload, setBatchload] = useState<Array<undefined | true>>([]);
+    const indexLoaded = useRef<Array<undefined | boolean>>([]);
+
+    const onBasicsLoaded = useCallback(
+        (index: number) => {
+            if (indexLoaded.current[index] === undefined) {
+                indexLoaded.current[index] = true;
+                // find the nearest multiple of batchLoadSize going down
+                const low = Math.floor(index / batchLoadSize) * batchLoadSize;
+                const high = low + batchLoadSize;
+                // check if all the posts in the batch are loaded
+                const allLoaded = indexLoaded.current
+                    .slice(low, high)
+                    .every((v) => v === true);
+
+                if (allLoaded) {
+                    const batchNum = Math.floor(index / batchLoadSize);
+                    setBatchload((batchload) => {
+                        const newBatchload = batchload.slice();
+                        newBatchload[batchNum] = true;
+                        return newBatchload;
+                    });
+                }
+            }
+        },
+        [batchLoadSize],
+    );
+
     return (
         <div
             ref={outerRef} // Attach the `outerRef` to the scroll container as the custom scroll parent so it includes the left column and the padding
@@ -102,7 +135,7 @@ export const InfiniteScrollWithRightCol = ({
                         }
                         onScroll={isMobile ? onScroll : undefined}
                         itemContent={(index, data) => (
-                            <Post
+                            <AutoBatchedPlaceholderPost
                                 key={
                                     data !== undefined
                                         ? encode(data.signedEvent.signature)
@@ -113,6 +146,13 @@ export const InfiniteScrollWithRightCol = ({
                                     index === 100 - prependCount
                                 }
                                 data={data}
+                                index={index}
+                                onBasicsLoaded={onBasicsLoaded}
+                                showPlaceholders={
+                                    batchload[
+                                        Math.floor(index / batchLoadSize)
+                                    ] !== true
+                                }
                             />
                         )}
                         overscan={{
