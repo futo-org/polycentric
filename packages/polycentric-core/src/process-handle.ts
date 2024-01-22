@@ -16,27 +16,15 @@ export class SystemState {
     private _servers: Array<string>;
     private _authorities: Array<string>;
     private _processes: Array<Models.Process.Process>;
-    private _username: string;
-    private _description: string;
-    private _store: string;
-    private _avatar: Protocol.ImageBundle | undefined;
 
     public constructor(
         servers: Array<string>,
         authorities: Array<string>,
         processes: Array<Models.Process.Process>,
-        username: string,
-        description: string,
-        store: string,
-        avatar: Protocol.ImageBundle | undefined,
     ) {
         this._servers = servers;
         this._authorities = authorities;
         this._processes = processes;
-        this._username = username;
-        this._description = description;
-        this._store = store;
-        this._avatar = avatar;
     }
 
     public servers(): Array<string> {
@@ -50,22 +38,6 @@ export class SystemState {
     public processes(): Array<Models.Process.Process> {
         return this._processes;
     }
-
-    public username(): string {
-        return this._username;
-    }
-
-    public description(): string {
-        return this._description;
-    }
-
-    public store(): string {
-        return this._store;
-    }
-
-    public avatar(): Protocol.ImageBundle | undefined {
-        return this._avatar;
-    }
 }
 
 function protoSystemStateToSystemState(
@@ -77,38 +49,7 @@ function protoSystemStateToSystemState(
         processes.push(Models.Process.fromProto(process));
     }
 
-    let username = '';
-    let description = '';
-    let store = '';
-    let avatar = undefined;
-
-    for (const item of proto.crdtItems) {
-        if (item.contentType.equals(Models.ContentType.ContentTypeUsername)) {
-            username = Util.decodeText(item.value);
-        } else if (
-            item.contentType.equals(Models.ContentType.ContentTypeDescription)
-        ) {
-            description = Util.decodeText(item.value);
-        } else if (
-            item.contentType.equals(Models.ContentType.ContentTypeStore)
-        ) {
-            store = Util.decodeText(item.value);
-        } else if (
-            item.contentType.equals(Models.ContentType.ContentTypeAvatar)
-        ) {
-            avatar = Protocol.ImageBundle.decode(item.value);
-        }
-    }
-
-    return new SystemState(
-        [],
-        [],
-        processes,
-        username,
-        description,
-        store,
-        avatar,
-    );
+    return new SystemState([], [], processes);
 }
 
 export class ProcessHandle {

@@ -51,23 +51,41 @@ describe('processHandle', () => {
         await processHandle.setUsername('alice');
         await processHandle.setUsername('bob');
 
-        const serverState = await processHandle.loadSystemState(
-            processHandle.system(),
-        );
+        await new Promise<void>((resolve) => {
+            processHandle.queryManager.queryCRDT.query(
+                processHandle.system(),
+                Models.ContentType.ContentTypeUsername,
+                (value) => {
+                    expect(
+                        Util.buffersEqual(value, Util.encodeText('bob')),
+                    ).toStrictEqual(true);
 
-        expect(serverState.username()).toStrictEqual('bob');
+                    resolve();
+                },
+            );
+        });
     });
 
     test('description', async () => {
         const processHandle = await ProcessHandle.createTestProcessHandle();
 
-        await processHandle.setDescription('test');
+        const description = 'my description';
 
-        const serverState = await processHandle.loadSystemState(
-            processHandle.system(),
-        );
+        await processHandle.setDescription(description);
 
-        expect(serverState.description()).toStrictEqual('test');
+        await new Promise<void>((resolve) => {
+            processHandle.queryManager.queryCRDT.query(
+                processHandle.system(),
+                Models.ContentType.ContentTypeDescription,
+                (value) => {
+                    expect(
+                        Util.buffersEqual(value, Util.encodeText(description)),
+                    ).toStrictEqual(true);
+
+                    resolve();
+                },
+            );
+        });
     });
 
     test('avatar', async () => {
