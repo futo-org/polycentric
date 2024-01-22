@@ -3,10 +3,12 @@ import {
     Models,
     Protocol,
     Queries,
+    Store,
     Util,
 } from '@polycentric/polycentric-core';
 import Long from 'long';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useProcessHandleManager } from './processHandleManagerHooks';
 import {
     ParsedEvent,
     useIndex,
@@ -212,3 +214,62 @@ export const useCommentFeed = (
 
     return [all, advance, true, prependCount];
 };
+
+export function useFollowingFeed(
+    batchSize = 10,
+): [ParsedEvent<Protocol.Post>[], () => void] {
+    const { processHandle } = useProcessHandleManager();
+    const [state, setState] = useState<ParsedEvent<Protocol.Post>[]>([]);
+    const currentCancelContext = useRef<CancelContext.CancelContext>();
+    const cursorRef = useRef<Store.IndexFeed.IndexFeedCursor | undefined>();
+
+    const indexFeed = useMemo(() => {
+        return processHandle.store().indexFeed;
+    }, [processHandle]);
+
+    const advance = useCallback(async () => {
+        if (currentCancelContext.current) {
+            return;
+        }
+
+        currentCancelContext.current = new CancelContext.CancelContext();
+
+        let recieved = 0;
+        do {
+            if (currentCancelContext.current?.cancelled()) {
+                return;
+            }
+
+            const { cursor, items } = await indexFeed.query(
+                batchSize,
+                cursorRef.current,
+            );
+            cursorRef.current = cursor;
+            const parsedEvents = items.map((signedEvent) => {
+                const event = Models.Event.fromBuffer(signedEvent.event);
+                const parsed = Protocol.Post.decode(event.content);
+
+                return new ParsedEvent<Protocol.Post>(
+                    signedEvent,
+                    event,
+                    parsed,
+                );
+            });
+            recieved += parsedEvents.length;
+            setState((state) => {
+                return state.concat(parsedEvents);
+            });
+        } while (cursorRef.current !== undefined && recieved < batchSize);
+
+        currentCancelContext.current = undefined;
+    }, [indexFeed, cursorRef, batchSize]);
+
+    useEffect(() => {
+        return () => {
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+            currentCancelContext.current?.cancel();
+        };
+    }, []);
+
+    return [state, advance];
+}
