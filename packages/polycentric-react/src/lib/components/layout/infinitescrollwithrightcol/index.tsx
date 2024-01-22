@@ -11,7 +11,11 @@ import {
     useState,
 } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks';
+import {
+    FeedHookAdvanceFn,
+    FeedHookData,
+    useBatchRenderFeed,
+} from '../../../hooks/feedHooks';
 import { useIsMobile } from '../../../hooks/styleHooks';
 import { AutoBatchedPlaceholderPost } from '../../feed';
 import { SearchBox } from '../../search/searchbox';
@@ -83,36 +87,8 @@ export const InfiniteScrollWithRightCol = ({
 
     const [verticalIpadExpanded, setVerticalIpadExpanded] = useState(false);
 
-    // we're going to use the sparsity of js arrays to our advantage here
-    // TODO: figure out if we need to reset this on feed change
-    // todo: rename
-    const [batchload, setBatchload] = useState<Array<undefined | true>>([]);
-    const indexLoaded = useRef<Array<undefined | boolean>>([]);
-
-    const onBasicsLoaded = useCallback(
-        (index: number) => {
-            if (indexLoaded.current[index] === undefined) {
-                indexLoaded.current[index] = true;
-                // find the nearest multiple of batchLoadSize going down
-                const low = Math.floor(index / batchLoadSize) * batchLoadSize;
-                const high = Math.min(low + batchLoadSize, data.length);
-                // check if all the posts in the batch are loaded
-                const allLoaded = indexLoaded.current
-                    .slice(low, high)
-                    .every((v) => v === true);
-
-                if (allLoaded) {
-                    const batchNum = Math.floor(index / batchLoadSize);
-                    setBatchload((batchload) => {
-                        const newBatchload = batchload.slice();
-                        newBatchload[batchNum] = true;
-                        return newBatchload;
-                    });
-                }
-            }
-        },
-        [batchLoadSize],
-    );
+    const { renderableBatchMap, onBasicsLoaded, onRangeChange } =
+        useBatchRenderFeed(batchLoadSize, data.length);
 
     return (
         <div
@@ -134,6 +110,7 @@ export const InfiniteScrollWithRightCol = ({
                             isMobile ? undefined : outerRef.current ?? undefined
                         }
                         onScroll={isMobile ? onScroll : undefined}
+                        rangeChanged={onRangeChange}
                         itemContent={(index, data) => (
                             <AutoBatchedPlaceholderPost
                                 key={
@@ -149,7 +126,7 @@ export const InfiniteScrollWithRightCol = ({
                                 index={index}
                                 onBasicsLoaded={onBasicsLoaded}
                                 showPlaceholders={
-                                    batchload[
+                                    renderableBatchMap[
                                         Math.floor(index / batchLoadSize)
                                     ] !== true
                                 }

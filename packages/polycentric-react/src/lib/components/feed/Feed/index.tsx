@@ -1,7 +1,11 @@
 import { encode } from '@borderless/base64';
-import { ReactElement, useCallback, useEffect, useRef, useState } from 'react';
+import { ReactElement, useCallback, useEffect, useState } from 'react';
 import { Virtuoso } from 'react-virtuoso';
-import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks';
+import {
+    FeedHookAdvanceFn,
+    FeedHookData,
+    useBatchRenderFeed,
+} from '../../../hooks/feedHooks';
 import { Post, PostProps } from '../Post';
 
 export const AutoBatchedPlaceholderPost = ({
@@ -48,62 +52,29 @@ export const Feed = ({
     }, [advanceFeed]);
 
     const [windowHeight] = useState(window.innerHeight);
-
-    // we're going to use the sparsity of js arrays to our advantage here
-    // TODO: figure out if we need to reset this on feed change
-    const [batchNumberLoaded, setBatchNumberLoaded] = useState<
-        Array<undefined | true>
-    >([]);
-    const indexLoaded = useRef<Array<undefined | boolean>>([]);
-
-    const onBasicsLoaded = useCallback(
-        (index: number) => {
-            if (indexLoaded.current[index] === undefined) {
-                indexLoaded.current[index] = true;
-                // find the nearest multiple of batchLoadSize going down
-                const low = Math.floor(index / batchLoadSize) * batchLoadSize;
-                const high = Math.min(low + batchLoadSize, data.length);
-                // check if all the posts in the batch are loaded
-                const allLoaded = indexLoaded.current
-                    .slice(low, high)
-                    .every((v) => v === true);
-
-                if (allLoaded) {
-                    const batchNum = Math.floor(index / batchLoadSize);
-                    setBatchNumberLoaded((batchload) => {
-                        const newBatchload = batchload.slice();
-                        newBatchload[batchNum] = true;
-                        return newBatchload;
-                    });
-                }
-            }
-        },
-        [batchLoadSize],
-    );
+    const { renderableBatchMap, onBasicsLoaded, onRangeChange } =
+        useBatchRenderFeed(batchLoadSize, data.length);
 
     return (
         <Virtuoso
             data={data}
             style={{ height: '100%' }}
             className="noscrollbar"
+            rangeChanged={onRangeChange}
             itemContent={(index, data) => (
                 <AutoBatchedPlaceholderPost
-                    key={`${
+                    key={
                         data !== undefined
                             ? encode(data.signedEvent.signature)
                             : index
-                    }-${
-                        batchNumberLoaded[Math.floor(index / batchLoadSize)] !==
-                        true
-                            ? 'placeholder'
-                            : 'post'
-                    }}`}
+                    }
                     data={data}
                     index={index}
                     onBasicsLoaded={onBasicsLoaded}
                     showPlaceholders={
-                        batchNumberLoaded[Math.floor(index / batchLoadSize)] !==
-                        true
+                        renderableBatchMap[
+                            Math.floor(index / batchLoadSize)
+                        ] !== true
                     }
                 />
             )}

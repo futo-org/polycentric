@@ -8,7 +8,7 @@ import {
 } from '@polycentric/polycentric-core';
 import AsyncLock from 'async-lock';
 import Long from 'long';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useProcessHandleManager } from './processHandleManagerHooks';
 import {
     ParsedEvent,
@@ -282,3 +282,116 @@ export function useFollowingFeed(
 
     return [state, advance];
 }
+export const useBatchRenderFeed = (
+    batchLoadSize: number,
+    dataLength: number,
+) => {
+    // This is technically the same as using a map, but likely faster and more efficient in most browsers due to the operations we're doing
+    const [renderableBatchMap, setRenderableBatchMap] = useState<
+        Array<undefined | true>
+    >([]);
+    const indexLoaded = useRef<Array<undefined | boolean>>([]);
+
+    const mountedRange = useRef({
+        startIndex: 0,
+        endIndex: 0,
+    });
+
+    const onBasicsLoaded = useCallback(
+        (index: number) => {
+            if (indexLoaded.current[index] === undefined) {
+                // Check if we're not in the currently mounted range (data completes after we've scrolled away)
+                if (
+                    index < mountedRange.current.startIndex ||
+                    index > mountedRange.current.endIndex
+                ) {
+                    return;
+                }
+
+                indexLoaded.current[index] = true;
+                // find the nearest multiple of batchLoadSize going down
+                const low = Math.floor(index / batchLoadSize) * batchLoadSize;
+                const high = Math.min(low + batchLoadSize, dataLength);
+
+                // check if all the posts in the batch are loaded
+                const allLoaded = indexLoaded.current
+                    .slice(low, high)
+                    .every((v) => v === true);
+
+                if (allLoaded) {
+                    const batchNum = Math.floor(index / batchLoadSize);
+                    setRenderableBatchMap((batchload) => {
+                        const newBatchload = batchload.slice();
+                        newBatchload[batchNum] = true;
+                        return newBatchload;
+                    });
+                }
+            }
+        },
+        [batchLoadSize, dataLength],
+    );
+
+    const onRangeChange = useCallback(
+        ({
+            startIndex,
+            endIndex,
+        }: {
+            startIndex: number;
+            endIndex: number;
+        }) => {
+            // For the posts that just scrolled out of our rendering range, mark them as unrenderable
+            // Since they might unmount, if we scroll up and they're still marked as renderable after rendering the first time, they might have data flashing in
+
+            // We know that the only posts that are loaded are the ones between the two ranges because we reject any post load callbacks that are out of range
+            // When we scroll down, we want to unload the posts that are no longer in view
+            if (startIndex > mountedRange.current.startIndex) {
+                for (
+                    let i = mountedRange.current.startIndex;
+                    i < startIndex;
+                    i++
+                ) {
+                    indexLoaded.current[i] = undefined;
+
+                    if (i % batchLoadSize === 0) {
+                        setRenderableBatchMap((batchload) => {
+                            const newBatchload = batchload.slice();
+                            const batchNum = Math.floor(i / batchLoadSize);
+                            newBatchload[batchNum] = undefined;
+                            return newBatchload;
+                        });
+                    }
+                }
+            }
+
+            if (endIndex < mountedRange.current.endIndex) {
+                for (let i = endIndex; i < mountedRange.current.endIndex; i++) {
+                    indexLoaded.current[i] = undefined;
+
+                    if (i % batchLoadSize === 0) {
+                        setRenderableBatchMap((batchload) => {
+                            const newBatchload = batchload.slice();
+                            const batchNum = Math.floor(i / batchLoadSize);
+                            newBatchload[batchNum] = undefined;
+                            return newBatchload;
+                        });
+                    }
+                }
+            }
+
+            mountedRange.current = {
+                startIndex,
+                endIndex,
+            };
+        },
+        [batchLoadSize],
+    );
+
+    return useMemo(
+        () => ({
+            onBasicsLoaded,
+            onRangeChange,
+            renderableBatchMap,
+        }),
+        [onBasicsLoaded, onRangeChange, renderableBatchMap],
+    );
+};
