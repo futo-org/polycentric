@@ -7,6 +7,7 @@ import * as Models from '../models';
 import * as Shared from './shared';
 import * as Ranges from '../ranges';
 import * as Util from '../util';
+import { HasUpdate } from './has-update';
 
 export type Callback = (buffer: Uint8Array) => void;
 
@@ -32,13 +33,15 @@ function makeKey(
     );
 }
 
-export class QueryManager {
+export class QueryManager extends HasUpdate {
     private readonly _processHandle: ProcessHandle.ProcessHandle;
     private readonly _state: Map<string, StateForQuery>;
     private _useDisk: boolean;
     private _useNetwork: boolean;
 
     constructor(processHandle: ProcessHandle.ProcessHandle) {
+        super();
+
         this._processHandle = processHandle;
         this._state = new Map();
         this._useDisk = true;

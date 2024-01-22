@@ -7,6 +7,7 @@ import * as ProcessHandle from '../process-handle';
 import * as Synchronization from '../synchronization';
 import * as Shared from './shared';
 import * as Util from '../util';
+import { HasUpdate } from './has-update';
 
 export type SuccessCallback = (value: Uint8Array) => void;
 export type NotYetFoundCallback = () => void;
@@ -23,7 +24,7 @@ type StateForSystem = {
     readonly state: Map<Models.ContentType.ContentTypeString, StateForCRDT>;
 };
 
-export class QueryManager {
+export class QueryManager extends HasUpdate {
     private readonly _processHandle: ProcessHandle.ProcessHandle;
     private readonly _state: Map<
         Models.PublicKey.PublicKeyString,
@@ -33,6 +34,8 @@ export class QueryManager {
     private _useNetwork: boolean;
 
     constructor(processHandle: ProcessHandle.ProcessHandle) {
+        super();
+
         this._processHandle = processHandle;
         this._state = new Map();
         this._useDisk = true;

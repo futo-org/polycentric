@@ -7,18 +7,23 @@ import * as QueryEvent from './query-event';
 import * as QueryCRDT from './query-crdt';
 import * as QueryBlob from './query-blob';
 import * as QueryCRDTSet from './query-crdt-set';
+import { HasUpdate } from './has-update';
 
-export class QueryManager {
-    processHandle: ProcessHandle.ProcessHandle;
+export class QueryManager extends HasUpdate {
+    public readonly processHandle: ProcessHandle.ProcessHandle;
 
-    public queryHead: QueryHead.QueryManager;
-    public queryIndex: QueryIndex.QueryManager;
-    public queryEvent: QueryEvent.QueryManager;
-    public queryCRDT: QueryCRDT.QueryManager;
-    public queryBlob: QueryBlob.QueryManager;
-    public queryCRDTSet: QueryCRDTSet.QueryManager;
+    public readonly queryHead: QueryHead.QueryManager;
+    public readonly queryIndex: QueryIndex.QueryManager;
+    public readonly queryEvent: QueryEvent.QueryManager;
+    public readonly queryCRDT: QueryCRDT.QueryManager;
+    public readonly queryBlob: QueryBlob.QueryManager;
+    public readonly queryCRDTSet: QueryCRDTSet.QueryManager;
+
+    private readonly stages: ReadonlyArray<HasUpdate>;
 
     public constructor(processHandle: ProcessHandle.ProcessHandle) {
+        super();
+
         this.processHandle = processHandle;
 
         this.queryHead = new QueryHead.QueryManager(processHandle);
@@ -28,16 +33,16 @@ export class QueryManager {
         this.queryBlob = new QueryBlob.QueryManager(processHandle);
         this.queryCRDTSet = new QueryCRDTSet.QueryManager(this.queryIndex);
 
-        processHandle.setListener((signedEvent) => {
-            this.update(signedEvent);
-        });
+        this.stages = [
+            this.queryHead,
+            this.queryIndex,
+            this.queryEvent,
+            this.queryCRDT,
+            this.queryBlob,
+        ];
     }
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {
-        this.queryHead.update(signedEvent);
-        this.queryIndex.update(signedEvent);
-        this.queryEvent.update(signedEvent);
-        this.queryCRDT.update(signedEvent);
-        this.queryBlob.update(signedEvent);
+        this.stages.forEach((stage) => stage.update(signedEvent));
     }
 }

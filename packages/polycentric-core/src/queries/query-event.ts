@@ -6,6 +6,7 @@ import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import * as Shared from './shared';
 import * as Util from '../util';
+import { HasUpdate } from './has-update';
 
 export type Callback = (
     signedEvent: Models.SignedEvent.SignedEvent | undefined,
@@ -30,13 +31,15 @@ function makeEventKey(
     );
 }
 
-export class QueryManager {
+export class QueryManager extends HasUpdate {
     private readonly _processHandle: ProcessHandle.ProcessHandle;
     private readonly _state: Map<string, StateForEvent>;
     private _useDisk: boolean;
     private _useNetwork: boolean;
 
     constructor(processHandle: ProcessHandle.ProcessHandle) {
+        super();
+
         this._processHandle = processHandle;
         this._state = new Map();
         this._useDisk = true;
