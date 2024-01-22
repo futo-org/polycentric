@@ -170,15 +170,15 @@ export class QueryManager {
     ): QueryHandle {
         const systemString = Models.PublicKey.toString(system);
 
-        let stateForSystem = this._state.get(systemString);
-
-        if (stateForSystem === undefined) {
-            stateForSystem = {
-                queries: new Map(),
-            };
-
-            this._state.set(systemString, stateForSystem);
-        }
+        const stateForSystem: StateForSystem = Util.lookupWithInitial(
+            this._state,
+            systemString,
+            () => {
+                return {
+                    queries: new Map(),
+                };
+            },
+        );
 
         const stateForQuery = {
             callback: callback,
@@ -208,11 +208,7 @@ export class QueryManager {
             unregister: () => {
                 unregistered = true;
 
-                if (stateForSystem !== undefined) {
-                    stateForSystem.queries.delete(callback);
-                } else {
-                    throw Error('impossible');
-                }
+                stateForSystem.queries.delete(callback);
             },
         };
     }

@@ -81,3 +81,21 @@ export function memo<Key extends object, Value>(
         return value;
     }
 }
+
+export function lookupWithInitial<K, V>(
+    collection: Map<K, V>,
+    key: K,
+    makeInitial: () => V,
+): V {
+    const existing = collection.get(key);
+
+    if (existing) {
+        return existing;
+    }
+
+    const initial = makeInitial();
+
+    collection.set(key, initial);
+
+    return initial;
+}

@@ -15,8 +15,25 @@ export namespace ContentType {
         readonly __tag: unique symbol;
     };
 
+    export type ContentTypeString = Readonly<string> & {
+        readonly __tag: unique symbol;
+    };
+
     function makeContentType(x: number): ContentType {
         return new Long(x, 0, true) as ContentType;
+    }
+
+    const toStringCache: WeakMap<ContentType, ContentTypeString> =
+        new WeakMap();
+
+    export function toString(contentType: ContentType): ContentTypeString {
+        return Util.memo(
+            toStringCache,
+            (contentType) => {
+                return contentType.toString() as ContentTypeString;
+            },
+            contentType,
+        );
     }
 
     export const ContentTypeDelete = makeContentType(1);

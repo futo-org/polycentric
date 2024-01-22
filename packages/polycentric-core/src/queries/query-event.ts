@@ -5,6 +5,7 @@ import * as APIMethods from '../api-methods';
 import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import * as Shared from './shared';
+import * as Util from '../util';
 
 export type Callback = (
     signedEvent: Models.SignedEvent.SignedEvent | undefined,
@@ -58,17 +59,17 @@ export class QueryManager {
     ): Shared.UnregisterCallback {
         const key = makeEventKey(system, process, logicalClock);
 
-        let state = this._state.get(key);
-
-        if (state === undefined) {
-            state = {
-                signedEvent: undefined,
-                callbacks: new Set(),
-                fulfilled: false,
-            };
-
-            this._state.set(key, state);
-        }
+        const state: StateForEvent = Util.lookupWithInitial(
+            this._state,
+            key,
+            () => {
+                return {
+                    signedEvent: undefined,
+                    callbacks: new Set(),
+                    fulfilled: false,
+                };
+            },
+        );
 
         state.callbacks.add(callback);
 
@@ -85,14 +86,10 @@ export class QueryManager {
         }
 
         return () => {
-            if (state !== undefined) {
-                state.callbacks.delete(callback);
+            state.callbacks.delete(callback);
 
-                if (state.callbacks.size === 0) {
-                    this._state.delete(key);
-                }
-            } else {
-                throw Error('impossible');
+            if (state.callbacks.size === 0) {
+                this._state.delete(key);
             }
         };
     }

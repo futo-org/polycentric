@@ -4,6 +4,7 @@ import * as APIMethods from '../api-methods';
 import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import * as Shared from './shared';
+import * as Util from '../util';
 
 type Callback = (
     value: ReadonlyMap<Models.Process.ProcessString, Long>,
@@ -33,17 +34,17 @@ export class QueryManager {
     ): Shared.UnregisterCallback {
         const systemString = Models.PublicKey.toString(system);
 
-        let stateForSystem = this._state.get(systemString);
-
-        if (stateForSystem === undefined) {
-            stateForSystem = {
-                head: new Map(),
-                queries: new Set(),
-                fulfilled: false,
-            };
-
-            this._state.set(systemString, stateForSystem);
-        }
+        const stateForSystem: StateForSystem = Util.lookupWithInitial(
+            this._state,
+            systemString,
+            () => {
+                return {
+                    head: new Map(),
+                    queries: new Set(),
+                    fulfilled: false,
+                };
+            },
+        );
 
         stateForSystem.queries.add(callback);
 
@@ -54,14 +55,10 @@ export class QueryManager {
         }
 
         return () => {
-            if (stateForSystem !== undefined) {
-                stateForSystem.queries.delete(callback);
+            stateForSystem.queries.delete(callback);
 
-                if (stateForSystem.queries.size === 0) {
-                    this._state.delete(systemString);
-                }
-            } else {
-                throw Error('impossible');
+            if (stateForSystem.queries.size === 0) {
+                this._state.delete(systemString);
             }
         };
     }

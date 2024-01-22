@@ -6,6 +6,7 @@ import * as Models from '../models';
 import * as ProcessHandle from '../process-handle';
 import * as Synchronization from '../synchronization';
 import * as Shared from './shared';
+import * as Util from '../util';
 
 export type SuccessCallback = (value: Uint8Array) => void;
 export type NotYetFoundCallback = () => void;
@@ -19,14 +20,8 @@ type StateForCRDT = {
 };
 
 type StateForSystem = {
-    readonly state: Map<string, StateForCRDT>;
+    readonly state: Map<Models.ContentType.ContentTypeString, StateForCRDT>;
 };
-
-function makeContentTypeKey(
-    contentType: Models.ContentType.ContentType,
-): string {
-    return contentType.toString();
-}
 
 export class QueryManager {
     private readonly _processHandle: ProcessHandle.ProcessHandle;
@@ -60,31 +55,29 @@ export class QueryManager {
     ): Shared.UnregisterCallback {
         const systemString = Models.PublicKey.toString(system);
 
-        let stateForSystem = this._state.get(systemString);
+        const stateForSystem: StateForSystem = Util.lookupWithInitial(
+            this._state,
+            systemString,
+            () => {
+                return {
+                    state: new Map(),
+                };
+            },
+        );
 
-        if (stateForSystem === undefined) {
-            stateForSystem = {
-                state: new Map<string, StateForCRDT>(),
-            };
-
-            this._state.set(systemString, stateForSystem);
-        }
-
-        const contentTypeString = makeContentTypeKey(contentType);
-
-        let stateForCRDT = stateForSystem.state.get(contentTypeString);
-
-        if (stateForCRDT === undefined) {
-            stateForCRDT = {
-                value: new Uint8Array(),
-                unixMilliseconds: Long.UZERO,
-                successCallbacks: new Set(),
-                notYetFoundCallbacks: new Set(),
-                fulfilled: false,
-            };
-
-            stateForSystem.state.set(contentTypeString, stateForCRDT);
-        }
+        const stateForCRDT: StateForCRDT = Util.lookupWithInitial(
+            stateForSystem.state,
+            Models.ContentType.toString(contentType),
+            () => {
+                return {
+                    value: new Uint8Array(),
+                    unixMilliseconds: Long.UZERO,
+                    successCallbacks: new Set(),
+                    notYetFoundCallbacks: new Set(),
+                    fulfilled: false,
+                };
+            },
+        );
 
         stateForCRDT.successCallbacks.add(successCallback);
         if (notYetFoundCallback) {
@@ -106,10 +99,7 @@ export class QueryManager {
 
             Promise.allSettled([networkLoadPromise, diskLoadPromise]).then(
                 () => {
-                    if (!stateForCRDT) {
-                        console.error('Impossible');
-                    }
-                    if (stateForCRDT?.fulfilled === false) {
+                    if (stateForCRDT.fulfilled === false) {
                         stateForCRDT.notYetFoundCallbacks.forEach(
                             (callback) => {
                                 callback();
@@ -121,24 +111,20 @@ export class QueryManager {
         }
 
         return () => {
-            if (stateForCRDT !== undefined && stateForSystem !== undefined) {
-                stateForCRDT.successCallbacks.delete(successCallback);
+            stateForCRDT.successCallbacks.delete(successCallback);
 
-                let found = false;
+            let found = false;
 
-                for (const query of stateForSystem.state.values()) {
-                    if (query.successCallbacks.size !== 0) {
-                        found = true;
+            for (const query of stateForSystem.state.values()) {
+                if (query.successCallbacks.size !== 0) {
+                    found = true;
 
-                        break;
-                    }
+                    break;
                 }
+            }
 
-                if (found === false) {
-                    this._state.delete(systemString);
-                }
-            } else {
-                throw Error('impossible');
+            if (found === false) {
+                this._state.delete(systemString);
             }
         };
     }
@@ -159,29 +145,21 @@ export class QueryManager {
         }
 
         for (const item of systemStateStore.crdtItems) {
-            const contentTypeKey = makeContentTypeKey(
-                item.contentType as Models.ContentType.ContentType,
-            );
-
-            const stateForCRDT = (() => {
-                const existingState = stateForSystem.state.get(contentTypeKey);
-
-                if (existingState === undefined) {
-                    const initialState = {
+            const stateForCRDT: StateForCRDT = Util.lookupWithInitial(
+                stateForSystem.state,
+                Models.ContentType.toString(
+                    item.contentType as Models.ContentType.ContentType,
+                ),
+                () => {
+                    return {
                         value: item.value,
                         unixMilliseconds: item.unixMilliseconds,
-                        successCallbacks: new Set<SuccessCallback>(),
-                        notYetFoundCallbacks: new Set<NotYetFoundCallback>(),
+                        successCallbacks: new Set(),
+                        notYetFoundCallbacks: new Set(),
                         fulfilled: true,
                     };
-
-                    stateForSystem.state.set(contentTypeKey, initialState);
-
-                    return initialState;
-                } else {
-                    return existingState;
-                }
-            })();
+                },
+            );
 
             if (stateForCRDT.unixMilliseconds >= item.unixMilliseconds) {
                 continue;
@@ -242,7 +220,7 @@ export class QueryManager {
         }
 
         const stateForCRDT = stateForSystem.state.get(
-            makeContentTypeKey(event.contentType),
+            Models.ContentType.toString(event.contentType),
         );
 
         if (stateForCRDT === undefined) {

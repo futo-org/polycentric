@@ -61,21 +61,21 @@ export class QueryManager {
     ): Shared.UnregisterCallback {
         const key = makeKey(system, process, ranges);
 
-        let stateForQuery = this._state.get(key);
-
-        if (stateForQuery === undefined) {
-            stateForQuery = {
-                system: system,
-                process: process,
-                wantRanges: ranges,
-                haveRanges: [],
-                events: [],
-                callbacks: new Set(),
-                value: undefined,
-            };
-
-            this._state.set(key, stateForQuery);
-        }
+        const stateForQuery: StateForQuery = Util.lookupWithInitial(
+            this._state,
+            key,
+            () => {
+                return {
+                    system: system,
+                    process: process,
+                    wantRanges: ranges,
+                    haveRanges: [],
+                    events: [],
+                    callbacks: new Set(),
+                    value: undefined,
+                };
+            },
+        );
 
         stateForQuery.callbacks.add(callback);
 
@@ -92,12 +92,10 @@ export class QueryManager {
         }
 
         return () => {
-            if (stateForQuery !== undefined) {
-                stateForQuery.callbacks.delete(callback);
+            stateForQuery.callbacks.delete(callback);
 
-                if (stateForQuery.callbacks.size === 0) {
-                    this._state.delete(key);
-                }
+            if (stateForQuery.callbacks.size === 0) {
+                this._state.delete(key);
             }
         };
     }
