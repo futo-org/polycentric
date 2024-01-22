@@ -35,7 +35,7 @@ export function useObservableWithCache<T>(
 
     useEffect(() => {
         const potentialItem = cache.get(cacheKey);
-        
+
         if (potentialItem) {
             setState((state) => {
                 if (state === potentialItem.value) {

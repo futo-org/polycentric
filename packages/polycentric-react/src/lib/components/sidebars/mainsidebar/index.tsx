@@ -30,6 +30,7 @@ export const MainSidebar = () => (
                 Polycentric
             </h1>
             <div className="flex flex-col text-right">
+                <SidebarLink to="/following">Following</SidebarLink>
                 <SidebarLink to="/">Explore</SidebarLink>
             </div>
         </div>

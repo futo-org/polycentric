@@ -23,6 +23,7 @@ export const InfiniteScrollWithRightCol = ({
     topFeedComponent,
     topFeedComponentSticky = false,
     prependCount,
+    bottomPadding = true,
 }: {
     data: FeedHookData;
     advanceFeed: FeedHookAdvanceFn;
@@ -30,6 +31,7 @@ export const InfiniteScrollWithRightCol = ({
     topFeedComponent?: ReactElement;
     topFeedComponentSticky?: boolean;
     prependCount?: number;
+    bottomPadding?: boolean;
 }) => {
     const outerRef = useRef<HTMLDivElement>(null);
     const [showScrollUpButton, setShowScrollUpButton] = useState(false);
@@ -127,7 +129,7 @@ export const InfiniteScrollWithRightCol = ({
                                 topFeedComponentSticky === false
                                     ? Header
                                     : undefined,
-                            Footer,
+                            Footer: bottomPadding ? Footer : undefined,
                         }}
                     />
                     {showScrollUpButton && (
