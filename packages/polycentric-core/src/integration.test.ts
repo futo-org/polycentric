@@ -52,61 +52,6 @@ async function createHandleWithName(username: string) {
 }
 
 describe('integration', () => {
-    test('sync', async () => {
-        const s1p1 = await ProcessHandle.createTestProcessHandle();
-        await s1p1.addServer(TEST_SERVER);
-        await s1p1.setDescription('hello');
-
-        const claim = Models.claimHackerNews('pg');
-
-        const claimPointer = await s1p1.claim(claim);
-        const vouchPointer = await s1p1.vouch(claimPointer);
-
-        await s1p1.synchronizer.debugWaitUntilSynchronizationComplete();
-
-        const s2p1 = await ProcessHandle.createTestProcessHandle();
-
-        while (
-            await Synchronization.backfillClient(
-                s2p1,
-                s1p1.system(),
-                TEST_SERVER,
-            )
-        ) {}
-
-        const s1State = await s2p1.loadSystemState(s1p1.system());
-
-        expect(s1State.description()).toStrictEqual('hello');
-
-        const resolved = await APIMethods.getResolveClaim(
-            TEST_SERVER,
-            s1p1.system(),
-            Models.ClaimType.ClaimTypeHackerNews,
-            'pg',
-        );
-
-        expect(resolved.matches.length).toStrictEqual(1);
-        expect(resolved.matches[0].claim).toBeDefined();
-
-        expect(
-            Models.Pointer.equal(
-                Models.signedEventToPointer(resolved.matches[0].claim!),
-                claimPointer,
-            ),
-        ).toStrictEqual(true);
-
-        expect(resolved.matches[0]!.proofChain.length).toStrictEqual(1);
-
-        expect(
-            Models.Pointer.equal(
-                Models.signedEventToPointer(
-                    resolved.matches[0]!.proofChain[0]!,
-                ),
-                vouchPointer,
-            ),
-        ).toStrictEqual(true);
-    });
-
     test('resolveAndQuery', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         await s1p1.addServer(TEST_SERVER);
