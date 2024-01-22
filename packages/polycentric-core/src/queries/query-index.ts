@@ -5,6 +5,7 @@ import * as Models from '../models';
 import * as ProcessHandle from '../process-handle';
 import * as Protocol from '../protocol';
 import * as Util from '../util';
+import { HasUpdate } from './has-update';
 
 export interface QueryHandle {
     advance(additionalCount: number): void;
@@ -139,7 +140,7 @@ type StateForSystem = {
     readonly queries: Map<Callback, StateForQuery>;
 };
 
-export class QueryManager {
+export class QueryManager extends HasUpdate {
     private readonly _processHandle: ProcessHandle.ProcessHandle;
     private readonly _state: Map<
         Models.PublicKey.PublicKeyString,
@@ -149,6 +150,8 @@ export class QueryManager {
     private _useNetwork: boolean;
 
     constructor(processHandle: ProcessHandle.ProcessHandle) {
+        super();
+
         this._processHandle = processHandle;
         this._state = new Map();
         this._useDisk = true;

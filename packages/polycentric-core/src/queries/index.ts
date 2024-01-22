@@ -7,3 +7,4 @@ export * as QueryCRDT from './query-crdt';
 export * as QueryBlob from './query-blob';
 export * as QueryCRDTSet from './query-crdt-set';
 export * as QueryCursor from './query-cursor';
+export * as HasUpdate from './has-update';

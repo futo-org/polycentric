@@ -5,6 +5,7 @@ import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import * as Shared from './shared';
 import * as Util from '../util';
+import { HasUpdate } from './has-update';
 
 type Callback = (
     value: ReadonlyMap<Models.Process.ProcessString, Long>,
@@ -16,7 +17,7 @@ type StateForSystem = {
     fulfilled: boolean;
 };
 
-export class QueryManager {
+export class QueryManager extends HasUpdate {
     private readonly _processHandle: ProcessHandle.ProcessHandle;
     private readonly _state: Map<
         Models.PublicKey.PublicKeyString,
@@ -24,6 +25,8 @@ export class QueryManager {
     >;
 
     constructor(processHandle: ProcessHandle.ProcessHandle) {
+        super();
+
         this._processHandle = processHandle;
         this._state = new Map();
     }
