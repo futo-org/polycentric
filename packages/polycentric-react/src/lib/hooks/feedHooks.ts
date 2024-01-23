@@ -7,7 +7,7 @@ import {
     Util,
 } from '@polycentric/polycentric-core';
 import Long from 'long';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useProcessHandleManager } from './processHandleManagerHooks';
 import {
     ParsedEvent,
@@ -220,64 +220,57 @@ export function useFollowingFeed(
 ): [ParsedEvent<Protocol.Post>[], () => void] {
     const { processHandle } = useProcessHandleManager();
     const [state, setState] = useState<ParsedEvent<Protocol.Post>[]>([]);
-    const currentCancelContext = useRef<CancelContext.CancelContext>();
-    const cursorRef = useRef<Store.IndexFeed.IndexFeedCursor | undefined>();
+    const [advance, setAdvance] = useState<() => void>(() => () => {});
 
     useEffect(() => {
-        return () => {
-            if (currentCancelContext.current !== undefined) {
-                currentCancelContext.current.cancel();
-                currentCancelContext.current = undefined;
-            }
-            setState([]);
-            cursorRef.current = undefined;
-        };
-    }, [processHandle]);
-
-    const advance = useCallback(async () => {
-        if (currentCancelContext.current !== undefined) {
-            return;
-        }
-
         const cancelContext = new CancelContext.CancelContext();
-        currentCancelContext.current = cancelContext;
-
         const indexFeed = processHandle.store().indexFeed;
+        let cursor: Store.IndexFeed.IndexFeedCursor | undefined = undefined;
+        let finished = false;
 
-        let recieved = 0;
-        do {
-            const { cursor, items } = await indexFeed.query(
-                batchSize,
-                cursorRef.current,
+        const adv = async () => {
+            if (finished === true || cancelContext.cancelled()) return;
+
+            let recieved = 0;
+            do {
+                const result = await indexFeed.query(batchSize, cursor);
+
+                if (cancelContext.cancelled()) {
+                    return;
+                }
+
+                cursor = result.cursor;
+
+                const parsedEvents = result.items.map((signedEvent) => {
+                    const event = Models.Event.fromBuffer(signedEvent.event);
+                    const parsed = Protocol.Post.decode(event.content);
+
+                    return new ParsedEvent<Protocol.Post>(
+                        signedEvent,
+                        event,
+                        parsed,
+                    );
+                });
+                recieved += parsedEvents.length;
+                setState((state) => {
+                    return state.concat(parsedEvents);
+                });
+            } while (
+                cursor !== undefined &&
+                recieved < batchSize &&
+                !cancelContext.cancelled()
             );
 
-            if (cancelContext.cancelled()) {
-                return;
-            }
+            finished = cursor === undefined;
+        };
+        setAdvance(adv);
 
-            cursorRef.current = cursor;
-            const parsedEvents = items.map((signedEvent) => {
-                const event = Models.Event.fromBuffer(signedEvent.event);
-                const parsed = Protocol.Post.decode(event.content);
-
-                return new ParsedEvent<Protocol.Post>(
-                    signedEvent,
-                    event,
-                    parsed,
-                );
-            });
-            recieved += parsedEvents.length;
-            setState((state) => {
-                return state.concat(parsedEvents);
-            });
-        } while (
-            cursorRef.current !== undefined &&
-            recieved < batchSize &&
-            !cancelContext.cancelled()
-        );
-
-        currentCancelContext.current = undefined;
-    }, [cursorRef, batchSize, processHandle]);
+        return () => {
+            cancelContext.cancel();
+            setAdvance(() => () => {});
+            setState([]);
+        };
+    }, [processHandle, batchSize]);
 
     return [state, advance];
 }
