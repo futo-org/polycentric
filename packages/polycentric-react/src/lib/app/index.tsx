@@ -23,6 +23,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { SidebarLayout } from '../components/layout/sidebarlayout';
 import { Onboarding } from '../components/onboarding';
 import { AppRouter } from '../components/util/approuter';
+import { PersistenceDriverContext } from '../hooks/persistenceDriverHooks';
 import {
     BaseProcessHandleManagerContext,
     useProcessHandleManagerBaseComponentHook,
@@ -176,10 +177,12 @@ export const App = ({
     }
 
     return (
-        <IonApp>
-            <AddToHomeScreenBarrier>
-                <LoadedMetastoreApp metaStore={metaStore} />
-            </AddToHomeScreenBarrier>
-        </IonApp>
+        <PersistenceDriverContext.Provider value={persistenceDriver}>
+            <IonApp>
+                <AddToHomeScreenBarrier>
+                    <LoadedMetastoreApp metaStore={metaStore} />
+                </AddToHomeScreenBarrier>
+            </IonApp>
+        </PersistenceDriverContext.Provider>
     );
 };
