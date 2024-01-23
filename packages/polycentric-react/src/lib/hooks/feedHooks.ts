@@ -6,6 +6,7 @@ import {
     Store,
     Util,
 } from '@polycentric/polycentric-core';
+import AsyncLock from 'async-lock';
 import Long from 'long';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useProcessHandleManager } from './processHandleManagerHooks';
@@ -227,43 +228,50 @@ export function useFollowingFeed(
         const indexFeed = processHandle.store().indexFeed;
         let cursor: Store.IndexFeed.IndexFeedCursor | undefined = undefined;
         let finished = false;
+        const lock = new AsyncLock();
 
         const adv = async () => {
-            if (finished === true || cancelContext.cancelled()) return;
+            await lock.acquire('', async (): Promise<void> => {
+                if (finished === true || cancelContext.cancelled()) return;
 
-            let recieved = 0;
-            do {
-                const result = await indexFeed.query(batchSize, cursor);
+                let recieved = 0;
+                do {
+                    const result = await indexFeed.query(batchSize, cursor);
 
-                if (cancelContext.cancelled()) {
-                    return;
-                }
+                    if (cancelContext.cancelled()) {
+                        return;
+                    }
 
-                cursor = result.cursor;
+                    cursor = result.cursor;
 
-                const parsedEvents = result.items.map((signedEvent) => {
-                    const event = Models.Event.fromBuffer(signedEvent.event);
-                    const parsed = Protocol.Post.decode(event.content);
+                    const parsedEvents = result.items.map((signedEvent) => {
+                        const event = Models.Event.fromBuffer(
+                            signedEvent.event,
+                        );
+                        const parsed = Protocol.Post.decode(event.content);
 
-                    return new ParsedEvent<Protocol.Post>(
-                        signedEvent,
-                        event,
-                        parsed,
-                    );
-                });
-                recieved += parsedEvents.length;
-                setState((state) => {
-                    return state.concat(parsedEvents);
-                });
-            } while (
-                cursor !== undefined &&
-                recieved < batchSize &&
-                !cancelContext.cancelled()
-            );
+                        return new ParsedEvent<Protocol.Post>(
+                            signedEvent,
+                            event,
+                            parsed,
+                        );
+                    });
+                    recieved += parsedEvents.length;
+                    setState((state) => {
+                        return state.concat(parsedEvents);
+                    });
+                } while (
+                    cursor !== undefined &&
+                    recieved < batchSize &&
+                    !cancelContext.cancelled()
+                );
 
-            finished = cursor === undefined;
+                finished = cursor === undefined;
+
+                return;
+            });
         };
-        setAdvance(adv);
+        setAdvance(() => adv);
 
         return () => {
             cancelContext.cancel();
