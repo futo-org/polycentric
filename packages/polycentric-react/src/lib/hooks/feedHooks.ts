@@ -242,7 +242,7 @@ export function useFollowingFeed(
                 cursorRef.current,
             );
 
-            if (cancelContext?.cancelled()) {
+            if (cancelContext.cancelled()) {
                 return;
             }
 
