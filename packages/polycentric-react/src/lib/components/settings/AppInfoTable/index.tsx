@@ -25,6 +25,18 @@ const AppInfoTableRow = ({
     );
 };
 
+function byteAmountToString(bytes: number) {
+    // b, kb, mb, gb
+    const units = ['B', 'KB', 'MB', 'GB'];
+    for (const unit of units) {
+        if (bytes < 1024) {
+            return `${bytes.toFixed(2)} ${unit}`;
+        }
+        bytes /= 1024;
+    }
+    return `${bytes.toFixed(2)} TB`;
+}
+
 export const AppInfoTable = () => {
     const persistenceDriver = usePersistenceDriver();
 
@@ -82,11 +94,13 @@ export const AppInfoTable = () => {
             },
             {
                 key: 'Estimated Storage Available',
-                value: bytesAvailable?.toString(),
+                value: bytesAvailable
+                    ? byteAmountToString(bytesAvailable)
+                    : undefined,
             },
             {
                 key: 'Estimated Storage Used',
-                value: bytesUsed?.toString(),
+                value: bytesUsed ? byteAmountToString(bytesUsed) : undefined,
             },
         ],
         [version, persisted, implementationName, bytesAvailable, bytesUsed],
