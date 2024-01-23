@@ -223,8 +223,15 @@ export function useFollowingFeed(
     const currentCancelContext = useRef<CancelContext.CancelContext>();
     const cursorRef = useRef<Store.IndexFeed.IndexFeedCursor | undefined>();
 
-    const indexFeed = useMemo(() => {
-        return processHandle.store().indexFeed;
+    useEffect(() => {
+        return () => {
+            if (currentCancelContext.current !== undefined) {
+                currentCancelContext.current.cancel();
+                currentCancelContext.current = undefined;
+            }
+            setState([]);
+            cursorRef.current = undefined;
+        };
     }, [processHandle]);
 
     const advance = useCallback(async () => {
@@ -234,6 +241,8 @@ export function useFollowingFeed(
 
         const cancelContext = new CancelContext.CancelContext();
         currentCancelContext.current = cancelContext;
+
+        const indexFeed = processHandle.store().indexFeed;
 
         let recieved = 0;
         do {
@@ -268,7 +277,7 @@ export function useFollowingFeed(
         );
 
         currentCancelContext.current = undefined;
-    }, [indexFeed, cursorRef, batchSize]);
+    }, [cursorRef, batchSize, processHandle]);
 
     return [state, advance];
 }
