@@ -228,22 +228,24 @@ export function useFollowingFeed(
     }, [processHandle]);
 
     const advance = useCallback(async () => {
-        if (currentCancelContext.current) {
+        if (currentCancelContext.current !== undefined) {
             return;
         }
 
-        currentCancelContext.current = new CancelContext.CancelContext();
+        const cancelContext = new CancelContext.CancelContext();
+        currentCancelContext.current = cancelContext;
 
         let recieved = 0;
         do {
-            if (currentCancelContext.current?.cancelled()) {
-                return;
-            }
-
             const { cursor, items } = await indexFeed.query(
                 batchSize,
                 cursorRef.current,
             );
+
+            if (cancelContext?.cancelled()) {
+                return;
+            }
+
             cursorRef.current = cursor;
             const parsedEvents = items.map((signedEvent) => {
                 const event = Models.Event.fromBuffer(signedEvent.event);
@@ -259,17 +261,14 @@ export function useFollowingFeed(
             setState((state) => {
                 return state.concat(parsedEvents);
             });
-        } while (cursorRef.current !== undefined && recieved < batchSize);
+        } while (
+            cursorRef.current !== undefined &&
+            recieved < batchSize &&
+            !cancelContext.cancelled()
+        );
 
         currentCancelContext.current = undefined;
     }, [indexFeed, cursorRef, batchSize]);
-
-    useEffect(() => {
-        return () => {
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-            currentCancelContext.current?.cancel();
-        };
-    }, []);
 
     return [state, advance];
 }
