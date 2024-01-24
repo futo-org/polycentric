@@ -152,13 +152,12 @@ export class QueryManager extends HasUpdate {
             stateForQuery.system,
         );
 
-        for (const server of systemState.servers()) {
-            try {
-                this.loadFromNetworkSpecific(server, stateForQuery);
-            } catch (err) {
-                console.log(err);
-            }
-        }
+        const loadPromises = systemState.servers().map((server) =>
+            this.loadFromNetworkSpecific(server, stateForQuery).catch((err) => {
+                console.error(err);
+            }),
+        );
+        await Promise.allSettled(loadPromises);
     }
 
     private async loadFromNetworkSpecific(
@@ -243,6 +242,8 @@ export function observableQuery(
                 subscriber.next(value);
             },
             () => {
+                console.log('not found');
+
                 subscriber.next(undefined);
             },
         );
