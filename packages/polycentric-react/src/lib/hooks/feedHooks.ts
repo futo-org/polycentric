@@ -288,7 +288,7 @@ export const useBatchRenderFeed = (
 ) => {
     // This is technically the same as using a map, but likely faster and more efficient in most browsers due to the operations we're doing
     const [renderableBatchMap, setRenderableBatchMap] = useState<
-        Array<undefined | true>
+        Array<undefined | number | true>
     >([]);
     const indexLoaded = useRef<Array<undefined | boolean>>([]);
 
@@ -318,12 +318,12 @@ export const useBatchRenderFeed = (
                     .slice(low, high)
                     .every((v) => v === true);
 
+                const batchNum = Math.floor(index / batchLoadSize);
                 if (allLoaded) {
-                    const batchNum = Math.floor(index / batchLoadSize);
-                    setRenderableBatchMap((batchload) => {
-                        const newBatchload = batchload.slice();
-                        newBatchload[batchNum] = true;
-                        return newBatchload;
+                    setRenderableBatchMap((newRenderableBatchMap) => {
+                        const newMap = newRenderableBatchMap.slice();
+                        newMap[batchNum] = true;
+                        return newMap;
                     });
                 }
             }
@@ -339,6 +339,53 @@ export const useBatchRenderFeed = (
             startIndex: number;
             endIndex: number;
         }) => {
+            const lowMountedBatch = Math.floor(startIndex / batchLoadSize);
+            const highMountedBatch = Math.floor(endIndex / batchLoadSize);
+
+            // Set a timeout on all posts in the viewport that aren't loaded yet
+            setRenderableBatchMap((newRenderableBatchMap) => {
+                let addedTimeout = false;
+                const newMap = newRenderableBatchMap.slice();
+
+                for (let i = lowMountedBatch; i <= highMountedBatch; i++) {
+                    // If it's already loaded or there's already a timeout, skip
+                    if (newMap[i] !== undefined) {
+                        continue;
+                    } else {
+                        addedTimeout = true;
+                    }
+
+                    const timeout = window.setTimeout(() => {
+                        const currentLowMountedBatch = Math.floor(
+                            mountedRange.current.startIndex / batchLoadSize,
+                        );
+                        const currentHighMountedBatch = Math.floor(
+                            mountedRange.current.endIndex / batchLoadSize,
+                        );
+
+                        const batchStillMounted =
+                            currentLowMountedBatch <= i &&
+                            i <= currentHighMountedBatch;
+
+                        setRenderableBatchMap((laterRenderableBatchMap) => {
+                            // Optimization: if it's already loaded skip the rerender
+                            if (laterRenderableBatchMap[i] === true) {
+                                return laterRenderableBatchMap;
+                            }
+
+                            const newLaterMap = laterRenderableBatchMap.slice();
+                            newLaterMap[i] = batchStillMounted
+                                ? true
+                                : undefined;
+                            return newLaterMap;
+                        });
+                    }, 1500);
+
+                    newMap[i] = timeout;
+                }
+                return addedTimeout ? newMap : newRenderableBatchMap;
+            });
+
             // For the posts that just scrolled out of our rendering range, mark them as unrenderable
             // Since they might unmount, if we scroll up and they're still marked as renderable after rendering the first time, they might have data flashing in
 
