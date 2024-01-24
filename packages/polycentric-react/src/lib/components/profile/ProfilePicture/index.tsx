@@ -27,7 +27,7 @@ export const ProfilePicture = ({
                         alt={alt}
                     />
                     {showPlaceholder && (
-                        <div className="absolute inset-0 w-full h-full bg-gray-200 border border-gray-200"></div>
+                        <div className="absolute inset-0 w-full h-full bg-gray-200 border-4 border-gray-200"></div>
                     )}
                 </>
             )}
