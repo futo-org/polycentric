@@ -37,16 +37,13 @@ export function useObservableWithCache<T>(
         const potentialItem = cache.get(cacheKey);
 
         if (potentialItem) {
-            if (state !== potentialItem.value) {
-                setState(potentialItem.value);
-            }
-        } else if (state !== undefined) {
-            setState(undefined);
+            setState((state) => {
+                if (state === potentialItem.value) {
+                    return state;
+                }
+                return potentialItem.value;
+            });
         }
-    }, [cache, cacheKey, state]);
-
-    useEffect(() => {
-        const potentialItem = cache.get(cacheKey);
 
         const item: ObservableCacheItem<T> = potentialItem
             ? potentialItem
@@ -98,6 +95,8 @@ export function useObservableWithCache<T>(
             item.callbacks.delete(cb);
 
             finalize(true, item.generation);
+
+            setState(undefined);
         };
     }, [cache, cacheKey, cacheTimeoutMilliseconds, observable]);
 
