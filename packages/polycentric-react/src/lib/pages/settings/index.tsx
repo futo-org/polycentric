@@ -2,6 +2,7 @@ import { IonContent } from '@ionic/react';
 import { Page } from '../../app/router';
 import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
+import { AppInfoTable } from '../../components/settings/AppInfoTable';
 import { ExportKey } from '../../components/settings/ExportKey';
 import { ServerListTable } from '../../components/settings/ServerTable';
 
@@ -22,6 +23,10 @@ export const SettingsPage: Page = () => {
                                 Backup account login token
                             </h2>
                             <ExportKey />
+                        </div>
+                        <div className="flex flex-col space-y-3">
+                            <h2 className="font-medium">Diagnostics</h2>
+                            <AppInfoTable />
                         </div>
                     </div>
                 </RightCol>
