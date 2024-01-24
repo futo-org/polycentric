@@ -137,11 +137,15 @@ const observableAvatar = (
                         manifest.sections,
                     ).pipe(
                         RXJS.switchMap((buffer) => {
-                            return RXJS.of(
-                                new Blob([buffer], {
-                                    type: manifest.mime,
-                                }),
-                            );
+                            if (buffer) {
+                                return RXJS.of(
+                                    new Blob([buffer], {
+                                        type: manifest.mime,
+                                    }),
+                                );
+                            } else {
+                                return observableSystemToBlob(system);
+                            }
                         }),
                     );
                 } else {
