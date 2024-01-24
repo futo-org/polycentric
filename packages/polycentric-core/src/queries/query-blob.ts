@@ -2,14 +2,15 @@ import Long from 'long';
 import * as RXJS from 'rxjs';
 
 import * as APIMethods from '../api-methods';
-import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
-import * as Shared from './shared';
+import * as ProcessHandle from '../process-handle';
 import * as Ranges from '../ranges';
 import * as Util from '../util';
 import { HasUpdate } from './has-update';
+import * as Shared from './shared';
 
-export type Callback = (buffer: Uint8Array) => void;
+export type SuccessCallback = (buffer: Uint8Array) => void;
+export type NotYetFoundCallback = () => void;
 
 type StateForQuery = {
     readonly system: Readonly<Models.PublicKey.PublicKey>;
@@ -17,7 +18,8 @@ type StateForQuery = {
     readonly wantRanges: ReadonlyArray<Ranges.IRange>;
     readonly haveRanges: Array<Ranges.IRange>;
     readonly events: Array<Models.Event.Event>;
-    readonly callbacks: Set<Callback>;
+    readonly successCallbacks: Set<SuccessCallback>;
+    readonly notYetFoundCallbacks: Set<NotYetFoundCallback>;
     value: Uint8Array | undefined;
 };
 
@@ -60,7 +62,8 @@ export class QueryManager extends HasUpdate {
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
         ranges: ReadonlyArray<Ranges.IRange>,
-        callback: Callback,
+        successCallback: SuccessCallback,
+        notYetFoundCallback?: NotYetFoundCallback,
     ): Shared.UnregisterCallback {
         const key = makeKey(system, process, ranges);
 
@@ -74,30 +77,44 @@ export class QueryManager extends HasUpdate {
                     wantRanges: ranges,
                     haveRanges: [],
                     events: [],
-                    callbacks: new Set(),
+                    successCallbacks: new Set(),
+                    notYetFoundCallbacks: new Set(),
                     value: undefined,
                 };
             },
         );
 
-        stateForQuery.callbacks.add(callback);
+        stateForQuery.successCallbacks.add(successCallback);
 
         if (stateForQuery.value !== undefined) {
-            callback(stateForQuery.value);
+            successCallback(stateForQuery.value);
         } else {
+            let networkLoadPromise: Promise<void> | undefined;
             if (this._useNetwork === true) {
-                this.loadFromNetwork(stateForQuery);
+                networkLoadPromise = this.loadFromNetwork(stateForQuery);
             }
 
+            let diskLoadPromise: Promise<void> | undefined;
             if (this._useDisk === true) {
-                this.loadFromDisk(stateForQuery);
+                diskLoadPromise = this.loadFromDisk(stateForQuery);
             }
+
+            Promise.allSettled([networkLoadPromise, diskLoadPromise]).then(
+                () => {
+                    if (stateForQuery.value === undefined) {
+                        notYetFoundCallback?.();
+                    }
+                },
+            );
         }
 
         return () => {
-            stateForQuery.callbacks.delete(callback);
+            stateForQuery.successCallbacks.delete(successCallback);
+            if (notYetFoundCallback) {
+                stateForQuery.notYetFoundCallbacks.delete(notYetFoundCallback);
+            }
 
-            if (stateForQuery.callbacks.size === 0) {
+            if (stateForQuery.successCallbacks.size === 0) {
                 this._state.delete(key);
             }
         };
@@ -203,7 +220,7 @@ export class QueryManager extends HasUpdate {
                     stateForQuery.events.map((x) => x.content),
                 );
 
-                for (const callback of stateForQuery.callbacks) {
+                for (const callback of stateForQuery.successCallbacks) {
                     callback(stateForQuery.value);
                 }
             }
@@ -218,8 +235,16 @@ export function observableQuery(
     ranges: ReadonlyArray<Ranges.IRange>,
 ): RXJS.Observable<Uint8Array> {
     return new RXJS.Observable((subscriber) => {
-        return queryManager.query(system, process, ranges, (value) => {
-            subscriber.next(value);
-        });
+        return queryManager.query(
+            system,
+            process,
+            ranges,
+            (value) => {
+                subscriber.next(value);
+            },
+            () => {
+                subscriber.next(undefined);
+            },
+        );
     });
 }

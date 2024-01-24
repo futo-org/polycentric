@@ -5,9 +5,9 @@ import * as APIMethods from '../api-methods';
 import * as Models from '../models';
 import * as ProcessHandle from '../process-handle';
 import * as Synchronization from '../synchronization';
-import * as Shared from './shared';
 import * as Util from '../util';
 import { HasUpdate } from './has-update';
+import * as Shared from './shared';
 
 export type SuccessCallback = (value: Uint8Array) => void;
 export type NotYetFoundCallback = () => void;
@@ -103,11 +103,7 @@ export class QueryManager extends HasUpdate {
             Promise.allSettled([networkLoadPromise, diskLoadPromise]).then(
                 () => {
                     if (stateForCRDT.fulfilled === false) {
-                        stateForCRDT.notYetFoundCallbacks.forEach(
-                            (callback) => {
-                                callback();
-                            },
-                        );
+                        notYetFoundCallback?.();
                     }
                 },
             );
