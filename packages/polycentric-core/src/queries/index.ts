@@ -10,3 +10,4 @@ export * as QueryCursor from './query-cursor';
 export * as HasUpdate from './has-update';
 export * as QueryEvent2 from './query-event2';
 export * as QueryBlob2 from './query-blob2';
+export * as QueryHead2 from './query-head2';
