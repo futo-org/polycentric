@@ -5,6 +5,7 @@ import { UnregisterCallback, DuplicatedCallbackError } from './shared';
 import * as Ranges from '../ranges';
 import * as Models from '../models';
 import * as Util from '../util';
+import { OnceFlag } from '../util';
 
 export type StateKey = Readonly<string> & {
     readonly __tag: unique symbol;
@@ -25,7 +26,7 @@ export type Callback = (buffer: Uint8Array | undefined) => void;
 type StateForQuery = {
     value: Uint8Array | undefined;
     readonly callbacks: Set<Callback>;
-    fulfilled: boolean;
+    readonly fulfilled: OnceFlag;
     unsubscribe: () => void;
 };
 
@@ -54,7 +55,7 @@ export class QueryBlob {
                     value: undefined,
                     callbacks: new Set(),
                     unsubscribe: () => {},
-                    fulfilled: false,
+                    fulfilled: new OnceFlag(),
                 };
             },
         );
@@ -76,7 +77,7 @@ export class QueryBlob {
                     ),
                 ),
             ).subscribe((signedEvents) => {
-                stateForQuery.fulfilled = true;
+                stateForQuery.fulfilled.set();
 
                 const events = signedEvents.map((signedEvent) => {
                     return Models.Event.fromBuffer(signedEvent.event);
@@ -111,7 +112,7 @@ export class QueryBlob {
         } else {
             stateForQuery.callbacks.add(callback);
 
-            if (stateForQuery.fulfilled) {
+            if (stateForQuery.fulfilled.value) {
                 callback(stateForQuery.value);
             }
         }
