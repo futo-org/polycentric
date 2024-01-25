@@ -1,10 +1,10 @@
 export class CancelContext {
     private _cancelled: boolean;
-    private _callbacks: Array<() => void>;
+    private readonly _callbacks: Set<() => void>;
 
     public constructor() {
         this._cancelled = false;
-        this._callbacks = [];
+        this._callbacks = new Set();
     }
 
     public cancelled(): boolean {
@@ -13,13 +13,13 @@ export class CancelContext {
 
     public cancel(): void {
         if (this._cancelled === false) {
-            this._callbacks.map((cb) => cb());
+            this._callbacks.forEach((cb) => cb());
         }
 
         this._cancelled = true;
     }
 
     public addCallback(cb: () => void): void {
-        this._callbacks.push(cb);
+        this._callbacks.add(cb);
     }
 }

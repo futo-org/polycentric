@@ -15,18 +15,15 @@ import {
     ImpossibleError,
     UnregisterCallback,
 } from './shared';
+import { CancelContext } from '../cancel-context';
 
 export type Callback = (signedEvent: Models.SignedEvent.SignedEvent) => void;
-
-export type ContextHold = {
-    readonly __tag: unique symbol;
-};
 
 type StateForEvent = {
     readonly logicalClock: Readonly<Long>;
     signedEvent: Models.SignedEvent.SignedEvent | undefined;
     readonly callbacks: Set<Callback>;
-    readonly contextHolds: Set<ContextHold>;
+    readonly contextHolds: Set<CancelContext>;
     readonly attemptedSources: Set<string>;
 };
 
@@ -342,7 +339,7 @@ export class QueryEvent extends HasUpdate {
 
     public updateWithContextHold(
         signedEvent: Models.SignedEvent.SignedEvent,
-        contextHold: ContextHold | undefined,
+        contextHold: CancelContext | undefined,
     ): void {
         const event = Models.Event.fromBuffer(signedEvent.event);
 
@@ -360,6 +357,17 @@ export class QueryEvent extends HasUpdate {
 
         if (contextHold) {
             stateForEvent.contextHolds.add(contextHold);
+
+            contextHold.addCallback(() => {
+                stateForEvent.contextHolds.delete(contextHold);
+
+                this.cleanupStateForQuery(
+                    stateForEvent,
+                    event.system,
+                    event.process,
+                    event.logicalClock,
+                );
+            });
         }
 
         if (!stateForEvent.signedEvent) {
