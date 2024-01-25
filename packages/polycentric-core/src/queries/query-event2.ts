@@ -9,6 +9,7 @@ import * as Protocol from '../protocol';
 import * as APIMethods from '../api-methods';
 import { IndexEvents } from '../store/index-events';
 import { ProcessHandle } from '../process-handle';
+import { HasUpdate } from './has-update';
 
 export type Callback = (signedEvent: Models.SignedEvent.SignedEvent) => void;
 
@@ -45,7 +46,7 @@ const DuplicatedCallbackError = new Error('duplicated callback');
 const ImpossibleError = new Error('impossible');
 const DeleteOfDeleteError = new Error('cannot delete a delete event');
 
-export class QueryEvent {
+export class QueryEvent extends HasUpdate {
     private readonly state: Map<
         Models.PublicKey.PublicKeyString,
         StateForSystem
@@ -56,6 +57,8 @@ export class QueryEvent {
     private useNetwork: boolean;
 
     constructor(processHandle: ProcessHandle, indexEvents: IndexEvents) {
+        super();
+
         this.state = new Map();
         this.indexEvents = indexEvents;
         this.processHandle = processHandle;
@@ -141,7 +144,7 @@ export class QueryEvent {
         );
 
         if (signedEvent) {
-            this.update(signedEvent, undefined);
+            this.update(signedEvent);
         }
     }
 
@@ -196,7 +199,7 @@ export class QueryEvent {
                     );
 
                     events.events.forEach((event) =>
-                        this.update(event, undefined),
+                        this.update(event),
                     );
                 })();
             }
@@ -332,7 +335,11 @@ export class QueryEvent {
         return undefined;
     }
 
-    public update(
+    public update(signedEvent: Models.SignedEvent.SignedEvent): void {
+        this.updateWithContextHold(signedEvent, undefined);
+    }
+
+    public updateWithContextHold(
         signedEvent: Models.SignedEvent.SignedEvent,
         contextHold: ContextHold | undefined,
     ): void {
