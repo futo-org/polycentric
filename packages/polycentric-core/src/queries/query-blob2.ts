@@ -70,14 +70,16 @@ export class QueryBlob extends HasUpdate {
         if (stateForQuery.callbacks.size === 0) {
             stateForQuery.callbacks.add(callback);
 
-            const subscription = RXJS.combineLatest([
-                queryEventObservable(
-                    this.queryEvent,
-                    system,
-                    process,
-                    Long.UZERO,
+            const subscription = RXJS.combineLatest(
+                Ranges.toArray(ranges).map((logicalClock) =>
+                    queryEventObservable(
+                        this.queryEvent,
+                        system,
+                        process,
+                        Long.UZERO,
+                    ),
                 ),
-            ]).subscribe((signedEvents) => {
+            ).subscribe((signedEvents) => {
                 stateForQuery.fulfilled = true;
 
                 const events = signedEvents.map((signedEvent) => {
