@@ -23,6 +23,7 @@ type StateForEvent = {
     readonly callbacks: Set<Callback>;
     readonly contextHolds: Set<CancelContext>;
     readonly attemptedSources: Set<string>;
+    readonly cancelContext: CancelContext;
 };
 
 export type LogicalClockString = Readonly<string> & {
@@ -136,6 +137,10 @@ export class QueryEvent extends HasUpdate {
             logicalClock,
         );
 
+        if (stateForEvent.cancelContext.cancelled()) {
+            return;
+        }
+
         if (signedEvent) {
             this.update(signedEvent);
         }
@@ -146,6 +151,10 @@ export class QueryEvent extends HasUpdate {
         system: Models.PublicKey.PublicKey,
     ): Promise<void> {
         const systemState = await this.processHandle.loadSystemState(system);
+
+        if (stateForEvent.cancelContext.cancelled()) {
+            return;
+        }
 
         const systemString = Models.PublicKey.toString(system);
         const stateForSystem = this.state.get(systemString);
@@ -188,6 +197,10 @@ export class QueryEvent extends HasUpdate {
                         system,
                         request,
                     );
+
+                    if (stateForEvent.cancelContext.cancelled()) {
+                        return;
+                    }
 
                     events.events.forEach((event) => this.update(event));
                 })();
@@ -290,6 +303,7 @@ export class QueryEvent extends HasUpdate {
                     contextHolds: new Set(),
                     attemptedSources: new Set(),
                     logicalClock: logicalClock,
+                    cancelContext: new CancelContext(),
                 };
 
                 stateForProcess.state.set(logicalClockString, stateForEvent);
@@ -307,6 +321,7 @@ export class QueryEvent extends HasUpdate {
             stateForEvent.contextHolds.size === 0
         ) {
             stateForProcess.state.delete(logicalClockString);
+            stateForEvent.cancelContext.cancel();
         } else {
             return undefined;
         }
