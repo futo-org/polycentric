@@ -8,10 +8,9 @@ import { HasUpdate } from './has-update';
 import * as QueryHead from './query-head2';
 import { QueryEvent, queryEventObservable } from './query-event2';
 import { UnregisterCallback, DuplicatedCallbackError } from './shared';
+import { Box } from '../util';
 
 export type SuccessCallback = (value: Uint8Array | undefined) => void;
-
-type Box<T> = { value: T };
 
 type StateForCRDT = {
     value: Box<Uint8Array | undefined>;
@@ -154,8 +153,8 @@ export class QueryCRDT extends HasUpdate {
             () => {
                 initial = true;
 
-                const value: Box<Uint8Array | undefined> = { value: undefined };
-                const fulfilled: Box<boolean> = { value: false };
+                const value = new Box<Uint8Array | undefined>(undefined);
+                const fulfilled = new Box<boolean>(true);
                 const callbacks = new Set([callback]);
 
                 const subscription = this.pipeline(
