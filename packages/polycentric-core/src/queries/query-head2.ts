@@ -1,4 +1,3 @@
-import Long from 'long';
 import * as RXJS from 'rxjs';
 
 import * as APIMethods from '../api-methods';
@@ -216,7 +215,7 @@ export class QueryHead extends HasUpdate {
                 return;
             }
 
-            let stateForSystem: StateForSystem = potentialStateForSystem;
+            const stateForSystem: StateForSystem = potentialStateForSystem;
 
             if (contextHold) {
                 stateForSystem.contextHolds.add(contextHold);

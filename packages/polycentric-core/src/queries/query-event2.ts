@@ -1,9 +1,7 @@
 import Long from 'long';
-import * as Base64 from '@borderless/base64';
 import * as RXJS from 'rxjs';
 
 import * as Models from '../models';
-import * as Shared from './shared';
 import * as Ranges from '../ranges';
 import * as Protocol from '../protocol';
 import * as APIMethods from '../api-methods';
@@ -106,12 +104,7 @@ export class QueryEvent extends HasUpdate {
             }
 
             if (this.useNetwork) {
-                this.loadFromNetwork(
-                    stateForEvent,
-                    system,
-                    process,
-                    logicalClock,
-                );
+                this.loadFromNetwork(stateForEvent, system);
             }
         }
 
@@ -151,8 +144,6 @@ export class QueryEvent extends HasUpdate {
     private async loadFromNetwork(
         stateForEvent: StateForEvent,
         system: Models.PublicKey.PublicKey,
-        process: Models.Process.Process,
-        logicalClock: Long,
     ): Promise<void> {
         const systemState = await this.processHandle.loadSystemState(system);
 

@@ -1,8 +1,6 @@
-import Long from 'long';
 import * as RXJS from 'rxjs';
 
 import { QueryEvent, queryEventObservable } from './query-event2';
-import { HasUpdate } from './has-update';
 import { UnregisterCallback, DuplicatedCallbackError } from './shared';
 import * as Ranges from '../ranges';
 import * as Models from '../models';
@@ -31,13 +29,11 @@ type StateForQuery = {
     unsubscribe: () => void;
 };
 
-export class QueryBlob extends HasUpdate {
+export class QueryBlob {
     private readonly queryEvent: QueryEvent;
     private readonly state: Map<StateKey, StateForQuery>;
 
     constructor(queryEvent: QueryEvent) {
-        super();
-
         this.queryEvent = queryEvent;
         this.state = new Map();
     }
@@ -76,7 +72,7 @@ export class QueryBlob extends HasUpdate {
                         this.queryEvent,
                         system,
                         process,
-                        Long.UZERO,
+                        logicalClock,
                     ),
                 ),
             ).subscribe((signedEvents) => {
@@ -130,8 +126,6 @@ export class QueryBlob extends HasUpdate {
             }
         };
     }
-
-    public update(signedEvent: Models.SignedEvent.SignedEvent): void {}
 }
 
 export function queryBlobObservable(

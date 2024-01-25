@@ -4,7 +4,6 @@ import * as RXJS from 'rxjs';
 import * as Models from '../models';
 import * as Util from '../util';
 import * as Protocol from '../protocol';
-import { HasUpdate } from './has-update';
 import * as QueryHead from './query-head2';
 import { QueryEvent, queryEventObservable } from './query-event2';
 import { UnregisterCallback, DuplicatedCallbackError } from './shared';
@@ -72,7 +71,7 @@ function computeCRDTValue(
     return result;
 }
 
-export class QueryCRDT extends HasUpdate {
+export class QueryCRDT {
     private readonly state: Map<
         Models.PublicKey.PublicKeyString,
         StateForSystem
@@ -81,8 +80,6 @@ export class QueryCRDT extends HasUpdate {
     private readonly queryEvent: QueryEvent;
 
     constructor(queryHead: QueryHead.QueryHead, queryEvent: QueryEvent) {
-        super();
-
         this.state = new Map();
         this.queryHead = queryHead;
         this.queryEvent = queryEvent;
@@ -204,8 +201,6 @@ export class QueryCRDT extends HasUpdate {
             }
         };
     }
-
-    public update(signedEvent: Models.SignedEvent.SignedEvent): void {}
 }
 
 export function queryCRDTObservable(
