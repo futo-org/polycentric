@@ -133,3 +133,16 @@ export class QueryBlob extends HasUpdate {
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {}
 }
+
+export function queryBlobObservable(
+    queryManager: QueryBlob,
+    system: Models.PublicKey.PublicKey,
+    process: Models.Process.Process,
+    ranges: ReadonlyArray<Ranges.IRange>,
+): RXJS.Observable<Uint8Array | undefined> {
+    return new RXJS.Observable((subscriber) => {
+        return queryManager.query(system, process, ranges, (value) => {
+            subscriber.next(value);
+        });
+    });
+}
