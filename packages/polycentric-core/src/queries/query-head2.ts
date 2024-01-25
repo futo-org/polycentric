@@ -1,4 +1,5 @@
 import Long from 'long';
+import * as RXJS from 'rxjs';
 
 import * as APIMethods from '../api-methods';
 import * as ProcessHandle from '../process-handle';
@@ -7,12 +8,12 @@ import * as Shared from './shared';
 import * as Util from '../util';
 import { HasUpdate } from './has-update';
 
-type Callback = (
-    value: ReadonlyMap<
-        Models.Process.ProcessString,
-        Models.SignedEvent.SignedEvent
-    >,
-) => void;
+type CallbackValue = ReadonlyMap<
+    Models.Process.ProcessString,
+    Models.SignedEvent.SignedEvent
+>;
+
+type Callback = (value: CallbackValue) => void;
 
 type StateForSystem = {
     readonly head: Map<
@@ -126,4 +127,15 @@ export class QueryHead extends HasUpdate {
             }
         }
     }
+}
+
+export function queryHeadObservable(
+    queryManager: QueryHead,
+    system: Models.PublicKey.PublicKey,
+): RXJS.Observable<CallbackValue> {
+    return new RXJS.Observable((subscriber) => {
+        return queryManager.query(system, (head) => {
+            subscriber.next(head);
+        });
+    });
 }
