@@ -147,13 +147,13 @@ export class QueryCRDT extends HasUpdate {
 
         const contentTypeString = Models.ContentType.toString(contentType);
 
-        let initial = true;
+        let initial = false;
 
         const stateForCRDT: StateForCRDT = Util.lookupWithInitial(
             stateForSystem.state,
             contentTypeString,
             () => {
-                initial = false;
+                initial = true;
 
                 const value: Box<Uint8Array | undefined> = { value: undefined };
                 const fulfilled: Box<boolean> = { value: false };
