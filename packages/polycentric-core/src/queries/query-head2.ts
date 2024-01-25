@@ -6,6 +6,7 @@ import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import * as Shared from './shared';
 import * as Util from '../util';
+import * as Protocol from '../protocol';
 import { HasUpdate } from './has-update';
 
 export type CallbackValue = ReadonlyMap<
@@ -31,12 +32,24 @@ export class QueryHead extends HasUpdate {
         Models.PublicKey.PublicKeyString,
         StateForSystem
     >;
+    private useDisk: boolean;
+    private useNetwork: boolean;
 
     constructor(processHandle: ProcessHandle.ProcessHandle) {
         super();
 
         this.processHandle = processHandle;
         this.state = new Map();
+        this.useDisk = true;
+        this.useNetwork = true;
+    }
+
+    public shouldUseDisk(useDisk: boolean): void {
+        this.useDisk = useDisk;
+    }
+
+    public shouldUseNetwork(useNetwork: boolean): void {
+        this.useNetwork = useNetwork;
     }
 
     public query(
@@ -69,7 +82,13 @@ export class QueryHead extends HasUpdate {
         } else if (!stateForSystem.loadAttempted) {
             stateForSystem.loadAttempted = true;
 
-            this.loadFromNetwork(system);
+            if (this.useNetwork) {
+                this.loadFromNetwork(system);
+            }
+
+            if (this.useDisk) {
+                this.loadFromDisk(system);
+            }
         }
 
         return () => {
@@ -81,19 +100,57 @@ export class QueryHead extends HasUpdate {
         };
     }
 
+    private async loadFromDisk(
+        system: Models.PublicKey.PublicKey,
+    ): Promise<void> {
+        const systemState = await this.processHandle
+            .store()
+            .indexSystemStates.getSystemState(system);
+
+        const loadProcessHead = async (processProto: Protocol.Process) => {
+            const process = Models.Process.fromProto(processProto);
+
+            const processState = await this.processHandle
+                .store()
+                .indexProcessStates.getProcessState(system, process);
+
+            const signedEvent = await this.processHandle
+                .store()
+                .indexEvents.getSignedEvent(
+                    system,
+                    process,
+                    processState.logicalClock,
+                );
+
+            if (!signedEvent) {
+                throw Shared.ImpossibleError;
+            }
+
+            return signedEvent;
+        };
+
+        const signedEvents = await Promise.all(
+            systemState.processes.map(loadProcessHead),
+        );
+
+        signedEvents.map((signedEvent) => this.update(signedEvent));
+    }
+
     private async loadFromNetwork(
         system: Models.PublicKey.PublicKey,
     ): Promise<void> {
         const systemState = await this.processHandle.loadSystemState(system);
 
-        for (const server of systemState.servers()) {
+        const loadFromServer = async (server: string) => {
             try {
                 const events = await APIMethods.getHead(server, system);
                 events.events.forEach((x) => this.update(x));
             } catch (err) {
                 console.log(err);
             }
-        }
+        };
+
+        await Promise.all(systemState.servers().map(loadFromServer));
     }
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {
