@@ -423,19 +423,36 @@ export const Onboarding = () => {
     const isChromium = !!window.chrome;
 
     useEffect(() => {
-        navigator.storage.persisted().then((persisted) => {
-            setAlreadyPersisted(persisted);
+        const checkAndTryToPersist = async () => {
+            navigator.storage.persisted().then((persisted) => {
+                setAlreadyPersisted(persisted);
 
-            // In case we don't have persistence, but we already have notifications on chromium
-            if (
-                persisted === false &&
-                isChromium &&
-                Notification.permission === 'granted'
-            ) {
-                navigator.storage.persist();
-                setAlreadyPersisted(true);
-            }
-        });
+                // In case we don't have persistence, but we already have notifications on chromium
+                if (
+                    persisted === false &&
+                    isChromium &&
+                    Notification.permission === 'granted'
+                ) {
+                    navigator.storage.persist();
+                    setAlreadyPersisted(true);
+                }
+                // Chromium browsers will also allow persist calls without notifications when sites are installed
+                else if (
+                    isChromium &&
+                    window.matchMedia('(display-mode: standalone)').matches
+                ) {
+                    navigator.storage.persist();
+                    setAlreadyPersisted(true);
+                }
+            });
+        };
+
+        checkAndTryToPersist();
+        window.addEventListener('appinstalled', checkAndTryToPersist);
+
+        return () => {
+            window.removeEventListener('appinstalled', checkAndTryToPersist);
+        };
     }, [isChromium]);
 
     const isMobile = useIsMobile();
