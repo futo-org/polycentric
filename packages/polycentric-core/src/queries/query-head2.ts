@@ -25,7 +25,7 @@ class StateForSystem {
     readonly contextHolds: Set<CancelContext>;
     fulfilled: boolean;
     loadAttempted: boolean;
-    cancelContext: CancelContext;
+    readonly cancelContext: CancelContext;
 
     constructor() {
         this.head = new Map();
