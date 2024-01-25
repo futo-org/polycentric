@@ -46,13 +46,16 @@ function lookupIndex(
     return undefined;
 }
 
-function extractCRDTValue(
+function computeCRDTValue(
     signedEvents: Array<Models.SignedEvent.SignedEvent | undefined>,
     contentType: Models.ContentType.ContentType,
-): RXJS.Observable<Uint8Array | undefined> {
+): Uint8Array | undefined {
     const events = signedEvents
-        .filter((signedEvent) => signedEvent !== undefined)
-        .map((signedEvent) => Models.Event.fromBuffer(signedEvent!.event))
+        .filter(
+            (signedEvent): signedEvent is Models.SignedEvent.SignedEvent =>
+                !!signedEvent,
+        )
+        .map((signedEvent) => Models.Event.fromBuffer(signedEvent.event))
         .filter((event) => event.contentType.equals(contentType));
 
     let latestTime: Long = Long.UZERO;
@@ -67,11 +70,7 @@ function extractCRDTValue(
         }
     }
 
-    if (result) {
-        return RXJS.of(result);
-    } else {
-        return RXJS.of(undefined);
-    }
+    return result;
 }
 
 export class QueryCRDT extends HasUpdate {
@@ -121,7 +120,7 @@ export class QueryCRDT extends HasUpdate {
                     }),
                 ).pipe(
                     RXJS.switchMap((signedEvents) =>
-                        extractCRDTValue(signedEvents, contentType),
+                        RXJS.of(computeCRDTValue(signedEvents, contentType)),
                     ),
                 ),
             ),
