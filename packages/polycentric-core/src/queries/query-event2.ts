@@ -1,5 +1,6 @@
 import Long from 'long';
 import * as Base64 from '@borderless/base64';
+import * as RXJS from 'rxjs';
 
 import * as Models from '../models';
 import * as Shared from './shared';
@@ -392,4 +393,22 @@ export class QueryEvent {
             stateForEvent.callbacks.forEach((cb) => cb(signedEvent));
         }
     }
+}
+
+export function observableQuery(
+    queryManager: QueryEvent,
+    system: Models.PublicKey.PublicKey,
+    process: Models.Process.Process,
+    logicalClock: Long,
+): RXJS.Observable<Models.SignedEvent.SignedEvent> {
+    return new RXJS.Observable((subscriber) => {
+        return queryManager.query(
+            system,
+            process,
+            logicalClock,
+            (signedEvent) => {
+                subscriber.next(signedEvent);
+            },
+        );
+    });
 }
