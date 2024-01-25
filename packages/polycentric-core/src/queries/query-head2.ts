@@ -155,7 +155,7 @@ export class QueryHead extends HasUpdate {
             return;
         }
 
-        signedEvents.map((signedEvent) => this.update(signedEvent));
+        this.updateBatch(signedEvents);
     }
 
     private async loadFromNetwork(
@@ -172,7 +172,7 @@ export class QueryHead extends HasUpdate {
                     throw Shared.CancelledError;
                 }
 
-                events.events.forEach((x) => this.update(x));
+                this.updateBatch(events.events);
             } catch (err) {
                 console.log(err);
             }
@@ -182,7 +182,39 @@ export class QueryHead extends HasUpdate {
     }
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {
-        const event = Models.Event.fromBuffer(signedEvent.event);
+        this.updateBatch([signedEvent]);
+    }
+
+    private isBatchWellFormed(
+        signedEvents: Array<Models.SignedEvent.SignedEvent>,
+    ): boolean {
+        if (signedEvents.length === 0) {
+            return false;
+        }
+
+        let system = Models.Event.fromBuffer(signedEvents[0].event).system;
+
+        for (const signedEvent of signedEvents) {
+            const event = Models.Event.fromBuffer(signedEvent.event);
+
+            if (!Models.PublicKey.equal(system, event.system)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public updateBatch(
+        signedEvents: Array<Models.SignedEvent.SignedEvent>,
+    ): void {
+        if (!this.isBatchWellFormed(signedEvents)) {
+            console.warn('batch not well formed');
+
+            return;
+        }
+
+        const event = Models.Event.fromBuffer(signedEvents[0].event);
 
         const systemString = Models.PublicKey.toString(event.system);
 
@@ -192,25 +224,34 @@ export class QueryHead extends HasUpdate {
             return;
         }
 
-        const processString = Models.Process.toString(event.process);
+        let mutated = false;
 
-        const headForSystem = stateForSystem.head.get(processString);
+        for (const signedEvent of signedEvents) {
+            const event = Models.Event.fromBuffer(signedEvent.event);
 
-        let clockForProcess = undefined;
+            const processString = Models.Process.toString(event.process);
 
-        if (headForSystem) {
-            clockForProcess = Models.Event.fromBuffer(
-                headForSystem.event,
-            ).logicalClock;
+            const headForSystem = stateForSystem.head.get(processString);
+
+            let clockForProcess = undefined;
+
+            if (headForSystem) {
+                clockForProcess = Models.Event.fromBuffer(
+                    headForSystem.event,
+                ).logicalClock;
+            }
+
+            if (
+                clockForProcess === undefined ||
+                event.logicalClock.greaterThan(clockForProcess)
+            ) {
+                stateForSystem.head.set(processString, signedEvent);
+                stateForSystem.fulfilled = true;
+                mutated = true;
+            }
         }
 
-        if (
-            clockForProcess === undefined ||
-            event.logicalClock.greaterThan(clockForProcess)
-        ) {
-            stateForSystem.head.set(processString, signedEvent);
-            stateForSystem.fulfilled = true;
-
+        if (mutated) {
             for (const callback of stateForSystem.queries) {
                 callback(stateForSystem.head);
             }
