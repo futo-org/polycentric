@@ -66,7 +66,7 @@ export class QueryHead extends HasUpdate {
             () => {
                 return {
                     head: new Map(),
-                    queries: new Set(),
+                    callbacks: new Set(),
                     fulfilled: false,
                     loadAttempted: false,
                     cancelContext: new CancelContext(),
@@ -74,11 +74,11 @@ export class QueryHead extends HasUpdate {
             },
         );
 
-        if (stateForSystem.queries.has(callback)) {
+        if (stateForSystem.callbacks.has(callback)) {
             throw Shared.DuplicatedCallbackError;
         }
 
-        stateForSystem.queries.add(callback);
+        stateForSystem.callbacks.add(callback);
 
         if (stateForSystem.fulfilled === true) {
             callback(stateForSystem.head);
@@ -95,9 +95,9 @@ export class QueryHead extends HasUpdate {
         }
 
         return () => {
-            stateForSystem.queries.delete(callback);
+            stateForSystem.callbacks.delete(callback);
 
-            if (stateForSystem.queries.size === 0) {
+            if (stateForSystem.callbacks.size === 0) {
                 stateForSystem.cancelContext.cancel();
 
                 this.state.delete(systemString);
@@ -252,7 +252,7 @@ export class QueryHead extends HasUpdate {
         }
 
         if (mutated) {
-            for (const callback of stateForSystem.queries) {
+            for (const callback of stateForSystem.callbacks) {
                 callback(stateForSystem.head);
             }
         }
