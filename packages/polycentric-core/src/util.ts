@@ -107,3 +107,19 @@ export class Box<T> {
         this.value = value;
     }
 }
+
+export class OnceFlag {
+    private _value: boolean;
+
+    public constructor() {
+        this._value = false;
+    }
+
+    public get value(): boolean {
+        return this._value;
+    }
+
+    public set(): void {
+        this._value = true;
+    }
+}

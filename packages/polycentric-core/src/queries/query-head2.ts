@@ -8,6 +8,7 @@ import * as Util from '../util';
 import * as Protocol from '../protocol';
 import { HasUpdate } from './has-update';
 import { CancelContext } from '../cancel-context';
+import { OnceFlag } from '../util';
 
 export type CallbackValue = ReadonlyMap<
     Models.Process.ProcessString,
@@ -23,16 +24,16 @@ class StateForSystem {
     >;
     readonly callbacks: Set<Callback>;
     readonly contextHolds: Set<CancelContext>;
-    fulfilled: boolean;
-    loadAttempted: boolean;
+    readonly fulfilled: OnceFlag;
+    readonly loadAttempted: OnceFlag;
     readonly cancelContext: CancelContext;
 
     constructor() {
         this.head = new Map();
         this.callbacks = new Set();
         this.contextHolds = new Set();
-        this.fulfilled = false;
-        this.loadAttempted = false;
+        this.fulfilled = new OnceFlag();
+        this.loadAttempted = new OnceFlag();
         this.cancelContext = new CancelContext();
     }
 }
@@ -81,10 +82,10 @@ export class QueryHead extends HasUpdate {
 
         stateForSystem.callbacks.add(callback);
 
-        if (stateForSystem.fulfilled === true) {
+        if (stateForSystem.fulfilled.value) {
             callback(stateForSystem.head);
-        } else if (!stateForSystem.loadAttempted) {
-            stateForSystem.loadAttempted = true;
+        } else if (!stateForSystem.loadAttempted.value) {
+            stateForSystem.loadAttempted.set();
 
             if (this.useNetwork) {
                 this.loadFromNetwork(system, stateForSystem.cancelContext);
@@ -244,7 +245,7 @@ export class QueryHead extends HasUpdate {
                 event.logicalClock.greaterThan(clockForProcess)
             ) {
                 stateForSystem.head.set(processString, signedEvent);
-                stateForSystem.fulfilled = true;
+                stateForSystem.fulfilled.set();
                 updatedStates.add(stateForSystem);
             }
         }
