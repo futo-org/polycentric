@@ -55,11 +55,11 @@ export class QueryEvent extends HasUpdate {
     private useDisk: boolean;
     private useNetwork: boolean;
 
-    constructor(processHandle: ProcessHandle, indexEvents: IndexEvents) {
+    constructor(processHandle: ProcessHandle) {
         super();
 
         this.state = new Map();
-        this.indexEvents = indexEvents;
+        this.indexEvents = processHandle.store().indexEvents;
         this.processHandle = processHandle;
         this.useDisk = true;
         this.useNetwork = true;
