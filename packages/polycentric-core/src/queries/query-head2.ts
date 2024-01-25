@@ -8,7 +8,7 @@ import * as Shared from './shared';
 import * as Util from '../util';
 import { HasUpdate } from './has-update';
 
-type CallbackValue = ReadonlyMap<
+export type CallbackValue = ReadonlyMap<
     Models.Process.ProcessString,
     Models.SignedEvent.SignedEvent
 >;
@@ -57,6 +57,10 @@ export class QueryHead extends HasUpdate {
                 };
             },
         );
+
+        if (stateForSystem.queries.has(callback)) {
+            throw Shared.DuplicatedCallbackError;
+        }
 
         stateForSystem.queries.add(callback);
 
