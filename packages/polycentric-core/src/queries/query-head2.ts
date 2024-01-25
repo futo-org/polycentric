@@ -17,7 +17,7 @@ export type CallbackValue = ReadonlyMap<
 
 type Callback = (value: CallbackValue) => void;
 
-type StateForSystem = {
+class StateForSystem {
     readonly head: Map<
         Models.Process.ProcessString,
         Models.SignedEvent.SignedEvent
@@ -27,7 +27,16 @@ type StateForSystem = {
     fulfilled: boolean;
     loadAttempted: boolean;
     cancelContext: CancelContext;
-};
+
+    constructor() {
+        this.head = new Map();
+        this.callbacks = new Set();
+        this.contextHolds = new Set();
+        this.fulfilled = false;
+        this.loadAttempted = false;
+        this.cancelContext = new CancelContext();
+    }
+}
 
 export class QueryHead extends HasUpdate {
     private readonly processHandle: ProcessHandle.ProcessHandle;
@@ -64,16 +73,7 @@ export class QueryHead extends HasUpdate {
         const stateForSystem: StateForSystem = Util.lookupWithInitial(
             this.state,
             systemString,
-            () => {
-                return {
-                    head: new Map(),
-                    callbacks: new Set(),
-                    contextHolds: new Set(),
-                    fulfilled: false,
-                    loadAttempted: false,
-                    cancelContext: new CancelContext(),
-                };
-            },
+            () => new StateForSystem(),
         );
 
         if (stateForSystem.callbacks.has(callback)) {
@@ -167,7 +167,7 @@ export class QueryHead extends HasUpdate {
             return;
         }
 
-        this.updateBatch(signedEvents);
+        this.updateBatch(signedEvents, undefined);
     }
 
     private async loadFromNetwork(
@@ -184,7 +184,7 @@ export class QueryHead extends HasUpdate {
                     throw Shared.CancelledError;
                 }
 
-                this.updateBatch(events.events);
+                this.updateBatch(events.events, undefined);
             } catch (err) {
                 console.log(err);
             }
@@ -194,11 +194,12 @@ export class QueryHead extends HasUpdate {
     }
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {
-        this.updateBatch([signedEvent]);
+        this.updateBatch([signedEvent], undefined);
     }
 
     public updateBatch(
         signedEvents: Array<Models.SignedEvent.SignedEvent>,
+        contextHold: CancelContext | undefined,
     ): void {
         const updatedStates = new Set<StateForSystem>();
 
@@ -207,10 +208,24 @@ export class QueryHead extends HasUpdate {
 
             const systemString = Models.PublicKey.toString(event.system);
 
-            const stateForSystem = this.state.get(systemString);
+            let potentialStateForSystem = this.state.get(systemString);
 
-            if (stateForSystem === undefined) {
+            if (!potentialStateForSystem && contextHold) {
+                potentialStateForSystem = new StateForSystem();
+            } else if (!potentialStateForSystem) {
                 return;
+            }
+
+            let stateForSystem: StateForSystem = potentialStateForSystem;
+
+            if (contextHold) {
+                stateForSystem.contextHolds.add(contextHold);
+
+                contextHold.addCallback(() => {
+                    stateForSystem.contextHolds.delete(contextHold);
+
+                    this.cleanup(systemString, stateForSystem);
+                });
             }
 
             const processString = Models.Process.toString(event.process);
