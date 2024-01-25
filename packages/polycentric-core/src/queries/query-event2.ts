@@ -10,6 +10,11 @@ import * as APIMethods from '../api-methods';
 import { IndexEvents } from '../store/index-events';
 import { ProcessHandle } from '../process-handle';
 import { HasUpdate } from './has-update';
+import {
+    DuplicatedCallbackError,
+    ImpossibleError,
+    UnregisterCallback,
+} from './shared';
 
 export type Callback = (signedEvent: Models.SignedEvent.SignedEvent) => void;
 
@@ -42,8 +47,6 @@ type StateForSystem = {
     readonly state: Map<Models.Process.ProcessString, StateForProcess>;
 };
 
-const DuplicatedCallbackError = new Error('duplicated callback');
-const ImpossibleError = new Error('impossible');
 const DeleteOfDeleteError = new Error('cannot delete a delete event');
 
 export class QueryEvent extends HasUpdate {
@@ -79,7 +82,7 @@ export class QueryEvent extends HasUpdate {
         process: Models.Process.Process,
         logicalClock: Long,
         callback: Callback,
-    ): Shared.UnregisterCallback {
+    ): UnregisterCallback {
         const stateForEvent = this.lookupStateForEvent(
             system,
             process,
