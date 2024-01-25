@@ -22,7 +22,8 @@ type StateForSystem = {
         Models.Process.ProcessString,
         Models.SignedEvent.SignedEvent
     >;
-    readonly queries: Set<Callback>;
+    readonly callbacks: Set<Callback>;
+    readonly contextHolds: Set<CancelContext>;
     fulfilled: boolean;
     loadAttempted: boolean;
     cancelContext: CancelContext;
@@ -67,6 +68,7 @@ export class QueryHead extends HasUpdate {
                 return {
                     head: new Map(),
                     callbacks: new Set(),
+                    contextHolds: new Set(),
                     fulfilled: false,
                     loadAttempted: false,
                     cancelContext: new CancelContext(),
@@ -97,12 +99,22 @@ export class QueryHead extends HasUpdate {
         return () => {
             stateForSystem.callbacks.delete(callback);
 
-            if (stateForSystem.callbacks.size === 0) {
-                stateForSystem.cancelContext.cancel();
-
-                this.state.delete(systemString);
-            }
+            this.cleanup(systemString, stateForSystem);
         };
+    }
+
+    private cleanup(
+        systemString: Models.PublicKey.PublicKeyString,
+        stateForSystem: StateForSystem,
+    ): void {
+        if (
+            stateForSystem.callbacks.size === 0 &&
+            stateForSystem.contextHolds.size === 0
+        ) {
+            stateForSystem.cancelContext.cancel();
+
+            this.state.delete(systemString);
+        }
     }
 
     private async loadFromDisk(
@@ -185,49 +197,21 @@ export class QueryHead extends HasUpdate {
         this.updateBatch([signedEvent]);
     }
 
-    private isBatchWellFormed(
-        signedEvents: Array<Models.SignedEvent.SignedEvent>,
-    ): boolean {
-        if (signedEvents.length === 0) {
-            return false;
-        }
-
-        let system = Models.Event.fromBuffer(signedEvents[0].event).system;
-
-        for (const signedEvent of signedEvents) {
-            const event = Models.Event.fromBuffer(signedEvent.event);
-
-            if (!Models.PublicKey.equal(system, event.system)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     public updateBatch(
         signedEvents: Array<Models.SignedEvent.SignedEvent>,
     ): void {
-        if (!this.isBatchWellFormed(signedEvents)) {
-            console.warn('batch not well formed');
-
-            return;
-        }
-
-        const event = Models.Event.fromBuffer(signedEvents[0].event);
-
-        const systemString = Models.PublicKey.toString(event.system);
-
-        const stateForSystem = this.state.get(systemString);
-
-        if (stateForSystem === undefined) {
-            return;
-        }
-
-        let mutated = false;
+        const updatedStates = new Set<StateForSystem>();
 
         for (const signedEvent of signedEvents) {
             const event = Models.Event.fromBuffer(signedEvent.event);
+
+            const systemString = Models.PublicKey.toString(event.system);
+
+            const stateForSystem = this.state.get(systemString);
+
+            if (stateForSystem === undefined) {
+                return;
+            }
 
             const processString = Models.Process.toString(event.process);
 
@@ -247,11 +231,11 @@ export class QueryHead extends HasUpdate {
             ) {
                 stateForSystem.head.set(processString, signedEvent);
                 stateForSystem.fulfilled = true;
-                mutated = true;
+                updatedStates.add(stateForSystem);
             }
         }
 
-        if (mutated) {
+        for (const stateForSystem of updatedStates) {
             for (const callback of stateForSystem.callbacks) {
                 callback(stateForSystem.head);
             }
