@@ -209,3 +209,15 @@ export class QueryCRDT extends HasUpdate {
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {}
 }
+
+export function queryCRDTObservable(
+    queryManager: QueryCRDT,
+    system: Models.PublicKey.PublicKey,
+    contentType: Models.ContentType.ContentType,
+): RXJS.Observable<Uint8Array | undefined> {
+    return new RXJS.Observable((subscriber) => {
+        return queryManager.query(system, contentType, (value) => {
+            subscriber.next(value);
+        });
+    });
+}
