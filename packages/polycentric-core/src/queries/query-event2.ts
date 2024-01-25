@@ -198,9 +198,7 @@ export class QueryEvent extends HasUpdate {
                         request,
                     );
 
-                    events.events.forEach((event) =>
-                        this.update(event),
-                    );
+                    events.events.forEach((event) => this.update(event));
                 })();
             }
         }
@@ -402,7 +400,7 @@ export class QueryEvent extends HasUpdate {
     }
 }
 
-export function observableQuery(
+export function queryEventObservable(
     queryManager: QueryEvent,
     system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
