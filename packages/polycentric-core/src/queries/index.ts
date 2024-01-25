@@ -8,3 +8,4 @@ export * as QueryBlob from './query-blob';
 export * as QueryCRDTSet from './query-crdt-set';
 export * as QueryCursor from './query-cursor';
 export * as HasUpdate from './has-update';
+export * as QueryEvent2 from './query-event2';
