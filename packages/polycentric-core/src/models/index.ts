@@ -112,6 +112,14 @@ export namespace PublicKey {
         );
     }
 
+    export function fromBuffer(buffer: Uint8Array): PublicKey {
+        return fromProto(Protocol.PublicKey.decode(buffer));
+    }
+
+    export function fromString(key: PublicKeyString): PublicKey {
+        return fromBuffer(Base64.decode(key));
+    }
+
     export function equal(a: PublicKey, b: PublicKey): boolean {
         if (!a.keyType.equals(b.keyType)) {
             return false;
@@ -224,6 +232,14 @@ export namespace Process {
             },
             process,
         );
+    }
+
+    export function fromBuffer(buffer: Uint8Array): Process {
+        return fromProto(Protocol.Process.decode(buffer));
+    }
+
+    export function fromString(key: ProcessString): Process {
+        return fromBuffer(Base64.decode(key));
     }
 
     export function equal(a: Process, b: Process): boolean {

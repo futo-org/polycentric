@@ -169,3 +169,24 @@ export function mapToArray<Key, ValueT1, ValueT2>(
     map.forEach((value) => result.push(operation(value)));
     return result;
 }
+
+export function splitUint8Array(
+    buffer: Uint8Array,
+    deliminator: number,
+): Array<Uint8Array> {
+    const result = [];
+
+    let lastDeliminator = 0;
+
+    for (let i = 0; i < buffer.length; i++) {
+        if (buffer[i] === deliminator) {
+            result.push(buffer.slice(lastDeliminator, i - 1));
+
+            lastDeliminator = i;
+        }
+    }
+
+    result.push(buffer.slice(lastDeliminator + 1, buffer.length));
+
+    return result;
+}

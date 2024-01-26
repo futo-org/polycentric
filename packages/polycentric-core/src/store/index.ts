@@ -10,6 +10,7 @@ import { IndexCRDTElementSet } from './index-crdt-element-set';
 import { IndexEventsForSystemByTime } from './index-events-for-system-by-time';
 import { IndexProcessState } from './index-process-state';
 import { IndexSystemState } from './index-system-state';
+import { IndexSystemProcessContentTypeClock } from './index-system-process-content-type-clock';
 import { HasIngest } from './has-ingest';
 
 export * as IndexFeed from './index-feed';
