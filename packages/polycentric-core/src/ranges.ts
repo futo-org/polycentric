@@ -184,7 +184,7 @@ export function toArray(ranges: ReadonlyArray<IRange>): Array<Long> {
     for (const range of ranges) {
         for (
             let i = range.low;
-            i.greaterThanOrEqual(range.high);
+            i.lessThanOrEqual(range.high);
             i = i.add(Long.UONE)
         ) {
             result.push(i);
