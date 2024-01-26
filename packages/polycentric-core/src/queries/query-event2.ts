@@ -258,7 +258,7 @@ export class QueryEvent extends HasUpdate {
                         false,
                     );
 
-                    const stateForDelete = this.lookupStateForEvent(
+                    this.lookupStateForEvent(
                         system,
                         deleteModel.process,
                         deleteModel.logicalClock,
