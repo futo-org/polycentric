@@ -4,6 +4,7 @@ import Long from 'long';
 import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import { queryEventObservable, QueryEvent } from './query-event2';
+import { CancelContext } from '../cancel-context';
 
 function expectToBeDefined<T>(value: T): asserts value is NonNullable<T> {
     expect(value).toBeDefined();
@@ -149,6 +150,43 @@ describe('query event2', () => {
                 messagePointer,
                 Models.signedEventToPointer(result),
             ),
+        ).toStrictEqual(true);
+    });
+
+    test('context hold', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+        const queryEvent = new QueryEvent(s1p1);
+        queryEvent.shouldUseNetwork(false);
+        queryEvent.shouldUseDisk(true);
+
+        const contextHold = new CancelContext();
+
+        s1p1.setListener((event) =>
+            queryEvent.updateWithContextHold(event, contextHold),
+        );
+
+        const pointer = await s1p1.post('hello');
+
+        let wasInstant = false;
+        const observable = RXJS.firstValueFrom(
+            queryEventObservable(
+                queryEvent,
+                pointer.system,
+                pointer.process,
+                pointer.logicalClock,
+            )
+            .pipe(RXJS.switchMap((signedEvent) => {
+                wasInstant = true;
+                return RXJS.of(signedEvent);
+            })),
+        );
+
+        expect(wasInstant).toStrictEqual(true);
+
+        const result = await observable;
+
+        expect(
+            Models.Pointer.equal(pointer, Models.signedEventToPointer(result)),
         ).toStrictEqual(true);
     });
 });
