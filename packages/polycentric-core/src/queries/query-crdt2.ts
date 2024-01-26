@@ -22,15 +22,6 @@ type StateForSystem = {
     readonly state: Map<Models.ContentType.ContentTypeString, StateForCRDT>;
 };
 
-function mapToArray<Key, ValueT1, ValueT2>(
-    map: ReadonlyMap<Key, ValueT1>,
-    operation: (value: ValueT1) => ValueT2,
-): Array<ValueT2> {
-    const result: Array<ValueT2> = [];
-    map.forEach((value) => result.push(operation(value)));
-    return result;
-}
-
 function lookupIndex(
     indices: Protocol.Indices,
     contentType: Models.ContentType.ContentType,
@@ -92,7 +83,7 @@ export class QueryCRDT {
         return QueryHead.queryHeadObservable(this.queryHead, system).pipe(
             RXJS.switchMap((head) =>
                 RXJS.combineLatest(
-                    mapToArray(head, (signedEvent) => {
+                    Util.mapToArray(head, (signedEvent) => {
                         const event = Models.Event.fromBuffer(
                             signedEvent.event,
                         );
