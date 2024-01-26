@@ -43,8 +43,6 @@ describe('query event2', () => {
         );
 
         expectToBeDefined(deletePointer);
-        
-        console.log("zero");
 
         const messageResult = await RXJS.firstValueFrom(
             queryEventObservable(
@@ -54,8 +52,6 @@ describe('query event2', () => {
                 messagePointer.logicalClock,
             ),
         );
-
-        console.log("first");
 
         expect(
             Models.Pointer.equal(

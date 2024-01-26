@@ -222,29 +222,52 @@ export class QueryEvent extends HasUpdate {
             if (
                 event.contentType.equals(Models.ContentType.ContentTypeDelete)
             ) {
+                const stateForDeleted = this.lookupStateForEvent(
+                    system,
+                    event.process,
+                    event.logicalClock,
+                    false,
+                    false,
+                );
+
+                const deleteModel = Models.Delete.fromBuffer(event.content);
+
+                const stateForDelete = this.lookupStateForEvent(
+                    system,
+                    deleteModel.process,
+                    deleteModel.logicalClock,
+                    false,
+                    false,
+                );
+
+                if (!stateForDeleted || !stateForDelete) {
+                    throw ImpossibleError;
+                }
+
                 if (
-                    Models.PublicKey.equal(system, event.system) &&
-                    Models.Process.equal(process, event.process) &&
-                    logicalClock.equals(event.logicalClock)
+                    stateForDeleted.callbacks.size === 0 &&
+                    stateForDeleted.contextHolds.size === 0 &&
+                    stateForDelete.callbacks.size === 0 &&
+                    stateForDelete.contextHolds.size === 0
                 ) {
                     this.lookupStateForEvent(
                         system,
                         event.process,
                         event.logicalClock,
-                        false,
                         true,
+                        false,
                     );
-                } else {
-                    const deleteModel = Models.Delete.fromBuffer(event.content);
 
-                    this.lookupStateForEvent(
+                    const stateForDelete = this.lookupStateForEvent(
                         system,
                         deleteModel.process,
                         deleteModel.logicalClock,
-                        false,
                         true,
+                        false,
                     );
                 }
+
+                return;
             }
         }
 
@@ -349,11 +372,28 @@ export class QueryEvent extends HasUpdate {
     ): void {
         const event = Models.Event.fromBuffer(signedEvent.event);
 
+        let stateMustBeCreated = false;
+        if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
+            const deleteModel = Models.Delete.fromBuffer(event.content);
+
+            const stateForDeletedEvent = this.lookupStateForEvent(
+                event.system,
+                deleteModel.process,
+                deleteModel.logicalClock,
+                false,
+                false,
+            );
+
+            if (stateForDeletedEvent) {
+                stateMustBeCreated = true;
+            }
+        }
+
         const stateForEvent = this.lookupStateForEvent(
             event.system,
             event.process,
             event.logicalClock,
-            contextHold !== undefined,
+            contextHold !== undefined || stateMustBeCreated,
             false,
         );
 
@@ -379,27 +419,12 @@ export class QueryEvent extends HasUpdate {
         if (!stateForEvent.signedEvent) {
             stateForEvent.signedEvent = signedEvent;
             stateForEvent.callbacks.forEach((cb) => cb(signedEvent));
-        } else {
-            const cachedEvent = Models.Event.fromBuffer(
-                stateForEvent.signedEvent.event,
-            );
-
-            if (
-                event.contentType.equals(
-                    Models.ContentType.ContentTypeDelete,
-                ) &&
-                cachedEvent.contentType.equals(
-                    Models.ContentType.ContentTypeDelete,
-                )
-            ) {
-                throw DeleteOfDeleteError;
-            }
         }
 
         if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
             const deleteModel = Models.Delete.fromBuffer(event.content);
 
-            const stateForEvent = this.lookupStateForEvent(
+            const stateForDeletedEvent = this.lookupStateForEvent(
                 event.system,
                 deleteModel.process,
                 deleteModel.logicalClock,
@@ -407,12 +432,29 @@ export class QueryEvent extends HasUpdate {
                 false,
             );
 
-            if (!stateForEvent) {
+            if (!stateForDeletedEvent) {
                 throw ImpossibleError;
             }
 
-            stateForEvent.signedEvent = signedEvent;
-            stateForEvent.callbacks.forEach((cb) => cb(signedEvent));
+            if (stateForDeletedEvent.signedEvent) {
+                const deletedEvent = Models.Event.fromBuffer(
+                    stateForDeletedEvent.signedEvent.event,
+                );
+
+                if (
+                    event.contentType.equals(
+                        Models.ContentType.ContentTypeDelete,
+                    ) &&
+                    deletedEvent.contentType.equals(
+                        Models.ContentType.ContentTypeDelete,
+                    )
+                ) {
+                    throw DeleteOfDeleteError;
+                }
+            }
+
+            stateForDeletedEvent.signedEvent = signedEvent;
+            stateForDeletedEvent.callbacks.forEach((cb) => cb(signedEvent));
         }
     }
 }
