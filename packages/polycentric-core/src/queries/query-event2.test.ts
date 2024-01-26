@@ -1,4 +1,5 @@
 import * as RXJS from 'rxjs';
+import Long from 'long';
 
 import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
@@ -73,6 +74,53 @@ describe('query event2', () => {
             Models.Pointer.equal(
                 deletePointer,
                 Models.signedEventToPointer(deleteResult),
+            ),
+        ).toStrictEqual(true);
+    });
+
+    test('delete live', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+        const queryEvent = new QueryEvent(s1p1);
+        queryEvent.shouldUseNetwork(false);
+        queryEvent.shouldUseDisk(false);
+
+        const startingPointer = await s1p1.post('hello');
+
+        s1p1.setListener((event) => queryEvent.update(event));
+
+        const observablePromise = RXJS.firstValueFrom(
+            queryEventObservable(
+                queryEvent,
+                startingPointer.system,
+                startingPointer.process,
+                startingPointer.logicalClock.add(Long.UONE),
+            ).pipe(RXJS.take(2), RXJS.toArray()),
+        );
+
+        const messagePointer = await s1p1.post('to be deleted');
+
+        const deletePointer = await s1p1.delete(
+            messagePointer.process,
+            messagePointer.logicalClock,
+        );
+
+        expectToBeDefined(deletePointer);
+
+        const result = await observablePromise;
+
+        expect(result).toHaveLength(2);
+
+        expect(
+            Models.Pointer.equal(
+                messagePointer,
+                Models.signedEventToPointer(result[0]),
+            ),
+        ).toStrictEqual(true);
+
+        expect(
+            Models.Pointer.equal(
+                deletePointer,
+                Models.signedEventToPointer(result[1]),
             ),
         ).toStrictEqual(true);
     });
