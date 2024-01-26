@@ -94,4 +94,40 @@ describe('query blob2', () => {
     test('context hold', async () => {
         await sharedTestCase(SharedTestMode.CacheOnly);
     });
+
+    test('partially or totally deleted', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+        const queryEvent = new QueryEvent(s1p1);
+        queryEvent.shouldUseNetwork(false);
+        queryEvent.shouldUseDisk(false);
+        const queryBlob = new QueryBlob(queryEvent);
+
+        const contextHold = new CancelContext();
+        s1p1.setListener((event) =>
+            queryEvent.updateWithContextHold(event, contextHold),
+        );
+
+        const publishedRanges = await s1p1.publishBlob(testBlob);
+
+        const observablePromise = RXJS.firstValueFrom(
+            queryBlobObservable(
+                queryBlob,
+                s1p1.system(),
+                s1p1.process(),
+                publishedRanges,
+            ).pipe(RXJS.take(2), RXJS.toArray()),
+        );
+
+        await s1p1.delete(s1p1.process(), publishedRanges[0].low);
+
+        const result = await observablePromise;
+
+        contextHold.cancel();
+
+        expect(result).toHaveLength(2);
+
+        expectToBeDefined(result[0]);
+        expect(Util.buffersEqual(result[0], testBlob)).toStrictEqual(true);
+        expect(result[1]).toStrictEqual(undefined);
+    });
 });

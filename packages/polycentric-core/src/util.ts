@@ -169,4 +169,3 @@ export function mapToArray<Key, ValueT1, ValueT2>(
     map.forEach((value) => result.push(operation(value)));
     return result;
 }
-
