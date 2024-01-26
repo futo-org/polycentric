@@ -1,7 +1,4 @@
-import Long from 'long';
-
 import * as ProcessHandle from '../process-handle';
-import * as Store from '.';
 import * as Models from '../models';
 
 function expectToBeDefined<T>(value: T): asserts value is NonNullable<T> {
