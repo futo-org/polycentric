@@ -124,4 +124,31 @@ describe('query event2', () => {
             ),
         ).toStrictEqual(true);
     });
+
+    test('hit network', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+        s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
+
+        const messagePointer = await s1p1.post('to be deleted');
+        await ProcessHandle.fullSync(s1p1);
+
+        const queryEvent = new QueryEvent(s1p1);
+        queryEvent.shouldUseDisk(false);
+
+        const result = await RXJS.firstValueFrom(
+            queryEventObservable(
+                queryEvent,
+                messagePointer.system,
+                messagePointer.process,
+                messagePointer.logicalClock,
+            ),
+        );
+
+        expect(
+            Models.Pointer.equal(
+                messagePointer,
+                Models.signedEventToPointer(result),
+            ),
+        ).toStrictEqual(true);
+    });
 });

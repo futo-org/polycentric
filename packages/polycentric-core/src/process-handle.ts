@@ -12,6 +12,8 @@ import * as Store from './store';
 import * as Synchronization from './synchronization';
 import * as Util from './util';
 
+export const TEST_SERVER = 'http://127.0.0.1:8081';
+
 export class SystemState {
     private _servers: Array<string>;
     private _authorities: Array<string>;
