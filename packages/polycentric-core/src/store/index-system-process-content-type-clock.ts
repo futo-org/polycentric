@@ -31,6 +31,28 @@ export function encodeKey(key: KeyStruct): Key {
     ]) as Key;
 }
 
+export function encodeKeyBoundary(
+    system: Models.PublicKey.PublicKey,
+    process: Models.Process.Process,
+    contentType: Models.ContentType.ContentType,
+    high: boolean,
+): Key {
+    const segments = [
+        Util.encodeText(Models.PublicKey.toString(system)),
+        buffer255,
+        Util.encodeText(Models.Process.toString(process)),
+        buffer255,
+        Util.encodeText(contentType.toNumber().toString(16)),
+        buffer255,
+    ];
+
+    if (high) {
+        segments.push(buffer255);
+    }
+
+    return Util.concatBuffers(segments) as Key;
+}
+
 function decodeNumber(buffer: Uint8Array): Long {
     return Long.fromNumber(parseInt(Util.decodeText(buffer), 16));
 }
@@ -58,15 +80,39 @@ export function decodeKey(key: Key) {
 
 export class IndexSystemProcessContentTypeClock extends HasIngest {
     private readonly level: PersistenceDriver.BinaryAbstractSubLevel;
+    private readonly indexEvents: IndexEvents.IndexEvents;
 
     constructor(
         registerSublevel: (
             prefix: string,
         ) => PersistenceDriver.BinaryAbstractSubLevel,
+        indexEvents: IndexEvents.IndexEvents,
     ) {
         super();
 
         this.level = registerSublevel('indexSystemProcessContentTypeClock');
+        this.indexEvents = indexEvents;
+    }
+
+    public async getLatest(
+        system: Models.PublicKey.PublicKey,
+        process: Models.Process.Process,
+        contentType: Models.ContentType.ContentType,
+    ): Promise<Models.SignedEvent.SignedEvent | undefined> {
+        const rows = await this.level
+            .iterator({
+                lt: encodeKeyBoundary(system, process, contentType, true),
+                gt: encodeKeyBoundary(system, process, contentType, false),
+                limit: 1,
+                reverse: true,
+            })
+            .all();
+
+        if (rows.length > 0) {
+            return await this.indexEvents.getSignedEventByKey(rows[0][1]);
+        } else {
+            return undefined;
+        }
     }
 
     public async ingest(
