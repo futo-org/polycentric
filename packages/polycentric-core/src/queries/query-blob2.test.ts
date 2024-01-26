@@ -3,7 +3,6 @@ import * as RXJS from 'rxjs';
 
 import * as ProcessHandle from '../process-handle';
 import * as Util from '../util';
-import * as Models from '../models';
 import { QueryEvent } from './query-event2';
 import { QueryBlob, queryBlobObservable } from './query-blob2';
 

@@ -174,16 +174,19 @@ describe('query event2', () => {
                 pointer.system,
                 pointer.process,
                 pointer.logicalClock,
-            )
-            .pipe(RXJS.switchMap((signedEvent) => {
-                wasInstant = true;
-                return RXJS.of(signedEvent);
-            })),
+            ).pipe(
+                RXJS.switchMap((signedEvent) => {
+                    wasInstant = true;
+                    return RXJS.of(signedEvent);
+                }),
+            ),
         );
 
         expect(wasInstant).toStrictEqual(true);
 
         const result = await observable;
+
+        contextHold.cancel();
 
         expect(
             Models.Pointer.equal(pointer, Models.signedEventToPointer(result)),

@@ -73,7 +73,9 @@ export class QueryHead extends HasUpdate {
         const stateForSystem: StateForSystem = Util.lookupWithInitial(
             this.state,
             systemString,
-            () => new StateForSystem(),
+            () => {
+                return new StateForSystem();
+            },
         );
 
         if (stateForSystem.callbacks.has(callback)) {
@@ -197,6 +199,13 @@ export class QueryHead extends HasUpdate {
         this.updateBatch([signedEvent], undefined);
     }
 
+    public updateWithContextHold(
+        signedEvent: Models.SignedEvent.SignedEvent,
+        contextHold: CancelContext | undefined,
+    ): void {
+        this.updateBatch([signedEvent], contextHold);
+    }
+
     public updateBatch(
         signedEvents: Array<Models.SignedEvent.SignedEvent>,
         contextHold: CancelContext | undefined,
@@ -212,6 +221,8 @@ export class QueryHead extends HasUpdate {
 
             if (!potentialStateForSystem && contextHold) {
                 potentialStateForSystem = new StateForSystem();
+
+                this.state.set(systemString, potentialStateForSystem);
             } else if (!potentialStateForSystem) {
                 return;
             }
