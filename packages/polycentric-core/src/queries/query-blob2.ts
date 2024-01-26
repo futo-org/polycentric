@@ -5,7 +5,7 @@ import { UnregisterCallback, DuplicatedCallbackError } from './shared';
 import * as Ranges from '../ranges';
 import * as Models from '../models';
 import * as Util from '../util';
-import { OnceFlag } from '../util';
+import { OnceFlag, Box } from '../util';
 
 export type StateKey = Readonly<string> & {
     readonly __tag: unique symbol;
@@ -24,7 +24,7 @@ function makeStateKey(
 export type Callback = (buffer: Uint8Array | undefined) => void;
 
 type StateForQuery = {
-    value: Uint8Array | undefined;
+    readonly value: Box<Uint8Array | undefined>;
     readonly callbacks: Set<Callback>;
     readonly fulfilled: OnceFlag;
     unsubscribe: () => void;
@@ -47,73 +47,75 @@ export class QueryBlob {
     ): UnregisterCallback {
         const stateKey = makeStateKey(system, process, ranges);
 
+        let initial = false;
+
         const stateForQuery: StateForQuery = Util.lookupWithInitial(
             this.state,
             stateKey,
             () => {
+                initial = true;
+
+                const value = new Box<Uint8Array | undefined>(undefined);
+                const fulfilled = new OnceFlag();
+                const callbacks = new Set([callback]);
+
+                const subscription = RXJS.combineLatest(
+                    Ranges.toArray(ranges).map((logicalClock) =>
+                        queryEventObservable(
+                            this.queryEvent,
+                            system,
+                            process,
+                            logicalClock,
+                        ),
+                    ),
+                ).subscribe((signedEvents) => {
+                    fulfilled.set();
+
+                    const events = signedEvents.map((signedEvent) => {
+                        return Models.Event.fromBuffer(signedEvent.event);
+                    });
+
+                    if (
+                        events.some((event) =>
+                            event.contentType.equals(
+                                Models.ContentType.ContentTypeDelete,
+                            ),
+                        )
+                    ) {
+                        value.value = undefined;
+                    } else {
+                        value.value = Util.concatBuffers(
+                            events
+                                .sort((a, b) =>
+                                    a.logicalClock.compare(b.logicalClock),
+                                )
+                                .map((event) => event.content),
+                        );
+                    }
+
+                    callbacks.forEach((cb) => cb(value.value));
+                });
+
                 return {
-                    value: undefined,
-                    callbacks: new Set(),
-                    unsubscribe: () => {},
-                    fulfilled: new OnceFlag(),
+                    value: value,
+                    callbacks: callbacks,
+                    fulfilled: fulfilled,
+                    unsubscribe: () => {
+                        subscription.unsubscribe();
+                    },
                 };
             },
         );
 
-        if (stateForQuery.callbacks.has(callback)) {
-            throw DuplicatedCallbackError;
-        }
+        if (!initial) {
+            if (stateForQuery.callbacks.has(callback)) {
+                throw DuplicatedCallbackError;
+            }
 
-        if (stateForQuery.callbacks.size === 0) {
-            stateForQuery.callbacks.add(callback);
-
-            const subscription = RXJS.combineLatest(
-                Ranges.toArray(ranges).map((logicalClock) =>
-                    queryEventObservable(
-                        this.queryEvent,
-                        system,
-                        process,
-                        logicalClock,
-                    ),
-                ),
-            ).subscribe((signedEvents) => {
-                stateForQuery.fulfilled.set();
-
-                const events = signedEvents.map((signedEvent) => {
-                    return Models.Event.fromBuffer(signedEvent.event);
-                });
-
-                if (
-                    events.some((event) =>
-                        event.contentType.equals(
-                            Models.ContentType.ContentTypeDelete,
-                        ),
-                    )
-                ) {
-                    stateForQuery.value = undefined;
-                } else {
-                    stateForQuery.value = Util.concatBuffers(
-                        events
-                            .sort((a, b) =>
-                                a.logicalClock.compare(b.logicalClock),
-                            )
-                            .map((event) => event.content),
-                    );
-                }
-
-                stateForQuery.callbacks.forEach((cb) =>
-                    cb(stateForQuery.value),
-                );
-            });
-
-            stateForQuery.unsubscribe = () => {
-                subscription.unsubscribe();
-            };
-        } else {
             stateForQuery.callbacks.add(callback);
 
             if (stateForQuery.fulfilled.value) {
-                callback(stateForQuery.value);
+                callback(stateForQuery.value.value);
             }
         }
 

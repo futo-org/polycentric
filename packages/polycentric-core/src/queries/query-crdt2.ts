@@ -160,7 +160,6 @@ export class QueryCRDT {
                 ).subscribe((updatedValue) => {
                     value.value = updatedValue;
                     fulfilled.value = true;
-
                     callbacks.forEach((cb) => cb(value.value));
                 });
 
