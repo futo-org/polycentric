@@ -27,7 +27,7 @@ type StateForQuery = {
     readonly value: Box<Uint8Array | undefined>;
     readonly callbacks: Set<Callback>;
     readonly fulfilled: OnceFlag;
-    unsubscribe: () => void;
+    readonly unsubscribe: () => void;
 };
 
 export class QueryBlob {

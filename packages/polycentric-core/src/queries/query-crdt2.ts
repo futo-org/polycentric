@@ -12,10 +12,10 @@ import { Box } from '../util';
 export type SuccessCallback = (value: Uint8Array | undefined) => void;
 
 type StateForCRDT = {
-    value: Box<Uint8Array | undefined>;
+    readonly value: Box<Uint8Array | undefined>;
     readonly callbacks: Set<SuccessCallback>;
-    fulfilled: Box<boolean>;
-    unsubscribe: () => void;
+    readonly fulfilled: Box<boolean>;
+    readonly unsubscribe: () => void;
 };
 
 type StateForSystem = {
