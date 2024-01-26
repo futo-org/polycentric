@@ -44,6 +44,7 @@ export class Store {
     readonly indexOpinion: IndexOpinion;
     readonly indexCRDTElementSet: IndexCRDTElementSet;
     readonly indexFeed: IndexFeed;
+    readonly indexSystemProcessContentTypeLogicalClock: IndexSystemProcessContentTypeClock;
 
     private readonly stages: ReadonlyArray<HasIngest>;
 
@@ -79,6 +80,11 @@ export class Store {
         this.indexOpinion = new IndexOpinion(registerSublevel);
         this.indexCRDTElementSet = new IndexCRDTElementSet(registerSublevel);
         this.indexFeed = new IndexFeed(this, registerSublevel);
+        this.indexSystemProcessContentTypeLogicalClock =
+            new IndexSystemProcessContentTypeClock(
+                registerSublevel,
+                this.indexEvents,
+            );
 
         this.system = undefined;
 
@@ -90,6 +96,7 @@ export class Store {
             this.indexOpinion,
             this.indexCRDTElementSet,
             this.indexFeed,
+            this.indexSystemProcessContentTypeLogicalClock,
         ];
     }
 
