@@ -119,7 +119,7 @@ export class QueryLatest {
     private loadFromDisk(
         system: Models.PublicKey.PublicKey,
         contentType: Models.ContentType.ContentType,
-    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent | undefined>> {
+    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
         const loadFromDisk = async (
             signedEvent: Models.SignedEvent.SignedEvent,
         ) =>
@@ -136,6 +136,16 @@ export class QueryLatest {
                 RXJS.combineLatest(
                     Util.mapToArray(head, (signedEvent) =>
                         RXJS.from(loadFromDisk(signedEvent)),
+                    ),
+                ),
+            ),
+            RXJS.switchMap((signedEvents) =>
+                RXJS.of(
+                    signedEvents.filter(
+                        (
+                            signedEvent,
+                        ): signedEvent is Models.SignedEvent.SignedEvent =>
+                            !!signedEvent,
                     ),
                 ),
             ),
