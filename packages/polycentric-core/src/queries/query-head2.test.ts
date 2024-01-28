@@ -4,6 +4,7 @@ import * as ProcessHandle from '../process-handle';
 import * as Util from '../util';
 import * as Models from '../models';
 import { queryHeadObservable, QueryHead } from './query-head2';
+import { QueryServers } from './query-servers';
 import { CancelContext } from '../cancel-context';
 
 enum SharedTestMode {
@@ -16,7 +17,8 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     const s1p1 = await ProcessHandle.createTestProcessHandle();
     s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
 
-    const queryHead = new QueryHead(s1p1);
+    const queryServers = new QueryServers(s1p1);
+    const queryHead = new QueryHead(s1p1, queryServers);
     queryHead.shouldUseNetwork(false);
     queryHead.shouldUseDisk(false);
 

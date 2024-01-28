@@ -19,7 +19,7 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
 
     const queryServers = new QueryServers(s1p1);
-    const queryHead = new QueryHead(s1p1);
+    const queryHead = new QueryHead(s1p1, queryServers);
     queryHead.shouldUseNetwork(false);
     queryHead.shouldUseDisk(false);
 

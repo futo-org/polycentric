@@ -25,7 +25,7 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
 
     const queryServers = new QueryServers(s1p1);
-    const queryHead = new QueryHead(s1p1);
+    const queryHead = new QueryHead(s1p1, queryServers);
     queryHead.shouldUseNetwork(false);
     queryHead.shouldUseDisk(false);
     const queryLatest = new QueryLatest(s1p1, queryServers, queryHead);
@@ -103,7 +103,7 @@ describe('query crdt', () => {
         const s2p1 = await ProcessHandle.createTestProcessHandle();
 
         const queryServers = new QueryServers(s2p1);
-        const queryHead = new QueryHead(s2p1);
+        const queryHead = new QueryHead(s2p1, queryServers);
         queryHead.shouldUseNetwork(false);
         const queryLatest = new QueryLatest(s2p1, queryServers, queryHead);
         queryLatest.shouldUseNetwork(false);

@@ -9,6 +9,7 @@ import * as Protocol from '../protocol';
 import { HasUpdate } from './has-update';
 import { CancelContext } from '../cancel-context';
 import { OnceFlag } from '../util';
+import { QueryServers, queryServersObservable } from './query-servers';
 
 export type CallbackValue = ReadonlyMap<
     Models.Process.ProcessString,
@@ -26,7 +27,7 @@ class StateForSystem {
     readonly contextHolds: Set<CancelContext>;
     readonly fulfilled: OnceFlag;
     readonly loadAttempted: OnceFlag;
-    readonly cancelContext: CancelContext;
+    unsubscribe: (() => void) | undefined;
 
     constructor() {
         this.head = new Map();
@@ -34,12 +35,13 @@ class StateForSystem {
         this.contextHolds = new Set();
         this.fulfilled = new OnceFlag();
         this.loadAttempted = new OnceFlag();
-        this.cancelContext = new CancelContext();
+        this.unsubscribe = undefined;
     }
 }
 
 export class QueryHead extends HasUpdate {
     private readonly processHandle: ProcessHandle.ProcessHandle;
+    private readonly queryServers: QueryServers;
     private readonly state: Map<
         Models.PublicKey.PublicKeyString,
         StateForSystem
@@ -47,10 +49,14 @@ export class QueryHead extends HasUpdate {
     private useDisk: boolean;
     private useNetwork: boolean;
 
-    constructor(processHandle: ProcessHandle.ProcessHandle) {
+    constructor(
+        processHandle: ProcessHandle.ProcessHandle,
+        queryServers: QueryServers,
+    ) {
         super();
 
         this.processHandle = processHandle;
+        this.queryServers = queryServers;
         this.state = new Map();
         this.useDisk = true;
         this.useNetwork = true;
@@ -89,13 +95,22 @@ export class QueryHead extends HasUpdate {
         } else if (!stateForSystem.loadAttempted.value) {
             stateForSystem.loadAttempted.set();
 
-            if (this.useNetwork) {
-                this.loadFromNetwork(system, stateForSystem.cancelContext);
-            }
+            const toMerge = [];
 
             if (this.useDisk) {
-                this.loadFromDisk(system, stateForSystem.cancelContext);
+                toMerge.push(this.loadFromDiskObservable(system));
             }
+
+            if (this.useNetwork) {
+                toMerge.push(this.loadFromNetwork(system));
+            }
+
+            const subscription = RXJS.merge(...toMerge).subscribe(
+                this.updateBatch.bind(this, undefined),
+            );
+
+            stateForSystem.unsubscribe =
+                subscription.unsubscribe.bind(subscription);
         }
 
         return () => {
@@ -113,22 +128,38 @@ export class QueryHead extends HasUpdate {
             stateForSystem.callbacks.size === 0 &&
             stateForSystem.contextHolds.size === 0
         ) {
-            stateForSystem.cancelContext.cancel();
+            stateForSystem.unsubscribe?.();
 
             this.state.delete(systemString);
         }
     }
 
+    private loadFromDiskObservable(
+        system: Models.PublicKey.PublicKey,
+    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
+        return new RXJS.Observable((subscriber) => {
+            const cancelContext = new CancelContext();
+
+            (async () => {
+                subscriber.next(await this.loadFromDisk(system, cancelContext));
+            })();
+
+            return () => {
+                cancelContext.cancel();
+            };
+        });
+    }
+
     private async loadFromDisk(
         system: Models.PublicKey.PublicKey,
         cancelContext: CancelContext,
-    ): Promise<void> {
+    ): Promise<Array<Models.SignedEvent.SignedEvent>> {
         const systemState = await this.processHandle
             .store()
             .indexSystemStates.getSystemState(system);
 
         if (cancelContext.cancelled()) {
-            return;
+            return [];
         }
 
         const loadProcessHead = async (processProto: Protocol.Process) => {
@@ -166,49 +197,45 @@ export class QueryHead extends HasUpdate {
         );
 
         if (cancelContext.cancelled()) {
-            return;
+            return [];
         }
 
-        this.updateBatch(signedEvents, undefined);
+        return signedEvents;
     }
 
-    private async loadFromNetwork(
+    private loadFromNetwork(
         system: Models.PublicKey.PublicKey,
-        cancelContext: CancelContext,
-    ): Promise<void> {
-        const systemState = await this.processHandle.loadSystemState(system);
-
+    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
         const loadFromServer = async (server: string) => {
-            try {
-                const events = await APIMethods.getHead(server, system);
-
-                if (cancelContext.cancelled()) {
-                    throw Shared.CancelledError;
-                }
-
-                this.updateBatch(events.events, undefined);
-            } catch (err) {
-                console.log(err);
-            }
+            return (await APIMethods.getHead(server, system)).events;
         };
 
-        await Promise.all(systemState.servers().map(loadFromServer));
+        return RXJS.from(
+            queryServersObservable(this.queryServers, system),
+        ).pipe(
+            RXJS.switchMap((servers) =>
+                Array.from(servers).map((server) =>
+                    RXJS.from(loadFromServer(server)),
+                ),
+            ),
+            RXJS.mergeAll(),
+        );
     }
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {
-        this.updateBatch([signedEvent], undefined);
+        this.updateBatch(undefined, [signedEvent]);
     }
 
     public updateWithContextHold(
         signedEvent: Models.SignedEvent.SignedEvent,
         contextHold: CancelContext | undefined,
     ): void {
-        this.updateBatch([signedEvent], contextHold);
+        this.updateBatch(contextHold, [signedEvent]);
     }
 
     public updateBatch(
-        signedEvents: Array<Models.SignedEvent.SignedEvent>,
         contextHold: CancelContext | undefined,
+        signedEvents: Array<Models.SignedEvent.SignedEvent>,
     ): void {
         const updatedStates = new Set<StateForSystem>();
 
