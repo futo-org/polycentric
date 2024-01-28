@@ -29,7 +29,7 @@ type StateForContentType = {
     >;
     readonly callbacks: Set<Callback>;
     readonly contextHolds: Set<CancelContext>;
-    readonly unsubscribe: () => void;
+    readonly unsubscribe: (() => void) | undefined;
     readonly attemptedSources: Set<string>;
 };
 
@@ -106,7 +106,6 @@ export class QueryLatest extends HasUpdate {
                         this.loadFromNetwork(
                             stateForSystem,
                             system,
-                            contentType,
                         ),
                     );
                 }
@@ -163,7 +162,7 @@ export class QueryLatest extends HasUpdate {
             const contentTypeString = Models.ContentType.toString(contentType);
             const systemString = Models.PublicKey.toString(system);
 
-            stateForContentType.unsubscribe();
+            stateForContentType.unsubscribe?.();
 
             stateForSystem.stateForContentType.delete(contentTypeString);
 
@@ -212,7 +211,6 @@ export class QueryLatest extends HasUpdate {
     private loadFromNetwork(
         stateForSystem: StateForSystem,
         system: Models.PublicKey.PublicKey,
-        contentType: Models.ContentType.ContentType,
     ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
         const loadServerList = async () =>
             (await this.processHandle.loadSystemState(system)).servers();
@@ -292,7 +290,7 @@ export class QueryLatest extends HasUpdate {
                         values: new Map(),
                         callbacks: new Set(),
                         contextHolds: new Set(),
-                        unsubscribe: () => {},
+                        unsubscribe: undefined,
                         attemptedSources: new Set(),
                     };
 
