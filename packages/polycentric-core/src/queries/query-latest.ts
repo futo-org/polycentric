@@ -12,6 +12,7 @@ import { ProcessHandle } from '../process-handle';
 import * as QueryHead from './query-head2';
 import { OnceFlag } from '../util';
 import { CancelContext } from '../cancel-context';
+import { HasUpdate } from './has-update';
 
 export type Callback = (
     values: ReadonlyMap<
@@ -39,7 +40,7 @@ type StateForSystem = {
     >;
 };
 
-export class QueryLatest {
+export class QueryLatest extends HasUpdate {
     private readonly state: Map<
         Models.PublicKey.PublicKeyString,
         StateForSystem
@@ -50,6 +51,8 @@ export class QueryLatest {
     private useNetwork: boolean;
 
     constructor(processHandle: ProcessHandle, queryHead: QueryHead.QueryHead) {
+        super();
+
         this.state = new Map();
         this.queryHead = queryHead;
         this.processHandle = processHandle;
@@ -237,6 +240,10 @@ export class QueryLatest {
             ),
             RXJS.mergeAll(),
         );
+    }
+
+    public update(signedEvent: Models.SignedEvent.SignedEvent): void {
+        this.updateBatch(undefined, [signedEvent]);
     }
 
     public updateBatch(
