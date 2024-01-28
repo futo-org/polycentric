@@ -8,7 +8,6 @@ import {
     ImpossibleError,
 } from './shared';
 import * as Util from '../util';
-import { ProcessHandle } from '../process-handle';
 import * as QueryHead from './query-head2';
 import { OnceFlag } from '../util';
 import { CancelContext } from '../cancel-context';

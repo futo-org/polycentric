@@ -210,11 +210,11 @@ export class QueryEvent extends HasUpdate {
             state.callbacks.size !== 0 || state.contextHolds.size !== 0;
 
         const cleanupState = (state: StateForEvent) => {
-            const stateForProcess = stateForEvent.parent;
+            const stateForProcess = state.parent;
 
-            stateForProcess.state.delete(stateForEvent.key);
+            stateForProcess.state.delete(state.key);
 
-            stateForEvent.unsubscribe?.();
+            state.unsubscribe?.();
 
             if (stateForProcess.state.size === 0) {
                 const stateForSystem = stateForProcess.parent;
