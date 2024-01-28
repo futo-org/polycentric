@@ -217,6 +217,7 @@ describe('query event2', () => {
 
         const result = await observable;
 
+        expect(queryEvent.clean).toStrictEqual(false);
         contextHold.cancel();
 
         expect(

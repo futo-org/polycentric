@@ -60,7 +60,10 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
         Models.signedEventToPointer,
     );
 
-    contextHold?.cancel();
+    if (contextHold) {
+        expect(queryHead.clean).toStrictEqual(false);
+        contextHold.cancel();
+    }
 
     const expected = new Map([
         [Models.Process.toString(pointer.process), pointer],
