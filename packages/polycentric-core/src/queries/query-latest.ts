@@ -6,6 +6,7 @@ import { UnregisterCallback, DuplicatedCallbackError } from './shared';
 import * as Util from '../util';
 import { ProcessHandle } from '../process-handle';
 import * as QueryHead from './query-head2';
+import { OnceFlag } from '../util';
 
 export type Callback = (
     values: ReadonlyMap<
@@ -15,7 +16,7 @@ export type Callback = (
 ) => void;
 
 type StateForContentType = {
-    fulfilled: boolean;
+    readonly fulfilled: OnceFlag;
     readonly values: Map<
         Models.Process.ProcessString,
         Models.SignedEvent.SignedEvent
@@ -99,7 +100,7 @@ export class QueryLatest {
                 );
 
                 return {
-                    fulfilled: false,
+                    fulfilled: new OnceFlag(),
                     values: new Map(),
                     callbacks: new Set([callback]),
                     unsubscribe: subscription.unsubscribe.bind(subscription),
@@ -114,7 +115,7 @@ export class QueryLatest {
 
             stateForContentType.callbacks.add(callback);
 
-            if (stateForContentType.fulfilled) {
+            if (stateForContentType.fulfilled.value) {
                 callback(stateForContentType.values);
             }
         }
@@ -191,5 +192,53 @@ export class QueryLatest {
 
     public updateBatch(
         signedEvents: Array<Models.SignedEvent.SignedEvent>,
-    ): void {}
+    ): void {
+        const updatedStates = new Set<StateForContentType>();
+
+        for (const signedEvent of signedEvents) {
+            const event = Models.Event.fromBuffer(signedEvent.event);
+
+            const systemString = Models.PublicKey.toString(event.system);
+
+            const stateForSystem = this.state.get(systemString);
+
+            if (!stateForSystem) {
+                continue;
+            }
+
+            const contentTypeString = Models.ContentType.toString(
+                event.contentType,
+            );
+
+            const stateForContentType =
+                stateForSystem.stateForContentType.get(contentTypeString);
+
+            if (!stateForContentType) {
+                continue;
+            }
+
+            const processString = Models.Process.toString(event.process);
+
+            const latestForProcess =
+                stateForContentType.values.get(processString);
+
+            if (
+                !latestForProcess ||
+                event.logicalClock.greaterThan(
+                    Models.Event.fromBuffer(latestForProcess.event)
+                        .logicalClock,
+                )
+            ) {
+                stateForContentType.values.set(processString, signedEvent);
+                stateForContentType.fulfilled.set();
+                updatedStates.add(stateForContentType);
+            }
+        }
+
+        for (const state of updatedStates) {
+            for (const callback of state.callbacks) {
+                callback(state.values);
+            }
+        }
+    }
 }
