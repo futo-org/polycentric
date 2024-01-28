@@ -420,6 +420,7 @@ export class Synchronizer {
                     batch,
                 );
 
+                /*
                 console.log(
                     'sending',
                     server,
@@ -428,6 +429,7 @@ export class Synchronizer {
                     'ranges',
                     Ranges.toString(batch),
                 );
+                */
 
                 await APIMethods.postEvents(server, events);
             }

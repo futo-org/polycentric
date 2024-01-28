@@ -78,9 +78,7 @@ export class QueryServers {
                 const callbacks = new Set([callback]);
                 const fulfilled = new OnceFlag();
                 const servers = new Box<Set<string>>(
-                    this.processHandle.getAddressHints(
-                        system,
-                    ),
+                    this.processHandle.getAddressHints(system),
                 );
 
                 if (servers.value.size !== 0) {
@@ -101,15 +99,11 @@ export class QueryServers {
                             );
 
                             servers.value = new Set([
-                                ...this.queryStateToServers(
-                                    queryState.value,
-                                ),
-                                ...this.processHandle.getAddressHints(
-                                    system,
-                                ),
+                                ...this.queryStateToServers(queryState.value),
+                                ...this.processHandle.getAddressHints(system),
                             ]);
 
-                            callbacks.forEach(cb => cb(servers.value));
+                            callbacks.forEach((cb) => cb(servers.value));
                         },
                     );
 
