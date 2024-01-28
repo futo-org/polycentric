@@ -339,3 +339,17 @@ export class QueryLatest {
         }
     }
 }
+
+export function queryLatestObservable(
+    queryManager: QueryLatest,
+    system: Models.PublicKey.PublicKey,
+    contentType: Models.ContentType.ContentType,
+): RXJS.Observable<
+    ReadonlyMap<Models.Process.ProcessString, Models.SignedEvent.SignedEvent>
+> {
+    return new RXJS.Observable((subscriber) => {
+        return queryManager.query(system, contentType, (signedEvents) => {
+            subscriber.next(signedEvents);
+        });
+    });
+}
