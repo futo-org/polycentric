@@ -110,6 +110,8 @@ export class QueryEvent extends HasUpdate {
         }
 
         return () => {
+            stateForEvent.callbacks.delete(callback);
+
             this.cleanupStateForQuery(
                 stateForEvent,
                 system,
