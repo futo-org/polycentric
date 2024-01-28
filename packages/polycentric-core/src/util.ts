@@ -170,6 +170,15 @@ export function mapToArray<Key, ValueT1, ValueT2>(
     return result;
 }
 
+export function mapToArrayKV<Key, ValueT1, ValueT2>(
+    map: ReadonlyMap<Key, ValueT1>,
+    operation: (key: Key, value: ValueT1) => ValueT2,
+): Array<ValueT2> {
+    const result: Array<ValueT2> = [];
+    map.forEach((value, key) => result.push(operation(key, value)));
+    return result;
+}
+
 export function splitUint8Array(
     buffer: Uint8Array,
     deliminator: number,

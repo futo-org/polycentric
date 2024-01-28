@@ -1,7 +1,10 @@
-import { QueryHead } from './query-head2';
+import * as RXJS from 'rxjs';
+
 import * as Models from '../models';
 import { UnregisterCallback, DuplicatedCallbackError } from './shared';
 import * as Util from '../util';
+import { ProcessHandle } from '../process-handle';
+import * as QueryHead from './query-head2';
 
 export type Callback = (
     values: ReadonlyMap<
@@ -31,12 +34,25 @@ export class QueryLatest {
         Models.PublicKey.PublicKeyString,
         StateForSystem
     >;
+    private readonly queryHead: QueryHead.QueryHead;
+    private readonly processHandle: ProcessHandle;
+    private useDisk: boolean;
+    private useNetwork: boolean;
 
-    private readonly queryHead: QueryHead;
-
-    constructor(queryHead: QueryHead) {
+    constructor(processHandle: ProcessHandle, queryHead: QueryHead.QueryHead) {
         this.state = new Map();
         this.queryHead = queryHead;
+        this.processHandle = processHandle;
+        this.useDisk = true;
+        this.useNetwork = true;
+    }
+
+    public shouldUseDisk(useDisk: boolean): void {
+        this.useDisk = useDisk;
+    }
+
+    public shouldUseNetwork(useNetwork: boolean): void {
+        this.useNetwork = useNetwork;
     }
 
     public query(
@@ -97,5 +113,29 @@ export class QueryLatest {
                 }
             }
         };
+    }
+
+    private loadFromDisk(
+        system: Models.PublicKey.PublicKey,
+        contentType: Models.ContentType.ContentType,
+    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent | undefined>> {
+        return QueryHead.queryHeadObservable(this.queryHead, system).pipe(
+            RXJS.switchMap((head) =>
+                RXJS.combineLatest(
+                    Util.mapToArray(head, (signedEvent) =>
+                        RXJS.from(
+                            this.processHandle
+                                .store()
+                                .indexSystemProcessContentTypeLogicalClock.getLatest(
+                                    system,
+                                    Models.Event.fromBuffer(signedEvent.event)
+                                        .process,
+                                    contentType,
+                                ),
+                        ),
+                    ),
+                ),
+            ),
+        );
     }
 }
