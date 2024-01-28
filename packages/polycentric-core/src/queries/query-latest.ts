@@ -2,11 +2,16 @@ import * as RXJS from 'rxjs';
 
 import * as APIMethods from '../api-methods';
 import * as Models from '../models';
-import { UnregisterCallback, DuplicatedCallbackError } from './shared';
+import {
+    UnregisterCallback,
+    DuplicatedCallbackError,
+    ImpossibleError,
+} from './shared';
 import * as Util from '../util';
 import { ProcessHandle } from '../process-handle';
 import * as QueryHead from './query-head2';
 import { OnceFlag } from '../util';
+import { CancelContext } from '../cancel-context';
 
 export type Callback = (
     values: ReadonlyMap<
@@ -22,6 +27,7 @@ type StateForContentType = {
         Models.SignedEvent.SignedEvent
     >;
     readonly callbacks: Set<Callback>;
+    readonly contextHolds: Set<CancelContext>;
     readonly unsubscribe: () => void;
     readonly attemptedSources: Set<string>;
 };
@@ -103,13 +109,14 @@ export class QueryLatest {
                 }
 
                 const subscription = RXJS.merge(...toMerge).subscribe(
-                    this.updateBatch.bind(this),
+                    this.updateBatch.bind(this, undefined),
                 );
 
                 return {
                     fulfilled: new OnceFlag(),
                     values: new Map(),
                     callbacks: new Set([callback]),
+                    contextHolds: new Set(),
                     unsubscribe: subscription.unsubscribe.bind(subscription),
                     attemptedSources: new Set(),
                 };
@@ -131,16 +138,36 @@ export class QueryLatest {
         return () => {
             stateForContentType.callbacks.delete(callback);
 
-            if (stateForContentType.callbacks.size === 0) {
-                stateForContentType.unsubscribe();
-
-                stateForSystem.stateForContentType.delete(contentTypeString);
-
-                if (stateForSystem.stateForContentType.size === 0) {
-                    this.state.delete(systemString);
-                }
-            }
+            this.cleanup(
+                system,
+                contentType,
+                stateForSystem,
+                stateForContentType,
+            );
         };
+    }
+
+    private cleanup(
+        system: Models.PublicKey.PublicKey,
+        contentType: Models.ContentType.ContentType,
+        stateForSystem: StateForSystem,
+        stateForContentType: StateForContentType,
+    ): void {
+        if (
+            stateForContentType.callbacks.size === 0 &&
+            stateForContentType.contextHolds.size === 0
+        ) {
+            const contentTypeString = Models.ContentType.toString(contentType);
+            const systemString = Models.PublicKey.toString(system);
+
+            stateForContentType.unsubscribe();
+
+            stateForSystem.stateForContentType.delete(contentTypeString);
+
+            if (stateForSystem.stateForContentType.size === 0) {
+                this.state.delete(systemString);
+            }
+        }
     }
 
     private loadFromDisk(
@@ -213,6 +240,7 @@ export class QueryLatest {
     }
 
     public updateBatch(
+        contextHold: CancelContext | undefined,
         signedEvents: Array<Models.SignedEvent.SignedEvent>,
     ): void {
         const updatedStates = new Set<StateForContentType>();
@@ -222,21 +250,68 @@ export class QueryLatest {
 
             const systemString = Models.PublicKey.toString(event.system);
 
-            const stateForSystem = this.state.get(systemString);
+            let stateForSystem = this.state.get(systemString);
 
             if (!stateForSystem) {
-                continue;
+                if (contextHold) {
+                    stateForSystem = {
+                        stateForContentType: new Map(),
+                    };
+
+                    this.state.set(systemString, stateForSystem);
+                } else {
+                    continue;
+                }
             }
 
             const contentTypeString = Models.ContentType.toString(
                 event.contentType,
             );
 
-            const stateForContentType =
+            let stateForContentType =
                 stateForSystem.stateForContentType.get(contentTypeString);
 
             if (!stateForContentType) {
-                continue;
+                if (contextHold) {
+                    stateForContentType = {
+                        fulfilled: new OnceFlag(),
+                        values: new Map(),
+                        callbacks: new Set(),
+                        contextHolds: new Set(),
+                        unsubscribe: () => {},
+                        attemptedSources: new Set(),
+                    };
+
+                    stateForSystem.stateForContentType.set(
+                        contentTypeString,
+                        stateForContentType,
+                    );
+                } else {
+                    continue;
+                }
+            }
+
+            if (contextHold) {
+                stateForContentType.contextHolds.add(contextHold);
+
+                contextHold.addCallback(() => {
+                    if (!stateForContentType) {
+                        throw ImpossibleError;
+                    }
+
+                    stateForContentType.contextHolds.delete(contextHold);
+
+                    if (!stateForSystem) {
+                        throw ImpossibleError;
+                    }
+
+                    this.cleanup(
+                        event.system,
+                        event.contentType,
+                        stateForSystem,
+                        stateForContentType,
+                    );
+                });
             }
 
             const processString = Models.Process.toString(event.process);
