@@ -14,6 +14,7 @@ import { OnceFlag } from '../util';
 import { CancelContext } from '../cancel-context';
 import { HasUpdate } from './has-update';
 import { QueryServers, queryServersObservable } from './query-servers';
+import { IndexSystemProcessContentTypeClock } from '../store/index-system-process-content-type-clock';
 
 export type Callback = (
     values: ReadonlyMap<
@@ -46,21 +47,21 @@ export class QueryLatest extends HasUpdate {
         Models.PublicKey.PublicKeyString,
         StateForSystem
     >;
-    private readonly processHandle: ProcessHandle;
     private readonly queryHead: QueryHead.QueryHead;
     private readonly queryServers: QueryServers;
+    private readonly index: IndexSystemProcessContentTypeClock;
     private useDisk: boolean;
     private useNetwork: boolean;
 
     constructor(
-        processHandle: ProcessHandle,
+        index: IndexSystemProcessContentTypeClock,
         queryServers: QueryServers,
         queryHead: QueryHead.QueryHead,
     ) {
         super();
 
         this.state = new Map();
-        this.processHandle = processHandle;
+        this.index = index;
         this.queryHead = queryHead;
         this.queryServers = queryServers;
         this.useDisk = true;
@@ -181,22 +182,20 @@ export class QueryLatest extends HasUpdate {
         system: Models.PublicKey.PublicKey,
         contentType: Models.ContentType.ContentType,
     ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
-        const loadFromDisk = async (
-            signedEvent: Models.SignedEvent.SignedEvent,
-        ) =>
-            await this.processHandle
-                .store()
-                .indexSystemProcessContentTypeLogicalClock.getLatest(
+        const loadFromDisk = (signedEvent: Models.SignedEvent.SignedEvent) =>
+            RXJS.from(
+                this.index.getLatest(
                     system,
                     Models.Event.fromBuffer(signedEvent.event).process,
                     contentType,
-                );
+                ),
+            );
 
         return QueryHead.queryHeadObservable(this.queryHead, system).pipe(
             RXJS.switchMap((head) =>
                 RXJS.combineLatest(
                     Util.mapToArray(head, (signedEvent) =>
-                        RXJS.from(loadFromDisk(signedEvent)),
+                        loadFromDisk(signedEvent),
                     ),
                 ),
             ),

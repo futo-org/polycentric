@@ -28,7 +28,11 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     const queryHead = new QueryHead(s1p1, queryServers);
     queryHead.shouldUseNetwork(false);
     queryHead.shouldUseDisk(false);
-    const queryLatest = new QueryLatest(s1p1, queryServers, queryHead);
+    const queryLatest = new QueryLatest(
+        s1p1.store().indexSystemProcessContentTypeLogicalClock,
+        queryServers,
+        queryHead,
+    );
     queryLatest.shouldUseNetwork(false);
     queryLatest.shouldUseDisk(false);
 
@@ -105,7 +109,11 @@ describe('query crdt', () => {
         const queryServers = new QueryServers(s2p1);
         const queryHead = new QueryHead(s2p1, queryServers);
         queryHead.shouldUseNetwork(false);
-        const queryLatest = new QueryLatest(s2p1, queryServers, queryHead);
+        const queryLatest = new QueryLatest(
+            s2p1.store().indexSystemProcessContentTypeLogicalClock,
+            queryServers,
+            queryHead,
+        );
         queryLatest.shouldUseNetwork(false);
 
         const queryCRDT = new QueryCRDT(queryHead, queryLatest);
@@ -115,7 +123,6 @@ describe('query crdt', () => {
         const head = await s1p1.post('3');
 
         await ProcessHandle.copyEventBetweenHandles(initial, s1p1, s2p1);
-
         await ProcessHandle.copyEventBetweenHandles(head, s1p1, s2p1);
 
         const result = await RXJS.firstValueFrom(

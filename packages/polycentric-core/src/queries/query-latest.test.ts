@@ -23,7 +23,11 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     queryHead.shouldUseNetwork(false);
     queryHead.shouldUseDisk(false);
 
-    const queryLatest = new QueryLatest(s1p1, queryServers, queryHead);
+    const queryLatest = new QueryLatest(
+        s1p1.store().indexSystemProcessContentTypeLogicalClock,
+        queryServers,
+        queryHead,
+    );
     queryLatest.shouldUseNetwork(false);
     queryLatest.shouldUseDisk(false);
 
