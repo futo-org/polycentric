@@ -75,7 +75,16 @@ export class QueryServers {
                 const queryState = new Box<Array<QueryIndex.Cell>>([]);
                 const callbacks = new Set([callback]);
                 const fulfilled = new OnceFlag();
-                const servers = new Box<Set<string>>(new Set());
+                const servers = new Box<Set<string>>(
+                    this.processHandle.getAddressHints(
+                        system,
+                    ),
+                );
+
+                if (servers.value.size !== 0) {
+                    fulfilled.set();
+                    callback(servers.value);
+                }
 
                 const queryHandle =
                     this.processHandle.queryManager.queryCRDTSet.query(
@@ -89,11 +98,20 @@ export class QueryServers {
                                 patch,
                             );
 
-                            servers.value = this.queryStateToServers(
-                                queryState.value,
-                            );
+                            servers.value = new Set([
+                                ...this.queryStateToServers(
+                                    queryState.value,
+                                ),
+                                ...this.processHandle.getAddressHints(
+                                    system,
+                                ),
+                            ]);
+
+                            callbacks.forEach(cb => cb(servers.value));
                         },
                     );
+
+                queryHandle.advance(10);
 
                 return {
                     servers: servers,
