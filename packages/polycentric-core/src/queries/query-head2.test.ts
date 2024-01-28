@@ -69,6 +69,8 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     expect(
         Util.areMapsEqual(result, expected, Models.Pointer.equal),
     ).toStrictEqual(true);
+
+    expect(queryHead.clean).toStrictEqual(true);
 }
 
 describe('query head2', () => {

@@ -39,6 +39,10 @@ export class QueryBlob {
         this.state = new Map();
     }
 
+    public get clean(): boolean {
+        return this.state.size === 0;
+    }
+
     private pipeline(
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,

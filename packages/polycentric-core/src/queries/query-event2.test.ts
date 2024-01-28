@@ -40,7 +40,6 @@ describe('query event2', () => {
     });
 
     test('hit disk delete', async () => {
-        console.log("hit disk delete");
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         const queryServers = new QueryServers(s1p1);
         const queryEvent = new QueryEvent(
@@ -182,7 +181,6 @@ describe('query event2', () => {
     });
 
     test('context hold', async () => {
-        console.log("context hold");
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         const queryServers = new QueryServers(s1p1);
         const queryEvent = new QueryEvent(

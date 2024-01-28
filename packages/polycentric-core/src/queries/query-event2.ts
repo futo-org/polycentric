@@ -139,7 +139,6 @@ export class QueryEvent extends HasUpdate {
         }
 
         return () => {
-            console.log("calling cleanup");
             stateForEvent.callbacks.delete(callback);
 
             this.cleanupStateForQuery(stateForEvent);
@@ -243,7 +242,6 @@ export class QueryEvent extends HasUpdate {
         cleanupState(stateForEvent);
 
         if (stateForEvent.sibling) {
-            console.log("sibling cleanup");
             cleanupState(stateForEvent.sibling);
         }
     }

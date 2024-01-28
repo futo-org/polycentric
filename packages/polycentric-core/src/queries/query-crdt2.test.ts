@@ -87,6 +87,8 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
 
     expect(result.potentiallyOutdated).toStrictEqual(false);
     expect(Util.decodeText(result.value)).toStrictEqual('initial');
+
+    expect(queryCRDT.clean).toStrictEqual(true);
 }
 
 describe('query crdt', () => {
@@ -141,5 +143,7 @@ describe('query crdt', () => {
 
         expect(result.potentiallyOutdated).toStrictEqual(true);
         expect(Util.decodeText(result.value)).toStrictEqual('1');
+
+        expect(queryCRDT.clean).toStrictEqual(true);
     });
 });

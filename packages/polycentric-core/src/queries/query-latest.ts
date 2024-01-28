@@ -67,6 +67,10 @@ export class QueryLatest extends HasUpdate {
         this.useNetwork = true;
     }
 
+    public get clean(): boolean {
+        return this.state.size === 0;
+    }
+
     public shouldUseDisk(useDisk: boolean): void {
         this.useDisk = useDisk;
     }

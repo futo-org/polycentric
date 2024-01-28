@@ -82,6 +82,8 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     expectToBeDefined(result);
 
     expect(Util.buffersEqual(result, testBlob)).toStrictEqual(true);
+
+    expect(queryBlob.clean).toStrictEqual(true);
 }
 
 describe('query blob2', () => {
@@ -136,5 +138,6 @@ describe('query blob2', () => {
         expectToBeDefined(result[0]);
         expect(Util.buffersEqual(result[0], testBlob)).toStrictEqual(true);
         expect(result[1]).toStrictEqual(undefined);
+        expect(queryBlob.clean).toStrictEqual(true);
     });
 });

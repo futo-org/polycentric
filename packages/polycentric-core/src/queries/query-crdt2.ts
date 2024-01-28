@@ -107,6 +107,10 @@ export class QueryCRDT {
         this.queryLatest = queryLatest;
     }
 
+    public get clean(): boolean {
+        return this.state.size === 0;
+    }
+
     private pipeline(
         system: Models.PublicKey.PublicKey,
         contentType: Models.ContentType.ContentType,
