@@ -246,6 +246,13 @@ export class QueryLatest extends HasUpdate {
         this.updateBatch(undefined, [signedEvent]);
     }
 
+    public updateWithContextHold(
+        signedEvent: Models.SignedEvent.SignedEvent,
+        contextHold: CancelContext | undefined,
+    ): void {
+        this.updateBatch(undefined, [signedEvent]);
+    }
+
     public updateBatch(
         contextHold: CancelContext | undefined,
         signedEvents: Array<Models.SignedEvent.SignedEvent>,
