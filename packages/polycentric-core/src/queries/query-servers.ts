@@ -11,7 +11,6 @@ import { Box, OnceFlag } from '../util';
 export type Callback = (servers: ReadonlySet<string>) => void;
 
 type StateForSystem = {
-    readonly queryState: Box<Array<QueryIndex.Cell>>;
     readonly servers: Box<Set<string>>;
     readonly queryHandle: QueryCRDTSet.QueryHandle;
     readonly callbacks: Set<Callback>;
@@ -111,7 +110,6 @@ export class QueryServers {
 
                 return {
                     servers: servers,
-                    queryState: queryState,
                     queryHandle: queryHandle,
                     callbacks: callbacks,
                     fulfilled: fulfilled,
