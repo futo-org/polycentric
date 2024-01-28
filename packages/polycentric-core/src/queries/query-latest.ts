@@ -132,10 +132,10 @@ export class QueryLatest extends HasUpdate {
             }
 
             stateForContentType.callbacks.add(callback);
+        }
 
-            if (stateForContentType.fulfilled.value) {
-                callback(stateForContentType.values);
-            }
+        if (stateForContentType.fulfilled.value) {
+            callback(stateForContentType.values);
         }
 
         return () => {
@@ -250,7 +250,7 @@ export class QueryLatest extends HasUpdate {
         signedEvent: Models.SignedEvent.SignedEvent,
         contextHold: CancelContext | undefined,
     ): void {
-        this.updateBatch(undefined, [signedEvent]);
+        this.updateBatch(contextHold, [signedEvent]);
     }
 
     public updateBatch(
