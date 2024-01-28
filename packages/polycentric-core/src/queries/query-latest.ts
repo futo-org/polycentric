@@ -13,6 +13,7 @@ import * as QueryHead from './query-head2';
 import { OnceFlag } from '../util';
 import { CancelContext } from '../cancel-context';
 import { HasUpdate } from './has-update';
+import { QueryServers, queryServersObservable } from './query-servers';
 
 export type Callback = (
     values: ReadonlyMap<
@@ -29,7 +30,7 @@ type StateForContentType = {
     >;
     readonly callbacks: Set<Callback>;
     readonly contextHolds: Set<CancelContext>;
-    readonly unsubscribe: (() => void) | undefined;
+    unsubscribe: (() => void) | undefined;
     readonly attemptedSources: Set<string>;
 };
 
@@ -45,17 +46,23 @@ export class QueryLatest extends HasUpdate {
         Models.PublicKey.PublicKeyString,
         StateForSystem
     >;
-    private readonly queryHead: QueryHead.QueryHead;
     private readonly processHandle: ProcessHandle;
+    private readonly queryHead: QueryHead.QueryHead;
+    private readonly queryServers: QueryServers;
     private useDisk: boolean;
     private useNetwork: boolean;
 
-    constructor(processHandle: ProcessHandle, queryHead: QueryHead.QueryHead) {
+    constructor(
+        processHandle: ProcessHandle,
+        queryServers: QueryServers,
+        queryHead: QueryHead.QueryHead,
+    ) {
         super();
 
         this.state = new Map();
-        this.queryHead = queryHead;
         this.processHandle = processHandle;
+        this.queryHead = queryHead;
+        this.queryServers = queryServers;
         this.useDisk = true;
         this.useNetwork = true;
     }
@@ -95,32 +102,35 @@ export class QueryLatest extends HasUpdate {
             () => {
                 initial = true;
 
-                const toMerge = [];
-
-                if (this.useDisk) {
-                    toMerge.push(this.loadFromDisk(system, contentType));
-                }
-
-                if (this.useNetwork) {
-                    toMerge.push(this.loadFromNetwork(stateForSystem, system));
-                }
-
-                const subscription = RXJS.merge(...toMerge).subscribe(
-                    this.updateBatch.bind(this, undefined),
-                );
-
                 return {
                     fulfilled: new OnceFlag(),
                     values: new Map(),
                     callbacks: new Set([callback]),
                     contextHolds: new Set(),
-                    unsubscribe: subscription.unsubscribe.bind(subscription),
+                    unsubscribe: undefined,
                     attemptedSources: new Set(),
                 };
             },
         );
 
-        if (!initial) {
+        if (initial) {
+            const toMerge = [];
+
+            if (this.useDisk) {
+                toMerge.push(this.loadFromDisk(system, contentType));
+            }
+
+            if (this.useNetwork) {
+                toMerge.push(this.loadFromNetwork(stateForSystem, system));
+            }
+
+            const subscription = RXJS.merge(...toMerge).subscribe(
+                this.updateBatch.bind(this, undefined),
+            );
+
+            stateForContentType.unsubscribe =
+                subscription.unsubscribe.bind(subscription);
+        } else {
             if (stateForContentType.callbacks.has(callback)) {
                 throw DuplicatedCallbackError;
             }
@@ -207,9 +217,6 @@ export class QueryLatest extends HasUpdate {
         stateForSystem: StateForSystem,
         system: Models.PublicKey.PublicKey,
     ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
-        const loadServerList = async () =>
-            (await this.processHandle.loadSystemState(system)).servers();
-
         const loadFromServer = async (server: string) => {
             const need = [];
 
@@ -227,9 +234,13 @@ export class QueryLatest extends HasUpdate {
                 .events;
         };
 
-        return RXJS.from(loadServerList()).pipe(
+        return RXJS.from(
+            queryServersObservable(this.queryServers, system),
+        ).pipe(
             RXJS.switchMap((servers) =>
-                servers.map((server) => RXJS.from(loadFromServer(server))),
+                Array.from(servers).map((server) =>
+                    RXJS.from(loadFromServer(server)),
+                ),
             ),
             RXJS.mergeAll(),
         );

@@ -3,6 +3,7 @@ import * as RXJS from 'rxjs';
 import * as ProcessHandle from '../process-handle';
 import * as Util from '../util';
 import * as Models from '../models';
+import { QueryServers } from './query-servers';
 import { QueryHead } from './query-head2';
 import { QueryLatest, queryLatestObservable } from './query-latest';
 import { CancelContext } from '../cancel-context';
@@ -17,11 +18,12 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     const s1p1 = await ProcessHandle.createTestProcessHandle();
     s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
 
+    const queryServers = new QueryServers(s1p1);
     const queryHead = new QueryHead(s1p1);
     queryHead.shouldUseNetwork(false);
     queryHead.shouldUseDisk(false);
 
-    const queryLatest = new QueryLatest(s1p1, queryHead);
+    const queryLatest = new QueryLatest(s1p1, queryServers, queryHead);
     queryLatest.shouldUseNetwork(false);
     queryLatest.shouldUseDisk(false);
 

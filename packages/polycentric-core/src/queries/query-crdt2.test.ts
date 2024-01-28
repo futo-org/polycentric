@@ -6,6 +6,7 @@ import * as Util from '../util';
 import * as Models from '../models';
 import { QueryLatest } from './query-latest';
 import { QueryHead } from './query-head2';
+import { QueryServers } from './query-servers';
 import { queryCRDTObservable, QueryCRDT } from './query-crdt2';
 import { CancelContext } from '../cancel-context';
 
@@ -23,10 +24,11 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     const s1p1 = await ProcessHandle.createTestProcessHandle();
     s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
 
+    const queryServers = new QueryServers(s1p1);
     const queryHead = new QueryHead(s1p1);
     queryHead.shouldUseNetwork(false);
     queryHead.shouldUseDisk(false);
-    const queryLatest = new QueryLatest(s1p1, queryHead);
+    const queryLatest = new QueryLatest(s1p1, queryServers, queryHead);
     queryLatest.shouldUseNetwork(false);
     queryLatest.shouldUseDisk(false);
 
@@ -100,9 +102,10 @@ describe('query crdt', () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         const s2p1 = await ProcessHandle.createTestProcessHandle();
 
+        const queryServers = new QueryServers(s2p1);
         const queryHead = new QueryHead(s2p1);
         queryHead.shouldUseNetwork(false);
-        const queryLatest = new QueryLatest(s2p1, queryHead);
+        const queryLatest = new QueryLatest(s2p1, queryServers, queryHead);
         queryLatest.shouldUseNetwork(false);
 
         const queryCRDT = new QueryCRDT(queryHead, queryLatest);
