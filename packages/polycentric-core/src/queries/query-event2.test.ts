@@ -35,9 +35,12 @@ describe('query event2', () => {
         expect(
             Models.Pointer.equal(pointer, Models.signedEventToPointer(result)),
         ).toStrictEqual(true);
+
+        expect(queryEvent.clean).toStrictEqual(true);
     });
 
     test('hit disk delete', async () => {
+        console.log("hit disk delete");
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         const queryServers = new QueryServers(s1p1);
         const queryEvent = new QueryEvent(
@@ -64,6 +67,8 @@ describe('query event2', () => {
             ),
         );
 
+        expect(queryEvent.clean).toStrictEqual(true);
+
         expect(
             Models.Pointer.equal(
                 deletePointer,
@@ -86,6 +91,8 @@ describe('query event2', () => {
                 Models.signedEventToPointer(deleteResult),
             ),
         ).toStrictEqual(true);
+
+        expect(queryEvent.clean).toStrictEqual(true);
     });
 
     test('delete live', async () => {
@@ -137,6 +144,8 @@ describe('query event2', () => {
                 Models.signedEventToPointer(result[1]),
             ),
         ).toStrictEqual(true);
+
+        expect(queryEvent.clean).toStrictEqual(true);
     });
 
     test('hit network', async () => {
@@ -168,9 +177,12 @@ describe('query event2', () => {
                 Models.signedEventToPointer(result),
             ),
         ).toStrictEqual(true);
+
+        expect(queryEvent.clean).toStrictEqual(true);
     });
 
     test('context hold', async () => {
+        console.log("context hold");
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         const queryServers = new QueryServers(s1p1);
         const queryEvent = new QueryEvent(
@@ -212,5 +224,7 @@ describe('query event2', () => {
         expect(
             Models.Pointer.equal(pointer, Models.signedEventToPointer(result)),
         ).toStrictEqual(true);
+
+        expect(queryEvent.clean).toStrictEqual(true);
     });
 });

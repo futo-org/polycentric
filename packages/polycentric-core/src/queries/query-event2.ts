@@ -73,6 +73,10 @@ export class QueryEvent extends HasUpdate {
         this.useNetwork = true;
     }
 
+    public get clean(): boolean {
+        return this.state.size === 0;
+    }
+
     public shouldUseDisk(useDisk: boolean): void {
         this.useDisk = useDisk;
     }
@@ -135,6 +139,7 @@ export class QueryEvent extends HasUpdate {
         }
 
         return () => {
+            console.log("calling cleanup");
             stateForEvent.callbacks.delete(callback);
 
             this.cleanupStateForQuery(stateForEvent);
@@ -238,6 +243,7 @@ export class QueryEvent extends HasUpdate {
         cleanupState(stateForEvent);
 
         if (stateForEvent.sibling) {
+            console.log("sibling cleanup");
             cleanupState(stateForEvent.sibling);
         }
     }
@@ -342,7 +348,7 @@ export class QueryEvent extends HasUpdate {
             event.system,
             event.process,
             event.logicalClock,
-            contextHold !== undefined || stateMustBeCreated,
+            !!contextHold || stateMustBeCreated,
         );
 
         if (!stateForEvent) {
@@ -357,11 +363,6 @@ export class QueryEvent extends HasUpdate {
 
                 this.cleanupStateForQuery(stateForEvent);
             });
-        }
-
-        if (!stateForEvent.signedEvent) {
-            stateForEvent.signedEvent = signedEvent;
-            stateForEvent.callbacks.forEach((cb) => cb(signedEvent));
         }
 
         if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
@@ -399,6 +400,11 @@ export class QueryEvent extends HasUpdate {
             stateForDeletedEvent.sibling = stateForEvent;
             stateForDeletedEvent.signedEvent = signedEvent;
             stateForDeletedEvent.callbacks.forEach((cb) => cb(signedEvent));
+        }
+
+        if (!stateForEvent.signedEvent) {
+            stateForEvent.signedEvent = signedEvent;
+            stateForEvent.callbacks.forEach((cb) => cb(signedEvent));
         }
     }
 }
