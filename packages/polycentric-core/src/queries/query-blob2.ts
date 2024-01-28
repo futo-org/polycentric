@@ -39,6 +39,49 @@ export class QueryBlob {
         this.state = new Map();
     }
 
+    private pipeline(
+        system: Models.PublicKey.PublicKey,
+        process: Models.Process.Process,
+        ranges: ReadonlyArray<Ranges.IRange>,
+    ): RXJS.Observable<Uint8Array | undefined> {
+        return RXJS.combineLatest(
+            Ranges.toArray(ranges).map((logicalClock) =>
+                queryEventObservable(
+                    this.queryEvent,
+                    system,
+                    process,
+                    logicalClock,
+                ),
+            ),
+        ).pipe(
+            RXJS.switchMap((signedEvents) => {
+                const events = signedEvents.map((signedEvent) => {
+                    return Models.Event.fromBuffer(signedEvent.event);
+                });
+
+                if (
+                    events.some((event) =>
+                        event.contentType.equals(
+                            Models.ContentType.ContentTypeDelete,
+                        ),
+                    )
+                ) {
+                    return RXJS.of(undefined);
+                } else {
+                    return RXJS.of(
+                        Util.concatBuffers(
+                            events
+                                .sort((a, b) =>
+                                    a.logicalClock.compare(b.logicalClock),
+                                )
+                                .map((event) => event.content),
+                        ),
+                    );
+                }
+            }),
+        );
+    }
+
     public query(
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
@@ -59,41 +102,14 @@ export class QueryBlob {
                 const fulfilled = new OnceFlag();
                 const callbacks = new Set([callback]);
 
-                const subscription = RXJS.combineLatest(
-                    Ranges.toArray(ranges).map((logicalClock) =>
-                        queryEventObservable(
-                            this.queryEvent,
-                            system,
-                            process,
-                            logicalClock,
-                        ),
-                    ),
-                ).subscribe((signedEvents) => {
+                const subscription = this.pipeline(
+                    system,
+                    process,
+                    ranges,
+                ).subscribe((latestValue) => {
                     fulfilled.set();
-
-                    const events = signedEvents.map((signedEvent) => {
-                        return Models.Event.fromBuffer(signedEvent.event);
-                    });
-
-                    if (
-                        events.some((event) =>
-                            event.contentType.equals(
-                                Models.ContentType.ContentTypeDelete,
-                            ),
-                        )
-                    ) {
-                        value.value = undefined;
-                    } else {
-                        value.value = Util.concatBuffers(
-                            events
-                                .sort((a, b) =>
-                                    a.logicalClock.compare(b.logicalClock),
-                                )
-                                .map((event) => event.content),
-                        );
-                    }
-
-                    callbacks.forEach((cb) => cb(value.value));
+                    value.value = latestValue;
+                    callbacks.forEach((cb) => cb(latestValue));
                 });
 
                 return {
