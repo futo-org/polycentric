@@ -36,6 +36,10 @@ export namespace ContentType {
         );
     }
 
+    export function fromString(contentType: ContentTypeString): ContentType {
+        return Long.fromString(contentType) as ContentType;
+    }
+
     export const ContentTypeDelete = makeContentType(1);
     export const ContentTypeSystemProcesses = makeContentType(2);
     export const ContentTypePost = makeContentType(3);

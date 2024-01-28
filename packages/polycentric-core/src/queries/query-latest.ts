@@ -23,6 +23,7 @@ type StateForContentType = {
     >;
     readonly callbacks: Set<Callback>;
     readonly unsubscribe: () => void;
+    readonly attemptedSources: Set<string>;
 };
 
 type StateForSystem = {
@@ -92,7 +93,13 @@ export class QueryLatest {
                 }
 
                 if (this.useNetwork) {
-                    toMerge.push(this.loadFromNetwork(system, contentType));
+                    toMerge.push(
+                        this.loadFromNetwork(
+                            stateForSystem,
+                            system,
+                            contentType,
+                        ),
+                    );
                 }
 
                 const subscription = RXJS.merge(...toMerge).subscribe(
@@ -104,6 +111,7 @@ export class QueryLatest {
                     values: new Map(),
                     callbacks: new Set([callback]),
                     unsubscribe: subscription.unsubscribe.bind(subscription),
+                    attemptedSources: new Set(),
                 };
             },
         );
@@ -172,15 +180,29 @@ export class QueryLatest {
     }
 
     private loadFromNetwork(
+        stateForSystem: StateForSystem,
         system: Models.PublicKey.PublicKey,
         contentType: Models.ContentType.ContentType,
     ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
         const loadServerList = async () =>
             (await this.processHandle.loadSystemState(system)).servers();
 
-        const loadFromServer = async (server: string) =>
-            (await APIMethods.getQueryLatest(server, system, [contentType]))
+        const loadFromServer = async (server: string) => {
+            const need = [];
+
+            for (const [
+                contentType,
+                state,
+            ] of stateForSystem.stateForContentType.entries()) {
+                if (!state.attemptedSources.has(server)) {
+                    state.attemptedSources.add(server);
+                    need.push(Models.ContentType.fromString(contentType));
+                }
+            }
+
+            return (await APIMethods.getQueryLatest(server, system, need))
                 .events;
+        };
 
         return RXJS.from(loadServerList()).pipe(
             RXJS.switchMap((servers) =>
