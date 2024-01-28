@@ -5,10 +5,9 @@ import * as Models from '../models';
 import * as Util from '../util';
 import * as Protocol from '../protocol';
 import * as QueryHead from './query-head2';
-import { QueryEvent, queryEventObservable } from './query-event2';
 import { UnregisterCallback, DuplicatedCallbackError } from './shared';
 import { Box } from '../util';
-import { QueryLatest } from './query-latest';
+import { QueryLatest, queryLatestObservable } from './query-latest';
 
 export type SuccessCallback = (value: Uint8Array | undefined) => void;
 
@@ -37,9 +36,15 @@ function lookupIndex(
 }
 
 function computeCRDTValue(
-    signedEvents: Array<Models.SignedEvent.SignedEvent | undefined>,
+    head: QueryHead.CallbackValue,
+    latestEvents: ReadonlyMap<
+        Models.Process.ProcessString,
+        Models.SignedEvent.SignedEvent
+    >,
     contentType: Models.ContentType.ContentType,
 ): Uint8Array | undefined {
+    const signedEvents = Array.from(latestEvents.values());
+
     const events = signedEvents
         .filter(
             (signedEvent): signedEvent is Models.SignedEvent.SignedEvent =>
@@ -69,48 +74,24 @@ export class QueryCRDT {
         StateForSystem
     >;
     private readonly queryHead: QueryHead.QueryHead;
-    private readonly queryEvent: QueryEvent;
+    private readonly queryLatest: QueryLatest;
 
-    constructor(queryHead: QueryHead.QueryHead, queryEvent: QueryEvent) {
+    constructor(queryHead: QueryHead.QueryHead, queryLatest: QueryLatest) {
         this.state = new Map();
         this.queryHead = queryHead;
-        this.queryEvent = queryEvent;
+        this.queryLatest = queryLatest;
     }
 
     private pipeline(
         system: Models.PublicKey.PublicKey,
         contentType: Models.ContentType.ContentType,
     ): RXJS.Observable<Uint8Array | undefined> {
-        return QueryHead.queryHeadObservable(this.queryHead, system).pipe(
-            RXJS.switchMap((head) =>
-                RXJS.combineLatest(
-                    Util.mapToArray(head, (signedEvent) => {
-                        const event = Models.Event.fromBuffer(
-                            signedEvent.event,
-                        );
-
-                        if (event.contentType.equals(contentType)) {
-                            return RXJS.of(signedEvent);
-                        }
-
-                        const next = lookupIndex(event.indices, contentType);
-
-                        if (!next) {
-                            return RXJS.of(undefined);
-                        }
-
-                        return queryEventObservable(
-                            this.queryEvent,
-                            event.system,
-                            event.process,
-                            next,
-                        );
-                    }),
-                ).pipe(
-                    RXJS.switchMap((signedEvents) =>
-                        RXJS.of(computeCRDTValue(signedEvents, contentType)),
-                    ),
-                ),
+        return RXJS.combineLatest(
+            QueryHead.queryHeadObservable(this.queryHead, system),
+            queryLatestObservable(this.queryLatest, system, contentType),
+        ).pipe(
+            RXJS.switchMap(([head, latest]) =>
+                RXJS.of(computeCRDTValue(head, latest, contentType)),
             ),
         );
     }

@@ -4,7 +4,7 @@ import * as RXJS from 'rxjs';
 import * as ProcessHandle from '../process-handle';
 import * as Util from '../util';
 import * as Models from '../models';
-import { QueryEvent } from './query-event2';
+import { QueryLatest } from './query-latest';
 import { QueryHead } from './query-head2';
 import { queryCRDTObservable, QueryCRDT } from './query-crdt2';
 import { CancelContext } from '../cancel-context';
@@ -23,20 +23,21 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     const s1p1 = await ProcessHandle.createTestProcessHandle();
     s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
 
-    const queryEvent = new QueryEvent(s1p1);
-    queryEvent.shouldUseNetwork(false);
-    queryEvent.shouldUseDisk(false);
     const queryHead = new QueryHead(s1p1);
     queryHead.shouldUseNetwork(false);
     queryHead.shouldUseDisk(false);
-    const queryCRDT = new QueryCRDT(queryHead, queryEvent);
+    const queryLatest = new QueryLatest(s1p1, queryHead);
+    queryLatest.shouldUseNetwork(false);
+    queryLatest.shouldUseDisk(false);
+
+    const queryCRDT = new QueryCRDT(queryHead, queryLatest);
 
     if (mode === SharedTestMode.NetworkOnly) {
-        queryEvent.shouldUseNetwork(true);
         queryHead.shouldUseNetwork(true);
+        queryLatest.shouldUseNetwork(true);
     } else if (mode === SharedTestMode.DiskOnly) {
-        queryEvent.shouldUseDisk(true);
         queryHead.shouldUseDisk(true);
+        queryLatest.shouldUseDisk(true);
     }
 
     const contextHold =
@@ -44,8 +45,8 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
 
     if (mode === SharedTestMode.CacheOnly) {
         s1p1.setListener((event) => {
-            queryEvent.updateWithContextHold(event, contextHold);
             queryHead.updateWithContextHold(event, contextHold);
+            queryLatest.updateWithContextHold(event, contextHold);
         });
     }
 

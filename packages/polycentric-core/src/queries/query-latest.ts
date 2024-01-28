@@ -102,12 +102,7 @@ export class QueryLatest extends HasUpdate {
                 }
 
                 if (this.useNetwork) {
-                    toMerge.push(
-                        this.loadFromNetwork(
-                            stateForSystem,
-                            system,
-                        ),
-                    );
+                    toMerge.push(this.loadFromNetwork(stateForSystem, system));
                 }
 
                 const subscription = RXJS.merge(...toMerge).subscribe(
