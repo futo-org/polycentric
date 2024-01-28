@@ -84,7 +84,7 @@ describe('processHandle', () => {
             Queries.QueryCRDT2.queryCRDTObservable(
                 processHandle.queryManager.queryCRDT,
                 processHandle.system(),
-                Models.ContentType.ContentTypeUsername,
+                Models.ContentType.ContentTypeDescription,
             ),
         );
 
