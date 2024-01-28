@@ -7,7 +7,6 @@ import * as Protocol from '../protocol';
 import * as APIMethods from '../api-methods';
 import { IndexEvents } from '../store/index-events';
 import { QueryServers, queryServersObservable } from './query-servers';
-import { ProcessHandle } from '../process-handle';
 import { HasUpdate } from './has-update';
 import {
     DuplicatedCallbackError,
@@ -61,17 +60,15 @@ export class QueryEvent extends HasUpdate {
     >;
     private readonly indexEvents: IndexEvents;
     private readonly queryServers: QueryServers;
-    private readonly processHandle: ProcessHandle;
     private useDisk: boolean;
     private useNetwork: boolean;
 
-    constructor(processHandle: ProcessHandle, queryServers: QueryServers) {
+    constructor(indexEvents: IndexEvents, queryServers: QueryServers) {
         super();
 
         this.state = new Map();
-        this.indexEvents = processHandle.store().indexEvents;
+        this.indexEvents = indexEvents;
         this.queryServers = queryServers;
-        this.processHandle = processHandle;
         this.useDisk = true;
         this.useNetwork = true;
     }

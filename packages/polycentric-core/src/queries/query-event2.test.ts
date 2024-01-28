@@ -15,7 +15,10 @@ describe('query event2', () => {
     test('hit disk basic', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         const queryServers = new QueryServers(s1p1);
-        const queryEvent = new QueryEvent(s1p1, queryServers);
+        const queryEvent = new QueryEvent(
+            s1p1.store().indexEvents,
+            queryServers,
+        );
         queryEvent.shouldUseNetwork(false);
 
         const pointer = await s1p1.post('hello');
@@ -37,7 +40,10 @@ describe('query event2', () => {
     test('hit disk delete', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         const queryServers = new QueryServers(s1p1);
-        const queryEvent = new QueryEvent(s1p1, queryServers);
+        const queryEvent = new QueryEvent(
+            s1p1.store().indexEvents,
+            queryServers,
+        );
         queryEvent.shouldUseNetwork(false);
 
         const messagePointer = await s1p1.post('hello');
@@ -85,7 +91,10 @@ describe('query event2', () => {
     test('delete live', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         const queryServers = new QueryServers(s1p1);
-        const queryEvent = new QueryEvent(s1p1, queryServers);
+        const queryEvent = new QueryEvent(
+            s1p1.store().indexEvents,
+            queryServers,
+        );
         queryEvent.shouldUseNetwork(false);
         queryEvent.shouldUseDisk(false);
 
@@ -138,7 +147,10 @@ describe('query event2', () => {
         await ProcessHandle.fullSync(s1p1);
 
         const queryServers = new QueryServers(s1p1);
-        const queryEvent = new QueryEvent(s1p1, queryServers);
+        const queryEvent = new QueryEvent(
+            s1p1.store().indexEvents,
+            queryServers,
+        );
         queryEvent.shouldUseDisk(false);
 
         const result = await RXJS.firstValueFrom(
@@ -161,7 +173,10 @@ describe('query event2', () => {
     test('context hold', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         const queryServers = new QueryServers(s1p1);
-        const queryEvent = new QueryEvent(s1p1, queryServers);
+        const queryEvent = new QueryEvent(
+            s1p1.store().indexEvents,
+            queryServers,
+        );
         queryEvent.shouldUseNetwork(false);
         queryEvent.shouldUseDisk(true);
 

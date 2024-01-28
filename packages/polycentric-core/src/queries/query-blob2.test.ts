@@ -31,7 +31,7 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
 
     const queryServers = new QueryServers(s1p1);
-    const queryEvent = new QueryEvent(s1p1, queryServers);
+    const queryEvent = new QueryEvent(s1p1.store().indexEvents, queryServers);
     queryEvent.shouldUseNetwork(false);
     queryEvent.shouldUseDisk(false);
     const queryBlob = new QueryBlob(queryEvent);
@@ -101,7 +101,10 @@ describe('query blob2', () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
 
         const queryServers = new QueryServers(s1p1);
-        const queryEvent = new QueryEvent(s1p1, queryServers);
+        const queryEvent = new QueryEvent(
+            s1p1.store().indexEvents,
+            queryServers,
+        );
         queryEvent.shouldUseNetwork(false);
         queryEvent.shouldUseDisk(false);
         const queryBlob = new QueryBlob(queryEvent);
