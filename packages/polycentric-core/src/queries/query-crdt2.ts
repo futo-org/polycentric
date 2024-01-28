@@ -158,9 +158,7 @@ export class QueryCRDT {
                     value: value,
                     callbacks: callbacks,
                     fulfilled: fulfilled,
-                    unsubscribe: () => {
-                        subscription.unsubscribe();
-                    },
+                    unsubscribe: subscription.unsubscribe.bind(subscription),
                 };
             },
         );
