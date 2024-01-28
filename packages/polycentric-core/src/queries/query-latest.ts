@@ -21,6 +21,7 @@ type StateForContentType = {
         Models.SignedEvent.SignedEvent
     >;
     readonly callbacks: Set<Callback>;
+    readonly unsubscribe: () => void;
 };
 
 type StateForSystem = {
@@ -83,10 +84,25 @@ export class QueryLatest {
             () => {
                 initial = true;
 
+                const toMerge = [];
+
+                if (this.useDisk) {
+                    toMerge.push(this.loadFromDisk(system, contentType));
+                }
+
+                if (this.useNetwork) {
+                    toMerge.push(this.loadFromNetwork(system, contentType));
+                }
+
+                const subscription = RXJS.merge(...toMerge).subscribe(
+                    this.updateBatch.bind(this),
+                );
+
                 return {
                     fulfilled: false,
                     values: new Map(),
                     callbacks: new Set([callback]),
+                    unsubscribe: subscription.unsubscribe.bind(subscription),
                 };
             },
         );
