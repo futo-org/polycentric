@@ -14,6 +14,22 @@ export type CallbackValue = {
     readonly value: Uint8Array | undefined;
 };
 
+function callbackValuesEqual(a: CallbackValue, b: CallbackValue): boolean {
+    if (a.potentiallyOutdated !== b.potentiallyOutdated) {
+        return false;
+    }
+
+    if (a.value && b.value && !Util.buffersEqual(a.value, b.value)) {
+        return false;
+    }
+
+    if (!!a.value !== !!b.value) {
+        return false;
+    }
+
+    return true;
+}
+
 export type SuccessCallback = (value: CallbackValue) => void;
 
 type StateForCRDT = {
@@ -122,6 +138,7 @@ export class QueryCRDT {
             RXJS.switchMap(([head, latest]) =>
                 RXJS.of(computeCRDTValue(head, latest, contentType)),
             ),
+            RXJS.distinctUntilChanged(callbackValuesEqual),
         );
     }
 
