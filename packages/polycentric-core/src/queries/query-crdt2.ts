@@ -8,6 +8,7 @@ import * as QueryHead from './query-head2';
 import { QueryEvent, queryEventObservable } from './query-event2';
 import { UnregisterCallback, DuplicatedCallbackError } from './shared';
 import { Box } from '../util';
+import { QueryLatest } from './query-latest';
 
 export type SuccessCallback = (value: Uint8Array | undefined) => void;
 
