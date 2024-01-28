@@ -9,10 +9,15 @@ import { UnregisterCallback, DuplicatedCallbackError } from './shared';
 import { Box } from '../util';
 import { QueryLatest, queryLatestObservable } from './query-latest';
 
-export type SuccessCallback = (value: Uint8Array | undefined) => void;
+export type CallbackValue = {
+    readonly potentiallyOutdated: boolean;
+    readonly value: Uint8Array | undefined;
+};
+
+export type SuccessCallback = (value: CallbackValue) => void;
 
 type StateForCRDT = {
-    readonly value: Box<Uint8Array | undefined>;
+    readonly value: Box<CallbackValue>;
     readonly callbacks: Set<SuccessCallback>;
     readonly fulfilled: Box<boolean>;
     readonly unsubscribe: () => void;
@@ -42,7 +47,7 @@ function computeCRDTValue(
         Models.SignedEvent.SignedEvent
     >,
     contentType: Models.ContentType.ContentType,
-): Uint8Array | undefined {
+): CallbackValue {
     const signedEvents = Array.from(latestEvents.values());
 
     const events = signedEvents
@@ -55,8 +60,25 @@ function computeCRDTValue(
 
     let latestTime: Long = Long.UZERO;
     let result: Uint8Array | undefined = undefined;
+    let potentiallyOutdated = false;
 
     for (const event of events) {
+        const headSignedEvent = head.get(
+            Models.Process.toString(event.process),
+        );
+
+        if (headSignedEvent) {
+            const headEvent = Models.Event.fromBuffer(headSignedEvent.event);
+
+            if (headEvent.contentType.notEquals(contentType)) {
+                const index = lookupIndex(headEvent.indices, contentType);
+
+                if (index && index.notEquals(event.logicalClock)) {
+                    potentiallyOutdated = true;
+                }
+            }
+        }
+
         if (event.unixMilliseconds && event.lwwElement) {
             if (event.unixMilliseconds.greaterThanOrEqual(latestTime)) {
                 latestTime = event.unixMilliseconds;
@@ -65,7 +87,10 @@ function computeCRDTValue(
         }
     }
 
-    return result;
+    return {
+        potentiallyOutdated: potentiallyOutdated,
+        value: result,
+    };
 }
 
 export class QueryCRDT {
@@ -85,7 +110,7 @@ export class QueryCRDT {
     private pipeline(
         system: Models.PublicKey.PublicKey,
         contentType: Models.ContentType.ContentType,
-    ): RXJS.Observable<Uint8Array | undefined> {
+    ): RXJS.Observable<CallbackValue> {
         return RXJS.combineLatest(
             QueryHead.queryHeadObservable(this.queryHead, system),
             queryLatestObservable(this.queryLatest, system, contentType),
@@ -123,7 +148,10 @@ export class QueryCRDT {
             () => {
                 initial = true;
 
-                const value = new Box<Uint8Array | undefined>(undefined);
+                const value = new Box<CallbackValue>({
+                    potentiallyOutdated: true,
+                    value: undefined,
+                });
                 const fulfilled = new Box<boolean>(true);
                 const callbacks = new Set([callback]);
 
@@ -177,7 +205,7 @@ export function queryCRDTObservable(
     queryManager: QueryCRDT,
     system: Models.PublicKey.PublicKey,
     contentType: Models.ContentType.ContentType,
-): RXJS.Observable<Uint8Array | undefined> {
+): RXJS.Observable<CallbackValue> {
     return new RXJS.Observable((subscriber) => {
         return queryManager.query(system, contentType, (value) => {
             subscriber.next(value);

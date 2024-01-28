@@ -77,9 +77,10 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
 
     contextHold?.cancel();
 
-    expectToBeDefined(result);
+    expectToBeDefined(result.value);
 
-    expect(Util.decodeText(result)).toStrictEqual('initial');
+    expect(result.potentiallyOutdated).toStrictEqual(false);
+    expect(Util.decodeText(result.value)).toStrictEqual('initial');
 }
 
 describe('query crdt', () => {
