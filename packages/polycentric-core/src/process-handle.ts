@@ -689,3 +689,23 @@ export async function createTestProcessHandle(): Promise<ProcessHandle> {
 export async function fullSync(handle: ProcessHandle) {
     while (await Synchronization.backFillServers(handle, handle.system())) {}
 }
+
+export async function copyEventBetweenHandles(
+    pointer: Models.Pointer.Pointer,
+    from: ProcessHandle,
+    to: ProcessHandle,
+): Promise<void> {
+    const signedEvent = await from
+        .store()
+        .indexEvents.getSignedEvent(
+            pointer.system,
+            pointer.process,
+            pointer.logicalClock,
+        );
+
+    if (signedEvent === undefined) {
+        throw new Error('expected signedEvent');
+    }
+
+    await to.ingest(signedEvent);
+}

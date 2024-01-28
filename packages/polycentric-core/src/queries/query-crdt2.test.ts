@@ -95,4 +95,41 @@ describe('query crdt', () => {
     test('context hold', async () => {
         await sharedTestCase(SharedTestMode.CacheOnly);
     });
+
+    test('outdated', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+        const s2p1 = await ProcessHandle.createTestProcessHandle();
+
+        const queryHead = new QueryHead(s2p1);
+        queryHead.shouldUseNetwork(false);
+        const queryLatest = new QueryLatest(s2p1, queryHead);
+        queryLatest.shouldUseNetwork(false);
+
+        const queryCRDT = new QueryCRDT(queryHead, queryLatest);
+
+        const initial = await s1p1.setUsername('1');
+        await s1p1.setUsername('2');
+        const head = await s1p1.post('3');
+
+        await ProcessHandle.copyEventBetweenHandles(initial, s1p1, s2p1);
+
+        await ProcessHandle.copyEventBetweenHandles(head, s1p1, s2p1);
+
+        const result = await RXJS.firstValueFrom(
+            queryCRDTObservable(
+                queryCRDT,
+                s1p1.system(),
+                Models.ContentType.ContentTypeUsername,
+            ).pipe(
+                RXJS.switchMap((value) => {
+                    return RXJS.of(value);
+                }),
+            ),
+        );
+
+        expectToBeDefined(result.value);
+
+        expect(result.potentiallyOutdated).toStrictEqual(true);
+        expect(Util.decodeText(result.value)).toStrictEqual('1');
+    });
 });
