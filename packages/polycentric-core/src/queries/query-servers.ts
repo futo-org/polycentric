@@ -1,3 +1,5 @@
+import * as RXJS from 'rxjs';
+
 import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import * as QueryIndex from './query-index';
@@ -145,4 +147,15 @@ export class QueryServers {
             }
         };
     }
+}
+
+export function queryServersObservable(
+    queryManager: QueryServers,
+    system: Models.PublicKey.PublicKey,
+): RXJS.Observable<ReadonlySet<string>> {
+    return new RXJS.Observable((subscriber) => {
+        return queryManager.query(system, (servers) => {
+            subscriber.next(servers);
+        });
+    });
 }
