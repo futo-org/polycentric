@@ -4,6 +4,7 @@ import Long from 'long';
 import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import { queryEventObservable, QueryEvent } from './query-event2';
+import { QueryServers } from './query-servers';
 import { CancelContext } from '../cancel-context';
 
 function expectToBeDefined<T>(value: T): asserts value is NonNullable<T> {
@@ -13,7 +14,8 @@ function expectToBeDefined<T>(value: T): asserts value is NonNullable<T> {
 describe('query event2', () => {
     test('hit disk basic', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
-        const queryEvent = new QueryEvent(s1p1);
+        const queryServers = new QueryServers(s1p1);
+        const queryEvent = new QueryEvent(s1p1, queryServers);
         queryEvent.shouldUseNetwork(false);
 
         const pointer = await s1p1.post('hello');
@@ -34,7 +36,8 @@ describe('query event2', () => {
 
     test('hit disk delete', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
-        const queryEvent = new QueryEvent(s1p1);
+        const queryServers = new QueryServers(s1p1);
+        const queryEvent = new QueryEvent(s1p1, queryServers);
         queryEvent.shouldUseNetwork(false);
 
         const messagePointer = await s1p1.post('hello');
@@ -81,7 +84,8 @@ describe('query event2', () => {
 
     test('delete live', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
-        const queryEvent = new QueryEvent(s1p1);
+        const queryServers = new QueryServers(s1p1);
+        const queryEvent = new QueryEvent(s1p1, queryServers);
         queryEvent.shouldUseNetwork(false);
         queryEvent.shouldUseDisk(false);
 
@@ -133,7 +137,8 @@ describe('query event2', () => {
         const messagePointer = await s1p1.post('to be deleted');
         await ProcessHandle.fullSync(s1p1);
 
-        const queryEvent = new QueryEvent(s1p1);
+        const queryServers = new QueryServers(s1p1);
+        const queryEvent = new QueryEvent(s1p1, queryServers);
         queryEvent.shouldUseDisk(false);
 
         const result = await RXJS.firstValueFrom(
@@ -155,7 +160,8 @@ describe('query event2', () => {
 
     test('context hold', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
-        const queryEvent = new QueryEvent(s1p1);
+        const queryServers = new QueryServers(s1p1);
+        const queryEvent = new QueryEvent(s1p1, queryServers);
         queryEvent.shouldUseNetwork(false);
         queryEvent.shouldUseDisk(true);
 

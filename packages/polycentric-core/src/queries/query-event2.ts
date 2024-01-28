@@ -6,6 +6,7 @@ import * as Ranges from '../ranges';
 import * as Protocol from '../protocol';
 import * as APIMethods from '../api-methods';
 import { IndexEvents } from '../store/index-events';
+import { QueryServers, queryServersObservable } from './query-servers';
 import { ProcessHandle } from '../process-handle';
 import { HasUpdate } from './has-update';
 import {
@@ -24,10 +25,11 @@ type StateForEvent = {
 
     readonly logicalClock: Readonly<Long>;
     signedEvent: Models.SignedEvent.SignedEvent | undefined;
+
+    unsubscribe: (() => void) | undefined;
     readonly callbacks: Set<Callback>;
     readonly contextHolds: Set<CancelContext>;
     readonly attemptedSources: Set<string>;
-    readonly cancelContext: CancelContext;
 };
 
 export type LogicalClockString = Readonly<string> & {
@@ -58,15 +60,17 @@ export class QueryEvent extends HasUpdate {
         StateForSystem
     >;
     private readonly indexEvents: IndexEvents;
+    private readonly queryServers: QueryServers;
     private readonly processHandle: ProcessHandle;
     private useDisk: boolean;
     private useNetwork: boolean;
 
-    constructor(processHandle: ProcessHandle) {
+    constructor(processHandle: ProcessHandle, queryServers: QueryServers) {
         super();
 
         this.state = new Map();
         this.indexEvents = processHandle.store().indexEvents;
+        this.queryServers = queryServers;
         this.processHandle = processHandle;
         this.useDisk = true;
         this.useNetwork = true;
@@ -105,14 +109,32 @@ export class QueryEvent extends HasUpdate {
 
         if (stateForEvent.signedEvent) {
             callback(stateForEvent.signedEvent);
-        } else {
+        }
+
+        if (!stateForEvent.unsubscribe) {
+            const toMerge = [];
+
             if (this.useDisk) {
-                this.loadFromDisk(stateForEvent, system, process, logicalClock);
+                toMerge.push(
+                    this.loadFromDiskObservable(system, process, logicalClock),
+                );
             }
 
             if (this.useNetwork) {
-                this.loadFromNetwork(stateForEvent, system);
+                toMerge.push(
+                    this.loadFromNetworkObservable(
+                        stateForEvent.parent.parent,
+                        system,
+                    ),
+                );
             }
+
+            const subscription = RXJS.merge(...toMerge).subscribe(
+                (signedEvents) => signedEvents.map(this.update.bind(this)),
+            );
+
+            stateForEvent.unsubscribe =
+                subscription.unsubscribe.bind(subscription);
         }
 
         return () => {
@@ -122,51 +144,25 @@ export class QueryEvent extends HasUpdate {
         };
     }
 
-    private async loadFromDisk(
-        stateForEvent: StateForEvent,
+    private loadFromDiskObservable(
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
         logicalClock: Long,
-    ): Promise<void> {
-        if (stateForEvent.attemptedSources.has('disk')) {
-            return;
-        }
-
-        stateForEvent.attemptedSources.add('disk');
-
-        const signedEvent = await this.indexEvents.getSignedEvent(
-            system,
-            process,
-            logicalClock,
+    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
+        return RXJS.from(
+            this.indexEvents.getSignedEvent(system, process, logicalClock),
+        ).pipe(
+            RXJS.switchMap((signedEvent) =>
+                signedEvent ? RXJS.of([signedEvent]) : RXJS.NEVER,
+            ),
         );
-
-        if (stateForEvent.cancelContext.cancelled()) {
-            return;
-        }
-
-        if (signedEvent) {
-            this.update(signedEvent);
-        }
     }
 
-    private async loadFromNetwork(
-        stateForEvent: StateForEvent,
+    private loadFromNetworkObservable(
+        stateForSystem: StateForSystem,
         system: Models.PublicKey.PublicKey,
-    ): Promise<void> {
-        const systemState = await this.processHandle.loadSystemState(system);
-
-        if (stateForEvent.cancelContext.cancelled()) {
-            return;
-        }
-
-        const systemString = Models.PublicKey.toString(system);
-        const stateForSystem = this.state.get(systemString);
-
-        if (stateForSystem == undefined) {
-            throw ImpossibleError;
-        }
-
-        for (const server of systemState.servers()) {
+    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
+        const loadFromServer = (server: string) => {
             const request: Protocol.RangesForSystem = {
                 rangesForProcesses: [],
             };
@@ -194,21 +190,22 @@ export class QueryEvent extends HasUpdate {
             }
 
             if (request.rangesForProcesses.length > 0) {
-                (async () => {
-                    const events = await APIMethods.getEvents(
-                        server,
-                        system,
-                        request,
-                    );
-
-                    if (stateForEvent.cancelContext.cancelled()) {
-                        return;
-                    }
-
-                    events.events.forEach((event) => this.update(event));
-                })();
+                return RXJS.from(
+                    APIMethods.getEvents(server, system, request),
+                ).pipe(RXJS.switchMap((events) => RXJS.of(events.events)));
+            } else {
+                return RXJS.NEVER;
             }
-        }
+        };
+
+        return RXJS.from(
+            queryServersObservable(this.queryServers, system),
+        ).pipe(
+            RXJS.switchMap((servers) =>
+                Array.from(servers).map((server) => loadFromServer(server)),
+            ),
+            RXJS.mergeAll(),
+        );
     }
 
     private cleanupStateForQuery(stateForEvent: StateForEvent): void {
@@ -219,6 +216,8 @@ export class QueryEvent extends HasUpdate {
             const stateForProcess = stateForEvent.parent;
 
             stateForProcess.state.delete(stateForEvent.key);
+
+            stateForEvent.unsubscribe?.();
 
             if (stateForProcess.state.size === 0) {
                 const stateForSystem = stateForProcess.parent;
@@ -303,7 +302,7 @@ export class QueryEvent extends HasUpdate {
                     contextHolds: new Set(),
                     attemptedSources: new Set(),
                     logicalClock: logicalClock,
-                    cancelContext: new CancelContext(),
+                    unsubscribe: undefined,
                 };
 
                 stateForProcess.state.set(logicalClockString, stateForEvent);
@@ -326,17 +325,18 @@ export class QueryEvent extends HasUpdate {
         const event = Models.Event.fromBuffer(signedEvent.event);
 
         let stateMustBeCreated = false;
+
         if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
             const deleteModel = Models.Delete.fromBuffer(event.content);
 
-            const stateForDeletedEvent = this.lookupStateForEvent(
-                event.system,
-                deleteModel.process,
-                deleteModel.logicalClock,
-                false,
-            );
-
-            if (stateForDeletedEvent) {
+            if (
+                this.lookupStateForEvent(
+                    event.system,
+                    deleteModel.process,
+                    deleteModel.logicalClock,
+                    false,
+                )
+            ) {
                 stateMustBeCreated = true;
             }
         }

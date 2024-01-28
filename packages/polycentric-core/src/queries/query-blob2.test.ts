@@ -4,6 +4,7 @@ import * as RXJS from 'rxjs';
 import * as ProcessHandle from '../process-handle';
 import * as Util from '../util';
 import { QueryEvent } from './query-event2';
+import { QueryServers } from './query-servers';
 import { QueryBlob, queryBlobObservable } from './query-blob2';
 import { CancelContext } from '../cancel-context';
 
@@ -29,7 +30,8 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     const s1p1 = await ProcessHandle.createTestProcessHandle();
     s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
 
-    const queryEvent = new QueryEvent(s1p1);
+    const queryServers = new QueryServers(s1p1);
+    const queryEvent = new QueryEvent(s1p1, queryServers);
     queryEvent.shouldUseNetwork(false);
     queryEvent.shouldUseDisk(false);
     const queryBlob = new QueryBlob(queryEvent);
@@ -97,7 +99,9 @@ describe('query blob2', () => {
 
     test('partially or totally deleted', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
-        const queryEvent = new QueryEvent(s1p1);
+
+        const queryServers = new QueryServers(s1p1);
+        const queryEvent = new QueryEvent(s1p1, queryServers);
         queryEvent.shouldUseNetwork(false);
         queryEvent.shouldUseDisk(false);
         const queryBlob = new QueryBlob(queryEvent);
