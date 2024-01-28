@@ -18,6 +18,10 @@ import { CancelContext } from '../cancel-context';
 export type Callback = (signedEvent: Models.SignedEvent.SignedEvent) => void;
 
 type StateForEvent = {
+    readonly parent: StateForProcess;
+    readonly key: LogicalClockString;
+    sibling: StateForEvent | undefined;
+
     readonly logicalClock: Readonly<Long>;
     signedEvent: Models.SignedEvent.SignedEvent | undefined;
     readonly callbacks: Set<Callback>;
@@ -35,11 +39,14 @@ function logicalClockToString(logicalClock: Long): LogicalClockString {
 }
 
 type StateForProcess = {
+    readonly parent: StateForSystem;
+    readonly key: Models.Process.ProcessString;
     readonly process: Models.Process.Process;
     readonly state: Map<LogicalClockString, StateForEvent>;
 };
 
 type StateForSystem = {
+    readonly key: Models.PublicKey.PublicKeyString;
     readonly state: Map<Models.Process.ProcessString, StateForProcess>;
 };
 
@@ -84,7 +91,6 @@ export class QueryEvent extends HasUpdate {
             process,
             logicalClock,
             true,
-            false,
         );
 
         if (!stateForEvent) {
@@ -112,12 +118,7 @@ export class QueryEvent extends HasUpdate {
         return () => {
             stateForEvent.callbacks.delete(callback);
 
-            this.cleanupStateForQuery(
-                stateForEvent,
-                system,
-                process,
-                logicalClock,
-            );
+            this.cleanupStateForQuery(stateForEvent);
         };
     }
 
@@ -210,70 +211,39 @@ export class QueryEvent extends HasUpdate {
         }
     }
 
-    private cleanupStateForQuery(
-        stateForEvent: StateForEvent,
-        system: Models.PublicKey.PublicKey,
-        process: Models.Process.Process,
-        logicalClock: Long,
-    ): void {
-        if (stateForEvent.signedEvent) {
-            const event = Models.Event.fromBuffer(
-                stateForEvent.signedEvent.event,
-            );
+    private cleanupStateForQuery(stateForEvent: StateForEvent): void {
+        const isStateHeldDirectly = (state: StateForEvent) =>
+            state.callbacks.size !== 0 || state.contextHolds.size !== 0;
 
-            if (
-                event.contentType.equals(Models.ContentType.ContentTypeDelete)
-            ) {
-                const stateForDeleted = this.lookupStateForEvent(
-                    system,
-                    event.process,
-                    event.logicalClock,
-                    false,
-                    false,
-                );
+        const cleanupState = (state: StateForEvent) => {
+            const stateForProcess = stateForEvent.parent;
 
-                const deleteModel = Models.Delete.fromBuffer(event.content);
+            stateForProcess.state.delete(stateForEvent.key);
 
-                const stateForDelete = this.lookupStateForEvent(
-                    system,
-                    deleteModel.process,
-                    deleteModel.logicalClock,
-                    false,
-                    false,
-                );
+            if (stateForProcess.state.size === 0) {
+                const stateForSystem = stateForProcess.parent;
 
-                if (!stateForDeleted || !stateForDelete) {
-                    throw ImpossibleError;
+                stateForSystem.state.delete(stateForProcess.key);
+
+                if (stateForSystem.state.size === 0) {
+                    this.state.delete(stateForSystem.key);
                 }
-
-                if (
-                    stateForDeleted.callbacks.size === 0 &&
-                    stateForDeleted.contextHolds.size === 0 &&
-                    stateForDelete.callbacks.size === 0 &&
-                    stateForDelete.contextHolds.size === 0
-                ) {
-                    this.lookupStateForEvent(
-                        system,
-                        event.process,
-                        event.logicalClock,
-                        true,
-                        false,
-                    );
-
-                    this.lookupStateForEvent(
-                        system,
-                        deleteModel.process,
-                        deleteModel.logicalClock,
-                        true,
-                        false,
-                    );
-                }
-
-                return;
             }
+        };
+
+        if (
+            isStateHeldDirectly(stateForEvent) ||
+            (stateForEvent.sibling &&
+                isStateHeldDirectly(stateForEvent.sibling))
+        ) {
+            return;
         }
 
-        this.lookupStateForEvent(system, process, logicalClock, false, true);
+        cleanupState(stateForEvent);
+
+        if (stateForEvent.sibling) {
+            cleanupState(stateForEvent.sibling);
+        }
     }
 
     private lookupStateForEvent(
@@ -281,7 +251,6 @@ export class QueryEvent extends HasUpdate {
         process: Models.Process.Process,
         logicalClock: Long,
         createIfMissing: boolean,
-        cleanup: boolean,
     ): StateForEvent | undefined {
         const systemString = Models.PublicKey.toString(system);
 
@@ -290,6 +259,7 @@ export class QueryEvent extends HasUpdate {
         if (!stateForSystem) {
             if (createIfMissing) {
                 stateForSystem = {
+                    key: systemString,
                     state: new Map(),
                 };
 
@@ -306,6 +276,8 @@ export class QueryEvent extends HasUpdate {
         if (!stateForProcess) {
             if (createIfMissing) {
                 stateForProcess = {
+                    parent: stateForSystem,
+                    key: processString,
                     process: process,
                     state: new Map(),
                 };
@@ -323,6 +295,9 @@ export class QueryEvent extends HasUpdate {
         if (!stateForEvent) {
             if (createIfMissing) {
                 stateForEvent = {
+                    parent: stateForProcess,
+                    key: logicalClockString,
+                    sibling: undefined,
                     signedEvent: undefined,
                     callbacks: new Set(),
                     contextHolds: new Set(),
@@ -337,31 +312,7 @@ export class QueryEvent extends HasUpdate {
             }
         }
 
-        if (!cleanup) {
-            return stateForEvent;
-        }
-
-        if (
-            stateForEvent.callbacks.size === 0 &&
-            stateForEvent.contextHolds.size === 0
-        ) {
-            stateForProcess.state.delete(logicalClockString);
-            stateForEvent.cancelContext.cancel();
-        } else {
-            return undefined;
-        }
-
-        if (stateForProcess.state.size === 0) {
-            stateForSystem.state.delete(processString);
-        } else {
-            return undefined;
-        }
-
-        if (stateForSystem.state.size === 0) {
-            this.state.delete(systemString);
-        }
-
-        return undefined;
+        return stateForEvent;
     }
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {
@@ -383,7 +334,6 @@ export class QueryEvent extends HasUpdate {
                 deleteModel.process,
                 deleteModel.logicalClock,
                 false,
-                false,
             );
 
             if (stateForDeletedEvent) {
@@ -396,7 +346,6 @@ export class QueryEvent extends HasUpdate {
             event.process,
             event.logicalClock,
             contextHold !== undefined || stateMustBeCreated,
-            false,
         );
 
         if (!stateForEvent) {
@@ -409,12 +358,7 @@ export class QueryEvent extends HasUpdate {
             contextHold.addCallback(() => {
                 stateForEvent.contextHolds.delete(contextHold);
 
-                this.cleanupStateForQuery(
-                    stateForEvent,
-                    event.system,
-                    event.process,
-                    event.logicalClock,
-                );
+                this.cleanupStateForQuery(stateForEvent);
             });
         }
 
@@ -431,7 +375,6 @@ export class QueryEvent extends HasUpdate {
                 deleteModel.process,
                 deleteModel.logicalClock,
                 true,
-                false,
             );
 
             if (!stateForDeletedEvent) {
@@ -455,6 +398,8 @@ export class QueryEvent extends HasUpdate {
                 }
             }
 
+            stateForEvent.sibling = stateForDeletedEvent;
+            stateForDeletedEvent.sibling = stateForEvent;
             stateForDeletedEvent.signedEvent = signedEvent;
             stateForDeletedEvent.callbacks.forEach((cb) => cb(signedEvent));
         }
