@@ -1,5 +1,6 @@
 import * as RXJS from 'rxjs';
 
+import * as APIMethods from '../api-methods';
 import * as Models from '../models';
 import { UnregisterCallback, DuplicatedCallbackError } from './shared';
 import * as Util from '../util';
@@ -119,23 +120,48 @@ export class QueryLatest {
         system: Models.PublicKey.PublicKey,
         contentType: Models.ContentType.ContentType,
     ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent | undefined>> {
+        const loadFromDisk = async (
+            signedEvent: Models.SignedEvent.SignedEvent,
+        ) =>
+            await this.processHandle
+                .store()
+                .indexSystemProcessContentTypeLogicalClock.getLatest(
+                    system,
+                    Models.Event.fromBuffer(signedEvent.event).process,
+                    contentType,
+                );
+
         return QueryHead.queryHeadObservable(this.queryHead, system).pipe(
             RXJS.switchMap((head) =>
                 RXJS.combineLatest(
                     Util.mapToArray(head, (signedEvent) =>
-                        RXJS.from(
-                            this.processHandle
-                                .store()
-                                .indexSystemProcessContentTypeLogicalClock.getLatest(
-                                    system,
-                                    Models.Event.fromBuffer(signedEvent.event)
-                                        .process,
-                                    contentType,
-                                ),
-                        ),
+                        RXJS.from(loadFromDisk(signedEvent)),
                     ),
                 ),
             ),
         );
     }
+
+    private loadFromNetwork(
+        system: Models.PublicKey.PublicKey,
+        contentType: Models.ContentType.ContentType,
+    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
+        const loadServerList = async () =>
+            (await this.processHandle.loadSystemState(system)).servers();
+
+        const loadFromServer = async (server: string) =>
+            (await APIMethods.getQueryLatest(server, system, [contentType]))
+                .events;
+
+        return RXJS.from(loadServerList()).pipe(
+            RXJS.switchMap((servers) =>
+                servers.map((server) => RXJS.from(loadFromServer(server))),
+            ),
+            RXJS.mergeAll(),
+        );
+    }
+
+    public updateBatch(
+        signedEvents: Array<Models.SignedEvent.SignedEvent>,
+    ): void {}
 }
