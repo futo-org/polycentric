@@ -123,6 +123,8 @@ export class QueryLatest {
             stateForContentType.callbacks.delete(callback);
 
             if (stateForContentType.callbacks.size === 0) {
+                stateForContentType.unsubscribe();
+
                 stateForSystem.stateForContentType.delete(contentTypeString);
 
                 if (stateForSystem.stateForContentType.size === 0) {
