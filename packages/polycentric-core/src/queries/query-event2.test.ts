@@ -321,4 +321,26 @@ describe('query event2', () => {
         expect(getEventsCalledCount).toStrictEqual(1);
         expect(queryEvent.clean).toStrictEqual(true);
     });
+
+    test('instantly cancelled', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+        s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
+
+        const queryServers = new QueryServers(s1p1);
+        const queryEvent = new QueryEvent(
+            s1p1.store().indexEvents,
+            queryServers,
+        );
+
+        const e1 = await s1p1.post('one');
+
+        queryEventObservable(
+            queryEvent,
+            e1.system,
+            e1.process,
+            e1.logicalClock,
+        ).subscribe().unsubscribe();
+
+        expect(queryEvent.clean).toStrictEqual(true);
+    });
 });

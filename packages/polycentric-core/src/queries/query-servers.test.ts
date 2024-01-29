@@ -53,6 +53,8 @@ describe('QueryServers', () => {
 
     test('instantly cancelled', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
+        s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
+
         const queryServers = new QueryServers(s1p1);
 
         queryServersObservable(queryServers, s1p1.system())
