@@ -10,12 +10,12 @@ import { Box, OnceFlag } from '../util';
 import { QueryLatest, queryLatestObservable } from './query-latest';
 
 export type CallbackValue = {
-    readonly potentiallyOutdated: boolean;
+    readonly missingData: boolean;
     readonly value: Uint8Array | undefined;
 };
 
 function callbackValuesEqual(a: CallbackValue, b: CallbackValue): boolean {
-    if (a.potentiallyOutdated !== b.potentiallyOutdated) {
+    if (a.missingData !== b.missingData) {
         return false;
     }
 
@@ -63,7 +63,7 @@ function computeCRDTValue(
 
     let latestTime: Long = Long.UZERO;
     let result: Uint8Array | undefined = undefined;
-    let potentiallyOutdated = false;
+    let missingData = false;
 
     for (const event of events) {
         const headSignedEvent = head.head.get(
@@ -77,7 +77,7 @@ function computeCRDTValue(
                 const index = Models.Event.lookupIndex(headEvent, contentType);
 
                 if (index && index.notEquals(event.logicalClock)) {
-                    potentiallyOutdated = true;
+                    missingData = true;
                 }
             }
         }
@@ -91,7 +91,7 @@ function computeCRDTValue(
     }
 
     return {
-        potentiallyOutdated: potentiallyOutdated,
+        missingData: missingData,
         value: result,
     };
 }
@@ -157,7 +157,7 @@ export class QueryCRDT {
                 initial = true;
 
                 const value = new Box<CallbackValue>({
-                    potentiallyOutdated: true,
+                    missingData: true,
                     value: undefined,
                 });
 

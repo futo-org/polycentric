@@ -66,7 +66,7 @@ describe('processHandle', () => {
             ),
         );
 
-        expect(result.potentiallyOutdated).toStrictEqual(false);
+        expect(result.missingData).toStrictEqual(false);
         expectToBeDefined(result.value);
         expect(
             Util.buffersEqual(result.value, Util.encodeText('bob')),
@@ -88,7 +88,7 @@ describe('processHandle', () => {
             ),
         );
 
-        expect(result.potentiallyOutdated).toStrictEqual(false);
+        expect(result.missingData).toStrictEqual(false);
         expectToBeDefined(result.value);
         expect(
             Util.buffersEqual(result.value, Util.encodeText(description)),
