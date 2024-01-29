@@ -108,9 +108,7 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
             ),
         );
 
-        expect(
-            dualQueryResult[0] === dualQueryResult[1]
-        ).toStrictEqual(true);
+        expect(dualQueryResult[0] === dualQueryResult[1]).toStrictEqual(true);
 
         expect(queryHead.clean).toStrictEqual(true);
     }
@@ -142,8 +140,6 @@ describe('query latest', () => {
         );
         queryLatest.shouldUseNetwork(false);
 
-        await s1p1.post('head event');
-
         const result = await RXJS.firstValueFrom(
             queryLatestObservable(
                 queryLatest,
@@ -171,9 +167,7 @@ describe('query latest', () => {
             ),
         );
 
-        expect(
-            dualQueryResult[0] === dualQueryResult[1]
-        ).toStrictEqual(true);
+        expect(dualQueryResult[0] === dualQueryResult[1]).toStrictEqual(true);
 
         expect(queryHead.clean).toStrictEqual(true);
     });

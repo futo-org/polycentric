@@ -161,15 +161,13 @@ describe('query crdt', () => {
         queryLatest.shouldUseNetwork(false);
         const queryCRDT = new QueryCRDT(queryHead, queryLatest);
 
-        console.log("query crdt");
         const result = await RXJS.firstValueFrom(
             queryCRDTObservable(
                 queryCRDT,
                 s1p1.system(),
                 Models.ContentType.ContentTypeUsername,
             ),
-        ); 
-        console.log("query crdt2");
+        );
 
         expect(result.potentiallyOutdated).toStrictEqual(false);
         expect(result.value).toStrictEqual(undefined);

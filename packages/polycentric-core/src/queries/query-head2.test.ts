@@ -83,9 +83,7 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
             ),
         );
 
-        expect(
-            dualQueryResult[0] === dualQueryResult[1]
-        ).toStrictEqual(true);
+        expect(dualQueryResult[0] === dualQueryResult[1]).toStrictEqual(true);
 
         expect(queryHead.clean).toStrictEqual(true);
     }
@@ -125,9 +123,7 @@ describe('query head2', () => {
             ),
         );
 
-        expect(
-            dualQueryResult[0] === dualQueryResult[1]
-        ).toStrictEqual(true);
+        expect(dualQueryResult[0] === dualQueryResult[1]).toStrictEqual(true);
 
         expect(queryHead.clean).toStrictEqual(true);
     });

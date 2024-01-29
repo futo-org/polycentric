@@ -204,11 +204,13 @@ export class QueryLatest extends HasUpdate {
 
         return QueryHead.queryHeadObservable(this.queryHead, system).pipe(
             RXJS.switchMap((head) =>
-                RXJS.combineLatest(
-                    Util.mapToArray(head, (signedEvent) =>
-                        getLatest(signedEvent),
-                    ),
-                ),
+                head.size > 0
+                    ? RXJS.combineLatest(
+                          Util.mapToArray(head, (signedEvent) =>
+                              getLatest(signedEvent),
+                          ),
+                      )
+                    : RXJS.of([]),
             ),
             RXJS.switchMap((signedEvents) =>
                 RXJS.of(
