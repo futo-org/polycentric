@@ -43,18 +43,6 @@ type StateForSystem = {
     readonly state: Map<Models.ContentType.ContentTypeString, StateForCRDT>;
 };
 
-function lookupIndex(
-    indices: Protocol.Indices,
-    contentType: Models.ContentType.ContentType,
-): Long | undefined {
-    for (const index of indices.indices) {
-        if (index.indexType.equals(contentType)) {
-            return index.logicalClock;
-        }
-    }
-
-    return undefined;
-}
 
 function computeCRDTValue(
     head: QueryHead.CallbackValue,
@@ -87,7 +75,7 @@ function computeCRDTValue(
             const headEvent = Models.Event.fromBuffer(headSignedEvent.event);
 
             if (headEvent.contentType.notEquals(contentType)) {
-                const index = lookupIndex(headEvent.indices, contentType);
+                const index = Models.Event.lookupIndex(headEvent, contentType);
 
                 if (index && index.notEquals(event.logicalClock)) {
                     potentiallyOutdated = true;
