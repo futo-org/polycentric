@@ -426,6 +426,19 @@ export namespace Event {
             buffer,
         );
     }
+
+    export function lookupIndex(
+        event: Event,
+        contentType: ContentType.ContentType,
+    ): Long | undefined {
+        for (const index of event.indices.indices) {
+            if (index.indexType.equals(contentType)) {
+                return index.logicalClock;
+            }
+        }
+
+        return undefined;
+    }
 }
 
 export namespace SignedEvent {

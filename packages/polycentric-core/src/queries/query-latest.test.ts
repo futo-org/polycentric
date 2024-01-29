@@ -105,4 +105,32 @@ describe('query latest', () => {
     test('context hold', async () => {
         await sharedTestCase(SharedTestMode.CacheOnly);
     });
+
+    test('never set', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+
+        const queryServers = new QueryServers(s1p1);
+        const queryHead = new QueryHead(s1p1, queryServers);
+        queryHead.shouldUseNetwork(false);
+        const queryLatest = new QueryLatest(
+            s1p1.store().indexSystemProcessContentTypeLogicalClock,
+            queryServers,
+            queryHead,
+        );
+        queryLatest.shouldUseNetwork(false);
+
+        await s1p1.post('head event');
+
+        const result = await RXJS.firstValueFrom(
+            queryLatestObservable(
+                queryLatest,
+                s1p1.system(),
+                Models.ContentType.ContentTypeUsername,
+            ),
+        );
+
+        expect(result.size).toStrictEqual(0);
+
+        expect(queryLatest.clean).toStrictEqual(true);
+    });
 });

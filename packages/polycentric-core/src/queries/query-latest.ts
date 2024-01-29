@@ -128,8 +128,10 @@ export class QueryLatest extends HasUpdate {
                 toMerge.push(this.loadFromNetwork(stateForSystem, system));
             }
 
-            const subscription = RXJS.merge(...toMerge).subscribe(
-                this.updateBatch.bind(this, undefined),
+            const subscription = RXJS.merge(...toMerge).subscribe((batch) =>
+                batch.length > 0
+                    ? this.updateBatch(undefined, batch)
+                    : this.updateBatchEmpty(stateForContentType),
             );
 
             stateForContentType.unsubscribe =
@@ -185,20 +187,26 @@ export class QueryLatest extends HasUpdate {
         system: Models.PublicKey.PublicKey,
         contentType: Models.ContentType.ContentType,
     ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
-        const loadFromDisk = (signedEvent: Models.SignedEvent.SignedEvent) =>
-            RXJS.from(
-                this.index.getLatest(
-                    system,
-                    Models.Event.fromBuffer(signedEvent.event).process,
-                    contentType,
-                ),
-            );
+        const loadFromDisk = (process: Models.Process.Process) =>
+            RXJS.from(this.index.getLatest(system, process, contentType));
+
+        const getLatest = (headSignedEvent: Models.SignedEvent.SignedEvent) => {
+            const headEvent = Models.Event.fromBuffer(headSignedEvent.event);
+
+            if (headEvent.contentType.equals(contentType)) {
+                return RXJS.of(headSignedEvent);
+            } else if (Models.Event.lookupIndex(headEvent, contentType)) {
+                return loadFromDisk(headEvent.process);
+            } else {
+                return RXJS.of(undefined);
+            }
+        };
 
         return QueryHead.queryHeadObservable(this.queryHead, system).pipe(
             RXJS.switchMap((head) =>
                 RXJS.combineLatest(
                     Util.mapToArray(head, (signedEvent) =>
-                        loadFromDisk(signedEvent),
+                        getLatest(signedEvent),
                     ),
                 ),
             ),
@@ -257,6 +265,14 @@ export class QueryLatest extends HasUpdate {
         contextHold: CancelContext | undefined,
     ): void {
         this.updateBatch(contextHold, [signedEvent]);
+    }
+
+    private updateBatchEmpty(stateForContentType: StateForContentType): void {
+        stateForContentType.fulfilled.set();
+
+        for (const callback of stateForContentType.callbacks) {
+            callback(stateForContentType.values);
+        }
     }
 
     public updateBatch(
