@@ -92,7 +92,6 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
 
     expect(queryLatest.clean).toStrictEqual(true);
 
-
     if (mode !== SharedTestMode.CacheOnly) {
         const dualQueryResult = await RXJS.firstValueFrom(
             RXJS.combineLatest(
@@ -156,5 +155,26 @@ describe('query latest', () => {
         expect(result.size).toStrictEqual(0);
 
         expect(queryLatest.clean).toStrictEqual(true);
+
+        const dualQueryResult = await RXJS.firstValueFrom(
+            RXJS.combineLatest(
+                queryLatestObservable(
+                    queryLatest,
+                    s1p1.system(),
+                    Models.ContentType.ContentTypeUsername,
+                ),
+                queryLatestObservable(
+                    queryLatest,
+                    s1p1.system(),
+                    Models.ContentType.ContentTypeUsername,
+                ),
+            ),
+        );
+
+        expect(
+            dualQueryResult[0] === dualQueryResult[1]
+        ).toStrictEqual(true);
+
+        expect(queryHead.clean).toStrictEqual(true);
     });
 });

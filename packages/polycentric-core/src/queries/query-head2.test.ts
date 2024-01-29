@@ -117,5 +117,18 @@ describe('query head2', () => {
 
         expect(queryHead.clean).toStrictEqual(true);
         expect(result.size).toStrictEqual(0);
+
+        const dualQueryResult = await RXJS.firstValueFrom(
+            RXJS.combineLatest(
+                queryHeadObservable(queryHead, s1p1.system()),
+                queryHeadObservable(queryHead, s1p1.system()),
+            ),
+        );
+
+        expect(
+            dualQueryResult[0] === dualQueryResult[1]
+        ).toStrictEqual(true);
+
+        expect(queryHead.clean).toStrictEqual(true);
     });
 });
