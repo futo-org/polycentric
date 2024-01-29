@@ -3,6 +3,7 @@ import Long from 'long';
 
 import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
+import * as Protocol from '../protocol';
 import { queryEventObservable, QueryEvent } from './query-event2';
 import { QueryServers } from './query-servers';
 import { CancelContext } from '../cancel-context';
@@ -224,6 +225,100 @@ describe('query event2', () => {
             Models.Pointer.equal(pointer, Models.signedEventToPointer(result)),
         ).toStrictEqual(true);
 
+        expect(queryEvent.clean).toStrictEqual(true);
+    });
+
+    test('network queries combined', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+        s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
+
+        const queryServers = new QueryServers(s1p1);
+        const queryEvent = new QueryEvent(
+            s1p1.store().indexEvents,
+            queryServers,
+        );
+        queryEvent.shouldUseDisk(false);
+
+        const e1 = await s1p1.post('one');
+        const e2 = await s1p1.post('two');
+
+        let getEventsCalledCount = 0;
+
+        const getEvents = async (
+            server: string,
+            system: Models.PublicKey.PublicKey,
+            ranges: Protocol.RangesForSystem,
+        ) => {
+            getEventsCalledCount++;
+
+            expect(server).toStrictEqual(ProcessHandle.TEST_SERVER);
+            expect(Models.PublicKey.equal(system, s1p1.system())).toStrictEqual(
+                true,
+            );
+            expect(ranges.rangesForProcesses.length).toStrictEqual(1);
+            expectToBeDefined(ranges.rangesForProcesses[0].process);
+            expect(
+                Models.Process.equal(
+                    Models.Process.fromProto(
+                        ranges.rangesForProcesses[0].process,
+                    ),
+                    s1p1.process(),
+                ),
+            ).toStrictEqual(true);
+            expect(ranges.rangesForProcesses[0].ranges).toStrictEqual([
+                {
+                    low: e1.logicalClock,
+                    high: e2.logicalClock,
+                },
+            ]);
+
+            const events = [];
+
+            const event1 = await s1p1
+                .store()
+                .indexEvents.getSignedEvent(
+                    e1.system,
+                    e1.process,
+                    e1.logicalClock,
+                );
+
+            expectToBeDefined(event1);
+
+            const event2 = await s1p1
+                .store()
+                .indexEvents.getSignedEvent(
+                    e2.system,
+                    e2.process,
+                    e2.logicalClock,
+                );
+
+            expectToBeDefined(event2);
+
+            return Models.Events.fromProto({
+                events: [event1, event2],
+            });
+        };
+
+        queryEvent.setGetEvents(getEvents);
+
+        await RXJS.firstValueFrom(
+            RXJS.combineLatest(
+                queryEventObservable(
+                    queryEvent,
+                    e1.system,
+                    e1.process,
+                    e1.logicalClock,
+                ),
+                queryEventObservable(
+                    queryEvent,
+                    e2.system,
+                    e2.process,
+                    e2.logicalClock,
+                ),
+            ),
+        );
+
+        expect(getEventsCalledCount).toStrictEqual(1);
         expect(queryEvent.clean).toStrictEqual(true);
     });
 });

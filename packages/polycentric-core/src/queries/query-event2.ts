@@ -53,6 +53,12 @@ type StateForSystem = {
 
 const DeleteOfDeleteError = new Error('cannot delete a delete event');
 
+function asyncBoundaryObservable<T>(value: T): RXJS.Observable<T> {
+    return new RXJS.Observable((subscriber) => {
+        setTimeout(() => subscriber.next(value), 0);
+    });
+}
+
 export class QueryEvent extends HasUpdate {
     private readonly state: Map<
         Models.PublicKey.PublicKeyString,
@@ -205,13 +211,17 @@ export class QueryEvent extends HasUpdate {
             }
         };
 
-        return RXJS.from(
-            queryServersObservable(this.queryServers, system),
-        ).pipe(
-            RXJS.switchMap((servers) =>
-                Array.from(servers).map((server) => loadFromServer(server)),
+        return queryServersObservable(this.queryServers, system).pipe(
+            RXJS.switchMap((servers: ReadonlySet<string>) =>
+                asyncBoundaryObservable(servers).pipe(
+                    RXJS.switchMap((servers: ReadonlySet<string>) =>
+                        Array.from(servers).map((server) =>
+                            loadFromServer(server),
+                        ),
+                    ),
+                    RXJS.mergeAll(),
+                ),
             ),
-            RXJS.mergeAll(),
         );
     }
 
