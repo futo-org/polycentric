@@ -17,9 +17,6 @@ export async function postEvents(
 ): Promise<void> {
     const response = await fetch(server + '/events', {
         method: 'POST',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
         body: Protocol.Events.encode({
             events: events,
         }).finish(),
@@ -39,7 +36,6 @@ export async function postCensor(
         {
             method: 'POST',
             headers: new Headers({
-                'content-type': 'application/octet-stream',
                 authorization: authorization,
             }),
             body: urlInfo,
@@ -61,9 +57,6 @@ export async function getRanges(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getRanges', response);
@@ -96,9 +89,6 @@ export const getEvents: GetEventsType = async (
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getEvents', response);
@@ -126,9 +116,6 @@ export async function getResolveClaim(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getResolveClaim', response);
@@ -165,9 +152,6 @@ export const getQueryLatest: GetQueryLatestType = async (
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getQueryLatest', response);
@@ -196,9 +180,6 @@ export async function getQueryIndex(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getQueryIndex', response);
@@ -234,9 +215,6 @@ export async function getQueryReferences(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getQueryReferences', response);
@@ -274,9 +252,6 @@ export async function getSearch(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getSearch', response);
@@ -298,9 +273,6 @@ export async function getHead(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getHead', response);
@@ -331,9 +303,6 @@ export async function getExplore(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getExplore', response);
@@ -365,9 +334,6 @@ export async function getFindClaimAndVouch(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     if (response.status === 404) {
@@ -386,9 +352,6 @@ export async function getChallenge(
 ): Promise<Protocol.HarborChallengeResponse> {
     const response = await fetch(server + '/challenge', {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getChallenge', response);
@@ -404,9 +367,6 @@ export async function postPurge(
 ): Promise<void> {
     const response = await fetch(server + '/purge', {
         method: 'POST',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
         body: Protocol.HarborValidateRequest.encode(solvedChallenge).finish(),
     });
 
