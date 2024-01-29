@@ -247,9 +247,7 @@ export class QueryLatest extends HasUpdate {
             return (await this.getQueryLatest(server, system, need)).events;
         };
 
-        return RXJS.from(
-            queryServersObservable(this.queryServers, system),
-        ).pipe(
+        return queryServersObservable(this.queryServers, system).pipe(
             RXJS.switchMap((servers) =>
                 Array.from(servers).map((server) =>
                     RXJS.from(loadFromServer(server)),
