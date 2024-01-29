@@ -334,12 +334,9 @@ describe('query event2', () => {
 
         const e1 = await s1p1.post('one');
 
-        queryEventObservable(
-            queryEvent,
-            e1.system,
-            e1.process,
-            e1.logicalClock,
-        ).subscribe().unsubscribe();
+        queryEventObservable(queryEvent, e1.system, e1.process, e1.logicalClock)
+            .subscribe()
+            .unsubscribe();
 
         expect(queryEvent.clean).toStrictEqual(true);
     });

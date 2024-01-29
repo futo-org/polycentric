@@ -127,4 +127,18 @@ describe('query head2', () => {
 
         expect(queryHead.clean).toStrictEqual(true);
     });
+
+    test('instantly cancelled', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+        s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
+
+        const queryServers = new QueryServers(s1p1);
+        const queryHead = new QueryHead(s1p1, queryServers);
+
+        await s1p1.post('yo');
+
+        queryHeadObservable(queryHead, s1p1.system()).subscribe().unsubscribe();
+
+        expect(queryHead.clean).toStrictEqual(true);
+    });
 });

@@ -104,7 +104,7 @@ export class QueryHead extends HasUpdate {
             const toMerge = [];
 
             if (this.useDisk) {
-                toMerge.push(this.loadFromDiskObservable(system));
+                toMerge.push(this.loadFromDisk(system));
             }
 
             if (this.useNetwork) {
@@ -142,73 +142,48 @@ export class QueryHead extends HasUpdate {
         }
     }
 
-    private loadFromDiskObservable(
+    private loadFromDisk(
         system: Models.PublicKey.PublicKey,
     ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
-        return new RXJS.Observable((subscriber) => {
-            const cancelContext = new CancelContext();
-
-            (async () => {
-                subscriber.next(await this.loadFromDisk(system, cancelContext));
-            })();
-
-            return () => {
-                cancelContext.cancel();
-            };
-        });
-    }
-
-    private async loadFromDisk(
-        system: Models.PublicKey.PublicKey,
-        cancelContext: CancelContext,
-    ): Promise<Array<Models.SignedEvent.SignedEvent>> {
-        const systemState = await this.processHandle
-            .store()
-            .indexSystemStates.getSystemState(system);
-
-        if (cancelContext.cancelled()) {
-            return [];
-        }
-
-        const loadProcessHead = async (processProto: Protocol.Process) => {
+        const loadProcessHead = (processProto: Protocol.Process) => {
             const process = Models.Process.fromProto(processProto);
 
-            const processState = await this.processHandle
-                .store()
-                .indexProcessStates.getProcessState(system, process);
-
-            if (cancelContext.cancelled()) {
-                throw Shared.CancelledError;
-            }
-
-            const signedEvent = await this.processHandle
-                .store()
-                .indexEvents.getSignedEvent(
-                    system,
-                    process,
-                    processState.logicalClock,
-                );
-
-            if (cancelContext.cancelled()) {
-                throw Shared.CancelledError;
-            }
-
-            if (!signedEvent) {
-                throw Shared.ImpossibleError;
-            }
-
-            return signedEvent;
+            return RXJS.from(
+                this.processHandle
+                    .store()
+                    .indexProcessStates.getProcessState(system, process),
+            ).pipe(
+                RXJS.switchMap((processState) =>
+                    RXJS.from(
+                        this.processHandle
+                            .store()
+                            .indexEvents.getSignedEvent(
+                                system,
+                                process,
+                                processState.logicalClock,
+                            ),
+                    ).pipe(
+                        RXJS.switchMap((potentialEvent) =>
+                            potentialEvent
+                                ? RXJS.of(potentialEvent)
+                                : RXJS.NEVER,
+                        ),
+                    ),
+                ),
+            );
         };
 
-        const signedEvents = await Promise.all(
-            systemState.processes.map(loadProcessHead),
+        return RXJS.from(
+            this.processHandle.store().indexSystemStates.getSystemState(system),
+        ).pipe(
+            RXJS.switchMap((systemState) =>
+                systemState.processes.length > 0
+                    ? RXJS.combineLatest(
+                          systemState.processes.map(loadProcessHead),
+                      )
+                    : RXJS.of([]),
+            ),
         );
-
-        if (cancelContext.cancelled()) {
-            return [];
-        }
-
-        return signedEvents;
     }
 
     private loadFromNetwork(
