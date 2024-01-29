@@ -88,4 +88,19 @@ describe('query head2', () => {
     test('context hold', async () => {
         await sharedTestCase(SharedTestMode.CacheOnly);
     });
+
+    test('no data', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+
+        const queryServers = new QueryServers(s1p1);
+        const queryHead = new QueryHead(s1p1, queryServers);
+        queryHead.shouldUseNetwork(false);
+
+        const result = await RXJS.firstValueFrom(
+            queryHeadObservable(queryHead, s1p1.system()),
+        );
+
+        expect(queryHead.clean).toStrictEqual(true);
+        expect(result.size).toStrictEqual(0);
+    });
 });

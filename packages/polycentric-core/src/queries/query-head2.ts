@@ -109,8 +109,10 @@ export class QueryHead extends HasUpdate {
                 toMerge.push(this.loadFromNetwork(system));
             }
 
-            const subscription = RXJS.merge(...toMerge).subscribe(
-                this.updateBatch.bind(this, undefined),
+            const subscription = RXJS.merge(...toMerge).subscribe((batch) =>
+                batch.length > 0
+                    ? this.updateBatch(undefined, batch)
+                    : this.updateEmptyBatch(stateForSystem),
             );
 
             stateForSystem.unsubscribe =
@@ -235,6 +237,14 @@ export class QueryHead extends HasUpdate {
         contextHold: CancelContext | undefined,
     ): void {
         this.updateBatch(contextHold, [signedEvent]);
+    }
+
+    private updateEmptyBatch(stateForSystem: StateForSystem): void {
+        stateForSystem.fulfilled.set();
+
+        for (const callback of stateForSystem.callbacks) {
+            callback(stateForSystem.head);
+        }
     }
 
     public updateBatch(
