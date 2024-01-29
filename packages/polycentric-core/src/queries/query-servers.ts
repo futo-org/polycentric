@@ -29,6 +29,10 @@ export class QueryServers {
         this.state = new Map();
     }
 
+    public get clean(): boolean {
+        return this.state.size === 0;
+    }
+
     private queryStateToServers(
         queryState: ReadonlyArray<QueryIndex.Cell>,
     ): Set<string> {

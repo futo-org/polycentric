@@ -84,6 +84,29 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     expect(Util.buffersEqual(result, testBlob)).toStrictEqual(true);
 
     expect(queryBlob.clean).toStrictEqual(true);
+
+    if (mode !== SharedTestMode.CacheOnly) {
+        const dualQueryResult = await RXJS.firstValueFrom(
+            RXJS.combineLatest(
+                queryBlobObservable(
+                    queryBlob,
+                    s1p1.system(),
+                    s1p1.process(),
+                    publishedRanges,
+                ),
+                queryBlobObservable(
+                    queryBlob,
+                    s1p1.system(),
+                    s1p1.process(),
+                    publishedRanges,
+                ),
+            ),
+        );
+
+        expect(dualQueryResult[0] === dualQueryResult[1]).toStrictEqual(true);
+
+        expect(queryBlob.clean).toStrictEqual(true);
+    }
 }
 
 describe('query blob2', () => {

@@ -14,6 +14,8 @@ describe('QueryServers', () => {
         );
 
         expect(result).toStrictEqual(new Set([ProcessHandle.TEST_SERVER]));
+
+        expect(queryServers.clean).toStrictEqual(true);
     });
 
     test('returns from disk', async () => {
@@ -27,5 +29,25 @@ describe('QueryServers', () => {
         );
 
         expect(result).toStrictEqual(new Set([ProcessHandle.TEST_SERVER]));
+
+        expect(queryServers.clean).toStrictEqual(true);
+    });
+
+    test('dual queries return same cached result', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+        await s1p1.addServer(ProcessHandle.TEST_SERVER);
+
+        const queryServers = new QueryServers(s1p1);
+
+        const dualQueryResult = await RXJS.firstValueFrom(
+            RXJS.combineLatest(
+                queryServersObservable(queryServers, s1p1.system()),
+                queryServersObservable(queryServers, s1p1.system()),
+            ),
+        );
+
+        expect(dualQueryResult[0] === dualQueryResult[1]).toStrictEqual(true);
+
+        expect(queryServers.clean).toStrictEqual(true);
     });
 });
