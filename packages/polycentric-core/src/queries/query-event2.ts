@@ -62,6 +62,7 @@ export class QueryEvent extends HasUpdate {
     private readonly queryServers: QueryServers;
     private useDisk: boolean;
     private useNetwork: boolean;
+    private getEvents: APIMethods.GetEventsType;
 
     constructor(indexEvents: IndexEvents, queryServers: QueryServers) {
         super();
@@ -71,6 +72,7 @@ export class QueryEvent extends HasUpdate {
         this.queryServers = queryServers;
         this.useDisk = true;
         this.useNetwork = true;
+        this.getEvents = APIMethods.getEvents;
     }
 
     public get clean(): boolean {
@@ -83,6 +85,10 @@ export class QueryEvent extends HasUpdate {
 
     public shouldUseNetwork(useNetwork: boolean): void {
         this.useNetwork = useNetwork;
+    }
+
+    public setGetEvents(getEvents: APIMethods.GetEventsType): void {
+        this.getEvents = getEvents;
     }
 
     public query(
@@ -192,7 +198,7 @@ export class QueryEvent extends HasUpdate {
 
             if (request.rangesForProcesses.length > 0) {
                 return RXJS.from(
-                    APIMethods.getEvents(server, system, request),
+                    this.getEvents(server, system, request),
                 ).pipe(RXJS.switchMap((events) => RXJS.of(events.events)));
             } else {
                 return RXJS.NEVER;

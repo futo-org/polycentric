@@ -73,11 +73,18 @@ export async function getRanges(
     return Protocol.RangesForSystem.decode(rawBody);
 }
 
-export async function getEvents(
+export type GetEventsType = (
     server: string,
     system: Models.PublicKey.PublicKey,
     ranges: Protocol.RangesForSystem,
-): Promise<Models.Events.Type> {
+
+) => Promise<Models.Events.Type>
+
+export const getEvents: GetEventsType = async (
+    server: string,
+    system: Models.PublicKey.PublicKey,
+    ranges: Protocol.RangesForSystem,
+): Promise<Models.Events.Type> => {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
     );
