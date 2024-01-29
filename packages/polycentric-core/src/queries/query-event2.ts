@@ -213,13 +213,12 @@ export class QueryEvent extends HasUpdate {
 
         return queryServersObservable(this.queryServers, system).pipe(
             RXJS.switchMap((servers: ReadonlySet<string>) =>
-                asyncBoundaryObservable(servers).pipe(
-                    RXJS.switchMap((servers: ReadonlySet<string>) =>
-                        Array.from(servers).map((server) =>
-                            loadFromServer(server),
-                        ),
-                    ),
-                    RXJS.mergeAll(),
+                RXJS.of(...Array.from(servers)),
+            ),
+            RXJS.distinct(),
+            RXJS.mergeMap((server: string) =>
+                asyncBoundaryObservable(server).pipe(
+                    RXJS.switchMap((server: string) => loadFromServer(server)),
                 ),
             ),
         );

@@ -248,12 +248,13 @@ export class QueryLatest extends HasUpdate {
         };
 
         return queryServersObservable(this.queryServers, system).pipe(
-            RXJS.switchMap((servers) =>
-                Array.from(servers).map((server) =>
-                    RXJS.from(loadFromServer(server)),
-                ),
+            RXJS.switchMap((servers: ReadonlySet<string>) =>
+                RXJS.of(...Array.from(servers)),
             ),
-            RXJS.mergeAll(),
+            RXJS.distinct(),
+            RXJS.mergeMap((server: string) =>
+                RXJS.from(loadFromServer(server)),
+            ),
         );
     }
 
