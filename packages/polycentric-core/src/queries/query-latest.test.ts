@@ -110,7 +110,7 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
 
         expect(dualQueryResult[0] === dualQueryResult[1]).toStrictEqual(true);
 
-        expect(queryHead.clean).toStrictEqual(true);
+        expect(queryLatest.clean).toStrictEqual(true);
     }
 }
 
@@ -169,6 +169,30 @@ describe('query latest', () => {
 
         expect(dualQueryResult[0] === dualQueryResult[1]).toStrictEqual(true);
 
-        expect(queryHead.clean).toStrictEqual(true);
+        expect(queryLatest.clean).toStrictEqual(true);
+    });
+
+    test('instantly cancelled', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+
+        const queryServers = new QueryServers(s1p1);
+        const queryHead = new QueryHead(s1p1, queryServers);
+        const queryLatest = new QueryLatest(
+            s1p1.store().indexSystemProcessContentTypeLogicalClock,
+            queryServers,
+            queryHead,
+        );
+
+        const e1 = await s1p1.post('one');
+
+        queryLatestObservable(
+            queryLatest,
+            s1p1.system(),
+            Models.ContentType.ContentTypeUsername,
+        )
+            .subscribe()
+            .unsubscribe();
+
+        expect(queryLatest.clean).toStrictEqual(true);
     });
 });
