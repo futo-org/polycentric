@@ -26,7 +26,6 @@ class StateForSystem {
     readonly callbacks: Set<Callback>;
     readonly contextHolds: Set<CancelContext>;
     readonly fulfilled: OnceFlag;
-    readonly loadAttempted: OnceFlag;
     unsubscribe: (() => void) | undefined;
 
     constructor() {
@@ -34,7 +33,6 @@ class StateForSystem {
         this.callbacks = new Set();
         this.contextHolds = new Set();
         this.fulfilled = new OnceFlag();
-        this.loadAttempted = new OnceFlag();
         this.unsubscribe = undefined;
     }
 }
@@ -80,10 +78,14 @@ export class QueryHead extends HasUpdate {
     ): Shared.UnregisterCallback {
         const systemString = Models.PublicKey.toString(system);
 
+        let initial = false;
+
         const stateForSystem: StateForSystem = Util.lookupWithInitial(
             this.state,
             systemString,
             () => {
+                initial = true;
+
                 return new StateForSystem();
             },
         );
@@ -96,9 +98,9 @@ export class QueryHead extends HasUpdate {
 
         if (stateForSystem.fulfilled.value) {
             callback(stateForSystem.head);
-        } else if (!stateForSystem.loadAttempted.value) {
-            stateForSystem.loadAttempted.set();
+        }
 
+        if (initial) {
             const toMerge = [];
 
             if (this.useDisk) {

@@ -109,13 +109,23 @@ export class QueryLatest extends HasUpdate {
                 return {
                     fulfilled: new OnceFlag(),
                     values: new Map(),
-                    callbacks: new Set([callback]),
+                    callbacks: new Set(),
                     contextHolds: new Set(),
                     unsubscribe: undefined,
                     attemptedSources: new Set(),
                 };
             },
         );
+
+        if (stateForContentType.callbacks.has(callback)) {
+            throw DuplicatedCallbackError;
+        }
+
+        stateForContentType.callbacks.add(callback);
+
+        if (stateForContentType.fulfilled.value) {
+            callback(stateForContentType.values);
+        }
 
         if (initial) {
             const toMerge = [];
@@ -136,16 +146,6 @@ export class QueryLatest extends HasUpdate {
 
             stateForContentType.unsubscribe =
                 subscription.unsubscribe.bind(subscription);
-        } else {
-            if (stateForContentType.callbacks.has(callback)) {
-                throw DuplicatedCallbackError;
-            }
-
-            stateForContentType.callbacks.add(callback);
-        }
-
-        if (stateForContentType.fulfilled.value) {
-            callback(stateForContentType.values);
         }
 
         return () => {

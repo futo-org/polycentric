@@ -146,4 +146,32 @@ describe('query crdt', () => {
 
         expect(queryCRDT.clean).toStrictEqual(true);
     });
+
+    test('never set', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+
+        const queryServers = new QueryServers(s1p1);
+        const queryHead = new QueryHead(s1p1, queryServers);
+        queryHead.shouldUseNetwork(false);
+        const queryLatest = new QueryLatest(
+            s1p1.store().indexSystemProcessContentTypeLogicalClock,
+            queryServers,
+            queryHead,
+        );
+        queryLatest.shouldUseNetwork(false);
+        const queryCRDT = new QueryCRDT(queryHead, queryLatest);
+
+        console.log("query crdt");
+        const result = await RXJS.firstValueFrom(
+            queryCRDTObservable(
+                queryCRDT,
+                s1p1.system(),
+                Models.ContentType.ContentTypeUsername,
+            ),
+        ); 
+        console.log("query crdt2");
+
+        expect(result.potentiallyOutdated).toStrictEqual(false);
+        expect(result.value).toStrictEqual(undefined);
+    });
 });

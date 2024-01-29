@@ -6,7 +6,7 @@ import * as Util from '../util';
 import * as Protocol from '../protocol';
 import * as QueryHead from './query-head2';
 import { UnregisterCallback, DuplicatedCallbackError } from './shared';
-import { Box } from '../util';
+import { Box, OnceFlag } from '../util';
 import { QueryLatest, queryLatestObservable } from './query-latest';
 
 export type CallbackValue = {
@@ -35,7 +35,7 @@ export type SuccessCallback = (value: CallbackValue) => void;
 type StateForCRDT = {
     readonly value: Box<CallbackValue>;
     readonly callbacks: Set<SuccessCallback>;
-    readonly fulfilled: Box<boolean>;
+    readonly fulfilled: OnceFlag;
     readonly unsubscribe: () => void;
 };
 
@@ -173,7 +173,8 @@ export class QueryCRDT {
                     potentiallyOutdated: true,
                     value: undefined,
                 });
-                const fulfilled = new Box<boolean>(true);
+
+                const fulfilled = new OnceFlag();
                 const callbacks = new Set([callback]);
 
                 const subscription = this.pipeline(
@@ -181,7 +182,7 @@ export class QueryCRDT {
                     contentType,
                 ).subscribe((updatedValue) => {
                     value.value = updatedValue;
-                    fulfilled.value = true;
+                    fulfilled.set();
                     callbacks.forEach((cb) => cb(value.value));
                 });
 
