@@ -50,4 +50,15 @@ describe('QueryServers', () => {
 
         expect(queryServers.clean).toStrictEqual(true);
     });
+
+    test('instantly cancelled', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+        const queryServers = new QueryServers(s1p1);
+
+        queryServersObservable(queryServers, s1p1.system())
+            .subscribe()
+            .unsubscribe();
+
+        expect(queryServers.clean).toStrictEqual(true);
+    });
 });
