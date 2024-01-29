@@ -51,6 +51,7 @@ export class QueryLatest extends HasUpdate {
     private readonly index: IndexSystemProcessContentTypeClock;
     private useDisk: boolean;
     private useNetwork: boolean;
+    private getQueryLatest: APIMethods.GetQueryLatestType;
 
     constructor(
         index: IndexSystemProcessContentTypeClock,
@@ -65,6 +66,7 @@ export class QueryLatest extends HasUpdate {
         this.queryServers = queryServers;
         this.useDisk = true;
         this.useNetwork = true;
+        this.getQueryLatest = APIMethods.getQueryLatest;
     }
 
     public get clean(): boolean {
@@ -242,8 +244,7 @@ export class QueryLatest extends HasUpdate {
                 }
             }
 
-            return (await APIMethods.getQueryLatest(server, system, need))
-                .events;
+            return (await this.getQueryLatest(server, system, need)).events;
         };
 
         return RXJS.from(

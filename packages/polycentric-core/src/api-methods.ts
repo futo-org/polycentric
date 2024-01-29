@@ -77,8 +77,7 @@ export type GetEventsType = (
     server: string,
     system: Models.PublicKey.PublicKey,
     ranges: Protocol.RangesForSystem,
-
-) => Promise<Models.Events.Type>
+) => Promise<Models.Events.Type>;
 
 export const getEvents: GetEventsType = async (
     server: string,
@@ -107,7 +106,7 @@ export const getEvents: GetEventsType = async (
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
     return Models.Events.fromBuffer(rawBody);
-}
+};
 
 export async function getResolveClaim(
     server: string,
@@ -139,11 +138,17 @@ export async function getResolveClaim(
     return Models.QueryClaimToSystemResponse.responseTypeFromBuffer(rawBody);
 }
 
-export async function getQueryLatest(
+export type GetQueryLatestType = (
     server: string,
     system: Models.PublicKey.PublicKey,
     eventTypes: Array<Models.ContentType.ContentType>,
-): Promise<Models.Events.Type> {
+) => Promise<Models.Events.Type>;
+
+export const getQueryLatest: GetQueryLatestType = async (
+    server: string,
+    system: Models.PublicKey.PublicKey,
+    eventTypes: Array<Models.ContentType.ContentType>,
+): Promise<Models.Events.Type> => {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
     );
@@ -170,7 +175,7 @@ export async function getQueryLatest(
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
     return Models.Events.fromBuffer(rawBody);
-}
+};
 
 export async function getQueryIndex(
     server: string,

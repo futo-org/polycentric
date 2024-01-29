@@ -197,9 +197,9 @@ export class QueryEvent extends HasUpdate {
             }
 
             if (request.rangesForProcesses.length > 0) {
-                return RXJS.from(
-                    this.getEvents(server, system, request),
-                ).pipe(RXJS.switchMap((events) => RXJS.of(events.events)));
+                return RXJS.from(this.getEvents(server, system, request)).pipe(
+                    RXJS.switchMap((events) => RXJS.of(events.events)),
+                );
             } else {
                 return RXJS.NEVER;
             }
