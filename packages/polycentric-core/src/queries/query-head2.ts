@@ -11,25 +11,36 @@ import { CancelContext } from '../cancel-context';
 import { OnceFlag } from '../util';
 import { QueryServers, queryServersObservable } from './query-servers';
 
-export type CallbackValue = ReadonlyMap<
-    Models.Process.ProcessString,
-    Models.SignedEvent.SignedEvent
->;
+export type CallbackValue = {
+    readonly missingData: boolean;
+    readonly head: ReadonlyMap<
+        Models.Process.ProcessString,
+        Models.SignedEvent.SignedEvent
+    >;
+};
 
-type Callback = (value: CallbackValue) => void;
-
-class StateForSystem {
+type CallbackValueInternal = {
+    missingData: boolean;
     readonly head: Map<
         Models.Process.ProcessString,
         Models.SignedEvent.SignedEvent
     >;
+};
+
+type Callback = (value: CallbackValue) => void;
+
+class StateForSystem {
+    value: CallbackValueInternal;
     readonly callbacks: Set<Callback>;
     readonly contextHolds: Set<CancelContext>;
     readonly fulfilled: OnceFlag;
     unsubscribe: (() => void) | undefined;
 
     constructor() {
-        this.head = new Map();
+        this.value = {
+            missingData: false,
+            head: new Map(),
+        };
         this.callbacks = new Set();
         this.contextHolds = new Set();
         this.fulfilled = new OnceFlag();
@@ -97,7 +108,7 @@ export class QueryHead extends HasUpdate {
         stateForSystem.callbacks.add(callback);
 
         if (stateForSystem.fulfilled.value) {
-            callback(stateForSystem.head);
+            callback(stateForSystem.value);
         }
 
         if (initial) {
@@ -218,7 +229,7 @@ export class QueryHead extends HasUpdate {
         stateForSystem.fulfilled.set();
 
         for (const callback of stateForSystem.callbacks) {
-            callback(stateForSystem.head);
+            callback(stateForSystem.value);
         }
     }
 
@@ -257,7 +268,7 @@ export class QueryHead extends HasUpdate {
 
             const processString = Models.Process.toString(event.process);
 
-            const headForSystem = stateForSystem.head.get(processString);
+            const headForSystem = stateForSystem.value.head.get(processString);
 
             let clockForProcess = undefined;
 
@@ -271,7 +282,7 @@ export class QueryHead extends HasUpdate {
                 clockForProcess === undefined ||
                 event.logicalClock.greaterThan(clockForProcess)
             ) {
-                stateForSystem.head.set(processString, signedEvent);
+                stateForSystem.value.head.set(processString, signedEvent);
                 stateForSystem.fulfilled.set();
                 updatedStates.add(stateForSystem);
             }
@@ -279,7 +290,7 @@ export class QueryHead extends HasUpdate {
 
         for (const stateForSystem of updatedStates) {
             for (const callback of stateForSystem.callbacks) {
-                callback(stateForSystem.head);
+                callback(stateForSystem.value);
             }
         }
     }

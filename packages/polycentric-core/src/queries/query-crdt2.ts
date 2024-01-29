@@ -43,7 +43,6 @@ type StateForSystem = {
     readonly state: Map<Models.ContentType.ContentTypeString, StateForCRDT>;
 };
 
-
 function computeCRDTValue(
     head: QueryHead.CallbackValue,
     latestEvents: ReadonlyMap<
@@ -67,7 +66,7 @@ function computeCRDTValue(
     let potentiallyOutdated = false;
 
     for (const event of events) {
-        const headSignedEvent = head.get(
+        const headSignedEvent = head.head.get(
             Models.Process.toString(event.process),
         );
 

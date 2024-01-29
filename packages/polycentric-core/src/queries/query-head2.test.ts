@@ -56,7 +56,7 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     expect(wasInstant).toStrictEqual(mode === SharedTestMode.CacheOnly);
 
     const result = Util.mapOverMap(
-        await observable,
+        (await observable).head,
         Models.signedEventToPointer,
     );
 
@@ -114,7 +114,7 @@ describe('query head2', () => {
         );
 
         expect(queryHead.clean).toStrictEqual(true);
-        expect(result.size).toStrictEqual(0);
+        expect(result.head.size).toStrictEqual(0);
 
         const dualQueryResult = await RXJS.firstValueFrom(
             RXJS.combineLatest(
