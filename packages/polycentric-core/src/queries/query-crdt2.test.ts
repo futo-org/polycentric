@@ -89,6 +89,37 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     expect(Util.decodeText(result.value)).toStrictEqual('initial');
 
     expect(queryCRDT.clean).toStrictEqual(true);
+
+    if (mode !== SharedTestMode.CacheOnly) {
+        const dualQueryResult = await RXJS.firstValueFrom(
+            RXJS.combineLatest(
+                queryCRDTObservable(
+                    queryCRDT,
+                    s1p1.system(),
+                    Models.ContentType.ContentTypeUsername,
+                ),
+                queryCRDTObservable(
+                    queryCRDT,
+                    s1p1.system(),
+                    Models.ContentType.ContentTypeUsername,
+                ),
+            ),
+        );
+
+        expect(dualQueryResult[0] === dualQueryResult[1]).toStrictEqual(true);
+
+        expect(queryCRDT.clean).toStrictEqual(true);
+    }
+
+    queryCRDTObservable(
+        queryCRDT,
+        s1p1.system(),
+        Models.ContentType.ContentTypeUsername,
+    )
+        .subscribe()
+        .unsubscribe();
+
+    expect(queryCRDT.clean).toStrictEqual(true);
 }
 
 describe('query crdt', () => {
