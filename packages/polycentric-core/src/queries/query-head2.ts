@@ -193,9 +193,7 @@ export class QueryHead extends HasUpdate {
             return (await APIMethods.getHead(server, system)).events;
         };
 
-        return RXJS.from(
-            queryServersObservable(this.queryServers, system),
-        ).pipe(
+        return queryServersObservable(this.queryServers, system).pipe(
             RXJS.switchMap((servers) =>
                 Array.from(servers).map((server) =>
                     RXJS.from(loadFromServer(server)),
