@@ -99,3 +99,27 @@ export function lookupWithInitial<K, V>(
 
     return initial;
 }
+
+export class Box<T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+}
+
+export class OnceFlag {
+    private _value: boolean;
+
+    public constructor() {
+        this._value = false;
+    }
+
+    public get value(): boolean {
+        return this._value;
+    }
+
+    public set(): void {
+        this._value = true;
+    }
+}
