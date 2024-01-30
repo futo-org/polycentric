@@ -91,7 +91,7 @@ function computeCRDTValue(
     }
 
     return {
-        missingData: missingData,
+        missingData: missingData || head.missingData,
         value: result,
     };
 }
