@@ -1,4 +1,5 @@
 import * as RXJS from 'rxjs';
+import { LRUCache } from 'lru-cache';
 
 import * as APIMethods from '../api-methods';
 import * as ProcessHandle from '../process-handle';
@@ -51,10 +52,17 @@ class StateForSystem {
 export class QueryHead extends HasUpdate {
     private readonly processHandle: ProcessHandle.ProcessHandle;
     private readonly queryServers: QueryServers;
+
+    private readonly cache: Map<
+        Models.PublicKey.PublicKeyString,
+        Shared.CacheState<StateForSystem>
+    >;
+
     private readonly state: Map<
         Models.PublicKey.PublicKeyString,
         StateForSystem
     >;
+
     private useDisk: boolean;
     private useNetwork: boolean;
 
@@ -67,6 +75,7 @@ export class QueryHead extends HasUpdate {
         this.processHandle = processHandle;
         this.queryServers = queryServers;
         this.state = new Map();
+        this.cache = new Map();
         this.useDisk = true;
         this.useNetwork = true;
     }
@@ -104,6 +113,18 @@ export class QueryHead extends HasUpdate {
         if (stateForSystem.callbacks.has(callback)) {
             throw Shared.DuplicatedCallbackError;
         }
+
+        Shared.updateCacheState(
+            this.cache,
+            systemString,
+            stateForSystem,
+            (state: StateForSystem) => {
+                return state.contextHolds;
+            },
+            (key: Models.PublicKey.PublicKeyString, state: StateForSystem) => {
+                this.cleanup(key, state);
+            },
+        );
 
         stateForSystem.callbacks.add(callback);
 

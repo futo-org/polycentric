@@ -6,6 +6,8 @@ import * as Ranges from '../ranges';
 import * as Models from '../models';
 import * as Util from '../util';
 import { OnceFlag, Box } from '../util';
+import { CancelContext } from '../cancel-context';
+import * as Shared from './shared';
 
 export type StateKey = Readonly<string> & {
     readonly __tag: unique symbol;
@@ -26,17 +28,23 @@ export type Callback = (buffer: Uint8Array | undefined) => void;
 type StateForQuery = {
     readonly value: Box<Uint8Array | undefined>;
     readonly callbacks: Set<Callback>;
+    readonly contextHolds: Set<CancelContext>;
     readonly fulfilled: OnceFlag;
     readonly unsubscribe: () => void;
 };
 
 export class QueryBlob {
     private readonly queryEvent: QueryEvent;
+    private readonly cache: Map<
+        StateKey,
+        Shared.CacheState<StateForQuery>
+    >;
     private readonly state: Map<StateKey, StateForQuery>;
 
     constructor(queryEvent: QueryEvent) {
         this.queryEvent = queryEvent;
         this.state = new Map();
+        this.cache = new Map();
     }
 
     public get clean(): boolean {
@@ -119,9 +127,22 @@ export class QueryBlob {
                 return {
                     value: value,
                     callbacks: callbacks,
+                    contextHolds: new Set(),
                     fulfilled: fulfilled,
                     unsubscribe: subscription.unsubscribe.bind(subscription),
                 };
+            },
+        );
+
+        Shared.updateCacheState(
+            this.cache,
+            stateKey,
+            stateForQuery,
+            (state: StateForQuery) => {
+                return state.contextHolds;
+            },
+            (key: StateKey, state: StateForQuery) => {
+                this.cleanup(stateKey, state);
             },
         );
 
@@ -140,12 +161,19 @@ export class QueryBlob {
         return () => {
             stateForQuery.callbacks.delete(callback);
 
-            if (stateForQuery.callbacks.size === 0) {
-                stateForQuery.unsubscribe();
-
-                this.state.delete(stateKey);
-            }
+            this.cleanup(stateKey, stateForQuery);
         };
+    }
+
+    private cleanup(stateKey: StateKey, stateForQuery: StateForQuery): void {
+        if (
+            stateForQuery.callbacks.size === 0 &&
+            stateForQuery.contextHolds.size === 0
+        ) {
+            stateForQuery.unsubscribe();
+
+            this.state.delete(stateKey);
+        }
     }
 }
 

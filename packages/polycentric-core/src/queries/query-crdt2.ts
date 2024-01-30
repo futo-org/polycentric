@@ -5,9 +5,11 @@ import * as Models from '../models';
 import * as Util from '../util';
 import * as Protocol from '../protocol';
 import * as QueryHead from './query-head2';
+import * as Shared from './shared';
 import { UnregisterCallback, DuplicatedCallbackError } from './shared';
 import { Box, OnceFlag } from '../util';
 import { QueryLatest, queryLatestObservable } from './query-latest';
+import { CancelContext } from '../cancel-context';
 
 export type CallbackValue = {
     readonly missingData: boolean;
@@ -33,13 +35,18 @@ function callbackValuesEqual(a: CallbackValue, b: CallbackValue): boolean {
 export type SuccessCallback = (value: CallbackValue) => void;
 
 type StateForCRDT = {
+    readonly key: Models.ContentType.ContentTypeString;
+    readonly parent: StateForSystem;
+
     readonly value: Box<CallbackValue>;
+    readonly contextHolds: Set<CancelContext>;
     readonly callbacks: Set<SuccessCallback>;
     readonly fulfilled: OnceFlag;
     readonly unsubscribe: () => void;
 };
 
 type StateForSystem = {
+    readonly key: Models.PublicKey.PublicKeyString;
     readonly state: Map<Models.ContentType.ContentTypeString, StateForCRDT>;
 };
 
@@ -97,6 +104,10 @@ function computeCRDTValue(
 }
 
 export class QueryCRDT {
+    private readonly cache: Map<
+        Models.ContentType.ContentTypeString,
+        Shared.CacheState<StateForCRDT>
+    >;
     private readonly state: Map<
         Models.PublicKey.PublicKeyString,
         StateForSystem
@@ -106,6 +117,7 @@ export class QueryCRDT {
 
     constructor(queryHead: QueryHead.QueryHead, queryLatest: QueryLatest) {
         this.state = new Map();
+        this.cache = new Map();
         this.queryHead = queryHead;
         this.queryLatest = queryLatest;
     }
@@ -141,6 +153,7 @@ export class QueryCRDT {
             systemString,
             () => {
                 return {
+                    key: systemString,
                     state: new Map(),
                 };
             },
@@ -174,11 +187,26 @@ export class QueryCRDT {
                 });
 
                 return {
+                    key: contentTypeString,
+                    parent: stateForSystem,
                     value: value,
                     callbacks: callbacks,
+                    contextHolds: new Set(),
                     fulfilled: fulfilled,
                     unsubscribe: subscription.unsubscribe.bind(subscription),
                 };
+            },
+        );
+
+        Shared.updateCacheState(
+            this.cache,
+            contentTypeString,
+            stateForCRDT,
+            (state: StateForCRDT) => {
+                return state.contextHolds;
+            },
+            (key: Models.ContentType.ContentTypeString, state: StateForCRDT) => {
+                this.cleanup(state);
             },
         );
 
@@ -197,16 +225,29 @@ export class QueryCRDT {
         return () => {
             stateForCRDT.callbacks.delete(callback);
 
-            if (stateForCRDT.callbacks.size === 0) {
-                stateForCRDT.unsubscribe();
-
-                stateForSystem.state.delete(contentTypeString);
-
-                if (stateForSystem.state.size === 0) {
-                    this.state.delete(systemString);
-                }
-            }
+            this.cleanup(stateForCRDT);
         };
+    }
+
+    private cleanup(
+        stateForCRDT: StateForCRDT,
+    ) {
+        if (
+            stateForCRDT.callbacks.size === 0 &&
+            stateForCRDT.contextHolds.size === 0
+        ) {
+            stateForCRDT.unsubscribe();
+
+            const stateForSystem = stateForCRDT.parent;
+
+            stateForSystem.state.delete(
+                stateForCRDT.key,
+            );
+
+            if (stateForSystem.state.size === 0) {
+                this.state.delete(stateForSystem.key);
+            }
+        }
     }
 }
 
