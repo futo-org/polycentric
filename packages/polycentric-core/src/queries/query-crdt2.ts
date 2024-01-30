@@ -103,11 +103,12 @@ function computeCRDTValue(
     };
 }
 
+export type CacheKey = Readonly<string> & {
+    readonly __tag: unique symbol;
+};
+
 export class QueryCRDT {
-    private readonly cache: Map<
-        Models.ContentType.ContentTypeString,
-        Shared.CacheState<StateForCRDT>
-    >;
+    private readonly cache: Map<CacheKey, Shared.CacheState<StateForCRDT>>;
     private readonly state: Map<
         Models.PublicKey.PublicKeyString,
         StateForSystem
@@ -200,12 +201,12 @@ export class QueryCRDT {
 
         Shared.updateCacheState(
             this.cache,
-            contentTypeString,
+            (systemString + contentTypeString) as CacheKey,
             stateForCRDT,
             (state: StateForCRDT) => {
                 return state.contextHolds;
             },
-            (key: Models.ContentType.ContentTypeString, state: StateForCRDT) => {
+            (key: CacheKey, state: StateForCRDT) => {
                 this.cleanup(state);
             },
         );
@@ -229,9 +230,7 @@ export class QueryCRDT {
         };
     }
 
-    private cleanup(
-        stateForCRDT: StateForCRDT,
-    ) {
+    private cleanup(stateForCRDT: StateForCRDT) {
         if (
             stateForCRDT.callbacks.size === 0 &&
             stateForCRDT.contextHolds.size === 0
@@ -240,9 +239,7 @@ export class QueryCRDT {
 
             const stateForSystem = stateForCRDT.parent;
 
-            stateForSystem.state.delete(
-                stateForCRDT.key,
-            );
+            stateForSystem.state.delete(stateForCRDT.key);
 
             if (stateForSystem.state.size === 0) {
                 this.state.delete(stateForSystem.key);

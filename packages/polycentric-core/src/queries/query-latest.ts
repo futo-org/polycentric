@@ -130,6 +130,7 @@ export class QueryLatest extends HasUpdate {
         }
 
         if (initial) {
+            console.log('query latest new query initial', systemString);
             const toMerge = [];
 
             if (this.useDisk) {

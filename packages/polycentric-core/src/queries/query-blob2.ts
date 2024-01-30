@@ -35,10 +35,7 @@ type StateForQuery = {
 
 export class QueryBlob {
     private readonly queryEvent: QueryEvent;
-    private readonly cache: Map<
-        StateKey,
-        Shared.CacheState<StateForQuery>
-    >;
+    private readonly cache: Map<StateKey, Shared.CacheState<StateForQuery>>;
     private readonly state: Map<StateKey, StateForQuery>;
 
     constructor(queryEvent: QueryEvent) {

@@ -7,9 +7,9 @@ export const ImpossibleError = new Error('impossible');
 export const CancelledError = new Error('cancelled');
 
 export type CacheState<T> = {
-    contextHold: CancelContext,
-    state: T,
-}
+    contextHold: CancelContext;
+    state: T;
+};
 
 export function updateCacheState<K, T>(
     cache: Map<K, CacheState<T>>,
@@ -26,8 +26,8 @@ export function updateCacheState<K, T>(
     } else {
         if (cache.size > 100) {
             const oldestEntry = cache.entries().next().value;
-    
-            console.log("evicting", oldestEntry[0]);
+
+            console.log('evicting', oldestEntry[0]);
 
             cache.delete(oldestEntry[0]);
 
@@ -48,5 +48,3 @@ export function updateCacheState<K, T>(
         cache.set(queriedStateKey, newCacheState);
     }
 }
-
-
