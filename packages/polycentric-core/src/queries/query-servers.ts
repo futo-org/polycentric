@@ -107,6 +107,8 @@ export class QueryServers {
                             ]);
 
                             callbacks.forEach((cb) => cb(servers.value));
+
+                            queryHandle.advance(10);
                         },
                     );
 
