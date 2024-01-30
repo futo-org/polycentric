@@ -687,3 +687,5 @@ export async function createTestProcessHandle(): Promise<ProcessHandle> {
 export async function fullSync(handle: ProcessHandle) {
     while (await Synchronization.backFillServers(handle, handle.system())) {}
 }
+
+export const TEST_SERVER = 'http://127.0.0.1:8081';
