@@ -272,8 +272,6 @@ describe('query event2', () => {
                 },
             ]);
 
-            const events = [];
-
             const event1 = await s1p1
                 .store()
                 .indexEvents.getSignedEvent(
