@@ -17,9 +17,6 @@ export async function postEvents(
 ): Promise<void> {
     const response = await fetch(server + '/events', {
         method: 'POST',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
         body: Protocol.Events.encode({
             events: events,
         }).finish(),
@@ -39,7 +36,6 @@ export async function postCensor(
         {
             method: 'POST',
             headers: new Headers({
-                'content-type': 'application/octet-stream',
                 authorization: authorization,
             }),
             body: urlInfo,
@@ -61,9 +57,6 @@ export async function getRanges(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getRanges', response);
@@ -73,11 +66,17 @@ export async function getRanges(
     return Protocol.RangesForSystem.decode(rawBody);
 }
 
-export async function getEvents(
+export type GetEventsType = (
     server: string,
     system: Models.PublicKey.PublicKey,
     ranges: Protocol.RangesForSystem,
-): Promise<Models.Events.Type> {
+) => Promise<Models.Events.Type>;
+
+export const getEvents: GetEventsType = async (
+    server: string,
+    system: Models.PublicKey.PublicKey,
+    ranges: Protocol.RangesForSystem,
+): Promise<Models.Events.Type> => {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
     );
@@ -90,9 +89,6 @@ export async function getEvents(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getEvents', response);
@@ -100,7 +96,7 @@ export async function getEvents(
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
     return Models.Events.fromBuffer(rawBody);
-}
+};
 
 export async function getResolveClaim(
     server: string,
@@ -120,9 +116,6 @@ export async function getResolveClaim(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getResolveClaim', response);
@@ -132,11 +125,17 @@ export async function getResolveClaim(
     return Models.QueryClaimToSystemResponse.responseTypeFromBuffer(rawBody);
 }
 
-export async function getQueryLatest(
+export type GetQueryLatestType = (
     server: string,
     system: Models.PublicKey.PublicKey,
     eventTypes: Array<Models.ContentType.ContentType>,
-): Promise<Models.Events.Type> {
+) => Promise<Models.Events.Type>;
+
+export const getQueryLatest: GetQueryLatestType = async (
+    server: string,
+    system: Models.PublicKey.PublicKey,
+    eventTypes: Array<Models.ContentType.ContentType>,
+): Promise<Models.Events.Type> => {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
     );
@@ -153,9 +152,6 @@ export async function getQueryLatest(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getQueryLatest', response);
@@ -163,7 +159,7 @@ export async function getQueryLatest(
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
     return Models.Events.fromBuffer(rawBody);
-}
+};
 
 export async function getQueryIndex(
     server: string,
@@ -184,9 +180,6 @@ export async function getQueryIndex(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getQueryIndex', response);
@@ -222,9 +215,6 @@ export async function getQueryReferences(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getQueryReferences', response);
@@ -262,9 +252,6 @@ export async function getSearch(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getSearch', response);
@@ -286,9 +273,6 @@ export async function getHead(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getHead', response);
@@ -319,9 +303,6 @@ export async function getExplore(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getExplore', response);
@@ -353,9 +334,6 @@ export async function getFindClaimAndVouch(
 
     const response = await fetch(server + path, {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     if (response.status === 404) {
@@ -374,9 +352,6 @@ export async function getChallenge(
 ): Promise<Protocol.HarborChallengeResponse> {
     const response = await fetch(server + '/challenge', {
         method: 'GET',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
     });
 
     await checkResponse('getChallenge', response);
@@ -392,9 +367,6 @@ export async function postPurge(
 ): Promise<void> {
     const response = await fetch(server + '/purge', {
         method: 'POST',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
         body: Protocol.HarborValidateRequest.encode(solvedChallenge).finish(),
     });
 
