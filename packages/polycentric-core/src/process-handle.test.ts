@@ -1,8 +1,15 @@
+import * as RXJS from 'rxjs';
+
 import Long from 'long';
 import * as ProcessHandle from './process-handle';
 import * as Models from './models';
 import * as Util from './util';
 import * as Protocol from './protocol';
+import * as Queries from './queries';
+
+function expectToBeDefined<T>(value: T): asserts value is NonNullable<T> {
+    expect(value).toBeDefined();
+}
 
 describe('processHandle', () => {
     test('basic post', async () => {
@@ -51,19 +58,19 @@ describe('processHandle', () => {
         await processHandle.setUsername('alice');
         await processHandle.setUsername('bob');
 
-        await new Promise<void>((resolve) => {
-            processHandle.queryManager.queryCRDT.query(
+        const result = await RXJS.firstValueFrom(
+            Queries.QueryCRDT2.queryCRDTObservable(
+                processHandle.queryManager.queryCRDT,
                 processHandle.system(),
                 Models.ContentType.ContentTypeUsername,
-                (value) => {
-                    expect(
-                        Util.buffersEqual(value, Util.encodeText('bob')),
-                    ).toStrictEqual(true);
+            ),
+        );
 
-                    resolve();
-                },
-            );
-        });
+        expect(result.missingData).toStrictEqual(false);
+        expectToBeDefined(result.value);
+        expect(
+            Util.buffersEqual(result.value, Util.encodeText('bob')),
+        ).toStrictEqual(true);
     });
 
     test('description', async () => {
@@ -73,19 +80,19 @@ describe('processHandle', () => {
 
         await processHandle.setDescription(description);
 
-        await new Promise<void>((resolve) => {
-            processHandle.queryManager.queryCRDT.query(
+        const result = await RXJS.firstValueFrom(
+            Queries.QueryCRDT2.queryCRDTObservable(
+                processHandle.queryManager.queryCRDT,
                 processHandle.system(),
                 Models.ContentType.ContentTypeDescription,
-                (value) => {
-                    expect(
-                        Util.buffersEqual(value, Util.encodeText(description)),
-                    ).toStrictEqual(true);
+            ),
+        );
 
-                    resolve();
-                },
-            );
-        });
+        expect(result.missingData).toStrictEqual(false);
+        expectToBeDefined(result.value);
+        expect(
+            Util.buffersEqual(result.value, Util.encodeText(description)),
+        ).toStrictEqual(true);
     });
 
     test('avatar', async () => {
