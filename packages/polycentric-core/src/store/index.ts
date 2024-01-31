@@ -10,6 +10,7 @@ import { IndexCRDTElementSet } from './index-crdt-element-set';
 import { IndexEventsForSystemByTime } from './index-events-for-system-by-time';
 import { IndexProcessState } from './index-process-state';
 import { IndexSystemState } from './index-system-state';
+import { IndexSystemProcessContentTypeClock } from './index-system-process-content-type-clock';
 import { HasIngest } from './has-ingest';
 
 export * as IndexFeed from './index-feed';
@@ -43,6 +44,7 @@ export class Store {
     readonly indexOpinion: IndexOpinion;
     readonly indexCRDTElementSet: IndexCRDTElementSet;
     readonly indexFeed: IndexFeed;
+    readonly indexSystemProcessContentTypeLogicalClock: IndexSystemProcessContentTypeClock;
 
     private readonly stages: ReadonlyArray<HasIngest>;
 
@@ -78,6 +80,11 @@ export class Store {
         this.indexOpinion = new IndexOpinion(registerSublevel);
         this.indexCRDTElementSet = new IndexCRDTElementSet(registerSublevel);
         this.indexFeed = new IndexFeed(this, registerSublevel);
+        this.indexSystemProcessContentTypeLogicalClock =
+            new IndexSystemProcessContentTypeClock(
+                registerSublevel,
+                this.indexEvents,
+            );
 
         this.system = undefined;
 
@@ -89,6 +96,7 @@ export class Store {
             this.indexOpinion,
             this.indexCRDTElementSet,
             this.indexFeed,
+            this.indexSystemProcessContentTypeLogicalClock,
         ];
     }
 
