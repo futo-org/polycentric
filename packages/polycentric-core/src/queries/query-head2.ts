@@ -1,4 +1,5 @@
 import * as RXJS from 'rxjs';
+import * as RXJSOperators from 'rxjs/operators';
 
 import * as APIMethods from '../api-methods';
 import * as ProcessHandle from '../process-handle';
@@ -210,7 +211,9 @@ export class QueryHead extends HasUpdate {
             ),
             RXJS.distinct(),
             RXJS.mergeMap((server: string) =>
-                RXJS.from(loadFromServer(server)),
+                RXJS.from(loadFromServer(server)).pipe(
+                    RXJS.catchError(() => RXJS.NEVER),
+                ),
             ),
         );
     }
