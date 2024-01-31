@@ -1,5 +1,4 @@
 import * as RXJS from 'rxjs';
-import * as RXJSOperators from 'rxjs/operators';
 
 import * as APIMethods from '../api-methods';
 import * as ProcessHandle from '../process-handle';
