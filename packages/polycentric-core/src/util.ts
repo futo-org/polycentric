@@ -123,3 +123,40 @@ export class OnceFlag {
         this._value = true;
     }
 }
+
+export function areMapsEqual<Key, Value>(
+    a: ReadonlyMap<Key, Value>,
+    b: ReadonlyMap<Key, Value>,
+    equal: (a: Value, b: Value) => boolean,
+): boolean {
+    if (a.size !== b.size) {
+        return false;
+    }
+
+    for (const [key, value] of a.entries()) {
+        const otherValue = b.get(key);
+
+        if (!otherValue) {
+            return false;
+        }
+
+        if (!equal(value, otherValue)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+export function mapOverMap<Key, ValueA, ValueB>(
+    collection: ReadonlyMap<Key, ValueA>,
+    operation: (value: ValueA) => ValueB,
+): Map<Key, ValueB> {
+    const result = new Map<Key, ValueB>();
+
+    for (const [key, value] of collection.entries()) {
+        result.set(key, operation(value));
+    }
+
+    return result;
+}
