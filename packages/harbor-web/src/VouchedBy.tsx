@@ -17,12 +17,14 @@ function loadVouchedByState(
         queryManager.queryCRDT.query(
             system,
             Core.Models.ContentType.ContentTypeUsername,
-            (buffer: Uint8Array) => {
+            (value) => {
                 if (!cancelContext.cancelled()) {
                     setProps((state) => {
                         return {
                             ...state,
-                            username: Core.Util.decodeText(buffer),
+                            username: value.value
+                                ? Core.Util.decodeText(value.value)
+                                : '',
                         };
                     });
                 }

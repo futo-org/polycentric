@@ -38,8 +38,13 @@ export function useAvatar(
         const unregister = queryManager.queryCRDT.query(
             system,
             Core.Models.ContentType.ContentTypeAvatar,
-            (rawImageBundle: Uint8Array) => {
+            (rawImageBundle) => {
                 if (cancelContext.cancelled()) {
+                    return;
+                }
+
+                if (!rawImageBundle.value) {
+                    setLink('');
                     return;
                 }
 
@@ -48,7 +53,7 @@ export function useAvatar(
                 subCancel = new Core.CancelContext.CancelContext();
 
                 const manifest = Core.Protocol.ImageBundle.decode(
-                    rawImageBundle,
+                    rawImageBundle.value,
                 ).imageManifests.find((manifest) => {
                     return (
                         manifest.height.equals(Long.fromNumber(256)) &&
@@ -67,12 +72,16 @@ export function useAvatar(
                         system,
                         Core.Models.Process.fromProto(manifest.process!),
                         manifest.sections,
-                        (rawImage: Uint8Array) => {
-                            const blob = new Blob([rawImage], {
-                                type: manifest.mime,
-                            });
+                        (rawImage: Uint8Array | undefined) => {
+                            if (rawImage) {
+                                const blob = new Blob([rawImage], {
+                                    type: manifest.mime,
+                                });
 
-                            setLink(URL.createObjectURL(blob));
+                                setLink(URL.createObjectURL(blob));
+                            } else {
+                                setLink('');
+                            }
                         },
                     ),
                 );
@@ -106,12 +115,16 @@ export function useCRDT<T>(
         const unregister = queryManager.queryCRDT.query(
             system,
             contentType,
-            (buffer: Uint8Array) => {
+            (value) => {
                 if (cancelContext.cancelled()) {
                     return;
                 }
 
-                setState(parse(buffer));
+                if (value.value) {
+                    setState(parse(value.value));
+                } else {
+                    setState(undefined);
+                }
             },
         );
 
