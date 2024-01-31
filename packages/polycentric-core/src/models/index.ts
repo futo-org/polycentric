@@ -36,6 +36,10 @@ export namespace ContentType {
         );
     }
 
+    export function fromString(contentType: ContentTypeString): ContentType {
+        return Long.fromString(contentType) as ContentType;
+    }
+
     export const ContentTypeDelete = makeContentType(1);
     export const ContentTypeSystemProcesses = makeContentType(2);
     export const ContentTypePost = makeContentType(3);
@@ -110,6 +114,14 @@ export namespace PublicKey {
             },
             key,
         );
+    }
+
+    export function fromBuffer(buffer: Uint8Array): PublicKey {
+        return fromProto(Protocol.PublicKey.decode(buffer));
+    }
+
+    export function fromString(key: PublicKeyString): PublicKey {
+        return fromBuffer(Base64.decode(key));
     }
 
     export function equal(a: PublicKey, b: PublicKey): boolean {
@@ -224,6 +236,14 @@ export namespace Process {
             },
             process,
         );
+    }
+
+    export function fromBuffer(buffer: Uint8Array): Process {
+        return fromProto(Protocol.Process.decode(buffer));
+    }
+
+    export function fromString(key: ProcessString): Process {
+        return fromBuffer(Base64.decode(key));
     }
 
     export function equal(a: Process, b: Process): boolean {
@@ -405,6 +425,19 @@ export namespace Event {
             },
             buffer,
         );
+    }
+
+    export function lookupIndex(
+        event: Event,
+        contentType: ContentType.ContentType,
+    ): Long | undefined {
+        for (const index of event.indices.indices) {
+            if (index.indexType.equals(contentType)) {
+                return index.logicalClock;
+            }
+        }
+
+        return undefined;
     }
 }
 

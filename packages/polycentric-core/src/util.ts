@@ -160,3 +160,12 @@ export function mapOverMap<Key, ValueA, ValueB>(
 
     return result;
 }
+
+export function mapToArray<Key, ValueT1, ValueT2>(
+    map: ReadonlyMap<Key, ValueT1>,
+    operation: (value: ValueT1) => ValueT2,
+): Array<ValueT2> {
+    const result: Array<ValueT2> = [];
+    map.forEach((value) => result.push(operation(value)));
+    return result;
+}
