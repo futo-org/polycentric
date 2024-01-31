@@ -17,7 +17,9 @@ function makeStateKey(
     ranges: ReadonlyArray<Ranges.IRange>,
 ): StateKey {
     return (Models.PublicKey.toString(system) +
+        '_' +
         Models.Process.toString(process) +
+        '_' +
         Ranges.toString(ranges)) as StateKey;
 }
 
