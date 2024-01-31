@@ -136,3 +136,16 @@ describe('takeRangeMaxItems', () => {
         ]);
     });
 });
+
+describe('misc', () => {
+    test('toArray', () => {
+        expect(
+            Ranges.toArray([makeRange(3, 5), makeRange(7, 7)]),
+        ).toStrictEqual([
+            Long.fromNumber(3, true),
+            Long.fromNumber(4, true),
+            Long.fromNumber(5, true),
+            Long.fromNumber(7, true),
+        ]);
+    });
+});
