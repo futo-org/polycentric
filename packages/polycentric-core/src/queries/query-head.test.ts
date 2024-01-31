@@ -3,7 +3,7 @@ import * as RXJS from 'rxjs';
 import * as ProcessHandle from '../process-handle';
 import * as Util from '../util';
 import * as Models from '../models';
-import { queryHeadObservable, QueryHead } from './query-head2';
+import { queryHeadObservable, QueryHead } from './query-head';
 import { QueryServers } from './query-servers';
 import { CancelContext } from '../cancel-context';
 

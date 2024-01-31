@@ -8,7 +8,7 @@ import {
     ImpossibleError,
 } from './shared';
 import * as Util from '../util';
-import * as QueryHead from './query-head2';
+import * as QueryHead from './query-head';
 import { OnceFlag } from '../util';
 import { CancelContext } from '../cancel-context';
 import { HasUpdate } from './has-update';

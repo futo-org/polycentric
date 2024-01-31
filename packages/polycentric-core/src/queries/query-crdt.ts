@@ -3,7 +3,7 @@ import * as RXJS from 'rxjs';
 
 import * as Models from '../models';
 import * as Util from '../util';
-import * as QueryHead from './query-head2';
+import * as QueryHead from './query-head';
 import { UnregisterCallback, DuplicatedCallbackError } from './shared';
 import { Box, OnceFlag } from '../util';
 import { QueryLatest, queryLatestObservable } from './query-latest';

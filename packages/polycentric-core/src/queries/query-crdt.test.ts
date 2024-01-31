@@ -5,9 +5,9 @@ import * as ProcessHandle from '../process-handle';
 import * as Util from '../util';
 import * as Models from '../models';
 import { QueryLatest } from './query-latest';
-import { QueryHead } from './query-head2';
+import { QueryHead } from './query-head';
 import { QueryServers } from './query-servers';
-import { queryCRDTObservable, QueryCRDT } from './query-crdt2';
+import { queryCRDTObservable, QueryCRDT } from './query-crdt';
 import { CancelContext } from '../cancel-context';
 
 function expectToBeDefined<T>(value: T): asserts value is NonNullable<T> {

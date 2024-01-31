@@ -1,6 +1,6 @@
 import * as RXJS from 'rxjs';
 
-import { QueryEvent, queryEventObservable } from './query-event2';
+import { QueryEvent, queryEventObservable } from './query-event';
 import { UnregisterCallback, DuplicatedCallbackError } from './shared';
 import * as Ranges from '../ranges';
 import * as Models from '../models';

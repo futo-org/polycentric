@@ -2,11 +2,11 @@ import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 
 import { QueryServers } from './query-servers';
-import { QueryHead } from './query-head2';
-import { QueryEvent } from './query-event2';
-import { QueryBlob } from './query-blob2';
+import { QueryHead } from './query-head';
+import { QueryEvent } from './query-event';
+import { QueryBlob } from './query-blob';
 import { QueryLatest } from './query-latest';
-import { QueryCRDT } from './query-crdt2';
+import { QueryCRDT } from './query-crdt';
 
 import * as QueryIndex from './query-index';
 import * as QueryCRDTSet from './query-crdt-set';

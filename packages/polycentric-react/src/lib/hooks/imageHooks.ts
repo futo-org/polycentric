@@ -102,7 +102,7 @@ const observableAvatar = (
     system: Readonly<Models.PublicKey.PublicKey>,
     size: keyof typeof avatarResolutions = 'lg',
 ): RXJS.Observable<string> => {
-    return Queries.QueryCRDT2.queryCRDTObservable(
+    return Queries.QueryCRDT.queryCRDTObservable(
         queryManager.queryCRDT,
         system,
         Models.ContentType.ContentTypeAvatar,
@@ -131,7 +131,7 @@ const observableAvatar = (
                         return observableSystemToBlob(system);
                     }
 
-                    return Queries.QueryBlob2.queryBlobObservable(
+                    return Queries.QueryBlob.queryBlobObservable(
                         queryManager.queryBlob,
                         system,
                         Models.Process.fromProto(manifest.process),

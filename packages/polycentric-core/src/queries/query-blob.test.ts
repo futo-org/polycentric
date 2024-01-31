@@ -3,9 +3,9 @@ import * as RXJS from 'rxjs';
 
 import * as ProcessHandle from '../process-handle';
 import * as Util from '../util';
-import { QueryEvent } from './query-event2';
+import { QueryEvent } from './query-event';
 import { QueryServers } from './query-servers';
-import { QueryBlob, queryBlobObservable } from './query-blob2';
+import { QueryBlob, queryBlobObservable } from './query-blob';
 import { CancelContext } from '../cancel-context';
 
 const testBlob = (() => {

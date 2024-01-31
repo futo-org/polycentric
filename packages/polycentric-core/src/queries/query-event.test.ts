@@ -4,7 +4,7 @@ import Long from 'long';
 import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 import * as Protocol from '../protocol';
-import { queryEventObservable, QueryEvent } from './query-event2';
+import { queryEventObservable, QueryEvent } from './query-event';
 import { QueryServers } from './query-servers';
 import { CancelContext } from '../cancel-context';
 

@@ -59,7 +59,7 @@ describe('processHandle', () => {
         await processHandle.setUsername('bob');
 
         const result = await RXJS.firstValueFrom(
-            Queries.QueryCRDT2.queryCRDTObservable(
+            Queries.QueryCRDT.queryCRDTObservable(
                 processHandle.queryManager.queryCRDT,
                 processHandle.system(),
                 Models.ContentType.ContentTypeUsername,
@@ -81,7 +81,7 @@ describe('processHandle', () => {
         await processHandle.setDescription(description);
 
         const result = await RXJS.firstValueFrom(
-            Queries.QueryCRDT2.queryCRDTObservable(
+            Queries.QueryCRDT.queryCRDTObservable(
                 processHandle.queryManager.queryCRDT,
                 processHandle.system(),
                 Models.ContentType.ContentTypeDescription,
