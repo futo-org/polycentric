@@ -177,3 +177,19 @@ export function takeRangesMaxItems(
 
     return result;
 }
+
+export function toArray(ranges: ReadonlyArray<IRange>): Array<Long> {
+    const result = [];
+
+    for (const range of ranges) {
+        for (
+            let i = range.low;
+            i.lessThanOrEqual(range.high);
+            i = i.add(Long.UONE)
+        ) {
+            result.push(i);
+        }
+    }
+
+    return result;
+}
