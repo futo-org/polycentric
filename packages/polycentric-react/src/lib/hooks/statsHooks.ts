@@ -144,6 +144,24 @@ export const usePostStatsWithLocalActions = (
             });
     }, [reference, processHandle, refreshOpinion]);
 
+    const deletePost = useMemo(() => {
+        const isUserOwner = Models.PublicKey.equal(
+            processHandle.system(),
+            pointer.system,
+        );
+
+        if (!isUserOwner) {
+            return undefined;
+        }
+
+        return async () => {
+            return await processHandle.delete(
+                pointer.process,
+                pointer.logicalClock,
+            );
+        };
+    }, [pointer, processHandle]);
+
     const stats = usePostStats(pointer);
     const opinionOnMount = useQueryOpinion(processHandle.system(), reference);
     const likedOnMount = useMemo(() => {
@@ -203,8 +221,9 @@ export const usePostStatsWithLocalActions = (
             dislike,
             comment,
             repost: () => {},
+            delete: deletePost,
         };
-    }, [like, dislike, comment, neutralopinion]);
+    }, [like, dislike, comment, neutralopinion, deletePost]);
 
     const locallyModifiedStats = useMemo(() => {
         return {
