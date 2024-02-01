@@ -36,8 +36,8 @@ export const Feed = ({
                 />
             )}
             overscan={{
-                reverse: windowHeight * 5,
-                main: windowHeight * 10,
+                reverse: windowHeight,
+                main: windowHeight,
             }}
             increaseViewportBy={{
                 top: windowHeight / 2,
