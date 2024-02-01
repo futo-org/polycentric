@@ -1,57 +1,100 @@
 import Long from 'long';
-import * as Base64 from '@borderless/base64';
+import * as RXJS from 'rxjs';
 
-import * as APIMethods from '../api-methods';
-import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
-import * as Shared from './shared';
-import * as Util from '../util';
+import * as Ranges from '../ranges';
+import * as Protocol from '../protocol';
+import * as APIMethods from '../api-methods';
+import { IndexEvents } from '../store/index-events';
+import { QueryServers, queryServersObservable } from './query-servers';
 import { HasUpdate } from './has-update';
+import {
+    DuplicatedCallbackError,
+    ImpossibleError,
+    UnregisterCallback,
+} from './shared';
+import { CancelContext } from '../cancel-context';
 
-export type Callback = (
-    signedEvent: Models.SignedEvent.SignedEvent | undefined,
-) => void;
+export type Callback = (signedEvent: Models.SignedEvent.SignedEvent) => void;
 
 type StateForEvent = {
+    readonly parent: StateForProcess;
+    readonly key: LogicalClockString;
+    sibling: StateForEvent | undefined;
+
+    readonly logicalClock: Readonly<Long>;
     signedEvent: Models.SignedEvent.SignedEvent | undefined;
+
+    unsubscribe: (() => void) | undefined;
     readonly callbacks: Set<Callback>;
-    fulfilled: boolean;
+    readonly contextHolds: Set<CancelContext>;
+    readonly attemptedSources: Set<string>;
 };
 
-function makeEventKey(
-    system: Models.PublicKey.PublicKey,
-    process: Models.Process.Process,
-    logicalClock: Long,
-): string {
-    return (
-        system.keyType.toString() +
-        Base64.encode(system.key) +
-        Base64.encode(process.process) +
-        logicalClock.toString()
-    );
+export type LogicalClockString = Readonly<string> & {
+    readonly __tag: unique symbol;
+};
+
+function logicalClockToString(logicalClock: Long): LogicalClockString {
+    return logicalClock.toString() as LogicalClockString;
 }
 
-export class QueryManager extends HasUpdate {
-    private readonly _processHandle: ProcessHandle.ProcessHandle;
-    private readonly _state: Map<string, StateForEvent>;
-    private _useDisk: boolean;
-    private _useNetwork: boolean;
+type StateForProcess = {
+    readonly parent: StateForSystem;
+    readonly key: Models.Process.ProcessString;
+    readonly process: Models.Process.Process;
+    readonly state: Map<LogicalClockString, StateForEvent>;
+};
 
-    constructor(processHandle: ProcessHandle.ProcessHandle) {
+type StateForSystem = {
+    readonly key: Models.PublicKey.PublicKeyString;
+    readonly state: Map<Models.Process.ProcessString, StateForProcess>;
+};
+
+const DeleteOfDeleteError = new Error('cannot delete a delete event');
+
+function asyncBoundaryObservable<T>(value: T): RXJS.Observable<T> {
+    return new RXJS.Observable((subscriber) => {
+        setTimeout(() => subscriber.next(value), 0);
+    });
+}
+
+export class QueryEvent extends HasUpdate {
+    private readonly state: Map<
+        Models.PublicKey.PublicKeyString,
+        StateForSystem
+    >;
+    private readonly indexEvents: IndexEvents;
+    private readonly queryServers: QueryServers;
+    private useDisk: boolean;
+    private useNetwork: boolean;
+    private getEvents: APIMethods.GetEventsType;
+
+    constructor(indexEvents: IndexEvents, queryServers: QueryServers) {
         super();
 
-        this._processHandle = processHandle;
-        this._state = new Map();
-        this._useDisk = true;
-        this._useNetwork = true;
+        this.state = new Map();
+        this.indexEvents = indexEvents;
+        this.queryServers = queryServers;
+        this.useDisk = true;
+        this.useNetwork = true;
+        this.getEvents = APIMethods.getEvents;
     }
 
-    public useDisk(useDisk: boolean): void {
-        this._useDisk = useDisk;
+    public get clean(): boolean {
+        return this.state.size === 0;
     }
 
-    public useNetwork(useNetwork: boolean): void {
-        this._useNetwork = useNetwork;
+    public shouldUseDisk(useDisk: boolean): void {
+        this.useDisk = useDisk;
+    }
+
+    public shouldUseNetwork(useNetwork: boolean): void {
+        this.useNetwork = useNetwork;
+    }
+
+    public setGetEvents(getEvents: APIMethods.GetEventsType): void {
+        this.getEvents = getEvents;
     }
 
     public query(
@@ -59,127 +102,340 @@ export class QueryManager extends HasUpdate {
         process: Models.Process.Process,
         logicalClock: Long,
         callback: Callback,
-    ): Shared.UnregisterCallback {
-        const key = makeEventKey(system, process, logicalClock);
-
-        const state: StateForEvent = Util.lookupWithInitial(
-            this._state,
-            key,
-            () => {
-                return {
-                    signedEvent: undefined,
-                    callbacks: new Set(),
-                    fulfilled: false,
-                };
-            },
+    ): UnregisterCallback {
+        const stateForEvent = this.lookupStateForEvent(
+            system,
+            process,
+            logicalClock,
+            true,
         );
 
-        state.callbacks.add(callback);
+        if (!stateForEvent) {
+            throw ImpossibleError;
+        }
 
-        if (state.fulfilled === true) {
-            callback(state.signedEvent);
-        } else {
-            if (this._useDisk === true) {
-                this.loadFromStore(system, process, logicalClock);
+        if (stateForEvent.callbacks.has(callback)) {
+            throw DuplicatedCallbackError;
+        }
+
+        stateForEvent.callbacks.add(callback);
+
+        if (stateForEvent.signedEvent) {
+            callback(stateForEvent.signedEvent);
+        }
+
+        if (!stateForEvent.unsubscribe) {
+            const toMerge = [];
+
+            if (this.useDisk) {
+                toMerge.push(
+                    this.loadFromDiskObservable(system, process, logicalClock),
+                );
             }
 
-            if (this._useNetwork === true) {
-                this.loadFromNetwork(system, process, logicalClock);
+            if (this.useNetwork) {
+                toMerge.push(
+                    this.loadFromNetworkObservable(
+                        stateForEvent.parent.parent,
+                        system,
+                    ),
+                );
             }
+
+            const subscription = RXJS.merge(...toMerge).subscribe(
+                (signedEvents) => signedEvents.map(this.update.bind(this)),
+            );
+
+            stateForEvent.unsubscribe =
+                subscription.unsubscribe.bind(subscription);
         }
 
         return () => {
-            state.callbacks.delete(callback);
+            stateForEvent.callbacks.delete(callback);
 
-            if (state.callbacks.size === 0) {
-                this._state.delete(key);
-            }
+            this.cleanupStateForQuery(stateForEvent);
         };
     }
 
-    private async loadFromStore(
+    private loadFromDiskObservable(
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
         logicalClock: Long,
-    ): Promise<void> {
-        const signedEvent = await this._processHandle
-            .store()
-            .indexEvents.getSignedEvent(system, process, logicalClock);
-
-        if (signedEvent !== undefined) {
-            this.update(signedEvent);
-        }
+    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
+        return RXJS.from(
+            this.indexEvents.getSignedEvent(system, process, logicalClock),
+        ).pipe(
+            RXJS.switchMap((signedEvent) =>
+                signedEvent ? RXJS.of([signedEvent]) : RXJS.NEVER,
+            ),
+        );
     }
 
-    private async loadFromNetwork(
+    private loadFromNetworkObservable(
+        stateForSystem: StateForSystem,
         system: Models.PublicKey.PublicKey,
-        process: Models.Process.Process,
-        logicalClock: Long,
-    ): Promise<void> {
-        const systemState = await this._processHandle.loadSystemState(system);
+    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
+        const loadFromServer = (server: string) => {
+            const request: Protocol.RangesForSystem = {
+                rangesForProcesses: [],
+            };
 
-        for (const server of systemState.servers()) {
-            try {
-                const events = await APIMethods.getEvents(server, system, {
-                    rangesForProcesses: [
-                        {
-                            process: process,
-                            ranges: [
-                                {
-                                    low: logicalClock,
-                                    high: logicalClock,
-                                },
-                            ],
-                        },
-                    ],
-                });
+            for (const stateForProcess of stateForSystem.state.values()) {
+                const rangesForProcess = {
+                    process: stateForProcess.process,
+                    ranges: [],
+                };
 
-                events.events.forEach((x) => this.update(x));
-            } catch (err) {
-                console.log(err);
+                for (const stateForEvent of stateForProcess.state.values()) {
+                    if (!stateForEvent.attemptedSources.has(server)) {
+                        stateForEvent.attemptedSources.add(server);
+
+                        Ranges.insert(
+                            rangesForProcess.ranges,
+                            stateForEvent.logicalClock,
+                        );
+                    }
+                }
+
+                if (rangesForProcess.ranges.length > 0) {
+                    request.rangesForProcesses.push(rangesForProcess);
+                }
             }
-        }
-    }
 
-    public update(signedEvent: Models.SignedEvent.SignedEvent): void {
-        const event = Models.Event.fromBuffer(signedEvent.event);
-
-        const key = (() => {
-            if (
-                event.contentType.equals(Models.ContentType.ContentTypeDelete)
-            ) {
-                const deleteModel = Models.Delete.fromBuffer(event.content);
-
-                return makeEventKey(
-                    event.system,
-                    deleteModel.process,
-                    deleteModel.logicalClock,
+            if (request.rangesForProcesses.length > 0) {
+                return RXJS.from(this.getEvents(server, system, request)).pipe(
+                    RXJS.switchMap((events) => RXJS.of(events.events)),
                 );
             } else {
-                return makeEventKey(
-                    event.system,
-                    event.process,
-                    event.logicalClock,
-                );
+                return RXJS.NEVER;
             }
-        })();
+        };
 
-        const state = this._state.get(key);
+        return queryServersObservable(this.queryServers, system).pipe(
+            RXJS.switchMap((servers: ReadonlySet<string>) =>
+                RXJS.of(...Array.from(servers)),
+            ),
+            RXJS.distinct(),
+            RXJS.mergeMap((server: string) =>
+                asyncBoundaryObservable(server).pipe(
+                    RXJS.switchMap((server: string) => loadFromServer(server)),
+                ),
+            ),
+        );
+    }
 
-        if (state === undefined) {
+    private cleanupStateForQuery(stateForEvent: StateForEvent): void {
+        const isStateHeldDirectly = (state: StateForEvent) =>
+            state.callbacks.size !== 0 || state.contextHolds.size !== 0;
+
+        const cleanupState = (state: StateForEvent) => {
+            const stateForProcess = state.parent;
+
+            stateForProcess.state.delete(state.key);
+
+            state.unsubscribe?.();
+
+            if (stateForProcess.state.size === 0) {
+                const stateForSystem = stateForProcess.parent;
+
+                stateForSystem.state.delete(stateForProcess.key);
+
+                if (stateForSystem.state.size === 0) {
+                    this.state.delete(stateForSystem.key);
+                }
+            }
+        };
+
+        if (
+            isStateHeldDirectly(stateForEvent) ||
+            (stateForEvent.sibling &&
+                isStateHeldDirectly(stateForEvent.sibling))
+        ) {
             return;
         }
 
-        state.fulfilled = true;
+        cleanupState(stateForEvent);
 
-        if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
-            state.signedEvent = undefined;
-        } else {
-            state.signedEvent = signedEvent;
+        if (stateForEvent.sibling) {
+            cleanupState(stateForEvent.sibling);
+        }
+    }
+
+    private lookupStateForEvent(
+        system: Models.PublicKey.PublicKey,
+        process: Models.Process.Process,
+        logicalClock: Long,
+        createIfMissing: boolean,
+    ): StateForEvent | undefined {
+        const systemString = Models.PublicKey.toString(system);
+
+        let stateForSystem = this.state.get(systemString);
+
+        if (!stateForSystem) {
+            if (createIfMissing) {
+                stateForSystem = {
+                    key: systemString,
+                    state: new Map(),
+                };
+
+                this.state.set(systemString, stateForSystem);
+            } else {
+                return undefined;
+            }
         }
 
-        state.callbacks.forEach((callback) => {
-            callback(state.signedEvent);
-        });
+        const processString = Models.Process.toString(process);
+
+        let stateForProcess = stateForSystem.state.get(processString);
+
+        if (!stateForProcess) {
+            if (createIfMissing) {
+                stateForProcess = {
+                    parent: stateForSystem,
+                    key: processString,
+                    process: process,
+                    state: new Map(),
+                };
+
+                stateForSystem.state.set(processString, stateForProcess);
+            } else {
+                return undefined;
+            }
+        }
+
+        const logicalClockString = logicalClockToString(logicalClock);
+
+        let stateForEvent = stateForProcess.state.get(logicalClockString);
+
+        if (!stateForEvent) {
+            if (createIfMissing) {
+                stateForEvent = {
+                    parent: stateForProcess,
+                    key: logicalClockString,
+                    sibling: undefined,
+                    signedEvent: undefined,
+                    callbacks: new Set(),
+                    contextHolds: new Set(),
+                    attemptedSources: new Set(),
+                    logicalClock: logicalClock,
+                    unsubscribe: undefined,
+                };
+
+                stateForProcess.state.set(logicalClockString, stateForEvent);
+            } else {
+                return undefined;
+            }
+        }
+
+        return stateForEvent;
     }
+
+    public update(signedEvent: Models.SignedEvent.SignedEvent): void {
+        this.updateWithContextHold(signedEvent, undefined);
+    }
+
+    public updateWithContextHold(
+        signedEvent: Models.SignedEvent.SignedEvent,
+        contextHold: CancelContext | undefined,
+    ): void {
+        const event = Models.Event.fromBuffer(signedEvent.event);
+
+        let stateMustBeCreated = false;
+
+        if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
+            const deleteModel = Models.Delete.fromBuffer(event.content);
+
+            if (
+                this.lookupStateForEvent(
+                    event.system,
+                    deleteModel.process,
+                    deleteModel.logicalClock,
+                    false,
+                )
+            ) {
+                stateMustBeCreated = true;
+            }
+        }
+
+        const stateForEvent = this.lookupStateForEvent(
+            event.system,
+            event.process,
+            event.logicalClock,
+            !!contextHold || stateMustBeCreated,
+        );
+
+        if (!stateForEvent) {
+            return;
+        }
+
+        if (contextHold) {
+            stateForEvent.contextHolds.add(contextHold);
+
+            contextHold.addCallback(() => {
+                stateForEvent.contextHolds.delete(contextHold);
+
+                this.cleanupStateForQuery(stateForEvent);
+            });
+        }
+
+        if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
+            const deleteModel = Models.Delete.fromBuffer(event.content);
+
+            const stateForDeletedEvent = this.lookupStateForEvent(
+                event.system,
+                deleteModel.process,
+                deleteModel.logicalClock,
+                true,
+            );
+
+            if (!stateForDeletedEvent) {
+                throw ImpossibleError;
+            }
+
+            if (stateForDeletedEvent.signedEvent) {
+                const deletedEvent = Models.Event.fromBuffer(
+                    stateForDeletedEvent.signedEvent.event,
+                );
+
+                if (
+                    event.contentType.equals(
+                        Models.ContentType.ContentTypeDelete,
+                    ) &&
+                    deletedEvent.contentType.equals(
+                        Models.ContentType.ContentTypeDelete,
+                    )
+                ) {
+                    throw DeleteOfDeleteError;
+                }
+            }
+
+            stateForEvent.sibling = stateForDeletedEvent;
+            stateForDeletedEvent.sibling = stateForEvent;
+            stateForDeletedEvent.signedEvent = signedEvent;
+            stateForDeletedEvent.callbacks.forEach((cb) => cb(signedEvent));
+        }
+
+        if (!stateForEvent.signedEvent) {
+            stateForEvent.signedEvent = signedEvent;
+            stateForEvent.callbacks.forEach((cb) => cb(signedEvent));
+        }
+    }
+}
+
+export function queryEventObservable(
+    queryManager: QueryEvent,
+    system: Models.PublicKey.PublicKey,
+    process: Models.Process.Process,
+    logicalClock: Long,
+): RXJS.Observable<Models.SignedEvent.SignedEvent> {
+    return new RXJS.Observable((subscriber) => {
+        return queryManager.query(
+            system,
+            process,
+            logicalClock,
+            (signedEvent) => {
+                subscriber.next(signedEvent);
+            },
+        );
+    });
 }

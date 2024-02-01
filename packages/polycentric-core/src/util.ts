@@ -11,6 +11,10 @@ export function decodeText(buffer: Uint8Array): string {
 }
 
 export function buffersEqual(x: Uint8Array, y: Uint8Array): boolean {
+    if (x.length !== y.length) {
+        return false;
+    }
+
     return compareBuffers(x, y) === 0;
 }
 

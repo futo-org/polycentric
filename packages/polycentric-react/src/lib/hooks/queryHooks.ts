@@ -47,19 +47,16 @@ export function useCRDTQuery<T>(
             const unregister = queryManager.queryCRDT.query(
                 system,
                 contentType,
-                (buffer: Uint8Array) => {
+                (value) => {
                     if (cancelContext.cancelled()) {
                         return;
                     }
 
-                    setState(parse(buffer));
-                },
-                () => {
-                    if (cancelContext.cancelled()) {
-                        return;
+                    if (value.value) {
+                        setState(parse(value.value));
+                    } else {
+                        setState(null);
                     }
-
-                    setState(null);
                 },
             );
 
@@ -198,12 +195,16 @@ export function useBlobQuery<T>(
                 system,
                 process,
                 range,
-                (buffer: Uint8Array) => {
+                (buffer: Uint8Array | undefined) => {
                     if (cancelContext.cancelled()) {
                         return;
                     }
 
-                    setState(parse(buffer));
+                    if (buffer) {
+                        setState(parse(buffer));
+                    } else {
+                        setState(undefined);
+                    }
                 },
             );
 

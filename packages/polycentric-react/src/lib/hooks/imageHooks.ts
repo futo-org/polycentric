@@ -102,16 +102,17 @@ const observableAvatar = (
     system: Readonly<Models.PublicKey.PublicKey>,
     size: keyof typeof avatarResolutions = 'lg',
 ): RXJS.Observable<string> => {
-    return Queries.QueryCRDT.observableQuery(
+    return Queries.QueryCRDT.queryCRDTObservable(
         queryManager.queryCRDT,
         system,
         Models.ContentType.ContentTypeAvatar,
     )
         .pipe(
-            RXJS.switchMap((rawImageBundle) => {
-                if (rawImageBundle) {
-                    const imageBundle =
-                        Protocol.ImageBundle.decode(rawImageBundle);
+            RXJS.switchMap((crdtState) => {
+                if (crdtState.value) {
+                    const imageBundle = Protocol.ImageBundle.decode(
+                        crdtState.value,
+                    );
                     const resolution = Long.fromNumber(avatarResolutions[size]);
                     const manifest = imageBundle.imageManifests.find(
                         (manifest) => {
@@ -130,18 +131,22 @@ const observableAvatar = (
                         return observableSystemToBlob(system);
                     }
 
-                    return Queries.QueryBlob.observableQuery(
+                    return Queries.QueryBlob.queryBlobObservable(
                         queryManager.queryBlob,
                         system,
                         Models.Process.fromProto(manifest.process),
                         manifest.sections,
                     ).pipe(
                         RXJS.switchMap((buffer) => {
-                            return RXJS.of(
-                                new Blob([buffer], {
-                                    type: manifest.mime,
-                                }),
-                            );
+                            if (buffer) {
+                                return RXJS.of(
+                                    new Blob([buffer], {
+                                        type: manifest.mime,
+                                    }),
+                                );
+                            } else {
+                                return observableSystemToBlob(system);
+                            }
                         }),
                     );
                 } else {

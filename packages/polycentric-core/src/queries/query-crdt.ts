@@ -1,65 +1,142 @@
 import Long from 'long';
 import * as RXJS from 'rxjs';
 
-import * as APIMethods from '../api-methods';
 import * as Models from '../models';
-import * as ProcessHandle from '../process-handle';
-import * as Synchronization from '../synchronization';
-import * as Shared from './shared';
 import * as Util from '../util';
-import { HasUpdate } from './has-update';
+import * as QueryHead from './query-head';
+import { UnregisterCallback, DuplicatedCallbackError } from './shared';
+import { Box, OnceFlag } from '../util';
+import { QueryLatest, queryLatestObservable } from './query-latest';
 
-export type SuccessCallback = (value: Uint8Array) => void;
-export type NotYetFoundCallback = () => void;
+export type CallbackValue = {
+    readonly missingData: boolean;
+    readonly value: Uint8Array | undefined;
+};
+
+function callbackValuesEqual(a: CallbackValue, b: CallbackValue): boolean {
+    if (a.missingData !== b.missingData) {
+        return false;
+    }
+
+    if (a.value && b.value && !Util.buffersEqual(a.value, b.value)) {
+        return false;
+    }
+
+    if (!!a.value !== !!b.value) {
+        return false;
+    }
+
+    return true;
+}
+
+export type SuccessCallback = (value: CallbackValue) => void;
 
 type StateForCRDT = {
-    value: Uint8Array;
-    unixMilliseconds: Long;
-    readonly successCallbacks: Set<SuccessCallback>;
-    readonly notYetFoundCallbacks: Set<NotYetFoundCallback>;
-    fulfilled: boolean;
+    readonly value: Box<CallbackValue>;
+    readonly callbacks: Set<SuccessCallback>;
+    readonly fulfilled: OnceFlag;
+    readonly unsubscribe: () => void;
 };
 
 type StateForSystem = {
     readonly state: Map<Models.ContentType.ContentTypeString, StateForCRDT>;
 };
 
-export class QueryManager extends HasUpdate {
-    private readonly _processHandle: ProcessHandle.ProcessHandle;
-    private readonly _state: Map<
+function computeCRDTValue(
+    head: QueryHead.CallbackValue,
+    latestEvents: ReadonlyMap<
+        Models.Process.ProcessString,
+        Models.SignedEvent.SignedEvent
+    >,
+    contentType: Models.ContentType.ContentType,
+): CallbackValue {
+    const signedEvents = Array.from(latestEvents.values());
+
+    const events = signedEvents
+        .filter(
+            (signedEvent): signedEvent is Models.SignedEvent.SignedEvent =>
+                !!signedEvent,
+        )
+        .map((signedEvent) => Models.Event.fromBuffer(signedEvent.event))
+        .filter((event) => event.contentType.equals(contentType));
+
+    let latestTime: Long = Long.UZERO;
+    let result: Uint8Array | undefined = undefined;
+    let missingData = false;
+
+    for (const event of events) {
+        const headSignedEvent = head.head.get(
+            Models.Process.toString(event.process),
+        );
+
+        if (headSignedEvent) {
+            const headEvent = Models.Event.fromBuffer(headSignedEvent.event);
+
+            if (headEvent.contentType.notEquals(contentType)) {
+                const index = Models.Event.lookupIndex(headEvent, contentType);
+
+                if (index && index.notEquals(event.logicalClock)) {
+                    missingData = true;
+                }
+            }
+        }
+
+        if (event.unixMilliseconds && event.lwwElement) {
+            if (event.unixMilliseconds.greaterThanOrEqual(latestTime)) {
+                latestTime = event.unixMilliseconds;
+                result = event.lwwElement.value;
+            }
+        }
+    }
+
+    return {
+        missingData: missingData || head.missingData,
+        value: result,
+    };
+}
+
+export class QueryCRDT {
+    private readonly state: Map<
         Models.PublicKey.PublicKeyString,
         StateForSystem
     >;
-    private _useDisk: boolean;
-    private _useNetwork: boolean;
+    private readonly queryHead: QueryHead.QueryHead;
+    private readonly queryLatest: QueryLatest;
 
-    constructor(processHandle: ProcessHandle.ProcessHandle) {
-        super();
-
-        this._processHandle = processHandle;
-        this._state = new Map();
-        this._useDisk = true;
-        this._useNetwork = true;
+    constructor(queryHead: QueryHead.QueryHead, queryLatest: QueryLatest) {
+        this.state = new Map();
+        this.queryHead = queryHead;
+        this.queryLatest = queryLatest;
     }
 
-    public useDisk(useDisk: boolean): void {
-        this._useDisk = useDisk;
+    public get clean(): boolean {
+        return this.state.size === 0;
     }
 
-    public useNetwork(useNetwork: boolean): void {
-        this._useNetwork = useNetwork;
+    private pipeline(
+        system: Models.PublicKey.PublicKey,
+        contentType: Models.ContentType.ContentType,
+    ): RXJS.Observable<CallbackValue> {
+        return RXJS.combineLatest(
+            QueryHead.queryHeadObservable(this.queryHead, system),
+            queryLatestObservable(this.queryLatest, system, contentType),
+        ).pipe(
+            RXJS.switchMap(([head, latest]) =>
+                RXJS.of(computeCRDTValue(head, latest, contentType)),
+            ),
+            RXJS.distinctUntilChanged(callbackValuesEqual),
+        );
     }
 
     public query(
         system: Models.PublicKey.PublicKey,
         contentType: Models.ContentType.ContentType,
-        successCallback: SuccessCallback,
-        notYetFoundCallback?: NotYetFoundCallback,
-    ): Shared.UnregisterCallback {
+        callback: SuccessCallback,
+    ): UnregisterCallback {
         const systemString = Models.PublicKey.toString(system);
 
         const stateForSystem: StateForSystem = Util.lookupWithInitial(
-            this._state,
+            this.state,
             systemString,
             () => {
                 return {
@@ -68,199 +145,78 @@ export class QueryManager extends HasUpdate {
             },
         );
 
+        const contentTypeString = Models.ContentType.toString(contentType);
+
+        let initial = false;
+
         const stateForCRDT: StateForCRDT = Util.lookupWithInitial(
             stateForSystem.state,
-            Models.ContentType.toString(contentType),
+            contentTypeString,
             () => {
+                initial = true;
+
+                const value = new Box<CallbackValue>({
+                    missingData: true,
+                    value: undefined,
+                });
+
+                const fulfilled = new OnceFlag();
+                const callbacks = new Set([callback]);
+
+                const subscription = this.pipeline(
+                    system,
+                    contentType,
+                ).subscribe((updatedValue) => {
+                    value.value = updatedValue;
+                    fulfilled.set();
+                    callbacks.forEach((cb) => cb(value.value));
+                });
+
                 return {
-                    value: new Uint8Array(),
-                    unixMilliseconds: Long.UZERO,
-                    successCallbacks: new Set(),
-                    notYetFoundCallbacks: new Set(),
-                    fulfilled: false,
+                    value: value,
+                    callbacks: callbacks,
+                    fulfilled: fulfilled,
+                    unsubscribe: subscription.unsubscribe.bind(subscription),
                 };
             },
         );
 
-        stateForCRDT.successCallbacks.add(successCallback);
-        if (notYetFoundCallback) {
-            stateForCRDT.notYetFoundCallbacks.add(notYetFoundCallback);
-        }
-
-        if (stateForCRDT.fulfilled === true) {
-            successCallback(stateForCRDT.value);
-        } else {
-            let networkLoadPromise: Promise<void> | undefined;
-            if (this._useNetwork === true) {
-                networkLoadPromise = this.loadFromNetwork(system, contentType);
+        if (!initial) {
+            if (stateForCRDT.callbacks.has(callback)) {
+                throw DuplicatedCallbackError;
             }
 
-            let diskLoadPromise: Promise<void> | undefined;
-            if (this._useDisk === true) {
-                diskLoadPromise = this.loadFromDisk(system);
-            }
+            stateForCRDT.callbacks.add(callback);
 
-            Promise.allSettled([networkLoadPromise, diskLoadPromise]).then(
-                () => {
-                    if (stateForCRDT.fulfilled === false) {
-                        stateForCRDT.notYetFoundCallbacks.forEach(
-                            (callback) => {
-                                callback();
-                            },
-                        );
-                    }
-                },
-            );
+            if (stateForCRDT.fulfilled.value) {
+                callback(stateForCRDT.value.value);
+            }
         }
 
         return () => {
-            stateForCRDT.successCallbacks.delete(successCallback);
+            stateForCRDT.callbacks.delete(callback);
 
-            let found = false;
+            if (stateForCRDT.callbacks.size === 0) {
+                stateForCRDT.unsubscribe();
 
-            for (const query of stateForSystem.state.values()) {
-                if (query.successCallbacks.size !== 0) {
-                    found = true;
+                stateForSystem.state.delete(contentTypeString);
 
-                    break;
+                if (stateForSystem.state.size === 0) {
+                    this.state.delete(systemString);
                 }
-            }
-
-            if (found === false) {
-                this._state.delete(systemString);
             }
         };
     }
-
-    private async loadFromDisk(
-        system: Models.PublicKey.PublicKey,
-    ): Promise<void> {
-        const systemStateStore = await this._processHandle
-            .store()
-            .indexSystemStates.getSystemState(system);
-
-        const stateForSystem = this._state.get(
-            Models.PublicKey.toString(system),
-        );
-
-        if (stateForSystem === undefined) {
-            return;
-        }
-
-        for (const item of systemStateStore.crdtItems) {
-            const stateForCRDT: StateForCRDT = Util.lookupWithInitial(
-                stateForSystem.state,
-                Models.ContentType.toString(
-                    item.contentType as Models.ContentType.ContentType,
-                ),
-                () => {
-                    return {
-                        value: item.value,
-                        unixMilliseconds: item.unixMilliseconds,
-                        successCallbacks: new Set(),
-                        notYetFoundCallbacks: new Set(),
-                        fulfilled: true,
-                    };
-                },
-            );
-
-            if (stateForCRDT.unixMilliseconds >= item.unixMilliseconds) {
-                continue;
-            }
-
-            stateForCRDT.value = item.value;
-            stateForCRDT.unixMilliseconds = item.unixMilliseconds;
-            stateForCRDT.fulfilled = true;
-
-            stateForCRDT.successCallbacks.forEach((callback) => {
-                callback(stateForCRDT.value);
-            });
-        }
-    }
-
-    private async loadFromNetwork(
-        system: Models.PublicKey.PublicKey,
-        contentType: Models.ContentType.ContentType,
-    ): Promise<void> {
-        const systemState = await this._processHandle.loadSystemState(system);
-
-        const loadPromises = systemState.servers().map((server) =>
-            this.loadFromNetworkSpecific(system, contentType, server).catch(
-                (err) => {
-                    console.error(err);
-                },
-            ),
-        );
-        await Promise.allSettled(loadPromises);
-    }
-
-    private async loadFromNetworkSpecific(
-        system: Models.PublicKey.PublicKey,
-        contentType: Models.ContentType.ContentType,
-        server: string,
-    ): Promise<void> {
-        const events = await APIMethods.getQueryLatest(server, system, [
-            contentType,
-        ]);
-
-        events.events.forEach((x) => this.update(x));
-        Synchronization.saveBatch(this._processHandle, events);
-    }
-
-    public update(signedEvent: Models.SignedEvent.SignedEvent): void {
-        const event = Models.Event.fromBuffer(signedEvent.event);
-
-        if (event.lwwElement === undefined) {
-            return;
-        }
-
-        const stateForSystem = this._state.get(
-            Models.PublicKey.toString(event.system),
-        );
-
-        if (stateForSystem === undefined) {
-            return;
-        }
-
-        const stateForCRDT = stateForSystem.state.get(
-            Models.ContentType.toString(event.contentType),
-        );
-
-        if (stateForCRDT === undefined) {
-            return;
-        }
-
-        if (
-            stateForCRDT.unixMilliseconds >= event.lwwElement.unixMilliseconds
-        ) {
-            return;
-        }
-
-        stateForCRDT.value = event.lwwElement.value;
-        stateForCRDT.unixMilliseconds = event.lwwElement.unixMilliseconds;
-        stateForCRDT.fulfilled = true;
-
-        stateForCRDT.successCallbacks.forEach((callback) => {
-            callback(stateForCRDT.value);
-        });
-    }
 }
 
-export function observableQuery(
-    queryManager: QueryManager,
+export function queryCRDTObservable(
+    queryManager: QueryCRDT,
     system: Models.PublicKey.PublicKey,
     contentType: Models.ContentType.ContentType,
-): RXJS.Observable<Uint8Array | undefined> {
+): RXJS.Observable<CallbackValue> {
     return new RXJS.Observable((subscriber) => {
-        return queryManager.query(
-            system,
-            contentType,
-            (value) => {
-                subscriber.next(value);
-            },
-            () => {
-                subscriber.next(undefined);
-            },
-        );
+        return queryManager.query(system, contentType, (value) => {
+            subscriber.next(value);
+        });
     });
 }

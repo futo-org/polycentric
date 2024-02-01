@@ -1,22 +1,29 @@
 import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
 
-import * as QueryHead from './query-head';
+import { QueryServers } from './query-servers';
+import { QueryHead } from './query-head';
+import { QueryEvent } from './query-event';
+import { QueryBlob } from './query-blob';
+import { QueryLatest } from './query-latest';
+import { QueryCRDT } from './query-crdt';
+
 import * as QueryIndex from './query-index';
-import * as QueryEvent from './query-event';
-import * as QueryCRDT from './query-crdt';
-import * as QueryBlob from './query-blob';
 import * as QueryCRDTSet from './query-crdt-set';
+
 import { HasUpdate } from './has-update';
 
 export class QueryManager extends HasUpdate {
     public readonly processHandle: ProcessHandle.ProcessHandle;
 
-    public readonly queryHead: QueryHead.QueryManager;
+    public readonly queryServers: QueryServers;
+    public readonly queryHead: QueryHead;
+    public readonly queryEvent: QueryEvent;
+    public readonly queryBlob: QueryBlob;
+    public readonly queryLatest: QueryLatest;
+    public readonly queryCRDT: QueryCRDT;
+
     public readonly queryIndex: QueryIndex.QueryManager;
-    public readonly queryEvent: QueryEvent.QueryManager;
-    public readonly queryCRDT: QueryCRDT.QueryManager;
-    public readonly queryBlob: QueryBlob.QueryManager;
     public readonly queryCRDTSet: QueryCRDTSet.QueryManager;
 
     private readonly stages: ReadonlyArray<HasUpdate>;
@@ -26,19 +33,28 @@ export class QueryManager extends HasUpdate {
 
         this.processHandle = processHandle;
 
-        this.queryHead = new QueryHead.QueryManager(processHandle);
+        this.queryServers = new QueryServers(processHandle);
+        this.queryHead = new QueryHead(processHandle, this.queryServers);
+        this.queryEvent = new QueryEvent(
+            processHandle.store().indexEvents,
+            this.queryServers,
+        );
+        this.queryBlob = new QueryBlob(this.queryEvent);
+        this.queryLatest = new QueryLatest(
+            processHandle.store().indexSystemProcessContentTypeLogicalClock,
+            this.queryServers,
+            this.queryHead,
+        );
+        this.queryCRDT = new QueryCRDT(this.queryHead, this.queryLatest);
+
         this.queryIndex = new QueryIndex.QueryManager(processHandle);
-        this.queryEvent = new QueryEvent.QueryManager(processHandle);
-        this.queryCRDT = new QueryCRDT.QueryManager(processHandle);
-        this.queryBlob = new QueryBlob.QueryManager(processHandle);
         this.queryCRDTSet = new QueryCRDTSet.QueryManager(this.queryIndex);
 
         this.stages = [
             this.queryHead,
-            this.queryIndex,
             this.queryEvent,
-            this.queryCRDT,
-            this.queryBlob,
+            this.queryLatest,
+            this.queryIndex,
         ];
     }
 

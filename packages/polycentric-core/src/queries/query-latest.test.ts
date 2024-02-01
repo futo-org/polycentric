@@ -4,7 +4,7 @@ import * as ProcessHandle from '../process-handle';
 import * as Util from '../util';
 import * as Models from '../models';
 import { QueryServers } from './query-servers';
-import { QueryHead } from './query-head2';
+import { QueryHead } from './query-head';
 import { QueryLatest, queryLatestObservable } from './query-latest';
 import { CancelContext } from '../cancel-context';
 

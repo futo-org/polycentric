@@ -1,59 +1,91 @@
-import Long from 'long';
 import * as RXJS from 'rxjs';
 
-import * as APIMethods from '../api-methods';
-import * as ProcessHandle from '../process-handle';
-import * as Models from '../models';
-import * as Shared from './shared';
+import { QueryEvent, queryEventObservable } from './query-event';
+import { UnregisterCallback, DuplicatedCallbackError } from './shared';
 import * as Ranges from '../ranges';
+import * as Models from '../models';
 import * as Util from '../util';
-import { HasUpdate } from './has-update';
+import { OnceFlag, Box } from '../util';
 
-export type Callback = (buffer: Uint8Array) => void;
-
-type StateForQuery = {
-    readonly system: Readonly<Models.PublicKey.PublicKey>;
-    readonly process: Readonly<Models.Process.Process>;
-    readonly wantRanges: ReadonlyArray<Ranges.IRange>;
-    readonly haveRanges: Array<Ranges.IRange>;
-    readonly events: Array<Models.Event.Event>;
-    readonly callbacks: Set<Callback>;
-    value: Uint8Array | undefined;
+export type StateKey = Readonly<string> & {
+    readonly __tag: unique symbol;
 };
 
-function makeKey(
+function makeStateKey(
     system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
     ranges: ReadonlyArray<Ranges.IRange>,
-): string {
-    return (
-        Models.PublicKey.toString(system) +
+): StateKey {
+    return (Models.PublicKey.toString(system) +
+        '_' +
         Models.Process.toString(process) +
-        Ranges.toString(ranges)
-    );
+        '_' +
+        Ranges.toString(ranges)) as StateKey;
 }
 
-export class QueryManager extends HasUpdate {
-    private readonly _processHandle: ProcessHandle.ProcessHandle;
-    private readonly _state: Map<string, StateForQuery>;
-    private _useDisk: boolean;
-    private _useNetwork: boolean;
+export type Callback = (buffer: Uint8Array | undefined) => void;
 
-    constructor(processHandle: ProcessHandle.ProcessHandle) {
-        super();
+type StateForQuery = {
+    readonly value: Box<Uint8Array | undefined>;
+    readonly callbacks: Set<Callback>;
+    readonly fulfilled: OnceFlag;
+    readonly unsubscribe: () => void;
+};
 
-        this._processHandle = processHandle;
-        this._state = new Map();
-        this._useDisk = true;
-        this._useNetwork = true;
+export class QueryBlob {
+    private readonly queryEvent: QueryEvent;
+    private readonly state: Map<StateKey, StateForQuery>;
+
+    constructor(queryEvent: QueryEvent) {
+        this.queryEvent = queryEvent;
+        this.state = new Map();
     }
 
-    public useDisk(useDisk: boolean): void {
-        this._useDisk = useDisk;
+    public get clean(): boolean {
+        return this.state.size === 0;
     }
 
-    public useNetwork(useNetwork: boolean): void {
-        this._useNetwork = useNetwork;
+    private pipeline(
+        system: Models.PublicKey.PublicKey,
+        process: Models.Process.Process,
+        ranges: ReadonlyArray<Ranges.IRange>,
+    ): RXJS.Observable<Uint8Array | undefined> {
+        return RXJS.combineLatest(
+            Ranges.toArray(ranges).map((logicalClock) =>
+                queryEventObservable(
+                    this.queryEvent,
+                    system,
+                    process,
+                    logicalClock,
+                ),
+            ),
+        ).pipe(
+            RXJS.switchMap((signedEvents) => {
+                const events = signedEvents.map((signedEvent) => {
+                    return Models.Event.fromBuffer(signedEvent.event);
+                });
+
+                if (
+                    events.some((event) =>
+                        event.contentType.equals(
+                            Models.ContentType.ContentTypeDelete,
+                        ),
+                    )
+                ) {
+                    return RXJS.of(undefined);
+                } else {
+                    return RXJS.of(
+                        Util.concatBuffers(
+                            events
+                                .sort((a, b) =>
+                                    a.logicalClock.compare(b.logicalClock),
+                                )
+                                .map((event) => event.content),
+                        ),
+                    );
+                }
+            }),
+        );
     }
 
     public query(
@@ -61,36 +93,49 @@ export class QueryManager extends HasUpdate {
         process: Models.Process.Process,
         ranges: ReadonlyArray<Ranges.IRange>,
         callback: Callback,
-    ): Shared.UnregisterCallback {
-        const key = makeKey(system, process, ranges);
+    ): UnregisterCallback {
+        const stateKey = makeStateKey(system, process, ranges);
+
+        let initial = false;
 
         const stateForQuery: StateForQuery = Util.lookupWithInitial(
-            this._state,
-            key,
+            this.state,
+            stateKey,
             () => {
+                initial = true;
+
+                const value = new Box<Uint8Array | undefined>(undefined);
+                const fulfilled = new OnceFlag();
+                const callbacks = new Set([callback]);
+
+                const subscription = this.pipeline(
+                    system,
+                    process,
+                    ranges,
+                ).subscribe((latestValue) => {
+                    fulfilled.set();
+                    value.value = latestValue;
+                    callbacks.forEach((cb) => cb(latestValue));
+                });
+
                 return {
-                    system: system,
-                    process: process,
-                    wantRanges: ranges,
-                    haveRanges: [],
-                    events: [],
-                    callbacks: new Set(),
-                    value: undefined,
+                    value: value,
+                    callbacks: callbacks,
+                    fulfilled: fulfilled,
+                    unsubscribe: subscription.unsubscribe.bind(subscription),
                 };
             },
         );
 
-        stateForQuery.callbacks.add(callback);
-
-        if (stateForQuery.value !== undefined) {
-            callback(stateForQuery.value);
-        } else {
-            if (this._useNetwork === true) {
-                this.loadFromNetwork(stateForQuery);
+        if (!initial) {
+            if (stateForQuery.callbacks.has(callback)) {
+                throw DuplicatedCallbackError;
             }
 
-            if (this._useDisk === true) {
-                this.loadFromDisk(stateForQuery);
+            stateForQuery.callbacks.add(callback);
+
+            if (stateForQuery.fulfilled.value) {
+                callback(stateForQuery.value.value);
             }
         }
 
@@ -98,125 +143,20 @@ export class QueryManager extends HasUpdate {
             stateForQuery.callbacks.delete(callback);
 
             if (stateForQuery.callbacks.size === 0) {
-                this._state.delete(key);
+                stateForQuery.unsubscribe();
+
+                this.state.delete(stateKey);
             }
         };
     }
-
-    private async loadFromDisk(stateForQuery: StateForQuery): Promise<void> {
-        const needRanges = Ranges.subtractRange(
-            stateForQuery.wantRanges,
-            stateForQuery.haveRanges,
-        );
-
-        for (const range of needRanges) {
-            for (
-                let i = range.low;
-                i.lessThanOrEqual(range.high);
-                i = i.add(Long.UONE)
-            ) {
-                const signedEvent = await this._processHandle
-                    .store()
-                    .indexEvents.getSignedEvent(
-                        stateForQuery.system,
-                        stateForQuery.process,
-                        i,
-                    );
-
-                if (signedEvent !== undefined) {
-                    this.update(signedEvent);
-                }
-            }
-        }
-    }
-
-    private async loadFromNetwork(stateForQuery: StateForQuery): Promise<void> {
-        const systemState = await this._processHandle.loadSystemState(
-            stateForQuery.system,
-        );
-
-        for (const server of systemState.servers()) {
-            try {
-                this.loadFromNetworkSpecific(server, stateForQuery);
-            } catch (err) {
-                console.log(err);
-            }
-        }
-    }
-
-    private async loadFromNetworkSpecific(
-        server: string,
-        stateForQuery: StateForQuery,
-    ): Promise<void> {
-        const needRanges = Ranges.subtractRange(
-            stateForQuery.wantRanges,
-            stateForQuery.haveRanges,
-        );
-
-        const events = await APIMethods.getEvents(
-            server,
-            stateForQuery.system,
-            {
-                rangesForProcesses: [
-                    {
-                        process: stateForQuery.process,
-                        ranges: needRanges,
-                    },
-                ],
-            },
-        );
-
-        events.events.forEach((x) => this.update(x));
-    }
-
-    public update(signedEvent: Models.SignedEvent.SignedEvent): void {
-        const event = Models.Event.fromBuffer(signedEvent.event);
-
-        for (const stateForQuery of this._state.values()) {
-            if (
-                !Models.PublicKey.equal(event.system, stateForQuery.system) ||
-                !Models.Process.equal(event.process, stateForQuery.process) ||
-                !Ranges.contains(stateForQuery.wantRanges, event.logicalClock)
-            ) {
-                continue;
-            }
-
-            if (
-                !Ranges.contains(stateForQuery.haveRanges, event.logicalClock)
-            ) {
-                Ranges.insert(stateForQuery.haveRanges, event.logicalClock);
-
-                stateForQuery.events.push(event);
-            }
-
-            if (
-                Ranges.subtractRange(
-                    stateForQuery.wantRanges,
-                    stateForQuery.haveRanges,
-                ).length === 0
-            ) {
-                stateForQuery.events.sort((a, b) => {
-                    return a.logicalClock.compare(b.logicalClock);
-                });
-
-                stateForQuery.value = Util.concatBuffers(
-                    stateForQuery.events.map((x) => x.content),
-                );
-
-                for (const callback of stateForQuery.callbacks) {
-                    callback(stateForQuery.value);
-                }
-            }
-        }
-    }
 }
 
-export function observableQuery(
-    queryManager: QueryManager,
+export function queryBlobObservable(
+    queryManager: QueryBlob,
     system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
     ranges: ReadonlyArray<Ranges.IRange>,
-): RXJS.Observable<Uint8Array> {
+): RXJS.Observable<Uint8Array | undefined> {
     return new RXJS.Observable((subscriber) => {
         return queryManager.query(system, process, ranges, (value) => {
             subscriber.next(value);

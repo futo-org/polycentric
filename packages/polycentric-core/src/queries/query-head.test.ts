@@ -1,114 +1,134 @@
-/* eslint jest/no-conditional-expect: 0 */
-
-import Long from 'long';
+import * as RXJS from 'rxjs';
 
 import * as ProcessHandle from '../process-handle';
+import * as Util from '../util';
 import * as Models from '../models';
-import * as QueryHead from './query-head';
+import { queryHeadObservable, QueryHead } from './query-head';
+import { QueryServers } from './query-servers';
+import { CancelContext } from '../cancel-context';
 
-const TEST_SERVER = 'http://127.0.0.1:8081';
+enum SharedTestMode {
+    NetworkOnly,
+    DiskOnly,
+    CacheOnly,
+}
 
-describe('head', () => {
-    test('non existant', async () => {
-        const s1p1 = await ProcessHandle.createTestProcessHandle();
+async function sharedTestCase(mode: SharedTestMode): Promise<void> {
+    const s1p1 = await ProcessHandle.createTestProcessHandle();
+    s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
 
-        const queryManager = new QueryHead.QueryManager(s1p1);
+    const queryServers = new QueryServers(s1p1);
+    const queryHead = new QueryHead(s1p1, queryServers);
+    queryHead.shouldUseNetwork(false);
+    queryHead.shouldUseDisk(false);
 
-        s1p1.setListener((event) => queryManager.update(event));
+    if (mode === SharedTestMode.NetworkOnly) {
+        queryHead.shouldUseNetwork(true);
+    } else if (mode === SharedTestMode.DiskOnly) {
+        queryHead.shouldUseDisk(true);
+    }
 
-        const unregister = queryManager.query(s1p1.system(), () => {
-            throw Error('unexpected');
-        });
+    const contextHold =
+        mode === SharedTestMode.CacheOnly ? new CancelContext() : undefined;
 
-        unregister();
-    });
+    if (mode === SharedTestMode.CacheOnly) {
+        s1p1.setListener((event) =>
+            queryHead.updateWithContextHold(event, contextHold),
+        );
+    }
 
-    test('update during query', async () => {
-        const s1p1 = await ProcessHandle.createTestProcessHandle();
+    const pointer = await s1p1.post('hello');
 
-        const s1p1ProcessString = Models.Process.toString(
-            s1p1.processSecret().process,
+    if (mode === SharedTestMode.NetworkOnly) {
+        await ProcessHandle.fullSync(s1p1);
+    }
+
+    let wasInstant = false;
+    const observable = RXJS.firstValueFrom(
+        queryHeadObservable(queryHead, pointer.system).pipe(
+            RXJS.switchMap((head) => {
+                wasInstant = true;
+                return RXJS.of(head);
+            }),
+        ),
+    );
+
+    expect(wasInstant).toStrictEqual(mode === SharedTestMode.CacheOnly);
+
+    const result = Util.mapOverMap(
+        (await observable).head,
+        Models.signedEventToPointer,
+    );
+
+    if (contextHold) {
+        expect(queryHead.clean).toStrictEqual(false);
+        contextHold.cancel();
+    }
+
+    const expected = new Map([
+        [Models.Process.toString(pointer.process), pointer],
+    ]);
+
+    expect(
+        Util.areMapsEqual(result, expected, Models.Pointer.equal),
+    ).toStrictEqual(true);
+
+    expect(queryHead.clean).toStrictEqual(true);
+
+    if (mode !== SharedTestMode.CacheOnly) {
+        const dualQueryResult = await RXJS.firstValueFrom(
+            RXJS.combineLatest(
+                queryHeadObservable(queryHead, s1p1.system()),
+                queryHeadObservable(queryHead, s1p1.system()),
+            ),
         );
 
-        const queryManager = new QueryHead.QueryManager(s1p1);
+        expect(dualQueryResult[0] === dualQueryResult[1]).toStrictEqual(true);
 
-        s1p1.setListener((event) => queryManager.update(event));
+        expect(queryHead.clean).toStrictEqual(true);
+    }
 
-        let stage = 0;
-        const unregisterQ1 = queryManager.query(s1p1.system(), (value) => {
-            if (stage === 0) {
-                expect(value).toStrictEqual(
-                    new Map(
-                        Object.entries({
-                            [s1p1ProcessString]: Long.fromNumber(1, true),
-                        }),
-                    ),
-                );
-            } else if (stage === 1) {
-                expect(value).toStrictEqual(
-                    new Map(
-                        Object.entries({
-                            [s1p1ProcessString]: Long.fromNumber(2, true),
-                        }),
-                    ),
-                );
-            } else {
-                throw Error('unexpected');
-            }
+    queryHeadObservable(queryHead, s1p1.system()).subscribe().unsubscribe();
 
-            stage++;
-        });
+    expect(queryHead.clean).toStrictEqual(true);
+}
 
-        await s1p1.setUsername('tolkien');
-        await s1p1.setUsername('defoe');
-
-        // cached results test
-        const unregisterQ2 = queryManager.query(s1p1.system(), (value) => {
-            expect(value).toStrictEqual(
-                new Map(
-                    Object.entries({
-                        [s1p1ProcessString]: Long.fromNumber(2, true),
-                    }),
-                ),
-            );
-
-            stage++;
-        });
-
-        unregisterQ1();
-        unregisterQ2();
-
-        expect(stage).toStrictEqual(3);
+describe('query head2', () => {
+    test('hit disk', async () => {
+        await sharedTestCase(SharedTestMode.DiskOnly);
     });
 
     test('hit network', async () => {
+        await sharedTestCase(SharedTestMode.NetworkOnly);
+    });
+
+    test('context hold', async () => {
+        await sharedTestCase(SharedTestMode.CacheOnly);
+    });
+
+    test('no data', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
-        const queryManager = new QueryHead.QueryManager(s1p1);
-        s1p1.setListener((event) => queryManager.update(event));
 
-        const s2p1 = await ProcessHandle.createTestProcessHandle();
-        await s2p1.addServer(TEST_SERVER);
-        await s2p1.setUsername('heinlein');
-        await ProcessHandle.fullSync(s2p1);
+        const queryServers = new QueryServers(s1p1);
+        const queryHead = new QueryHead(s1p1, queryServers);
+        queryHead.shouldUseNetwork(false);
 
-        const s2p1ProcessString = Models.Process.toString(
-            s2p1.processSecret().process,
+        const result = await RXJS.firstValueFrom(
+            queryHeadObservable(queryHead, s1p1.system()),
         );
 
-        s1p1.addAddressHint(s2p1.system(), TEST_SERVER);
+        expect(queryHead.clean).toStrictEqual(true);
+        expect(result.head.size).toStrictEqual(0);
 
-        await new Promise<void>((resolve) => {
-            queryManager.query(s2p1.system(), (value) => {
-                expect(value).toStrictEqual(
-                    new Map(
-                        Object.entries({
-                            [s2p1ProcessString]: Long.fromNumber(2, true),
-                        }),
-                    ),
-                );
+        const dualQueryResult = await RXJS.firstValueFrom(
+            RXJS.combineLatest(
+                queryHeadObservable(queryHead, s1p1.system()),
+                queryHeadObservable(queryHead, s1p1.system()),
+            ),
+        );
 
-                resolve();
-            });
-        });
+        expect(dualQueryResult[0] === dualQueryResult[1]).toStrictEqual(true);
+
+        expect(queryHead.clean).toStrictEqual(true);
     });
 });
