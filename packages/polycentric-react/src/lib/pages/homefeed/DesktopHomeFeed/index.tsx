@@ -5,12 +5,15 @@ import { useExploreFeed } from '../../../hooks/feedHooks';
 
 export const DesktopHomeFeed = () => {
     const [data, advanceFeed] = useExploreFeed();
-    const composeComponent = useMemo(() => <PostCompose />, []);
+    const composeComponent = useMemo(
+        () => <PostCompose key="topfeedcompose" />,
+        [],
+    );
     return (
         <InfiniteScrollWithRightCol
             data={data}
             advanceFeed={advanceFeed}
-            leftCol={undefined}
+            rightCol={<div />}
             topFeedComponent={composeComponent}
         />
     );

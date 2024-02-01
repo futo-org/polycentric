@@ -12,7 +12,7 @@ const ValidSearchFeed = ({ checkedQuery }: { checkedQuery: string }) => {
         <InfiniteScrollWithRightCol
             data={data}
             advanceFeed={advanceFeed}
-            leftCol={<div></div>}
+            rightCol={<div></div>}
         />
     );
 };
@@ -22,7 +22,7 @@ const InvalidSearchFeed = () => {
         <InfiniteScrollWithRightCol
             data={[]}
             advanceFeed={() => {}}
-            leftCol={<div></div>}
+            rightCol={<div></div>}
         />
     );
 };

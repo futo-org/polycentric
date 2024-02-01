@@ -4,10 +4,10 @@ import { SearchBox } from '../../search/searchbox';
 
 export const RightCol = ({
     children,
-    leftCol,
+    rightCol,
     desktopTitle,
 }: {
-    leftCol: ReactNode;
+    rightCol: ReactNode;
     children: ReactNode;
     desktopTitle?: string;
 }) => {
@@ -29,7 +29,7 @@ export const RightCol = ({
                             <div className="p-5 pb-10">
                                 <SearchBox />
                             </div>
-                            {leftCol}
+                            {rightCol}
                         </div>
                         <div className="p-5 w-full text-right text-gray-400 text-sm">
                             <a

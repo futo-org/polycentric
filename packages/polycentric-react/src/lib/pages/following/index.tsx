@@ -1,3 +1,4 @@
+import { IonContent } from '@ionic/react';
 import { useMemo } from 'react';
 import { PostCompose } from '../../components/feed/Compose/PostCompose';
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol';
@@ -5,14 +6,19 @@ import { useFollowingFeed } from '../../hooks/feedHooks';
 
 export const FollowingFeed = () => {
     const [data, advanceFeed] = useFollowingFeed();
-    const composeComponent = useMemo(() => <PostCompose />, []);
+    const composeComponent = useMemo(
+        () => <PostCompose key="topfeedcompose" />,
+        [],
+    );
     return (
-        <InfiniteScrollWithRightCol
-            data={data}
-            advanceFeed={advanceFeed}
-            leftCol={undefined}
-            topFeedComponent={composeComponent}
-            bottomPadding={false}
-        />
+        <IonContent>
+            <InfiniteScrollWithRightCol
+                data={data}
+                advanceFeed={advanceFeed}
+                rightCol={undefined}
+                topFeedComponent={composeComponent}
+                bottomPadding={false}
+            />
+        </IonContent>
     );
 };
