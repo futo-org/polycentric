@@ -104,7 +104,7 @@ export const TopicFeedPage: Page = () => {
                     advanceFeed={advanceComments}
                     topFeedComponent={topComponent}
                     topFeedComponentSticky={isMobile}
-                    leftCol={<div />}
+                    rightCol={<div />}
                 />
             </IonContent>
         </>

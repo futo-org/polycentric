@@ -13,7 +13,7 @@ export const DesktopHomeFeed = () => {
         <InfiniteScrollWithRightCol
             data={data}
             advanceFeed={advanceFeed}
-            leftCol={<div />}
+            rightCol={<div />}
             topFeedComponent={composeComponent}
         />
     );

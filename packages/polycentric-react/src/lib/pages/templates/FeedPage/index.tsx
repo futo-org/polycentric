@@ -5,17 +5,17 @@ import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks';
 export const FeedPage = ({
     data,
     advanceFeed,
-    leftCol,
+    rightCol,
 }: {
     data: FeedHookData;
     advanceFeed: FeedHookAdvanceFn;
-    leftCol: ReactElement;
+    rightCol: ReactElement;
 }) => {
     return (
         <InfiniteScrollWithRightCol
             data={data}
             advanceFeed={advanceFeed}
-            leftCol={leftCol}
+            rightCol={rightCol}
         />
     );
 };

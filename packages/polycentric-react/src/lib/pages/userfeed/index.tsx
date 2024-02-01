@@ -63,7 +63,7 @@ export const UserFeedPage: Page = () => {
                 <InfiniteScrollWithRightCol
                     data={data}
                     advanceFeed={advanceFeed}
-                    leftCol={column}
+                    rightCol={column}
                     topFeedComponent={topComponent}
                 />
             </IonContent>

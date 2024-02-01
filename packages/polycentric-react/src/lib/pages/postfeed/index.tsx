@@ -46,7 +46,7 @@ export const PostFeedPage: Page = () => {
                     data={comments}
                     advanceFeed={advanceComments}
                     prependCount={prependCount}
-                    leftCol={column}
+                    rightCol={column}
                     topFeedComponent={undefined}
                 />
             </IonContent>

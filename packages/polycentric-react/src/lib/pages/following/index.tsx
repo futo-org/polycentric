@@ -15,7 +15,7 @@ export const FollowingFeed = () => {
             <InfiniteScrollWithRightCol
                 data={data}
                 advanceFeed={advanceFeed}
-                leftCol={undefined}
+                rightCol={undefined}
                 topFeedComponent={composeComponent}
                 bottomPadding={false}
             />

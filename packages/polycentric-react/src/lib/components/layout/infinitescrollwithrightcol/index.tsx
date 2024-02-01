@@ -17,7 +17,7 @@ import { useIsMobile } from '../../../hooks/styleHooks';
 import { Post } from '../../feed';
 import { SearchBox } from '../../search/searchbox';
 
-const LeftCol = ({
+const RightCol = ({
     children,
     verticalIpadExpanded,
 }: {
@@ -63,7 +63,7 @@ const LeftCol = ({
 export const InfiniteScrollWithRightCol = ({
     data,
     advanceFeed,
-    leftCol,
+    rightCol,
     topFeedComponent,
     topFeedComponentSticky = false,
     prependCount,
@@ -71,7 +71,7 @@ export const InfiniteScrollWithRightCol = ({
 }: {
     data: FeedHookData;
     advanceFeed: FeedHookAdvanceFn;
-    leftCol?: ReactElement;
+    rightCol?: ReactElement;
     topFeedComponent?: ReactElement;
     topFeedComponentSticky?: boolean;
     prependCount?: number;
@@ -207,12 +207,12 @@ export const InfiniteScrollWithRightCol = ({
                     >
                         <Bars3Icon className="w-6 h-6 text-gray-600" />
                     </button>
-                    <LeftCol
+                    <RightCol
                         verticalIpadExpanded={verticalIpadExpanded}
-                        key="leftcol"
+                        key="rightcol"
                     >
-                        {leftCol}
-                    </LeftCol>
+                        {rightCol}
+                    </RightCol>
                 </>
             )}
         </div>

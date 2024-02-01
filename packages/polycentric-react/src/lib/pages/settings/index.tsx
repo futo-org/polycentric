@@ -12,7 +12,7 @@ export const SettingsPage: Page = () => {
             <Header canHaveBackButton={false}>Settings</Header>
 
             <IonContent>
-                <RightCol leftCol={<div />} desktopTitle="Settings">
+                <RightCol rightCol={<div />} desktopTitle="Settings">
                     <div className="p-5 md:p-10 flex flex-col space-y-6 text-sm">
                         <div className="flex flex-col space-y-3">
                             <h2 className="font-medium">Edit Servers</h2>
