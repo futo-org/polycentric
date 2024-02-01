@@ -1,3 +1,5 @@
+import * as RXJS from 'rxjs';
+
 const textEncoder = new TextEncoder();
 
 export function encodeText(text: string): Uint8Array {
@@ -152,6 +154,36 @@ export function areMapsEqual<Key, Value>(
     return true;
 }
 
+export function areSetsEqual<Value>(
+    a: ReadonlySet<Value>,
+    b: ReadonlySet<Value>,
+    equal: (a: Value, b: Value) => boolean,
+): boolean {
+    if (a.size !== b.size) {
+        return false;
+    }
+
+    const bAsArray = Array.from(b);
+
+    for (const x of a.values()) {
+        let found = false;
+
+        for (const y of bAsArray) {
+            if (equal(x, y)) {
+                found = true;
+
+                break;
+            }
+        }
+
+        if (!found) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 export function mapOverMap<Key, ValueA, ValueB>(
     collection: ReadonlyMap<Key, ValueA>,
     operation: (value: ValueA) => ValueB,
@@ -172,4 +204,16 @@ export function mapToArray<Key, ValueT1, ValueT2>(
     const result: Array<ValueT2> = [];
     map.forEach((value) => result.push(operation(value)));
     return result;
+}
+
+export function filterUndefined<T>(
+    array: ReadonlyArray<T | undefined>,
+): Array<T> {
+    return array.filter((item): item is T => !!item);
+}
+
+export function asyncBoundaryObservable<T>(value: T): RXJS.Observable<T> {
+    return new RXJS.Observable((subscriber) => {
+        setTimeout(() => subscriber.next(value), 0);
+    });
 }

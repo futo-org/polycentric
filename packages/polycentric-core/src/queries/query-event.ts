@@ -5,6 +5,7 @@ import * as Models from '../models';
 import * as Ranges from '../ranges';
 import * as Protocol from '../protocol';
 import * as APIMethods from '../api-methods';
+import * as Util from '../util';
 import { IndexEvents } from '../store/index-events';
 import { QueryServers, queryServersObservable } from './query-servers';
 import { HasUpdate } from './has-update';
@@ -52,12 +53,6 @@ type StateForSystem = {
 };
 
 const DeleteOfDeleteError = new Error('cannot delete a delete event');
-
-function asyncBoundaryObservable<T>(value: T): RXJS.Observable<T> {
-    return new RXJS.Observable((subscriber) => {
-        setTimeout(() => subscriber.next(value), 0);
-    });
-}
 
 export class QueryEvent extends HasUpdate {
     private readonly state: Map<
@@ -217,7 +212,7 @@ export class QueryEvent extends HasUpdate {
             ),
             RXJS.distinct(),
             RXJS.mergeMap((server: string) =>
-                asyncBoundaryObservable(server).pipe(
+                Util.asyncBoundaryObservable(server).pipe(
                     RXJS.switchMap((server: string) => loadFromServer(server)),
                 ),
             ),
