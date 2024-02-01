@@ -40,6 +40,10 @@ export namespace ContentType {
         return Long.fromString(contentType) as ContentType;
     }
 
+    export function equal(a: ContentType, b: ContentType): boolean {
+        return a.equals(b);
+    }
+
     export const ContentTypeDelete = makeContentType(1);
     export const ContentTypeSystemProcesses = makeContentType(2);
     export const ContentTypePost = makeContentType(3);

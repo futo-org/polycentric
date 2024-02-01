@@ -14,6 +14,10 @@ enum SharedTestMode {
     CacheOnly,
 }
 
+function expectToBeDefined<T>(value: T): asserts value is NonNullable<T> {
+    expect(value).toBeDefined();
+}
+
 async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     const s1p1 = await ProcessHandle.createTestProcessHandle();
     s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
@@ -179,6 +183,101 @@ describe('query latest', () => {
 
         expect(dualQueryResult[0] === dualQueryResult[1]).toStrictEqual(true);
 
+        expect(queryLatest.clean).toStrictEqual(true);
+    });
+
+    test('network queries combined', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+        s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
+
+        const queryServers = new QueryServers(s1p1);
+        const queryHead = new QueryHead(s1p1, queryServers);
+        queryHead.shouldUseDisk(false);
+        const queryLatest = new QueryLatest(
+            s1p1.store().indexSystemProcessContentTypeLogicalClock,
+            queryServers,
+            queryHead,
+        );
+        queryLatest.shouldUseDisk(false);
+
+        const usernamePointer = await s1p1.setUsername('Laozi');
+        const descriptionPointer = await s1p1.setDescription('daodejing');
+
+        const usernameEvent = await s1p1
+            .store()
+            .indexEvents.getSignedEvent(
+                usernamePointer.system,
+                usernamePointer.process,
+                usernamePointer.logicalClock,
+            );
+
+        expectToBeDefined(usernameEvent);
+
+        const descriptionEvent = await s1p1
+            .store()
+            .indexEvents.getSignedEvent(
+                descriptionPointer.system,
+                descriptionPointer.process,
+                descriptionPointer.logicalClock,
+            );
+
+        expectToBeDefined(descriptionEvent);
+
+        let getQueryLatestCalledCount = 0;
+
+        const getQueryLatest = async (
+            server: string,
+            system: Models.PublicKey.PublicKey,
+            contentTypes: ReadonlyArray<Models.ContentType.ContentType>,
+        ) => {
+            getQueryLatestCalledCount++;
+
+            expect(server).toStrictEqual(ProcessHandle.TEST_SERVER);
+
+            expect(Models.PublicKey.equal(system, s1p1.system())).toStrictEqual(
+                true,
+            );
+
+            expect(
+                Util.areSetsEqual(
+                    new Set(contentTypes),
+                    new Set([
+                        Models.ContentType.ContentTypeUsername,
+                        Models.ContentType.ContentTypeDescription,
+                        Models.ContentType.ContentTypeAvatar,
+                    ]),
+                    Models.ContentType.equal,
+                ),
+            );
+
+            return Models.Events.fromProto({
+                events: [usernameEvent, descriptionEvent],
+            });
+        };
+
+        queryLatest.setGetQueryLatest(getQueryLatest);
+
+        await RXJS.firstValueFrom(
+            RXJS.combineLatest(
+                queryLatestObservable(
+                    queryLatest,
+                    s1p1.system(),
+                    Models.ContentType.ContentTypeUsername,
+                ),
+                queryLatestObservable(
+                    queryLatest,
+                    s1p1.system(),
+                    Models.ContentType.ContentTypeDescription,
+                ),
+                queryLatestObservable(
+                    queryLatest,
+                    s1p1.system(),
+                    Models.ContentType.ContentTypeAvatar,
+                ),
+            ),
+        );
+
+        expect(getQueryLatestCalledCount).toStrictEqual(1);
         expect(queryLatest.clean).toStrictEqual(true);
     });
 });

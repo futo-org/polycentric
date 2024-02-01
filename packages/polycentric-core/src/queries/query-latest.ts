@@ -23,6 +23,8 @@ export type Callback = (
 ) => void;
 
 type StateForContentType = {
+    readonly key: Models.ContentType.ContentTypeString;
+    readonly contentType: Models.ContentType.ContentType;
     readonly fulfilled: OnceFlag;
     readonly values: Map<
         Models.Process.ProcessString,
@@ -40,6 +42,61 @@ type StateForSystem = {
         StateForContentType
     >;
 };
+
+type BatchForContentTypeState = {
+    readonly stateForContentType: StateForContentType;
+    readonly batch: Array<Models.SignedEvent.SignedEvent>;
+};
+
+type AttemptedBatch = {
+    readonly batchByContentType: Map<
+        Models.ContentType.ContentTypeString,
+        BatchForContentTypeState
+    >;
+};
+
+function makeAttemptedBatch(
+    attemptedStates: ReadonlySet<StateForContentType>,
+    signedEvents: ReadonlyArray<Models.SignedEvent.SignedEvent>,
+): AttemptedBatch {
+    const result = {
+        batchByContentType: new Map(),
+    };
+
+    for (const stateForContentType of attemptedStates) {
+        result.batchByContentType.set(stateForContentType.key, {
+            stateForContentType: stateForContentType,
+            batch: [],
+        });
+    }
+
+    for (const signedEvent of signedEvents) {
+        const event = Models.Event.fromBuffer(signedEvent.event);
+
+        let batchByContentType: BatchForContentTypeState | undefined =
+            undefined;
+
+        if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
+            const deleteBody = Models.Delete.fromBuffer(event.content);
+
+            batchByContentType = result.batchByContentType.get(
+                Models.ContentType.toString(deleteBody.contentType),
+            );
+        } else {
+            batchByContentType = result.batchByContentType.get(
+                Models.ContentType.toString(event.contentType),
+            );
+        }
+
+        if (batchByContentType === undefined) {
+            continue;
+        }
+
+        batchByContentType.batch.push(signedEvent);
+    }
+
+    return result;
+}
 
 export class QueryLatest extends HasUpdate {
     private readonly state: Map<
@@ -81,6 +138,12 @@ export class QueryLatest extends HasUpdate {
         this.useNetwork = useNetwork;
     }
 
+    public setGetQueryLatest(
+        getQueryLatest: APIMethods.GetQueryLatestType,
+    ): void {
+        this.getQueryLatest = getQueryLatest;
+    }
+
     public query(
         system: Models.PublicKey.PublicKey,
         contentType: Models.ContentType.ContentType,
@@ -109,6 +172,8 @@ export class QueryLatest extends HasUpdate {
                 initial = true;
 
                 return {
+                    key: contentTypeString,
+                    contentType: contentType,
                     fulfilled: new OnceFlag(),
                     values: new Map(),
                     callbacks: new Set(),
@@ -133,17 +198,15 @@ export class QueryLatest extends HasUpdate {
             const toMerge = [];
 
             if (this.useDisk) {
-                toMerge.push(this.loadFromDisk(system, contentType));
+                toMerge.push(this.loadFromDisk(stateForContentType, system));
             }
 
             if (this.useNetwork) {
                 toMerge.push(this.loadFromNetwork(stateForSystem, system));
             }
 
-            const subscription = RXJS.merge(...toMerge).subscribe((batch) =>
-                batch.length > 0
-                    ? this.updateBatch(undefined, batch)
-                    : this.updateBatchEmpty(stateForContentType),
+            const subscription = RXJS.merge(...toMerge).subscribe(
+                this.updateAttemptedBatch.bind(this),
             );
 
             stateForContentType.unsubscribe =
@@ -186,22 +249,49 @@ export class QueryLatest extends HasUpdate {
     }
 
     private loadFromDisk(
+        stateForContentType: StateForContentType,
         system: Models.PublicKey.PublicKey,
-        contentType: Models.ContentType.ContentType,
-    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
+    ): RXJS.Observable<AttemptedBatch> {
         const loadFromDisk = (process: Models.Process.Process) =>
-            RXJS.from(this.index.getLatest(system, process, contentType));
+            RXJS.from(
+                this.index.getLatest(
+                    system,
+                    process,
+                    stateForContentType.contentType,
+                ),
+            );
 
         const getLatest = (headSignedEvent: Models.SignedEvent.SignedEvent) => {
             const headEvent = Models.Event.fromBuffer(headSignedEvent.event);
 
-            if (headEvent.contentType.equals(contentType)) {
+            if (headEvent.contentType.equals(stateForContentType.contentType)) {
                 return RXJS.of(headSignedEvent);
-            } else if (Models.Event.lookupIndex(headEvent, contentType)) {
+            } else if (
+                Models.Event.lookupIndex(
+                    headEvent,
+                    stateForContentType.contentType,
+                )
+            ) {
                 return loadFromDisk(headEvent.process);
             } else {
                 return RXJS.of(undefined);
             }
+        };
+
+        const makeAttempt = (
+            signedEvents: Array<Models.SignedEvent.SignedEvent | undefined>,
+        ): AttemptedBatch => {
+            return {
+                batchByContentType: new Map([
+                    [
+                        stateForContentType.key,
+                        {
+                            stateForContentType: stateForContentType,
+                            batch: Util.filterUndefined(signedEvents),
+                        },
+                    ],
+                ]),
+            };
         };
 
         return QueryHead.queryHeadObservable(this.queryHead, system).pipe(
@@ -215,14 +305,7 @@ export class QueryLatest extends HasUpdate {
                     : RXJS.of([]),
             ),
             RXJS.switchMap((signedEvents) =>
-                RXJS.of(
-                    signedEvents.filter(
-                        (
-                            signedEvent,
-                        ): signedEvent is Models.SignedEvent.SignedEvent =>
-                            !!signedEvent,
-                    ),
-                ),
+                RXJS.of(makeAttempt(signedEvents)),
             ),
         );
     }
@@ -230,21 +313,34 @@ export class QueryLatest extends HasUpdate {
     private loadFromNetwork(
         stateForSystem: StateForSystem,
         system: Models.PublicKey.PublicKey,
-    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
+    ): RXJS.Observable<AttemptedBatch> {
         const loadFromServer = async (server: string) => {
-            const need = [];
+            const needToUpdateStates = new Set<StateForContentType>();
 
-            for (const [
-                contentType,
-                state,
-            ] of stateForSystem.stateForContentType.entries()) {
+            for (const state of stateForSystem.stateForContentType.values()) {
                 if (!state.attemptedSources.has(server)) {
                     state.attemptedSources.add(server);
-                    need.push(Models.ContentType.fromString(contentType));
+                    needToUpdateStates.add(state);
                 }
             }
 
-            return (await this.getQueryLatest(server, system, need)).events;
+            if (needToUpdateStates.size === 0) {
+                return {
+                    batchByContentType: new Map(),
+                };
+            }
+
+            const needContentTypes = Array.from(needToUpdateStates).map(
+                (state) => state.contentType,
+            );
+
+            const response = await this.getQueryLatest(
+                server,
+                system,
+                needContentTypes,
+            );
+
+            return makeAttemptedBatch(needToUpdateStates, response.events);
         };
 
         return queryServersObservable(this.queryServers, system).pipe(
@@ -253,8 +349,12 @@ export class QueryLatest extends HasUpdate {
             ),
             RXJS.distinct(),
             RXJS.mergeMap((server: string) =>
-                RXJS.from(loadFromServer(server)).pipe(
-                    RXJS.catchError(() => RXJS.NEVER),
+                Util.asyncBoundaryObservable(server).pipe(
+                    RXJS.switchMap((server) =>
+                        RXJS.from(loadFromServer(server)).pipe(
+                            RXJS.catchError(() => RXJS.NEVER),
+                        ),
+                    ),
                 ),
             ),
         );
@@ -276,6 +376,16 @@ export class QueryLatest extends HasUpdate {
 
         for (const callback of stateForContentType.callbacks) {
             callback(stateForContentType.values);
+        }
+    }
+
+    private updateAttemptedBatch(attemptedBatch: AttemptedBatch): void {
+        for (const attempt of attemptedBatch.batchByContentType.values()) {
+            if (attempt.batch.length === 0) {
+                this.updateBatchEmpty(attempt.stateForContentType);
+            } else {
+                this.updateBatch(undefined, attempt.batch);
+            }
         }
     }
 
@@ -314,6 +424,8 @@ export class QueryLatest extends HasUpdate {
             if (!stateForContentType) {
                 if (contextHold) {
                     stateForContentType = {
+                        key: contentTypeString,
+                        contentType: event.contentType,
                         fulfilled: new OnceFlag(),
                         values: new Map(),
                         callbacks: new Set(),
