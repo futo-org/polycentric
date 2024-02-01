@@ -1,3 +1,4 @@
+import { TrashIcon } from '@heroicons/react/24/outline';
 import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useIsMobile } from '../../../../hooks/styleHooks';
 import { Profile } from '../../../../types/profile';
@@ -246,11 +247,12 @@ export interface PurePostProps {
         comments?: number;
     };
     actions?: {
-        like?: () => void;
-        dislike?: () => void;
-        neutralopinion?: () => void;
+        like: () => void;
+        dislike: () => void;
+        neutralopinion: () => void;
         repost: () => void;
         comment: (content: string, upload?: File) => Promise<boolean>;
+        delete?: () => void;
     };
     doesLink?: boolean;
     autoExpand?: boolean;
@@ -407,8 +409,8 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                             <LikeButton
                                                 onClick={() =>
                                                     stats?.opinion === 'liked'
-                                                        ? actions?.neutralopinion?.()
-                                                        : actions?.like?.()
+                                                        ? actions?.neutralopinion()
+                                                        : actions?.like()
                                                 }
                                                 count={
                                                     isMobile
@@ -424,8 +426,8 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                 onClick={() =>
                                                     stats?.opinion ===
                                                     'disliked'
-                                                        ? actions?.neutralopinion?.()
-                                                        : actions?.dislike?.()
+                                                        ? actions?.neutralopinion()
+                                                        : actions?.dislike()
                                                 }
                                                 count={
                                                     isMobile
@@ -463,7 +465,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                             className="w-full"
                                             onClick={(e) => e.stopPropagation()}
                                         >
-                                            <div className="flex w-full justify-between space-x-3">
+                                            <div className="flex w-full justify-between space-x-3 items-center">
                                                 <Link
                                                     routerLink={
                                                         // On mobile, don't allow this to be a link so the topic is easier to click
@@ -482,6 +484,18 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                         main.publishedAt,
                                                     )}
                                                 </time>
+                                                {
+                                                    // Only show the delete button if the post is deletable
+                                                    actions?.delete && (
+                                                        <button
+                                                            onClick={() => {
+                                                                actions.delete?.();
+                                                            }}
+                                                        >
+                                                            <TrashIcon className="w-4 h-4 text-gray-400" />
+                                                        </button>
+                                                    )
+                                                }
                                             </div>
                                             <div className="h-[1.5rem] w-4/5 min-w-0 text-gray-300 whitespace-nowrap">
                                                 {main.replyingToName ? (
@@ -628,8 +642,8 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                     <DislikeButton
                                         onClick={() =>
                                             stats?.opinion === 'disliked'
-                                                ? actions?.neutralopinion?.()
-                                                : actions?.dislike?.()
+                                                ? actions?.neutralopinion()
+                                                : actions?.dislike()
                                         }
                                         count={stats?.dislikes}
                                         clicked={
@@ -640,8 +654,8 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                     <LikeButton
                                         onClick={() =>
                                             stats?.opinion === 'liked'
-                                                ? actions?.neutralopinion?.()
-                                                : actions?.like?.()
+                                                ? actions?.neutralopinion()
+                                                : actions?.like()
                                         }
                                         count={stats?.likes}
                                         clicked={
