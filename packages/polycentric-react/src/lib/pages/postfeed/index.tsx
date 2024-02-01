@@ -28,7 +28,10 @@ export const PostFeedPage: Page = () => {
 
     const postEvent = useQueryPost(system, process, logicalClock);
 
-    const column = useMemo(() => <UserColumn system={system} />, [system]);
+    const column = useMemo(
+        () => <UserColumn system={system} key="usercol" />,
+        [system],
+    );
 
     const [comments, advanceComments, , prependCount] = useCommentFeed(
         postEvent?.signedEvent,

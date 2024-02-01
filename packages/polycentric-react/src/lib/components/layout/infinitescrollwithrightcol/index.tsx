@@ -3,6 +3,7 @@ import { ArrowUpIcon, Bars3Icon } from '@heroicons/react/24/outline';
 import {
     Fragment,
     ReactElement,
+    ReactNode,
     useCallback,
     useEffect,
     useLayoutEffect,
@@ -15,6 +16,49 @@ import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks';
 import { useIsMobile } from '../../../hooks/styleHooks';
 import { Post } from '../../feed';
 import { SearchBox } from '../../search/searchbox';
+
+const LeftCol = ({
+    children,
+    verticalIpadExpanded,
+}: {
+    children: ReactNode;
+    verticalIpadExpanded: boolean;
+}) => (
+    <div
+        className={`h-full top-0 border-x bg-white ${
+            /* for ipad viewport */ verticalIpadExpanded
+                ? 'z-20 absolute right-0'
+                : 'hidden sticky'
+        } xl:block xl:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:mr-[calc((100vw-1536px)/2)] `}
+    >
+        <div className="flex flex-col justify-between h-full w-full">
+            <div>
+                <div className="p-5 pb-10">
+                    <SearchBox />
+                </div>
+                {children}
+            </div>
+            <div className="p-5 w-full text-right text-gray-400 text-sm">
+                <a
+                    href="https://gitlab.futo.org/polycentric/polycentric"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block"
+                >
+                    Source Code
+                </a>
+                <a
+                    href="https://docs.polycentric.io/privacy-policy/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block"
+                >
+                    Privacy Policy
+                </a>
+            </div>
+        </div>
+    </div>
+);
 
 export const InfiniteScrollWithRightCol = ({
     data,
@@ -163,40 +207,12 @@ export const InfiniteScrollWithRightCol = ({
                     >
                         <Bars3Icon className="w-6 h-6 text-gray-600" />
                     </button>
-                    <div
-                        className={`h-full top-0 border-x bg-white ${
-                            /* for ipad viewport */ verticalIpadExpanded
-                                ? 'z-20 absolute right-0'
-                                : 'hidden sticky'
-                        } xl:block xl:w-[calc((100vw-776px)/2)] 2xl:w-[calc((1536px-776px)/2)] 2xl:mr-[calc((100vw-1536px)/2)] `}
+                    <LeftCol
+                        verticalIpadExpanded={verticalIpadExpanded}
+                        key="leftcol"
                     >
-                        <div className="flex flex-col justify-between h-full w-full">
-                            <div>
-                                <div className="p-5 pb-10">
-                                    <SearchBox />
-                                </div>
-                                {leftCol}
-                            </div>
-                            <div className="p-5 w-full text-right text-gray-400 text-sm">
-                                <a
-                                    href="https://gitlab.futo.org/polycentric/polycentric"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="block"
-                                >
-                                    Source Code
-                                </a>
-                                <a
-                                    href="https://docs.polycentric.io/privacy-policy/"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="block"
-                                >
-                                    Privacy Policy
-                                </a>
-                            </div>
-                        </div>
-                    </div>
+                        {leftCol}
+                    </LeftCol>
                 </>
             )}
         </div>

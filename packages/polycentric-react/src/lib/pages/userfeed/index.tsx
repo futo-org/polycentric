@@ -31,7 +31,10 @@ export const UserFeedPage: Page = () => {
 
     const [data, advanceFeed] = useAuthorFeed(system);
 
-    const column = useMemo(() => <UserColumn system={system} />, [system]);
+    const column = useMemo(
+        () => <UserColumn system={system} key="usercol" />,
+        [system],
+    );
 
     const isMobile = useIsMobile();
     const isMyProfile = useMemo(
@@ -50,7 +53,7 @@ export const UserFeedPage: Page = () => {
     const topComponent = useMemo(() => {
         if (isMobile)
             return <MobileProfileFeed system={system} key={stringKey} />;
-        return isMyProfile ? <PostCompose /> : undefined;
+        return isMyProfile ? <PostCompose key="topfeedcompose" /> : undefined;
     }, [isMobile, isMyProfile, system, stringKey]);
 
     return (
