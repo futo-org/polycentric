@@ -48,7 +48,7 @@ export async function postCensor(
 export async function getRanges(
     server: string,
     system: Models.PublicKey.PublicKey,
-): Promise<Protocol.RangesForSystem> {
+): Promise<Models.Ranges.RangesForSystem> {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
     );
@@ -63,19 +63,19 @@ export async function getRanges(
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
-    return Protocol.RangesForSystem.decode(rawBody);
+    return Models.Ranges.rangesForSystemFromBuffer(rawBody);
 }
 
 export type GetEventsType = (
     server: string,
     system: Models.PublicKey.PublicKey,
-    ranges: Protocol.RangesForSystem,
+    ranges: Models.Ranges.RangesForSystem,
 ) => Promise<Models.Events.Type>;
 
 export const getEvents: GetEventsType = async (
     server: string,
     system: Models.PublicKey.PublicKey,
-    ranges: Protocol.RangesForSystem,
+    ranges: Models.Ranges.RangesForSystem,
 ): Promise<Models.Events.Type> => {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),

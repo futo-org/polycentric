@@ -82,14 +82,18 @@ export async function backfillClient(
             new Long(10, 0, true),
         );
 
-        const events = await APIMethods.getEvents(server, system, {
-            rangesForProcesses: [
-                {
-                    process: item.process,
-                    ranges: batch,
-                },
-            ],
-        });
+        const events = await APIMethods.getEvents(
+            server,
+            system,
+            Models.Ranges.rangesForSystemFromProto({
+                rangesForProcesses: [
+                    {
+                        process: item.process,
+                        ranges: batch,
+                    },
+                ],
+            }),
+        );
 
         if (events.events.length > 0) {
             progress = true;

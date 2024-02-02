@@ -176,15 +176,16 @@ export class QueryEvent extends HasUpdate {
         system: Models.PublicKey.PublicKey,
     ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
         const loadFromServer = (server: string) => {
-            const request: Protocol.RangesForSystem = {
+            const request = Models.Ranges.rangesForSystemFromProto({
                 rangesForProcesses: [],
-            };
+            });
 
             for (const stateForProcess of stateForSystem.state.values()) {
-                const rangesForProcess = {
-                    process: stateForProcess.process,
-                    ranges: [],
-                };
+                const rangesForProcess =
+                    Models.Ranges.rangesForProcessFromProto({
+                        process: stateForProcess.process,
+                        ranges: [],
+                    });
 
                 for (const stateForEvent of stateForProcess.state.values()) {
                     if (!stateForEvent.attemptedSources.has(server)) {
