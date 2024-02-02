@@ -1,7 +1,7 @@
 import { useContext, useMemo } from 'react';
-import { matchPath, useLocation as useRouterLocation } from 'react-router-dom';
+import { matchPath } from 'react-router-dom';
 import { routeData } from '../app/router';
-import { MemoryRoutedLinkContext } from '../components/util/link/routedmemorylinkcontext';
+import { StackElementPathContext } from '../components/util/link/StackElementPathContext';
 
 function getParams(url: string) {
     for (const path of Object.keys(routeData)) {
@@ -15,18 +15,10 @@ function getParams(url: string) {
 
 type emptyObject = { [key: string]: never };
 
-export function useLocation() {
-    const memoryPath = useContext(MemoryRoutedLinkContext);
-    const reactRouterPath = useRouterLocation();
+export function useLocation(): string {
+    const memoryPath = useContext(StackElementPathContext);
 
-    return useMemo(
-        () =>
-            memoryPath ??
-            reactRouterPath.pathname +
-                reactRouterPath.hash +
-                reactRouterPath.search,
-        [memoryPath, reactRouterPath],
-    );
+    return memoryPath;
 }
 
 export function useParams<Params extends { [K in keyof Params]?: string }>():
