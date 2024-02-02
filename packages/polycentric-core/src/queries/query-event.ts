@@ -3,7 +3,6 @@ import * as RXJS from 'rxjs';
 
 import * as Models from '../models';
 import * as Ranges from '../ranges';
-import * as Protocol from '../protocol';
 import * as APIMethods from '../api-methods';
 import { IndexEvents } from '../store/index-events';
 import { QueryServers, queryServersObservable } from './query-servers';
