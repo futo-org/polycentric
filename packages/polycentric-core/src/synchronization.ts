@@ -379,7 +379,7 @@ export class Synchronizer {
                 if (
                     Models.Process.equal(
                         process,
-                        Models.Process.fromProto(item.process),
+                        item.process,
                     )
                 ) {
                     const remoteNeeds = Ranges.subtractRange(
