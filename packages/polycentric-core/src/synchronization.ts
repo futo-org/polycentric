@@ -376,12 +376,7 @@ export class Synchronizer {
                     continue;
                 }
 
-                if (
-                    Models.Process.equal(
-                        process,
-                        item.process,
-                    )
-                ) {
+                if (Models.Process.equal(process, item.process)) {
                     const remoteNeeds = Ranges.subtractRange(
                         localRanges,
                         item.ranges,
