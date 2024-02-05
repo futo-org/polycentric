@@ -82,14 +82,18 @@ export async function backfillClient(
             new Long(10, 0, true),
         );
 
-        const events = await APIMethods.getEvents(server, system, {
-            rangesForProcesses: [
-                {
-                    process: item.process,
-                    ranges: batch,
-                },
-            ],
-        });
+        const events = await APIMethods.getEvents(
+            server,
+            system,
+            Models.Ranges.rangesForSystemFromProto({
+                rangesForProcesses: [
+                    {
+                        process: item.process,
+                        ranges: batch,
+                    },
+                ],
+            }),
+        );
 
         if (events.events.length > 0) {
             progress = true;
@@ -175,32 +179,24 @@ type ServerState = {
 };
 
 export class Synchronizer {
-    private queryState: Array<Queries.QueryIndex.Cell>;
-    private servers: Set<string>;
-    private readonly serverState: Map<string, ServerState>;
+    private serverStates: Map<string, ServerState>;
     private complete: boolean;
 
     private readonly processHandle: ProcessHandle.ProcessHandle;
-    private readonly queryHandle: Queries.QueryCRDTSet.QueryHandle;
+    private readonly unsubscribe: () => void;
 
-    public constructor(
-        processHandle: ProcessHandle.ProcessHandle,
-        queryManager: Queries.QueryManager.QueryManager,
-    ) {
-        this.queryState = [];
-        this.servers = new Set();
-        this.serverState = new Map();
+    public constructor(processHandle: ProcessHandle.ProcessHandle) {
+        this.serverStates = new Map();
         this.complete = false;
 
         this.processHandle = processHandle;
 
-        this.queryHandle = queryManager.queryCRDTSet.query(
-            processHandle.system(),
-            Models.ContentType.ContentTypeServer,
-            this.updateServerList.bind(this),
-        );
+        const subscription = Queries.QueryServers.queryServersObservable(
+            this.processHandle.queryManager.queryServers,
+            this.processHandle.system(),
+        ).subscribe(this.updateServerList.bind(this));
 
-        this.queryHandle.advance(10);
+        this.unsubscribe = subscription.unsubscribe.bind(subscription);
     }
 
     public async debugWaitUntilSynchronizationComplete(): Promise<void> {
@@ -213,128 +209,72 @@ export class Synchronizer {
         }
     }
 
-    private updateServerList(
-        patch: Queries.QueryIndex.CallbackParameters,
-    ): void {
-        this.queryState = Queries.QueryIndex.applyPatch(this.queryState, patch);
+    private updateServerList(servers: ReadonlySet<string>): void {
+        const updatedServerStates = new Map();
 
-        if (
-            patch.add.length === 0 ||
-            patch.add[patch.add.length - 1].signedEvent === undefined
-        ) {
-            this.queryHandle.advance(10);
+        for (const server of servers.values()) {
+            updatedServerStates.set(
+                server,
+                this.serverStates.get(server) || {
+                    generation: 0,
+                    active: false,
+                },
+            );
         }
 
-        const servers = new Set<string>();
-
-        for (const cell of this.queryState) {
-            if (cell.signedEvent === undefined) {
-                continue;
-            }
-
-            const event = Models.Event.fromBuffer(cell.signedEvent.event);
-
-            if (
-                event.contentType.notEquals(
-                    Models.ContentType.ContentTypeServer,
-                )
-            ) {
-                throw new Error('impossible');
-            }
-
-            if (event.lwwElementSet === undefined) {
-                throw new Error('impossible');
-            }
-
-            servers.add(Util.decodeText(event.lwwElementSet.value));
-        }
-
-        this.servers = servers;
-
+        this.serverStates = updatedServerStates;
         this.synchronizationHint();
     }
 
     public async synchronizationHint(): Promise<void> {
         this.complete = false;
 
-        for (const server of this.servers) {
-            let serverState = this.serverState.get(server);
-
-            if (serverState === undefined) {
-                serverState = {
-                    active: false,
-                    generation: 0,
-                };
-
-                this.serverState.set(server, serverState);
-            }
-        }
-
-        for (const serverState of this.serverState.values()) {
+        for (const serverState of this.serverStates.values()) {
             serverState.generation++;
         }
 
         // if every server currently being backfilled then skip
-        if ([...this.serverState.values()].every((state) => state.active)) {
+        if ([...this.serverStates.values()].every((state) => state.active)) {
             return;
         }
 
-        const systemState = await this.processHandle.loadSystemState(
+        const localSystemRanges = await loadLocalSystemRanges(
+            this.processHandle,
             this.processHandle.system(),
         );
-
-        const processesRanges: Map<
-            Readonly<Models.Process.Process>,
-            ReadonlyArray<Ranges.IRange>
-        > = new Map();
-
-        for (const process of systemState.processes()) {
-            const processState = await this.processHandle
-                .store()
-                .indexProcessStates.getProcessState(
-                    this.processHandle.system(),
-                    process,
-                );
-
-            processesRanges.set(process, processState.ranges);
-        }
 
         let incomplete = false;
 
         await Promise.all(
-            Array.from(this.servers.values()).map(async (server) => {
-                const serverState = this.serverState.get(server);
+            Array.from(this.serverStates.entries()).map(
+                async ([server, serverState]) => {
+                    // already synchronizing so skip
+                    if (serverState.active) {
+                        return;
+                    }
 
-                if (serverState === undefined) {
-                    throw new Error('impossible');
-                }
+                    const generation = serverState.generation;
 
-                // already synchronizing so skip
-                if (serverState.active) {
-                    return;
-                }
+                    serverState.active = true;
 
-                const generation = serverState.generation;
+                    try {
+                        await this.backfillServer(server, localSystemRanges);
+                    } catch (err) {
+                        incomplete = true;
 
-                serverState.active = true;
+                        console.warn(err);
+                    }
 
-                try {
-                    await this.backfillServer(server, processesRanges);
-                } catch (err) {
-                    incomplete = true;
+                    serverState.active = false;
 
-                    console.warn(err);
-                }
+                    // our view of the world became outdated while synchronizing
+                    if (generation < serverState.generation) {
+                        incomplete = true;
 
-                serverState.active = false;
-
-                // our view of the world became outdated while synchronizing
-                if (generation < serverState.generation) {
-                    incomplete = true;
-
-                    this.synchronizationHint();
-                }
-            }),
+                        this.synchronizationHint();
+                    }
+                },
+            ),
         );
 
         if (!incomplete) {
@@ -344,97 +284,129 @@ export class Synchronizer {
 
     private async backfillServer(
         server: string,
-        localProcessesRanges: ReadonlyMap<
-            Readonly<Models.Process.Process>,
-            ReadonlyArray<Ranges.IRange>
-        >,
+        localSystemRanges: ReadonlySystemRanges,
     ): Promise<void> {
-        const remoteRangesForSystem = await APIMethods.getRanges(
+        const remoteSystemRanges = await loadRemoteSystemRanges(
             server,
             this.processHandle.system(),
         );
 
-        const remoteNeedsByProcess: Map<
-            Models.Process.Process,
-            Array<Ranges.IRange>
-        > = new Map();
+        const remoteNeedsAndLocalHas = subtractSystemRanges(
+            localSystemRanges,
+            remoteSystemRanges,
+        );
 
-        for (const [process, localRanges] of localProcessesRanges.entries()) {
-            remoteNeedsByProcess.set(
-                process,
-                Ranges.deepCopy(localRanges) as Array<Ranges.IRange>,
-            );
-
-            for (const item of remoteRangesForSystem.rangesForProcesses) {
-                if (!item.process) {
-                    console.warn('remoteRangesForSystem no process in item');
-
-                    continue;
-                }
-
-                if (
-                    Models.Process.equal(
-                        process,
-                        Models.Process.fromProto(item.process),
-                    )
-                ) {
-                    const remoteNeeds = Ranges.subtractRange(
-                        localRanges,
-                        item.ranges,
-                    );
-
-                    remoteNeedsByProcess.set(process, remoteNeeds);
-                }
-            }
-        }
-
-        let progress = true;
-
-        while (progress) {
-            progress = false;
-
-            for (const [
-                process,
-                remoteNeeds,
-            ] of remoteNeedsByProcess.entries()) {
-                if (remoteNeeds.length === 0) {
-                    continue;
-                }
-
-                progress = true;
-
-                const batch = Ranges.takeRangesMaxItems(
-                    remoteNeeds,
-                    new Long(20, 0, true),
-                );
-
-                remoteNeedsByProcess.set(
-                    process,
-                    Ranges.subtractRange(remoteNeeds, batch),
-                );
-
-                const events = await loadRanges(
-                    this.processHandle.store(),
-                    this.processHandle.system(),
-                    process,
-                    batch,
-                );
-
-                console.log(
-                    'sending',
-                    server,
-                    'process',
-                    Models.Process.toString(process),
-                    'ranges',
-                    Ranges.toString(batch),
-                );
-
-                await APIMethods.postEvents(server, events);
-            }
-        }
+        while (
+            await syncToServerSingleBatch(
+                server,
+                this.processHandle,
+                this.processHandle.system(),
+                remoteNeedsAndLocalHas,
+            )
+        ) {}
     }
 
     public cleanup(): void {
-        this.queryHandle.unregister();
+        this.unsubscribe();
     }
+}
+
+type SystemRanges = Map<Models.Process.Process, Array<Ranges.IRange>>;
+
+type ReadonlySystemRanges = ReadonlyMap<
+    Models.Process.Process,
+    ReadonlyArray<Ranges.IRange>
+>;
+
+async function loadLocalSystemRanges(
+    processHandle: ProcessHandle.ProcessHandle,
+    system: Models.PublicKey.PublicKey,
+): Promise<SystemRanges> {
+    const systemRanges = new Map();
+
+    const systemState = await processHandle.loadSystemState(system);
+
+    for (const process of systemState.processes()) {
+        const processState = await processHandle
+            .store()
+            .indexProcessStates.getProcessState(system, process);
+
+        systemRanges.set(process, processState.ranges);
+    }
+
+    return systemRanges;
+}
+
+async function loadRemoteSystemRanges(
+    server: string,
+    system: Models.PublicKey.PublicKey,
+): Promise<SystemRanges> {
+    const systemRanges = new Map();
+
+    const remoteSystemRanges = await APIMethods.getRanges(server, system);
+
+    for (const remoteProcessRanges of remoteSystemRanges.rangesForProcesses) {
+        systemRanges.set(
+            remoteProcessRanges.process,
+            remoteProcessRanges.ranges,
+        );
+    }
+
+    return systemRanges;
+}
+
+function subtractSystemRanges(
+    alpha: ReadonlySystemRanges,
+    omega: ReadonlySystemRanges,
+): SystemRanges {
+    const result = new Map();
+
+    for (const [process, alphaRanges] of alpha.entries()) {
+        const omegaRanges = omega.get(process);
+
+        if (omegaRanges) {
+            result.set(process, Ranges.subtractRange(alphaRanges, omegaRanges));
+        } else {
+            result.set(process, Ranges.deepCopy(alphaRanges));
+        }
+    }
+
+    return result;
+}
+
+async function syncToServerSingleBatch(
+    server: string,
+    processHandle: ProcessHandle.ProcessHandle,
+    system: Models.PublicKey.PublicKey,
+    remoteNeedsAndLocalHas: SystemRanges,
+): Promise<boolean> {
+    let progress = false;
+
+    for (const [process, ranges] of remoteNeedsAndLocalHas.entries()) {
+        if (ranges.length === 0) {
+            continue;
+        }
+
+        const batch = Ranges.takeRangesMaxItems(ranges, new Long(20, 0, true));
+
+        const events = await loadRanges(
+            processHandle.store(),
+            system,
+            process,
+            batch,
+        );
+
+        await APIMethods.postEvents(server, events);
+
+        remoteNeedsAndLocalHas.set(
+            process,
+            Ranges.subtractRange(ranges, batch),
+        );
+
+        progress = true;
+
+        break;
+    }
+
+    return progress;
 }
