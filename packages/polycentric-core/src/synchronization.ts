@@ -245,7 +245,7 @@ export class Synchronizer {
             return;
         }
 
-        const processesRanges = await loadLocalSystemRanges(
+        const localSystemRanges = await loadLocalSystemRanges(
             this.processHandle,
             this.processHandle.system(),
         );
@@ -270,7 +270,7 @@ export class Synchronizer {
                 serverState.active = true;
 
                 try {
-                    await this.backfillServer(server, processesRanges);
+                    await this.backfillServer(server, localSystemRanges);
                 } catch (err) {
                     incomplete = true;
 
