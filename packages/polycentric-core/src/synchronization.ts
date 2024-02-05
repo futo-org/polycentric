@@ -180,8 +180,7 @@ type ServerState = {
 };
 
 export class Synchronizer {
-    private servers: Set<string>;
-    private readonly serverState: Map<string, ServerState>;
+    private serverStates: Map<string, ServerState>;
     private complete: boolean;
 
     private readonly processHandle: ProcessHandle.ProcessHandle;
@@ -191,8 +190,7 @@ export class Synchronizer {
         processHandle: ProcessHandle.ProcessHandle,
         queryManager: Queries.QueryManager.QueryManager,
     ) {
-        this.servers = new Set();
-        this.serverState = new Map();
+        this.serverStates = new Map();
         this.complete = false;
 
         this.processHandle = processHandle;
@@ -216,32 +214,31 @@ export class Synchronizer {
     }
 
     private updateServerList(servers: ReadonlySet<string>): void {
-        this.servers = new Set(servers);
+        const updatedServerStates = new Map();
+
+        for (const server of servers.values()) {
+            updatedServerStates.set(
+                server,
+                this.serverStates.get(server) || {
+                    generation: 0,
+                    active: false,
+                },
+            );
+        }
+
+        this.serverStates = updatedServerStates;
         this.synchronizationHint();
     }
 
     public async synchronizationHint(): Promise<void> {
         this.complete = false;
 
-        for (const server of this.servers) {
-            let serverState = this.serverState.get(server);
-
-            if (serverState === undefined) {
-                serverState = {
-                    active: false,
-                    generation: 0,
-                };
-
-                this.serverState.set(server, serverState);
-            }
-        }
-
-        for (const serverState of this.serverState.values()) {
+        for (const serverState of this.serverStates.values()) {
             serverState.generation++;
         }
 
         // if every server currently being backfilled then skip
-        if ([...this.serverState.values()].every((state) => state.active)) {
+        if ([...this.serverStates.values()].every((state) => state.active)) {
             return;
         }
 
@@ -253,39 +250,35 @@ export class Synchronizer {
         let incomplete = false;
 
         await Promise.all(
-            Array.from(this.servers.values()).map(async (server) => {
-                const serverState = this.serverState.get(server);
+            Array.from(this.serverStates.entries()).map(
+                async ([server, serverState]) => {
+                    // already synchronizing so skip
+                    if (serverState.active) {
+                        return;
+                    }
 
-                if (serverState === undefined) {
-                    throw new Error('impossible');
-                }
+                    const generation = serverState.generation;
 
-                // already synchronizing so skip
-                if (serverState.active) {
-                    return;
-                }
+                    serverState.active = true;
 
-                const generation = serverState.generation;
+                    try {
+                        await this.backfillServer(server, localSystemRanges);
+                    } catch (err) {
+                        incomplete = true;
 
-                serverState.active = true;
+                        console.warn(err);
+                    }
 
-                try {
-                    await this.backfillServer(server, localSystemRanges);
-                } catch (err) {
-                    incomplete = true;
+                    serverState.active = false;
 
-                    console.warn(err);
-                }
+                    // our view of the world became outdated while synchronizing
+                    if (generation < serverState.generation) {
+                        incomplete = true;
 
-                serverState.active = false;
-
-                // our view of the world became outdated while synchronizing
-                if (generation < serverState.generation) {
-                    incomplete = true;
-
-                    this.synchronizationHint();
-                }
-            }),
+                        this.synchronizationHint();
+                    }
+                },
+            ),
         );
 
         if (!incomplete) {
