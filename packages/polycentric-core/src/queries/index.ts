@@ -8,3 +8,4 @@ export * as QueryEvent from './query-event';
 export * as QueryBlob from './query-blob';
 export * as QueryHead from './query-head';
 export * as QueryCRDT from './query-crdt';
+export * as QueryServers from './query-servers';

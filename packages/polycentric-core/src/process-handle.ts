@@ -81,10 +81,7 @@ export class ProcessHandle {
         this._addressHints = new Map();
         this._ingestLock = new AsyncLock();
         this.queryManager = new Queries.QueryManager.QueryManager(this);
-        this.synchronizer = new Synchronization.Synchronizer(
-            this,
-            this.queryManager,
-        );
+        this.synchronizer = new Synchronization.Synchronizer(this);
     }
 
     public addAddressHint(
@@ -493,9 +490,7 @@ export class ProcessHandle {
     public async ingest(
         signedEvent: Models.SignedEvent.SignedEvent,
     ): Promise<Models.Pointer.Pointer> {
-        const event = Models.Event.fromProto(
-            Protocol.Event.decode(signedEvent.event),
-        );
+        const event = Models.Event.fromBuffer(signedEvent.event);
 
         return await this._ingestLock.acquire(
             Models.PublicKey.toString(event.system),
@@ -515,7 +510,12 @@ export class ProcessHandle {
         }
 
         this.queryManager.update(signedEvent);
-        this.synchronizer.synchronizationHint();
+
+        const event = Models.Event.fromBuffer(signedEvent.event);
+
+        if (Models.PublicKey.equal(event.system, this.system())) {
+            this.synchronizer.synchronizationHint();
+        }
 
         return Models.signedEventToPointer(signedEvent);
     }
