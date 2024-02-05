@@ -8,6 +8,7 @@ import * as Ranges from './ranges';
 import * as Protocol from './protocol';
 import * as Queries from './queries';
 import * as Util from './util';
+import { CancelContext } from './cancel-context';
 
 async function loadRanges(
     store: Store.Store,
@@ -178,8 +179,46 @@ type ServerState = {
     active: boolean;
 };
 
+type FollowingState = {
+    cancelContext: CancelContext;
+};
+
+function taskPerItemInSet<Key, SetItem, State>(
+    states: Map<Key, State>,
+    updatedSet: ReadonlySet<SetItem>,
+    setItemToKey: (setItem: SetItem) => Key,
+    onAdd: (setItem: SetItem) => State,
+    onRemove: (state: State) => void,
+): void {
+    for (const setItem of updatedSet) {
+        const key = setItemToKey(setItem);
+
+        const existingItem = states.get(key);
+
+        if (!existingItem) {
+            states.set(key, onAdd(setItem));
+        }
+    }
+
+    const updatedSetKeys = new Set([...updatedSet.keys()].map(setItemToKey));
+
+    const removed = [...states].filter(([key]) => !updatedSetKeys.has(key));
+
+    for (const [key, state] of removed.values()) {
+        onRemove(state);
+
+        states.delete(key);
+    }
+}
+
 export class Synchronizer {
     private serverStates: Map<string, ServerState>;
+
+    private followingStates: Map<
+        Models.PublicKey.PublicKeyString,
+        CancelContext
+    >;
+
     private complete: boolean;
 
     private readonly processHandle: ProcessHandle.ProcessHandle;
@@ -187,16 +226,29 @@ export class Synchronizer {
 
     public constructor(processHandle: ProcessHandle.ProcessHandle) {
         this.serverStates = new Map();
+        this.followingStates = new Map();
         this.complete = false;
 
         this.processHandle = processHandle;
 
-        const subscription = Queries.QueryServers.queryServersObservable(
-            this.processHandle.queryManager.queryServers,
-            this.processHandle.system(),
-        ).subscribe(this.updateServerList.bind(this));
+        const queryServersSubscription =
+            Queries.QueryServers.queryServersObservable(
+                this.processHandle.queryManager.queryServers,
+                this.processHandle.system(),
+            ).subscribe(this.updateServerList.bind(this));
 
-        this.unsubscribe = subscription.unsubscribe.bind(subscription);
+        const queryFollowersSubscription =
+            Queries.QueryCRDTSet.queryCRDTSetCompleteObservable(
+                this.processHandle.queryManager.queryCRDTSet,
+                this.processHandle.system(),
+                Models.ContentType.ContentTypeFollow,
+                Models.PublicKey.fromBuffer,
+            ).subscribe(this.updateFollowingList.bind(this));
+
+        this.unsubscribe = () => {
+            queryServersSubscription.unsubscribe();
+            queryFollowersSubscription.unsubscribe();
+        };
     }
 
     public async debugWaitUntilSynchronizationComplete(): Promise<void> {
@@ -207,6 +259,28 @@ export class Synchronizer {
 
             await Util.sleep(100);
         }
+    }
+
+    private updateFollowingList(
+        latestFollowing: ReadonlySet<Models.PublicKey.PublicKey>,
+    ): void {
+        taskPerItemInSet(
+            this.followingStates,
+            latestFollowing,
+            (publicKey) => {
+                return Models.PublicKey.toString(publicKey);
+            },
+            (system) => {
+                const cancelContext = new CancelContext();
+
+                this.backfillClientForSystem(system, cancelContext);
+
+                return cancelContext;
+            },
+            (cancelContext) => {
+                cancelContext.cancel();
+            },
+        );
     }
 
     private updateServerList(servers: ReadonlySet<string>): void {
@@ -307,8 +381,45 @@ export class Synchronizer {
     }
 
     private async backfillClientForSystem(
+        system: Models.PublicKey.PublicKey,
+        cancelContext: CancelContext,
+    ): Promise<void> {
+        const serverStates = new Map<string, CancelContext>();
+
+        const subscription = Queries.QueryServers.queryServersObservable(
+            this.processHandle.queryManager.queryServers,
+            system,
+        ).subscribe((updatedServers) => {
+            taskPerItemInSet(
+                serverStates,
+                updatedServers,
+                (server) => {
+                    return server;
+                },
+                (server) => {
+                    const cancelContext = new CancelContext();
+
+                    this.backfillClientFromServerForSystem(
+                        server,
+                        system,
+                        cancelContext,
+                    );
+
+                    return cancelContext;
+                },
+                (cancelContext) => {
+                    cancelContext.cancel();
+                },
+            );
+        });
+
+        cancelContext.addCallback(subscription.unsubscribe.bind(subscription));
+    }
+
+    private async backfillClientFromServerForSystem(
         server: string,
         system: Models.PublicKey.PublicKey,
+        cancelContext: CancelContext,
     ): Promise<void> {
         const remoteSystemRanges = await loadRemoteSystemRanges(server, system);
 
@@ -323,12 +434,13 @@ export class Synchronizer {
         );
 
         while (
-            await syncFromServerSingleBatch(
+            !cancelContext.cancelled() &&
+            (await syncFromServerSingleBatch(
                 server,
                 this.processHandle,
                 system,
                 remoteHasAndLocalNeeds,
-            )
+            ))
         ) {}
     }
 
