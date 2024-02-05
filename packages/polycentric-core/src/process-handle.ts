@@ -81,9 +81,7 @@ export class ProcessHandle {
         this._addressHints = new Map();
         this._ingestLock = new AsyncLock();
         this.queryManager = new Queries.QueryManager.QueryManager(this);
-        this.synchronizer = new Synchronization.Synchronizer(
-            this,
-        );
+        this.synchronizer = new Synchronization.Synchronizer(this);
     }
 
     public addAddressHint(

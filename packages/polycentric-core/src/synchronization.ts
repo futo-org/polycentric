@@ -185,9 +185,7 @@ export class Synchronizer {
     private readonly processHandle: ProcessHandle.ProcessHandle;
     private readonly unsubscribe: () => void;
 
-    public constructor(
-        processHandle: ProcessHandle.ProcessHandle,
-    ) {
+    public constructor(processHandle: ProcessHandle.ProcessHandle) {
         this.serverStates = new Map();
         this.complete = false;
 
