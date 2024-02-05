@@ -306,6 +306,32 @@ export class Synchronizer {
         ) {}
     }
 
+    private async backfillClientForSystem(
+        server: string,
+        system: Models.PublicKey.PublicKey,
+    ): Promise<void> {
+        const remoteSystemRanges = await loadRemoteSystemRanges(server, system);
+
+        const localSystemRanges = await loadLocalSystemRanges(
+            this.processHandle,
+            system,
+        );
+
+        const remoteHasAndLocalNeeds = subtractSystemRanges(
+            remoteSystemRanges,
+            localSystemRanges,
+        );
+
+        while (
+            await syncFromServerSingleBatch(
+                server,
+                this.processHandle,
+                system,
+                remoteHasAndLocalNeeds,
+            )
+        ) {}
+    }
+
     public cleanup(): void {
         this.unsubscribe();
     }
@@ -399,6 +425,49 @@ async function syncToServerSingleBatch(
         await APIMethods.postEvents(server, events);
 
         remoteNeedsAndLocalHas.set(
+            process,
+            Ranges.subtractRange(ranges, batch),
+        );
+
+        progress = true;
+
+        break;
+    }
+
+    return progress;
+}
+
+async function syncFromServerSingleBatch(
+    server: string,
+    processHandle: ProcessHandle.ProcessHandle,
+    system: Models.PublicKey.PublicKey,
+    remoteHasAndLocalNeeds: SystemRanges,
+): Promise<boolean> {
+    let progress = false;
+
+    for (const [process, ranges] of remoteHasAndLocalNeeds.entries()) {
+        if (ranges.length === 0) {
+            continue;
+        }
+
+        const batch = Ranges.takeRangesMaxItems(ranges, new Long(20, 0, true));
+
+        const events = await APIMethods.getEvents(
+            server,
+            system,
+            Models.Ranges.rangesForSystemFromProto({
+                rangesForProcesses: [
+                    {
+                        process: process,
+                        ranges: batch,
+                    },
+                ],
+            }),
+        );
+
+        await saveBatch(processHandle, events);
+
+        remoteHasAndLocalNeeds.set(
             process,
             Ranges.subtractRange(ranges, batch),
         );
