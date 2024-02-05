@@ -1,5 +1,4 @@
 import Long from 'long';
-import * as RXJS from 'rxjs';
 
 import * as APIMethods from './api-methods';
 import * as ProcessHandle from './process-handle';
@@ -188,7 +187,6 @@ export class Synchronizer {
 
     public constructor(
         processHandle: ProcessHandle.ProcessHandle,
-        queryManager: Queries.QueryManager.QueryManager,
     ) {
         this.serverStates = new Map();
         this.complete = false;

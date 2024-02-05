@@ -83,7 +83,6 @@ export class ProcessHandle {
         this.queryManager = new Queries.QueryManager.QueryManager(this);
         this.synchronizer = new Synchronization.Synchronizer(
             this,
-            this.queryManager,
         );
     }
 
