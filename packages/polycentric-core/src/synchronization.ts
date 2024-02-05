@@ -1,4 +1,5 @@
 import Long from 'long';
+import * as RXJS from 'rxjs';
 
 import * as APIMethods from './api-methods';
 import * as ProcessHandle from './process-handle';
@@ -283,25 +284,10 @@ export class Synchronizer {
             return;
         }
 
-        const systemState = await this.processHandle.loadSystemState(
+        const processesRanges = await loadLocalSystemRanges(
+            this.processHandle,
             this.processHandle.system(),
         );
-
-        const processesRanges: Map<
-            Readonly<Models.Process.Process>,
-            ReadonlyArray<Ranges.IRange>
-        > = new Map();
-
-        for (const process of systemState.processes()) {
-            const processState = await this.processHandle
-                .store()
-                .indexProcessStates.getProcessState(
-                    this.processHandle.system(),
-                    process,
-                );
-
-            processesRanges.set(process, processState.ranges);
-        }
 
         let incomplete = false;
 
@@ -348,92 +334,135 @@ export class Synchronizer {
 
     private async backfillServer(
         server: string,
-        localProcessesRanges: ReadonlyMap<
-            Readonly<Models.Process.Process>,
-            ReadonlyArray<Ranges.IRange>
-        >,
+        localSystemRanges: ReadonlySystemRanges,
     ): Promise<void> {
-        const remoteRangesForSystem = await APIMethods.getRanges(
+        const remoteSystemRanges = await loadRemoteSystemRanges(
             server,
             this.processHandle.system(),
         );
 
-        const remoteNeedsByProcess: Map<
-            Models.Process.Process,
-            Array<Ranges.IRange>
-        > = new Map();
+        const remoteNeedsAndLocalHas = subtractSystemRanges(
+            localSystemRanges,
+            remoteSystemRanges,
+        );
 
-        for (const [process, localRanges] of localProcessesRanges.entries()) {
-            remoteNeedsByProcess.set(
-                process,
-                Ranges.deepCopy(localRanges) as Array<Ranges.IRange>,
-            );
-
-            for (const item of remoteRangesForSystem.rangesForProcesses) {
-                if (!item.process) {
-                    console.warn('remoteRangesForSystem no process in item');
-
-                    continue;
-                }
-
-                if (Models.Process.equal(process, item.process)) {
-                    const remoteNeeds = Ranges.subtractRange(
-                        localRanges,
-                        item.ranges,
-                    );
-
-                    remoteNeedsByProcess.set(process, remoteNeeds);
-                }
-            }
-        }
-
-        let progress = true;
-
-        while (progress) {
-            progress = false;
-
-            for (const [
-                process,
-                remoteNeeds,
-            ] of remoteNeedsByProcess.entries()) {
-                if (remoteNeeds.length === 0) {
-                    continue;
-                }
-
-                progress = true;
-
-                const batch = Ranges.takeRangesMaxItems(
-                    remoteNeeds,
-                    new Long(20, 0, true),
-                );
-
-                remoteNeedsByProcess.set(
-                    process,
-                    Ranges.subtractRange(remoteNeeds, batch),
-                );
-
-                const events = await loadRanges(
-                    this.processHandle.store(),
-                    this.processHandle.system(),
-                    process,
-                    batch,
-                );
-
-                console.log(
-                    'sending',
-                    server,
-                    'process',
-                    Models.Process.toString(process),
-                    'ranges',
-                    Ranges.toString(batch),
-                );
-
-                await APIMethods.postEvents(server, events);
-            }
-        }
+        while (
+            await syncToServerSingleBatch(
+                server,
+                this.processHandle,
+                this.processHandle.system(),
+                remoteNeedsAndLocalHas,
+            )
+        ) {}
     }
 
     public cleanup(): void {
         this.queryHandle.unregister();
     }
+}
+
+type SystemRanges = Map<Models.Process.Process, Array<Ranges.IRange>>;
+
+type ReadonlySystemRanges = ReadonlyMap<
+    Models.Process.Process,
+    ReadonlyArray<Ranges.IRange>
+>;
+
+async function loadLocalSystemRanges(
+    processHandle: ProcessHandle.ProcessHandle,
+    system: Models.PublicKey.PublicKey,
+): Promise<SystemRanges> {
+    const systemRanges = new Map();
+
+    const systemState = await processHandle.loadSystemState(system);
+
+    for (const process of systemState.processes()) {
+        const processState = await processHandle
+            .store()
+            .indexProcessStates.getProcessState(system, process);
+
+        systemRanges.set(process, processState.ranges);
+    }
+
+    return systemRanges;
+}
+
+async function loadRemoteSystemRanges(
+    server: string,
+    system: Models.PublicKey.PublicKey,
+): Promise<SystemRanges> {
+    const systemRanges = new Map();
+
+    const remoteSystemRanges = await APIMethods.getRanges(server, system);
+
+    for (const remoteProcessRanges of remoteSystemRanges.rangesForProcesses) {
+        systemRanges.set(
+            remoteProcessRanges.process,
+            remoteProcessRanges.ranges,
+        );
+    }
+
+    return systemRanges;
+}
+
+function subtractSystemRanges(
+    alpha: ReadonlySystemRanges,
+    omega: ReadonlySystemRanges,
+): SystemRanges {
+    const result = new Map();
+
+    for (const [process, alphaRanges] of alpha.entries()) {
+        const omegaRanges = omega.get(process);
+
+        if (omegaRanges) {
+            result.set(process, Ranges.subtractRange(alphaRanges, omegaRanges));
+        } else {
+            result.set(process, Ranges.deepCopy(alphaRanges));
+        }
+    }
+
+    return result;
+}
+
+async function syncToServerSingleBatch(
+    server: string,
+    processHandle: ProcessHandle.ProcessHandle,
+    system: Models.PublicKey.PublicKey,
+    remoteNeedsAndLocalHas: SystemRanges,
+): Promise<boolean> {
+    let progress = false;
+
+    for (const [process, ranges] of remoteNeedsAndLocalHas.entries()) {
+        if (ranges.length === 0) {
+            continue;
+        }
+
+        const batch = Ranges.takeRangesMaxItems(ranges, new Long(20, 0, true));
+
+        const events = await loadRanges(
+            processHandle.store(),
+            system,
+            process,
+            batch,
+        );
+
+        try {
+            await APIMethods.postEvents(server, events);
+        } catch (err) {
+            console.warn(err);
+
+            return false;
+        }
+
+        remoteNeedsAndLocalHas.set(
+            process,
+            Ranges.subtractRange(ranges, batch),
+        );
+
+        progress = true;
+
+        break;
+    }
+
+    return progress;
 }
