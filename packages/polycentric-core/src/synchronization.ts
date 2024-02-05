@@ -400,13 +400,7 @@ async function syncToServerSingleBatch(
             batch,
         );
 
-        try {
-            await APIMethods.postEvents(server, events);
-        } catch (err) {
-            console.warn(err);
-
-            return false;
-        }
+        await APIMethods.postEvents(server, events);
 
         remoteNeedsAndLocalHas.set(
             process,
