@@ -180,32 +180,29 @@ type ServerState = {
 };
 
 export class Synchronizer {
-    private queryState: Array<Queries.QueryIndex.Cell>;
     private servers: Set<string>;
     private readonly serverState: Map<string, ServerState>;
     private complete: boolean;
 
     private readonly processHandle: ProcessHandle.ProcessHandle;
-    private readonly queryHandle: Queries.QueryCRDTSet.QueryHandle;
+    private readonly unsubscribe: () => void;
 
     public constructor(
         processHandle: ProcessHandle.ProcessHandle,
         queryManager: Queries.QueryManager.QueryManager,
     ) {
-        this.queryState = [];
         this.servers = new Set();
         this.serverState = new Map();
         this.complete = false;
 
         this.processHandle = processHandle;
 
-        this.queryHandle = queryManager.queryCRDTSet.query(
-            processHandle.system(),
-            Models.ContentType.ContentTypeServer,
-            this.updateServerList.bind(this),
-        );
+        const subscription = Queries.QueryServers.queryServersObservable(
+            this.processHandle.queryManager.queryServers,
+            this.processHandle.system(),
+        ).subscribe(this.updateServerList.bind(this));
 
-        this.queryHandle.advance(10);
+        this.unsubscribe = subscription.unsubscribe.bind(subscription);
     }
 
     public async debugWaitUntilSynchronizationComplete(): Promise<void> {
@@ -218,44 +215,8 @@ export class Synchronizer {
         }
     }
 
-    private updateServerList(
-        patch: Queries.QueryIndex.CallbackParameters,
-    ): void {
-        this.queryState = Queries.QueryIndex.applyPatch(this.queryState, patch);
-
-        if (
-            patch.add.length === 0 ||
-            patch.add[patch.add.length - 1].signedEvent === undefined
-        ) {
-            this.queryHandle.advance(10);
-        }
-
-        const servers = new Set<string>();
-
-        for (const cell of this.queryState) {
-            if (cell.signedEvent === undefined) {
-                continue;
-            }
-
-            const event = Models.Event.fromBuffer(cell.signedEvent.event);
-
-            if (
-                event.contentType.notEquals(
-                    Models.ContentType.ContentTypeServer,
-                )
-            ) {
-                throw new Error('impossible');
-            }
-
-            if (event.lwwElementSet === undefined) {
-                throw new Error('impossible');
-            }
-
-            servers.add(Util.decodeText(event.lwwElementSet.value));
-        }
-
-        this.servers = servers;
-
+    private updateServerList(servers: ReadonlySet<string>): void {
+        this.servers = new Set(servers);
         this.synchronizationHint();
     }
 
@@ -357,7 +318,7 @@ export class Synchronizer {
     }
 
     public cleanup(): void {
-        this.queryHandle.unregister();
+        this.unsubscribe();
     }
 }
 
