@@ -252,6 +252,11 @@ export class Synchronizer {
         };
 
         this.cancelContext = new CancelContext();
+
+        this.backfillClientForSystem(
+            processHandle.system(),
+            this.cancelContext,
+        );
     }
 
     public async debugWaitUntilSynchronizationComplete(): Promise<void> {
@@ -383,13 +388,13 @@ export class Synchronizer {
 
         while (
             !this.cancelContext.cancelled() &&
-            await syncToServerSingleBatch(
+            (await syncToServerSingleBatch(
                 server,
                 this.processHandle,
                 this.processHandle.system(),
                 remoteNeedsAndLocalHas,
                 this.cancelContext,
-            )
+            ))
         ) {}
     }
 
