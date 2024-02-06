@@ -311,11 +311,16 @@ export class Synchronizer {
     }
 }
 
-type SystemRanges = Map<Models.Process.Process, Array<Ranges.IRange>>;
+type ProcessRanges = {
+    process: Models.Process.Process;
+    ranges: Array<Ranges.IRange>;
+};
+
+type SystemRanges = Map<Models.Process.ProcessString, ProcessRanges>;
 
 type ReadonlySystemRanges = ReadonlyMap<
-    Models.Process.Process,
-    ReadonlyArray<Ranges.IRange>
+    Models.Process.ProcessString,
+    Readonly<ProcessRanges>
 >;
 
 async function loadLocalSystemRanges(
@@ -331,7 +336,10 @@ async function loadLocalSystemRanges(
             .store()
             .indexProcessStates.getProcessState(system, process);
 
-        systemRanges.set(process, processState.ranges);
+        systemRanges.set(Models.Process.toString(process), {
+            process: process,
+            ranges: processState.ranges,
+        });
     }
 
     return systemRanges;
@@ -346,10 +354,10 @@ async function loadRemoteSystemRanges(
     const remoteSystemRanges = await APIMethods.getRanges(server, system);
 
     for (const remoteProcessRanges of remoteSystemRanges.rangesForProcesses) {
-        systemRanges.set(
-            remoteProcessRanges.process,
-            remoteProcessRanges.ranges,
-        );
+        systemRanges.set(remoteProcessRanges.process, {
+            process: remoteProcessRanges.process,
+            ranges: remoteProcessRanges.ranges,
+        });
     }
 
     return systemRanges;
@@ -361,13 +369,22 @@ function subtractSystemRanges(
 ): SystemRanges {
     const result = new Map();
 
-    for (const [process, alphaRanges] of alpha.entries()) {
-        const omegaRanges = omega.get(process);
+    for (const [processString, alphaRangesForProcess] of alpha.entries()) {
+        const omegaRangesForProcess = omega.get(processString);
 
-        if (omegaRanges) {
-            result.set(process, Ranges.subtractRange(alphaRanges, omegaRanges));
+        if (omegaRangesForProcess) {
+            result.set(processString, {
+                process: alphaRangesForProcess.process,
+                ranges: Ranges.subtractRange(
+                    alphaRangesForProcess.ranges,
+                    omegaRangesForProcess.ranges,
+                ),
+            });
         } else {
-            result.set(process, Ranges.deepCopy(alphaRanges));
+            result.set(processString, {
+                process: alphaRangesForProcess.process,
+                ranges: Ranges.deepCopy(alphaRangesForProcess.ranges),
+            });
         }
     }
 
@@ -382,25 +399,28 @@ async function syncToServerSingleBatch(
 ): Promise<boolean> {
     let progress = false;
 
-    for (const [process, ranges] of remoteNeedsAndLocalHas.entries()) {
-        if (ranges.length === 0) {
+    for (const rangesForProcess of remoteNeedsAndLocalHas.values()) {
+        if (rangesForProcess.ranges.length === 0) {
             continue;
         }
 
-        const batch = Ranges.takeRangesMaxItems(ranges, new Long(20, 0, true));
+        const batch = Ranges.takeRangesMaxItems(
+            rangesForProcess.ranges,
+            new Long(20, 0, true),
+        );
 
         const events = await loadRanges(
             processHandle.store(),
             system,
-            process,
+            rangesForProcess.process,
             batch,
         );
 
         await APIMethods.postEvents(server, events);
 
-        remoteNeedsAndLocalHas.set(
-            process,
-            Ranges.subtractRange(ranges, batch),
+        rangesForProcess.ranges = Ranges.subtractRange(
+            rangesForProcess.ranges,
+            batch,
         );
 
         progress = true;
