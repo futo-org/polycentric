@@ -70,13 +70,9 @@ export function insert(ranges: Array<IRange>, item: Readonly<Long>): void {
             return;
         }
 
-        // between ranges
-        if (
-            item.greaterThan(ranges[i].high) &&
-            i < ranges.length - 1 &&
-            item.lessThan(ranges[i + 1].low)
-        ) {
-            ranges.splice(i + 1, 0, {
+        // between ranges and non adjacent
+        if (item.lessThan(ranges[i].low)) {
+            ranges.splice(i, 0, {
                 low: item,
                 high: item,
             });
@@ -84,6 +80,7 @@ export function insert(ranges: Array<IRange>, item: Readonly<Long>): void {
         }
     }
 
+    // greater than everything
     ranges.push({
         low: item,
         high: item,

@@ -50,6 +50,13 @@ describe('insert', () => {
             makeRange(5, 5),
         ]);
     });
+
+    test('non adjacent less than single item', () => {
+        const ranges: Array<Ranges.IRange> = [];
+        Ranges.insert(ranges, new Long(10, 0, true));
+        Ranges.insert(ranges, new Long(5, 0, true));
+        expect(ranges).toStrictEqual([makeRange(5, 5), makeRange(10, 10)]);
+    });
 });
 
 describe('subtractRange', () => {
