@@ -15,6 +15,7 @@ async function loadRanges(
     system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
     ranges: Array<Ranges.IRange>,
+    cancelContext: CancelContext,
 ): Promise<Array<Models.SignedEvent.SignedEvent>> {
     const result: Array<Models.SignedEvent.SignedEvent> = [];
 
@@ -29,6 +30,10 @@ async function loadRanges(
                 process,
                 i,
             );
+
+            if (cancelContext.cancelled()) {
+                return result;
+            }
 
             if (event) {
                 result.push(event);
@@ -160,6 +165,7 @@ export async function backFillServers(
                     system,
                     process,
                     batch,
+                    new CancelContext(),
                 );
 
                 await APIMethods.postEvents(server, events);
@@ -561,6 +567,7 @@ async function syncToServerSingleBatch(
             system,
             process,
             batch,
+            cancelContext,
         );
 
         if (cancelContext.cancelled()) {
