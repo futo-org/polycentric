@@ -223,6 +223,7 @@ export class Synchronizer {
 
     private readonly processHandle: ProcessHandle.ProcessHandle;
     private readonly unsubscribe: () => void;
+    private readonly cancelContext: CancelContext;
 
     public constructor(processHandle: ProcessHandle.ProcessHandle) {
         this.serverStates = new Map();
@@ -249,6 +250,8 @@ export class Synchronizer {
             queryServersSubscription.unsubscribe();
             queryFollowersSubscription.unsubscribe();
         };
+
+        this.cancelContext = new CancelContext();
     }
 
     public async debugWaitUntilSynchronizationComplete(): Promise<void> {
@@ -301,6 +304,10 @@ export class Synchronizer {
     }
 
     public async synchronizationHint(): Promise<void> {
+        if (this.cancelContext.cancelled()) {
+            return;
+        }
+
         this.complete = false;
 
         for (const serverState of this.serverStates.values()) {
@@ -365,17 +372,23 @@ export class Synchronizer {
             this.processHandle.system(),
         );
 
+        if (this.cancelContext.cancelled()) {
+            return;
+        }
+
         const remoteNeedsAndLocalHas = subtractSystemRanges(
             localSystemRanges,
             remoteSystemRanges,
         );
 
         while (
+            !this.cancelContext.cancelled() &&
             await syncToServerSingleBatch(
                 server,
                 this.processHandle,
                 this.processHandle.system(),
                 remoteNeedsAndLocalHas,
+                this.cancelContext,
             )
         ) {}
     }
@@ -448,12 +461,14 @@ export class Synchronizer {
                 this.processHandle,
                 system,
                 remoteHasAndLocalNeeds,
+                cancelContext,
             ))
         ) {}
     }
 
     public cleanup(): void {
         this.unsubscribe();
+        this.cancelContext.cancel();
     }
 }
 
@@ -525,6 +540,7 @@ async function syncToServerSingleBatch(
     processHandle: ProcessHandle.ProcessHandle,
     system: Models.PublicKey.PublicKey,
     remoteNeedsAndLocalHas: SystemRanges,
+    cancelContext: CancelContext,
 ): Promise<boolean> {
     let progress = false;
 
@@ -542,7 +558,15 @@ async function syncToServerSingleBatch(
             batch,
         );
 
+        if (cancelContext.cancelled()) {
+            return progress;
+        }
+
         await APIMethods.postEvents(server, events);
+
+        if (cancelContext.cancelled()) {
+            return progress;
+        }
 
         remoteNeedsAndLocalHas.set(
             process,
@@ -562,6 +586,7 @@ async function syncFromServerSingleBatch(
     processHandle: ProcessHandle.ProcessHandle,
     system: Models.PublicKey.PublicKey,
     remoteHasAndLocalNeeds: SystemRanges,
+    cancelContext: CancelContext,
 ): Promise<boolean> {
     let progress = false;
 
@@ -585,7 +610,15 @@ async function syncFromServerSingleBatch(
             }),
         );
 
+        if (cancelContext.cancelled()) {
+            return progress;
+        }
+
         await saveBatch(processHandle, events);
+
+        if (cancelContext.cancelled()) {
+            return progress;
+        }
 
         remoteHasAndLocalNeeds.set(
             process,
