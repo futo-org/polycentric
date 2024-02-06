@@ -185,10 +185,6 @@ type ServerState = {
     active: boolean;
 };
 
-type FollowingState = {
-    cancelContext: CancelContext;
-};
-
 function taskPerItemInSet<Key, SetItem, State>(
     states: Map<Key, State>,
     updatedSet: ReadonlySet<SetItem>,
