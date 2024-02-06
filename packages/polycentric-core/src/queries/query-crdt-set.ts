@@ -171,6 +171,8 @@ export function queryCRDTSetCompleteObservable<T>(
             handle.advance(10);
         });
 
+        handle.advance(10);
+
         return handle.unregister.bind(handle);
     });
 }

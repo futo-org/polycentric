@@ -404,6 +404,7 @@ export class Synchronizer {
         system: Models.PublicKey.PublicKey,
         cancelContext: CancelContext,
     ): Promise<void> {
+        console.log("backfillClientForSystem", Models.PublicKey.toString(system));
         const serverStates = new Map<string, CancelContext>();
 
         const subscription = Queries.QueryServers.queryServersObservable(
@@ -441,9 +442,11 @@ export class Synchronizer {
         system: Models.PublicKey.PublicKey,
         cancelContext: CancelContext,
     ): Promise<void> {
+        console.log("starting", Models.PublicKey.toString(system));
+
         const remoteSystemRanges = await loadRemoteSystemRanges(server, system);
 
-        if (!cancelContext.cancelled()) {
+        if (cancelContext.cancelled()) {
             return;
         }
 
@@ -452,7 +455,7 @@ export class Synchronizer {
             system,
         );
 
-        if (!cancelContext.cancelled()) {
+        if (cancelContext.cancelled()) {
             return;
         }
 
@@ -470,7 +473,9 @@ export class Synchronizer {
                 remoteHasAndLocalNeeds,
                 cancelContext,
             ))
-        ) {}
+        ) {
+            console.log("backfilled batch for", Models.PublicKey.toString(system));
+        }
     }
 
     public cleanup(): void {
@@ -479,11 +484,11 @@ export class Synchronizer {
     }
 }
 
-type SystemRanges = Map<Models.Process.Process, Array<Ranges.IRange>>;
+type SystemRanges = Map<Models.Process.ProcessString, Array<Ranges.IRange>>;
 
 type ReadonlySystemRanges = ReadonlyMap<
-    Models.Process.Process,
-    ReadonlyArray<Ranges.IRange>
+    Models.Process.ProcessString,
+    ReadonlyArray<Readonly<Ranges.IRange>>
 >;
 
 async function loadLocalSystemRanges(
@@ -499,7 +504,9 @@ async function loadLocalSystemRanges(
             .store()
             .indexProcessStates.getProcessState(system, process);
 
-        systemRanges.set(process, processState.ranges);
+        systemRanges.set(Models.Process.toString(process), processState.ranges);
+
+        console.log("local has", Ranges.toString(processState.ranges));
     }
 
     return systemRanges;
@@ -515,9 +522,11 @@ async function loadRemoteSystemRanges(
 
     for (const remoteProcessRanges of remoteSystemRanges.rangesForProcesses) {
         systemRanges.set(
-            remoteProcessRanges.process,
+            Models.Process.toString(remoteProcessRanges.process),
             remoteProcessRanges.ranges,
         );
+
+        console.log("remote has", Ranges.toString(remoteProcessRanges.ranges));
     }
 
     return systemRanges;
@@ -533,7 +542,15 @@ function subtractSystemRanges(
         const omegaRanges = omega.get(process);
 
         if (omegaRanges) {
-            result.set(process, Ranges.subtractRange(alphaRanges, omegaRanges));
+            const x = Ranges.subtractRange(Ranges.deepCopy(alphaRanges), Ranges.deepCopy(omegaRanges));
+            result.set(process, x);
+
+
+            console.log(
+                "alpha", Ranges.toString(alphaRanges),
+                "omaga", Ranges.toString(omegaRanges),
+                "result", Ranges.toString(x),
+            );
         } else {
             result.set(process, Ranges.deepCopy(alphaRanges));
         }
@@ -561,7 +578,7 @@ async function syncToServerSingleBatch(
         const events = await loadRanges(
             processHandle.store(),
             system,
-            process,
+            Models.Process.fromString(process),
             batch,
             cancelContext,
         );
@@ -605,13 +622,15 @@ async function syncFromServerSingleBatch(
 
         const batch = Ranges.takeRangesMaxItems(ranges, new Long(20, 0, true));
 
+        console.log("loading", batch);
+
         const events = await APIMethods.getEvents(
             server,
             system,
             Models.Ranges.rangesForSystemFromProto({
                 rangesForProcesses: [
                     {
-                        process: process,
+                        process: Models.Process.fromString(process),
                         ranges: batch,
                     },
                 ],

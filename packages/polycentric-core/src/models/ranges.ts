@@ -1,6 +1,7 @@
 import Long from 'long';
 
 import * as Protocol from '../protocol';
+import * as Ranges from '../ranges';
 import * as Models from '.';
 
 interface RangeI {
@@ -39,6 +40,12 @@ export function rangesForProcessFromProto(
     Models.Process.fromProto(proto.process);
 
     proto.ranges.forEach(rangeFromProto);
+
+    if (!Ranges.validateInvariants(proto.ranges)) {
+        console.log("RangesForProcess invariants violated");
+        proto.ranges = Ranges.fixRanges(proto.ranges);
+        // throw Error('invalid ranges');
+    }
 
     return proto as RangesForProcess;
 }

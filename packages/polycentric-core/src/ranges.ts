@@ -5,6 +5,11 @@ export interface IRange {
     high: Long;
 }
 
+interface ReadonlyIRange {
+    low: Readonly<Long>,
+    high: Readonly<Long>,
+}
+
 export function toString(ranges: ReadonlyArray<IRange>): string {
     const out = ranges
         .map((r) => r.low.toString() + '-' + r.high.toString())
@@ -13,7 +18,7 @@ export function toString(ranges: ReadonlyArray<IRange>): string {
 }
 
 export function contains(
-    ranges: ReadonlyArray<IRange>,
+    ranges: ReadonlyArray<ReadonlyIRange>,
     item: Readonly<Long>,
 ): boolean {
     for (const range of ranges) {
@@ -28,7 +33,7 @@ export function contains(
     return false;
 }
 
-export function deepCopy(ranges: ReadonlyArray<IRange>): Array<IRange> {
+export function deepCopy(ranges: ReadonlyArray<ReadonlyIRange>): Array<IRange> {
     return ranges.map((item) => {
         return {
             low: new Long(item.low.low, item.low.high, item.low.unsigned),
@@ -37,7 +42,40 @@ export function deepCopy(ranges: ReadonlyArray<IRange>): Array<IRange> {
     });
 }
 
+export function validateInvariants(ranges: ReadonlyArray<ReadonlyIRange>): boolean {
+    for (let i = 0; i < ranges.length; i++) {
+        if (ranges[i].low.greaterThan(ranges[i].high)) {
+            return false;
+        }
+
+        if (i + 1 < ranges.length) {
+            if (ranges[i].high.greaterThanOrEqual(ranges[i + 1].low)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+export function fixRanges(ranges: ReadonlyArray<ReadonlyIRange>): Array<IRange> {
+    const result: Array<IRange> = [];
+
+    for (const point of toArray(ranges)) {
+        insert(result, point);
+    }
+
+    return result;
+}
+
 export function insert(ranges: Array<IRange>, item: Readonly<Long>): void {
+    if (!validateInvariants(ranges)) {
+        console.log("insert ranges invariants violated", item, toString(ranges));
+        throw Error("insert invariants detected");
+    }
+
+    const input = deepCopy(ranges);
+
     for (let i = 0; i < ranges.length; i++) {
         // within existing range
         if (
@@ -70,13 +108,9 @@ export function insert(ranges: Array<IRange>, item: Readonly<Long>): void {
             return;
         }
 
-        // between ranges
-        if (
-            item.greaterThan(ranges[i].high) &&
-            i < ranges.length - 1 &&
-            item.lessThan(ranges[i + 1].low)
-        ) {
-            ranges.splice(i + 1, 0, {
+        // between ranges and not adjacent
+        if (item.lessThan(ranges[i].low)) {
+            ranges.splice(i, 0,{
                 low: item,
                 high: item,
             });
@@ -84,16 +118,38 @@ export function insert(ranges: Array<IRange>, item: Readonly<Long>): void {
         }
     }
 
+    // greater than everything
     ranges.push({
         low: item,
         high: item,
     });
+
+    if (!validateInvariants(ranges)) {
+        console.log(
+            "insert ranges output invariants violated",
+            item,
+            toString(ranges),
+            "original",
+            toString(input),
+            );
+        throw Error("insert result invariants detected");
+    }
+
+
 }
 
 export function subtractRange(
-    left: ReadonlyArray<IRange>,
-    right: ReadonlyArray<IRange>,
+    left: ReadonlyArray<ReadonlyIRange>,
+    right: ReadonlyArray<ReadonlyIRange>,
 ): Array<IRange> {
+    if (!validateInvariants(left)) {
+        console.log("subtractRange left invariants violated");
+    }
+
+    if (!validateInvariants(right)) {
+        console.log("subtractRange right invariants violated");
+    }
+
     const result: Array<IRange> = [];
 
     for (const item of left) {
@@ -142,11 +198,15 @@ export function subtractRange(
         }
     }
 
+    if (!validateInvariants(result)) {
+        console.log("subtractRange result invariants violated");
+    }
+
     return result;
 }
 
 export function takeRangesMaxItems(
-    ranges: ReadonlyArray<IRange>,
+    ranges: ReadonlyArray<ReadonlyIRange>,
     limit: Readonly<Long>,
 ): Array<IRange> {
     let sum = Long.UZERO;
@@ -178,7 +238,7 @@ export function takeRangesMaxItems(
     return result;
 }
 
-export function toArray(ranges: ReadonlyArray<IRange>): Array<Long> {
+export function toArray(ranges: ReadonlyArray<ReadonlyIRange>): Array<Long> {
     const result = [];
 
     for (const range of ranges) {

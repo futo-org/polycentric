@@ -44,12 +44,37 @@ describe('insert', () => {
         Ranges.insert(ranges, new Long(1, 0, true));
         Ranges.insert(ranges, new Long(5, 0, true));
         Ranges.insert(ranges, new Long(3, 0, true));
+        Ranges.insert(ranges, new Long(10, 0, true));
+        Ranges.insert(ranges, new Long(8, 0, true));
         expect(ranges).toStrictEqual([
             makeRange(1, 1),
             makeRange(3, 3),
             makeRange(5, 5),
+            makeRange(8, 8),
+            makeRange(10, 10),
         ]);
     });
+
+    test('failing', () => {
+        const ranges: Array<Ranges.IRange> = [];
+        Ranges.insert(ranges, new Long(10, 0, true));
+        Ranges.insert(ranges, new Long(5, 0, true));
+        expect(ranges).toStrictEqual([
+            makeRange(5, 5),
+            makeRange(10, 10),
+        ]);
+    });
+
+    test('large gap', () => {
+        const ranges: Array<Ranges.IRange> = [];
+        Ranges.insert(ranges, new Long(5, 0, true));
+        Ranges.insert(ranges, new Long(10, 0, true));
+        expect(ranges).toStrictEqual([
+            makeRange(5, 5),
+            makeRange(10, 10),
+        ]);
+    });
+
 });
 
 describe('subtractRange', () => {

@@ -125,6 +125,8 @@ function updateProcessState(
 
     Ranges.insert(state.ranges, event.logicalClock);
 
+    // state.ranges = Ranges.fixRanges(state.ranges);
+
     {
         let foundIndex = false;
 
