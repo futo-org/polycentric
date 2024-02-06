@@ -28,6 +28,22 @@ export function contains(
     return false;
 }
 
+export function validateInvariants(ranges: ReadonlyArray<IRange>): boolean {
+    for (let i = 0; i < ranges.length; i++) {
+        if (ranges[i].low.greaterThan(ranges[i].high)) {
+            return false;
+        }
+
+        if (i + 1 < ranges.length) {
+            if (ranges[i].high.greaterThanOrEqual(ranges[i + 1].low)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 export function deepCopy(ranges: ReadonlyArray<IRange>): Array<IRange> {
     return ranges.map((item) => {
         return {

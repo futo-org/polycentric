@@ -1190,7 +1190,8 @@ pub(crate) async fn known_ranges_for_system(
                     system_key = $2
             ) t2
         ) t1
-        GROUP BY process, logical_clock - rn;
+        GROUP BY process, logical_clock - rn
+        ORDER BY process, low;
     ";
 
     let ranges = ::sqlx::query_as::<_, RangeRow>(query)
