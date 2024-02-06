@@ -423,10 +423,18 @@ export class Synchronizer {
     ): Promise<void> {
         const remoteSystemRanges = await loadRemoteSystemRanges(server, system);
 
+        if (!cancelContext.cancelled()) {
+            return;
+        }
+
         const localSystemRanges = await loadLocalSystemRanges(
             this.processHandle,
             system,
         );
+
+        if (!cancelContext.cancelled()) {
+            return;
+        }
 
         const remoteHasAndLocalNeeds = subtractSystemRanges(
             remoteSystemRanges,
