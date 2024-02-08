@@ -1,3 +1,5 @@
+import * as RXJS from 'rxjs';
+
 import * as Base64 from '@borderless/base64';
 
 import * as Models from '../models';
@@ -126,4 +128,51 @@ export class QueryManager {
             },
         };
     }
+}
+
+export function queryCRDTSetCompleteObservable<T>(
+    queryManager: QueryManager,
+    system: Models.PublicKey.PublicKey,
+    contentType: Models.ContentType.ContentType,
+    parse: (value: Uint8Array) => T,
+): RXJS.Observable<ReadonlySet<T>> {
+    const processQueryState = (queryState: Array<QueryIndex.Cell>) => {
+        const result = new Set<T>();
+
+        for (const cell of queryState) {
+            if (cell.signedEvent === undefined) {
+                continue;
+            }
+
+            const event = Models.Event.fromBuffer(cell.signedEvent.event);
+
+            if (event.contentType.notEquals(contentType)) {
+                throw new Error('impossible');
+            }
+
+            if (event.lwwElementSet === undefined) {
+                throw new Error('impossible');
+            }
+
+            result.add(parse(event.lwwElementSet.value));
+        }
+
+        return result;
+    };
+
+    return new RXJS.Observable((subscriber) => {
+        let queryState: Array<QueryIndex.Cell> = [];
+
+        const handle = queryManager.query(system, contentType, (patch) => {
+            queryState = QueryIndex.applyPatch(queryState, patch);
+
+            subscriber.next(processQueryState(queryState));
+
+            handle.advance(10);
+        });
+
+        handle.advance(10);
+
+        return handle.unregister.bind(handle);
+    });
 }

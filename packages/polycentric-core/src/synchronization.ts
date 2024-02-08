@@ -8,12 +8,14 @@ import * as Ranges from './ranges';
 import * as Protocol from './protocol';
 import * as Queries from './queries';
 import * as Util from './util';
+import { CancelContext } from './cancel-context';
 
 async function loadRanges(
     store: Store.Store,
     system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
     ranges: Array<Ranges.IRange>,
+    cancelContext: CancelContext,
 ): Promise<Array<Models.SignedEvent.SignedEvent>> {
     const result: Array<Models.SignedEvent.SignedEvent> = [];
 
@@ -28,6 +30,10 @@ async function loadRanges(
                 process,
                 i,
             );
+
+            if (cancelContext.cancelled()) {
+                return result;
+            }
 
             if (event) {
                 result.push(event);
@@ -159,6 +165,7 @@ export async function backFillServers(
                     system,
                     process,
                     batch,
+                    new CancelContext(),
                 );
 
                 await APIMethods.postEvents(server, events);
@@ -178,25 +185,78 @@ type ServerState = {
     active: boolean;
 };
 
+function taskPerItemInSet<Key, SetItem, State>(
+    states: Map<Key, State>,
+    updatedSet: ReadonlySet<SetItem>,
+    setItemToKey: (setItem: SetItem) => Key,
+    onAdd: (setItem: SetItem) => State,
+    onRemove: (state: State) => void,
+): void {
+    for (const setItem of updatedSet) {
+        const key = setItemToKey(setItem);
+
+        const existingItem = states.get(key);
+
+        if (!existingItem) {
+            states.set(key, onAdd(setItem));
+        }
+    }
+
+    const updatedSetKeys = new Set([...updatedSet.keys()].map(setItemToKey));
+
+    const removed = [...states].filter(([key]) => !updatedSetKeys.has(key));
+
+    for (const [key, state] of removed.values()) {
+        onRemove(state);
+
+        states.delete(key);
+    }
+}
+
 export class Synchronizer {
     private serverStates: Map<string, ServerState>;
     private complete: boolean;
 
+    private followingStates: Map<
+        Models.PublicKey.PublicKeyString,
+        CancelContext
+    >;
+
     private readonly processHandle: ProcessHandle.ProcessHandle;
     private readonly unsubscribe: () => void;
+    private readonly cancelContext: CancelContext;
 
     public constructor(processHandle: ProcessHandle.ProcessHandle) {
         this.serverStates = new Map();
+        this.followingStates = new Map();
         this.complete = false;
 
         this.processHandle = processHandle;
+        this.cancelContext = new CancelContext();
 
-        const subscription = Queries.QueryServers.queryServersObservable(
-            this.processHandle.queryManager.queryServers,
-            this.processHandle.system(),
-        ).subscribe(this.updateServerList.bind(this));
+        const queryServersSubscription =
+            Queries.QueryServers.queryServersObservable(
+                this.processHandle.queryManager.queryServers,
+                this.processHandle.system(),
+            ).subscribe(this.updateServerList.bind(this));
 
-        this.unsubscribe = subscription.unsubscribe.bind(subscription);
+        const queryFollowersSubscription =
+            Queries.QueryCRDTSet.queryCRDTSetCompleteObservable(
+                this.processHandle.queryManager.queryCRDTSet,
+                this.processHandle.system(),
+                Models.ContentType.ContentTypeFollow,
+                Models.PublicKey.fromBuffer,
+            ).subscribe(this.updateFollowingList.bind(this));
+
+        this.unsubscribe = () => {
+            queryServersSubscription.unsubscribe();
+            queryFollowersSubscription.unsubscribe();
+        };
+
+        this.backfillClientForSystem(
+            processHandle.system(),
+            this.cancelContext,
+        );
     }
 
     public async debugWaitUntilSynchronizationComplete(): Promise<void> {
@@ -207,6 +267,28 @@ export class Synchronizer {
 
             await Util.sleep(100);
         }
+    }
+
+    private updateFollowingList(
+        latestFollowing: ReadonlySet<Models.PublicKey.PublicKey>,
+    ): void {
+        taskPerItemInSet(
+            this.followingStates,
+            latestFollowing,
+            (publicKey) => {
+                return Models.PublicKey.toString(publicKey);
+            },
+            (system) => {
+                const cancelContext = new CancelContext();
+
+                this.backfillClientForSystem(system, cancelContext);
+
+                return cancelContext;
+            },
+            (cancelContext) => {
+                cancelContext.cancel();
+            },
+        );
     }
 
     private updateServerList(servers: ReadonlySet<string>): void {
@@ -227,6 +309,10 @@ export class Synchronizer {
     }
 
     public async synchronizationHint(): Promise<void> {
+        if (this.cancelContext.cancelled()) {
+            return;
+        }
+
         this.complete = false;
 
         for (const serverState of this.serverStates.values()) {
@@ -241,6 +327,7 @@ export class Synchronizer {
         const localSystemRanges = await loadLocalSystemRanges(
             this.processHandle,
             this.processHandle.system(),
+            this.cancelContext,
         );
 
         let incomplete = false;
@@ -297,41 +384,142 @@ export class Synchronizer {
         );
 
         while (
-            await syncToServerSingleBatch(
+            !this.cancelContext.cancelled() &&
+            (await syncToServerSingleBatch(
                 server,
                 this.processHandle,
                 this.processHandle.system(),
                 remoteNeedsAndLocalHas,
-            )
+                this.cancelContext,
+            ))
         ) {}
+    }
+
+    private async backfillClientForSystem(
+        system: Models.PublicKey.PublicKey,
+        cancelContext: CancelContext,
+    ): Promise<void> {
+        const serverStates = new Map<string, CancelContext>();
+
+        const subscription = Queries.QueryServers.queryServersObservable(
+            this.processHandle.queryManager.queryServers,
+            system,
+        ).subscribe((updatedServers) => {
+            taskPerItemInSet(
+                serverStates,
+                updatedServers,
+                (server) => {
+                    return server;
+                },
+                (server) => {
+                    const cancelContext = new CancelContext();
+
+                    this.backfillClientFromServerForSystem(
+                        server,
+                        system,
+                        cancelContext,
+                    );
+
+                    return cancelContext;
+                },
+                (cancelContext) => {
+                    cancelContext.cancel();
+                },
+            );
+        });
+
+        cancelContext.addCallback(subscription.unsubscribe.bind(subscription));
+    }
+
+    private async backfillClientFromServerForSystem(
+        server: string,
+        system: Models.PublicKey.PublicKey,
+        cancelContext: CancelContext,
+    ): Promise<void> {
+        try {
+            const remoteSystemRanges = await loadRemoteSystemRanges(
+                server,
+                system,
+            );
+
+            if (cancelContext.cancelled()) {
+                return;
+            }
+
+            const localSystemRanges = await loadLocalSystemRanges(
+                this.processHandle,
+                system,
+                this.cancelContext,
+            );
+
+            if (cancelContext.cancelled()) {
+                return;
+            }
+
+            const remoteHasAndLocalNeeds = subtractSystemRanges(
+                remoteSystemRanges,
+                localSystemRanges,
+            );
+
+            while (
+                !cancelContext.cancelled() &&
+                (await syncFromServerSingleBatch(
+                    server,
+                    this.processHandle,
+                    system,
+                    remoteHasAndLocalNeeds,
+                    cancelContext,
+                ))
+            ) {}
+        } catch (err) {
+            console.warn(err);
+        }
     }
 
     public cleanup(): void {
         this.unsubscribe();
+        this.cancelContext.cancel();
     }
 }
 
-type SystemRanges = Map<Models.Process.Process, Array<Ranges.IRange>>;
+type ProcessRanges = {
+    process: Models.Process.Process;
+    ranges: Array<Ranges.IRange>;
+};
+
+type SystemRanges = Map<Models.Process.ProcessString, ProcessRanges>;
 
 type ReadonlySystemRanges = ReadonlyMap<
-    Models.Process.Process,
-    ReadonlyArray<Ranges.IRange>
+    Models.Process.ProcessString,
+    Readonly<ProcessRanges>
 >;
 
 async function loadLocalSystemRanges(
     processHandle: ProcessHandle.ProcessHandle,
     system: Models.PublicKey.PublicKey,
+    cancelContext: CancelContext,
 ): Promise<SystemRanges> {
-    const systemRanges = new Map();
+    const systemRanges: SystemRanges = new Map();
 
     const systemState = await processHandle.loadSystemState(system);
+
+    if (cancelContext.cancelled()) {
+        return systemRanges;
+    }
 
     for (const process of systemState.processes()) {
         const processState = await processHandle
             .store()
             .indexProcessStates.getProcessState(system, process);
 
-        systemRanges.set(process, processState.ranges);
+        if (cancelContext.cancelled()) {
+            return systemRanges;
+        }
+
+        systemRanges.set(Models.Process.toString(process), {
+            process: process,
+            ranges: processState.ranges,
+        });
     }
 
     return systemRanges;
@@ -341,15 +529,15 @@ async function loadRemoteSystemRanges(
     server: string,
     system: Models.PublicKey.PublicKey,
 ): Promise<SystemRanges> {
-    const systemRanges = new Map();
+    const systemRanges: SystemRanges = new Map();
 
     const remoteSystemRanges = await APIMethods.getRanges(server, system);
 
     for (const remoteProcessRanges of remoteSystemRanges.rangesForProcesses) {
-        systemRanges.set(
-            remoteProcessRanges.process,
-            remoteProcessRanges.ranges,
-        );
+        systemRanges.set(Models.Process.toString(remoteProcessRanges.process), {
+            process: remoteProcessRanges.process,
+            ranges: remoteProcessRanges.ranges,
+        });
     }
 
     return systemRanges;
@@ -359,15 +547,24 @@ function subtractSystemRanges(
     alpha: ReadonlySystemRanges,
     omega: ReadonlySystemRanges,
 ): SystemRanges {
-    const result = new Map();
+    const result: SystemRanges = new Map();
 
-    for (const [process, alphaRanges] of alpha.entries()) {
-        const omegaRanges = omega.get(process);
+    for (const [processString, alphaRangesForProcess] of alpha.entries()) {
+        const omegaRangesForProcess = omega.get(processString);
 
-        if (omegaRanges) {
-            result.set(process, Ranges.subtractRange(alphaRanges, omegaRanges));
+        if (omegaRangesForProcess) {
+            result.set(processString, {
+                process: alphaRangesForProcess.process,
+                ranges: Ranges.subtractRange(
+                    alphaRangesForProcess.ranges,
+                    omegaRangesForProcess.ranges,
+                ),
+            });
         } else {
-            result.set(process, Ranges.deepCopy(alphaRanges));
+            result.set(processString, {
+                process: alphaRangesForProcess.process,
+                ranges: Ranges.deepCopy(alphaRangesForProcess.ranges),
+            });
         }
     }
 
@@ -379,28 +576,96 @@ async function syncToServerSingleBatch(
     processHandle: ProcessHandle.ProcessHandle,
     system: Models.PublicKey.PublicKey,
     remoteNeedsAndLocalHas: SystemRanges,
+    cancelContext: CancelContext,
 ): Promise<boolean> {
     let progress = false;
 
-    for (const [process, ranges] of remoteNeedsAndLocalHas.entries()) {
-        if (ranges.length === 0) {
+    for (const rangesForProcess of remoteNeedsAndLocalHas.values()) {
+        if (rangesForProcess.ranges.length === 0) {
             continue;
         }
 
-        const batch = Ranges.takeRangesMaxItems(ranges, new Long(20, 0, true));
+        const batch = Ranges.takeRangesMaxItems(
+            rangesForProcess.ranges,
+            new Long(20, 0, true),
+        );
 
         const events = await loadRanges(
             processHandle.store(),
             system,
-            process,
+            rangesForProcess.process,
             batch,
+            cancelContext,
         );
+
+        if (cancelContext.cancelled()) {
+            return progress;
+        }
 
         await APIMethods.postEvents(server, events);
 
-        remoteNeedsAndLocalHas.set(
-            process,
-            Ranges.subtractRange(ranges, batch),
+        if (cancelContext.cancelled()) {
+            return progress;
+        }
+
+        rangesForProcess.ranges = Ranges.subtractRange(
+            rangesForProcess.ranges,
+            batch,
+        );
+
+        progress = true;
+
+        break;
+    }
+
+    return progress;
+}
+
+async function syncFromServerSingleBatch(
+    server: string,
+    processHandle: ProcessHandle.ProcessHandle,
+    system: Models.PublicKey.PublicKey,
+    remoteHasAndLocalNeeds: SystemRanges,
+    cancelContext: CancelContext,
+): Promise<boolean> {
+    let progress = false;
+
+    for (const rangesForProcess of remoteHasAndLocalNeeds.values()) {
+        if (rangesForProcess.ranges.length === 0) {
+            continue;
+        }
+
+        const batch = Ranges.takeRangesMaxItems(
+            rangesForProcess.ranges,
+            new Long(20, 0, true),
+        );
+
+        const events = await APIMethods.getEvents(
+            server,
+            system,
+            Models.Ranges.rangesForSystemFromProto({
+                rangesForProcesses: [
+                    {
+                        process: rangesForProcess.process,
+                        ranges: batch,
+                    },
+                ],
+            }),
+        );
+
+        if (cancelContext.cancelled()) {
+            return progress;
+        }
+
+        await saveBatch(processHandle, events);
+
+        if (cancelContext.cancelled()) {
+            return progress;
+        }
+
+        rangesForProcess.ranges = Ranges.subtractRange(
+            rangesForProcess.ranges,
+            batch,
         );
 
         progress = true;
