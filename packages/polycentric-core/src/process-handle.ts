@@ -452,10 +452,6 @@ export class ProcessHandle {
                         this._processSecret.process,
                     );
 
-                if (processState.indices === undefined) {
-                    throw new Error('expected indices');
-                }
-
                 const event = Models.Event.fromProto({
                     system: this._system,
                     process: this._processSecret.process,

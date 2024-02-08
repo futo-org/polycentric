@@ -14,7 +14,7 @@ export function makeSystemStateKey(
 }
 
 function updateSystemState(
-    state: Protocol.StorageTypeSystemState,
+    state: Models.Storage.StorageTypeSystemState,
     event: Models.Event.Event,
 ): void {
     {
@@ -91,25 +91,25 @@ export class IndexSystemState extends HasIngest {
 
     public async getSystemState(
         system: Models.PublicKey.PublicKey,
-    ): Promise<Protocol.StorageTypeSystemState> {
+    ): Promise<Models.Storage.StorageTypeSystemState> {
         const attempt = await PersistenceDriver.tryLoadKey(
             this.level,
             makeSystemStateKey(system),
         );
 
         if (attempt === undefined) {
-            return {
+            return Models.Storage.storageTypeSystemStateFromProto({
                 crdtItems: [],
                 processes: [],
-            };
+            });
         } else {
-            return Protocol.StorageTypeSystemState.decode(attempt);
+            return Models.Storage.storageTypeSystemStateFromBuffer(attempt);
         }
     }
 
     private putSystemState(
         system: Models.PublicKey.PublicKey,
-        state: Protocol.StorageTypeSystemState,
+        state: Models.Storage.StorageTypeSystemState,
     ): PersistenceDriver.BinaryPutLevel {
         return {
             type: 'put',

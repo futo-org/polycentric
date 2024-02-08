@@ -102,14 +102,13 @@ export class IndexEvents extends HasIngest {
         if (!attempt) {
             return undefined;
         } else {
-            const storageEvent = Protocol.StorageTypeEvent.decode(attempt);
+            const storageEvent =
+                Models.Storage.storageTypeEventFromBuffer(attempt);
 
             if (storageEvent.event) {
-                return Models.SignedEvent.fromProto(storageEvent.event);
+                return storageEvent.event;
             } else if (storageEvent.mutationPointer) {
-                const mutationPointer = Models.Pointer.fromProto(
-                    storageEvent.mutationPointer,
-                );
+                const mutationPointer = storageEvent.mutationPointer;
 
                 return await this.getSignedEvent(
                     mutationPointer.system,
@@ -117,7 +116,7 @@ export class IndexEvents extends HasIngest {
                     mutationPointer.logicalClock,
                 );
             } else {
-                return undefined;
+                throw Error('impossible');
             }
         }
     }
@@ -135,14 +134,13 @@ export class IndexEvents extends HasIngest {
         if (!attempt) {
             return undefined;
         } else {
-            const storageEvent = Protocol.StorageTypeEvent.decode(attempt);
+            const storageEvent =
+                Models.Storage.storageTypeEventFromBuffer(attempt);
 
             if (storageEvent.event) {
-                return Models.SignedEvent.fromProto(storageEvent.event);
+                return storageEvent.event;
             } else if (storageEvent.mutationPointer) {
-                const mutationPointer = Models.Pointer.fromProto(
-                    storageEvent.mutationPointer,
-                );
+                const mutationPointer = storageEvent.mutationPointer;
 
                 return await this.getSignedEvent(
                     mutationPointer.system,
@@ -150,7 +148,7 @@ export class IndexEvents extends HasIngest {
                     mutationPointer.logicalClock,
                 );
             } else {
-                return undefined;
+                throw Error('impossible');
             }
         }
     }

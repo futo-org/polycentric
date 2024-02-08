@@ -80,27 +80,27 @@ export class IndexProcessState extends HasIngest {
     public async getProcessState(
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
-    ): Promise<Protocol.StorageTypeProcessState> {
+    ): Promise<Models.Storage.StorageTypeProcessState> {
         const attempt = await PersistenceDriver.tryLoadKey(
             this.level,
             makeProcessStateKey(system, process),
         );
 
         if (attempt === undefined) {
-            return {
+            return Models.Storage.storageTypeProcessStateFromProto({
                 logicalClock: new Long(0),
                 ranges: [],
                 indices: { indices: [] },
-            };
+            });
         } else {
-            return Protocol.StorageTypeProcessState.decode(attempt);
+            return Models.Storage.storageTypeProcessStateFromBuffer(attempt);
         }
     }
 
     private putProcessState(
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
-        state: Protocol.StorageTypeProcessState,
+        state: Models.Storage.StorageTypeProcessState,
     ): PersistenceDriver.BinaryPutLevel {
         return {
             type: 'put',
@@ -112,15 +112,11 @@ export class IndexProcessState extends HasIngest {
 }
 
 function updateProcessState(
-    state: Protocol.StorageTypeProcessState,
+    state: Models.Storage.StorageTypeProcessState,
     event: Models.Event.Event,
 ): void {
     if (event.logicalClock.compare(state.logicalClock) === 1) {
         state.logicalClock = event.logicalClock;
-    }
-
-    if (state.indices === undefined) {
-        throw new Error('expected indices');
     }
 
     Ranges.insert(state.ranges, event.logicalClock);

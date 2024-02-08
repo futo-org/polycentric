@@ -10,6 +10,7 @@ import * as Util from '../util';
 export * as QueryClaimToSystemResponse from './query-claim-to-system-response';
 export * as QueryIndexResponse from './query-index-response';
 export * as Ranges from './ranges';
+export * as Storage from './storage';
 
 export namespace ContentType {
     export type ContentType = Readonly<Long> & {
