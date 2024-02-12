@@ -22,10 +22,14 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     queryHead.shouldUseNetwork(false);
     queryHead.shouldUseDisk(false);
 
+    let expectedSource = 'unknown';
+
     if (mode === SharedTestMode.NetworkOnly) {
         queryHead.shouldUseNetwork(true);
+        expectedSource = ProcessHandle.TEST_SERVER;
     } else if (mode === SharedTestMode.DiskOnly) {
         queryHead.shouldUseDisk(true);
+        expectedSource = 'disk';
     }
 
     const contextHold =
@@ -55,8 +59,10 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
 
     expect(wasInstant).toStrictEqual(mode === SharedTestMode.CacheOnly);
 
-    const result = Util.mapOverMap(
-        (await observable).head,
+    const result = await observable;
+
+    const resultHead = Util.mapOverMap(
+        result.head,
         Models.signedEventToPointer,
     );
 
@@ -65,12 +71,20 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
         contextHold.cancel();
     }
 
-    const expected = new Map([
+    const expectedHead = new Map([
         [Models.Process.toString(pointer.process), pointer],
     ]);
 
     expect(
-        Util.areMapsEqual(result, expected, Models.Pointer.equal),
+        Util.areSetsEqual(
+            result.attemptedSources,
+            new Set([expectedSource]),
+            (a, b) => a === b,
+        ),
+    ).toStrictEqual(true);
+
+    expect(
+        Util.areMapsEqual(resultHead, expectedHead, Models.Pointer.equal),
     ).toStrictEqual(true);
 
     expect(queryHead.clean).toStrictEqual(true);
@@ -119,6 +133,13 @@ describe('query head2', () => {
 
         expect(queryHead.clean).toStrictEqual(true);
         expect(result.head.size).toStrictEqual(0);
+        expect(
+            Util.areSetsEqual(
+                result.attemptedSources,
+                new Set(['disk']),
+                (a, b) => a === b,
+            ),
+        ).toStrictEqual(true);
 
         const dualQueryResult = await RXJS.firstValueFrom(
             RXJS.combineLatest(

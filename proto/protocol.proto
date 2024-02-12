@@ -75,6 +75,10 @@ message Event {
     optional uint64        unix_milliseconds = 11;
 }
 
+message SystemProcesses {
+    repeated Process processes = 1;
+}
+
 message Digest {
     uint64 digest_type = 1;
     bytes  digest      = 2;

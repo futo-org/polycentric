@@ -17,6 +17,11 @@ export type CallbackValue = {
         Models.Process.ProcessString,
         Models.SignedEvent.SignedEvent
     >;
+    readonly processLists: ReadonlyMap<
+        Models.Process.ProcessString,
+        Models.SignedEvent.SignedEvent
+    >;
+    readonly attemptedSources: ReadonlySet<string>;
 };
 
 type CallbackValueInternal = {
@@ -25,6 +30,11 @@ type CallbackValueInternal = {
         Models.Process.ProcessString,
         Models.SignedEvent.SignedEvent
     >;
+    readonly processLists: Map<
+        Models.Process.ProcessString,
+        Models.SignedEvent.SignedEvent
+    >;
+    readonly attemptedSources: Set<string>;
 };
 
 type Callback = (value: CallbackValue) => void;
@@ -40,6 +50,8 @@ class StateForSystem {
         this.value = {
             missingData: false,
             head: new Map(),
+            processLists: new Map(),
+            attemptedSources: new Set(),
         };
         this.callbacks = new Set();
         this.contextHolds = new Set();
@@ -47,6 +59,11 @@ class StateForSystem {
         this.unsubscribe = undefined;
     }
 }
+
+type Batch = {
+    readonly source: string;
+    readonly signedEvents: ReadonlyArray<Models.SignedEvent.SignedEvent>;
+};
 
 export class QueryHead extends HasUpdate {
     private readonly processHandle: ProcessHandle.ProcessHandle;
@@ -123,9 +140,13 @@ export class QueryHead extends HasUpdate {
             }
 
             const subscription = RXJS.merge(...toMerge).subscribe((batch) =>
-                batch.length > 0
-                    ? this.updateBatch(undefined, batch)
-                    : this.updateEmptyBatch(stateForSystem),
+                batch.signedEvents.length > 0
+                    ? this.updateBatch(
+                          undefined,
+                          batch.signedEvents,
+                          batch.source,
+                      )
+                    : this.updateEmptyBatch(stateForSystem, batch.source),
             );
 
             stateForSystem.unsubscribe =
@@ -155,7 +176,7 @@ export class QueryHead extends HasUpdate {
 
     private loadFromDisk(
         system: Models.PublicKey.PublicKey,
-    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
+    ): RXJS.Observable<Batch> {
         const loadProcessHead = (processProto: Protocol.Process) => {
             const process = Models.Process.fromProto(processProto);
 
@@ -194,14 +215,23 @@ export class QueryHead extends HasUpdate {
                       )
                     : RXJS.of([]),
             ),
+            RXJS.switchMap((signedEvents) =>
+                RXJS.of({
+                    source: 'disk',
+                    signedEvents: signedEvents,
+                }),
+            ),
         );
     }
 
     private loadFromNetwork(
         system: Models.PublicKey.PublicKey,
-    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
+    ): RXJS.Observable<Batch> {
         const loadFromServer = async (server: string) => {
-            return (await APIMethods.getHead(server, system)).events;
+            return {
+                source: server,
+                signedEvents: (await APIMethods.getHead(server, system)).events,
+            };
         };
 
         return queryServersObservable(this.queryServers, system).pipe(
@@ -218,27 +248,101 @@ export class QueryHead extends HasUpdate {
     }
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {
-        this.updateBatch(undefined, [signedEvent]);
+        this.updateBatch(undefined, [signedEvent], 'unknown');
     }
 
     public updateWithContextHold(
         signedEvent: Models.SignedEvent.SignedEvent,
         contextHold: CancelContext | undefined,
     ): void {
-        this.updateBatch(contextHold, [signedEvent]);
+        this.updateBatch(contextHold, [signedEvent], 'unknown');
     }
 
-    private updateEmptyBatch(stateForSystem: StateForSystem): void {
+    private updateEmptyBatch(
+        stateForSystem: StateForSystem,
+        source: string,
+    ): void {
         stateForSystem.fulfilled.set();
+        stateForSystem.value.attemptedSources.add(source);
 
         for (const callback of stateForSystem.callbacks) {
             callback(stateForSystem.value);
         }
     }
 
+    private isStateMissingData(stateForSystem: StateForSystem): boolean {
+        const value = stateForSystem.value;
+
+        for (const [processString, headSignedEvent] of value.head.entries()) {
+            const headEvent = Models.Event.fromBuffer(headSignedEvent.event);
+
+            const systemProcessesIndex = Models.Event.lookupIndex(
+                headEvent,
+                Models.ContentType.ContentTypeSystemProcesses,
+            );
+
+            if (systemProcessesIndex === undefined) {
+                continue;
+            }
+
+            const systemProcessesSignedEvent =
+                value.processLists.get(processString);
+
+            if (systemProcessesSignedEvent === undefined) {
+                return true;
+            }
+
+            const systemProcessesEvent = Models.Event.fromBuffer(
+                systemProcessesSignedEvent.event,
+            );
+
+            const systemProcesses = Models.SystemProcesses.fromBuffer(
+                systemProcessesEvent.content,
+            );
+
+            if (
+                headEvent.vectorClock.logicalClocks.length !==
+                systemProcesses.processes.length
+            ) {
+                console.error('feed integrity violated');
+
+                return true;
+            }
+
+            for (let i = 0; i < systemProcesses.processes.length; i++) {
+                const otherHeadSignedEvent = value.head.get(
+                    Models.Process.toString(systemProcesses.processes[i]),
+                );
+
+                if (otherHeadSignedEvent === undefined) {
+                    return true;
+                }
+
+                if (otherHeadSignedEvent === headSignedEvent) {
+                    continue;
+                }
+
+                const otherHeadEvent = Models.Event.fromBuffer(
+                    otherHeadSignedEvent.event,
+                );
+
+                if (
+                    otherHeadEvent.logicalClock.lessThan(
+                        headEvent.vectorClock.logicalClocks[i],
+                    )
+                ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     public updateBatch(
         contextHold: CancelContext | undefined,
-        signedEvents: Array<Models.SignedEvent.SignedEvent>,
+        signedEvents: ReadonlyArray<Models.SignedEvent.SignedEvent>,
+        source: string,
     ): void {
         const updatedStates = new Set<StateForSystem>();
 
@@ -289,9 +393,49 @@ export class QueryHead extends HasUpdate {
                 stateForSystem.fulfilled.set();
                 updatedStates.add(stateForSystem);
             }
+
+            if (
+                event.contentType.equals(
+                    Models.ContentType.ContentTypeSystemProcesses,
+                )
+            ) {
+                const headSignedEvent =
+                    stateForSystem.value.head.get(processString);
+
+                if (headSignedEvent === undefined) {
+                    throw Error('impossible');
+                }
+
+                const headEvent = Models.Event.fromBuffer(
+                    headSignedEvent.event,
+                );
+
+                const index = Models.Event.lookupIndex(
+                    headEvent,
+                    Models.ContentType.ContentTypeSystemProcesses,
+                );
+
+                if (
+                    headEvent.contentType.equals(
+                        Models.ContentType.ContentTypeSystemProcesses,
+                    ) ||
+                    (index && index.equals(event.logicalClock))
+                ) {
+                    stateForSystem.value.processLists.set(
+                        processString,
+                        signedEvent,
+                    );
+                    updatedStates.add(stateForSystem);
+                }
+            }
         }
 
         for (const stateForSystem of updatedStates) {
+            stateForSystem.value.missingData =
+                this.isStateMissingData(stateForSystem);
+
+            stateForSystem.value.attemptedSources.add(source);
+
             for (const callback of stateForSystem.callbacks) {
                 callback(stateForSystem.value);
             }

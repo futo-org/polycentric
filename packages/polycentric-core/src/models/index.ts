@@ -1007,3 +1007,23 @@ export namespace FindClaimAndVouchResponse {
         return fromProto(Protocol.FindClaimAndVouchResponse.decode(buffer));
     }
 }
+
+export namespace SystemProcesses {
+    interface TypeI {
+        processes: Array<Process.Process>;
+    }
+
+    export type Type = Readonly<TypeI> & {
+        readonly __tag: unique symbol;
+    };
+
+    export function fromProto(proto: Protocol.SystemProcesses): Type {
+        proto.processes.forEach(Process.fromProto);
+
+        return proto as Type;
+    }
+
+    export function fromBuffer(buffer: Uint8Array): Type {
+        return fromProto(Protocol.SystemProcesses.decode(buffer));
+    }
+}
