@@ -1,6 +1,7 @@
 import * as Base64 from '@borderless/base64';
 import AsyncLock from 'async-lock';
 import Long from 'long';
+import * as RXJS from 'rxjs';
 
 import * as MetaStore from './meta-store';
 import * as Models from './models';
@@ -436,6 +437,62 @@ export class ProcessHandle {
         return systemState;
     }
 
+    private async publishComputeVectorClock(): Promise<Protocol.VectorClock> {
+        const head = await RXJS.firstValueFrom(
+            Queries.QueryHead.queryHeadObservable(
+                this.queryManager.queryHead,
+                this._system,
+            ).pipe(
+                RXJS.switchMap((head) => {
+                    if (head.attemptedSources.has('disk')) {
+                        return RXJS.of(head);
+                    } else {
+                        return RXJS.NEVER;
+                    }
+                }),
+            ),
+        );
+
+        const vectorClock: Protocol.VectorClock = {
+            logicalClocks: [],
+        };
+
+        const systemProcessesSignedEvent = head.processLists.get(
+            Models.Process.toString(this._processSecret.process),
+        );
+
+        if (systemProcessesSignedEvent === undefined) {
+            return vectorClock;
+        }
+
+        const systemProcessesEvent = Models.Event.fromBuffer(
+            systemProcessesSignedEvent.event,
+        );
+
+        const systemProcesses = Models.SystemProcesses.fromBuffer(
+            systemProcessesEvent.content,
+        );
+
+        for (const process of systemProcesses.processes) {
+            const otherHeadSignedEvent = head.head.get(
+                Models.Process.toString(process),
+            );
+
+            if (otherHeadSignedEvent === undefined) {
+                vectorClock.logicalClocks.push(Long.UZERO);
+                continue;
+            }
+
+            const otherHeadEvent = Models.Event.fromBuffer(
+                otherHeadSignedEvent.event,
+            );
+
+            vectorClock.logicalClocks.push(otherHeadEvent.logicalClock);
+        }
+
+        return vectorClock;
+    }
+
     async publish(
         contentType: Models.ContentType.ContentType,
         content: Uint8Array,
@@ -460,7 +517,7 @@ export class ProcessHandle {
                         .toUnsigned(),
                     contentType: contentType,
                     content: content,
-                    vectorClock: { logicalClocks: [] },
+                    vectorClock: await this.publishComputeVectorClock(),
                     lwwElementSet: lwwElementSet,
                     lwwElement: lwwElement,
                     references: references,
@@ -488,11 +545,124 @@ export class ProcessHandle {
     ): Promise<Models.Pointer.Pointer> {
         const event = Models.Event.fromBuffer(signedEvent.event);
 
-        return await this._ingestLock.acquire(
+        const result = await this._ingestLock.acquire(
             Models.PublicKey.toString(event.system),
             async () => {
                 return await this.ingestWithoutLock(signedEvent);
             },
+        );
+
+        await this.updateHeadIfNeeded(signedEvent);
+
+        return result;
+    }
+
+    private async updateHeadIfNeeded(
+        signedEvent: Models.SignedEvent.SignedEvent,
+    ): Promise<void> {
+        const event = Models.Event.fromBuffer(signedEvent.event);
+
+        if (
+            !Models.PublicKey.equal(event.system, this.system()) ||
+            Models.Process.equal(event.process, this.process())
+        ) {
+            return;
+        }
+
+        const head = await RXJS.firstValueFrom(
+            Queries.QueryHead.queryHeadObservable(
+                this.queryManager.queryHead,
+                event.system,
+            ).pipe(
+                RXJS.switchMap((head) => {
+                    if (head.attemptedSources.has('disk')) {
+                        return RXJS.of(head);
+                    } else {
+                        return RXJS.NEVER;
+                    }
+                }),
+            ),
+        );
+
+        const locallyKnownSystemProcesses = new Map<
+            Models.Process.ProcessString,
+            Models.Process.Process
+        >();
+
+        const allSystemProcesses = new Map<
+            Models.Process.ProcessString,
+            Models.Process.Process
+        >();
+
+        for (const systemProcessesSignedEvent of head.processLists.values()) {
+            const systemProcessesEvent = Models.Event.fromBuffer(
+                systemProcessesSignedEvent.event,
+            );
+
+            const systemProcesses = Models.SystemProcesses.fromBuffer(
+                systemProcessesEvent.content,
+            );
+
+            for (const process of systemProcesses.processes) {
+                allSystemProcesses.set(
+                    Models.Process.toString(process),
+                    process,
+                );
+            }
+        }
+
+        for (const headSignedEvent of head.head.values()) {
+            const headEvent = Models.Event.fromBuffer(headSignedEvent.event);
+
+            allSystemProcesses.set(
+                Models.Process.toString(headEvent.process),
+                headEvent.process,
+            );
+        }
+
+        {
+            const systemProcessesSignedEvent = head.processLists.get(
+                Models.Process.toString(event.process),
+            );
+
+            if (systemProcessesSignedEvent) {
+                const systemProcessesEvent = Models.Event.fromBuffer(
+                    systemProcessesSignedEvent.event,
+                );
+
+                const systemProcesses = Models.SystemProcesses.fromBuffer(
+                    systemProcessesEvent.content,
+                );
+
+                for (const process of systemProcesses.processes) {
+                    locallyKnownSystemProcesses.set(
+                        Models.Process.toString(process),
+                        process,
+                    );
+                }
+            }
+        }
+
+        if (
+            Util.areMapsEqual(
+                locallyKnownSystemProcesses,
+                allSystemProcesses,
+                Models.Process.equal,
+            )
+        ) {
+            return;
+        }
+
+        const updatedSystemProcesses = Models.SystemProcesses.fromProto({
+            processes: Array.from(allSystemProcesses.values()),
+        });
+
+        await this.publish(
+            Models.ContentType.ContentTypeSystemProcesses,
+            Protocol.SystemProcesses.encode(updatedSystemProcesses).finish(),
+            undefined,
+            undefined,
+            [],
         );
     }
 
@@ -677,6 +847,17 @@ export async function createTestProcessHandle(): Promise<ProcessHandle> {
         await MetaStore.createMetaStore(
             PersistenceDriver.createPersistenceDriverMemory(),
         ),
+    );
+}
+
+export async function testProcessHandleCreateNewProcess(
+    processHandle: ProcessHandle,
+): Promise<ProcessHandle> {
+    return await createProcessHandleFromKey(
+        await MetaStore.createMetaStore(
+            PersistenceDriver.createPersistenceDriverMemory(),
+        ),
+        processHandle.processSecret().system,
     );
 }
 
