@@ -4,7 +4,7 @@ use ::protobuf::Message;
 
 pub mod known_message_types {
     pub const DELETE: u64 = 1;
-    pub const SYSTEM_PROCESS: u64 = 2;
+    pub const SYSTEM_PROCESSES: u64 = 2;
     pub const POST: u64 = 3;
     pub const FOLLOW: u64 = 4;
     pub const USERNAME: u64 = 5;
@@ -24,7 +24,7 @@ pub mod known_message_types {
 pub fn content_type_to_string(content_type: u64) -> String {
     match content_type {
         known_message_types::DELETE => "DELETE".to_string(),
-        known_message_types::SYSTEM_PROCESS => "SYSTEM_PROCESS".to_string(),
+        known_message_types::SYSTEM_PROCESSES => "SYSTEM_PROCESSES".to_string(),
         known_message_types::POST => "POST".to_string(),
         known_message_types::FOLLOW => "FOLLOW".to_string(),
         known_message_types::USERNAME => "USERNAME".to_string(),
