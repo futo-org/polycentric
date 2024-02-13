@@ -59,6 +59,8 @@ export class QueryManager extends HasUpdate {
     }
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {
-        this.stages.forEach((stage) => stage.update(signedEvent));
+        this.stages.forEach((stage) => {
+            stage.update(signedEvent);
+        });
     }
 }

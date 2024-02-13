@@ -147,7 +147,7 @@ export async function createMetaStore(
 
         const storeInfo = decodeStoreInfo(rawStoreInfo);
 
-        if (storeInfo.ready === true) {
+        if (storeInfo.ready) {
             throw new Error('store was already ready');
         }
 

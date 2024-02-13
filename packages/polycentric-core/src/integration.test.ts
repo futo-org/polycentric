@@ -405,7 +405,7 @@ describe('integration', () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         await s1p1.addServer(TEST_SERVER);
 
-        const username = Math.random() * 100000 + '';
+        const username = (Math.random() * 100000).toString();
         const description = 'Alerts for many rail lines';
         const newUsername =
             'South Eastern Pennsylvania Transportation Authority';
@@ -416,7 +416,7 @@ describe('integration', () => {
             'The Manayunk/Norristown line is delayed 15 minutes due to trackwork';
         const post2Content =
             'All trains are on a reduced schedule due to single-tracking at Jefferson station';
-        const post3Content = Math.random() * 100000 + '';
+        const post3Content = (Math.random() * 100000).toString();
         await s1p1.post(post1Content);
         await s1p1.post(post2Content);
 
@@ -455,7 +455,7 @@ describe('integration', () => {
             getAndCheckFirstEvent(post3SearchResults),
         );
         expect(post3SearchContent).toBe(post3Content);
-        expect(post3SearchResults.resultEvents?.events.length).toBe(10);
+        expect(post3SearchResults.resultEvents.events.length).toBe(10);
 
         if (post3SearchResults.cursor === undefined) {
             throw new Error('post3SearchResults.cursor is undefined');
@@ -467,7 +467,7 @@ describe('integration', () => {
             25,
             post3SearchResults.cursor,
         );
-        expect(post3ReSearchResults.resultEvents?.events.length).toBe(1);
+        expect(post3ReSearchResults.resultEvents.events.length).toBe(1);
 
         const usernameSearchResults = await APIMethods.getSearch(
             TEST_SERVER,
@@ -488,7 +488,7 @@ describe('integration', () => {
             undefined,
             APIMethods.SearchType.Profiles,
         );
-        expect(oldUsernameSearchResults.resultEvents?.events.length).toBe(0);
+        expect(oldUsernameSearchResults.resultEvents.events.length).toBe(0);
 
         const descriptionSearchResults = await APIMethods.getSearch(
             TEST_SERVER,

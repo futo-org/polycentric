@@ -106,7 +106,9 @@ export class QueryServers {
                                 ...this.processHandle.getAddressHints(system),
                             ]);
 
-                            callbacks.forEach((cb) => cb(servers.value));
+                            callbacks.forEach((cb) => {
+                                cb(servers.value);
+                            });
 
                             queryHandle.advance(10);
                         },

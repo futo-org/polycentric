@@ -162,7 +162,7 @@ export class IndexFeed extends HasIngest {
 
         await Promise.all(
             keys.map(async (key) => {
-                const system = extractSystemFromCursor(key as IndexFeedCursor);
+                const system = extractSystemFromCursor(key);
 
                 const following =
                     await this.store.indexCRDTElementSet.queryIfAdded(
@@ -174,7 +174,7 @@ export class IndexFeed extends HasIngest {
                 if (following) {
                     const signedEvent =
                         await this.store.indexEvents.getSignedEventByKey(
-                            extractEventKeyFromCursor(key as IndexFeedCursor),
+                            extractEventKeyFromCursor(key),
                         );
 
                     if (signedEvent) {
@@ -190,7 +190,7 @@ export class IndexFeed extends HasIngest {
             items: result,
             cursor:
                 !queryEnded && keys.length > 1
-                    ? (keys[keys.length - 1] as IndexFeedCursor)
+                    ? keys[keys.length - 1]
                     : undefined,
         };
     }

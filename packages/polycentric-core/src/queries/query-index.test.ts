@@ -58,7 +58,9 @@ describe('query index', () => {
         queryManager.useNetwork(false);
         queryManager.useDisk(false);
 
-        s1p1.setListener((event) => queryManager.update(event));
+        s1p1.setListener((event) => {
+            queryManager.update(event);
+        });
 
         const handle = queryManager.query(
             s1p1.system(),
@@ -78,7 +80,9 @@ describe('query index', () => {
         queryManager.useNetwork(false);
         queryManager.useDisk(false);
 
-        s1p1.setListener((event) => queryManager.update(event));
+        s1p1.setListener((event) => {
+            queryManager.update(event);
+        });
 
         let stage = 0;
 
@@ -114,7 +118,9 @@ describe('query index', () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         const queryManager = new QueryIndex.QueryManager(s1p1);
         queryManager.useDisk(false);
-        s1p1.setListener((event) => queryManager.update(event));
+        s1p1.setListener((event) => {
+            queryManager.update(event);
+        });
 
         const s2p1 = await ProcessHandle.createTestProcessHandle();
         await s2p1.addServer(TEST_SERVER);
@@ -172,7 +178,7 @@ describe('query index', () => {
                 cb,
             );
 
-            handle?.advance(10);
+            handle.advance(10);
         });
 
         handle?.unregister();
@@ -230,7 +236,7 @@ describe('query index', () => {
                 cb,
             );
 
-            handle?.advance(2);
+            handle.advance(2);
         });
 
         handle?.unregister();
@@ -291,7 +297,9 @@ describe('query index', () => {
         queryManager.useNetwork(false);
         queryManager.useDisk(false);
 
-        s1p1.setListener((event) => queryManager.update(event));
+        s1p1.setListener((event) => {
+            queryManager.update(event);
+        });
 
         let handle: QueryIndex.QueryHandle | undefined;
         let state: Array<QueryIndex.Cell> = [];

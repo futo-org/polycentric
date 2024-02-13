@@ -115,7 +115,7 @@ export class QueryManager {
 
         return {
             advance: (additionalCount: number) => {
-                if (unregistered === false) {
+                if (!unregistered) {
                     queryIndexHandle.advance(additionalCount);
                 }
             },

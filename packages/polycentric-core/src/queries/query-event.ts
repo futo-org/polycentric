@@ -407,12 +407,16 @@ export class QueryEvent extends HasUpdate {
             stateForEvent.sibling = stateForDeletedEvent;
             stateForDeletedEvent.sibling = stateForEvent;
             stateForDeletedEvent.signedEvent = signedEvent;
-            stateForDeletedEvent.callbacks.forEach((cb) => cb(signedEvent));
+            stateForDeletedEvent.callbacks.forEach((cb) => {
+                cb(signedEvent);
+            });
         }
 
         if (!stateForEvent.signedEvent) {
             stateForEvent.signedEvent = signedEvent;
-            stateForEvent.callbacks.forEach((cb) => cb(signedEvent));
+            stateForEvent.callbacks.forEach((cb) => {
+                cb(signedEvent);
+            });
         }
     }
 }

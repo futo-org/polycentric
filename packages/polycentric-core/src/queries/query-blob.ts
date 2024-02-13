@@ -115,7 +115,9 @@ export class QueryBlob {
                 ).subscribe((latestValue) => {
                     fulfilled.set();
                     value.value = latestValue;
-                    callbacks.forEach((cb) => cb(latestValue));
+                    callbacks.forEach((cb) => {
+                        cb(latestValue);
+                    });
                 });
 
                 return {

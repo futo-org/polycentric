@@ -214,6 +214,8 @@ export function filterUndefined<T>(
 
 export function asyncBoundaryObservable<T>(value: T): RXJS.Observable<T> {
     return new RXJS.Observable((subscriber) => {
-        setTimeout(() => subscriber.next(value), 0);
+        setTimeout(() => {
+            subscriber.next(value);
+        }, 0);
     });
 }

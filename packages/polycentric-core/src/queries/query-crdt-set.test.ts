@@ -16,7 +16,9 @@ function setupQueryManager(
 
     const queryManager = new QueryCRDTSet.QueryManager(queryIndexManager);
 
-    processHandle.setListener((event) => queryIndexManager.update(event));
+    processHandle.setListener((event) => {
+        queryIndexManager.update(event);
+    });
 
     return queryManager;
 }

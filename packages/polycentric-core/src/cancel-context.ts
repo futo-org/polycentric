@@ -12,8 +12,10 @@ export class CancelContext {
     }
 
     public cancel(): void {
-        if (this._cancelled === false) {
-            this._callbacks.map((cb) => cb());
+        if (!this._cancelled) {
+            this._callbacks.map((cb) => {
+                cb();
+            });
         }
 
         this._cancelled = true;

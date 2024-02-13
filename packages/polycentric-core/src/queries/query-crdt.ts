@@ -169,7 +169,9 @@ export class QueryCRDT {
                 ).subscribe((updatedValue) => {
                     value.value = updatedValue;
                     fulfilled.set();
-                    callbacks.forEach((cb) => cb(value.value));
+                    callbacks.forEach((cb) => {
+                        cb(value.value);
+                    });
                 });
 
                 return {

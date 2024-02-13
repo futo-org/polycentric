@@ -139,15 +139,15 @@ export class QueryHead extends HasUpdate {
                 toMerge.push(this.loadFromNetwork(system));
             }
 
-            const subscription = RXJS.merge(...toMerge).subscribe((batch) =>
+            const subscription = RXJS.merge(...toMerge).subscribe((batch) => {
                 batch.signedEvents.length > 0
                     ? this.updateBatch(
                           undefined,
                           batch.signedEvents,
                           batch.source,
                       )
-                    : this.updateEmptyBatch(stateForSystem, batch.source),
-            );
+                    : this.updateEmptyBatch(stateForSystem, batch.source);
+            });
 
             stateForSystem.unsubscribe =
                 subscription.unsubscribe.bind(subscription);

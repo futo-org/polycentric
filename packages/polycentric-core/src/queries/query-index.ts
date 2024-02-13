@@ -199,7 +199,7 @@ export class QueryManager extends HasUpdate {
 
         return {
             advance: (additionalCount: number) => {
-                if (unregistered === false) {
+                if (!unregistered) {
                     this.advanceInternal(
                         stateForQuery,
                         additionalCount,
@@ -231,11 +231,11 @@ export class QueryManager extends HasUpdate {
 
         stateForQuery.totalExpected += additionalCount;
 
-        if (this._useNetwork === true) {
+        if (this._useNetwork) {
             this.loadFromNetwork(system, stateForQuery, contentType);
         }
 
-        if (this._useDisk === true) {
+        if (this._useDisk) {
             this.loadFromDisk(system, stateForQuery);
         }
     }

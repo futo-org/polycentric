@@ -429,7 +429,7 @@ export class ProcessHandle {
                 }
             }
 
-            if (found === false) {
+            if (!found) {
                 systemState.servers().push(address1);
             }
         }
