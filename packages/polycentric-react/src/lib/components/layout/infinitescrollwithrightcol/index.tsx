@@ -180,10 +180,10 @@ export const InfiniteScrollWithRightCol = ({
                         <>
                             <div className="absolute w-full top-1 md:top-5 flex justify-center z-40">
                                 <button
-                                    // @ts-ignore
                                     onClick={() =>
                                         virtuoso.current?.scrollTo({
                                             top: 0,
+                                            // @ts-ignore
                                             behavior: 'instant',
                                         })
                                     }

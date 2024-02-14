@@ -1,7 +1,7 @@
 import { IonMenuToggle } from '@ionic/react';
-import { NavLink } from 'react-router-dom';
 import polycentricIcon from '../../../../graphics/icons/favicon.ico';
 import { AccountSwitcher } from '../../profile/AccountSwitcher';
+import { Link } from '../../util/link';
 
 const SidebarLink = ({
     to,
@@ -11,14 +11,14 @@ const SidebarLink = ({
     children: React.ReactNode;
 }) => (
     <IonMenuToggle className="contents">
-        <NavLink
-            to={to}
+        <Link
+            routerLink={to}
+            routerDirection="root"
             className="rounded hover:bg-gray-200 p-2 mb-2 transition-colors duration-200"
             activeClassName="bg-gray-100"
-            exact={true}
         >
             {children}
-        </NavLink>
+        </Link>
     </IonMenuToggle>
 );
 

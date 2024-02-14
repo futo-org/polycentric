@@ -41,7 +41,7 @@ export const SearchBox = ({
         }
     }, [debouncedQuery, getResultsPreview]);
 
-    const searchButtonRef = useRef<HTMLElement | null>(null);
+    const searchButtonRef = useRef<HTMLAnchorElement | null>(null);
 
     return (
         <div className="flex flex-col space-y-2">
