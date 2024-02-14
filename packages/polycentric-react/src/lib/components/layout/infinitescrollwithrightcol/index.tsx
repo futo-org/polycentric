@@ -16,6 +16,7 @@ import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks';
 import { useIsMobile } from '../../../hooks/styleHooks';
 import { Post } from '../../feed';
 import { SearchBox } from '../../search/searchbox';
+import './style.css';
 
 const RightCol = ({
     children,
@@ -139,7 +140,7 @@ export const InfiniteScrollWithRightCol = ({
                     <Virtuoso
                         ref={virtuoso}
                         data={data}
-                        className="noscrollbar"
+                        className="noscrollbar virtuoso-root"
                         style={{ height: '100%' }}
                         customScrollParent={
                             isMobile ? undefined : outerRef.current ?? undefined
