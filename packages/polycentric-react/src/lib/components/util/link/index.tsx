@@ -1,11 +1,10 @@
 import { RouterDirection } from '@ionic/core';
-import { IonNavLink, IonPage, IonRouterLink, isPlatform } from '@ionic/react';
-import React, { forwardRef, useCallback, useMemo } from 'react';
+import { IonPage } from '@ionic/react';
+import React, { forwardRef, useCallback, useContext, useMemo } from 'react';
 import { matchPath } from 'react-router-dom';
+import { StackRouterContext } from '../../../app/StackRouterContext';
 import { routeData } from '../../../app/router';
-import { useLocation } from '../../../hooks/stackRouterHooks';
-import { useIsMobile } from '../../../hooks/styleHooks';
-import { MemoryRoutedLinkContext } from './routedmemorylinkcontext';
+import { StackElementPathContext } from './StackElementPathContext';
 
 const getUrlComponent = (url: string) => {
     const path = Object.keys(routeData).find((path) => {
@@ -16,23 +15,36 @@ const getUrlComponent = (url: string) => {
     return path ? routeData[path].component : null;
 };
 
-const MemoryRoutedComponent = ({ routerLink }: { routerLink?: string }) => {
+export const MemoryRoutedComponent = ({
+    routerLink,
+}: {
+    routerLink: string;
+}) => {
     const Component = useMemo(() => {
-        if (!routerLink) return undefined;
         return getUrlComponent(routerLink);
     }, [routerLink]);
 
-    if (!Component) return null;
+    if (!Component) {
+        console.error('No component found for routerLink', routerLink);
+        return null;
+    }
 
-    return <Component />;
+    return (
+        <StackElementPathContext.Provider value={routerLink}>
+            <IonPage>
+                <Component />
+            </IonPage>
+        </StackElementPathContext.Provider>
+    );
 };
 
 const LinkComponent = forwardRef<
-    HTMLElement,
+    HTMLAnchorElement,
     {
         routerLink?: string;
         children?: React.ReactNode;
         className?: string;
+        activeClassName?: string;
         routerDirection?: RouterDirection;
     } & React.HTMLAttributes<HTMLAnchorElement>
 >(
@@ -42,73 +54,55 @@ const LinkComponent = forwardRef<
             children,
             routerDirection = 'forward',
             className,
+            activeClassName,
             ...browserProps
         },
         ref,
     ) => {
-        const isMobile = useIsMobile();
-        const isIOS = useMemo(() => isMobile && isPlatform('ios'), [isMobile]);
+        const stackRouter = useContext(StackRouterContext);
 
-        const renderMemoryPage = useCallback(
-            () => (
-                <MemoryRoutedLinkContext.Provider value={routerLink}>
-                    <IonPage>
-                        <MemoryRoutedComponent routerLink={routerLink} />
-                    </IonPage>
-                </MemoryRoutedLinkContext.Provider>
-            ),
-            [routerLink],
+        const isActive = useMemo(() => {
+            const currentApplicationPath = stackRouter.currentPath;
+            return currentApplicationPath === routerLink;
+        }, [stackRouter.currentPath, routerLink]);
+
+        const onClick: React.MouseEventHandler<HTMLAnchorElement> = useCallback(
+            (e) => {
+                e.preventDefault();
+
+                if (!routerLink) return;
+                if (isActive) return;
+
+                switch (routerDirection) {
+                    case 'root':
+                        stackRouter.setRoot(routerLink, 'forwards');
+                        break;
+                    case 'forward':
+                        stackRouter.push(routerLink);
+                        break;
+                    case 'back':
+                        stackRouter.pop();
+                        break;
+                    default:
+                        console.error(
+                            'Invalid routerDirection',
+                            routerDirection,
+                        );
+                }
+            },
+            [routerLink, routerDirection, stackRouter, isActive],
         );
 
-        const location = useLocation();
-
-        if (routerLink === location || routerLink == null) {
-            return <div className={` ${className}`}>{children}</div>;
-        }
-
-        if (isMobile && routerDirection !== 'root') {
-            return (
-                <div
-                    className="contents"
-                    onClick={() => {
-                        // On Android, since we're using back button navigation,
-                        // we need to push a random query string to the history so that we can use the back button
-                        if (isIOS === false && routerDirection !== 'back') {
-                            // push random query string to history so we can go back
-                            window.history.pushState(
-                                {},
-                                '',
-                                window.location.pathname + '?',
-                            );
-                        }
-                    }}
-                >
-                    <IonNavLink
-                        // @ts-ignore
-                        // We just need the ref for standard HTML attributes, not fancy Ionic stuff
-                        ref={ref}
-                        component={renderMemoryPage}
-                        className={`${className} cursor-pointer`}
-                        routerDirection={routerDirection}
-                        {...browserProps}
-                    >
-                        {children}
-                    </IonNavLink>
-                </div>
-            );
-        }
-
         return (
-            <IonRouterLink
-                // @ts-ignore
+            <a
+                className={`${className} ${isActive ? activeClassName : ''}`}
+                onClick={onClick}
                 ref={ref}
-                routerLink={routerLink}
-                className={`${className} cursor-pointer`}
-                routerDirection={routerDirection}
+                href={isActive ? undefined : routerLink}
                 {...browserProps}
             >
                 {children}
-            </IonRouterLink>
+            </a>
         );
     },
 );

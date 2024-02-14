@@ -2,64 +2,34 @@ import {
     ArrowUpOnSquareIcon,
     EllipsisVerticalIcon,
 } from '@heroicons/react/24/outline';
-import {
-    IonApp,
-    IonRouterOutlet,
-    isPlatform,
-    setupIonicReact,
-} from '@ionic/react';
-import {
-    IonReactHashRouter,
-    IonReactMemoryRouter,
-    IonReactRouter,
-} from '@ionic/react-router';
+import { IonApp, IonNav, isPlatform, setupIonicReact } from '@ionic/react';
 import {
     MetaStore,
     PersistenceDriver,
     ProcessHandle,
 } from '@polycentric/polycentric-core';
-import { createMemoryHistory } from 'history';
-import { useEffect, useMemo, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { SidebarLayout } from '../components/layout/sidebarlayout';
 import { Onboarding } from '../components/onboarding';
-import { AppRouter } from '../components/util/approuter';
+import { MemoryRoutedComponent } from '../components/util/link';
 import { PersistenceDriverContext } from '../hooks/persistenceDriverHooks';
 import {
     BaseProcessHandleManagerContext,
     useProcessHandleManagerBaseComponentHook,
 } from '../hooks/processHandleManagerHooks';
 import { QueryManagerContext } from '../hooks/queryHooks';
+import { useStackRouter } from '../hooks/stackRouterHooks';
+import { createSwipeBackGesture } from '../util/ionicfullpageswipebackgesture';
+import { StackRouterContext } from './StackRouterContext';
 
 setupIonicReact({});
-
-// Check if we're in electron or not
-const isElectron = () => {
-    // window.process.type is only defined in electron
-    // @ts-ignore
-    return window && window.process && window.process.type;
-};
-
-// @ts-ignore
-// navigator.standalone isn't an official api yet
-const isStandalonePWA = (): boolean => window.navigator.standalone ?? false;
-
-const memoryHistory = createMemoryHistory();
-
-const PlatformRouter = ({ children }: { children: React.ReactNode }) => {
-    if (isElectron()) {
-        return <IonReactHashRouter>{children}</IonReactHashRouter>;
-    }
-
-    if (isStandalonePWA()) {
-        return (
-            <IonReactMemoryRouter history={memoryHistory}>
-                {children}
-            </IonReactMemoryRouter>
-        );
-    }
-
-    return <IonReactRouter>{children}</IonReactRouter>;
-};
 
 // Currently, Polycentric can only be used while signed in
 export const SignedinApp = ({
@@ -72,15 +42,59 @@ export const SignedinApp = ({
         [processHandle],
     );
 
+    const root = useCallback(() => {
+        return <MemoryRoutedComponent routerLink={window.location.pathname} />;
+    }, []);
+
+    const ionNavRef = useRef<HTMLIonNavElement>(null);
+
+    useLayoutEffect(() => {
+        // Allow swiping back anywhere on page
+        // The only other way to do this is to distribute our own ionic build
+        // https://github.com/ionic-team/ionic-framework/blob/83f9ac0face445c7f4654dea1a6a43e4565fb800/core/src/components/nav/nav.tsx#L135
+        // https://github.com/ionic-team/ionic-framework/blob/main/core/src/utils/gesture/swipe-back.ts
+
+        if (!ionNavRef.current) return;
+
+        const isIOS = isPlatform('ios');
+
+        if (!isIOS) return;
+
+        const gesture = createSwipeBackGesture(
+            // @ts-ignore
+            ionNavRef.current.el,
+            (...args) => {
+                // @ts-ignore
+                // Don't ask me why this is necessary
+                ionNavRef.current.swipeGesture = true;
+                // @ts-ignore
+                return ionNavRef.current.canStart(...args);
+            },
+            // @ts-ignore
+            ionNavRef.current.onStart.bind(ionNavRef.current),
+            // @ts-ignore
+            ionNavRef.current.onMove.bind(ionNavRef.current),
+            // @ts-ignore
+            ionNavRef.current.onEnd.bind(ionNavRef.current),
+            1000,
+        );
+
+        gesture.enable(true);
+
+        return () => {
+            gesture.destroy();
+        };
+    }, []);
+
+    const stackRouter = useStackRouter(ionNavRef);
+
     return (
         <QueryManagerContext.Provider value={queryManager}>
-            <PlatformRouter>
+            <StackRouterContext.Provider value={stackRouter}>
                 <SidebarLayout>
-                    <IonRouterOutlet id="main-drawer">
-                        <AppRouter />
-                    </IonRouterOutlet>
+                    <IonNav id="main-drawer" root={root} ref={ionNavRef} />
                 </SidebarLayout>
-            </PlatformRouter>
+            </StackRouterContext.Provider>
         </QueryManagerContext.Provider>
     );
 };

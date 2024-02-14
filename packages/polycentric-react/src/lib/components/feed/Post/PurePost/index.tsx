@@ -267,7 +267,7 @@ const PostLinkContainer = ({
     doesLink?: boolean;
     url?: string;
 }) => {
-    const linkRef = useRef<HTMLElement>(null);
+    const linkRef = useRef<HTMLAnchorElement>(null);
 
     return (
         <>
