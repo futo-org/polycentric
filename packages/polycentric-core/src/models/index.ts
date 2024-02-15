@@ -1,9 +1,12 @@
 import * as Protocol from '../protocol';
 
 import * as Base64 from '@borderless/base64';
-import * as Ed from '@noble/ed25519';
 import * as FastSHA256 from 'fast-sha256';
 import Long from 'long';
+
+import { sha512 } from '@noble/hashes/sha512';
+import * as Ed from '@noble/ed25519';
+Ed.utils.sha512Sync = (...m) => sha512(Ed.utils.concatBytes(...m));
 
 import * as Util from '../util';
 
@@ -25,8 +28,7 @@ export namespace ContentType {
         return new Long(x, 0, true) as ContentType;
     }
 
-    const toStringCache: WeakMap<ContentType, ContentTypeString> =
-        new WeakMap();
+    const toStringCache = new WeakMap<ContentType, ContentTypeString>();
 
     export function toString(contentType: ContentType): ContentTypeString {
         return Util.memo(
@@ -108,7 +110,7 @@ export namespace PublicKey {
         return proto as PublicKey;
     }
 
-    const toStringCache: WeakMap<PublicKey, PublicKeyString> = new WeakMap();
+    const toStringCache = new WeakMap<PublicKey, PublicKeyString>();
 
     export function toString(key: PublicKey): PublicKeyString {
         return Util.memo(
@@ -138,12 +140,12 @@ export namespace PublicKey {
         return Util.buffersEqual(a.key, b.key);
     }
 
-    export async function verify(
+    export function verify(
         key: PublicKey,
         signature: Uint8Array,
         bytes: Uint8Array,
-    ): Promise<boolean> {
-        return await Ed.verify(signature, bytes, key.key);
+    ): boolean {
+        return Ed.sync.verify(signature, bytes, key.key);
     }
 }
 
@@ -230,7 +232,7 @@ export namespace Process {
         return proto as Process;
     }
 
-    const toStringCache: WeakMap<Process, ProcessString> = new WeakMap();
+    const toStringCache = new WeakMap<Process, ProcessString>();
 
     export function toString(process: Process): ProcessString {
         return Util.memo(
@@ -299,7 +301,7 @@ export namespace Pointer {
         return proto as Pointer;
     }
 
-    const toStringCache: WeakMap<Pointer, PointerString> = new WeakMap();
+    const toStringCache = new WeakMap<Pointer, PointerString>();
 
     export function toString(pointer: Pointer): PointerString {
         return Util.memo(
@@ -391,7 +393,7 @@ export namespace Event {
         vectorClock: Protocol.VectorClock;
         lwwElementSet: Protocol.LWWElementSet | undefined;
         lwwElement: Protocol.LWWElement | undefined;
-        references: Array<Protocol.Reference>;
+        references: Protocol.Reference[];
         indices: Protocol.Indices;
         unixMilliseconds: Long | undefined;
     }
@@ -421,7 +423,7 @@ export namespace Event {
         return proto as Event;
     }
 
-    const fromBufferCache: WeakMap<Uint8Array, Event> = new WeakMap();
+    const fromBufferCache = new WeakMap<Uint8Array, Event>();
 
     export function fromBuffer(buffer: Uint8Array): Event {
         return Util.memo(
@@ -749,7 +751,7 @@ export function signedEventToPointer(
 export namespace URLInfoSystemLink {
     interface URLInfoSystemLinkI {
         system: PublicKey.PublicKey;
-        servers: Array<string>;
+        servers: string[];
     }
 
     export type URLInfoSystemLink = Readonly<URLInfoSystemLinkI> & {
@@ -778,7 +780,7 @@ export namespace URLInfoEventLink {
         system: PublicKey.PublicKey;
         process: Process.Process;
         logicalClock: Long;
-        servers: Array<string>;
+        servers: string[];
     }
 
     export type URLInfoEventLink = Readonly<URLInfoEventLinkI> & {
@@ -853,7 +855,7 @@ export namespace URLInfo {
 
 export namespace Events {
     interface TypeI {
-        events: Array<SignedEvent.SignedEvent>;
+        events: SignedEvent.SignedEvent[];
     }
 
     export type Type = Readonly<TypeI> & {
@@ -883,7 +885,7 @@ export namespace ResultEventsAndRelatedEventsAndCursor {
     };
 
     export function fromEmpty(): Type {
-        const emptyEvents: Array<SignedEvent.SignedEvent> = [];
+        const emptyEvents: SignedEvent.SignedEvent[] = [];
 
         return {
             cursor: undefined,
@@ -1010,7 +1012,7 @@ export namespace FindClaimAndVouchResponse {
 
 export namespace SystemProcesses {
     interface TypeI {
-        processes: Array<Process.Process>;
+        processes: Process.Process[];
     }
 
     export type Type = Readonly<TypeI> & {

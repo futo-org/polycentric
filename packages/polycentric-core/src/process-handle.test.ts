@@ -15,7 +15,7 @@ describe('processHandle', () => {
     test('basic post', async () => {
         const processHandle = await ProcessHandle.createTestProcessHandle();
 
-        const events: Array<Models.SignedEvent.SignedEvent> = [];
+        const events: Models.SignedEvent.SignedEvent[] = [];
         processHandle.setListener((event: Models.SignedEvent.SignedEvent) => {
             events.push(event);
         });

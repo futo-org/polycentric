@@ -12,10 +12,10 @@ export type IndexFeedCursor = Readonly<Uint8Array> & {
     readonly __tag: unique symbol;
 };
 
-export type QueryResult = {
-    items: Array<Models.SignedEvent.SignedEvent>;
+export interface QueryResult {
+    items: Models.SignedEvent.SignedEvent[];
     cursor: IndexFeedCursor | undefined;
-};
+}
 
 const buffer255 = new Uint8Array([255]);
 
@@ -82,9 +82,10 @@ export class IndexFeed extends HasIngest {
         (this.store = store), (this.level = registerSublevel('indexFeed'));
     }
 
+    /* eslint @typescript-eslint/require-await: 0 */
     public async ingest(
         signedEvent: Models.SignedEvent.SignedEvent,
-    ): Promise<Array<PersistenceDriver.BinaryUpdateLevel>> {
+    ): Promise<PersistenceDriver.BinaryUpdateLevel[]> {
         const event = Models.Event.fromBuffer(signedEvent.event);
 
         if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
@@ -148,7 +149,7 @@ export class IndexFeed extends HasIngest {
 
         const storeSystem = this.store.system;
 
-        const keys = await this.level
+        const keys: IndexFeedCursor[] = await this.level
             .keys({
                 lt: cursor,
                 limit: limit,
@@ -156,13 +157,13 @@ export class IndexFeed extends HasIngest {
             })
             .all();
 
-        const queryEnded = keys.length < limit;
+        const queryEnded: boolean = keys.length < limit;
 
-        const result: Array<Models.SignedEvent.SignedEvent> = [];
+        const result: Models.SignedEvent.SignedEvent[] = [];
 
         await Promise.all(
             keys.map(async (key) => {
-                const system = extractSystemFromCursor(key as IndexFeedCursor);
+                const system = extractSystemFromCursor(key);
 
                 const following =
                     await this.store.indexCRDTElementSet.queryIfAdded(
@@ -174,7 +175,7 @@ export class IndexFeed extends HasIngest {
                 if (following) {
                     const signedEvent =
                         await this.store.indexEvents.getSignedEventByKey(
-                            extractEventKeyFromCursor(key as IndexFeedCursor),
+                            extractEventKeyFromCursor(key),
                         );
 
                     if (signedEvent) {
@@ -190,7 +191,7 @@ export class IndexFeed extends HasIngest {
             items: result,
             cursor:
                 !queryEnded && keys.length > 1
-                    ? (keys[keys.length - 1] as IndexFeedCursor)
+                    ? keys[keys.length - 1]
                     : undefined,
         };
     }

@@ -12,12 +12,12 @@ export type Key = Readonly<Uint8Array> & {
 
 const buffer255 = new Uint8Array([255]);
 
-type KeyStruct = {
+interface KeyStruct {
     readonly system: Models.PublicKey.PublicKey;
     readonly process: Models.Process.Process;
     readonly logicalClock: Long;
     readonly contentType: Models.ContentType.ContentType;
-};
+}
 
 export function encodeKey(key: KeyStruct): Key {
     return Util.concatBuffers([
@@ -74,8 +74,8 @@ export class IndexSystemProcessContentTypeClock extends HasIngest {
         process: Models.Process.Process,
         contentType: Models.ContentType.ContentType,
     ): Promise<Models.SignedEvent.SignedEvent | undefined> {
-        const rows = await this.level
-            .iterator({
+        const rows: Uint8Array[] = await this.level
+            .values({
                 lt: encodeKeyBoundary(system, process, contentType, true),
                 gt: encodeKeyBoundary(system, process, contentType, false),
                 limit: 1,
@@ -84,7 +84,7 @@ export class IndexSystemProcessContentTypeClock extends HasIngest {
             .all();
 
         if (rows.length > 0) {
-            return await this.indexEvents.getSignedEventByKey(rows[0][1]);
+            return await this.indexEvents.getSignedEventByKey(rows[0]);
         } else {
             return undefined;
         }
@@ -92,10 +92,10 @@ export class IndexSystemProcessContentTypeClock extends HasIngest {
 
     public async ingest(
         signedEvent: Models.SignedEvent.SignedEvent,
-    ): Promise<Array<PersistenceDriver.BinaryUpdateLevel>> {
+    ): Promise<PersistenceDriver.BinaryUpdateLevel[]> {
         const event = Models.Event.fromBuffer(signedEvent.event);
 
-        const actions: Array<PersistenceDriver.BinaryUpdateLevel> = [];
+        const actions: PersistenceDriver.BinaryUpdateLevel[] = [];
 
         const eventKey = IndexEvents.makeEventKey(
             event.system,

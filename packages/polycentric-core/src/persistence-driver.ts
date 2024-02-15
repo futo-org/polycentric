@@ -38,10 +38,10 @@ export async function tryLoadKey(
     }
 }
 
-export type StorageEstimate = {
+export interface StorageEstimate {
     bytesAvailable: number | undefined;
     bytesUsed: number | undefined;
-};
+}
 
 export interface IPersistenceDriver {
     getImplementationName: () => string;
@@ -60,6 +60,7 @@ export function createPersistenceDriverMemory(): IPersistenceDriver {
         return 'Memory';
     };
 
+    /* eslint @typescript-eslint/require-await: 0 */
     const openStore = async () => {
         return new MemoryLevel.MemoryLevel<Uint8Array, Uint8Array>({
             keyEncoding: 'buffer',
@@ -67,6 +68,7 @@ export function createPersistenceDriverMemory(): IPersistenceDriver {
         }) as BinaryAbstractLevel;
     };
 
+    /* eslint @typescript-eslint/require-await: 0 */
     const estimateStorage = async () => {
         return {
             bytesAvailable: undefined,
@@ -74,6 +76,7 @@ export function createPersistenceDriverMemory(): IPersistenceDriver {
         };
     };
 
+    /* eslint @typescript-eslint/require-await: 0 */
     const persisted = async () => {
         return false;
     };

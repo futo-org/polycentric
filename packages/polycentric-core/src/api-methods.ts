@@ -13,7 +13,7 @@ async function checkResponse(name: string, response: Response): Promise<void> {
 
 export async function postEvents(
     server: string,
-    events: Array<Models.SignedEvent.SignedEvent>,
+    events: Models.SignedEvent.SignedEvent[],
 ): Promise<void> {
     const response = await fetch(server + '/events', {
         method: 'POST',
@@ -128,13 +128,13 @@ export async function getResolveClaim(
 export type GetQueryLatestType = (
     server: string,
     system: Models.PublicKey.PublicKey,
-    eventTypes: Array<Models.ContentType.ContentType>,
+    eventTypes: Models.ContentType.ContentType[],
 ) => Promise<Models.Events.Type>;
 
 export const getQueryLatest: GetQueryLatestType = async (
     server: string,
     system: Models.PublicKey.PublicKey,
-    eventTypes: Array<Models.ContentType.ContentType>,
+    eventTypes: Models.ContentType.ContentType[],
 ): Promise<Models.Events.Type> => {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
@@ -196,7 +196,7 @@ export async function getQueryReferences(
     requestEvents?: Protocol.QueryReferencesRequestEvents,
     countLwwElementReferences?: Protocol.QueryReferencesRequestCountLWWElementReferences[],
     countReferences?: Protocol.QueryReferencesRequestCountReferences[],
-    extraByteReferences?: Array<Uint8Array>,
+    extraByteReferences?: Uint8Array[],
 ): Promise<Protocol.QueryReferencesResponse> {
     const query: Protocol.QueryReferencesRequest = {
         reference: reference,
@@ -316,7 +316,7 @@ export async function getFindClaimAndVouch(
     server: string,
     vouching_system: Models.PublicKey.PublicKey,
     claiming_system: Models.PublicKey.PublicKey,
-    fields: Array<Protocol.ClaimFieldEntry>,
+    fields: Protocol.ClaimFieldEntry[],
     claimType: Models.ClaimType.ClaimType,
 ): Promise<Models.FindClaimAndVouchResponse.Type | undefined> {
     const query: Protocol.FindClaimAndVouchRequest = {

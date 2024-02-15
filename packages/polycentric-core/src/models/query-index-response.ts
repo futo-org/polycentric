@@ -2,8 +2,8 @@ import * as Protocol from '../protocol';
 import * as Models from '.';
 
 interface TypeI {
-    events: Array<Models.SignedEvent.SignedEvent>;
-    proof: Array<Models.SignedEvent.SignedEvent>;
+    events: Models.SignedEvent.SignedEvent[];
+    proof: Models.SignedEvent.SignedEvent[];
 }
 
 export type Type = Readonly<TypeI> & {

@@ -248,6 +248,7 @@ lint-core:
   stage: lint
   cache: *node-cache-config
   script:
+    - make proto
     - ./version.sh
     - cd packages/polycentric-core
     - npx eslint ./src --max-warnings=0

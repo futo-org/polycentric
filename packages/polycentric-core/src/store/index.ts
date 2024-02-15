@@ -46,7 +46,7 @@ export class Store {
     readonly indexFeed: IndexFeed;
     readonly indexSystemProcessContentTypeLogicalClock: IndexSystemProcessContentTypeClock;
 
-    private readonly stages: ReadonlyArray<HasIngest>;
+    private readonly stages: readonly HasIngest[];
 
     system: Models.PublicKey.PublicKey | undefined;
 
@@ -103,7 +103,7 @@ export class Store {
     public async ingest(
         signedEvent: Models.SignedEvent.SignedEvent,
     ): Promise<void> {
-        const actions: Array<PersistenceDriver.BinaryUpdateLevel> = [];
+        const actions: PersistenceDriver.BinaryUpdateLevel[] = [];
 
         for (const stage of this.stages) {
             actions.push(...(await stage.ingest(signedEvent)));

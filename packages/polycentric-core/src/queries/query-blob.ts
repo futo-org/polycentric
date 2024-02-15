@@ -14,7 +14,7 @@ export type StateKey = Readonly<string> & {
 function makeStateKey(
     system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
-    ranges: ReadonlyArray<Ranges.IRange>,
+    ranges: readonly Ranges.IRange[],
 ): StateKey {
     return (Models.PublicKey.toString(system) +
         '_' +
@@ -25,12 +25,12 @@ function makeStateKey(
 
 export type Callback = (buffer: Uint8Array | undefined) => void;
 
-type StateForQuery = {
+interface StateForQuery {
     readonly value: Box<Uint8Array | undefined>;
     readonly callbacks: Set<Callback>;
     readonly fulfilled: OnceFlag;
     readonly unsubscribe: () => void;
-};
+}
 
 export class QueryBlob {
     private readonly queryEvent: QueryEvent;
@@ -48,7 +48,7 @@ export class QueryBlob {
     private pipeline(
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
-        ranges: ReadonlyArray<Ranges.IRange>,
+        ranges: readonly Ranges.IRange[],
     ): RXJS.Observable<Uint8Array | undefined> {
         return RXJS.combineLatest(
             Ranges.toArray(ranges).map((logicalClock) =>
@@ -91,7 +91,7 @@ export class QueryBlob {
     public query(
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
-        ranges: ReadonlyArray<Ranges.IRange>,
+        ranges: readonly Ranges.IRange[],
         callback: Callback,
     ): UnregisterCallback {
         const stateKey = makeStateKey(system, process, ranges);
@@ -115,7 +115,9 @@ export class QueryBlob {
                 ).subscribe((latestValue) => {
                     fulfilled.set();
                     value.value = latestValue;
-                    callbacks.forEach((cb) => cb(latestValue));
+                    callbacks.forEach((cb) => {
+                        cb(latestValue);
+                    });
                 });
 
                 return {
@@ -127,6 +129,7 @@ export class QueryBlob {
             },
         );
 
+        /* eslint @typescript-eslint/no-unnecessary-condition: 0 */
         if (!initial) {
             if (stateForQuery.callbacks.has(callback)) {
                 throw DuplicatedCallbackError;
@@ -155,7 +158,7 @@ export function queryBlobObservable(
     queryManager: QueryBlob,
     system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
-    ranges: ReadonlyArray<Ranges.IRange>,
+    ranges: readonly Ranges.IRange[],
 ): RXJS.Observable<Uint8Array | undefined> {
     return new RXJS.Observable((subscriber) => {
         return queryManager.query(system, process, ranges, (value) => {

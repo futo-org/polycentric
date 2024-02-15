@@ -3,7 +3,7 @@ import * as Models from '.';
 
 interface MatchTypeI {
     claim: Models.SignedEvent.SignedEvent;
-    proofChain: Array<Models.SignedEvent.SignedEvent>;
+    proofChain: Models.SignedEvent.SignedEvent[];
 }
 
 export type MatchType = Readonly<MatchTypeI> & {
@@ -24,7 +24,7 @@ export function matchTypeFromProto(
 }
 
 interface ResponseTypeI {
-    matches: Array<MatchType>;
+    matches: MatchType[];
 }
 
 export type ResponseType = Readonly<ResponseTypeI> & {

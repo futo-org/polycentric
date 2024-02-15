@@ -30,9 +30,10 @@ export class IndexEvents extends HasIngest {
         this.level = registerSublevel('events');
     }
 
+    /* eslint @typescript-eslint/require-await: 0 */
     public async ingest(
         signedEvent: Models.SignedEvent.SignedEvent,
-    ): Promise<Array<PersistenceDriver.BinaryUpdateLevel>> {
+    ): Promise<PersistenceDriver.BinaryUpdateLevel[]> {
         const event = Models.Event.fromBuffer(signedEvent.event);
 
         const actions = [];

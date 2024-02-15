@@ -23,7 +23,7 @@ export function rangeFromProto(proto: Protocol.Range): Range {
 
 interface RangesForProcessI {
     process: Models.Process.Process;
-    ranges: Array<Range>;
+    ranges: Range[];
 }
 
 export type RangesForProcess = Readonly<RangesForProcessI> & {
@@ -47,7 +47,7 @@ export function rangesForProcessFromProto(
 }
 
 interface RangesForSystemI {
-    rangesForProcesses: Array<RangesForProcess>;
+    rangesForProcesses: RangesForProcess[];
 }
 
 export type RangesForSystem = Readonly<RangesForSystemI> & {

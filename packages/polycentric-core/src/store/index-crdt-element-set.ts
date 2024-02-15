@@ -40,7 +40,7 @@ export class IndexCRDTElementSet extends HasIngest {
 
     public async ingest(
         signedEvent: Models.SignedEvent.SignedEvent,
-    ): Promise<Array<PersistenceDriver.BinaryUpdateLevel>> {
+    ): Promise<PersistenceDriver.BinaryUpdateLevel[]> {
         const event = Models.Event.fromBuffer(signedEvent.event);
 
         if (event.lwwElementSet === undefined) {
@@ -94,7 +94,7 @@ export class IndexCRDTElementSet extends HasIngest {
                     ? addKey
                     : removeKey;
 
-            const operations: Array<PersistenceDriver.BinaryUpdateLevel> = [];
+            const operations: PersistenceDriver.BinaryUpdateLevel[] = [];
 
             operations.push({
                 type: 'put',
@@ -140,7 +140,7 @@ export class IndexCRDTElementSet extends HasIngest {
         contentType: Models.ContentType.ContentType,
         value: Uint8Array | undefined,
         limit: number,
-    ): Promise<Array<Uint8Array>> {
+    ): Promise<Uint8Array[]> {
         const suffix = this.makeKey(
             system,
             contentType,

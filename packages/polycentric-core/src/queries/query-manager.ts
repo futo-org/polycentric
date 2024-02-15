@@ -26,7 +26,7 @@ export class QueryManager extends HasUpdate {
     public readonly queryIndex: QueryIndex.QueryManager;
     public readonly queryCRDTSet: QueryCRDTSet.QueryManager;
 
-    private readonly stages: ReadonlyArray<HasUpdate>;
+    private readonly stages: readonly HasUpdate[];
 
     public constructor(processHandle: ProcessHandle.ProcessHandle) {
         super();
@@ -59,6 +59,8 @@ export class QueryManager extends HasUpdate {
     }
 
     public update(signedEvent: Models.SignedEvent.SignedEvent): void {
-        this.stages.forEach((stage) => stage.update(signedEvent));
+        this.stages.forEach((stage) => {
+            stage.update(signedEvent);
+        });
     }
 }

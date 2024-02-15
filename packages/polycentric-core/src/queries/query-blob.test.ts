@@ -46,9 +46,9 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
         mode === SharedTestMode.CacheOnly ? new CancelContext() : undefined;
 
     if (mode === SharedTestMode.CacheOnly) {
-        s1p1.setListener((event) =>
-            queryEvent.updateWithContextHold(event, contextHold),
-        );
+        s1p1.setListener((event) => {
+            queryEvent.updateWithContextHold(event, contextHold);
+        });
     }
 
     const publishedRanges = await s1p1.publishBlob(testBlob);
@@ -135,9 +135,9 @@ describe('query blob2', () => {
         const queryBlob = new QueryBlob(queryEvent);
 
         const contextHold = new CancelContext();
-        s1p1.setListener((event) =>
-            queryEvent.updateWithContextHold(event, contextHold),
-        );
+        s1p1.setListener((event) => {
+            queryEvent.updateWithContextHold(event, contextHold);
+        });
 
         const publishedRanges = await s1p1.publishBlob(testBlob);
 

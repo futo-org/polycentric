@@ -10,12 +10,12 @@ import { Box, OnceFlag } from '../util';
 
 export type Callback = (servers: ReadonlySet<string>) => void;
 
-type StateForSystem = {
+interface StateForSystem {
     readonly servers: Box<Set<string>>;
     readonly queryHandle: QueryCRDTSet.QueryHandle;
     readonly callbacks: Set<Callback>;
     readonly fulfilled: OnceFlag;
-};
+}
 
 export class QueryServers {
     private readonly processHandle: ProcessHandle.ProcessHandle;
@@ -34,7 +34,7 @@ export class QueryServers {
     }
 
     private queryStateToServers(
-        queryState: ReadonlyArray<QueryIndex.Cell>,
+        queryState: readonly QueryIndex.Cell[],
     ): Set<string> {
         const result = new Set<string>();
 
@@ -77,7 +77,7 @@ export class QueryServers {
             () => {
                 initial = true;
 
-                const queryState = new Box<Array<QueryIndex.Cell>>([]);
+                const queryState = new Box<QueryIndex.Cell[]>([]);
                 const callbacks = new Set([callback]);
                 const fulfilled = new OnceFlag();
                 const servers = new Box<Set<string>>(
@@ -106,7 +106,9 @@ export class QueryServers {
                                 ...this.processHandle.getAddressHints(system),
                             ]);
 
-                            callbacks.forEach((cb) => cb(servers.value));
+                            callbacks.forEach((cb) => {
+                                cb(servers.value);
+                            });
 
                             queryHandle.advance(10);
                         },
@@ -123,6 +125,7 @@ export class QueryServers {
             },
         );
 
+        /* eslint @typescript-eslint/no-unnecessary-condition: 0 */
         if (!initial) {
             if (stateForSystem.callbacks.has(callback)) {
                 throw DuplicatedCallbackError;

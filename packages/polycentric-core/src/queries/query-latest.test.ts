@@ -225,10 +225,11 @@ describe('query latest', () => {
 
         let getQueryLatestCalledCount = 0;
 
+        /* eslint @typescript-eslint/require-await: 0 */
         const getQueryLatest = async (
             server: string,
             system: Models.PublicKey.PublicKey,
-            contentTypes: ReadonlyArray<Models.ContentType.ContentType>,
+            contentTypes: readonly Models.ContentType.ContentType[],
         ) => {
             getQueryLatestCalledCount++;
 

@@ -79,14 +79,14 @@ export class IndexSystemState extends HasIngest {
 
     public async ingest(
         signedEvent: Models.SignedEvent.SignedEvent,
-    ): Promise<Array<PersistenceDriver.BinaryUpdateLevel>> {
+    ): Promise<PersistenceDriver.BinaryUpdateLevel[]> {
         const event = Models.Event.fromBuffer(signedEvent.event);
 
         const state = await this.getSystemState(event.system);
 
         updateSystemState(state, event);
 
-        return [await this.putSystemState(event.system, state)];
+        return [this.putSystemState(event.system, state)];
     }
 
     public async getSystemState(
