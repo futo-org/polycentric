@@ -17,7 +17,7 @@ import { CancelContext } from '../cancel-context';
 
 export type Callback = (signedEvent: Models.SignedEvent.SignedEvent) => void;
 
-type StateForEvent = {
+interface StateForEvent {
     readonly parent: StateForProcess;
     readonly key: LogicalClockString;
     sibling: StateForEvent | undefined;
@@ -29,7 +29,7 @@ type StateForEvent = {
     readonly callbacks: Set<Callback>;
     readonly contextHolds: Set<CancelContext>;
     readonly attemptedSources: Set<string>;
-};
+}
 
 export type LogicalClockString = Readonly<string> & {
     readonly __tag: unique symbol;
@@ -39,17 +39,17 @@ function logicalClockToString(logicalClock: Long): LogicalClockString {
     return logicalClock.toString() as LogicalClockString;
 }
 
-type StateForProcess = {
+interface StateForProcess {
     readonly parent: StateForSystem;
     readonly key: Models.Process.ProcessString;
     readonly process: Models.Process.Process;
     readonly state: Map<LogicalClockString, StateForEvent>;
-};
+}
 
-type StateForSystem = {
+interface StateForSystem {
     readonly key: Models.PublicKey.PublicKeyString;
     readonly state: Map<Models.Process.ProcessString, StateForProcess>;
-};
+}
 
 const DeleteOfDeleteError = new Error('cannot delete a delete event');
 
@@ -155,7 +155,7 @@ export class QueryEvent extends HasUpdate {
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
         logicalClock: Long,
-    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
+    ): RXJS.Observable<Models.SignedEvent.SignedEvent[]> {
         return RXJS.from(
             this.indexEvents.getSignedEvent(system, process, logicalClock),
         ).pipe(
@@ -168,7 +168,7 @@ export class QueryEvent extends HasUpdate {
     private loadFromNetworkObservable(
         stateForSystem: StateForSystem,
         system: Models.PublicKey.PublicKey,
-    ): RXJS.Observable<Array<Models.SignedEvent.SignedEvent>> {
+    ): RXJS.Observable<Models.SignedEvent.SignedEvent[]> {
         const loadFromServer = (server: string) => {
             const request = Models.Ranges.rangesForSystemFromProto({
                 rangesForProcesses: [],
@@ -407,12 +407,16 @@ export class QueryEvent extends HasUpdate {
             stateForEvent.sibling = stateForDeletedEvent;
             stateForDeletedEvent.sibling = stateForEvent;
             stateForDeletedEvent.signedEvent = signedEvent;
-            stateForDeletedEvent.callbacks.forEach((cb) => cb(signedEvent));
+            stateForDeletedEvent.callbacks.forEach((cb) => {
+                cb(signedEvent);
+            });
         }
 
         if (!stateForEvent.signedEvent) {
             stateForEvent.signedEvent = signedEvent;
-            stateForEvent.callbacks.forEach((cb) => cb(signedEvent));
+            stateForEvent.callbacks.forEach((cb) => {
+                cb(signedEvent);
+            });
         }
     }
 }

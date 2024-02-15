@@ -12,7 +12,7 @@ export interface QueryHandle {
     unregister(): void;
 }
 
-export type Cell = {
+export interface Cell {
     readonly unixMilliseconds: Long;
     readonly process: Models.Process.Process;
     readonly logicalClock: Long;
@@ -21,12 +21,12 @@ export type Cell = {
     readonly signedEvent: Models.SignedEvent.SignedEvent | undefined;
     readonly key: string;
     readonly isDelete: boolean;
-};
+}
 
 export function applyPatch(
-    state: ReadonlyArray<Cell>,
+    state: readonly Cell[],
     patch: CallbackParameters,
-): Array<Cell> {
+): Cell[] {
     return state
         .filter((x) => !patch.remove.has(x.key))
         .concat(patch.add)
@@ -112,10 +112,10 @@ function signedEventToCell(signedEvent: Models.SignedEvent.SignedEvent): Cell {
     }
 }
 
-export type CallbackParameters = {
-    add: ReadonlyArray<Cell>;
+export interface CallbackParameters {
+    add: readonly Cell[];
     remove: ReadonlySet<string>;
-};
+}
 
 export type Callback = (state: CallbackParameters) => void;
 
@@ -126,19 +126,19 @@ function processAndLogicalClockToString(
     return Models.Process.toString(process) + logicalClock.toString();
 }
 
-type StateForQuery = {
+interface StateForQuery {
     readonly callback: Callback;
     totalExpected: number;
     readonly contentType: Models.ContentType.ContentType;
     readonly earliestTimeBySource: Map<string, Long>;
     readonly eventsByProcessAndLogicalClock: Map<string, Cell>;
-    readonly eventsByTime: Array<Cell>;
+    readonly eventsByTime: Cell[];
     readonly missingProcessAndLogicalClock: Map<string, Cell>;
-};
+}
 
-type StateForSystem = {
+interface StateForSystem {
     readonly queries: Map<Callback, StateForQuery>;
-};
+}
 
 export class QueryManager extends HasUpdate {
     private readonly _processHandle: ProcessHandle.ProcessHandle;
@@ -199,7 +199,7 @@ export class QueryManager extends HasUpdate {
 
         return {
             advance: (additionalCount: number) => {
-                if (unregistered === false) {
+                if (!unregistered) {
                     this.advanceInternal(
                         stateForQuery,
                         additionalCount,
@@ -231,12 +231,12 @@ export class QueryManager extends HasUpdate {
 
         stateForQuery.totalExpected += additionalCount;
 
-        if (this._useNetwork === true) {
-            this.loadFromNetwork(system, stateForQuery, contentType);
+        if (this._useNetwork) {
+            void this.loadFromNetwork(system, stateForQuery, contentType);
         }
 
-        if (this._useDisk === true) {
-            this.loadFromDisk(system, stateForQuery);
+        if (this._useDisk) {
+            void this.loadFromDisk(system, stateForQuery);
         }
     }
 
@@ -270,7 +270,7 @@ export class QueryManager extends HasUpdate {
 
         for (const server of systemState.servers()) {
             try {
-                this.loadFromNetworkSpecific(
+                await this.loadFromNetworkSpecific(
                     system,
                     server,
                     stateForQuery,
@@ -328,13 +328,13 @@ export class QueryManager extends HasUpdate {
     }
 
     private validateBatchIsRelevant(
-        events: ReadonlyArray<Cell>,
+        events: readonly Cell[],
         contentType: Models.ContentType.ContentType,
     ): boolean {
         return events.every((cell) => cell.contentType.equals(contentType));
     }
 
-    private validateBatchIsSorted(events: Array<Cell>): boolean {
+    private validateBatchIsSorted(events: Cell[]): boolean {
         for (let i = 0; i < events.length - 1; i++) {
             if (compareCells(events[i], events[i + 1]) !== 1) {
                 return false;
@@ -344,7 +344,7 @@ export class QueryManager extends HasUpdate {
         return true;
     }
 
-    private validateIntegrity(stateForQuery: StateForQuery): Array<Cell> {
+    private validateIntegrity(stateForQuery: StateForQuery): Cell[] {
         const eventsByTime = stateForQuery.eventsByTime;
 
         const missingAfter = [];
@@ -388,10 +388,6 @@ export class QueryManager extends HasUpdate {
                 if (nextEventByClock === undefined) {
                     missingAfter.push(currentEvent);
                     continue;
-                }
-
-                if (nextEventByTime.unixMilliseconds === undefined) {
-                    throw Error('expected nextEventByTime.unixMilliseconds');
                 }
 
                 if (
@@ -441,8 +437,8 @@ export class QueryManager extends HasUpdate {
     }
 
     private updateQueryBatch(
-        cells: Array<Cell>,
-        proofCells: Array<Cell>,
+        cells: Cell[],
+        proofCells: Cell[],
         source: string,
         stateForQuery: StateForQuery,
     ): void {
@@ -465,7 +461,7 @@ export class QueryManager extends HasUpdate {
         let earliestTime = stateForQuery.earliestTimeBySource.get(source);
 
         const cellsToAdd = [];
-        const cellsToRemove: Set<string> = new Set();
+        const cellsToRemove = new Set<string>();
 
         for (const cell of cells) {
             if (!stateForQuery.eventsByProcessAndLogicalClock.has(cell.key)) {

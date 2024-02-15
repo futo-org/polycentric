@@ -18,12 +18,12 @@ export type LoadCallback = (
     cursor: Uint8Array | undefined,
 ) => Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type>;
 
-export type Cell = {
+export interface Cell {
     readonly fromServer: string;
     readonly signedEvent: Models.SignedEvent.SignedEvent;
-};
+}
 
-export type ResultCallback = (cells: ReadonlyArray<Cell>) => void;
+export type ResultCallback = (cells: readonly Cell[]) => void;
 
 export class Query {
     private readonly _processHandle: ProcessHandle.ProcessHandle;
@@ -33,7 +33,7 @@ export class Query {
     private readonly _loaded: Set<Models.Pointer.PointerString>;
     private _expected: number;
     private _cancelled: boolean;
-    private readonly _reserve: Array<Cell>;
+    private readonly _reserve: Cell[];
     private readonly _resultCallback: ResultCallback;
     private readonly _batchSize: number;
 
@@ -59,7 +59,7 @@ export class Query {
         }
     }
 
-    private async _drainReserve(): Promise<void> {
+    private _drainReserve(): void {
         const batch = [];
 
         while (batch.length < this._expected) {
@@ -70,7 +70,7 @@ export class Query {
             }
 
             const pointerString = Models.Pointer.toString(
-                await Models.signedEventToPointer(cell.signedEvent),
+                Models.signedEventToPointer(cell.signedEvent),
             );
 
             if (this._loaded.has(pointerString)) {
@@ -134,7 +134,7 @@ export class Query {
                     this._cursors.set(server, result.cursor);
                 }
 
-                await this._drainReserve();
+                this._drainReserve();
 
                 if (result.cursor === undefined) {
                     // This means the number of rows returned was less than the limit,
@@ -163,18 +163,18 @@ export class Query {
         );
 
         for (const server of state.servers()) {
-            this._loadFromServer(server, limitPerServer);
+            void this._loadFromServer(server, limitPerServer);
         }
     }
 
     private async _advanceInternal(): Promise<void> {
-        await this._drainReserve();
+        this._drainReserve();
         await this._loadFromServers();
     }
 
     public advance(): void {
         this._expected += this._batchSize;
-        this._advanceInternal();
+        void this._advanceInternal();
     }
 
     public cleanup(): void {

@@ -11,27 +11,27 @@ function makeRange(low: number, high: number): Ranges.IRange {
 
 describe('insert', () => {
     test('singleton', () => {
-        const ranges: Array<Ranges.IRange> = [];
+        const ranges: Ranges.IRange[] = [];
         Ranges.insert(ranges, new Long(5, 0, true));
         expect(ranges).toStrictEqual([makeRange(5, 5)]);
     });
 
     test('sequential', () => {
-        const ranges: Array<Ranges.IRange> = [];
+        const ranges: Ranges.IRange[] = [];
         Ranges.insert(ranges, new Long(5, 0, true));
         Ranges.insert(ranges, new Long(6, 0, true));
         expect(ranges).toStrictEqual([makeRange(5, 6)]);
     });
 
     test('reverse', () => {
-        const ranges: Array<Ranges.IRange> = [];
+        const ranges: Ranges.IRange[] = [];
         Ranges.insert(ranges, new Long(6, 0, true));
         Ranges.insert(ranges, new Long(5, 0, true));
         expect(ranges).toStrictEqual([makeRange(5, 6)]);
     });
 
     test('merge', () => {
-        const ranges: Array<Ranges.IRange> = [];
+        const ranges: Ranges.IRange[] = [];
         Ranges.insert(ranges, new Long(5, 0, true));
         Ranges.insert(ranges, new Long(7, 0, true));
         Ranges.insert(ranges, new Long(6, 0, true));
@@ -40,7 +40,7 @@ describe('insert', () => {
     });
 
     test('disconnected insert', () => {
-        const ranges: Array<Ranges.IRange> = [];
+        const ranges: Ranges.IRange[] = [];
         Ranges.insert(ranges, new Long(1, 0, true));
         Ranges.insert(ranges, new Long(5, 0, true));
         Ranges.insert(ranges, new Long(3, 0, true));
@@ -52,7 +52,7 @@ describe('insert', () => {
     });
 
     test('non adjacent less than single item', () => {
-        const ranges: Array<Ranges.IRange> = [];
+        const ranges: Ranges.IRange[] = [];
         Ranges.insert(ranges, new Long(10, 0, true));
         Ranges.insert(ranges, new Long(5, 0, true));
         expect(ranges).toStrictEqual([makeRange(5, 5), makeRange(10, 10)]);

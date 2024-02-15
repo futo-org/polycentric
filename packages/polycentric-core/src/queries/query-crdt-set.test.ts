@@ -16,7 +16,9 @@ function setupQueryManager(
 
     const queryManager = new QueryCRDTSet.QueryManager(queryIndexManager);
 
-    processHandle.setListener((event) => queryIndexManager.update(event));
+    processHandle.setListener((event) => {
+        queryIndexManager.update(event);
+    });
 
     return queryManager;
 }
@@ -70,61 +72,63 @@ describe('query crdt set', () => {
         let stage = 0;
         let handle: QueryCRDTSet.QueryHandle | undefined;
 
-        await new Promise<void>(async (resolve) => {
-            let expectedRemoval: undefined | string = undefined;
+        await new Promise<void>((resolve) => {
+            void (async () => {
+                let expectedRemoval: undefined | string = undefined;
 
-            const cb = (value: QueryIndex.CallbackParameters) => {
-                if (stage === 0) {
-                    expect(value.add.length).toStrictEqual(2);
-                    expect(value.remove.size).toStrictEqual(0);
-                    expect(
-                        Models.PublicKey.equal(
-                            extractSystem(value.add[0]),
-                            s3p1.system(),
-                        ),
-                    ).toStrictEqual(true);
-                    expect(
-                        Models.PublicKey.equal(
-                            extractSystem(value.add[1]),
-                            s2p1.system(),
-                        ),
-                    ).toStrictEqual(true);
-                    expectedRemoval = value.add[1].key;
-                } else if (stage === 1) {
-                    expect(value.add.length).toStrictEqual(1);
-                    expect(value.remove.size).toStrictEqual(0);
-                    expect(
-                        Models.PublicKey.equal(
-                            extractSystem(value.add[0]),
-                            s4p1.system(),
-                        ),
-                    ).toStrictEqual(true);
-                } else if (stage === 2) {
-                    expect(value.add.length).toStrictEqual(0);
-                    expect(value.remove).toStrictEqual(
-                        new Set([expectedRemoval]),
-                    );
-                    resolve();
-                } else {
-                    throw Error('unexpected');
-                }
+                const cb = (value: QueryIndex.CallbackParameters) => {
+                    if (stage === 0) {
+                        expect(value.add.length).toStrictEqual(2);
+                        expect(value.remove.size).toStrictEqual(0);
+                        expect(
+                            Models.PublicKey.equal(
+                                extractSystem(value.add[0]),
+                                s3p1.system(),
+                            ),
+                        ).toStrictEqual(true);
+                        expect(
+                            Models.PublicKey.equal(
+                                extractSystem(value.add[1]),
+                                s2p1.system(),
+                            ),
+                        ).toStrictEqual(true);
+                        expectedRemoval = value.add[1].key;
+                    } else if (stage === 1) {
+                        expect(value.add.length).toStrictEqual(1);
+                        expect(value.remove.size).toStrictEqual(0);
+                        expect(
+                            Models.PublicKey.equal(
+                                extractSystem(value.add[0]),
+                                s4p1.system(),
+                            ),
+                        ).toStrictEqual(true);
+                    } else if (stage === 2) {
+                        expect(value.add.length).toStrictEqual(0);
+                        expect(value.remove).toStrictEqual(
+                            new Set([expectedRemoval]),
+                        );
+                        resolve();
+                    } else {
+                        throw Error('unexpected');
+                    }
 
-                stage++;
-            };
+                    stage++;
+                };
 
-            await s1p1.follow(s2p1.system());
-            await s1p1.follow(s3p1.system());
+                await s1p1.follow(s2p1.system());
+                await s1p1.follow(s3p1.system());
 
-            handle = queryManager.query(
-                s1p1.system(),
-                Models.ContentType.ContentTypeFollow,
-                cb,
-            );
+                handle = queryManager.query(
+                    s1p1.system(),
+                    Models.ContentType.ContentTypeFollow,
+                    cb,
+                );
 
-            handle.advance(10);
+                handle.advance(10);
 
-            await s1p1.follow(s4p1.system());
-            await s1p1.unfollow(s2p1.system());
+                await s1p1.follow(s4p1.system());
+                await s1p1.unfollow(s2p1.system());
+            })();
         });
 
         handle?.unregister();
@@ -150,13 +154,13 @@ describe('query crdt set', () => {
 
         let handle: QueryCRDTSet.QueryHandle | undefined;
 
-        await new Promise<void>(async (resolve) => {
+        await new Promise<void>((resolve) => {
             let stage = 0;
 
-            let state: Array<QueryIndex.Cell> = [];
+            let state: QueryIndex.Cell[] = [];
 
             function expectState(
-                expected: Array<Models.PublicKey.PublicKey | undefined>,
+                expected: (Models.PublicKey.PublicKey | undefined)[],
             ) {
                 expect(state.length).toStrictEqual(expected.length);
 

@@ -19,7 +19,7 @@ async function setAvatarImage(
     handle: ProcessHandle.ProcessHandle,
     path: string,
 ) {
-    const resolutions: Array<number> = [256, 128, 32];
+    const resolutions: number[] = [256, 128, 32];
 
     const imageBundle: Protocol.ImageBundle = {
         imageManifests: [],
@@ -220,7 +220,7 @@ describe('integration', () => {
         const babbage = await createHandleWithName('Babbage');
         const turing = await createHandleWithName('Turing');
 
-        const rootPosts: Array<Protocol.Reference> = [];
+        const rootPosts: Protocol.Reference[] = [];
 
         // von neumann comments 5 times
         for (let i = 0; i < 5; i++) {
@@ -455,7 +455,7 @@ describe('integration', () => {
             getAndCheckFirstEvent(post3SearchResults),
         );
         expect(post3SearchContent).toBe(post3Content);
-        expect(post3SearchResults.resultEvents?.events.length).toBe(10);
+        expect(post3SearchResults.resultEvents.events.length).toBe(10);
 
         if (post3SearchResults.cursor === undefined) {
             throw new Error('post3SearchResults.cursor is undefined');
@@ -467,7 +467,7 @@ describe('integration', () => {
             25,
             post3SearchResults.cursor,
         );
-        expect(post3ReSearchResults.resultEvents?.events.length).toBe(1);
+        expect(post3ReSearchResults.resultEvents.events.length).toBe(1);
 
         const usernameSearchResults = await APIMethods.getSearch(
             TEST_SERVER,
@@ -488,7 +488,7 @@ describe('integration', () => {
             undefined,
             APIMethods.SearchType.Profiles,
         );
-        expect(oldUsernameSearchResults.resultEvents?.events.length).toBe(0);
+        expect(oldUsernameSearchResults.resultEvents.events.length).toBe(0);
 
         const descriptionSearchResults = await APIMethods.getSearch(
             TEST_SERVER,

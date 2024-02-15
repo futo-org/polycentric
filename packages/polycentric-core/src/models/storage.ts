@@ -4,8 +4,8 @@ import * as Protocol from '../protocol';
 import * as Models from '.';
 
 interface StorageTypeSystemStateI {
-    processes: Array<Models.Process.Process>;
-    crdtItems: Array<Protocol.StorageTypeCRDTItem>;
+    processes: Models.Process.Process[];
+    crdtItems: Protocol.StorageTypeCRDTItem[];
 }
 
 export type StorageTypeSystemState = Readonly<StorageTypeSystemStateI> & {
@@ -30,7 +30,7 @@ export function storageTypeSystemStateFromBuffer(
 
 interface StorageTypeProcessStateI {
     logicalClock: Long;
-    ranges: Array<Protocol.Range>;
+    ranges: Protocol.Range[];
     indices: Protocol.Indices;
 }
 

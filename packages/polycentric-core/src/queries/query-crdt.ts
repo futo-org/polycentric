@@ -8,10 +8,10 @@ import { UnregisterCallback, DuplicatedCallbackError } from './shared';
 import { Box, OnceFlag } from '../util';
 import { QueryLatest, queryLatestObservable } from './query-latest';
 
-export type CallbackValue = {
+export interface CallbackValue {
     readonly missingData: boolean;
     readonly value: Uint8Array | undefined;
-};
+}
 
 function callbackValuesEqual(a: CallbackValue, b: CallbackValue): boolean {
     if (a.missingData !== b.missingData) {
@@ -31,16 +31,16 @@ function callbackValuesEqual(a: CallbackValue, b: CallbackValue): boolean {
 
 export type SuccessCallback = (value: CallbackValue) => void;
 
-type StateForCRDT = {
+interface StateForCRDT {
     readonly value: Box<CallbackValue>;
     readonly callbacks: Set<SuccessCallback>;
     readonly fulfilled: OnceFlag;
     readonly unsubscribe: () => void;
-};
+}
 
-type StateForSystem = {
+interface StateForSystem {
     readonly state: Map<Models.ContentType.ContentTypeString, StateForCRDT>;
-};
+}
 
 function computeCRDTValue(
     head: QueryHead.CallbackValue,
@@ -53,10 +53,6 @@ function computeCRDTValue(
     const signedEvents = Array.from(latestEvents.values());
 
     const events = signedEvents
-        .filter(
-            (signedEvent): signedEvent is Models.SignedEvent.SignedEvent =>
-                !!signedEvent,
-        )
         .map((signedEvent) => Models.Event.fromBuffer(signedEvent.event))
         .filter((event) => event.contentType.equals(contentType));
 
@@ -169,7 +165,9 @@ export class QueryCRDT {
                 ).subscribe((updatedValue) => {
                     value.value = updatedValue;
                     fulfilled.set();
-                    callbacks.forEach((cb) => cb(value.value));
+                    callbacks.forEach((cb) => {
+                        cb(value.value);
+                    });
                 });
 
                 return {
@@ -181,6 +179,7 @@ export class QueryCRDT {
             },
         );
 
+        /* eslint @typescript-eslint/no-unnecessary-condition: 0 */
         if (!initial) {
             if (stateForCRDT.callbacks.has(callback)) {
                 throw DuplicatedCallbackError;

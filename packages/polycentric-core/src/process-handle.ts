@@ -14,29 +14,29 @@ import * as Synchronization from './synchronization';
 import * as Util from './util';
 
 export class SystemState {
-    private _servers: Array<string>;
-    private _authorities: Array<string>;
-    private _processes: Array<Models.Process.Process>;
+    private _servers: string[];
+    private _authorities: string[];
+    private _processes: Models.Process.Process[];
 
     public constructor(
-        servers: Array<string>,
-        authorities: Array<string>,
-        processes: Array<Models.Process.Process>,
+        servers: string[],
+        authorities: string[],
+        processes: Models.Process.Process[],
     ) {
         this._servers = servers;
         this._authorities = authorities;
         this._processes = processes;
     }
 
-    public servers(): Array<string> {
+    public servers(): string[] {
         return this._servers;
     }
 
-    public authorities(): Array<string> {
+    public authorities(): string[] {
         return this._authorities;
     }
 
-    public processes(): Array<Models.Process.Process> {
+    public processes(): Models.Process.Process[] {
         return this._processes;
     }
 }
@@ -356,10 +356,8 @@ export class ProcessHandle {
         );
     }
 
-    public async publishBlob(
-        content: Uint8Array,
-    ): Promise<Array<Ranges.IRange>> {
-        const ranges: Array<Ranges.IRange> = [];
+    public async publishBlob(content: Uint8Array): Promise<Ranges.IRange[]> {
+        const ranges: Ranges.IRange[] = [];
 
         const maxBytes = 1024 * 512;
 
@@ -429,7 +427,7 @@ export class ProcessHandle {
                 }
             }
 
-            if (found === false) {
+            if (!found) {
                 systemState.servers().push(address1);
             }
         }
@@ -498,7 +496,7 @@ export class ProcessHandle {
         content: Uint8Array,
         lwwElementSet: Protocol.LWWElementSet | undefined,
         lwwElement: Protocol.LWWElement | undefined,
-        references: Array<Protocol.Reference>,
+        references: Protocol.Reference[],
     ): Promise<Models.Pointer.Pointer> {
         return await this._ingestLock.acquire(
             Models.PublicKey.toString(this._system),
@@ -680,7 +678,7 @@ export class ProcessHandle {
         const event = Models.Event.fromBuffer(signedEvent.event);
 
         if (Models.PublicKey.equal(event.system, this.system())) {
-            this.synchronizer.synchronizationHint();
+            void this.synchronizer.synchronizationHint();
         }
 
         return Models.signedEventToPointer(signedEvent);
@@ -690,26 +688,27 @@ export class ProcessHandle {
         Models.SignedEvent.SignedEvent[]
     > {
         return new Promise((resolve) => {
-            const { advance, unregister } =
-                this.queryManager.queryCRDTSet.query(
-                    this.system(),
-                    Models.ContentType.ContentTypeServer,
-                    (state) => {
-                        unregister();
-                        const serverCellList = Queries.QueryIndex.applyPatch(
-                            [],
-                            state,
-                        );
-                        const signedServerEvents = serverCellList
-                            .map((cell) => cell.signedEvent)
-                            .filter(
-                                (e) => e !== undefined,
-                            ) as Models.SignedEvent.SignedEvent[];
+            const handle = this.queryManager.queryCRDTSet.query(
+                this.system(),
+                Models.ContentType.ContentTypeServer,
+                (state) => {
+                    const serverCellList = Queries.QueryIndex.applyPatch(
+                        [],
+                        state,
+                    );
+                    const signedServerEvents = serverCellList
+                        .map((cell) => cell.signedEvent)
+                        .filter(
+                            (e) => e !== undefined,
+                        ) as Models.SignedEvent.SignedEvent[];
 
+                    setTimeout(() => {
+                        handle.unregister();
                         resolve(signedServerEvents);
-                    },
-                );
-            advance(100);
+                    }, 0);
+                },
+            );
+            handle.advance(100);
         });
     }
 
@@ -803,7 +802,7 @@ export async function makeEventLink(
 
 export function makeEventLinkSync(
     event: Models.Pointer.Pointer,
-    servers: Array<string>,
+    servers: string[],
 ): string {
     return Base64.encodeUrl(
         Protocol.URLInfo.encode({
@@ -829,7 +828,7 @@ export async function makeSystemLink(
 
 export function makeSystemLinkSync(
     system: Models.PublicKey.PublicKey,
-    servers: Array<string>,
+    servers: string[],
 ): string {
     return Base64.encodeUrl(
         Protocol.URLInfo.encode({

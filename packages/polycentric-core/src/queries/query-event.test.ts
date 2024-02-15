@@ -107,7 +107,9 @@ describe('query event2', () => {
 
         const startingPointer = await s1p1.post('hello');
 
-        s1p1.setListener((event) => queryEvent.update(event));
+        s1p1.setListener((event) => {
+            queryEvent.update(event);
+        });
 
         const observablePromise = RXJS.firstValueFrom(
             queryEventObservable(
@@ -193,9 +195,9 @@ describe('query event2', () => {
 
         const contextHold = new CancelContext();
 
-        s1p1.setListener((event) =>
-            queryEvent.updateWithContextHold(event, contextHold),
-        );
+        s1p1.setListener((event) => {
+            queryEvent.updateWithContextHold(event, contextHold);
+        });
 
         const pointer = await s1p1.post('hello');
 

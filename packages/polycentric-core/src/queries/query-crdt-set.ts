@@ -6,15 +6,15 @@ import * as Models from '../models';
 import * as Protocol from '../protocol';
 import * as QueryIndex from './query-index';
 
-type StateForItem = {
+interface StateForItem {
     readonly cell: QueryIndex.Cell;
     readonly lwwElement: Protocol.LWWElementSet;
-};
+}
 
-type StateForQuery = {
+interface StateForQuery {
     readonly queryIndexCallback: QueryIndex.Callback;
     readonly items: Map<string, StateForItem>;
-};
+}
 
 export interface QueryHandle {
     advance(additionalCount: number): void;
@@ -39,11 +39,11 @@ export class QueryManager {
             throw new Error('duplicated callback QueryCRDTSet');
         }
 
-        const items: Map<string, StateForItem> = new Map();
+        const items = new Map<string, StateForItem>();
 
         const queryIndexCallback = (params: QueryIndex.CallbackParameters) => {
-            const toAdd: Array<QueryIndex.Cell> = [];
-            const toRemove: Set<string> = new Set();
+            const toAdd: QueryIndex.Cell[] = [];
+            const toRemove = new Set<string>();
 
             for (const cell of params.add) {
                 if (cell.signedEvent === undefined) {
@@ -115,7 +115,7 @@ export class QueryManager {
 
         return {
             advance: (additionalCount: number) => {
-                if (unregistered === false) {
+                if (!unregistered) {
                     queryIndexHandle.advance(additionalCount);
                 }
             },
@@ -136,7 +136,7 @@ export function queryCRDTSetCompleteObservable<T>(
     contentType: Models.ContentType.ContentType,
     parse: (value: Uint8Array) => T,
 ): RXJS.Observable<ReadonlySet<T>> {
-    const processQueryState = (queryState: Array<QueryIndex.Cell>) => {
+    const processQueryState = (queryState: QueryIndex.Cell[]) => {
         const result = new Set<T>();
 
         for (const cell of queryState) {
@@ -161,7 +161,7 @@ export function queryCRDTSetCompleteObservable<T>(
     };
 
     return new RXJS.Observable((subscriber) => {
-        let queryState: Array<QueryIndex.Cell> = [];
+        let queryState: QueryIndex.Cell[] = [];
 
         const handle = queryManager.query(system, contentType, (patch) => {
             queryState = QueryIndex.applyPatch(queryState, patch);

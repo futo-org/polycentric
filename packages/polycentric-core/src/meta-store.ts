@@ -7,11 +7,17 @@ import * as Protocol from './protocol';
 
 const ACTIVE_STORE_KEY = Util.encodeText('ACTIVE_STORE');
 
-export type StoreInfo = {
+export interface StoreInfo {
     system: Models.PublicKey.PublicKey;
     version: number;
     ready: boolean;
-};
+}
+
+interface RawStoreInfo {
+    system: string;
+    version: number;
+    ready: boolean;
+}
 
 export function encodeStoreInfo(storeInfo: StoreInfo): Uint8Array {
     const intermediate = {
@@ -28,7 +34,7 @@ export function encodeStoreInfo(storeInfo: StoreInfo): Uint8Array {
 export function decodeStoreInfo(buffer: Uint8Array): StoreInfo {
     const text = Util.decodeText(buffer);
 
-    const parsed = JSON.parse(text);
+    const parsed: RawStoreInfo = JSON.parse(text) as RawStoreInfo;
 
     return {
         system: Models.PublicKey.fromProto(
@@ -50,7 +56,7 @@ export interface IMetaStore {
         version: number,
     ) => Promise<void>;
 
-    listStores: () => Promise<Array<StoreInfo>>;
+    listStores: () => Promise<StoreInfo[]>;
 
     setStoreReady: (
         system: Models.PublicKey.PublicKey,
@@ -109,7 +115,7 @@ export async function createMetaStore(
                 ready: false,
             };
 
-            metaStoreStores.put(pathBinary, encodeStoreInfo(storeInfo));
+            await metaStoreStores.put(pathBinary, encodeStoreInfo(storeInfo));
         }
 
         const store = await persistenceDriver.openStore(pathString);
@@ -147,7 +153,7 @@ export async function createMetaStore(
 
         const storeInfo = decodeStoreInfo(rawStoreInfo);
 
-        if (storeInfo.ready === true) {
+        if (storeInfo.ready) {
             throw new Error('store was already ready');
         }
 

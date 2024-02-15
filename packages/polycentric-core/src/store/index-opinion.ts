@@ -19,7 +19,7 @@ export class IndexOpinion extends HasIngest {
 
     public async ingest(
         signedEvent: Models.SignedEvent.SignedEvent,
-    ): Promise<Array<PersistenceDriver.BinaryUpdateLevel>> {
+    ): Promise<PersistenceDriver.BinaryUpdateLevel[]> {
         const event = Models.Event.fromBuffer(signedEvent.event);
 
         if (

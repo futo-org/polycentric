@@ -36,9 +36,9 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
         mode === SharedTestMode.CacheOnly ? new CancelContext() : undefined;
 
     if (mode === SharedTestMode.CacheOnly) {
-        s1p1.setListener((event) =>
-            queryHead.updateWithContextHold(event, contextHold),
-        );
+        s1p1.setListener((event) => {
+            queryHead.updateWithContextHold(event, contextHold);
+        });
     }
 
     const pointer = await s1p1.post('hello');

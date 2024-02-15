@@ -11,7 +11,7 @@ import { CancelContext } from '../cancel-context';
 import { OnceFlag } from '../util';
 import { QueryServers, queryServersObservable } from './query-servers';
 
-export type CallbackValue = {
+export interface CallbackValue {
     readonly missingData: boolean;
     readonly head: ReadonlyMap<
         Models.Process.ProcessString,
@@ -22,9 +22,9 @@ export type CallbackValue = {
         Models.SignedEvent.SignedEvent
     >;
     readonly attemptedSources: ReadonlySet<string>;
-};
+}
 
-type CallbackValueInternal = {
+interface CallbackValueInternal {
     missingData: boolean;
     readonly head: Map<
         Models.Process.ProcessString,
@@ -35,7 +35,7 @@ type CallbackValueInternal = {
         Models.SignedEvent.SignedEvent
     >;
     readonly attemptedSources: Set<string>;
-};
+}
 
 type Callback = (value: CallbackValue) => void;
 
@@ -60,10 +60,10 @@ class StateForSystem {
     }
 }
 
-type Batch = {
+interface Batch {
     readonly source: string;
-    readonly signedEvents: ReadonlyArray<Models.SignedEvent.SignedEvent>;
-};
+    readonly signedEvents: readonly Models.SignedEvent.SignedEvent[];
+}
 
 export class QueryHead extends HasUpdate {
     private readonly processHandle: ProcessHandle.ProcessHandle;
@@ -128,6 +128,7 @@ export class QueryHead extends HasUpdate {
             callback(stateForSystem.value);
         }
 
+        /* eslint @typescript-eslint/no-unnecessary-condition: 0 */
         if (initial) {
             const toMerge = [];
 
@@ -139,15 +140,15 @@ export class QueryHead extends HasUpdate {
                 toMerge.push(this.loadFromNetwork(system));
             }
 
-            const subscription = RXJS.merge(...toMerge).subscribe((batch) =>
+            const subscription = RXJS.merge(...toMerge).subscribe((batch) => {
                 batch.signedEvents.length > 0
                     ? this.updateBatch(
                           undefined,
                           batch.signedEvents,
                           batch.source,
                       )
-                    : this.updateEmptyBatch(stateForSystem, batch.source),
-            );
+                    : this.updateEmptyBatch(stateForSystem, batch.source);
+            });
 
             stateForSystem.unsubscribe =
                 subscription.unsubscribe.bind(subscription);
@@ -341,7 +342,7 @@ export class QueryHead extends HasUpdate {
 
     public updateBatch(
         contextHold: CancelContext | undefined,
-        signedEvents: ReadonlyArray<Models.SignedEvent.SignedEvent>,
+        signedEvents: readonly Models.SignedEvent.SignedEvent[],
         source: string,
     ): void {
         const updatedStates = new Set<StateForSystem>();

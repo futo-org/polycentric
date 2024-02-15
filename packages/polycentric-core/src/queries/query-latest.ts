@@ -22,7 +22,7 @@ export type Callback = (
     >,
 ) => void;
 
-type StateForContentType = {
+interface StateForContentType {
     readonly key: Models.ContentType.ContentTypeString;
     readonly contentType: Models.ContentType.ContentType;
     readonly fulfilled: OnceFlag;
@@ -34,32 +34,32 @@ type StateForContentType = {
     readonly contextHolds: Set<CancelContext>;
     unsubscribe: (() => void) | undefined;
     readonly attemptedSources: Set<string>;
-};
+}
 
-type StateForSystem = {
+interface StateForSystem {
     readonly stateForContentType: Map<
         Models.ContentType.ContentTypeString,
         StateForContentType
     >;
-};
+}
 
-type BatchForContentTypeState = {
+interface BatchForContentTypeState {
     readonly stateForContentType: StateForContentType;
-    readonly batch: Array<Models.SignedEvent.SignedEvent>;
-};
+    readonly batch: Models.SignedEvent.SignedEvent[];
+}
 
-type AttemptedBatch = {
+interface AttemptedBatch {
     readonly batchByContentType: Map<
         Models.ContentType.ContentTypeString,
         BatchForContentTypeState
     >;
-};
+}
 
 function makeAttemptedBatch(
     attemptedStates: ReadonlySet<StateForContentType>,
-    signedEvents: ReadonlyArray<Models.SignedEvent.SignedEvent>,
+    signedEvents: readonly Models.SignedEvent.SignedEvent[],
 ): AttemptedBatch {
-    const result = {
+    const result: AttemptedBatch = {
         batchByContentType: new Map(),
     };
 
@@ -194,6 +194,7 @@ export class QueryLatest extends HasUpdate {
             callback(stateForContentType.values);
         }
 
+        /* eslint @typescript-eslint/no-unnecessary-condition: 0 */
         if (initial) {
             const toMerge = [];
 
@@ -279,7 +280,7 @@ export class QueryLatest extends HasUpdate {
         };
 
         const makeAttempt = (
-            signedEvents: Array<Models.SignedEvent.SignedEvent | undefined>,
+            signedEvents: (Models.SignedEvent.SignedEvent | undefined)[],
         ): AttemptedBatch => {
             return {
                 batchByContentType: new Map([
@@ -391,7 +392,7 @@ export class QueryLatest extends HasUpdate {
 
     public updateBatch(
         contextHold: CancelContext | undefined,
-        signedEvents: Array<Models.SignedEvent.SignedEvent>,
+        signedEvents: Models.SignedEvent.SignedEvent[],
     ): void {
         const updatedStates = new Set<StateForContentType>();
 

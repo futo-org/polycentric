@@ -37,7 +37,7 @@ export function bufferSuffixMatch(
     return true;
 }
 
-export function concatBuffers(buffers: ReadonlyArray<Uint8Array>): Uint8Array {
+export function concatBuffers(buffers: readonly Uint8Array[]): Uint8Array {
     const result = new Uint8Array(
         buffers.reduce((acc, x) => acc + x.length, 0),
     );
@@ -200,20 +200,20 @@ export function mapOverMap<Key, ValueA, ValueB>(
 export function mapToArray<Key, ValueT1, ValueT2>(
     map: ReadonlyMap<Key, ValueT1>,
     operation: (value: ValueT1) => ValueT2,
-): Array<ValueT2> {
-    const result: Array<ValueT2> = [];
+): ValueT2[] {
+    const result: ValueT2[] = [];
     map.forEach((value) => result.push(operation(value)));
     return result;
 }
 
-export function filterUndefined<T>(
-    array: ReadonlyArray<T | undefined>,
-): Array<T> {
+export function filterUndefined<T>(array: readonly (T | undefined)[]): T[] {
     return array.filter((item): item is T => !!item);
 }
 
 export function asyncBoundaryObservable<T>(value: T): RXJS.Observable<T> {
     return new RXJS.Observable((subscriber) => {
-        setTimeout(() => subscriber.next(value), 0);
+        setTimeout(() => {
+            subscriber.next(value);
+        }, 0);
     });
 }

@@ -34,10 +34,10 @@ export class IndexProcessState extends HasIngest {
 
     public async ingest(
         signedEvent: Models.SignedEvent.SignedEvent,
-    ): Promise<Array<PersistenceDriver.BinaryUpdateLevel>> {
+    ): Promise<PersistenceDriver.BinaryUpdateLevel[]> {
         const event = Models.Event.fromBuffer(signedEvent.event);
 
-        const actions: Array<PersistenceDriver.BinaryUpdateLevel> = [];
+        const actions: PersistenceDriver.BinaryUpdateLevel[] = [];
 
         if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
             const deleteBody = Models.Delete.fromBuffer(event.content);

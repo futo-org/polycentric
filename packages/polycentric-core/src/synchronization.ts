@@ -14,10 +14,10 @@ async function loadRanges(
     store: Store.Store,
     system: Models.PublicKey.PublicKey,
     process: Models.Process.Process,
-    ranges: Array<Ranges.IRange>,
+    ranges: Ranges.IRange[],
     cancelContext: CancelContext,
-): Promise<Array<Models.SignedEvent.SignedEvent>> {
-    const result: Array<Models.SignedEvent.SignedEvent> = [];
+): Promise<Models.SignedEvent.SignedEvent[]> {
+    const result: Models.SignedEvent.SignedEvent[] = [];
 
     for (const range of ranges) {
         for (
@@ -63,10 +63,6 @@ export async function backfillClient(
     let progress = false;
 
     for (const item of rangesForSystem.rangesForProcesses) {
-        if (!item.process) {
-            continue;
-        }
-
         const processState = await processHandle
             .store()
             .indexProcessStates.getProcessState(
@@ -124,13 +120,9 @@ export async function backFillServers(
             const rangesForSystem = await APIMethods.getRanges(server, system);
 
             for (const process of systemState.processes()) {
-                let rangesForProcess: Array<Protocol.Range> = [];
+                let rangesForProcess: Protocol.Range[] = [];
 
                 for (const item of rangesForSystem.rangesForProcesses) {
-                    if (!item.process) {
-                        continue;
-                    }
-
                     if (
                         Models.Process.equal(
                             Models.Process.fromProto(item.process),
@@ -180,10 +172,10 @@ export async function backFillServers(
     return progress;
 }
 
-type ServerState = {
+interface ServerState {
     generation: number;
     active: boolean;
-};
+}
 
 function taskPerItemInSet<Key, SetItem, State>(
     states: Map<Key, State>,
@@ -260,11 +252,7 @@ export class Synchronizer {
     }
 
     public async debugWaitUntilSynchronizationComplete(): Promise<void> {
-        while (true) {
-            if (this.complete) {
-                return;
-            }
-
+        while (!this.complete) {
             await Util.sleep(100);
         }
     }
@@ -292,12 +280,12 @@ export class Synchronizer {
     }
 
     private updateServerList(servers: ReadonlySet<string>): void {
-        const updatedServerStates = new Map();
+        const updatedServerStates = new Map<string, ServerState>();
 
         for (const server of servers.values()) {
             updatedServerStates.set(
                 server,
-                this.serverStates.get(server) || {
+                this.serverStates.get(server) ?? {
                     generation: 0,
                     active: false,
                 },
@@ -305,7 +293,7 @@ export class Synchronizer {
         }
 
         this.serverStates = updatedServerStates;
-        this.synchronizationHint();
+        void this.synchronizationHint();
     }
 
     public async synchronizationHint(): Promise<void> {
@@ -358,12 +346,13 @@ export class Synchronizer {
                     if (generation < serverState.generation) {
                         incomplete = true;
 
-                        this.synchronizationHint();
+                        void this.synchronizationHint();
                     }
                 },
             ),
         );
 
+        /* eslint @typescript-eslint/no-unnecessary-condition: 0 */
         if (!incomplete) {
             this.complete = true;
         }
@@ -395,10 +384,10 @@ export class Synchronizer {
         ) {}
     }
 
-    private async backfillClientForSystem(
+    private backfillClientForSystem(
         system: Models.PublicKey.PublicKey,
         cancelContext: CancelContext,
-    ): Promise<void> {
+    ): void {
         const serverStates = new Map<string, CancelContext>();
 
         const subscription = Queries.QueryServers.queryServersObservable(
@@ -414,7 +403,7 @@ export class Synchronizer {
                 (server) => {
                     const cancelContext = new CancelContext();
 
-                    this.backfillClientFromServerForSystem(
+                    void this.backfillClientFromServerForSystem(
                         server,
                         system,
                         cancelContext,
@@ -482,10 +471,10 @@ export class Synchronizer {
     }
 }
 
-type ProcessRanges = {
+interface ProcessRanges {
     process: Models.Process.Process;
-    ranges: Array<Ranges.IRange>;
-};
+    ranges: Ranges.IRange[];
+}
 
 type SystemRanges = Map<Models.Process.ProcessString, ProcessRanges>;
 
