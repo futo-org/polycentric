@@ -53,60 +53,6 @@ export async function saveBatch(
     }
 }
 
-export async function backfillClient(
-    processHandle: ProcessHandle.ProcessHandle,
-    system: Models.PublicKey.PublicKey,
-    server: string,
-): Promise<boolean> {
-    const rangesForSystem = await APIMethods.getRanges(server, system);
-
-    let progress = false;
-
-    for (const item of rangesForSystem.rangesForProcesses) {
-        const processState = await processHandle
-            .store()
-            .indexProcessStates.getProcessState(
-                system,
-                Models.Process.fromProto(item.process),
-            );
-
-        const clientNeeds = Ranges.subtractRange(
-            item.ranges,
-            processState.ranges,
-        );
-
-        if (clientNeeds.length === 0) {
-            continue;
-        }
-
-        const batch = Ranges.takeRangesMaxItems(
-            clientNeeds,
-            new Long(10, 0, true),
-        );
-
-        const events = await APIMethods.getEvents(
-            server,
-            system,
-            Models.Ranges.rangesForSystemFromProto({
-                rangesForProcesses: [
-                    {
-                        process: item.process,
-                        ranges: batch,
-                    },
-                ],
-            }),
-        );
-
-        if (events.events.length > 0) {
-            progress = true;
-        }
-
-        await saveBatch(processHandle, events);
-    }
-
-    return progress;
-}
-
 export async function backFillServers(
     processHandle: ProcessHandle.ProcessHandle,
     system: Models.PublicKey.PublicKey,
