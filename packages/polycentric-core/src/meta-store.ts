@@ -13,6 +13,21 @@ export interface StoreInfo {
     ready: boolean;
 }
 
+export function storeInfoEqual(
+    a: Readonly<StoreInfo>,
+    b: Readonly<StoreInfo>,
+): boolean {
+    if (a.version !== b.version) {
+        return false;
+    }
+
+    if (a.ready !== b.ready) {
+        return false;
+    }
+
+    return Models.PublicKey.equal(a.system, b.system);
+}
+
 interface RawStoreInfo {
     system: string;
     version: number;
@@ -204,13 +219,13 @@ export async function createMetaStore(
         system: Models.PublicKey.PublicKey,
         version: number,
     ) => {
+        const activeStore = await getActiveStore();
+
         const pathString = makeStorePath(system, version);
         const pathBinary = Util.encodeText(pathString);
 
         await metaStoreStores.del(pathBinary);
         await persistenceDriver.destroyStore(pathString);
-
-        const activeStore = await getActiveStore();
 
         if (activeStore === undefined) {
             return;
