@@ -5,6 +5,7 @@ import * as Models from '../models';
 import * as Ranges from '../ranges';
 import * as APIMethods from '../api-methods';
 import * as Util from '../util';
+import * as Shared from './shared';
 import { IndexEvents } from '../store/index-events';
 import { QueryServers, queryServersObservable } from './query-servers';
 import { HasUpdate } from './has-update';
@@ -63,8 +64,13 @@ export class QueryEvent extends HasUpdate {
     private useDisk: boolean;
     private useNetwork: boolean;
     private getEvents: APIMethods.GetEventsType;
+    private onLoadedBatch?: Shared.OnLoadedBatch;
 
-    constructor(indexEvents: IndexEvents, queryServers: QueryServers) {
+    constructor(
+        indexEvents: IndexEvents,
+        queryServers: QueryServers,
+        onLoadedBatch?: Shared.OnLoadedBatch,
+    ) {
         super();
 
         this.state = new Map();
@@ -73,6 +79,7 @@ export class QueryEvent extends HasUpdate {
         this.useDisk = true;
         this.useNetwork = true;
         this.getEvents = APIMethods.getEvents;
+        this.onLoadedBatch = onLoadedBatch;
     }
 
     public get clean(): boolean {
@@ -137,7 +144,16 @@ export class QueryEvent extends HasUpdate {
             }
 
             const subscription = RXJS.merge(...toMerge).subscribe(
-                (signedEvents) => signedEvents.map(this.update.bind(this)),
+                (signedEvents) => {
+                    signedEvents.map(this.update.bind(this));
+
+                    if (signedEvents.length > 0) {
+                        this.onLoadedBatch?.({
+                            origin: this,
+                            signedEvents: signedEvents,
+                        });
+                    }
+                },
             );
 
             stateForEvent.unsubscribe =
