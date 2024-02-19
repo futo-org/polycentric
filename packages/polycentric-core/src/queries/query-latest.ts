@@ -14,6 +14,7 @@ import { CancelContext } from '../cancel-context';
 import { HasUpdate } from './has-update';
 import { QueryServers, queryServersObservable } from './query-servers';
 import { IndexSystemProcessContentTypeClock } from '../store/index-system-process-content-type-clock';
+import * as Shared from './shared';
 
 export type Callback = (
     values: ReadonlyMap<
@@ -109,11 +110,13 @@ export class QueryLatest extends HasUpdate {
     private useDisk: boolean;
     private useNetwork: boolean;
     private getQueryLatest: APIMethods.GetQueryLatestType;
+    private onLoadedBatch?: Shared.OnLoadedBatch;
 
     constructor(
         index: IndexSystemProcessContentTypeClock,
         queryServers: QueryServers,
         queryHead: QueryHead.QueryHead,
+        onLoadedBatch?: Shared.OnLoadedBatch,
     ) {
         super();
 
@@ -124,6 +127,7 @@ export class QueryLatest extends HasUpdate {
         this.useDisk = true;
         this.useNetwork = true;
         this.getQueryLatest = APIMethods.getQueryLatest;
+        this.onLoadedBatch = onLoadedBatch;
     }
 
     public get clean(): boolean {
@@ -386,6 +390,11 @@ export class QueryLatest extends HasUpdate {
                 this.updateBatchEmpty(attempt.stateForContentType);
             } else {
                 this.updateBatch(undefined, attempt.batch);
+
+                this.onLoadedBatch?.({
+                    origin: this,
+                    signedEvents: attempt.batch,
+                });
             }
         }
     }

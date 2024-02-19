@@ -540,13 +540,17 @@ export class ProcessHandle {
 
     public async ingest(
         signedEvent: Models.SignedEvent.SignedEvent,
+        skipUpdateQueries = false,
     ): Promise<Models.Pointer.Pointer> {
         const event = Models.Event.fromBuffer(signedEvent.event);
 
         const result = await this._ingestLock.acquire(
             Models.PublicKey.toString(event.system),
             async () => {
-                return await this.ingestWithoutLock(signedEvent);
+                return await this.ingestWithoutLock(
+                    signedEvent,
+                    skipUpdateQueries,
+                );
             },
         );
 
@@ -666,6 +670,7 @@ export class ProcessHandle {
 
     private async ingestWithoutLock(
         signedEvent: Models.SignedEvent.SignedEvent,
+        skipUpdateQueries = false,
     ): Promise<Models.Pointer.Pointer> {
         await this._store.ingest(signedEvent);
 
@@ -673,7 +678,9 @@ export class ProcessHandle {
             this._listener(signedEvent);
         }
 
-        this.queryManager.update(signedEvent);
+        if (!skipUpdateQueries) {
+            this.queryManager.update(signedEvent);
+        }
 
         const event = Models.Event.fromBuffer(signedEvent.event);
 

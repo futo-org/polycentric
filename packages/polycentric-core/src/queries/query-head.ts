@@ -74,10 +74,12 @@ export class QueryHead extends HasUpdate {
     >;
     private useDisk: boolean;
     private useNetwork: boolean;
+    private onLoadedBatch?: Shared.OnLoadedBatch;
 
     constructor(
         processHandle: ProcessHandle.ProcessHandle,
         queryServers: QueryServers,
+        onLoadedBatch?: Shared.OnLoadedBatch,
     ) {
         super();
 
@@ -86,6 +88,7 @@ export class QueryHead extends HasUpdate {
         this.state = new Map();
         this.useDisk = true;
         this.useNetwork = true;
+        this.onLoadedBatch = onLoadedBatch;
     }
 
     public get clean(): boolean {
@@ -141,13 +144,20 @@ export class QueryHead extends HasUpdate {
             }
 
             const subscription = RXJS.merge(...toMerge).subscribe((batch) => {
-                batch.signedEvents.length > 0
-                    ? this.updateBatch(
-                          undefined,
-                          batch.signedEvents,
-                          batch.source,
-                      )
-                    : this.updateEmptyBatch(stateForSystem, batch.source);
+                if (batch.signedEvents.length > 0) {
+                    this.updateBatch(
+                        undefined,
+                        batch.signedEvents,
+                        batch.source,
+                    );
+
+                    this.onLoadedBatch?.({
+                        origin: this,
+                        signedEvents: batch.signedEvents,
+                    });
+                } else {
+                    this.updateEmptyBatch(stateForSystem, batch.source);
+                }
             });
 
             stateForSystem.unsubscribe =

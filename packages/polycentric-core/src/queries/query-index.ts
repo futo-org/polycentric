@@ -5,6 +5,7 @@ import * as Models from '../models';
 import * as ProcessHandle from '../process-handle';
 import * as Protocol from '../protocol';
 import * as Util from '../util';
+import * as Shared from './shared';
 import { HasUpdate } from './has-update';
 
 export interface QueryHandle {
@@ -148,14 +149,19 @@ export class QueryManager extends HasUpdate {
     >;
     private _useDisk: boolean;
     private _useNetwork: boolean;
+    private onLoadedBatch?: Shared.OnLoadedBatch;
 
-    constructor(processHandle: ProcessHandle.ProcessHandle) {
+    constructor(
+        processHandle: ProcessHandle.ProcessHandle,
+        onLoadedBatch?: Shared.OnLoadedBatch,
+    ) {
         super();
 
         this._processHandle = processHandle;
         this._state = new Map();
         this._useDisk = true;
         this._useNetwork = true;
+        this.onLoadedBatch = onLoadedBatch;
     }
 
     public useDisk(useDisk: boolean): void {
@@ -514,5 +520,20 @@ export class QueryManager extends HasUpdate {
                 .reverse(),
             remove: cellsToRemove,
         });
+
+        if (source !== 'unknown' && allCells.length > 0) {
+            const signedEvents = [];
+
+            for (const cell of allCells) {
+                if (cell.signedEvent) {
+                    signedEvents.push(cell.signedEvent);
+                }
+            }
+
+            this.onLoadedBatch?.({
+                origin: this,
+                signedEvents: signedEvents,
+            });
+        }
     }
 }
