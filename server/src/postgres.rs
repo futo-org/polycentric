@@ -585,6 +585,23 @@ pub(crate) async fn prepare_database(
     .execute(&mut **transaction)
     .await?;
 
+    ::sqlx::query(
+        "
+        CREATE TABLE IF NOT EXISTS identity_handles (
+            handle                        VARCHAR (64)  PRIMARY KEY,
+            system_key_type               INT8          NOT NULL,
+            system_key                    BYTEA         NOT NULL,
+
+            UNIQUE (
+                system_key_type,
+                system_key
+            )
+        );
+    ",
+    )
+    .execute(&mut **transaction)
+    .await?;
+
     Ok(())
 }
 
@@ -1295,6 +1312,76 @@ pub(crate) async fn censor_system(
     Ok(())
 }
 
+pub(crate) async fn claim_handle(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    handle: String,
+    system: &crate::model::public_key::PublicKey,
+) -> ::anyhow::Result<()> {
+    let query_del = "
+        DELETE FROM identity_handles 
+        WHERE
+            system_key_type = $1
+            AND 
+            system_key = $2
+        ;
+        ";
+
+    ::sqlx::query(query_del)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            system,
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(system))
+        .execute(&mut **transaction)
+        .await?;
+
+    let query = "
+        INSERT INTO identity_handles (
+            system_key_type,
+            system_key,
+            handle
+        )
+        VALUES ($1, $2, $3);
+        ";
+    ::sqlx::query(query)
+        .bind(i64::try_from(crate::model::public_key::get_key_type(
+            system,
+        ))?)
+        .bind(crate::model::public_key::get_key_bytes(system))
+        .bind(handle)
+        .execute(&mut **transaction)
+        .await?;
+
+    Ok(())
+}
+
+pub(crate) async fn resolve_handle(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    handle: String,
+) -> ::anyhow::Result<crate::model::public_key::PublicKey> {
+    let query = "
+        SELECT
+            system_key,
+            system_key_type
+        FROM
+            identity_handles
+        WHERE
+            handle = $1;
+    ";
+
+    let sys_row = ::sqlx::query_as::<_, SystemRow>(query)
+        .bind(handle)
+        .fetch_one(&mut **transaction)
+        .await
+        .map_err(::anyhow::Error::new)?;
+
+    let sys = crate::model::public_key::from_type_and_bytes(
+        sys_row.system_key_type,
+        &sys_row.system_key,
+    )?;
+
+    Ok(sys)
+}
+
 pub(crate) async fn load_random_profiles(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
 ) -> ::anyhow::Result<Vec<crate::model::public_key::PublicKey>> {
@@ -1534,6 +1621,112 @@ pub mod tests {
 
             assert!(found);
         }
+
+        Ok(())
+    }
+
+    #[::sqlx::test]
+    async fn test_handles(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
+        let mut transaction = pool.begin().await?;
+        crate::postgres::prepare_database(&mut transaction).await?;
+
+        let s1 = crate::model::tests::make_test_keypair();
+        let s2 = crate::model::tests::make_test_keypair();
+
+        let system1 = crate::model::public_key::PublicKey::Ed25519(
+            s1.verifying_key().clone(),
+        );
+
+        let system2 = crate::model::public_key::PublicKey::Ed25519(
+            s2.verifying_key().clone(),
+        );
+
+        transaction.commit().await?;
+
+        transaction = pool.begin().await?;
+        crate::postgres::claim_handle(
+            &mut transaction,
+            String::from("osotnoc"),
+            &system1,
+        )
+        .await?;
+
+        transaction.commit().await?;
+
+        transaction = pool.begin().await?;
+        assert!(
+            crate::postgres::claim_handle(
+                &mut transaction,
+                String::from("osotnoc_2"),
+                &system1
+            )
+            .await
+            .is_ok()
+                == true
+        );
+
+        transaction.commit().await?;
+
+        transaction = pool.begin().await?;
+        assert!(
+            crate::postgres::claim_handle(
+                &mut transaction,
+                String::from("osotnoc"),
+                &system1
+            )
+            .await
+            .is_ok()
+                == true
+        );
+
+        transaction.commit().await?;
+
+        transaction = pool.begin().await?;
+        assert!(
+            crate::postgres::claim_handle(
+                &mut transaction,
+                String::from("osotnoc"),
+                &system2
+            )
+            .await
+            .is_ok()
+                == false
+        );
+
+        transaction = pool.begin().await?;
+        crate::postgres::claim_handle(
+            &mut transaction,
+            String::from("futo_test"),
+            &system2,
+        )
+        .await?;
+        transaction.commit().await?;
+
+        transaction = pool.begin().await?;
+        assert!(
+            crate::postgres::resolve_handle(
+                &mut transaction,
+                String::from("futo_test")
+            )
+            .await?
+                == system2
+        );
+        assert!(
+            crate::postgres::resolve_handle(
+                &mut transaction,
+                String::from("osotnoc")
+            )
+            .await?
+                != system2
+        );
+        assert!(
+            crate::postgres::resolve_handle(
+                &mut transaction,
+                String::from("osotnoc")
+            )
+            .await?
+                == system1
+        );
 
         Ok(())
     }

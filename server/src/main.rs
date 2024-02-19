@@ -329,6 +329,22 @@ async fn serve_api(
         .and_then(crate::handlers::post_purge::handler)
         .with(cors.clone());
 
+    let route_post_claim_handle = ::warp::post()
+        .and(::warp::path("claim_handle"))
+        .and(::warp::path::end())
+        .and(state_filter.clone())
+        .and(::warp::body::bytes())
+        .and_then(crate::handlers::post_claim_handle::handler)
+        .with(cors.clone());
+
+    let route_get_resolve_handle = ::warp::get()
+        .and(::warp::path("resolve_handle"))
+        .and(::warp::path::end())
+        .and(state_filter.clone())
+        .and(::warp::query::<crate::handlers::get_resolve_handle::Query>())
+        .and_then(crate::handlers::get_resolve_handle::handler)
+        .with(cors.clone());
+
     let routes = route_post_events
         .or(route_get_head)
         .or(route_get_query_latest)
@@ -345,6 +361,8 @@ async fn serve_api(
         .or(route_get_find_claim_and_vouch)
         .or(route_get_challenge)
         .or(route_post_purge)
+        .or(route_post_claim_handle)
+        .or(route_get_resolve_handle)
         .recover(handle_rejection);
 
     info!("API server listening on {}", config.http_port_api);
