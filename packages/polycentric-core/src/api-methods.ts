@@ -372,3 +372,36 @@ export async function postPurge(
 
     await checkResponse('postPurge', response);
 }
+
+export async function postClaimHandle(
+    server: string,
+    claimRequest: Protocol.ClaimHandleRequest,
+): Promise<void> {
+    const response = await fetch(server + '/claim_handle', {
+        method: 'POST',
+        headers: new Headers({
+            'content-type': 'application/octet-stream',
+        }),
+        body: Protocol.ClaimHandleRequest.encode(claimRequest).finish(),
+    });
+
+    await checkResponse('postClaimHandle', response);
+}
+
+export async function getResolveHandle(
+    server: string,
+    handle: string,
+): Promise<Models.PublicKey.PublicKey> {
+    const response = await fetch(server + `/resolve_handle?handle=${handle}`, {
+        method: 'GET',
+        headers: new Headers({
+            'content-type': 'application/octet-stream',
+        }),
+    });
+
+    await checkResponse('getResolveHandle', response);
+
+    const rawBody = new Uint8Array(await response.arrayBuffer());
+
+    return Models.PublicKey.fromProto(Protocol.PublicKey.decode(rawBody));
+}

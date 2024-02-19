@@ -27,6 +27,7 @@ url = "2.3.1"
 reqwest = "0.11.14"
 cadence = "0.29.0"
 constant_time_eq = "0.3.0"
+regex = "1.10.3"
 
 [build-dependencies]
 protobuf-codegen = "3.0.3"

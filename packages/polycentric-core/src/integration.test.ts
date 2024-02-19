@@ -12,7 +12,8 @@ import * as Protocol from './protocol';
 import * as Synchronization from './synchronization';
 import * as Util from './util';
 
-const TEST_SERVER = 'http://127.0.0.1:8081';
+const TEST_SERVER_ADDRESS = '127.0.0.1';
+const TEST_SERVER = `http://${TEST_SERVER_ADDRESS}:8081`;
 // const TEST_SERVER = 'https://srv1-stg.polycentric.io';
 
 async function setAvatarImage(
@@ -47,6 +48,18 @@ async function createHandleWithName(username: string) {
     const s1p1 = await ProcessHandle.createTestProcessHandle();
     await s1p1.addServer(TEST_SERVER);
     await s1p1.setUsername(username);
+    await Synchronization.backFillServers(s1p1, s1p1.system());
+    return s1p1;
+}
+
+async function createHandleWithNameAndIdentityHandle(username: string) {
+    const s1p1 = await ProcessHandle.createTestProcessHandle();
+    await s1p1.addServer(TEST_SERVER);
+    await s1p1.setUsername(username + '@' + TEST_SERVER_ADDRESS);
+    await APIMethods.postClaimHandle(TEST_SERVER, {
+        handle: username,
+        system: s1p1.system(),
+    });
     await Synchronization.backFillServers(s1p1, s1p1.system());
     return s1p1;
 }
@@ -595,5 +608,82 @@ describe('integration', () => {
                 ),
             ),
         ).toStrictEqual(true);
+    });
+
+    test('claim and search identity handles', async () => {
+        // Test regular behavior
+        const contoso =
+            await createHandleWithNameAndIdentityHandle('contoso-1');
+        const contoso2 =
+            await createHandleWithNameAndIdentityHandle('contoso-2');
+        const osotnoc =
+            await createHandleWithNameAndIdentityHandle('osotnoc_corp');
+
+        await contoso.synchronizer.debugWaitUntilSynchronizationComplete();
+        await osotnoc.synchronizer.debugWaitUntilSynchronizationComplete();
+
+        const result_contoso = await APIMethods.getResolveHandle(
+            TEST_SERVER,
+            'contoso-1',
+        );
+        expect(result_contoso).toStrictEqual(contoso.system());
+
+        const result_contoso2 = await APIMethods.getResolveHandle(
+            TEST_SERVER,
+            'contoso-2',
+        );
+        expect(result_contoso2).toStrictEqual(contoso2.system());
+
+        const result_osotnoc = await APIMethods.getResolveHandle(
+            TEST_SERVER,
+            'osotnoc_corp',
+        );
+        expect(result_osotnoc).toStrictEqual(osotnoc.system());
+
+        // Duplicate entry for system
+        await APIMethods.postClaimHandle(TEST_SERVER, {
+            handle: 'contoso-3',
+            system: contoso2.system(),
+        });
+
+        const result_contoso3 = await APIMethods.getResolveHandle(
+            TEST_SERVER,
+            'contoso-3',
+        );
+        expect(result_contoso3).toStrictEqual(contoso2.system());
+
+        // Name with restricted chars
+        let creation_failed = true;
+        try {
+            await APIMethods.postClaimHandle(TEST_SERVER, {
+                handle: 'This has spaces, dollar $ign$, and an &mpersand. not allowed!!',
+                system: contoso.system(),
+            });
+            creation_failed = false;
+        } catch {}
+        expect(creation_failed).toStrictEqual(true);
+
+        // Name that's too long
+        creation_failed = true;
+        try {
+            await APIMethods.postClaimHandle(TEST_SERVER, {
+                handle: '01234567890123456789012345678901234567890123456789012345678901234',
+                system: contoso.system(),
+            });
+            creation_failed = false;
+        } catch {}
+        expect(creation_failed).toStrictEqual(true);
+
+        // Name that's already taken
+        const contosoCopycat = await createHandleWithName('contoso-1');
+        creation_failed = true;
+        try {
+            await APIMethods.postClaimHandle(TEST_SERVER, {
+                handle: 'contoso-1',
+                system: contosoCopycat.system(),
+            });
+            creation_failed = false;
+        } catch {}
+        expect(creation_failed).toStrictEqual(true);
     });
 });

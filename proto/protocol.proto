@@ -336,3 +336,8 @@ message FindClaimAndVouchResponse {
     SignedEvent vouch = 1;
     SignedEvent claim = 2;
 }
+
+message ClaimHandleRequest {
+    PublicKey system = 1;
+    string  handle       = 2;
+}
