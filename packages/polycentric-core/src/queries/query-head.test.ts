@@ -13,6 +13,27 @@ enum SharedTestMode {
     CacheOnly,
 }
 
+async function waitForEvent(
+    processHandle: ProcessHandle.ProcessHandle,
+    pointer: Models.Pointer.Pointer,
+): Promise<Models.SignedEvent.SignedEvent | undefined> {
+    let loadedEvent: Models.SignedEvent.SignedEvent | undefined = undefined;
+
+    for (let i = 0; i < 20 && !loadedEvent; i++) {
+        loadedEvent = await processHandle
+            .store()
+            .indexEvents.getSignedEvent(
+                pointer.system,
+                pointer.process,
+                pointer.logicalClock,
+            );
+
+        await Util.sleep(100);
+    }
+
+    return loadedEvent;
+}
+
 async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     const s1p1 = await ProcessHandle.createTestProcessHandle();
     s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
@@ -151,5 +172,22 @@ describe('query head2', () => {
         expect(dualQueryResult[0] === dualQueryResult[1]).toStrictEqual(true);
 
         expect(queryHead.clean).toStrictEqual(true);
+    });
+
+    test('no data', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+        s1p1.addServer(ProcessHandle.TEST_SERVER);
+        const s1p1Post = await s1p1.post('s1p1');
+        await s1p1.synchronizer.debugWaitUntilSynchronizationComplete();
+
+        const s1p2 = await ProcessHandle.testProcessHandleCreateNewProcess(
+            s1p1,
+        );
+        s1p2.addServer(ProcessHandle.TEST_SERVER);
+
+        expect(await waitForEvent(s1p2, s1p1Post)).toBeDefined();
+
+        s1p1.synchronizer.cleanup();
+        s1p2.synchronizer.cleanup();
     });
 });

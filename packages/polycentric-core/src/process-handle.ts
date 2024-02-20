@@ -497,64 +497,72 @@ export class ProcessHandle {
         lwwElementSet: Protocol.LWWElementSet | undefined,
         lwwElement: Protocol.LWWElement | undefined,
         references: Protocol.Reference[],
+        shouldLock = true,
     ): Promise<Models.Pointer.Pointer> {
-        return await this._ingestLock.acquire(
-            Models.PublicKey.toString(this._system),
-            async () => {
-                const processState =
-                    await this._store.indexProcessStates.getProcessState(
-                        this._system,
-                        this._processSecret.process,
-                    );
+        const operation = async () => {
+            const processState =
+                await this._store.indexProcessStates.getProcessState(
+                    this._system,
+                    this._processSecret.process,
+                );
 
-                const event = Models.Event.fromProto({
-                    system: this._system,
-                    process: this._processSecret.process,
-                    logicalClock: processState.logicalClock
-                        .add(Long.UONE)
-                        .toUnsigned(),
-                    contentType: contentType,
-                    content: content,
-                    vectorClock: await this.publishComputeVectorClock(),
-                    lwwElementSet: lwwElementSet,
-                    lwwElement: lwwElement,
-                    references: references,
-                    indices: processState.indices,
-                    unixMilliseconds: Long.fromNumber(Date.now(), true),
-                });
+            const event = Models.Event.fromProto({
+                system: this._system,
+                process: this._processSecret.process,
+                logicalClock: processState.logicalClock
+                    .add(Long.UONE)
+                    .toUnsigned(),
+                contentType: contentType,
+                content: content,
+                vectorClock: await this.publishComputeVectorClock(),
+                lwwElementSet: lwwElementSet,
+                lwwElement: lwwElement,
+                references: references,
+                indices: processState.indices,
+                unixMilliseconds: Long.fromNumber(Date.now(), true),
+            });
 
-                const eventBuffer = Protocol.Event.encode(event).finish();
+            const eventBuffer = Protocol.Event.encode(event).finish();
 
-                const signedEvent = Models.SignedEvent.fromProto({
-                    signature: await Models.PrivateKey.sign(
-                        this._processSecret.system,
-                        eventBuffer,
-                    ),
-                    event: eventBuffer,
-                });
+            const signedEvent = Models.SignedEvent.fromProto({
+                signature: await Models.PrivateKey.sign(
+                    this._processSecret.system,
+                    eventBuffer,
+                ),
+                event: eventBuffer,
+            });
 
-                return await this.ingestWithoutLock(signedEvent);
-            },
-        );
+            return await this.ingestWithoutLock(signedEvent);
+        };
+
+        if (shouldLock) {
+            return await this._ingestLock.acquire(
+                Models.PublicKey.toString(this._system),
+                () => {
+                    return operation();
+                },
+            );
+        } else {
+            return operation();
+        }
     }
 
     public async ingest(
         signedEvent: Models.SignedEvent.SignedEvent,
         skipUpdateQueries = false,
     ): Promise<Models.Pointer.Pointer> {
+
         const event = Models.Event.fromBuffer(signedEvent.event);
 
         const result = await this._ingestLock.acquire(
             Models.PublicKey.toString(event.system),
-            async () => {
-                return await this.ingestWithoutLock(
+            () => {
+                return this.ingestWithoutLock(
                     signedEvent,
                     skipUpdateQueries,
                 );
             },
         );
-
-        await this.updateHeadIfNeeded(signedEvent);
 
         return result;
     }
@@ -622,9 +630,11 @@ export class ProcessHandle {
             );
         }
 
+        allSystemProcesses.delete(Models.Process.toString(this.process()));
+
         {
             const systemProcessesSignedEvent = head.processLists.get(
-                Models.Process.toString(event.process),
+                Models.Process.toString(this.process()),
             );
 
             if (systemProcessesSignedEvent) {
@@ -646,6 +656,7 @@ export class ProcessHandle {
         }
 
         if (
+            allSystemProcesses.size === 0 ||
             Util.areMapsEqual(
                 locallyKnownSystemProcesses,
                 allSystemProcesses,
@@ -654,6 +665,11 @@ export class ProcessHandle {
         ) {
             return;
         }
+
+        console.log(
+            "updating system processes for",
+            Models.Process.toString(this.process()),
+        );
 
         const updatedSystemProcesses = Models.SystemProcesses.fromProto({
             processes: Array.from(allSystemProcesses.values()),
@@ -665,6 +681,7 @@ export class ProcessHandle {
             undefined,
             undefined,
             [],
+            false,
         );
     }
 
@@ -681,6 +698,8 @@ export class ProcessHandle {
         if (!skipUpdateQueries) {
             this.queryManager.update(signedEvent);
         }
+
+        await this.updateHeadIfNeeded(signedEvent);
 
         const event = Models.Event.fromBuffer(signedEvent.event);
 
