@@ -54,13 +54,16 @@ interface AttemptedBatch {
         Models.ContentType.ContentTypeString,
         BatchForContentTypeState
     >;
+    readonly source: string;
 }
 
 function makeAttemptedBatch(
+    source: string,
     attemptedStates: ReadonlySet<StateForContentType>,
     signedEvents: readonly Models.SignedEvent.SignedEvent[],
 ): AttemptedBatch {
     const result: AttemptedBatch = {
+        source: source,
         batchByContentType: new Map(),
     };
 
@@ -287,6 +290,7 @@ export class QueryLatest extends HasUpdate {
             signedEvents: (Models.SignedEvent.SignedEvent | undefined)[],
         ): AttemptedBatch => {
             return {
+                source: 'disk',
                 batchByContentType: new Map([
                     [
                         stateForContentType.key,
@@ -331,6 +335,7 @@ export class QueryLatest extends HasUpdate {
 
             if (needToUpdateStates.size === 0) {
                 return {
+                    source: server,
                     batchByContentType: new Map(),
                 };
             }
@@ -345,7 +350,11 @@ export class QueryLatest extends HasUpdate {
                 needContentTypes,
             );
 
-            return makeAttemptedBatch(needToUpdateStates, response.events);
+            return makeAttemptedBatch(
+                server,
+                needToUpdateStates,
+                response.events,
+            );
         };
 
         return queryServersObservable(this.queryServers, system).pipe(
@@ -393,6 +402,7 @@ export class QueryLatest extends HasUpdate {
 
                 this.onLoadedBatch?.({
                     origin: this,
+                    source: attemptedBatch.source,
                     signedEvents: attempt.batch,
                 });
             }

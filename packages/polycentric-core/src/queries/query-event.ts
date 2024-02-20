@@ -143,18 +143,13 @@ export class QueryEvent extends HasUpdate {
                 );
             }
 
-            const subscription = RXJS.merge(...toMerge).subscribe(
-                (signedEvents) => {
-                    signedEvents.map(this.update.bind(this));
+            const subscription = RXJS.merge(...toMerge).subscribe((batch) => {
+                batch.signedEvents.map(this.update.bind(this));
 
-                    if (signedEvents.length > 0) {
-                        this.onLoadedBatch?.({
-                            origin: this,
-                            signedEvents: signedEvents,
-                        });
-                    }
-                },
-            );
+                if (batch.signedEvents.length > 0) {
+                    this.onLoadedBatch?.(batch);
+                }
+            });
 
             stateForEvent.unsubscribe =
                 subscription.unsubscribe.bind(subscription);
@@ -171,12 +166,18 @@ export class QueryEvent extends HasUpdate {
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
         logicalClock: Long,
-    ): RXJS.Observable<Models.SignedEvent.SignedEvent[]> {
+    ): RXJS.Observable<Shared.LoadedBatch> {
         return RXJS.from(
             this.indexEvents.getSignedEvent(system, process, logicalClock),
         ).pipe(
             RXJS.switchMap((signedEvent) =>
-                signedEvent ? RXJS.of([signedEvent]) : RXJS.NEVER,
+                signedEvent
+                    ? RXJS.of({
+                          signedEvents: [signedEvent],
+                          origin: this,
+                          source: 'disk',
+                      })
+                    : RXJS.NEVER,
             ),
         );
     }
@@ -184,7 +185,7 @@ export class QueryEvent extends HasUpdate {
     private loadFromNetworkObservable(
         stateForSystem: StateForSystem,
         system: Models.PublicKey.PublicKey,
-    ): RXJS.Observable<Models.SignedEvent.SignedEvent[]> {
+    ): RXJS.Observable<Shared.LoadedBatch> {
         const loadFromServer = (server: string) => {
             const request = Models.Ranges.rangesForSystemFromProto({
                 rangesForProcesses: [],
@@ -215,7 +216,13 @@ export class QueryEvent extends HasUpdate {
 
             if (request.rangesForProcesses.length > 0) {
                 return RXJS.from(this.getEvents(server, system, request)).pipe(
-                    RXJS.switchMap((events) => RXJS.of(events.events)),
+                    RXJS.switchMap((events) =>
+                        RXJS.of({
+                            signedEvents: events.events,
+                            origin: this,
+                            source: server,
+                        }),
+                    ),
                 );
             } else {
                 return RXJS.NEVER;

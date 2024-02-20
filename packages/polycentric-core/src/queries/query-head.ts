@@ -154,6 +154,7 @@ export class QueryHead extends HasUpdate {
                     this.onLoadedBatch?.({
                         origin: this,
                         signedEvents: batch.signedEvents,
+                        source: batch.source,
                     });
                 } else {
                     this.updateEmptyBatch(stateForSystem, batch.source);

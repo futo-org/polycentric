@@ -533,6 +533,7 @@ export class QueryManager extends HasUpdate {
             this.onLoadedBatch?.({
                 origin: this,
                 signedEvents: signedEvents,
+                source: source,
             });
         }
     }

@@ -90,8 +90,10 @@ export class QueryManager extends HasUpdate {
             }
         });
 
-        loadedBatch.signedEvents.forEach((signedEvent) => {
-            void this.processHandle.ingest(signedEvent, true);
-        });
+        if (loadedBatch.source !== 'disk') {
+            loadedBatch.signedEvents.forEach((signedEvent) => {
+                void this.processHandle.ingest(signedEvent, true);
+            });
+        }
     }
 }
