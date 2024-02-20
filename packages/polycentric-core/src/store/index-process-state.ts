@@ -48,18 +48,20 @@ export class IndexProcessState extends HasIngest {
                     deleteBody.process,
                 );
 
-                Ranges.insert(
-                    deleteProcessState.ranges,
-                    deleteBody.logicalClock,
-                );
-
-                actions.push(
-                    this.putProcessState(
-                        event.system,
-                        deleteBody.process,
-                        deleteProcessState,
-                    ),
-                );
+                if (
+                    Ranges.insert(
+                        deleteProcessState.ranges,
+                        deleteBody.logicalClock,
+                    )
+                ) {
+                    actions.push(
+                        this.putProcessState(
+                            event.system,
+                            deleteBody.process,
+                            deleteProcessState,
+                        ),
+                    );
+                }
             }
         }
 
@@ -68,11 +70,11 @@ export class IndexProcessState extends HasIngest {
             event.process,
         );
 
-        updateProcessState(processState, event);
-
-        actions.push(
-            this.putProcessState(event.system, event.process, processState),
-        );
+        if (updateProcessState(processState, event)) {
+            actions.push(
+                this.putProcessState(event.system, event.process, processState),
+            );
+        }
 
         return actions;
     }
@@ -114,12 +116,16 @@ export class IndexProcessState extends HasIngest {
 function updateProcessState(
     state: Models.Storage.StorageTypeProcessState,
     event: Models.Event.Event,
-): void {
+): boolean {
+    let mutated = false;
+
     if (event.logicalClock.compare(state.logicalClock) === 1) {
         state.logicalClock = event.logicalClock;
+
+        mutated = true;
     }
 
-    Ranges.insert(state.ranges, event.logicalClock);
+    mutated = Ranges.insert(state.ranges, event.logicalClock) || mutated;
 
     {
         let foundIndex = false;
@@ -130,6 +136,7 @@ function updateProcessState(
 
                 if (event.logicalClock.compare(index.logicalClock) === 1) {
                     index.logicalClock = event.logicalClock;
+                    mutated = true;
                 }
             }
         }
@@ -139,6 +146,10 @@ function updateProcessState(
                 indexType: event.contentType,
                 logicalClock: event.logicalClock,
             });
+
+            mutated = true;
         }
     }
+
+    return mutated;
 }

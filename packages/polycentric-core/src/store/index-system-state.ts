@@ -16,7 +16,9 @@ export function makeSystemStateKey(
 function updateSystemState(
     state: Models.Storage.StorageTypeSystemState,
     event: Models.Event.Event,
-): void {
+): boolean {
+    let mutated = false;
+
     {
         const lwwElement = event.lwwElement;
 
@@ -30,9 +32,11 @@ function updateSystemState(
                 }
             }
 
-            if (found && found.unixMilliseconds < lwwElement.unixMilliseconds) {
-                found.unixMilliseconds = lwwElement.unixMilliseconds;
-                found.value = lwwElement.value;
+            if (found) {
+                if (found.unixMilliseconds < lwwElement.unixMilliseconds) {
+                    found.unixMilliseconds = lwwElement.unixMilliseconds;
+                    found.value = lwwElement.value;
+                }
             } else {
                 state.crdtItems.push({
                     contentType: event.contentType,
@@ -54,14 +58,18 @@ function updateSystemState(
                 )
             ) {
                 foundProcess = true;
+                mutated = true;
                 break;
             }
         }
 
         if (!foundProcess) {
             state.processes.push(event.process);
+            mutated = true;
         }
     }
+
+    return mutated;
 }
 
 export class IndexSystemState extends HasIngest {
@@ -84,9 +92,11 @@ export class IndexSystemState extends HasIngest {
 
         const state = await this.getSystemState(event.system);
 
-        updateSystemState(state, event);
-
-        return [this.putSystemState(event.system, state)];
+        if (updateSystemState(state, event)) {
+            return [this.putSystemState(event.system, state)];
+        } else {
+            return [];
+        }
     }
 
     public async getSystemState(
