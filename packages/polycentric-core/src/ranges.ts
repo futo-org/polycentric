@@ -53,14 +53,14 @@ export function deepCopy(ranges: readonly IRange[]): IRange[] {
     });
 }
 
-export function insert(ranges: IRange[], item: Readonly<Long>): void {
+export function insert(ranges: IRange[], item: Readonly<Long>): boolean {
     for (let i = 0; i < ranges.length; i++) {
         // within existing range
         if (
             item.greaterThanOrEqual(ranges[i].low) &&
             item.lessThanOrEqual(ranges[i].high)
         ) {
-            return;
+            return false;
         }
 
         // merging range
@@ -71,19 +71,19 @@ export function insert(ranges: IRange[], item: Readonly<Long>): void {
         ) {
             ranges[i].high = ranges[i + 1].high;
             ranges.splice(i + 1, 1);
-            return;
+            return true;
         }
 
         // low adjacent
         if (item.equals(ranges[i].low.subtract(Long.UONE))) {
             ranges[i].low = item;
-            return;
+            return true;
         }
 
         // high adjacent
         if (item.equals(ranges[i].high.add(Long.UONE))) {
             ranges[i].high = item;
-            return;
+            return true;
         }
 
         // between ranges and non adjacent
@@ -92,7 +92,7 @@ export function insert(ranges: IRange[], item: Readonly<Long>): void {
                 low: item,
                 high: item,
             });
-            return;
+            return true;
         }
     }
 
@@ -101,6 +101,8 @@ export function insert(ranges: IRange[], item: Readonly<Long>): void {
         low: item,
         high: item,
     });
+
+    return true;
 }
 
 export function subtractRange(
