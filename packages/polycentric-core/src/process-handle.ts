@@ -622,9 +622,11 @@ export class ProcessHandle {
             );
         }
 
+        allSystemProcesses.delete(Models.Process.toString(this.process()));
+
         {
             const systemProcessesSignedEvent = head.processLists.get(
-                Models.Process.toString(event.process),
+                Models.Process.toString(this.process()),
             );
 
             if (systemProcessesSignedEvent) {
@@ -646,6 +648,7 @@ export class ProcessHandle {
         }
 
         if (
+            allSystemProcesses.size === 0 ||
             Util.areMapsEqual(
                 locallyKnownSystemProcesses,
                 allSystemProcesses,
