@@ -61,8 +61,8 @@ export class Store {
             }
 
             const sublevel = this.level.sublevel(prefix, {
-                keyEncoding: 'buffer',
-                valueEncoding: 'buffer',
+                keyEncoding: PersistenceDriver.deepCopyTranscoder(),
+                valueEncoding: PersistenceDriver.deepCopyTranscoder(),
             }) as PersistenceDriver.BinaryAbstractSubLevel;
 
             sublevels.add(prefix);

@@ -11,8 +11,8 @@ function createPersistenceDriverIndexedDB(): PersistenceDriver.IPersistenceDrive
 
     const openStore = async (path: string) => {
         const level = new BrowserLevel<Uint8Array, Uint8Array>(path, {
-            keyEncoding: 'buffer',
-            valueEncoding: 'buffer',
+            keyEncoding: PersistenceDriver.deepCopyTranscoder(),
+            valueEncoding: PersistenceDriver.deepCopyTranscoder(),
         }) as PersistenceDriver.BinaryAbstractLevel;
 
         await level.open();

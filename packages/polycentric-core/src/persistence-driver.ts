@@ -1,5 +1,6 @@
 import * as AbstractLevel from 'abstract-level';
 import * as MemoryLevel from 'memory-level';
+import * as LevelTranscoder from 'level-transcoder';
 
 export type BinaryAbstractLevel = AbstractLevel.AbstractLevel<
     Uint8Array,
@@ -26,6 +27,26 @@ export type BinaryDelLevel = AbstractLevel.AbstractBatchDelOperation<
 >;
 
 export type BinaryUpdateLevel = BinaryPutLevel | BinaryDelLevel;
+
+export function deepCopyTranscoder(): LevelTranscoder.IEncoding<
+    Uint8Array,
+    Uint8Array,
+    Uint8Array
+> {
+    return {
+        name: 'deepCopyTranscoder',
+        format: 'buffer',
+        encode: (input: Uint8Array): Uint8Array => {
+            const outputBuffer = new ArrayBuffer(input.length);
+            const output = new Uint8Array(outputBuffer);
+            output.set(input);
+            return output;
+        },
+        decode: (buffer: Uint8Array): Uint8Array => {
+            return buffer;
+        },
+    };
+}
 
 export async function tryLoadKey(
     table: BinaryAbstractLevel,
@@ -63,8 +84,8 @@ export function createPersistenceDriverMemory(): IPersistenceDriver {
     /* eslint @typescript-eslint/require-await: 0 */
     const openStore = async () => {
         return new MemoryLevel.MemoryLevel<Uint8Array, Uint8Array>({
-            keyEncoding: 'buffer',
-            valueEncoding: 'buffer',
+            keyEncoding: deepCopyTranscoder(),
+            valueEncoding: deepCopyTranscoder(),
         }) as BinaryAbstractLevel;
     };
 
