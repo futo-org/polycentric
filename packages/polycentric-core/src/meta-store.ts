@@ -107,8 +107,8 @@ export async function createMetaStore(
     const metaStore = await persistenceDriver.openStore('meta');
 
     const metaStoreStores = metaStore.sublevel('stores', {
-        keyEncoding: 'buffer',
-        valueEncoding: 'buffer',
+        keyEncoding: PersistenceDriver.deepCopyTranscoder(),
+        valueEncoding: PersistenceDriver.deepCopyTranscoder(),
     }) as PersistenceDriver.BinaryAbstractLevel;
 
     const openStore = async (
