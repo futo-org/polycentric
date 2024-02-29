@@ -1,10 +1,17 @@
 import { TrashIcon } from '@heroicons/react/24/outline';
-import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, {
+    forwardRef,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { useIsMobile } from '../../../../hooks/styleHooks';
 import { Profile } from '../../../../types/profile';
 import { PopupComposeReplyFullscreen } from '../../../popup/PopupComposeReply';
 import { ProfilePicture } from '../../../profile/ProfilePicture';
 import { Link } from '../../../util/link';
+import { Linkify } from '../../../util/linkify';
 import { Modal } from '../../../util/modal';
 
 const dateToAgoString = (date: Date | undefined) => {
@@ -523,9 +530,13 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex flex-col space-y-3">
+                                    <div
+                                        className="flex flex-col space-y-3"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
                                         {/* Actual post content */}
-                                        <main
+                                        <Linkify
+                                            as="main"
                                             className={
                                                 'pt-4 leading-normal whitespace-pre-line text-lg text-gray-900 font-normal overflow-hidden text-pretty break-words' +
                                                 (expanded
@@ -533,20 +544,20 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                     : ' line-clamp-[7]') +
                                                 (contentCropped && !expanded
                                                     ? ` line-clamp-[7] relative
-                  after:top-0 after:left-0  after:w-full after:h-full 
-                  after:bg-gradient-to-b after:from-80% after:from-transparent
-                  after:absolute ${
-                      hoverStylePost ? 'after:to-gray-50' : 'after:to-white'
-                  }`
+                                                            after:top-0 after:left-0  after:w-full after:h-full 
+                                                            after:bg-gradient-to-b after:from-80% after:from-transparent
+                                                            after:absolute ${
+                                                                hoverStylePost
+                                                                    ? 'after:to-gray-50'
+                                                                    : 'after:to-white'
+                                                            }`
                                                     : '')
                                             }
                                             ref={mainRef}
-                                        >
-                                            {main.content}
-                                        </main>
+                                            content={main.content}
+                                        />
                                         <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
+                                            onClick={() => {
                                                 main.image &&
                                                     setMainImageOpen(true);
                                             }}
@@ -595,18 +606,18 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <main
+                                                <Linkify
+                                                    as="sub"
                                                     ref={subContentRef}
                                                     className={`line-clamp-[4]  ${
                                                         subcontentCropped
-                                                            ? `relative after:top-0 after:left-0  after:w-full after:h-full 
-                        after:bg-gradient-to-b after:from-20% after:from-transparent after:to-white group-hover:after:to-slate-50
-                        after:absolute`
+                                                            ? ` relative after:top-0 after:left-0  after:w-full after:h-full 
+                                                                after:bg-gradient-to-b after:from-20% after:from-transparent after:to-white group-hover:after:to-slate-50
+                                                                after:absolute`
                                                             : ''
                                                     }`}
-                                                >
-                                                    {sub.content}
-                                                </main>
+                                                    content={sub.content}
+                                                />
                                             </Link>
                                         )}
                                     </div>
