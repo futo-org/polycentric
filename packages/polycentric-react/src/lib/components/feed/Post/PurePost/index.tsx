@@ -6,13 +6,16 @@ import React, {
     useRef,
     useState,
 } from 'react';
+import Zoom from 'react-medium-image-zoom';
+import 'react-medium-image-zoom/dist/styles.css';
 import { useIsMobile } from '../../../../hooks/styleHooks';
 import { Profile } from '../../../../types/profile';
 import { PopupComposeReplyFullscreen } from '../../../popup/PopupComposeReply';
 import { ProfilePicture } from '../../../profile/ProfilePicture';
 import { Link } from '../../../util/link';
 import { Linkify } from '../../../util/linkify';
-import { Modal } from '../../../util/modal';
+// Styling for image viewer
+import './style.css';
 
 const dateToAgoString = (date: Date | undefined) => {
     if (date == null) {
@@ -299,7 +302,6 @@ const PostLinkContainer = ({
 
 const basicURLRegex = /^(https?:\/\/)?(www\.)?/;
 
-// eslint-disable-next-line react/display-name
 export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
     (
         {
@@ -318,7 +320,6 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
         const [expanded, setExpanded] = useState(autoExpand);
         const [subcontentCropped, setsubcontentCropped] = useState(false);
         const [commentPanelOpen, setCommentPanelOpen] = useState(false);
-        const [mainImageOpen, setMainImageOpen] = useState(false);
         const [mainHover, setMainHover] = useState(false);
         const [subHover, setSubHover] = useState(false);
 
@@ -556,17 +557,12 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                             ref={mainRef}
                                             content={main.content}
                                         />
-                                        <button
-                                            onClick={() => {
-                                                main.image &&
-                                                    setMainImageOpen(true);
-                                            }}
-                                        >
+                                        <Zoom classDialog="custom-post-img-zoom">
                                             <img
                                                 src={main.image}
                                                 className="rounded-2xl max-h-60 max-w-full w-auto hover:opacity-80 border"
                                             />
-                                        </button>
+                                        </Zoom>
                                         {/* sub.post */}
                                         {sub && (
                                             <Link
@@ -702,18 +698,12 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                     }
                                     onComment={actions?.comment}
                                 />
-                                <Modal
-                                    open={mainImageOpen}
-                                    setOpen={(open) => setMainImageOpen(open)}
-                                    shrink={false}
-                                >
-                                    <div className="m-5">
-                                        <img
-                                            className="rounded-2xl w-[80vw] lg:w-[60vw] h-auto"
-                                            src={main.image}
-                                        />
-                                    </div>
-                                </Modal>
+                                {/* {mainImageOpen && main.image && (
+                                    <SingleImageViewer
+                                        src={main.image}
+                                        onClose={() => setMainImageOpen(false)}
+                                    />
+                                )} */}
                             </div>
                         </article>
                     </PostLinkContainer>
@@ -722,3 +712,5 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
         );
     },
 );
+
+PurePost.displayName = 'PurePost';
