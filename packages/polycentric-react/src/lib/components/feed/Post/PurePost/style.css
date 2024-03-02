@@ -1,0 +1,11 @@
+.custom-post-img-zoom [data-rmiz-modal-overlay='visible'] {
+    background-color: #3b393973;
+}
+
+.custom-post-img-zoom img {
+    /* tailwind border styling */
+    border-color: rgb(229, 231, 235);
+    border-style: solid;
+    border-width: 1px;
+    background-color: #ffffffc1;
+}
