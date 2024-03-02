@@ -151,7 +151,7 @@ export class IndexFeed extends HasIngest {
 
         const keys: IndexFeedCursor[] = await this.level
             .keys({
-                lt: cursor,
+                ...(cursor && { lt: cursor }),
                 limit: limit,
                 reverse: true,
             })
