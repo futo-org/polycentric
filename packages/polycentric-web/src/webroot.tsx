@@ -70,8 +70,6 @@ const WebRoot = () => {
     React.useEffect(() => {
         const persistenceDriver = createPersistenceDriverIndexedDB();
         setPersistenceDriver(persistenceDriver);
-
-        console.log(persistenceDriver);
     }, []);
 
     if (persistenceDriver === undefined) {
