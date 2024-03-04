@@ -330,3 +330,10 @@ deploy-polycentric-web-staging:
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
 
+deploy-polycentric-web-production:
+  stage: deploy 
+  script: make deploy-polycentric-web-production
+  needs: ["check", "test", "build-web"]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "production"
+
