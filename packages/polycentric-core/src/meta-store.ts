@@ -104,7 +104,7 @@ function makeStorePath(
 export async function createMetaStore(
     persistenceDriver: PersistenceDriver.IPersistenceDriver,
 ): Promise<IMetaStore> {
-    const metaStore = await persistenceDriver.openStore('meta');
+    const metaStore = await persistenceDriver.openStore('metav2');
 
     const metaStoreStores = metaStore.sublevel('stores', {
         keyEncoding: PersistenceDriver.deepCopyTranscoder(),

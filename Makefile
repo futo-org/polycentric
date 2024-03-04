@@ -107,9 +107,9 @@ clean:
 		packages/polycentric-web-legacy/build \
 		server/target
 
-deploy-spa:
-	wrangler pages publish --project-name polycentric-spa \
-		./packages/polycentric-web/dist/
+deploy-polycentric-web-production:
+	wrangler pages deploy --project-name polycentric-spa-production \
+		./packages/polycentric-web/dist/ --branch master
 
 deploy-polycentric-web-staging:
 	wrangler pages deploy --project-name polycentric-spa-staging \
