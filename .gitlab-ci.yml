@@ -172,6 +172,7 @@ build-server:
       expire_in: 10 mins
       paths:
         - ./build-artifacts
+        - ./server/target
 
 build-core:
   stage: build
@@ -336,4 +337,20 @@ deploy-polycentric-web-production:
   needs: ["check", "test", "build-web"]
   rules:
     - if: $CI_COMMIT_BRANCH == "production"
+
+build-and-deploy-server-image:
+  stage: deploy 
+  image: "docker:latest"
+  services:
+    - docker:dind
+  variables:
+    DOCKER_DRIVER: overlay
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - make build-server-image
+    - make push-server-image
+  needs: ["check", "test", "build-server"]
+  dependencies: 
+    - build-server
+    - build-core
 
