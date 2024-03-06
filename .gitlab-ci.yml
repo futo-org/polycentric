@@ -352,5 +352,4 @@ build-and-deploy-server-image:
   needs: ["check", "test", "build-server"]
   dependencies: 
     - build-server
-    - build-core
 
