@@ -172,7 +172,7 @@ build-server:
       expire_in: 10 mins
       paths:
         - ./build-artifacts
-        - ./server/target
+        - ./server/target/debug/server
 
 build-core:
   stage: build
