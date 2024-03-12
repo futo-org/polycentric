@@ -531,10 +531,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                             </div>
                                         </div>
                                     </div>
-                                    <div
-                                        className="flex flex-col space-y-3"
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
+                                    <div className="flex flex-col space-y-3">
                                         {/* Actual post content */}
                                         <Linkify
                                             as="main"
@@ -556,6 +553,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                             }
                                             ref={mainRef}
                                             content={main.content}
+                                            stopPropagation={true}
                                         />
                                         <Zoom classDialog="custom-post-img-zoom">
                                             <img
@@ -613,6 +611,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                             : ''
                                                     }`}
                                                     content={sub.content}
+                                                    stopPropagation={true}
                                                 />
                                             </Link>
                                         )}
