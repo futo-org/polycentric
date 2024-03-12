@@ -134,7 +134,9 @@ const AddToHomeScreenBarrier = ({
     const isDesktopSafari = useMemo(() => {
         const ua = navigator.userAgent.toLowerCase();
         const isSafari =
-            ua.indexOf('safari') !== -1 && ua.indexOf('chrome') === -1;
+            ua.includes('safari') === true &&
+            ua.includes('chrome') === false &&
+            ua.includes('chromium') === false;
         const isDesktop = isPlatform('desktop');
         return isSafari && isDesktop;
     }, []);
