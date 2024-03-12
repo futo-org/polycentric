@@ -42,6 +42,7 @@ export const Linkify = forwardRef(
                             onClick={(e) =>
                                 stopPropagation && e.stopPropagation()
                             }
+                            key={`${item.start}-${item.href}`}
                         >
                             {item.value}
                         </a>,
@@ -57,6 +58,7 @@ export const Linkify = forwardRef(
                             className="text-blue-500 hover:underline"
                             routerDirection="forward"
                             stopPropagation={stopPropagation}
+                            key={`${item.start}-${item.value}`}
                         >
                             {item.value}
                         </Link>,
@@ -67,7 +69,7 @@ export const Linkify = forwardRef(
             out.push(content.substring(i));
 
             return out;
-        }, [content]);
+        }, [content, stopPropagation]);
 
         const Component = useMemo(() => as, [as]);
         return (
