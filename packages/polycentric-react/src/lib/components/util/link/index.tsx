@@ -38,15 +38,18 @@ export const MemoryRoutedComponent = ({
     );
 };
 
+interface LinkProps {
+    routerLink?: string;
+    children?: React.ReactNode;
+    className?: string;
+    activeClassName?: string;
+    routerDirection?: RouterDirection;
+    stopPropagation?: boolean;
+}
+
 const LinkComponent = forwardRef<
     HTMLAnchorElement,
-    {
-        routerLink?: string;
-        children?: React.ReactNode;
-        className?: string;
-        activeClassName?: string;
-        routerDirection?: RouterDirection;
-    } & React.HTMLAttributes<HTMLAnchorElement>
+    LinkProps & React.HTMLAttributes<HTMLAnchorElement>
 >(
     (
         {
@@ -55,6 +58,7 @@ const LinkComponent = forwardRef<
             routerDirection = 'forward',
             className,
             activeClassName,
+            stopPropagation,
             ...browserProps
         },
         ref,
@@ -69,6 +73,8 @@ const LinkComponent = forwardRef<
         const onClick: React.MouseEventHandler<HTMLAnchorElement> = useCallback(
             (e) => {
                 e.preventDefault();
+
+                if (stopPropagation) e.stopPropagation();
 
                 if (!routerLink) return;
                 if (isActive) return;
@@ -90,7 +96,13 @@ const LinkComponent = forwardRef<
                         );
                 }
             },
-            [routerLink, routerDirection, stackRouter, isActive],
+            [
+                routerLink,
+                routerDirection,
+                stackRouter,
+                isActive,
+                stopPropagation,
+            ],
         );
 
         return (

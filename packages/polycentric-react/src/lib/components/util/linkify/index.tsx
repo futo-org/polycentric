@@ -9,11 +9,13 @@ export const Linkify = forwardRef(
             as,
             className,
             content,
+            stopPropagation,
         }: {
             as: React.ElementType;
             className: string;
             ref: React.Ref<HTMLDivElement>;
             content: string;
+            stopPropagation?: boolean;
         },
         ref,
     ) => {
@@ -37,6 +39,10 @@ export const Linkify = forwardRef(
                             target="_blank"
                             // Currently we don't say that links are coming from polycentric - should this change?
                             rel="noreferrer"
+                            onClick={(e) =>
+                                stopPropagation && e.stopPropagation()
+                            }
+                            key={`${item.start}-${item.href}`}
                         >
                             {item.value}
                         </a>,
@@ -51,6 +57,8 @@ export const Linkify = forwardRef(
                             routerLink={`/t/-${itemWithoutStartingOctothorpe}`}
                             className="text-blue-500 hover:underline"
                             routerDirection="forward"
+                            stopPropagation={stopPropagation}
+                            key={`${item.start}-${item.value}`}
                         >
                             {item.value}
                         </Link>,
@@ -61,7 +69,7 @@ export const Linkify = forwardRef(
             out.push(content.substring(i));
 
             return out;
-        }, [content]);
+        }, [content, stopPropagation]);
 
         const Component = useMemo(() => as, [as]);
         return (
