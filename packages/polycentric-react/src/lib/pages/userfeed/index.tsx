@@ -29,7 +29,7 @@ export const UserFeedPage: Page = () => {
         return { system, servers };
     }, [urlInfoString, processHandle]);
 
-    const [data, advanceFeed] = useAuthorFeed(system);
+    const [data, advanceFeed, nothingFound] = useAuthorFeed(system);
 
     const column = useMemo(
         () => <UserColumn system={system} key="usercol" />,
@@ -63,6 +63,8 @@ export const UserFeedPage: Page = () => {
                 <InfiniteScrollWithRightCol
                     data={data}
                     advanceFeed={advanceFeed}
+                    nothingFound={nothingFound}
+                    nothingFoundMessage=""
                     rightCol={column}
                     topFeedComponent={topComponent}
                 />
