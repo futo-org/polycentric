@@ -132,10 +132,10 @@ export const InfiniteScrollWithRightCol = ({
     const [loadingIndicatorTimeoutReached, setLoadingIndicatorTimeoutReached] =
         useState(false);
     useEffect(() => {
-        // Only show loading indicator if it takes more than 100ms to load anything
+        // Only show loading indicator if it takes more than 500ms to load anything
         const timeout = setTimeout(() => {
             setLoadingIndicatorTimeoutReached(true);
-        }, 100);
+        }, 500);
 
         return () => {
             clearTimeout(timeout);
