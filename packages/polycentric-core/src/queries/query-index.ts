@@ -241,13 +241,11 @@ export class QueryManager extends HasUpdate {
 
         stateForQuery.totalExpected += additionalCount;
 
-        if (this._useNetwork) {
-            await this.loadFromNetwork(system, stateForQuery, contentType);
-        }
-
-        if (this._useDisk) {
-            await this.loadFromDisk(system, stateForQuery);
-        }
+        await Promise.allSettled([
+            this._useNetwork &&
+                this.loadFromNetwork(system, stateForQuery, contentType),
+            this._useDisk && this.loadFromDisk(system, stateForQuery),
+        ]);
 
         if (stateForQuery.eventsByTime.length === 0) {
             stateForQuery.nothingFoundCallback?.();
