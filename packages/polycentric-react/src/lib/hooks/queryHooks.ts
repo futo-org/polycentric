@@ -245,13 +245,14 @@ export function useIndex<T>(
     contentType: Models.ContentType.ContentType,
     parse: (buffer: Uint8Array) => T,
     batchSize = 30,
-): [Array<ParsedEvent<T>>, () => void] {
+): [Array<ParsedEvent<T>>, () => void, boolean] {
     const queryManager = useQueryManager();
 
     const [state, setState] = useState<Array<ClaimInfo<T>>>([]);
     const [advance, setAdvance] = useState<
         ((batchSize: number) => void) | undefined
     >(undefined);
+    const [nothingFound, setNothingFound] = useState<boolean>(false);
 
     useEffect(() => {
         const cancelContext = new CancelContext.CancelContext();
@@ -294,10 +295,15 @@ export function useIndex<T>(
             });
         };
 
+        const nothingFoundCallback = () => {
+            setNothingFound(true);
+        };
+
         const latestHandle = queryManager.queryIndex.query(
             system,
             contentType,
             cb,
+            nothingFoundCallback,
         );
         setAdvance(() => (size: number) => latestHandle.advance(size));
 
@@ -305,6 +311,7 @@ export function useIndex<T>(
             cancelContext.cancel();
             setState([]);
             setAdvance(undefined);
+            setNothingFound(false);
             latestHandle.unregister();
         };
     }, [queryManager, system, contentType, parse, batchSize]);
@@ -319,7 +326,7 @@ export function useIndex<T>(
         advance?.(batchSize);
     }, [advance, batchSize]);
 
-    return [parsedEvents, advanceCallback];
+    return [parsedEvents, advanceCallback, nothingFound];
 }
 
 export const useQueryReferences = (
@@ -561,9 +568,6 @@ export function useQueryCursor<T>(
     });
 
     useEffect(() => {
-        setState([]);
-        setAdvance(() => () => {});
-
         const cancelContext = new CancelContext.CancelContext();
 
         const addNewCells = (
@@ -622,6 +626,10 @@ export function useQueryCursor<T>(
         return () => {
             cancelContext.cancel();
             newQuery.cleanup();
+
+            setState([]);
+            setAdvance(() => () => {});
+            setNothingFound(false);
         };
         // NOTE: Currently we don't care about dynamic batch sizes.
         // If we do, the current implementation of this hook will result in clearing the whole feed when the batch size changes.

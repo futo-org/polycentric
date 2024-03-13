@@ -5,8 +5,8 @@ import * as Models from '../models';
 import * as ProcessHandle from '../process-handle';
 import * as Protocol from '../protocol';
 import * as Util from '../util';
-import * as Shared from './shared';
 import { HasUpdate } from './has-update';
+import * as Shared from './shared';
 
 export interface QueryHandle {
     advance(additionalCount: number): void;
@@ -119,6 +119,7 @@ export interface CallbackParameters {
 }
 
 export type Callback = (state: CallbackParameters) => void;
+type NothingFoundCallback = () => void;
 
 function processAndLogicalClockToString(
     process: Models.Process.Process,
@@ -129,6 +130,7 @@ function processAndLogicalClockToString(
 
 interface StateForQuery {
     readonly callback: Callback;
+    readonly nothingFoundCallback?: NothingFoundCallback;
     totalExpected: number;
     readonly contentType: Models.ContentType.ContentType;
     readonly earliestTimeBySource: Map<string, Long>;
@@ -176,6 +178,7 @@ export class QueryManager extends HasUpdate {
         system: Models.PublicKey.PublicKey,
         contentType: Models.ContentType.ContentType,
         callback: Callback,
+        nothingFoundCallback?: NothingFoundCallback,
     ): QueryHandle {
         const systemString = Models.PublicKey.toString(system);
 
@@ -191,6 +194,7 @@ export class QueryManager extends HasUpdate {
 
         const stateForQuery = {
             callback: callback,
+            nothingFoundCallback: nothingFoundCallback,
             totalExpected: 0,
             contentType: contentType,
             earliestTimeBySource: new Map(),
@@ -206,7 +210,7 @@ export class QueryManager extends HasUpdate {
         return {
             advance: (additionalCount: number) => {
                 if (!unregistered) {
-                    this.advanceInternal(
+                    void this.advanceInternal(
                         stateForQuery,
                         additionalCount,
                         contentType,
@@ -222,12 +226,12 @@ export class QueryManager extends HasUpdate {
         };
     }
 
-    private advanceInternal(
+    private async advanceInternal(
         stateForQuery: StateForQuery,
         additionalCount: number,
         contentType: Models.ContentType.ContentType,
         system: Models.PublicKey.PublicKey,
-    ): void {
+    ): Promise<void> {
         if (
             stateForQuery.totalExpected - stateForQuery.eventsByTime.length >
             0
@@ -238,11 +242,15 @@ export class QueryManager extends HasUpdate {
         stateForQuery.totalExpected += additionalCount;
 
         if (this._useNetwork) {
-            void this.loadFromNetwork(system, stateForQuery, contentType);
+            await this.loadFromNetwork(system, stateForQuery, contentType);
         }
 
         if (this._useDisk) {
-            void this.loadFromDisk(system, stateForQuery);
+            await this.loadFromDisk(system, stateForQuery);
+        }
+
+        if (stateForQuery.eventsByTime.length === 0) {
+            stateForQuery.nothingFoundCallback?.();
         }
     }
 
