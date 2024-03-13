@@ -18,6 +18,8 @@ export type LoadCallback = (
     cursor: Uint8Array | undefined,
 ) => Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type>;
 
+type NothingFoundCallback = () => void;
+
 export interface Cell {
     readonly fromServer: string;
     readonly signedEvent: Models.SignedEvent.SignedEvent;
@@ -28,6 +30,7 @@ export type ResultCallback = (cells: readonly Cell[]) => void;
 export class Query {
     private readonly _processHandle: ProcessHandle.ProcessHandle;
     private readonly _loadCallback: LoadCallback;
+    private readonly _nothingFoundCallback?: NothingFoundCallback;
     private readonly _cursors: Map<string, Uint8Array>;
     private readonly _active: Set<string>;
     private readonly _loaded: Set<Models.Pointer.PointerString>;
@@ -42,9 +45,11 @@ export class Query {
         loadCallback: LoadCallback,
         resultCallback: ResultCallback,
         batchSize: number,
+        nothingFoundCallback?: () => void,
     ) {
         this._processHandle = processHandle;
         this._loadCallback = loadCallback;
+        this._nothingFoundCallback = nothingFoundCallback;
         this._cursors = new Map();
         this._active = new Set();
         this._loaded = new Set();
@@ -162,14 +167,20 @@ export class Query {
             this._batchSize / state.servers().length,
         );
 
-        for (const server of state.servers()) {
-            void this._loadFromServer(server, limitPerServer);
-        }
+        await Promise.allSettled(
+            state
+                .servers()
+                .map((server) => this._loadFromServer(server, limitPerServer)),
+        );
     }
 
     private async _advanceInternal(): Promise<void> {
         this._drainReserve();
         await this._loadFromServers();
+
+        if (this._loaded.size === 0) {
+            this._nothingFoundCallback?.();
+        }
     }
 
     public advance(): void {
