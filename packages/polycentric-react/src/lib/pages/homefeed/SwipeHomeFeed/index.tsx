@@ -40,7 +40,7 @@ const ValidSearchFeed = ({ checkedQuery }: { checkedQuery: string }) => {
 };
 
 const InvalidSearchFeed = () => {
-    return <Feed data={[]} advanceFeed={() => {}} />;
+    return <div />;
 };
 
 const SearchFeed = ({ query }: { query: string }) => {

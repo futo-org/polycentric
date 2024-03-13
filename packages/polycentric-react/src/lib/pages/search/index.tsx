@@ -6,13 +6,15 @@ import { useSearchFeed } from '../../hooks/feedHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
 
 const ValidSearchFeed = ({ checkedQuery }: { checkedQuery: string }) => {
-    const [data, advanceFeed] = useSearchFeed(checkedQuery);
+    const [data, advanceFeed, nothingFound] = useSearchFeed(checkedQuery);
 
     return (
         <InfiniteScrollWithRightCol
             data={data}
             advanceFeed={advanceFeed}
+            nothingFound={nothingFound}
             rightCol={<div></div>}
+            loadingSpinnerN={4}
         />
     );
 };

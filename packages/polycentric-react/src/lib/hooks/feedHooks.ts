@@ -214,10 +214,11 @@ export const useCommentFeed = (
 
 export function useFollowingFeed(
     batchSize = 10,
-): [ParsedEvent<Protocol.Post>[], () => void] {
+): [ParsedEvent<Protocol.Post>[], () => void, boolean] {
     const { processHandle } = useProcessHandleManager();
     const [state, setState] = useState<ParsedEvent<Protocol.Post>[]>([]);
     const [advance, setAdvance] = useState<() => void>(() => () => {});
+    const [nothingFound, setNothingFound] = useState(false);
 
     useEffect(() => {
         const cancelContext = new CancelContext.CancelContext();
@@ -264,9 +265,14 @@ export function useFollowingFeed(
 
                 finished = cursor === undefined;
 
+                if (finished && recieved === 0) {
+                    setNothingFound(true);
+                }
+
                 return;
             });
         };
+
         setAdvance(() => adv);
 
         return () => {
@@ -276,5 +282,5 @@ export function useFollowingFeed(
         };
     }, [processHandle, batchSize]);
 
-    return [state, advance];
+    return [state, advance, nothingFound];
 }

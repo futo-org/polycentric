@@ -1,7 +1,6 @@
 import { encode } from '@borderless/base64';
 import { ArrowUpIcon, Bars3Icon } from '@heroicons/react/24/outline';
 import {
-    Fragment,
     ReactElement,
     ReactNode,
     useCallback,
@@ -16,6 +15,7 @@ import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks';
 import { useIsMobile } from '../../../hooks/styleHooks';
 import { Post } from '../../feed';
 import { SearchBox } from '../../search/searchbox';
+import { SpinLoader } from '../../util/SpinLoader';
 import './style.css';
 
 const RightCol = ({
@@ -61,23 +61,31 @@ const RightCol = ({
     </div>
 );
 
-export const InfiniteScrollWithRightCol = ({
-    data,
-    advanceFeed,
-    rightCol,
-    topFeedComponent,
-    topFeedComponentSticky = false,
-    prependCount,
-    bottomPadding = true,
-}: {
+type InfiniteScrollWithRightColProps = {
     data: FeedHookData;
     advanceFeed: FeedHookAdvanceFn;
+    nothingFound?: boolean;
+    nothingFoundMessage?: string;
     rightCol?: ReactElement;
     topFeedComponent?: ReactElement;
     topFeedComponentSticky?: boolean;
     prependCount?: number;
     bottomPadding?: boolean;
-}) => {
+    loadingSpinnerN?: number;
+};
+
+export const InfiniteScrollWithRightCol = ({
+    data,
+    advanceFeed,
+    nothingFound,
+    nothingFoundMessage = 'Sorry, nothing found',
+    rightCol,
+    topFeedComponent,
+    topFeedComponentSticky = false,
+    prependCount,
+    bottomPadding = true,
+    loadingSpinnerN,
+}: InfiniteScrollWithRightColProps) => {
     const outerRef = useRef<HTMLDivElement>(null);
     const [showScrollUpButton, setShowScrollUpButton] = useState(false);
     const hasScrolled = useRef(false);
@@ -114,17 +122,74 @@ export const InfiniteScrollWithRightCol = ({
         [showScrollUpButton],
     );
 
-    const Header = useMemo(() => {
-        // eslint-disable-next-line react/display-name
-        return () => topFeedComponent ?? <Fragment />;
-    }, [topFeedComponent]);
-
     const Footer = useMemo(() => {
         // eslint-disable-next-line react/display-name
         return () => <div className="h-[200vh]" />;
     }, []);
 
     const [verticalIpadExpanded, setVerticalIpadExpanded] = useState(false);
+
+    const [loadingIndicatorTimeoutReached, setLoadingIndicatorTimeoutReached] =
+        useState(false);
+    useEffect(() => {
+        // Only show loading indicator if it takes more than 100ms to load anything
+        const timeout = setTimeout(() => {
+            setLoadingIndicatorTimeoutReached(true);
+        }, 100);
+
+        return () => {
+            clearTimeout(timeout);
+            setLoadingIndicatorTimeoutReached(false);
+        };
+    }, []);
+
+    const showLoadingIndicator = useMemo(() => {
+        return (
+            loadingIndicatorTimeoutReached && data.length === 0 && !nothingFound
+        );
+    }, [loadingIndicatorTimeoutReached, data, nothingFound]);
+
+    if (nothingFound && data.length !== 0) {
+        throw new Error('Impossible');
+    }
+
+    const Header = useCallback(() => {
+        return (
+            <>
+                {topFeedComponent &&
+                    (topFeedComponentSticky ? (
+                        <div className="sticky top-0">{topFeedComponent}</div>
+                    ) : (
+                        topFeedComponent
+                    ))}
+
+                {showLoadingIndicator && (
+                    <div className="w-full flex justify-center">
+                        <SpinLoader n={loadingSpinnerN} />
+                    </div>
+                )}
+
+                {
+                    // Show nothing found message if there are no posts and no loading indicator
+                    nothingFound && data.length === 0 && (
+                        <div className="w-full flex justify-center">
+                            <div className="p-20 text-center font-light text-gray-500">
+                                {nothingFoundMessage}
+                            </div>
+                        </div>
+                    )
+                }
+            </>
+        );
+    }, [
+        data.length,
+        nothingFound,
+        nothingFoundMessage,
+        showLoadingIndicator,
+        topFeedComponent,
+        topFeedComponentSticky,
+        loadingSpinnerN,
+    ]);
 
     return (
         <div
@@ -133,9 +198,8 @@ export const InfiniteScrollWithRightCol = ({
             onScroll={isMobile ? undefined : onScroll}
         >
             <div className="w-full lg:w-[700px] xl:w-[776px]">
-                {topFeedComponentSticky && topFeedComponent && (
-                    <div className="sticky top-0">{topFeedComponent}</div>
-                )}
+                {topFeedComponentSticky && <Header />}
+
                 <div className="w-full h-full relative">
                     <Virtuoso
                         ref={virtuoso}

@@ -603,14 +603,14 @@ export function useQueryCursor<T>(
 
         const nothingFoundCallback = () => {
             setNothingFound(true);
-        }
+        };
 
         const newQuery = new Queries.QueryCursor.Query(
             processHandle,
             loadCallback,
             addNewCells,
             batchSize,
-            nothingFoundCallback
+            nothingFoundCallback,
         );
         query.current = newQuery;
         setAdvance(
