@@ -553,7 +553,7 @@ export function useQueryCursor<T>(
     batchSize = 30,
 ): [Array<ParsedEvent<T>>, () => void, boolean] {
     const { processHandle } = useProcessHandleManager();
-    const [loaded, setLoaded] = useState<boolean>(false);
+    const [nothingFound, setNothingFound] = useState<boolean>(false);
     const [state, setState] = useState<Array<ParsedEvent<T>>>([]);
     const query = useRef<Queries.QueryCursor.Query | null>(null);
     const [advance, setAdvance] = useState<() => void>(() => {
@@ -563,7 +563,6 @@ export function useQueryCursor<T>(
     useEffect(() => {
         setState([]);
         setAdvance(() => () => {});
-        setLoaded(false);
 
         const cancelContext = new CancelContext.CancelContext();
 
@@ -573,8 +572,6 @@ export function useQueryCursor<T>(
             if (cancelContext.cancelled()) {
                 return;
             }
-
-            setLoaded(true);
 
             const newCellsAsSignedEvents = newCells.map((cell) => {
                 const { signedEvent } = cell;
@@ -604,11 +601,16 @@ export function useQueryCursor<T>(
             );
         };
 
+        const nothingFoundCallback = () => {
+            setNothingFound(true);
+        };
+
         const newQuery = new Queries.QueryCursor.Query(
             processHandle,
             loadCallback,
             addNewCells,
             batchSize,
+            nothingFoundCallback,
         );
         query.current = newQuery;
         setAdvance(
@@ -625,7 +627,7 @@ export function useQueryCursor<T>(
         // If we do, the current implementation of this hook will result in clearing the whole feed when the batch size changes.
     }, [processHandle, loadCallback, batchSize, parse]);
 
-    return [state, advance, loaded];
+    return [state, advance, nothingFound];
 }
 
 export function useQueryEvent<T>(

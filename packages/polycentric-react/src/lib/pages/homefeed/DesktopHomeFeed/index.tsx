@@ -4,7 +4,7 @@ import { InfiniteScrollWithRightCol } from '../../../components/layout/infinites
 import { useExploreFeed } from '../../../hooks/feedHooks';
 
 export const DesktopHomeFeed = () => {
-    const [data, advanceFeed] = useExploreFeed();
+    const [data, advanceFeed, nothingFound] = useExploreFeed();
     const composeComponent = useMemo(
         () => <PostCompose key="topfeedcompose" />,
         [],
@@ -13,6 +13,8 @@ export const DesktopHomeFeed = () => {
         <InfiniteScrollWithRightCol
             data={data}
             advanceFeed={advanceFeed}
+            nothingFound={nothingFound}
+            nothingFoundMessage="No posts found"
             rightCol={<div />}
             topFeedComponent={composeComponent}
         />
