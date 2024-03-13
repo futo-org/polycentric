@@ -49,12 +49,8 @@ export const useSearchFeed: FeedHook = (searchQuery: string) => {
         () => Queries.QueryCursor.makeGetSearchCallback(searchQuery),
         [searchQuery],
     );
-    const [data, advanceFn, loaded] = useQueryCursor(
-        loadCallback,
-        Protocol.Post.decode,
-    );
 
-    return loaded ? [data, advanceFn] : [[undefined], advanceFn];
+    return useQueryCursor(loadCallback, Protocol.Post.decode);
 };
 
 const commentFeedRequestEvents = {
