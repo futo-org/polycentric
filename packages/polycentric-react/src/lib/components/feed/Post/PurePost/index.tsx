@@ -555,24 +555,23 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                             content={main.content}
                                             stopPropagation={true}
                                         />
-                                        <Zoom classDialog="custom-post-img-zoom">
-                                            <img
-                                                src={main.image}
-                                                className="rounded-2xl max-h-60 max-w-full w-auto hover:opacity-80 border"
-                                            />
-                                        </Zoom>
-                                        {/* sub.post */}
-                                        {sub && (
-                                            <Link
-                                                className="border rounded-2xl w-full p-5 bg-white hover:bg-gray-50 overflow-clip flex flex-col space-y-3"
-                                                routerLink={sub.url}
-                                            >
-                                                <div className="flex">
-                                                    <Link
-                                                        routerLink={
-                                                            sub.author.URL
-                                                        }
-                                                    >
+                                        <div
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="w-fit"
+                                        >
+                                            <Zoom classDialog="custom-post-img-zoom">
+                                                <img
+                                                    src={main.image}
+                                                    className="rounded-2xl max-h-60 max-w-full w-auto hover:opacity-80 border"
+                                                />
+                                            </Zoom>
+                                            {/* sub.post */}
+                                            {sub && (
+                                                <Link
+                                                    className="border rounded-2xl w-full p-5 bg-white hover:bg-gray-50 overflow-clip flex flex-col space-y-3"
+                                                    routerLink={sub.url}
+                                                >
+                                                    <div className="flex">
                                                         <ProfilePicture
                                                             src={
                                                                 sub.author
@@ -580,41 +579,44 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                             }
                                                             className="h-5 w-5 lg:h-10 lg:w-10"
                                                         />
-                                                    </Link>
-                                                    <div className="flex flex-col ml-2 w-full">
-                                                        <div className="flex justify-between w-full">
-                                                            <div className="font-bold">
-                                                                {
-                                                                    sub.author
-                                                                        .name
-                                                                }
+                                                        <div className="flex flex-col ml-2 w-full">
+                                                            <div className="flex justify-between w-full">
+                                                                <div className="font-bold">
+                                                                    {
+                                                                        sub
+                                                                            .author
+                                                                            .name
+                                                                    }
+                                                                </div>
+                                                                <div className="pr-3 lg:pr-0 font-light text-gray-500 text-sm">
+                                                                    {dateToAgoString(
+                                                                        sub.publishedAt,
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                            <div className="pr-3 lg:pr-0 font-light text-gray-500 text-sm">
-                                                                {dateToAgoString(
-                                                                    sub.publishedAt,
-                                                                )}
+                                                            <div className=" text-purple-400 leading-3 text-sm">
+                                                                {sub.topic}
                                                             </div>
-                                                        </div>
-                                                        <div className=" text-purple-400 leading-3 text-sm">
-                                                            {sub.topic}
                                                         </div>
                                                     </div>
-                                                </div>
-                                                <Linkify
-                                                    as="sub"
-                                                    ref={subContentRef}
-                                                    className={`line-clamp-[4]  ${
-                                                        subcontentCropped
-                                                            ? ` relative after:top-0 after:left-0  after:w-full after:h-full 
+                                                    <Linkify
+                                                        as="sub"
+                                                        ref={subContentRef}
+                                                        // Don't let the links within be clickable
+                                                        className={`pointer-events-none line-clamp-[4] 
+                                                                     ${
+                                                                         subcontentCropped
+                                                                             ? ` relative after:top-0 after:left-0  after:w-full after:h-full 
                                                                 after:bg-gradient-to-b after:from-20% after:from-transparent after:to-white group-hover:after:to-slate-50
                                                                 after:absolute`
-                                                            : ''
-                                                    }`}
-                                                    content={sub.content}
-                                                    stopPropagation={true}
-                                                />
-                                            </Link>
-                                        )}
+                                                                             : ''
+                                                                     }`}
+                                                        content={sub.content}
+                                                        stopPropagation={true}
+                                                    />
+                                                </Link>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                                 {contentCropped && !expanded && (
