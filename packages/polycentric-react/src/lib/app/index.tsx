@@ -88,11 +88,16 @@ export const SignedinApp = ({
 
     const stackRouter = useStackRouter(ionNavRef);
 
+    const isFirefox = useMemo(() => {
+        const userAgent = navigator.userAgent.toLowerCase();
+        return userAgent.includes('firefox');
+    }, []);
+
     return (
         <QueryManagerContext.Provider value={queryManager}>
             <StackRouterContext.Provider value={stackRouter}>
                 <SidebarLayout>
-                    <IonNav id="main-drawer" root={root} ref={ionNavRef} />
+                    <IonNav id="main-drawer" root={root} ref={ionNavRef} animated={!isFirefox} />
                 </SidebarLayout>
             </StackRouterContext.Provider>
         </QueryManagerContext.Provider>
