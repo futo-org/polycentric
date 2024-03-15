@@ -161,8 +161,8 @@ const RequestNotificationsPanel = ({
                     {state === 'notifications_request_failed'
                         ? 'Notifications request denied'
                         : state === 'persist_call_failed'
-                        ? 'Something went wrong'
-                        : 'Continue'}
+                          ? 'Something went wrong'
+                          : 'Continue'}
                 </button>
             </div>
         </OnboardingPanel>
@@ -257,7 +257,7 @@ const CredsPanelSignUp = () => {
     const [username, setUsername] = useState('');
     const { createHandle } = useOnboardingProcessHandleManager();
 
-    const stackRouterContext = useContext(StackRouterContext)
+    const stackRouterContext = useContext(StackRouterContext);
 
     return (
         <form
@@ -327,7 +327,7 @@ const CredsPanelSignIn = () => {
 
     const [backupKey, setBackupKey] = useState<string>('');
     const [backupKeyError, setBackupKeyError] = useState<string | null>(null);
-    const stackRouterContext = useContext(StackRouterContext)
+    const stackRouterContext = useContext(StackRouterContext);
 
     return (
         <div className="contents">
@@ -352,7 +352,7 @@ const CredsPanelSignIn = () => {
                     onClick={() => {
                         createHandleFromExportBundle(backupKey)
                             .then(() => {
-                                if (stackRouterContext?.history){
+                                if (stackRouterContext?.history) {
                                     stackRouterContext.setRoot('/', 'forwards');
                                 }
                             })

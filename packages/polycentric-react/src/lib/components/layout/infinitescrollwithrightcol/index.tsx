@@ -145,7 +145,9 @@ export const InfiniteScrollWithRightCol = ({
 
     const Header = useCallback(() => {
         const showLoadingIndicator =
-            loadingIndicatorTimeoutReached && data.length === 0 && !nothingFound;
+            loadingIndicatorTimeoutReached &&
+            data.length === 0 &&
+            !nothingFound;
 
         return (
             <>
