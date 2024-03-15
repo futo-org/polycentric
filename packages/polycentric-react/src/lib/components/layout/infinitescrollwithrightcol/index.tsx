@@ -143,17 +143,12 @@ export const InfiniteScrollWithRightCol = ({
         };
     }, []);
 
-    const showLoadingIndicator = useMemo(() => {
-        return (
-            loadingIndicatorTimeoutReached && data.length === 0 && !nothingFound
-        );
-    }, [loadingIndicatorTimeoutReached, data, nothingFound]);
-
-    if (nothingFound && data.length !== 0) {
-        throw new Error('Impossible');
-    }
-
     const Header = useCallback(() => {
+        const showLoadingIndicator =
+            loadingIndicatorTimeoutReached &&
+            data.length === 0 &&
+            !nothingFound;
+
         return (
             <>
                 {topFeedComponent &&
@@ -182,13 +177,13 @@ export const InfiniteScrollWithRightCol = ({
             </>
         );
     }, [
-        data.length,
+        loadingIndicatorTimeoutReached,
+        data,
         nothingFound,
-        nothingFoundMessage,
-        showLoadingIndicator,
         topFeedComponent,
         topFeedComponentSticky,
         loadingSpinnerN,
+        nothingFoundMessage,
     ]);
 
     return (

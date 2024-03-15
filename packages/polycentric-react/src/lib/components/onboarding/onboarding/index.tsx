@@ -3,6 +3,7 @@ import { Models } from '@polycentric/polycentric-core';
 import {
     InputHTMLAttributes,
     ReactNode,
+    useContext,
     useEffect,
     useMemo,
     useState,
@@ -12,7 +13,7 @@ import starterURL from '../../../../graphics/onboarding/starter.svg';
 import { useOnboardingProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import { useIsMobile, useThemeColor } from '../../../hooks/styleHooks';
 
-import { useHistory } from 'react-router-dom';
+import { StackRouterContext } from '../../../app/StackRouterContext';
 import { useGestureWall } from '../../../hooks/ionicHooks';
 import { publishBlobToAvatar } from '../../../util/imageProcessing';
 import { ProfileAvatarInput } from '../../profile/edit/inputs/ProfileAvatarInput';
@@ -256,7 +257,7 @@ const CredsPanelSignUp = () => {
     const [username, setUsername] = useState('');
     const { createHandle } = useOnboardingProcessHandleManager();
 
-    const history = useHistory();
+    const stackRouterContext = useContext(StackRouterContext);
 
     return (
         <form
@@ -272,9 +273,9 @@ const CredsPanelSignUp = () => {
                     username,
                 );
 
-                if (history) {
+                if (stackRouterContext?.history) {
                     // if we're here, we're already signed in to another account. go to feed
-                    history.push('/');
+                    stackRouterContext.setRoot('/', 'forwards');
                 }
 
                 if (avatar) await publishBlobToAvatar(avatar, processHandle);
@@ -326,6 +327,7 @@ const CredsPanelSignIn = () => {
 
     const [backupKey, setBackupKey] = useState<string>('');
     const [backupKeyError, setBackupKeyError] = useState<string | null>(null);
+    const stackRouterContext = useContext(StackRouterContext);
 
     return (
         <div className="contents">
@@ -348,10 +350,16 @@ const CredsPanelSignIn = () => {
                         backupKey.startsWith('polycentric://') === false
                     }
                     onClick={() => {
-                        createHandleFromExportBundle(backupKey).catch((e) => {
-                            setBackupKeyError(e.message);
-                            console.error(e);
-                        });
+                        createHandleFromExportBundle(backupKey)
+                            .then(() => {
+                                if (stackRouterContext?.history) {
+                                    stackRouterContext.setRoot('/', 'forwards');
+                                }
+                            })
+                            .catch((e) => {
+                                setBackupKeyError(e.message);
+                                console.error(e);
+                            });
                     }}
                 >
                     Sign in
@@ -396,13 +404,13 @@ const CredsPanel = ({}: { nextSlide: () => void }) => {
 };
 
 const OnboardingBackButton = () => {
-    const history = useHistory();
+    const history = useContext(StackRouterContext)?.history;
     return (
         <button
             className="absolute top-5 left-5 bg-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg z-20"
             onClick={() => {
                 if (history.length > 1) {
-                    history.goBack();
+                    history.pop();
                 } else {
                     history.push('/');
                 }
@@ -473,7 +481,7 @@ export const Onboarding = () => {
         [isMobile, alreadyPersisted, RequestPersistenceComponent],
     );
 
-    const history = useHistory();
+    const history = useContext(StackRouterContext)?.history;
     const showBackButton =
         history !== undefined && history?.length > 1 && isMobile;
 
