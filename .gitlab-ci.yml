@@ -346,13 +346,8 @@ build-and-deploy-server-image:
   variables:
     DOCKER_DRIVER: overlay
   script:
-    - docker login \
-      -u "$CI_REGISTRY_USER" \
-      -p "$CI_REGISTRY_PASSWORD" \
-      $CI_REGISTRY
-    - docker build \
-      -f server.dockerfile \
-      -t gitlab.futo.org:5050/polycentric/polycentric:stg .
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker build -f server.dockerfile -t gitlab.futo.org:5050/polycentric/polycentric:stg .
     - docker push gitlab.futo.org:5050/polycentric/polycentric:stg
   needs: ["check", "test", "build-server"]
   dependencies: 
