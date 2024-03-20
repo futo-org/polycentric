@@ -4,8 +4,8 @@ import * as Base64 from '@borderless/base64';
 import * as FastSHA256 from 'fast-sha256';
 import Long from 'long';
 
-import { sha512 } from '@noble/hashes/sha512';
 import * as Ed from '@noble/ed25519';
+import { sha512 } from '@noble/hashes/sha512';
 Ed.utils.sha512Sync = (...m) => sha512(Ed.utils.concatBytes(...m));
 
 import * as Util from '../util';
@@ -64,6 +64,7 @@ export namespace ContentType {
     export const ContentTypeOpinion = makeContentType(14);
     export const ContentTypeStore = makeContentType(15);
     export const ContentTypeAuthority = makeContentType(16);
+    export const ContentTypeJoinTopic = makeContentType(17);
 }
 
 export namespace CensorshipType {

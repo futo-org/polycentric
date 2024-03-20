@@ -19,6 +19,7 @@ pub mod known_message_types {
     pub const OPINION: u64 = 14;
     pub const STORE: u64 = 15;
     pub const AUTHORITY: u64 = 16;
+    pub const JOIN_TOPIC: u64 = 17;
 }
 
 pub fn content_type_to_string(content_type: u64) -> String {
@@ -39,6 +40,7 @@ pub fn content_type_to_string(content_type: u64) -> String {
         known_message_types::OPINION => "OPINION".to_string(),
         known_message_types::STORE => "STORE".to_string(),
         known_message_types::AUTHORITY => "AUTHORITY".to_string(),
+        known_message_types::JOIN_TOPIC => "JOIN_TOPIC".to_string(),
         _ => content_type.to_string(),
     }
 }
