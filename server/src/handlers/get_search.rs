@@ -9,6 +9,7 @@ use ::serde_json::json;
 pub(crate) enum SearchType {
     Messages,
     Profiles,
+    ByteReferences,
 }
 
 #[derive(::serde::Deserialize)]
@@ -45,6 +46,20 @@ pub(crate) async fn handler(
     ))
 }
 
+fn escape_opensearch_query(query: &str) -> String {
+    let special_strings = [
+        "+", "-", "&&", "||", "!", "(", ")", "{", "}", "[", "]", "^", "~", "*",
+        "?", ":", "\"", "\\\\",
+    ];
+    let mut escaped_query = query.to_string();
+
+    for s in special_strings {
+        escaped_query = escaped_query.replace(s, &format!("\\{}", s));
+    }
+
+    escaped_query
+}
+
 pub(crate) async fn handler_inner(
     state: ::std::sync::Arc<crate::State>,
     search: String,
@@ -52,26 +67,76 @@ pub(crate) async fn handler_inner(
     start_count: u64,
     search_type: SearchType,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
+    let escaped_search = escape_opensearch_query(&search);
+
     let response = state
         .search
         .search(match search_type {
             SearchType::Messages => SearchParts::Index(&["messages"]),
+            SearchType::ByteReferences => SearchParts::Index(&["messages"]),
             SearchType::Profiles => {
                 SearchParts::Index(&["profile_names", "profile_descriptions"])
             }
         })
         .from(i64::try_from(start_count)?)
         .size(i64::try_from(limit)?)
-        .body(json!({
-            "query": {
-                "match": {
-                    "message_content": {
-                        "query": search,
-                        "fuzziness": 2
+        .body(match search_type {
+            SearchType::ByteReferences => json!({
+                    "size": 0,
+                    "query": {
+                      "bool": {
+                        "should": [
+                          {
+                            "match": {
+                              "byte_reference": {
+                                "query": escaped_search,
+                                "fuzziness": "AUTO"
+                              }
+                            }
+                          },
+                          {
+                            "wildcard": {
+                              "byte_reference": escaped_search + "*"
+                            }
+                          }
+                        ],
+                        "minimum_should_match": 1,
+                        "filter": [
+                          {
+                            "range": {
+                              "unix_milliseconds": {
+                                "gte": "now-30d/d",
+                                "lte": "now/d",
+                                "format": "epoch_millis"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "aggs": {
+                      "popular_hashtags": {
+                        "terms": {
+                          "field": "byte_reference.keyword",
+                          "size": 5,
+                          "order": {
+                            "_count": "desc"
+                          }
+                        }
+                      }
+                    }
+            }),
+            _ => json!({
+                "query": {
+                    "match": {
+                        "message_content": {
+                            "query": escaped_search,
+                            "fuzziness": 2
+                        }
                     }
                 }
-            }
-        }))
+            }),
+        })
         .send()
         .await?;
 
