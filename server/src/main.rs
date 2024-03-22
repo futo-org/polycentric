@@ -8,10 +8,10 @@ mod handlers;
 mod ingest;
 mod migrate;
 mod model;
+mod opensearch;
 mod postgres;
 mod queries;
 mod version;
-mod opensearch;
 
 include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 
@@ -107,20 +107,37 @@ struct OpenSearchContent {
 }
 
 #[derive(::serde::Deserialize)]
-struct OpenSearchSearchL2 {
+struct OpenSearchSearchHitsL2 {
     _source: OpenSearchContent,
     _id: String,
     _index: String,
 }
 
 #[derive(::serde::Deserialize)]
-struct OpenSearchSearchL1 {
-    hits: ::std::vec::Vec<OpenSearchSearchL2>,
+struct OpenSearchSearchHitsL1 {
+    hits: ::std::vec::Vec<OpenSearchSearchHitsL2>,
+}
+
+#[derive(::serde::Deserialize)]
+struct OpenSearchAggregationBucketL3 {
+    key: String,
+    doc_count: i64,
+}
+
+#[derive(::serde::Deserialize)]
+struct OpenSearchAggregationsL2 {
+    buckets: ::std::vec::Vec<OpenSearchAggregationBucketL3>,
+}
+
+#[derive(::serde::Deserialize)]
+struct OpenSearchAggregationsL1 {
+    top_byte_references: Option<OpenSearchAggregationsL2>,
 }
 
 #[derive(::serde::Deserialize)]
 struct OpenSearchSearchL0 {
-    hits: OpenSearchSearchL1,
+    hits: Option<OpenSearchSearchHitsL1>,
+    aggregations: Option<OpenSearchAggregationsL1>,
 }
 
 #[derive(::envconfig::Envconfig)]
@@ -129,7 +146,7 @@ struct Config {
     pub http_port_api: u16,
 
     #[envconfig(
-        from = "POSTGRES_STRING",
+        from = "DATABASE_URL",
         default = "postgres://postgres:testing@postgres"
     )]
     pub postgres_string: String,
@@ -174,10 +191,10 @@ async fn serve_api(
     let mut transaction = pool.begin().await?;
 
     crate::postgres::prepare_database(&mut transaction).await?;
-    
+
     crate::migrate::migrate(&mut transaction).await?;
     transaction.commit().await?;
-    
+
     crate::opensearch::prepare_indices(&opensearch_client).await?;
 
     info!("Connecting to StatsD");
@@ -279,6 +296,14 @@ async fn serve_api(
         .and_then(crate::handlers::get_search::handler)
         .with(cors.clone());
 
+    let route_get_top_string_references = ::warp::get()
+        .and(::warp::path("top_string_references"))
+        .and(::warp::path::end())
+        .and(state_filter.clone())
+        .and(::warp::query::<crate::handlers::get_top_string_references::Query>())
+        .and_then(crate::handlers::get_top_string_references::handler)
+        .with(cors.clone());
+
     let route_get_explore = ::warp::get()
         .and(::warp::path("explore"))
         .and(::warp::path::end())
@@ -360,6 +385,7 @@ async fn serve_api(
         .or(route_get_claim_to_system)
         .or(route_get_ranges)
         .or(route_get_search)
+        .or(route_get_top_string_references)
         .or(route_get_explore)
         .or(route_get_recommended_profiles)
         .or(route_get_version)
