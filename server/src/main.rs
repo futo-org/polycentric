@@ -11,6 +11,7 @@ mod model;
 mod postgres;
 mod queries;
 mod version;
+mod opensearch;
 
 include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 
@@ -98,6 +99,11 @@ struct OpenSearchSearchDocumentProfile {
 #[derive(::serde::Deserialize, ::serde::Serialize)]
 struct OpenSearchContent {
     message_content: String,
+    // only serialize when it's not None
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unix_milliseconds: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    byte_reference: Option<String>,
 }
 
 #[derive(::serde::Deserialize)]
@@ -164,15 +170,15 @@ async fn serve_api(
     let opensearch_client = ::opensearch::OpenSearch::new(opensearch_transport);
 
     info!("Connecting to OpenSearch");
-    // opensearch_client.ping().send().await?;
 
     let mut transaction = pool.begin().await?;
 
     crate::postgres::prepare_database(&mut transaction).await?;
-
+    
     crate::migrate::migrate(&mut transaction).await?;
-
     transaction.commit().await?;
+    
+    crate::opensearch::prepare_indices(&opensearch_client).await?;
 
     info!("Connecting to StatsD");
 
