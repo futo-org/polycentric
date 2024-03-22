@@ -9,7 +9,6 @@ use ::serde_json::json;
 pub(crate) enum SearchType {
     Messages,
     Profiles,
-    ByteReferences,
 }
 
 #[derive(::serde::Deserialize)]
@@ -46,20 +45,6 @@ pub(crate) async fn handler(
     ))
 }
 
-fn escape_opensearch_query(query: &str) -> String {
-    let special_strings = [
-        "+", "-", "&&", "||", "!", "(", ")", "{", "}", "[", "]", "^", "~", "*",
-        "?", ":", "\"", "\\\\",
-    ];
-    let mut escaped_query = query.to_string();
-
-    for s in special_strings {
-        escaped_query = escaped_query.replace(s, &format!("\\{}", s));
-    }
-
-    escaped_query
-}
-
 pub(crate) async fn handler_inner(
     state: ::std::sync::Arc<crate::State>,
     search: String,
@@ -67,76 +52,26 @@ pub(crate) async fn handler_inner(
     start_count: u64,
     search_type: SearchType,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
-    let escaped_search = escape_opensearch_query(&search);
-
     let response = state
         .search
         .search(match search_type {
             SearchType::Messages => SearchParts::Index(&["messages"]),
-            SearchType::ByteReferences => SearchParts::Index(&["messages"]),
             SearchType::Profiles => {
                 SearchParts::Index(&["profile_names", "profile_descriptions"])
             }
         })
         .from(i64::try_from(start_count)?)
         .size(i64::try_from(limit)?)
-        .body(match search_type {
-            SearchType::ByteReferences => json!({
-                    "size": 0,
-                    "query": {
-                      "bool": {
-                        "should": [
-                          {
-                            "match": {
-                              "byte_reference": {
-                                "query": escaped_search,
-                                "fuzziness": "AUTO"
-                              }
-                            }
-                          },
-                          {
-                            "wildcard": {
-                              "byte_reference": escaped_search + "*"
-                            }
-                          }
-                        ],
-                        "minimum_should_match": 1,
-                        "filter": [
-                          {
-                            "range": {
-                              "unix_milliseconds": {
-                                "gte": "now-30d/d",
-                                "lte": "now/d",
-                                "format": "epoch_millis"
-                              }
-                            }
-                          }
-                        ]
-                      }
-                    },
-                    "aggs": {
-                      "popular_hashtags": {
-                        "terms": {
-                          "field": "byte_reference.keyword",
-                          "size": 5,
-                          "order": {
-                            "_count": "desc"
-                          }
-                        }
-                      }
-                    }
-            }),
-            _ => json!({
-                "query": {
-                    "match": {
-                        "message_content": {
-                            "query": escaped_search,
-                            "fuzziness": 2
-                        }
+        .body(json!({
+            "query": {
+                "match": {
+                    "message_content": {
+                        "query": search,
+                        "fuzziness": 2
                     }
                 }
-            }),
-        })
+            }
+        }))
         .send()
         .await?;
 
@@ -146,47 +81,52 @@ pub(crate) async fn handler_inner(
 
     let mut result_events = crate::protocol::Events::new();
 
-    for hit in response_body.hits.hits {
-        let id = hit._id;
-        if hit._index == "messages" {
-            let pointer = crate::model::pointer::from_base64(&id)?;
+    match response_body.hits {
+        Some(hits) => {
+            for hit in hits.hits {
+                let id = hit._id;
+                if hit._index == "messages" {
+                    let pointer = crate::model::pointer::from_base64(&id)?;
 
-            let event_result = crate::postgres::load_event(
-                &mut transaction,
-                pointer.system(),
-                pointer.process(),
-                *pointer.logical_clock(),
-            )
-            .await?;
+                    let event_result = crate::postgres::load_event(
+                        &mut transaction,
+                        pointer.system(),
+                        pointer.process(),
+                        *pointer.logical_clock(),
+                    )
+                    .await?;
 
-            if let Some(event_result) = event_result {
-                result_events
-                    .events
-                    .push(crate::model::signed_event::to_proto(&event_result));
-            };
-        } else {
-            let system = crate::model::public_key::from_base64(&id)?;
+                    if let Some(event_result) = event_result {
+                        result_events.events.push(
+                            crate::model::signed_event::to_proto(&event_result),
+                        );
+                    };
+                } else {
+                    let system = crate::model::public_key::from_base64(&id)?;
 
-            let content_type = if hit._index == "profile_names" {
-                crate::model::known_message_types::USERNAME
-            } else {
-                crate::model::known_message_types::DESCRIPTION
-            };
+                    let content_type = if hit._index == "profile_names" {
+                        crate::model::known_message_types::USERNAME
+                    } else {
+                        crate::model::known_message_types::DESCRIPTION
+                    };
 
-            let potential_event =
-                crate::postgres::load_latest_system_wide_lww_event_by_type(
-                    &mut transaction,
-                    &system,
-                    content_type,
-                )
-                .await?;
+                    let potential_event =
+                        crate::postgres::load_latest_system_wide_lww_event_by_type(
+                            &mut transaction,
+                            &system,
+                            content_type,
+                        )
+                        .await?;
 
-            if let Some(event) = potential_event {
-                result_events
-                    .events
-                    .push(crate::model::signed_event::to_proto(&event));
+                    if let Some(event) = potential_event {
+                        result_events
+                            .events
+                            .push(crate::model::signed_event::to_proto(&event));
+                    }
+                }
             }
         }
+        None => {}
     }
 
     let mut result =
