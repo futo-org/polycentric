@@ -191,7 +191,7 @@ pub(crate) async fn ingest_event_search(
                     if let crate::model::reference::Reference::Bytes(bytes) =
                         reference
                     {
-                        Some(base64::encode(bytes))
+                        String::from_utf8(bytes.clone()).ok()
                     } else {
                         None
                     }
