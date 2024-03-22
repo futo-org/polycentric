@@ -3,7 +3,9 @@ use opensearch::{
     OpenSearch,
 };
 
-pub(crate) async fn prepare_indices(opensearch_client: &OpenSearch) -> Result<opensearch::http::response::Response, opensearch::Error> {
+pub(crate) async fn prepare_indices(
+    opensearch_client: &OpenSearch,
+) -> Result<opensearch::http::response::Response, opensearch::Error> {
     // Check if the index exists
     let response = opensearch_client
         .indices()
@@ -15,14 +17,26 @@ pub(crate) async fn prepare_indices(opensearch_client: &OpenSearch) -> Result<op
         Ok(response) => response.status_code().is_success(),
         Err(_) => false,
     };
-    
+
     if !index_exists {
         let mappings = serde_json::json!({
             "mappings": {
                 "properties": {
-                    "message_content": { "type": "text" },
-                    "byte_reference": { "type": "keyword" },
-                    "unixMilliseconds": { "type": "date", "format": "epoch_millis" }
+                    "message_content": { "type": "text",
+                    "fields": {
+                      "keyword": {
+                        "type": "keyword",
+                        "ignore_above" : 256
+                      }
+                    } },
+                    "byte_reference": { "type": "text",
+                    "fields": {
+                      "keyword": {
+                        "type": "keyword",
+                        "ignore_above" : 256
+                      }
+                    } },
+                    "unix_milliseconds": { "type": "date", "format": "epoch_millis" }
                 }
             }
         });
@@ -37,9 +51,23 @@ pub(crate) async fn prepare_indices(opensearch_client: &OpenSearch) -> Result<op
         // If the index already exists, we need to update the mappingsa
         let mappings = serde_json::json!({
             "properties": {
-                "message_content": { "type": "text" },
-                "byte_reference": { "type": "keyword" },
-                "unixMilliseconds": { "type": "date", "format": "epoch_millis" }
+                "message_content": { "type": "text",
+                "fields": {
+                  "keyword": {
+                    "type": "keyword",
+                    "ignore_above" : 256
+                  }
+                } },
+                "byte_reference": {
+                    "type": "text",
+                    "fields": {
+                    "keyword": {
+                        "type": "keyword",
+                        "ignore_above" : 256
+                    }
+                }
+            },
+                "unix_milliseconds": { "type": "date", "format": "epoch_millis" }
             }
         });
 
