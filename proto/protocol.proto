@@ -103,6 +103,20 @@ message Events {
     repeated SignedEvent events = 1;
 }
 
+message AggregationBucket {
+    bytes key = 1;
+    int64 value = 2;
+}
+
+message Aggregation {
+    bytes name = 1;
+    repeated AggregationBucket buckets = 2;
+}
+
+message Aggregations {
+    repeated Aggregation aggregations = 1;
+}
+
 message PublicKeys {
     repeated PublicKey systems = 1;
 }
@@ -137,10 +151,11 @@ message ExportBundle {
     Events  events   = 2;
 }
 
-message ResultEventsAndRelatedEventsAndCursor {
-    Events          result_events  = 1;
-    Events          related_events = 2;
-    optional bytes  cursor         = 3;
+message ResultEventsAndRelatedEventsAndAggregationsAndCursor {
+    Events                  result_events  = 1;
+    Events                  related_events = 2;
+    optional bytes          cursor         = 3;
+    optional Aggregations   aggregations   = 4;
 }
 
 message Reference {

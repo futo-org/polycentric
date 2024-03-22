@@ -43,7 +43,7 @@ pub(crate) async fn handler(
     }
 
     let mut result =
-        crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
+        crate::protocol::ResultEventsAndRelatedEventsAndAggregationsAndCursor::new();
     result.result_events = MessageField::some(events);
 
     result.cursor = db_result

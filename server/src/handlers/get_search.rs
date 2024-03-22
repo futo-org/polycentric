@@ -146,34 +146,36 @@ pub(crate) async fn handler_inner(
 
     let mut result_events = crate::protocol::Events::new();
 
-    for hit in response_body.hits.hits {
-        let id = hit._id;
-        if hit._index == "messages" {
-            let pointer = crate::model::pointer::from_base64(&id)?;
+    match response_body.hits {
+        Some(hits) => {
+            for hit in hits.hits {
+                let id = hit._id;
+                if hit._index == "messages" {
+                    let pointer = crate::model::pointer::from_base64(&id)?;
 
-            let event_result = crate::postgres::load_event(
-                &mut transaction,
-                pointer.system(),
-                pointer.process(),
-                *pointer.logical_clock(),
-            )
-            .await?;
+                    let event_result = crate::postgres::load_event(
+                        &mut transaction,
+                        pointer.system(),
+                        pointer.process(),
+                        *pointer.logical_clock(),
+                    )
+                    .await?;
 
-            if let Some(event_result) = event_result {
-                result_events
-                    .events
-                    .push(crate::model::signed_event::to_proto(&event_result));
-            };
-        } else {
-            let system = crate::model::public_key::from_base64(&id)?;
+                    if let Some(event_result) = event_result {
+                        result_events.events.push(
+                            crate::model::signed_event::to_proto(&event_result),
+                        );
+                    };
+                } else {
+                    let system = crate::model::public_key::from_base64(&id)?;
 
-            let content_type = if hit._index == "profile_names" {
-                crate::model::known_message_types::USERNAME
-            } else {
-                crate::model::known_message_types::DESCRIPTION
-            };
+                    let content_type = if hit._index == "profile_names" {
+                        crate::model::known_message_types::USERNAME
+                    } else {
+                        crate::model::known_message_types::DESCRIPTION
+                    };
 
-            let potential_event =
+                    let potential_event: Option<crate::model::signed_event::SignedEvent> =
                 crate::postgres::load_latest_system_wide_lww_event_by_type(
                     &mut transaction,
                     &system,
@@ -181,20 +183,52 @@ pub(crate) async fn handler_inner(
                 )
                 .await?;
 
-            if let Some(event) = potential_event {
-                result_events
-                    .events
-                    .push(crate::model::signed_event::to_proto(&event));
+                    if let Some(event) = potential_event {
+                        result_events
+                            .events
+                            .push(crate::model::signed_event::to_proto(&event));
+                    }
+                }
             }
         }
+        None => (),
+    }
+
+    let mut result_aggregations = crate::protocol::Aggregations::new();
+
+    match response_body.aggregations {
+        Some(aggregations) => match aggregations.top_byte_references {
+            Some(top_byte_references) => {
+                let mut result_aggregation =
+                    crate::protocol::Aggregation::new();
+                result_aggregation.name =
+                    "top_byte_references".as_bytes().to_vec();
+
+                for bucket in top_byte_references.buckets {
+                    let mut result_aggregation_bucket =
+                        crate::protocol::AggregationBucket::new();
+
+                    result_aggregation_bucket.key =
+                        bucket.key.as_bytes().to_vec();
+                    result_aggregation_bucket.value = bucket.doc_count;
+
+                    result_aggregation.buckets.push(result_aggregation_bucket);
+                }
+
+                result_aggregations.aggregations.push(result_aggregation);
+            }
+            None => (),
+        },
+        None => (),
     }
 
     let mut result =
-        crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
+        crate::protocol::ResultEventsAndRelatedEventsAndAggregationsAndCursor::new();
 
     let returned_event_count = u64::try_from(result_events.events.len())?;
 
     result.result_events = MessageField::some(result_events);
+    result.aggregations = MessageField::some(result_aggregations);
 
     result.cursor =
         Some(u64::to_le_bytes(start_count + returned_event_count).to_vec());

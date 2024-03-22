@@ -8,10 +8,10 @@ mod handlers;
 mod ingest;
 mod migrate;
 mod model;
+mod opensearch;
 mod postgres;
 mod queries;
 mod version;
-mod opensearch;
 
 include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 
@@ -107,20 +107,37 @@ struct OpenSearchContent {
 }
 
 #[derive(::serde::Deserialize)]
-struct OpenSearchSearchL2 {
+struct OpenSearchSearchHitsL2 {
     _source: OpenSearchContent,
     _id: String,
     _index: String,
 }
 
 #[derive(::serde::Deserialize)]
-struct OpenSearchSearchL1 {
-    hits: ::std::vec::Vec<OpenSearchSearchL2>,
+struct OpenSearchSearchHitsL1 {
+    hits: ::std::vec::Vec<OpenSearchSearchHitsL2>,
+}
+
+#[derive(::serde::Deserialize)]
+struct OpenSearchAggregationBucketL3 {
+    key: String,
+    doc_count: i64,
+}
+
+#[derive(::serde::Deserialize)]
+struct OpenSearchAggregationsL2 {
+    buckets: ::std::vec::Vec<OpenSearchAggregationBucketL3>,
+}
+
+#[derive(::serde::Deserialize)]
+struct OpenSearchAggregationsL1 {
+    top_byte_references: Option<OpenSearchAggregationsL2>,
 }
 
 #[derive(::serde::Deserialize)]
 struct OpenSearchSearchL0 {
-    hits: OpenSearchSearchL1,
+    hits: Option<OpenSearchSearchHitsL1>,
+    aggregations: Option<OpenSearchAggregationsL1>,
 }
 
 #[derive(::envconfig::Envconfig)]
@@ -174,10 +191,10 @@ async fn serve_api(
     let mut transaction = pool.begin().await?;
 
     crate::postgres::prepare_database(&mut transaction).await?;
-    
+
     crate::migrate::migrate(&mut transaction).await?;
     transaction.commit().await?;
-    
+
     crate::opensearch::prepare_indices(&opensearch_client).await?;
 
     info!("Connecting to StatsD");
