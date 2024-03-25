@@ -131,7 +131,6 @@ pub(crate) async fn handler_inner(
 
                     result.buckets.push(result_aggregation_bucket);
                 }
-
             }
             None => (),
         },

@@ -300,7 +300,9 @@ async fn serve_api(
         .and(::warp::path("top_string_references"))
         .and(::warp::path::end())
         .and(state_filter.clone())
-        .and(::warp::query::<crate::handlers::get_top_string_references::Query>())
+        .and(::warp::query::<
+            crate::handlers::get_top_string_references::Query,
+        >())
         .and_then(crate::handlers::get_top_string_references::handler)
         .with(cors.clone());
 
