@@ -261,6 +261,41 @@ export async function getSearch(
     return Models.ResultEventsAndRelatedEventsAndCursor.fromBuffer(rawBody);
 }
 
+export async function getTopStringReferences(
+    server: string,
+    query?: string,
+    limit?: number,
+    timeRange?: '12h' | '1d' | '7d' | '30d',
+): Promise<Models.ResultTopStringReferences.Type> {
+    let path = '/top_string_references?';
+
+    const params = new URLSearchParams();
+
+    if (query !== undefined) {
+        params.append('query', query);
+    }
+
+    if (limit !== undefined) {
+        params.append('limit', limit.toString());
+    }
+
+    if (timeRange !== undefined) {
+        params.append('time_range', timeRange);
+    }
+
+    path += params.toString();
+
+    const response = await fetch(server + path, {
+        method: 'GET',
+    });
+
+    await checkResponse('getTopStringReferences', response);
+
+    const rawBody = new Uint8Array(await response.arrayBuffer());
+
+    return Models.ResultTopStringReferences.fromBuffer(rawBody);
+}
+
 export async function getHead(
     server: string,
     system: Models.PublicKey.PublicKey,

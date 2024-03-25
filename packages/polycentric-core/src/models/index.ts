@@ -1029,3 +1029,63 @@ export namespace SystemProcesses {
         return fromProto(Protocol.SystemProcesses.decode(buffer));
     }
 }
+
+export namespace ResultTopStringReferences {
+    interface TypeI {
+        buckets: AggregationBucket.Type[];
+    }
+
+    export type Type = Readonly<TypeI> & {
+        readonly __tag: unique symbol;
+    };
+
+    export function fromProto(proto: Protocol.ResultTopStringReferences): Type {
+        return {
+            buckets: proto.buckets.map(AggregationBucket.fromProto),
+        } as Type;
+    }
+
+    export function fromBuffer(buffer: Uint8Array): Type {
+        return fromProto(Protocol.ResultTopStringReferences.decode(buffer));
+    }
+
+    export function equal(x: Type, y: Type): boolean {
+        if (x.buckets.length !== y.buckets.length) {
+            return false;
+        }
+
+        for (let i = 0; i < x.buckets.length; i++) {
+            if (!AggregationBucket.equal(x.buckets[i], y.buckets[i])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}
+
+export namespace AggregationBucket {
+    interface TypeI {
+        key: Uint8Array;
+        value: number;
+    }
+
+    export type Type = Readonly<TypeI>;
+
+    export function fromProto(proto: Protocol.AggregationBucket): Type {
+        return {
+            key: proto.key,
+            value: proto.value.toNumber(),
+        };
+    }
+
+    export function equal(x: Type, y: Type): boolean {
+        if (!Util.buffersEqual(x.key, y.key)) {
+            return false;
+        }
+
+        return x.value === y.value;
+
+        // Implement equality check based on key and value
+    }
+}
