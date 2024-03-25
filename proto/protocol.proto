@@ -149,7 +149,7 @@ message ResultEventsAndRelatedEventsAndCursor {
 }
 
 message ResultTopStringReferences {
-    repeated AggregationBucket buckets = 2;
+    repeated AggregationBucket buckets = 1;
 }
 
 message Reference {
