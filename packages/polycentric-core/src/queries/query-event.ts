@@ -7,7 +7,7 @@ import * as APIMethods from '../api-methods';
 import * as Util from '../util';
 import * as Shared from './shared';
 import { IndexEvents } from '../store/index-events';
-import { QueryServers, queryServersObservable } from './query-servers';
+import { QueryServers } from './query-servers';
 import { HasUpdate } from './has-update';
 import {
     DuplicatedCallbackError,
@@ -215,7 +215,9 @@ export class QueryEvent extends HasUpdate {
             }
 
             if (request.rangesForProcesses.length > 0) {
-                return RXJS.from(this.getEvents(server, system, request)).pipe(
+                return Util.fromPromiseExceptionToNever(
+                    this.getEvents(server, system, request),
+                ).pipe(
                     RXJS.switchMap((events) =>
                         RXJS.of({
                             signedEvents: events.events,
@@ -229,16 +231,14 @@ export class QueryEvent extends HasUpdate {
             }
         };
 
-        return queryServersObservable(this.queryServers, system).pipe(
-            RXJS.switchMap((servers: ReadonlySet<string>) =>
-                RXJS.of(...Array.from(servers)),
-            ),
-            RXJS.distinct(),
-            RXJS.mergeMap((server: string) =>
-                Util.asyncBoundaryObservable(server).pipe(
+        return Util.taskPerServerObservable(
+            this.queryServers,
+            system,
+            (server: string) => {
+                return Util.asyncBoundaryObservable(server).pipe(
                     RXJS.switchMap((server: string) => loadFromServer(server)),
-                ),
-            ),
+                );
+            },
         );
     }
 

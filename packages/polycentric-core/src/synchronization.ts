@@ -123,34 +123,6 @@ interface ServerState {
     active: boolean;
 }
 
-function taskPerItemInSet<Key, SetItem, State>(
-    states: Map<Key, State>,
-    updatedSet: ReadonlySet<SetItem>,
-    setItemToKey: (setItem: SetItem) => Key,
-    onAdd: (setItem: SetItem) => State,
-    onRemove: (state: State) => void,
-): void {
-    for (const setItem of updatedSet) {
-        const key = setItemToKey(setItem);
-
-        const existingItem = states.get(key);
-
-        if (!existingItem) {
-            states.set(key, onAdd(setItem));
-        }
-    }
-
-    const updatedSetKeys = new Set([...updatedSet.keys()].map(setItemToKey));
-
-    const removed = [...states].filter(([key]) => !updatedSetKeys.has(key));
-
-    for (const [key, state] of removed.values()) {
-        onRemove(state);
-
-        states.delete(key);
-    }
-}
-
 export class Synchronizer {
     private serverStates: Map<string, ServerState>;
     private complete: boolean;
@@ -206,7 +178,7 @@ export class Synchronizer {
     private updateFollowingList(
         latestFollowing: ReadonlySet<Models.PublicKey.PublicKey>,
     ): void {
-        taskPerItemInSet(
+        Util.taskPerItemInSet(
             this.followingStates,
             latestFollowing,
             (publicKey) => {
@@ -340,7 +312,7 @@ export class Synchronizer {
             this.processHandle.queryManager.queryServers,
             system,
         ).subscribe((updatedServers) => {
-            taskPerItemInSet(
+            Util.taskPerItemInSet(
                 serverStates,
                 updatedServers,
                 (server) => {
