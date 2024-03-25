@@ -1,5 +1,8 @@
 import * as RXJS from 'rxjs';
 
+import * as Queries from './queries';
+import * as Models from './models';
+
 const textEncoder = new TextEncoder();
 
 export function encodeText(text: string): Uint8Array {
@@ -215,5 +218,92 @@ export function asyncBoundaryObservable<T>(value: T): RXJS.Observable<T> {
         setTimeout(() => {
             subscriber.next(value);
         }, 0);
+    });
+}
+
+export function taskPerItemInSet<Key, SetItem, State>(
+    states: Map<Key, State>,
+    updatedSet: ReadonlySet<SetItem>,
+    setItemToKey: (setItem: SetItem) => Key,
+    onAdd: (setItem: SetItem) => State,
+    onRemove: (state: State) => void,
+): void {
+    for (const setItem of updatedSet) {
+        const key = setItemToKey(setItem);
+
+        const existingItem = states.get(key);
+
+        if (!existingItem) {
+            states.set(key, onAdd(setItem));
+        }
+    }
+
+    const updatedSetKeys = new Set([...updatedSet.keys()].map(setItemToKey));
+
+    const removed = [...states].filter(([key]) => !updatedSetKeys.has(key));
+
+    for (const [key, state] of removed.values()) {
+        onRemove(state);
+
+        states.delete(key);
+    }
+}
+
+export function identity<T>(value: T): T {
+    return value;
+}
+
+export function taskPerServerObservable<T>(
+    queryServers: Queries.QueryServers.QueryServers,
+    system: Models.PublicKey.PublicKey,
+    task: (server: string) => RXJS.Observable<T>,
+): RXJS.Observable<T> {
+    const serversAndTasks = new Map<string, () => void>();
+
+    return new RXJS.Observable((subscriber) => {
+        const queryServersSubscription =
+            Queries.QueryServers.queryServersObservable(
+                queryServers,
+                system,
+            ).subscribe((latestServers) => {
+                taskPerItemInSet(
+                    serversAndTasks,
+                    latestServers,
+                    identity,
+                    (server) => {
+                        const taskSubscription = task(server).subscribe(
+                            (value) => {
+                                subscriber.next(value);
+                            },
+                        );
+
+                        return taskSubscription.unsubscribe.bind(
+                            taskSubscription,
+                        );
+                    },
+                    (unsubscribe) => {
+                        unsubscribe();
+                    },
+                );
+            });
+
+        return () => {
+            queryServersSubscription.unsubscribe();
+            serversAndTasks.forEach((unsubscribe) => {
+                unsubscribe();
+            });
+        };
+    });
+}
+
+export function fromPromiseExceptionToNever<T>(
+    promise: Promise<T>,
+): RXJS.Observable<T> {
+    return new RXJS.Observable((subscriber) => {
+        promise
+            .then((value) => {
+                subscriber.next(value);
+            })
+            .catch((err) => void err);
     });
 }

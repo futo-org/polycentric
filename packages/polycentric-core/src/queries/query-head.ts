@@ -9,7 +9,7 @@ import * as Protocol from '../protocol';
 import { HasUpdate } from './has-update';
 import { CancelContext } from '../cancel-context';
 import { OnceFlag } from '../util';
-import { QueryServers, queryServersObservable } from './query-servers';
+import { QueryServers } from './query-servers';
 
 export interface CallbackValue {
     readonly missingData: boolean;
@@ -246,16 +246,12 @@ export class QueryHead extends HasUpdate {
             };
         };
 
-        return queryServersObservable(this.queryServers, system).pipe(
-            RXJS.switchMap((servers: ReadonlySet<string>) =>
-                RXJS.of(...Array.from(servers)),
-            ),
-            RXJS.distinct(),
-            RXJS.mergeMap((server: string) =>
-                RXJS.from(loadFromServer(server)).pipe(
-                    RXJS.catchError(() => RXJS.NEVER),
-                ),
-            ),
+        return Util.taskPerServerObservable(
+            this.queryServers,
+            system,
+            (server: string) => {
+                return Util.fromPromiseExceptionToNever(loadFromServer(server));
+            },
         );
     }
 

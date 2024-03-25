@@ -12,7 +12,7 @@ import * as QueryHead from './query-head';
 import { OnceFlag } from '../util';
 import { CancelContext } from '../cancel-context';
 import { HasUpdate } from './has-update';
-import { QueryServers, queryServersObservable } from './query-servers';
+import { QueryServers } from './query-servers';
 import { IndexSystemProcessContentTypeClock } from '../store/index-system-process-content-type-clock';
 import * as Shared from './shared';
 
@@ -324,6 +324,8 @@ export class QueryLatest extends HasUpdate {
         system: Models.PublicKey.PublicKey,
     ): RXJS.Observable<AttemptedBatch> {
         const loadFromServer = async (server: string) => {
+            await Util.sleep(0);
+
             const needToUpdateStates = new Set<StateForContentType>();
 
             for (const state of stateForSystem.stateForContentType.values()) {
@@ -357,20 +359,12 @@ export class QueryLatest extends HasUpdate {
             );
         };
 
-        return queryServersObservable(this.queryServers, system).pipe(
-            RXJS.switchMap((servers: ReadonlySet<string>) =>
-                RXJS.of(...Array.from(servers)),
-            ),
-            RXJS.distinct(),
-            RXJS.mergeMap((server: string) =>
-                Util.asyncBoundaryObservable(server).pipe(
-                    RXJS.switchMap((server) =>
-                        RXJS.from(loadFromServer(server)).pipe(
-                            RXJS.catchError(() => RXJS.NEVER),
-                        ),
-                    ),
-                ),
-            ),
+        return Util.taskPerServerObservable(
+            this.queryServers,
+            system,
+            (server: string) => {
+                return Util.fromPromiseExceptionToNever(loadFromServer(server));
+            },
         );
     }
 
