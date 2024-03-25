@@ -41,12 +41,12 @@ pub(crate) async fn prepare_indices(
             }
         });
 
-        return opensearch_client
+        opensearch_client
             .indices()
             .create(IndicesCreateParts::Index("messages"))
             .body(mappings)
             .send()
-            .await;
+            .await
     } else {
         // If the index already exists, we need to update the mappingsa
         let mappings = serde_json::json!({
@@ -71,11 +71,11 @@ pub(crate) async fn prepare_indices(
             }
         });
 
-        return opensearch_client
+        opensearch_client
             .indices()
             .put_mapping(IndicesPutMappingParts::Index(&["messages"]))
             .body(mappings)
             .send()
-            .await;
+            .await
     }
 }

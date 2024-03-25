@@ -202,7 +202,7 @@ pub(crate) async fn ingest_event_search(
             body = crate::OpenSearchContent {
                 message_content: content_str,
                 unix_milliseconds: *unix_milliseconds,
-                byte_reference: byte_reference,
+                byte_reference,
             };
         } else {
             index_name = if event_type == known_message_types::USERNAME {

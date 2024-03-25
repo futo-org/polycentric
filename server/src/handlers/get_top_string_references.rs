@@ -1,6 +1,5 @@
 use ::opensearch::SearchParts;
 use ::protobuf::Message;
-use ::protobuf::MessageField;
 use ::serde_json::json;
 
 #[derive(::serde::Deserialize)]
@@ -118,23 +117,18 @@ pub(crate) async fn handler_inner(
 
     let mut result = crate::protocol::ResultTopStringReferences::new();
 
-    match response_body.aggregations {
-        Some(aggregations) => match aggregations.top_byte_references {
-            Some(top_byte_references) => {
-                for bucket in top_byte_references.buckets {
-                    let mut result_aggregation_bucket =
-                        crate::protocol::AggregationBucket::new();
+    if let Some(aggregations) = response_body.aggregations {
+        if let Some(top_byte_references) = aggregations.top_byte_references {
+            for bucket in top_byte_references.buckets {
+                let mut result_aggregation_bucket =
+                    crate::protocol::AggregationBucket::new();
 
-                    result_aggregation_bucket.key =
-                        bucket.key.as_bytes().to_vec();
-                    result_aggregation_bucket.value = bucket.doc_count;
+                result_aggregation_bucket.key = bucket.key.as_bytes().to_vec();
+                result_aggregation_bucket.value = bucket.doc_count;
 
-                    result.buckets.push(result_aggregation_bucket);
-                }
+                result.buckets.push(result_aggregation_bucket);
             }
-            None => (),
-        },
-        None => (),
+        }
     }
 
     Ok(Box::new(::warp::reply::with_status(
