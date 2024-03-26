@@ -173,17 +173,37 @@ pub(crate) async fn ingest_event_search(
     {
         let index_name: &str;
         let index_id: String;
-        let content_str: String;
         let version: u64;
+        let body: crate::OpenSearchContent;
 
         if event_type == known_message_types::POST {
             index_name = "messages";
             let pointer = pointer::from_event(&event)?;
             index_id = pointer::to_base64(&pointer)?;
             version = 0;
-            content_str = Post::parse_from_bytes(event.content())?
+
+            let content_str = Post::parse_from_bytes(event.content())?
                 .content
                 .ok_or(Error)?;
+
+            let byte_reference =
+                event.references().iter().find_map(|reference| {
+                    if let crate::model::reference::Reference::Bytes(bytes) =
+                        reference
+                    {
+                        String::from_utf8(bytes.clone()).ok()
+                    } else {
+                        None
+                    }
+                });
+
+            let unix_milliseconds = event.unix_milliseconds();
+
+            body = crate::OpenSearchContent {
+                message_content: content_str,
+                unix_milliseconds: *unix_milliseconds,
+                byte_reference,
+            };
         } else {
             index_name = if event_type == known_message_types::USERNAME {
                 "profile_names"
@@ -196,12 +216,15 @@ pub(crate) async fn ingest_event_search(
             })?;
             version = lww_element.unix_milliseconds;
             index_id = crate::model::public_key::to_base64(event.system())?;
-            content_str = String::from_utf8(lww_element.value)?;
+            let content_str = String::from_utf8(lww_element.value)?;
+
+            body = crate::OpenSearchContent {
+                message_content: content_str,
+                byte_reference: None,
+                unix_milliseconds: None,
+            };
         }
 
-        let body = crate::OpenSearchContent {
-            message_content: content_str,
-        };
         state
             .search
             .index(IndexParts::IndexId(index_name, &index_id))

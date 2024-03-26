@@ -81,45 +81,47 @@ pub(crate) async fn handler_inner(
 
     let mut result_events = crate::protocol::Events::new();
 
-    for hit in response_body.hits.hits {
-        let id = hit._id;
-        if hit._index == "messages" {
-            let pointer = crate::model::pointer::from_base64(&id)?;
+    if let Some(hits) = response_body.hits {
+        for hit in hits.hits {
+            let id = hit._id;
+            if hit._index == "messages" {
+                let pointer = crate::model::pointer::from_base64(&id)?;
 
-            let event_result = crate::postgres::load_event(
-                &mut transaction,
-                pointer.system(),
-                pointer.process(),
-                *pointer.logical_clock(),
-            )
-            .await?;
-
-            if let Some(event_result) = event_result {
-                result_events
-                    .events
-                    .push(crate::model::signed_event::to_proto(&event_result));
-            };
-        } else {
-            let system = crate::model::public_key::from_base64(&id)?;
-
-            let content_type = if hit._index == "profile_names" {
-                crate::model::known_message_types::USERNAME
-            } else {
-                crate::model::known_message_types::DESCRIPTION
-            };
-
-            let potential_event =
-                crate::postgres::load_latest_system_wide_lww_event_by_type(
+                let event_result = crate::postgres::load_event(
                     &mut transaction,
-                    &system,
-                    content_type,
+                    pointer.system(),
+                    pointer.process(),
+                    *pointer.logical_clock(),
                 )
                 .await?;
 
-            if let Some(event) = potential_event {
-                result_events
-                    .events
-                    .push(crate::model::signed_event::to_proto(&event));
+                if let Some(event_result) = event_result {
+                    result_events.events.push(
+                        crate::model::signed_event::to_proto(&event_result),
+                    );
+                };
+            } else {
+                let system = crate::model::public_key::from_base64(&id)?;
+
+                let content_type = if hit._index == "profile_names" {
+                    crate::model::known_message_types::USERNAME
+                } else {
+                    crate::model::known_message_types::DESCRIPTION
+                };
+
+                let potential_event =
+                    crate::postgres::load_latest_system_wide_lww_event_by_type(
+                        &mut transaction,
+                        &system,
+                        content_type,
+                    )
+                    .await?;
+
+                if let Some(event) = potential_event {
+                    result_events
+                        .events
+                        .push(crate::model::signed_event::to_proto(&event));
+                }
             }
         }
     }
