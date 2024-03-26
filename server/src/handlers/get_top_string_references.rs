@@ -131,8 +131,12 @@ pub(crate) async fn handler_inner(
         }
     }
 
-    Ok(Box::new(::warp::reply::with_status(
-        result.write_to_bytes()?,
-        ::warp::http::StatusCode::OK,
+    Ok(Box::new(::warp::reply::with_header(
+        ::warp::reply::with_status(
+            result.write_to_bytes()?,
+            ::warp::http::StatusCode::OK,
+        ),
+        "Cache-Control",
+        "public, max-age=30",
     )))
 }
