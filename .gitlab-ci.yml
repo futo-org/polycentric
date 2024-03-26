@@ -110,28 +110,28 @@ format-server:
     - ./version.sh
     - cd server
     - cargo-fmt --check
-  needs: ["check"]
+  needs: []
 
 format-core:
   stage: format
   script:
     - ./version.sh
     - npx prettier ./packages/polycentric-core/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-core/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
-  needs: ["check"]
+  needs: []
 
 format-react:
   stage: format
   script:
     - ./version.sh
     - npx prettier ./packages/polycentric-react/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-react/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
-  needs: ["check"]
+  needs: []
 
 format-web:
   stage: format
   script:
     - ./version.sh
     - npx prettier ./packages/polycentric-web/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-web/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
-  needs: ["check"]
+  needs: []
 
 format-desktop:
   stage: format
@@ -139,14 +139,14 @@ format-desktop:
     - ./version.sh
     - npx prettier ./packages/polycentric-desktop/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-desktop/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
     - npx prettier ./packages/polycentric-desktop/electron/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-desktop/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
-  needs: ["check"]
+  needs: []
 
 format-harbor:
   stage: format
   script:
     - ./version.sh
     - npx prettier ./packages/harbor-web/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/harbor-web/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
-  needs: ["check"]
+  needs: []
 
 build-server: 
   stage: build
@@ -184,7 +184,7 @@ build-core:
     - make proto
     - cd packages/polycentric-core
     - npm run build
-  needs: ["check"]
+  needs: []
   artifacts:
       name: "artifacts"
       expire_in: 10 mins
@@ -195,7 +195,7 @@ build-react:
   stage: build
   cache: *node-cache-config
   script: cd packages/polycentric-react && npm run build
-  needs: ["check", "build-core"]
+  needs: ["build-core"]
   artifacts:
       name: "artifacts"
       expire_in: 10 mins
@@ -206,7 +206,7 @@ build-leveldb:
   stage: build
   cache: *node-cache-config
   script: cd packages/polycentric-leveldb && npm run build
-  needs: ["check", "build-core"]
+  needs: ["build-core"]
   artifacts:
       name: "artifacts"
       expire_in: 10 mins
@@ -217,13 +217,13 @@ build-desktop:
   stage: build
   cache: *node-cache-config
   script: cd packages/polycentric-desktop && npm run build
-  needs: ["check", "build-core", "build-react", "build-leveldb"]
+  needs: ["build-core", "build-react", "build-leveldb"]
 
 build-web: 
   stage: build
   cache: *node-cache-config
   script: cd packages/polycentric-web && npm run build
-  needs: ["check", "build-react", "build-core"]
+  needs: ["build-react", "build-core"]
   artifacts:
       name: "artifacts"
       expire_in: 10 mins
@@ -234,7 +234,7 @@ build-harbor:
   stage: build
   cache: *node-cache-config
   script: cd packages/harbor-web && npm run build
-  needs: ["check", "build-core"]
+  needs: ["build-core"]
 
 lint-server: 
   stage: lint
@@ -246,7 +246,7 @@ lint-server:
     - ./version.sh
     - cd server
     - cargo-clippy --no-deps --locked -- -D warnings
-  needs: ["check", "build-server"]
+  needs: ["build-server"]
 
 lint-core:
   stage: lint
@@ -256,7 +256,7 @@ lint-core:
     - ./version.sh
     - cd packages/polycentric-core
     - npx eslint ./src --max-warnings=0
-  needs: ["check", "build-core"]
+  needs: ["build-core"]
 
 lint-harbor:
   stage: lint
@@ -265,7 +265,7 @@ lint-harbor:
     - ./version.sh
     - cd packages/harbor-web
     - npx eslint ./src --max-warnings=0
-  needs: ["check", "build-harbor"]
+  needs: ["build-harbor"]
 
 lint-react:
   stage: lint
@@ -274,7 +274,7 @@ lint-react:
     - ./version.sh
     - cd packages/polycentric-react
     - npx eslint ./src --max-warnings=0
-  needs: ["check", "build-react"]
+  needs: ["build-react"]
 
 lint-web:
   stage: lint
@@ -283,7 +283,7 @@ lint-web:
     - ./version.sh
     - cd packages/polycentric-web
     - npx eslint ./src --max-warnings=0
-  needs: ["check", "build-web"]
+  needs: ["build-web"]
 
 test: 
   stage: test
@@ -309,7 +309,7 @@ test:
     - RUSTC_BOOTSTRAP=1 ./build-artifacts/server-test -Z unstable-options --format junit > junit-server.xml
     - ./build-artifacts/server &
     - cd ./packages/polycentric-core && npm run test:ci
-  needs: ["build-server", "build-core"]
+  needs: ["check", "build-server", "build-core"]
   dependencies: 
     - build-server
     - build-core
