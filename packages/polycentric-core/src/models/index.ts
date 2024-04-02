@@ -1067,7 +1067,7 @@ export namespace ResultTopStringReferences {
 
 export namespace AggregationBucket {
     interface TypeI {
-        key: Uint8Array;
+        key: string;
         value: number;
     }
 
@@ -1075,18 +1075,12 @@ export namespace AggregationBucket {
 
     export function fromProto(proto: Protocol.AggregationBucket): Type {
         return {
-            key: proto.key,
+            key: Util.decodeText(proto.key),
             value: proto.value.toNumber(),
         };
     }
 
     export function equal(x: Type, y: Type): boolean {
-        if (!Util.buffersEqual(x.key, y.key)) {
-            return false;
-        }
-
         return x.value === y.value;
-
-        // Implement equality check based on key and value
     }
 }
