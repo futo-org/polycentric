@@ -53,19 +53,27 @@ pub(crate) async fn handler_inner(
     time_range: String,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
     let should_clause = if let Some(ref q) = query {
-        let escaped_query = escape_opensearch_query(q);
+        // if the query starts with a slash it messes up the wildcard query because the tokenizer strips it for the index
+        let q_without_starting_slash_slice =
+            if q.starts_with("/") { &q[1..] } else { q };
+
+        let q_without_starting_slash =
+            q_without_starting_slash_slice.to_string();
+
+        let escaped_wildcard_query = escape_opensearch_query(&q_without_starting_slash);
+
         json!([
             {
                 "match": {
                     "byte_reference": {
-                        "query": escaped_query,
+                        "query": q,
                         "fuzziness": "AUTO"
                     }
                 }
             },
             {
                 "wildcard": {
-                    "byte_reference": escaped_query + "*"
+                    "byte_reference": escaped_wildcard_query + "*"
                 }
             }
         ])
