@@ -158,12 +158,6 @@ export const useEventLink = (
     return link;
 };
 
-export const useTopicLink = (topic: string) => {
-    return useMemo(() => {
-        return '/t/' + encodeURIComponent(topic);
-    }, [topic]);
-};
-
 export const useDateFromUnixMS = (unixMS: Long | undefined) => {
     return useMemo<Date | undefined>(() => {
         if (unixMS === undefined) {

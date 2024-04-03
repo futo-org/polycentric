@@ -15,6 +15,7 @@ import { ProfilePicture } from '../../../profile/ProfilePicture';
 import { Link } from '../../../util/link';
 import { Linkify } from '../../../util/linkify';
 // Styling for image viewer
+import { useTopicLink } from '../../../../hooks/utilHooks';
 import './style.css';
 
 const dateToAgoString = (date: Date | undefined) => {
@@ -323,17 +324,6 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
         const [mainHover, setMainHover] = useState(false);
         const [subHover, setSubHover] = useState(false);
 
-        const topicLink = useMemo(() => {
-            if (main?.topic) {
-                if (main.topic.startsWith('/')) {
-                    return `/t/-${main.topic}`;
-                }
-                return `/t/${main.topic}`;
-            } else {
-                return undefined;
-            }
-        }, [main?.topic]);
-
         const isMobile = useIsMobile();
         const displayTopic = useMemo(() => {
             if (main?.topic && isMobile) {
@@ -365,6 +355,8 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                 );
             }
         }, [sub]);
+
+        const topicLink = useTopicLink(main?.topic);
 
         return (
             <div ref={infiniteScrollRef}>

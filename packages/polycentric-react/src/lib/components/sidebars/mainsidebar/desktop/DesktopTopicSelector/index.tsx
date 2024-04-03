@@ -7,6 +7,7 @@ import {
     useQueryCRDTSet,
     useQueryTopStringReferences,
 } from '../../../../../hooks/queryHooks';
+import { useTopicLink } from '../../../../../hooks/utilHooks';
 import { numberTo4Chars } from '../../../../../util/etc';
 import { Link } from '../../../../util/link';
 import { DesktopTopicSearch } from '../DesktopTopicSearch';
@@ -50,13 +51,15 @@ const TopicListItem = ({
         refreshIfAdded();
     }, [refreshIfAdded]);
 
+    const topicLink = useTopicLink(topic.key);
+
     return (
         <Link
             className="h-12 p-1 rounded-l-full rounded-r flex items-center space-x-2 ml-11 text-left 
     group hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
             activeClassName={'bg-gray-100 text-gray-800'}
             key={topic.key}
-            routerLink={'/t/' + topic.key.replace(/^\//, '')}
+            routerLink={topicLink}
             routerDirection="root"
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}

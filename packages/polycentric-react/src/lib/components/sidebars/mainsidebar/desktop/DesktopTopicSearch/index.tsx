@@ -6,6 +6,7 @@ import {
     useQueryIfAdded,
     useQueryTopStringReferences,
 } from '../../../../../hooks/queryHooks';
+import { useTopicLink } from '../../../../../hooks/utilHooks';
 import { numberTo4Chars } from '../../../../../util/etc';
 import { Link } from '../../../../util/link';
 
@@ -24,12 +25,14 @@ const TopicSearchItem = ({
 
     const quantityString = useMemo(() => numberTo4Chars(topic.value), [topic]);
 
+    const topicLink = useTopicLink(topic.key);
+
     return (
         <Menu.Item key={topic.key}>
             <Link
                 className="h-12 p-1 rounded-l-full rounded-r flex items-center space-x-2 text-left 
 group hover:bg-gray-100 transition-colors duration-200 cursor-pointer max-w-full"
-                routerLink={'/t/' + topic.key.replace(/^\//, '')}
+                routerLink={topicLink}
                 routerDirection="root"
             >
                 <div
