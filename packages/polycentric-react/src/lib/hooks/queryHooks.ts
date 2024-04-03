@@ -792,3 +792,42 @@ export function useQueryCRDTSet(
 
     return [events, advance];
 }
+
+export function useQueryTopStringReferences(
+    query: string | undefined,
+    minQueryChars = 0,
+    timeoutMS?: number,
+): Models.AggregationBucket.Type[] {
+    const queryManager = useQueryManager();
+    const [state, setState] = useState<Models.AggregationBucket.Type[]>([]);
+
+    useEffect(() => {
+        if (
+            minQueryChars > 0 &&
+            (query === undefined || query.length < minQueryChars)
+        ) {
+            return;
+        }
+
+        const cancelContext = new CancelContext.CancelContext();
+
+        queryManager.queryTopStringReferences.query(
+            query,
+            (topReferences) => {
+                if (cancelContext.cancelled()) {
+                    return;
+                }
+
+                setState(topReferences);
+            },
+            timeoutMS,
+        );
+
+        return () => {
+            cancelContext.cancel();
+            setState([]);
+        };
+    }, [query, queryManager, minQueryChars, timeoutMS]);
+
+    return state;
+}
