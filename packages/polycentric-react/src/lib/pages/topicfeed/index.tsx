@@ -58,10 +58,10 @@ export const TopicFeedPage: Page = () => {
                         target="_blank"
                         rel="noopener noreferrer"
                     >
-                        <h1 className="text-lg text-gray-800">{"/" + topic}</h1>
+                        <h1 className="text-lg text-gray-800">{'/' + topic}</h1>
                     </a>
                 ) : (
-                    <h1 className="text-lg text-gray-800">{"/" + topic}</h1>
+                    <h1 className="text-lg text-gray-800">{'/' + topic}</h1>
                 )}
             </div>
         );
