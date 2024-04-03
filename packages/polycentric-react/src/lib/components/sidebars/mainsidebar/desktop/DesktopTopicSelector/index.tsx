@@ -7,7 +7,7 @@ import {
     useQueryCRDTSet,
     useQueryTopStringReferences,
 } from '../../../../../hooks/queryHooks';
-import { numberTo4Chars } from '../../../../../util/random';
+import { numberTo4Chars } from '../../../../../util/etc';
 import { Link } from '../../../../util/link';
 import { DesktopTopicSearch } from '../DesktopTopicSearch';
 

@@ -6,6 +6,7 @@ import {
     useQueryIfAdded,
     useQueryTopStringReferences,
 } from '../../../../../hooks/queryHooks';
+import { numberTo4Chars } from '../../../../../util/etc';
 import { Link } from '../../../../util/link';
 
 const TopicSearchItem = ({
@@ -21,6 +22,8 @@ const TopicSearchItem = ({
         encodedTopic,
     );
 
+    const quantityString = useMemo(() => numberTo4Chars(topic.value), [topic]);
+
     return (
         <Menu.Item key={topic.key}>
             <Link
@@ -34,7 +37,7 @@ group hover:bg-gray-100 transition-colors duration-200 cursor-pointer max-w-full
                         joinedTopic ? 'bg-blue-200 bg-opacity-30' : 'bg-gray-50'
                     }`}
                 >
-                    {topic.value}
+                    {quantityString}
                 </div>
                 <div className="flex-grow pl-4 overflow-ellipsis overflow-hidden min-w-0">
                     {topic.key}
