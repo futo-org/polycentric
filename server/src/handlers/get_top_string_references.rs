@@ -60,7 +60,8 @@ pub(crate) async fn handler_inner(
         let q_without_starting_slash =
             q_without_starting_slash_slice.to_string();
 
-        let escaped_wildcard_query = escape_opensearch_query(&q_without_starting_slash);
+        let escaped_wildcard_query =
+            escape_opensearch_query(&q_without_starting_slash);
 
         json!([
             {
