@@ -12,6 +12,14 @@ function getRandomTopicString() {
     return Math.random().toString(36).substring(2, 10);
 }
 
+async function timeout(ms: number) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+
+jest.useRealTimers()
+
 describe('query top string references', () => {
     test('query top string references', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
@@ -33,11 +41,13 @@ describe('query top string references', () => {
         await s1p1.post('s1p1', undefined, topic2Reference);
         await s1p1.synchronizer.debugWaitUntilSynchronizationComplete();
 
+        await timeout(500);
+        
         const queryTopStringReferences = new QueryTopStringReferences(
             s1p1,
             queryServers,
-        );
-
+            );
+            
         const buckets = await RXJS.firstValueFrom(
             queryTopStringReferencesObservable(
                 queryTopStringReferences,
@@ -57,6 +67,7 @@ describe('query top string references', () => {
         }
 
         await s1p1.synchronizer.debugWaitUntilSynchronizationComplete();
+        await timeout(500);
 
         const top10 = await RXJS.firstValueFrom(
             queryTopStringReferencesObservable(queryTopStringReferences),
