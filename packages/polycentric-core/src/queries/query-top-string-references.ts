@@ -100,7 +100,7 @@ export class QueryTopStringReferences {
 
 export function queryTopStringReferencesObservable(
     queryManager: QueryTopStringReferences,
-    query: string | undefined,
+    query?: string | undefined,
 ): RXJS.Observable<Models.AggregationBucket.Type[]> {
     return new RXJS.Observable((subscriber) => {
         queryManager.query(query, (signedEvent) => {
