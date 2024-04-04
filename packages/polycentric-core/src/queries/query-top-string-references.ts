@@ -1,6 +1,6 @@
 import * as RXJS from 'rxjs';
 
-import { APIMethods } from '..';
+import * as APIMethods from '../api-methods';
 import * as Models from '../models';
 import * as ProcessHandle from '../process-handle';
 import * as QueryServers from './query-servers';
