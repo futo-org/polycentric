@@ -85,9 +85,10 @@ export class QueryTopStringReferences {
                     const topBuckets = sorted.slice(0, 10).map((key) => {
                         return {
                             key,
-                            value:
+                            value: Math.ceil(
                                 (topReferences.get(key) ?? 0) /
-                                responses.length,
+                                    responses.length,
+                            ),
                         };
                     });
 
