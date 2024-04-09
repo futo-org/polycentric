@@ -393,6 +393,10 @@ export class QueryHead extends HasUpdate {
                 ).logicalClock;
             }
 
+            if (!stateForSystem.value.attemptedSources.has(source)) {
+                updatedStates.add(stateForSystem);
+            }
+
             if (
                 clockForProcess === undefined ||
                 event.logicalClock.greaterThan(clockForProcess)
