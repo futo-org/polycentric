@@ -24,13 +24,31 @@ const XIcon = ({ className }: { className: string }) => {
     );
 };
 
-const ServerListTableRow = ({ originalServer }: { originalServer: string }) => {
+interface ExistingServer {
+    kind: 'existingServer';
+    server: string;
+}
+
+interface NewServer {
+    kind: 'newServer';
+    close: () => void;
+}
+
+const ServerListTableRow = ({
+    params,
+}: {
+    params: ExistingServer | NewServer;
+}) => {
     const { processHandle } = useProcessHandleManager();
-    const [currentSetServer, setCurrentSetServer] =
-        useState<string>(originalServer);
-    const [inputValue, setInputValue] = useState(originalServer);
-    const [isEditing, setIsEditing] = useState(originalServer === '');
+
+    const [inputValue, setInputValue] = useState(
+        params.kind === 'existingServer' ? params.server : '',
+    );
+
+    const [isEditing, setIsEditing] = useState(params.kind === 'newServer');
+
     const [isValidServer, setIsValidServer] = useState(false);
+    const [mutationSubmitted, setMutationSubmitted] = useState(false);
 
     useDebouncedEffect(
         () => {
@@ -62,14 +80,19 @@ const ServerListTableRow = ({ originalServer }: { originalServer: string }) => {
             <button
                 onClick={() => setIsEditing(true)}
                 className="btn btn-primary rounded-full h-[2.25rem] w-[2.25rem] flex justify-center items-center border bg-white hover:bg-gray-50"
+                disabled={mutationSubmitted}
             >
                 <PencilIcon className="h-5 w-5 text-gray-500" />
             </button>
             <button
                 className="btn btn-primary rounded-full h-[2.25rem] w-[2.25rem] flex justify-center items-center border bg-white hover:bg-gray-50"
                 onClick={() => {
-                    processHandle.removeServer(currentSetServer);
+                    if (params.kind === 'existingServer') {
+                        setMutationSubmitted(true);
+                        processHandle.removeServer(params.server);
+                    }
                 }}
+                disabled={mutationSubmitted}
             >
                 <XIcon className="h-5 w-5 text-red-500" />
             </button>
@@ -81,25 +104,34 @@ const ServerListTableRow = ({ originalServer }: { originalServer: string }) => {
             {/* Undo */}
             <button
                 onClick={() => {
-                    setInputValue(currentSetServer);
-                    setIsEditing(false);
+                    if (params.kind === 'existingServer') {
+                        setInputValue(params.server);
+                        setIsEditing(false);
+                    } else {
+                        params.close();
+                    }
                 }}
                 className="btn btn-primary rounded-full h-[2.25rem] w-[2.25rem] flex justify-center items-center border bg-white hover:bg-gray-50"
                 aria-label="Undo"
+                disabled={mutationSubmitted}
             >
                 <XIcon className="h-5 w-5" />
             </button>
             {/* Accept */}
             <button
                 onClick={() => {
-                    currentSetServer !== '' &&
-                        processHandle.removeServer(currentSetServer);
-                    processHandle.addServer(inputValue).then(() => {
-                        setCurrentSetServer(inputValue);
-                        setIsEditing(false);
-                    });
+                    setMutationSubmitted(true);
+                    if (params.kind === 'existingServer') {
+                        processHandle.removeServer(params.server);
+                    }
+                    processHandle.addServer(inputValue);
+                    if (params.kind === 'newServer') {
+                        params.close();
+                    }
                 }}
-                disabled={!isValidServer || inputValue === ''}
+                disabled={
+                    !isValidServer || inputValue === '' || mutationSubmitted
+                }
                 className="btn btn-primary rounded-full h-[2.25rem] w-[2.25rem] flex justify-center items-center border bg-white hover:bg-gray-50 disabled:hover:bg-white disabled:text-gray-400"
                 aria-label="Accept"
             >
@@ -137,6 +169,7 @@ export const ServerListTable = () => {
     const { processHandle } = useProcessHandleManager();
 
     const [servers, setServers] = useState<Array<string>>([]);
+    const [newServer, setNewServer] = useState(false);
 
     const [queriedServers, advance] = useQueryCRDTSet(
         processHandle.system(),
@@ -170,8 +203,22 @@ export const ServerListTable = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                     {servers.map((s) => (
-                        <ServerListTableRow key={s} originalServer={s} />
+                        <ServerListTableRow
+                            key={s}
+                            params={{
+                                kind: 'existingServer',
+                                server: s,
+                            }}
+                        />
                     ))}
+                    {newServer && (
+                        <ServerListTableRow
+                            params={{
+                                kind: 'newServer',
+                                close: () => setNewServer(false),
+                            }}
+                        />
+                    )}
                 </tbody>
                 <tfoot className="">
                     <tr>
@@ -180,11 +227,9 @@ export const ServerListTable = () => {
                             className="px-3 pb-3 pt-2 text-left text-xs font-medium uppercase tracking-wider flex justify-between"
                         >
                             <button
-                                disabled={
-                                    servers.filter((s) => s === '').length >= 1
-                                }
+                                disabled={newServer}
                                 className="btn btn-primary rounded-full h-[2.25rem] px-3 border bg-white hover:bg-gray-50 text-gray-700 disabled:hover:bg-white disabled:text-gray-500"
-                                onClick={() => setServers((s) => [...s, ''])}
+                                onClick={() => setNewServer(true)}
                             >
                                 Add Server
                             </button>
