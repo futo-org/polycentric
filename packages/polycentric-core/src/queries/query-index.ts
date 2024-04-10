@@ -119,7 +119,7 @@ export interface CallbackParameters {
 }
 
 export type Callback = (state: CallbackParameters) => void;
-type NothingFoundCallback = () => void;
+type AllSourcesAttemptedCallback = () => void;
 
 function processAndLogicalClockToString(
     process: Models.Process.Process,
@@ -130,7 +130,7 @@ function processAndLogicalClockToString(
 
 interface StateForQuery {
     readonly callback: Callback;
-    readonly nothingFoundCallback?: NothingFoundCallback;
+    readonly allSourcesAttemptedCallback?: AllSourcesAttemptedCallback;
     totalExpected: number;
     readonly contentType: Models.ContentType.ContentType;
     readonly earliestTimeBySource: Map<string, Long>;
@@ -178,7 +178,7 @@ export class QueryManager extends HasUpdate {
         system: Models.PublicKey.PublicKey,
         contentType: Models.ContentType.ContentType,
         callback: Callback,
-        nothingFoundCallback?: NothingFoundCallback,
+        allSourcesAttemptedCallback?: AllSourcesAttemptedCallback,
     ): QueryHandle {
         const systemString = Models.PublicKey.toString(system);
 
@@ -194,7 +194,7 @@ export class QueryManager extends HasUpdate {
 
         const stateForQuery = {
             callback: callback,
-            nothingFoundCallback: nothingFoundCallback,
+            allSourcesAttemptedCallback: allSourcesAttemptedCallback,
             totalExpected: 0,
             contentType: contentType,
             earliestTimeBySource: new Map(),
@@ -247,9 +247,7 @@ export class QueryManager extends HasUpdate {
             this._useDisk && this.loadFromDisk(system, stateForQuery),
         ]);
 
-        if (stateForQuery.eventsByTime.length === 0) {
-            stateForQuery.nothingFoundCallback?.();
-        }
+        stateForQuery.allSourcesAttemptedCallback?.();
     }
 
     private async loadFromDisk(
