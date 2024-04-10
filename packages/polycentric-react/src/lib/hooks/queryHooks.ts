@@ -252,7 +252,8 @@ export function useIndex<T>(
     const [advance, setAdvance] = useState<
         ((batchSize: number) => void) | undefined
     >(undefined);
-    const [nothingFound, setNothingFound] = useState<boolean>(false);
+    const [allSourcesAttempted, setAllSourcesAttempted] =
+        useState<boolean>(false);
 
     useEffect(() => {
         const cancelContext = new CancelContext.CancelContext();
@@ -295,23 +296,24 @@ export function useIndex<T>(
             });
         };
 
-        const nothingFoundCallback = () => {
-            setNothingFound(true);
+        const allSourcesAttemptedCallback = () => {
+            setAllSourcesAttempted(true);
         };
 
         const latestHandle = queryManager.queryIndex.query(
             system,
             contentType,
             cb,
-            nothingFoundCallback,
+            allSourcesAttemptedCallback,
         );
+
         setAdvance(() => (size: number) => latestHandle.advance(size));
 
         return () => {
             cancelContext.cancel();
             setState([]);
             setAdvance(undefined);
-            setNothingFound(false);
+            setAllSourcesAttempted(false);
             latestHandle.unregister();
         };
     }, [queryManager, system, contentType, parse, batchSize]);
@@ -326,7 +328,7 @@ export function useIndex<T>(
         advance?.(batchSize);
     }, [advance, batchSize]);
 
-    return [parsedEvents, advanceCallback, nothingFound];
+    return [parsedEvents, advanceCallback, allSourcesAttempted];
 }
 
 export const useQueryReferences = (
