@@ -240,6 +240,27 @@ export type ClaimInfo<T> = {
     parsedEvent: ParsedEvent<T> | undefined;
 };
 
+export function useQueryServers(
+    system: Models.PublicKey.PublicKey,
+): ReadonlySet<string> {
+    const queryManager = useQueryManager();
+
+    const [servers, setServers] = useState<ReadonlySet<string>>(new Set());
+
+    useEffect(() => {
+        const subscription = Queries.QueryServers.queryServersObservable(
+            queryManager.queryServers,
+            system,
+        ).subscribe((latestServers) => {
+            setServers(latestServers);
+        });
+
+        return subscription.unsubscribe.bind(subscription);
+    }, [queryManager, system]);
+
+    return servers;
+}
+
 export function useIndex<T>(
     system: Models.PublicKey.PublicKey,
     contentType: Models.ContentType.ContentType,

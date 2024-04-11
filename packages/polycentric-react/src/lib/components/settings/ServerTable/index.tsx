@@ -1,8 +1,8 @@
 import { CheckIcon, PencilIcon } from '@heroicons/react/24/outline';
-import { CancelContext, Models, Util } from '@polycentric/polycentric-core';
-import { useEffect, useState } from 'react';
+import { CancelContext } from '@polycentric/polycentric-core';
+import { useState } from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
-import { useQueryCRDTSet } from '../../../hooks/queryHooks';
+import { useQueryServers } from '../../../hooks/queryHooks';
 import { useDebouncedEffect } from '../../../hooks/utilHooks';
 
 const XIcon = ({ className }: { className: string }) => {
@@ -168,25 +168,9 @@ const ServerListTableRow = ({
 export const ServerListTable = () => {
     const { processHandle } = useProcessHandleManager();
 
-    const [servers, setServers] = useState<Array<string>>([]);
     const [newServer, setNewServer] = useState(false);
 
-    const [queriedServers, advance] = useQueryCRDTSet(
-        processHandle.system(),
-        Models.ContentType.ContentTypeServer,
-    );
-
-    useEffect(() => {
-        advance();
-    }, [advance]);
-
-    useEffect(() => {
-        const newServers = queriedServers
-            .filter((s) => s.lwwElementSet?.value !== undefined)
-            // @ts-ignore
-            .map((s) => Util.decodeText(s.lwwElementSet?.value));
-        setServers(newServers);
-    }, [queriedServers]);
+    const servers = useQueryServers(processHandle.system());
 
     return (
         <div className="rounded-[2rem] border overflow-hidden">
@@ -202,7 +186,7 @@ export const ServerListTable = () => {
                     </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                    {servers.map((s) => (
+                    {[...servers].map((s) => (
                         <ServerListTableRow
                             key={s}
                             params={{
