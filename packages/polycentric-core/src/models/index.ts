@@ -1081,6 +1081,6 @@ export namespace AggregationBucket {
     }
 
     export function equal(x: Type, y: Type): boolean {
-        return x.value === y.value;
+        return x.key === y.key && x.value === y.value;
     }
 }
