@@ -81,7 +81,7 @@ export const Feed = ({
     return (
         <Virtuoso
             data={data}
-            style={{ height: '100%' }}
+            style={{ height: '100%', width: '100%' }}
             className="noscrollbar"
             itemContent={(index, data) => (
                 <Post
