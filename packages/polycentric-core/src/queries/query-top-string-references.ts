@@ -36,8 +36,7 @@ export class QueryTopStringReferences {
                     const requestObservables = [...servers].map((server) => {
                         return fromPromiseExceptionToEmpty(
                             APIMethods.getTopStringReferences(server, query),
-                        )
-                        // .pipe(RXJS.timeout({ first: timeoutMS }));
+                        ).pipe(RXJS.timeout({ first: timeoutMS }));
                     });
                     return RXJS.forkJoin(requestObservables);
                 }),
