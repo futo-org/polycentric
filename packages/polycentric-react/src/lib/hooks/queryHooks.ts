@@ -550,7 +550,7 @@ export const useQueryOpinion = (
 
 export function useQueryCursor<T>(
     loadCallback: Queries.QueryCursor.LoadCallback,
-    parse: (buffer: Uint8Array) => T,
+    parse: (e: Models.Event.Event) => T,
     batchSize = 30,
 ): [Array<ParsedEvent<T>>, () => void, boolean] {
     const { processHandle } = useProcessHandleManager();
@@ -574,7 +574,7 @@ export function useQueryCursor<T>(
             const newCellsAsSignedEvents = newCells.map((cell) => {
                 const { signedEvent } = cell;
                 const event = Models.Event.fromBuffer(signedEvent.event);
-                const parsed = parse(event.content);
+                const parsed = parse(event);
 
                 const eventsReferencing = event.references.filter((reference) =>
                     reference.referenceType.eq(2),
@@ -611,12 +611,10 @@ export function useQueryCursor<T>(
             nothingFoundCallback,
         );
         query.current = newQuery;
-        setAdvance(
-            () =>
-                (() => {
-                    query.current?.advance();
-                }) ?? (() => {}),
-        );
+        setAdvance(() => () => {
+            query.current?.advance();
+        });
+
         return () => {
             cancelContext.cancel();
             newQuery.cleanup();
@@ -732,7 +730,14 @@ export const useQueryReferenceEventFeed = <T>(
         extraByteReferences,
     ]);
 
-    return useQueryCursor(loadCallback, decode);
+    const decodeMemo = useCallback(
+        (event: Models.Event.Event) => {
+            return decode(event.content);
+        },
+        [decode],
+    );
+
+    return useQueryCursor(loadCallback, decodeMemo);
 };
 
 export function useQueryCRDTSet(

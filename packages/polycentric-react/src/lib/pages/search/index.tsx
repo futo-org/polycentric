@@ -2,11 +2,11 @@ import { IonContent } from '@ionic/react';
 import { Page } from '../../app/router';
 import { Header } from '../../components/layout/header';
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol';
-import { useSearchFeed } from '../../hooks/feedHooks';
+import { useSearchPostsFeed } from '../../hooks/feedHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
 
 const ValidSearchFeed = ({ checkedQuery }: { checkedQuery: string }) => {
-    const [data, advanceFeed, nothingFound] = useSearchFeed(checkedQuery);
+    const [data, advanceFeed, nothingFound] = useSearchPostsFeed(checkedQuery);
 
     return (
         <InfiniteScrollWithRightCol
