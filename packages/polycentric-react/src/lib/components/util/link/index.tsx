@@ -45,6 +45,8 @@ interface LinkProps {
     activeClassName?: string;
     routerDirection?: RouterDirection;
     stopPropagation?: boolean;
+    onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+    presentHref?: boolean;
 }
 
 const LinkComponent = forwardRef<
@@ -59,6 +61,8 @@ const LinkComponent = forwardRef<
             className,
             activeClassName,
             stopPropagation,
+            presentHref,
+            onClick: userPassedOnClick,
             ...browserProps
         },
         ref,
@@ -75,8 +79,9 @@ const LinkComponent = forwardRef<
                 e.preventDefault();
 
                 if (stopPropagation) e.stopPropagation();
-
                 if (!routerLink) return;
+
+                userPassedOnClick?.(e);
                 if (isActive) return;
 
                 switch (routerDirection) {
@@ -102,6 +107,7 @@ const LinkComponent = forwardRef<
                 stackRouter,
                 isActive,
                 stopPropagation,
+                userPassedOnClick,
             ],
         );
 
@@ -110,7 +116,9 @@ const LinkComponent = forwardRef<
                 className={`${className} ${isActive ? activeClassName : ''}`}
                 onClick={onClick}
                 ref={ref}
-                href={isActive ? undefined : routerLink}
+                href={
+                    isActive || presentHref === false ? undefined : routerLink
+                }
                 {...browserProps}
             >
                 {children}
