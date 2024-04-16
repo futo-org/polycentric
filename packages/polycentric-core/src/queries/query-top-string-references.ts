@@ -104,8 +104,8 @@ export function queryTopStringReferencesObservable(
     query?: string | undefined,
 ): RXJS.Observable<Models.AggregationBucket.Type[]> {
     return new RXJS.Observable((subscriber) => {
-        queryManager.query(query, (signedEvent) => {
-            subscriber.next(signedEvent);
+        queryManager.query(query, (result) => {
+            subscriber.next(result);
         });
     });
 }
