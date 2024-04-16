@@ -72,13 +72,6 @@ export const useSearchPostsFeed: FeedHook = (searchQuery: string) => {
 
     return useQueryCursor(loadCallback, decodePost);
 };
-    const loadCallback = useMemo(
-        () => Queries.QueryCursor.makeGetSearchCallback(searchQuery),
-        [searchQuery],
-    );
-
-    return useQueryCursor(loadCallback, Protocol.Post.decode);
-};
 
 const commentFeedRequestEvents = {
     fromType: Models.ContentType.ContentTypePost,
