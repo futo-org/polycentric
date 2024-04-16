@@ -29,7 +29,7 @@ export const UserFeedPage: Page = () => {
         return { system, servers };
     }, [urlInfoString, processHandle]);
 
-    const [data, advanceFeed, nothingFound] = useAuthorFeed(system);
+    const [data, advanceFeed, allSourcesAttempted] = useAuthorFeed(system);
 
     const column = useMemo(
         () => <UserColumn system={system} key="usercol" />,
@@ -63,8 +63,8 @@ export const UserFeedPage: Page = () => {
                 <InfiniteScrollWithRightCol
                     data={data}
                     advanceFeed={advanceFeed}
-                    nothingFound={nothingFound}
-                    nothingFoundMessage=""
+                    nothingFound={allSourcesAttempted && data.length === 0}
+                    nothingFoundMessage="Nothing has been posted yet"
                     rightCol={column}
                     topFeedComponent={topComponent}
                 />

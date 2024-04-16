@@ -15,32 +15,32 @@ export CURRENT_GID
 export DOCKER_GID
 
 build-sandbox:
-	docker-compose -f docker-compose.development.yml pull
-	docker-compose -f docker-compose.development.yml build
+	docker compose -f docker-compose.development.yml pull
+	docker compose -f docker-compose.development.yml build
 
 start-sandbox:
 ifndef DOCKER_GID
 	$(error It seems that no groups on your system have permisison to use docker (do you have docker installed?))
 endif
-	docker-compose -f docker-compose.development.yml up -d
+	docker compose -f docker-compose.development.yml up -d
 
 stop-sandbox:
 ifndef DOCKER_GID
 	$(error It seems that no groups on your system have permisison to use docker (do you have docker installed?))
 endif
-	docker-compose -f docker-compose.development.yml down
-	docker-compose -f docker-compose.development.yml rm
+	docker compose -f docker-compose.development.yml down
+	docker compose -f docker-compose.development.yml rm
 
 join-sandbox:
-	docker-compose -f docker-compose.development.yml \
+	docker compose -f docker-compose.development.yml \
 		exec development /bin/bash --rcfile /app/.docker-bashrc
 
 join-postgres:
-	docker-compose -f docker-compose.development.yml \
+	docker compose -f docker-compose.development.yml \
 		exec postgres psql -U postgres 
 
 start-gdbserver:
-	docker-compose -f docker-compose.development.yml \
+	docker compose -f docker-compose.development.yml \
 		exec development gdbserver 0.0.0.0:3345 ./server/target/debug/server
 
 devcert:

@@ -28,6 +28,7 @@ import { QueryManagerContext } from '../hooks/queryHooks';
 import { useStackRouter } from '../hooks/stackRouterHooks';
 import { createSwipeBackGesture } from '../util/ionicfullpageswipebackgesture';
 import { MobileSwipeTopicContext, StackRouterContext } from './contexts';
+import * as UAParserJS from 'ua-parser-js';
 
 setupIonicReact({});
 
@@ -154,23 +155,36 @@ const AddToHomeScreenBarrier = ({
 }: {
     children: React.ReactNode;
 }) => {
-    const isDesktopSafari = useMemo(() => {
-        const ua = navigator.userAgent.toLowerCase();
-        const isSafari =
-            ua.includes('safari') === true &&
-            ua.includes('chrome') === false &&
-            ua.includes('chromium') === false;
-        const isDesktop = isPlatform('desktop');
-        return isSafari && isDesktop;
+    const parsedUserAgent = useMemo(() => {
+        const parser = new UAParserJS.UAParser(navigator.userAgent);
+        return parser.getResult();
     }, []);
+
+    const isDesktopSafari = useMemo(() => {
+        return (
+            parsedUserAgent.browser.name === 'Safari' &&
+            parsedUserAgent.os.name === 'Mac OS'
+        );
+    }, [parsedUserAgent]);
 
     const showBarrier = useMemo(() => {
-        return (isPlatform('mobile') && !isPlatform('pwa')) || isDesktopSafari;
-    }, [isDesktopSafari]);
+        const isMobile = ['iOS', 'Android'].includes(
+            parsedUserAgent.os.name || '',
+        );
+
+        // https://stackoverflow.com/a/52695341
+        const isPWA =
+            window.matchMedia('(display-mode: standalone)').matches ||
+            ('standalone' in window.navigator &&
+                window.navigator['standalone']) ||
+            document.referrer.includes('android-app://');
+
+        return (isMobile && !isPWA) || isDesktopSafari;
+    }, [parsedUserAgent, isDesktopSafari]);
 
     const isAndroid = useMemo(() => {
-        return isPlatform('android');
-    }, []);
+        return parsedUserAgent.os.name === 'Android';
+    }, [parsedUserAgent]);
 
     return (
         <>

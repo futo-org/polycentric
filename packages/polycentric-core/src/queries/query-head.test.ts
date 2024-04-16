@@ -132,7 +132,7 @@ async function sharedTestCase(mode: SharedTestMode): Promise<void> {
     expect(queryHead.clean).toStrictEqual(true);
 }
 
-describe('query head2', () => {
+describe('query head', () => {
     test('hit disk', async () => {
         await sharedTestCase(SharedTestMode.DiskOnly);
     });
@@ -249,5 +249,40 @@ describe('query head2', () => {
         expect(s1p2HeadEvent.vectorClock).toStrictEqual({
             logicalClocks: [s1p1Post.logicalClock],
         });
+    });
+
+    test('multiple sources', async () => {
+        const s1p1 = await ProcessHandle.createTestProcessHandle();
+        await s1p1.addServer(ProcessHandle.TEST_SERVER);
+        await s1p1.post('test');
+        await ProcessHandle.fullSync(s1p1);
+
+        const queryServers = new QueryServers(s1p1);
+        const queryHead = new QueryHead(s1p1, queryServers);
+
+        const result = await RXJS.firstValueFrom(
+            queryHeadObservable(queryHead, s1p1.system()).pipe(
+                RXJS.switchMap((head) => {
+                    if (
+                        head.attemptedSources.has('disk') &&
+                        head.attemptedSources.has(ProcessHandle.TEST_SERVER)
+                    ) {
+                        return RXJS.of(head);
+                    } else {
+                        return RXJS.NEVER;
+                    }
+                }),
+            ),
+        );
+
+        expect(queryHead.clean).toStrictEqual(true);
+        expect(result.head.size).toStrictEqual(1);
+        expect(
+            Util.areSetsEqual(
+                result.attemptedSources,
+                new Set(['disk', ProcessHandle.TEST_SERVER]),
+                (a, b) => a === b,
+            ),
+        ).toStrictEqual(true);
     });
 });
