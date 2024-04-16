@@ -178,19 +178,21 @@ const TopicSwipeSelect = ({
 export const SwipeHomeFeed = () => {
     const [headerSwiper, setHeaderSwiper] = useState<SwyperType>();
     const [feedSwiper, setFeedSwiper] = useState<SwyperType>();
+    const { topic: currentTopic } = useContext(MobileSwipeTopicContext);
 
-    const handleSlideChange = useCallback((swiper: SwyperType) => {
-        if (swiper.activeIndex === 0) {
-            swiper.allowSlidePrev = false;
-        }
-        if (swiper.activeIndex === topics.length - 1) {
-            swiper.allowSlideNext = false;
+    useEffect(() => {
+        if (currentTopic && headerSwiper) {
+            const index = swipeTopics.indexOf(currentTopic);
+            if (index !== -1 && index !== headerSwiper.activeIndex) {
+                const currentIndex = headerSwiper.activeIndex;
+                const indexDistance = Math.abs(index - currentIndex);
+                const transitionDurationMS = indexDistance > 1 ? 1000 : 500;
+                headerSwiper.slideTo(index, transitionDurationMS);
+            }
         }
 
-        if (
-            swiper.activeIndex !== 0 &&
-            swiper.activeIndex !== topics.length - 1
-        ) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentTopic]);
             swiper.allowSlidePrev = true;
             swiper.allowSlideNext = true;
         }
