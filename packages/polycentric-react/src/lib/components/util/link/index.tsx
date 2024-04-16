@@ -2,7 +2,7 @@ import { RouterDirection } from '@ionic/core';
 import { IonPage } from '@ionic/react';
 import React, { forwardRef, useCallback, useContext, useMemo } from 'react';
 import { matchPath } from 'react-router-dom';
-import { StackRouterContext } from '../../../app/StackRouterContext';
+import { StackRouterContext } from '../../../app/contexts';
 import { routeData } from '../../../app/router';
 import { StackElementPathContext } from './StackElementPathContext';
 
