@@ -61,9 +61,10 @@ export class QueryTopStringReferences {
                     }
 
                     const sorted = [...topReferences.keys()].sort((a, b) => {
-                        // these have to be non-null because we just got them from the map
-                        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                        return topReferences.get(b)! - topReferences.get(a)!;
+                        // these coalescence ops are useless because we know the keys exist, but eslint doesn't
+                        const topA = topReferences.get(a) ?? 0;
+                        const topB = topReferences.get(b) ?? 0;
+                        return topB - topA;
                     });
 
                     const topBuckets = sorted.slice(0, 10).map((key) => {
