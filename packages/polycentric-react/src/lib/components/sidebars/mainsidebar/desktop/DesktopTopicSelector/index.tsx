@@ -1,5 +1,8 @@
-import { ArrowTrendingUpIcon } from '@heroicons/react/24/outline';
-import { StarIcon } from '@heroicons/react/24/solid';
+import {
+    ArrowTrendingUpIcon,
+    StarIcon as StarIconOutlined,
+} from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { Models, Util } from '@polycentric/polycentric-core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useProcessHandleManager } from '../../../../../hooks/processHandleManagerHooks';
@@ -99,9 +102,18 @@ const TopicListItem = ({
                                              : 'hover:bg-gray-50 hover:bg-opacity-50'
                                      }`}
                     >
-                        <StarIcon
-                            className={`h-6 w-6 text-gray-200 group-hover:text-slate-300`}
-                        />
+                        {
+                            // @ts-ignore
+                            topicJoined ? (
+                                <StarIconSolid
+                                    className={`h-6 w-6 text-gray-200 group-hover:text-slate-300`}
+                                />
+                            ) : (
+                                <StarIconOutlined
+                                    className={`h-6 w-6 text-gray-200 group-hover:text-slate-300`}
+                                />
+                            )
+                        }
                     </div>
                 )}
             </button>
@@ -196,7 +208,7 @@ export const DesktopTopicSelector = () => {
                     title="Favorites"
                     onClick={() => setDisplayCategory('favorites')}
                 >
-                    <StarIcon
+                    <StarIconSolid
                         className={`h-4 w-4 ${
                             displayCategory === 'favorites'
                                 ? 'text-gray-400'

@@ -27,3 +27,8 @@ export const StackRouterContext = createContext<StackRouterContextType>({
         return false;
     },
 });
+
+export const MobileSwipeTopicContext = createContext<{
+    topic: string;
+    setTopic: (topic: string) => void;
+}>({ topic: 'Explore', setTopic: () => {} });

@@ -9,14 +9,10 @@ export function numberTo4Chars(num: number) {
     if (num < 10000) {
         return num.toString();
     } else if (num < 1000000) {
-        return (num / 1000).toFixed(1) + 'k';
-    } else if (num < 10000000) {
-        return (num / 1000000).toFixed(0) + 'm';
-    } else if (num < 100000000) {
-        return (num / 1000000).toFixed(1) + 'm';
+        return (num / 1000).toFixed(0) + 'k';
     } else if (num < 1000000000) {
         return (num / 1000000).toFixed(0) + 'm';
     } else {
-        return (num / 1000000000).toFixed(1) + 'b';
+        return (num / 1000000000).toFixed(0) + 'b';
     }
 }

@@ -48,7 +48,7 @@ export const Header = ({
         } else {
             return (
                 <IonHeader className="bg-white px-4 border-b" ref={ref}>
-                    <div className="flex py-3">
+                    <div className="flex py-3 items-center">
                         {canHaveBackButton ? (
                             <Link
                                 routerDirection={routerDirection}

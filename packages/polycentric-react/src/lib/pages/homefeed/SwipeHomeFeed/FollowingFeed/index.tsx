@@ -1,8 +1,8 @@
 import { Feed } from '../../../../components/feed/Feed';
-import { useExploreFeed } from '../../../../hooks/feedHooks';
+import { useFollowingFeed } from '../../../../hooks/feedHooks';
 
-export const ExploreFeed = () => {
-    const [data, advanceFeed, nothingFound] = useExploreFeed();
+export const FollowingFeed = () => {
+    const [data, advanceFeed, nothingFound] = useFollowingFeed();
 
     return (
         <Feed

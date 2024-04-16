@@ -13,7 +13,7 @@ import starterURL from '../../../../graphics/onboarding/starter.svg';
 import { useOnboardingProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import { useIsMobile, useThemeColor } from '../../../hooks/styleHooks';
 
-import { StackRouterContext } from '../../../app/StackRouterContext';
+import { StackRouterContext } from '../../../app/contexts';
 import { useGestureWall } from '../../../hooks/ionicHooks';
 import { publishBlobToAvatar } from '../../../util/imageProcessing';
 import { ProfileAvatarInput } from '../../profile/edit/inputs/ProfileAvatarInput';
