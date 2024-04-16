@@ -9,10 +9,7 @@ export type Callback = (topReferences: Models.AggregationBucket.Type[]) => void;
 
 export class QueryTopStringReferences {
     private readonly processHandle: ProcessHandle.ProcessHandle;
-    private readonly state: Map<
-        string | undefined,
-        Models.AggregationBucket.Type[]
-    >;
+
     private readonly queryServers: QueryServers.QueryServers;
 
     constructor(
@@ -20,14 +17,7 @@ export class QueryTopStringReferences {
         queryServers: QueryServers.QueryServers,
     ) {
         this.processHandle = processHandle;
-        this.state = new Map();
         this.queryServers = queryServers;
-    }
-
-    private lookupStateForQuery(
-        query: string | undefined,
-    ): Models.AggregationBucket.Type[] | undefined {
-        return this.state.get(query);
     }
 
     public query(
@@ -35,12 +25,6 @@ export class QueryTopStringReferences {
         callback: Callback,
         timeoutMS = 200,
     ) {
-        const cached = this.lookupStateForQuery(query);
-        if (cached) {
-            callback(cached);
-            return;
-        }
-
         QueryServers.queryServersObservable(
             this.queryServers,
             this.processHandle.system(),
@@ -93,7 +77,6 @@ export class QueryTopStringReferences {
                     });
 
                     callback(topBuckets);
-                    this.state.set(query, topBuckets);
                 });
             });
     }
