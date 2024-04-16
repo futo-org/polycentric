@@ -305,10 +305,9 @@ export const SwipeHomeFeed = () => {
         return [
             'Explore',
             'Following',
-            ...joinedTopicEvents
-                .filter((event) => event.lwwElementSet?.value)
-                // @ts-ignore
-                .map((event) => Util.decodeText(event.lwwElementSet.value)),
+            ...Util.filterUndefined(
+                joinedTopicEvents.map((event) => event.lwwElementSet?.value),
+            ).map((value) => Util.decodeText(value)),
         ];
     }, [joinedTopicEvents]);
 

@@ -76,12 +76,9 @@ export const MobileTopicSidebar = () => {
     );
 
     const joinedTopics = useMemo(() => {
-        return (
-            joinedTopicEvents
-                .filter((event) => event.lwwElementSet?.value)
-                // @ts-ignore
-                .map((event) => Util.decodeText(event.lwwElementSet.value))
-        );
+        return Util.filterUndefined(
+            joinedTopicEvents.map((event) => event.lwwElementSet?.value),
+        ).map((value) => Util.decodeText(value));
     }, [joinedTopicEvents]);
 
     useEffect(() => {
