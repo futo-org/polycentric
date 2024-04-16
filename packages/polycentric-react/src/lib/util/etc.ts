@@ -12,7 +12,7 @@ export function numberTo4Chars(num: number) {
         return (num / 1000).toFixed(0) + 'k';
     } else if (num < 1000000000) {
         return (num / 1000000).toFixed(0) + 'm';
-    } else { 
+    } else {
         return (num / 1000000000).toFixed(0) + 'b';
     }
 }
