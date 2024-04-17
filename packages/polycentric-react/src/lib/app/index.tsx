@@ -27,7 +27,7 @@ import {
 import { QueryManagerContext } from '../hooks/queryHooks';
 import { useStackRouter } from '../hooks/stackRouterHooks';
 import { createSwipeBackGesture } from '../util/ionicfullpageswipebackgesture';
-import { StackRouterContext } from './StackRouterContext';
+import { MobileSwipeTopicContext, StackRouterContext } from './contexts';
 import * as UAParserJS from 'ua-parser-js';
 
 setupIonicReact({});
@@ -94,17 +94,30 @@ export const SignedinApp = ({
         return userAgent.includes('firefox');
     }, []);
 
+    const [mobileSwipeTopic, setMobileSwipeTopic] = useState<string>('Explore');
+
+    const mobileSwipeTopicContextContainer = useMemo(() => {
+        return {
+            topic: mobileSwipeTopic,
+            setTopic: setMobileSwipeTopic,
+        };
+    }, [mobileSwipeTopic, setMobileSwipeTopic]);
+
     return (
         <QueryManagerContext.Provider value={queryManager}>
             <StackRouterContext.Provider value={stackRouter}>
-                <SidebarLayout>
-                    <IonNav
-                        id="main-drawer"
-                        root={root}
-                        ref={ionNavRef}
-                        animated={!isFirefox}
-                    />
-                </SidebarLayout>
+                <MobileSwipeTopicContext.Provider
+                    value={mobileSwipeTopicContextContainer}
+                >
+                    <SidebarLayout>
+                        <IonNav
+                            id="main-drawer"
+                            root={root}
+                            ref={ionNavRef}
+                            animated={!isFirefox}
+                        />
+                    </SidebarLayout>
+                </MobileSwipeTopicContext.Provider>
             </StackRouterContext.Provider>
         </QueryManagerContext.Provider>
     );

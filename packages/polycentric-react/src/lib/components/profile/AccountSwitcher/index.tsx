@@ -93,9 +93,9 @@ export const AccountSwitcher = () => {
         <Menu as="div" className="relative">
             {/* Border radius is 2rem because inner circle is 3rem with .5rem (p-2) padding both sides, so diameter=4 r=2rem */}
             <div
-                className={`rounded-[2rem] w-full flex flex-col border bottom-0 absolute bg-white ${
+                className={`rounded-[2rem] w-full flex flex-col border bottom-0 bg-white ${
                     subMenuExpanded
-                        ? 'after:rounded-[2rem] after:backdrop-blur-lg after:absolute after:inset-0 after:block'
+                        ? 'after:rounded-[2rem] after:absolute after:inset-0 after:block'
                         : ''
                 }`}
             >

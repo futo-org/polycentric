@@ -1,4 +1,5 @@
 import {
+    APIMethods,
     CancelContext,
     Models,
     Protocol,
@@ -28,6 +29,8 @@ export type FeedHook = (
     ...args: any[]
 ) => [FeedHookData, FeedHookAdvanceFn, boolean?];
 
+const decodePost = (e: Models.Event.Event) => Protocol.Post.decode(e.content);
+
 export const useAuthorFeed: FeedHook = (system: Models.PublicKey.PublicKey) => {
     return useIndex(
         system,
@@ -41,16 +44,33 @@ export const useExploreFeed: FeedHook = () => {
         () => Queries.QueryCursor.makeGetExploreCallback(),
         [],
     );
-    return useQueryCursor(loadCallback, Protocol.Post.decode);
+
+    return useQueryCursor(loadCallback, decodePost);
 };
 
-export const useSearchFeed: FeedHook = (searchQuery: string) => {
-    const loadCallback = useMemo(
-        () => Queries.QueryCursor.makeGetSearchCallback(searchQuery),
-        [searchQuery],
-    );
+const makeGetSearchCallbackWithMinQueryLength = (
+    searchQuery: string,
+    searchType: APIMethods.SearchType,
+    minQueryLength: number,
+) => {
+    if (searchQuery.length < minQueryLength) {
+        return async () =>
+            Models.ResultEventsAndRelatedEventsAndCursor.fromEmpty();
+    }
 
-    return useQueryCursor(loadCallback, Protocol.Post.decode);
+    return Queries.QueryCursor.makeGetSearchCallback(searchQuery, searchType);
+};
+
+export const useSearchPostsFeed: FeedHook = (searchQuery: string) => {
+    const loadCallback = useMemo(() => {
+        return makeGetSearchCallbackWithMinQueryLength(
+            searchQuery,
+            APIMethods.SearchType.Messages,
+            3,
+        );
+    }, [searchQuery]);
+
+    return useQueryCursor(loadCallback, decodePost);
 };
 
 const commentFeedRequestEvents = {

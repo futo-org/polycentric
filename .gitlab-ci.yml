@@ -305,6 +305,7 @@ test:
     - <<: *node-cache-config
       policy: pull
   script:
+    - ./version.sh
     - make proto
     - RUSTC_BOOTSTRAP=1 ./build-artifacts/server-test -Z unstable-options --format junit > junit-server.xml
     - ./build-artifacts/server &

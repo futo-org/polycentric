@@ -158,12 +158,6 @@ export const useEventLink = (
     return link;
 };
 
-export const useTopicLink = (topic: string) => {
-    return useMemo(() => {
-        return '/t/' + encodeURIComponent(topic);
-    }, [topic]);
-};
-
 export const useDateFromUnixMS = (unixMS: Long | undefined) => {
     return useMemo<Date | undefined>(() => {
         if (unixMS === undefined) {
@@ -579,7 +573,7 @@ export const useQueryOpinion = (
 
 export function useQueryCursor<T>(
     loadCallback: Queries.QueryCursor.LoadCallback,
-    parse: (buffer: Uint8Array) => T,
+    parse: (e: Models.Event.Event) => T,
     batchSize = 30,
 ): [Array<ParsedEvent<T>>, () => void, boolean] {
     const { processHandle } = useProcessHandleManager();
@@ -603,7 +597,7 @@ export function useQueryCursor<T>(
             const newCellsAsSignedEvents = newCells.map((cell) => {
                 const { signedEvent } = cell;
                 const event = Models.Event.fromBuffer(signedEvent.event);
-                const parsed = parse(event.content);
+                const parsed = parse(event);
 
                 const eventsReferencing = event.references.filter((reference) =>
                     reference.referenceType.eq(2),
@@ -640,12 +634,10 @@ export function useQueryCursor<T>(
             nothingFoundCallback,
         );
         query.current = newQuery;
-        setAdvance(
-            () =>
-                (() => {
-                    query.current?.advance();
-                }) ?? (() => {}),
-        );
+        setAdvance(() => () => {
+            query.current?.advance();
+        });
+
         return () => {
             cancelContext.cancel();
             newQuery.cleanup();
@@ -761,7 +753,14 @@ export const useQueryReferenceEventFeed = <T>(
         extraByteReferences,
     ]);
 
-    return useQueryCursor(loadCallback, decode);
+    const decodeMemo = useCallback(
+        (event: Models.Event.Event) => {
+            return decode(event.content);
+        },
+        [decode],
+    );
+
+    return useQueryCursor(loadCallback, decodeMemo);
 };
 
 export function useQueryCRDTSet(
@@ -814,4 +813,43 @@ export function useQueryCRDTSet(
     }, [state]);
 
     return [events, advance];
+}
+
+export function useQueryTopStringReferences(
+    query: string | undefined,
+    minQueryChars = 0,
+    timeoutMS?: number,
+): Models.AggregationBucket.Type[] {
+    const queryManager = useQueryManager();
+    const [state, setState] = useState<Models.AggregationBucket.Type[]>([]);
+
+    useEffect(() => {
+        if (
+            minQueryChars > 0 &&
+            (query === undefined || query.length < minQueryChars)
+        ) {
+            return;
+        }
+
+        const cancelContext = new CancelContext.CancelContext();
+
+        queryManager.queryTopStringReferences.query(
+            query,
+            (topReferences) => {
+                if (cancelContext.cancelled()) {
+                    return;
+                }
+
+                setState(topReferences);
+            },
+            timeoutMS,
+        );
+
+        return () => {
+            cancelContext.cancel();
+            setState([]);
+        };
+    }, [query, queryManager, minQueryChars, timeoutMS]);
+
+    return state;
 }

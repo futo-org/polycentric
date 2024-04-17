@@ -6,9 +6,18 @@ export function makeGetExploreCallback(): LoadCallback {
     return APIMethods.getExplore;
 }
 
-export function makeGetSearchCallback(searchQuery: string): LoadCallback {
+export function makeGetSearchCallback(
+    searchQuery: string,
+    searchType: APIMethods.SearchType,
+): LoadCallback {
     return async (server, limit, cursor) => {
-        return await APIMethods.getSearch(server, searchQuery, limit, cursor);
+        return await APIMethods.getSearch(
+            server,
+            searchQuery,
+            limit,
+            cursor,
+            searchType,
+        );
     };
 }
 

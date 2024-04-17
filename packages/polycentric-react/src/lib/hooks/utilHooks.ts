@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as RXJS from 'rxjs';
 
 export const useDebouncedEffect = (
@@ -102,3 +102,16 @@ export function useObservableWithCache<T>(
 
     return state;
 }
+
+export const useTopicLink = (topic: string | undefined): string | undefined => {
+    return useMemo(() => {
+        if (!topic) {
+            return undefined;
+        }
+
+        let urlTopic = topic;
+        if (topic.startsWith('/')) urlTopic = topic.substring(1);
+
+        return `/t/${encodeURIComponent(urlTopic)}`;
+    }, [topic]);
+};

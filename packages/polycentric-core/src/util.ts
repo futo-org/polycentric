@@ -1,7 +1,7 @@
 import * as RXJS from 'rxjs';
 
-import * as Queries from './queries';
 import * as Models from './models';
+import * as Queries from './queries';
 
 const textEncoder = new TextEncoder();
 
@@ -305,5 +305,21 @@ export function fromPromiseExceptionToNever<T>(
                 subscriber.next(value);
             })
             .catch((err) => void err);
+    });
+}
+
+export function fromPromiseExceptionToEmpty<T>(
+    promise: Promise<T>,
+): RXJS.Observable<T> {
+    return new RXJS.Observable((subscriber) => {
+        promise
+            .then((value) => {
+                subscriber.next(value);
+                subscriber.complete();
+            })
+            .catch((err) => {
+                void err;
+                subscriber.complete();
+            });
     });
 }

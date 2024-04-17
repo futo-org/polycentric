@@ -25,6 +25,7 @@ export const PostCompose = () => {
 
                 let topicReference;
                 if (topic && topic.length > 0) {
+                    if (topic.startsWith('/')) topic = topic.slice(1);
                     const topicBuffer = Util.encodeText(topic);
                     topicReference = Models.bufferToReference(topicBuffer);
                 }

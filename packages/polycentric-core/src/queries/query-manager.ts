@@ -1,15 +1,16 @@
-import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
+import * as ProcessHandle from '../process-handle';
 
-import { QueryServers } from './query-servers';
-import { QueryHead } from './query-head';
-import { QueryEvent } from './query-event';
 import { QueryBlob } from './query-blob';
-import { QueryLatest } from './query-latest';
 import { QueryCRDT } from './query-crdt';
+import { QueryEvent } from './query-event';
+import { QueryHead } from './query-head';
+import { QueryLatest } from './query-latest';
+import { QueryServers } from './query-servers';
+import { QueryTopStringReferences } from './query-top-string-references';
 
-import * as QueryIndex from './query-index';
 import * as QueryCRDTSet from './query-crdt-set';
+import * as QueryIndex from './query-index';
 import { LoadedBatch } from './shared';
 
 import { HasUpdate } from './has-update';
@@ -28,6 +29,8 @@ export class QueryManager extends HasUpdate {
 
     public readonly queryIndex: QueryIndex.QueryManager;
     public readonly queryCRDTSet: QueryCRDTSet.QueryManager;
+
+    public readonly queryTopStringReferences: QueryTopStringReferences;
 
     private readonly stages: readonly HasUpdate[];
 
@@ -62,6 +65,10 @@ export class QueryManager extends HasUpdate {
             this.loadedBatch.bind(this),
         );
         this.queryCRDTSet = new QueryCRDTSet.QueryManager(this.queryIndex);
+        this.queryTopStringReferences = new QueryTopStringReferences(
+            processHandle,
+            this.queryServers,
+        );
 
         this.stages = [
             this.queryHead,
