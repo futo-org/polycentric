@@ -16,3 +16,7 @@ export function numberTo4Chars(num: number) {
         return (num / 1000000000).toFixed(0) + 'b';
     }
 }
+
+export function getFullPath() {
+    return window.location.href.replace(window.location.origin, '');
+}

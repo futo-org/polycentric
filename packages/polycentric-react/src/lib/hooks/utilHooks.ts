@@ -112,6 +112,20 @@ export const useTopicLink = (topic: string | undefined): string | undefined => {
         let urlTopic = topic;
         if (topic.startsWith('/')) urlTopic = topic.substring(1);
 
-        return `/t/${encodeURIComponent(urlTopic)}`;
+        return `/t/${urlTopic}`;
+    }, [topic]);
+};
+
+const urlPrefixRegex = /^((http[s]?:\/\/)?(www\.)?)/;
+export const useTopicDisplayText = (
+    topic: string | undefined,
+): string | undefined => {
+    // if starts with [http[s]://][www.] remove it
+    return useMemo(() => {
+        if (!topic) {
+            return undefined;
+        }
+
+        return topic.replace(urlPrefixRegex, '');
     }, [topic]);
 };

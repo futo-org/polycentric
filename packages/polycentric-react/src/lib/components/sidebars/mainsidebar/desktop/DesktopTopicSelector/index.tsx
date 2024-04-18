@@ -10,7 +10,10 @@ import {
     useQueryCRDTSet,
     useQueryTopStringReferences,
 } from '../../../../../hooks/queryHooks';
-import { useTopicLink } from '../../../../../hooks/utilHooks';
+import {
+    useTopicDisplayText,
+    useTopicLink,
+} from '../../../../../hooks/utilHooks';
 import { numberTo4Chars } from '../../../../../util/etc';
 import { Link } from '../../../../util/link';
 import { DesktopTopicSearch } from '../DesktopTopicSearch';
@@ -55,6 +58,7 @@ const TopicListItem = ({
     }, [refreshIfAdded]);
 
     const topicLink = useTopicLink(topic.key);
+    const topicString = useTopicDisplayText(topic.key);
 
     return (
         <Link
@@ -117,7 +121,9 @@ const TopicListItem = ({
                     </div>
                 )}
             </button>
-            <div className="flex-grow pl-4 overflow-hidden text-ellipsis whitespace-nowrap">{topic.key}</div>
+            <div className="flex-grow pl-4 overflow-hidden text-ellipsis whitespace-nowrap">
+                {topicString}
+            </div>
         </Link>
     );
 };

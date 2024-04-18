@@ -4,6 +4,7 @@ import { matchPath } from 'react-router-dom';
 import { routeData } from '../app/router';
 import { MemoryRoutedComponent } from '../components/util/link';
 import { StackElementPathContext } from '../components/util/link/StackElementPathContext';
+import { getFullPath } from '../util/etc';
 import { useIsMobile } from './styleHooks';
 
 export interface StackRouterContextType {
@@ -57,9 +58,7 @@ function getInitialStackRouterInfo(currentPath: string): {
     };
 }
 
-const initialStackRouterInfo = getInitialStackRouterInfo(
-    window.location.pathname,
-);
+const initialStackRouterInfo = getInitialStackRouterInfo(getFullPath());
 
 type PushType = 'push' | 'setRoot';
 
@@ -72,7 +71,7 @@ export const useStackRouter = (
         currentPath: string;
     }>({
         ...initialStackRouterInfo,
-        currentPath: window.location.pathname,
+        currentPath: getFullPath(),
     });
 
     const isMobile = useIsMobile();
@@ -285,10 +284,7 @@ export const useStackRouter = (
                     // If we're on the same index, just set root
                     if (!isMobile) {
                         if (newIndex === 0) {
-                            stackRouter.setRoot(
-                                window.location.pathname,
-                                'inplace',
-                            );
+                            stackRouter.setRoot(getFullPath(), 'inplace');
                         } else {
                             stackRouter.setRoot(path, 'inplace');
                         }
@@ -299,7 +295,7 @@ export const useStackRouter = (
                 if (stackRouter.canGoBack()) {
                     stackRouter.pop();
                 } else {
-                    stackRouter.setRoot(window.location.pathname, 'backwards');
+                    stackRouter.setRoot(getFullPath(), 'backwards');
                 }
             }
         };

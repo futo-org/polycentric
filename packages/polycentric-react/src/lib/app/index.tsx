@@ -16,6 +16,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import * as UAParserJS from 'ua-parser-js';
 import { SidebarLayout } from '../components/layout/sidebarlayout';
 import { Onboarding } from '../components/onboarding';
 import { MemoryRoutedComponent } from '../components/util/link';
@@ -26,9 +27,9 @@ import {
 } from '../hooks/processHandleManagerHooks';
 import { QueryManagerContext } from '../hooks/queryHooks';
 import { useStackRouter } from '../hooks/stackRouterHooks';
+import { getFullPath } from '../util/etc';
 import { createSwipeBackGesture } from '../util/ionicfullpageswipebackgesture';
 import { MobileSwipeTopicContext, StackRouterContext } from './contexts';
-import * as UAParserJS from 'ua-parser-js';
 
 setupIonicReact({});
 
@@ -44,7 +45,8 @@ export const SignedinApp = ({
     );
 
     const root = useCallback(() => {
-        return <MemoryRoutedComponent routerLink={window.location.pathname} />;
+        const originalPath = getFullPath();
+        return <MemoryRoutedComponent routerLink={originalPath} />;
     }, []);
 
     const ionNavRef = useRef<HTMLIonNavElement>(null);

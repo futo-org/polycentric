@@ -58,7 +58,7 @@ const MobileTopicSidebarItem = ({ topic }: { topic: string }) => {
                         routerDirection="root"
                         // no href so we can drag the item
                     >
-                        {'/' + topic}
+                        {topic}
                     </Link>
                 </IonMenuToggle>
             </IonItem>
