@@ -117,7 +117,7 @@ const TopicListItem = ({
                     </div>
                 )}
             </button>
-            <div className="flex-grow pl-4">{topic.key}</div>
+            <div className="flex-grow pl-4 overflow-hidden text-ellipsis whitespace-nowrap">{topic.key}</div>
         </Link>
     );
 };
