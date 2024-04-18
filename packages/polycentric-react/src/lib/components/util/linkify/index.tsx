@@ -1,4 +1,3 @@
-import 'linkify-plugin-hashtag';
 import { forwardRef, useMemo } from 'react';
 import { Link } from '../link';
 
