@@ -6,7 +6,10 @@ import {
     useQueryIfAdded,
     useQueryTopStringReferences,
 } from '../../../../../hooks/queryHooks';
-import { useTopicLink } from '../../../../../hooks/utilHooks';
+import {
+    useTopicDisplayText,
+    useTopicLink,
+} from '../../../../../hooks/utilHooks';
 import { numberTo4Chars } from '../../../../../util/etc';
 import { Link } from '../../../../util/link';
 
@@ -26,6 +29,7 @@ const TopicSearchItem = ({
     const quantityString = useMemo(() => numberTo4Chars(topic.value), [topic]);
 
     const topicLink = useTopicLink(topic.key);
+    const topicString = useTopicDisplayText(topic.key);
 
     return (
         <Menu.Item key={topic.key}>
@@ -43,7 +47,7 @@ group hover:bg-gray-100 transition-colors duration-200 cursor-pointer max-w-full
                     {quantityString}
                 </div>
                 <div className="flex-grow pl-4 overflow-ellipsis overflow-hidden min-w-0">
-                    {topic.key}
+                    {topicString}
                 </div>
             </Link>
         </Menu.Item>
@@ -84,13 +88,7 @@ export const DesktopTopicSearch = ({
                             border-gray-100 focus:outline-none 
                             placeholder:font-light focus:shadow-lg ${
                                 topicSearchFocus ? 'shadow-lg' : ''
-                            }
-                            ${
-                                topicSearchQuery === '/'
-                                    ? 'text-gray-400'
-                                    : 'text-gray-800'
-                            }
-                            `}
+                            }`}
                 placeholder="Search Topics"
                 value={topicSearchQuery}
                 onChange={(e) => {
@@ -100,21 +98,6 @@ export const DesktopTopicSearch = ({
                 autoCapitalize="none"
                 autoComplete="off"
                 autoCorrect="off"
-                onFocus={(e) => {
-                    if (searchBoxBlurTimeout.current) {
-                        clearTimeout(searchBoxBlurTimeout.current);
-                        searchBoxBlurTimeout.current = null;
-                    }
-                    setTopicSearchFocus(true);
-                    onFocusChange?.(true);
-                    if (e.target.value === '') {
-                        // manually set it before react does it so we ensure cursor
-                        e.target.value = '/';
-                        setTopicSearchQuery('/');
-                        // put cursor at end of new value
-                        e.target.selectionStart = 2;
-                    }
-                }}
             />
             {topicSearchFocus && topicSearchResults.length > 0 && (
                 <Menu.Items
