@@ -207,9 +207,7 @@ pub mod tests {
                     ),
                     s1p1,
                     1,
-                    crate::model::digest::Digest::SHA256(
-                        crate::model::hash_event(s1p1e1.event()),
-                    ),
+                    crate::model::digest::compute(s1p1e1.event()),
                 ),
             )],
         );
@@ -289,9 +287,7 @@ pub mod tests {
                     ),
                     s1p1,
                     1,
-                    crate::model::digest::Digest::SHA256(
-                        crate::model::hash_event(s1p1e1.event()),
-                    ),
+                    crate::model::digest::compute(s1p1e1.event()),
                 ),
             )],
         );

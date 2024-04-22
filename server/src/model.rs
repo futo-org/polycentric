@@ -78,6 +78,12 @@ pub mod digest {
         result.digest = get_digest_bytes(digest);
         result
     }
+
+    pub fn compute(bytes: &::std::vec::Vec<u8>) -> Digest {
+        let mut hasher = ::hmac_sha256::Hash::new();
+        hasher.update(bytes);
+        Digest::SHA256(hasher.finalize())
+    }
 }
 
 pub mod pointer {
@@ -123,16 +129,15 @@ pub mod pointer {
         }
     }
 
-    pub fn from_event(
-        event: &crate::model::event::Event,
+    pub fn from_signed_event(
+        signed_event: &crate::model::signed_event::SignedEvent,
     ) -> ::anyhow::Result<Pointer> {
+        let event = crate::model::event::from_vec(signed_event.event())?;
         Ok(Pointer::new(
             event.system().clone(),
             event.process().clone(),
             *event.logical_clock(),
-            crate::model::digest::Digest::SHA256(crate::model::hash_event(
-                event.content(),
-            )),
+            crate::model::digest::compute(signed_event.event()),
         ))
     }
 
