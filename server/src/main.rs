@@ -1,3 +1,4 @@
+use ::anyhow::Context;
 use ::cadence::{StatsdClient, UdpMetricSink};
 use ::envconfig::Envconfig;
 use ::log::*;
@@ -53,6 +54,8 @@ struct State {
     admin_token: String,
     statsd_client: ::cadence::StatsdClient,
     challenge_key: String,
+    ingest_cache:
+        ::std::sync::Mutex<::lru::LruCache<crate::model::pointer::Pointer, ()>>,
 }
 
 async fn handle_rejection(
@@ -205,12 +208,17 @@ async fn serve_api(
     let sink = UdpMetricSink::from(host, socket)?;
     let statsd_client = StatsdClient::from_sink("polycentric-server", sink);
 
+    let ingest_cache = ::std::sync::Mutex::new(::lru::LruCache::new(
+        core::num::NonZeroUsize::new(1000).context("expected NonZeroUSize")?,
+    ));
+
     let state = ::std::sync::Arc::new(State {
         pool,
         search: opensearch_client,
         admin_token: config.admin_token.clone(),
         challenge_key: config.challenge_key.clone(),
         statsd_client,
+        ingest_cache,
     });
 
     let cors = ::warp::cors()

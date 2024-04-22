@@ -46,7 +46,7 @@ pub fn content_type_to_string(content_type: u64) -> String {
 }
 
 pub mod digest {
-    #[derive(PartialEq, Clone, Debug)]
+    #[derive(Hash, Eq, PartialEq, Clone, Debug)]
     pub enum Digest {
         SHA256([u8; 32]),
     }
@@ -89,7 +89,7 @@ pub mod digest {
 pub mod pointer {
     use protobuf::Message;
 
-    #[derive(PartialEq, Clone, Debug)]
+    #[derive(Hash, Eq, PartialEq, Clone, Debug)]
     pub struct Pointer {
         system: crate::model::public_key::PublicKey,
         process: crate::model::process::Process,
@@ -185,7 +185,7 @@ pub mod public_key {
     use ed25519_dalek::Verifier;
     use protobuf::Message;
 
-    #[derive(PartialEq, Clone, Debug)]
+    #[derive(Hash, Eq, PartialEq, Clone, Debug)]
     pub enum PublicKey {
         Ed25519(::ed25519_dalek::VerifyingKey),
     }
@@ -294,7 +294,7 @@ pub mod public_key {
 pub mod process {
     use protobuf::Message;
 
-    #[derive(PartialEq, Clone, Debug)]
+    #[derive(Hash, Eq, PartialEq, Clone, Debug)]
     pub struct Process {
         process: [u8; 16],
     }
@@ -601,12 +601,6 @@ pub mod signed_event {
         result.signature = event.signature.clone();
         result
     }
-}
-
-pub(crate) fn hash_event(event: &::std::vec::Vec<u8>) -> [u8; 32] {
-    let mut hasher = ::hmac_sha256::Hash::new();
-    hasher.update(event);
-    hasher.finalize()
 }
 
 pub mod delete {
