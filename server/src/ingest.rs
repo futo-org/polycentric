@@ -178,7 +178,7 @@ pub(crate) async fn ingest_event_search(
 
         if event_type == known_message_types::POST {
             index_name = "messages";
-            let pointer = pointer::from_event(&event)?;
+            let pointer = pointer::from_signed_event(signed_event)?;
             index_id = pointer::to_base64(&pointer)?;
             version = 0;
 
