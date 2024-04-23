@@ -3,6 +3,7 @@ import fetch, { Headers } from 'cross-fetch';
 import Long from 'long';
 import * as Models from './models';
 import * as Protocol from './protocol';
+import * as Version from './version';
 
 async function checkResponse(name: string, response: Response): Promise<void> {
     if (!response.ok) {
@@ -10,6 +11,8 @@ async function checkResponse(name: string, response: Response): Promise<void> {
         throw new Error(name + ' !ok');
     }
 }
+
+const userAgent = 'polycentric-core-' + Version.SHA.substring(0, 8);
 
 export async function postEvents(
     server: string,
@@ -37,6 +40,7 @@ export async function postCensor(
             method: 'POST',
             headers: new Headers({
                 authorization: authorization,
+                'x-polycentric-user-agent': userAgent,
             }),
             body: urlInfo,
         },
@@ -57,6 +61,9 @@ export async function getRanges(
 
     const response = await fetch(server + path, {
         method: 'GET',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
     });
 
     await checkResponse('getRanges', response);
@@ -89,6 +96,9 @@ export const getEvents: GetEventsType = async (
 
     const response = await fetch(server + path, {
         method: 'GET',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
     });
 
     await checkResponse('getEvents', response);
@@ -116,6 +126,9 @@ export async function getResolveClaim(
 
     const response = await fetch(server + path, {
         method: 'GET',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
     });
 
     await checkResponse('getResolveClaim', response);
@@ -152,6 +165,9 @@ export const getQueryLatest: GetQueryLatestType = async (
 
     const response = await fetch(server + path, {
         method: 'GET',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
     });
 
     await checkResponse('getQueryLatest', response);
@@ -180,6 +196,9 @@ export async function getQueryIndex(
 
     const response = await fetch(server + path, {
         method: 'GET',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
     });
 
     await checkResponse('getQueryIndex', response);
@@ -215,6 +234,9 @@ export async function getQueryReferences(
 
     const response = await fetch(server + path, {
         method: 'GET',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
     });
 
     await checkResponse('getQueryReferences', response);
@@ -252,6 +274,9 @@ export async function getSearch(
 
     const response = await fetch(server + path, {
         method: 'GET',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
     });
 
     await checkResponse('getSearch', response);
@@ -287,6 +312,9 @@ export async function getTopStringReferences(
 
     const response = await fetch(server + path, {
         method: 'GET',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
     });
 
     await checkResponse('getTopStringReferences', response);
@@ -308,6 +336,9 @@ export async function getHead(
 
     const response = await fetch(server + path, {
         method: 'GET',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
     });
 
     await checkResponse('getHead', response);
@@ -338,6 +369,9 @@ export async function getExplore(
 
     const response = await fetch(server + path, {
         method: 'GET',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
     });
 
     await checkResponse('getExplore', response);
@@ -369,6 +403,9 @@ export async function getFindClaimAndVouch(
 
     const response = await fetch(server + path, {
         method: 'GET',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
     });
 
     if (response.status === 404) {
@@ -387,6 +424,9 @@ export async function getChallenge(
 ): Promise<Protocol.HarborChallengeResponse> {
     const response = await fetch(server + '/challenge', {
         method: 'GET',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
     });
 
     await checkResponse('getChallenge', response);
@@ -403,6 +443,9 @@ export async function postPurge(
     const response = await fetch(server + '/purge', {
         method: 'POST',
         body: Protocol.HarborValidateRequest.encode(solvedChallenge).finish(),
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
     });
 
     await checkResponse('postPurge', response);
@@ -416,6 +459,7 @@ export async function postClaimHandle(
         method: 'POST',
         headers: new Headers({
             'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
         }),
         body: Protocol.ClaimHandleRequest.encode(claimRequest).finish(),
     });
@@ -431,6 +475,7 @@ export async function getResolveHandle(
         method: 'GET',
         headers: new Headers({
             'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
         }),
     });
 
