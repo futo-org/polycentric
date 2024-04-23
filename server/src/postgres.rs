@@ -638,6 +638,50 @@ pub(crate) async fn load_event(
     }
 }
 
+pub(crate) async fn load_events_after_id(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    start_id: &::std::option::Option<u64>,
+    limit: u64,
+) -> ::anyhow::Result<EventsAndCursor> {
+    let query = "
+        SELECT
+            id, raw_event, server_time
+        FROM
+            events
+        WHERE
+            ($1 IS NULL OR id > $1)
+        ORDER BY
+            id ASC
+        LIMIT $2;
+    ";
+
+    let start_id_query = if let Some(x) = start_id {
+        Some(i64::try_from(*x)?)
+    } else {
+        None
+    };
+
+    let rows = ::sqlx::query_as::<_, ExploreRow>(query)
+        .bind(start_id_query)
+        .bind(i64::try_from(limit)?)
+        .fetch_all(&mut **transaction)
+        .await?;
+
+    let mut result_set = vec![];
+
+    for row in rows.iter() {
+        let event = crate::model::signed_event::from_vec(&row.raw_event)?;
+        result_set.push(event);
+    }
+
+    let result = EventsAndCursor {
+        events: result_set,
+        cursor: rows.last().map(|last_elem| last_elem.id),
+    };
+
+    Ok(result)
+}
+
 pub(crate) async fn load_posts_before_id(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     start_id: u64,

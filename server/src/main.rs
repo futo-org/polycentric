@@ -171,6 +171,9 @@ struct Config {
 
     #[envconfig(from = "CHALLENGE_KEY")]
     pub challenge_key: String,
+
+    #[envconfig(from = "BACKFILL", default = "false")]
+    pub backfill: bool,
 }
 
 async fn serve_api(
@@ -424,7 +427,31 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
 
     let config = Config::init_from_env().unwrap();
 
-    serve_api(&config).await?;
+    if !config.backfill {
+        info!("mode: serve_api");
+
+        serve_api(&config).await?;
+    } else {
+        info!("mode: backfill");
+
+        info!("Connecting to Postgres");
+        let pool = ::sqlx::postgres::PgPoolOptions::new()
+            .max_connections(10)
+            .connect(&config.postgres_string)
+            .await?;
+
+        let opensearch_transport =
+            ::opensearch::http::transport::Transport::single_node(
+                &config.opensearch_string,
+            )?;
+
+        let opensearch_client =
+            ::opensearch::OpenSearch::new(opensearch_transport);
+
+        info!("Connecting to OpenSearch");
+
+        crate::migrate::backfill(pool, opensearch_client).await?;
+    }
 
     Ok(())
 }

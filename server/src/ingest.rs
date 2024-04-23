@@ -163,8 +163,8 @@ pub(crate) async fn ingest_event_postgres(
 }
 
 pub(crate) async fn ingest_event_search(
+    search: &::opensearch::OpenSearch,
     signed_event: &crate::model::signed_event::SignedEvent,
-    state: &::std::sync::Arc<crate::State>,
 ) -> ::anyhow::Result<()> {
     let event = crate::model::event::from_vec(signed_event.event())?;
 
@@ -227,8 +227,7 @@ pub(crate) async fn ingest_event_search(
             };
         }
 
-        state
-            .search
+        search
             .index(IndexParts::IndexId(index_name, &index_id))
             .version_type(opensearch::params::VersionType::External)
             .version(i64::try_from(version)?)
@@ -246,7 +245,7 @@ pub(crate) async fn ingest_event(
     state: &::std::sync::Arc<crate::State>,
 ) -> ::anyhow::Result<()> {
     ingest_event_postgres(transaction, signed_event).await?;
-    ingest_event_search(signed_event, state).await?;
+    ingest_event_search(&state.search, signed_event).await?;
 
     Ok(())
 }
