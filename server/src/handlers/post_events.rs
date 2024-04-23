@@ -17,6 +17,7 @@ fn parse_input(
 
 async fn handle_batch(
     state: &::std::sync::Arc<crate::State>,
+    user_agent: &Option<String>,
     signed_events: &::std::vec::Vec<crate::model::signed_event::SignedEvent>,
 ) -> ::anyhow::Result<()> {
     let mut signed_events_to_ingest_with_pointers = vec![];
@@ -41,6 +42,8 @@ async fn handle_batch(
         let mut transaction = state.pool.begin().await?;
 
         for (signed_event, _) in &signed_events_to_ingest_with_pointers {
+            crate::ingest::trace_event(user_agent, signed_event)?;
+
             crate::ingest::ingest_event(&mut transaction, signed_event, state)
                 .await?;
         }
@@ -61,6 +64,7 @@ async fn handle_batch(
 
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
+    user_agent: Option<String>,
     bytes: ::bytes::Bytes,
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let events = crate::warp_try_err_400!(parse_input(bytes));
@@ -70,7 +74,7 @@ pub(crate) async fn handler(
             ::log::warn!("retrying batch insertion attempt: {:?}", attempt);
         }
 
-        match &handle_batch(&state, &events).await {
+        match &handle_batch(&state, &user_agent, &events).await {
             Ok(_) => break,
             Err(err) => {
                 if attempt == 3 {

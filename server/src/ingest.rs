@@ -8,7 +8,8 @@ use opensearch::IndexParts;
 use std::fmt::Error;
 use std::time::SystemTime;
 
-fn trace_event(
+pub(crate) fn trace_event(
+    user_agent: &Option<String>,
     signed_event: &crate::model::signed_event::SignedEvent,
 ) -> ::anyhow::Result<()> {
     let event = crate::model::event::from_vec(signed_event.event())?;
@@ -47,7 +48,8 @@ fn trace_event(
     }
 
     debug!(
-        "ingesting {}:{} event_type: {} details: {}",
+        "ingesting {:?} {}:{} event_type: {} details: {}",
+        user_agent,
         crate::model::public_key::to_base64(event.system())?,
         *event.logical_clock(),
         crate::model::content_type_to_string(*event.content_type()),
@@ -243,25 +245,8 @@ pub(crate) async fn ingest_event(
     signed_event: &crate::model::signed_event::SignedEvent,
     state: &::std::sync::Arc<crate::State>,
 ) -> ::anyhow::Result<()> {
-    let pointer = crate::model::pointer::from_signed_event(signed_event)?;
-
-    {
-        let mut ingest_cache = state.ingest_cache.lock().unwrap();
-
-        if ingest_cache.get(&pointer).is_some() {
-            return Ok(());
-        }
-    }
-
-    trace_event(signed_event)?;
-
     ingest_event_postgres(transaction, signed_event).await?;
     ingest_event_search(signed_event, state).await?;
-
-    {
-        let mut ingest_cache = state.ingest_cache.lock().unwrap();
-        ingest_cache.put(pointer, ());
-    }
 
     Ok(())
 }

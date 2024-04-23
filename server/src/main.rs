@@ -236,6 +236,9 @@ async fn serve_api(
         .and(::warp::path("events"))
         .and(::warp::path::end())
         .and(state_filter.clone())
+        .and(::warp::header::optional::<String>(
+            "x-polycentric-user-agent",
+        ))
         .and(::warp::body::bytes())
         .and_then(crate::handlers::post_events::handler)
         .with(cors.clone());
