@@ -111,3 +111,37 @@ pub(crate) async fn migrate(
 
     Ok(())
 }
+
+pub(crate) async fn backfill(
+    pool: ::sqlx::PgPool,
+    search: ::opensearch::OpenSearch,
+) -> ::anyhow::Result<()> {
+    let mut position = None;
+
+    loop {
+        ::log::info!("position: {:?}", position);
+
+        let mut transaction = pool.begin().await?;
+
+        let batch = crate::postgres::load_events_after_id(
+            &mut transaction,
+            &position,
+            25,
+        )
+        .await?;
+
+        transaction.commit().await?;
+
+        if batch.cursor.is_none() {
+            break;
+        } else {
+            position = batch.cursor;
+        }
+
+        for signed_event in batch.events {
+            crate::ingest::ingest_event_search(&search, &signed_event).await?;
+        }
+    }
+
+    Ok(())
+}
