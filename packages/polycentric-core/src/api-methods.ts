@@ -20,6 +20,9 @@ export async function postEvents(
 ): Promise<void> {
     const response = await fetch(server + '/events', {
         method: 'POST',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
         body: Protocol.Events.encode({
             events: events,
         }).finish(),
