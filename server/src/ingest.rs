@@ -243,10 +243,25 @@ pub(crate) async fn ingest_event(
     signed_event: &crate::model::signed_event::SignedEvent,
     state: &::std::sync::Arc<crate::State>,
 ) -> ::anyhow::Result<()> {
+    let pointer = crate::model::pointer::from_signed_event(signed_event)?;
+
+    {
+        let mut ingest_cache = state.ingest_cache.lock().unwrap();
+
+        if ingest_cache.get(&pointer).is_some() {
+            return Ok(());
+        }
+    }
+
     trace_event(signed_event)?;
 
     ingest_event_postgres(transaction, signed_event).await?;
     ingest_event_search(signed_event, state).await?;
+
+    {
+        let mut ingest_cache = state.ingest_cache.lock().unwrap();
+        ingest_cache.put(pointer, ());
+    }
 
     Ok(())
 }

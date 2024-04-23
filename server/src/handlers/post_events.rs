@@ -17,15 +17,44 @@ fn parse_input(
 
 async fn handle_batch(
     state: &::std::sync::Arc<crate::State>,
-    events: &::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+    signed_events: &::std::vec::Vec<crate::model::signed_event::SignedEvent>,
 ) -> ::anyhow::Result<()> {
-    let mut transaction = state.pool.begin().await?;
+    let mut signed_events_to_ingest_with_pointers = vec![];
 
-    for event in events {
-        crate::ingest::ingest_event(&mut transaction, event, state).await?;
+    {
+        let mut ingest_cache = state.ingest_cache.lock().unwrap();
+
+        for signed_event in signed_events {
+            let pointer =
+                crate::model::pointer::from_signed_event(signed_event)?;
+
+            if ingest_cache.get(&pointer).is_some() {
+                continue;
+            } else {
+                signed_events_to_ingest_with_pointers
+                    .push((signed_event, pointer));
+            }
+        }
     }
 
-    transaction.commit().await?;
+    if !signed_events_to_ingest_with_pointers.is_empty() {
+        let mut transaction = state.pool.begin().await?;
+
+        for (signed_event, _) in &signed_events_to_ingest_with_pointers {
+            crate::ingest::ingest_event(&mut transaction, signed_event, state)
+                .await?;
+        }
+
+        transaction.commit().await?;
+
+        {
+            let mut ingest_cache = state.ingest_cache.lock().unwrap();
+
+            for (_, pointer) in signed_events_to_ingest_with_pointers {
+                ingest_cache.put(pointer, ());
+            }
+        }
+    }
 
     Ok(())
 }
