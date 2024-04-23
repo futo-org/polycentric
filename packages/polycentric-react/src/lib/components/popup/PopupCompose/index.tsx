@@ -15,14 +15,14 @@ export const PopupCompose = ({
     ) => Promise<boolean>;
 }) => {
     return (
-        <div className="md:px-7 bg-white overflow-clip flex flex-col space-y-0 w-auto md:w-[40rem]">
-            <div>
-                <Compose
-                    onPost={onPost}
-                    maxTextboxHeightPx={250}
-                    minTextboxHeightPx={200}
-                />
-            </div>
+        <div className="h-full pb-7 md:px-7 bg-white overflow-clip flex flex-col space-y-0 w-auto md:w-[40rem]">
+            <Compose
+                onPost={onPost}
+                maxTextboxHeightPx={250}
+                minTextboxHeightPx={200}
+                flexGrow={true}
+                hfull={true}
+            />
         </div>
     );
 };
