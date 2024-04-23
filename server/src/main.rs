@@ -216,7 +216,7 @@ async fn serve_api(
     let cors = ::warp::cors()
         .allow_any_origin()
         .max_age(::std::time::Duration::from_secs(60 * 5))
-        .allow_headers(vec!["content-type"])
+        .allow_headers(vec!["content-type", "x-polycentric-user-agent"])
         .allow_methods(&[
             ::warp::http::Method::POST,
             ::warp::http::Method::GET,
