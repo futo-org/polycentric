@@ -11,6 +11,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { MobileSwipeTopicContext } from '../../../../../app/contexts';
 import { useProcessHandleManager } from '../../../../../hooks/processHandleManagerHooks';
 import { useQueryCRDTSet } from '../../../../../hooks/queryHooks';
+import { useTopicDisplayText } from '../../../../../hooks/utilHooks';
 import { Link } from '../../../../util/link';
 import './itemsliding.css';
 
@@ -32,6 +33,8 @@ const MobileTopicSidebarItem = ({ topic }: { topic: string }) => {
         [currentTopic, topic],
     );
 
+    const displayTopic = useTopicDisplayText(topic);
+
     return (
         <IonItemSliding
             className="rounded overflow-hidden relative h-10 mb-2"
@@ -51,14 +54,14 @@ const MobileTopicSidebarItem = ({ topic }: { topic: string }) => {
                 <IonMenuToggle className="contents">
                     <Link
                         onClick={() => setTopic(topic)}
-                        className={`w-full h-full p-2 pl-4 hover:bg-[#f4f5f8] text-left ${
+                        className={`w-full h-full p-2 pl-4 hover:bg-[#f4f5f8] text-left overflow-hidden text-ellipsis whitespace-nowrap ${
                             isCurrentTopic ? 'bg-gray-100' : ''
                         }`}
                         routerLink="/"
                         routerDirection="root"
                         // no href so we can drag the item
                     >
-                        {topic}
+                        {displayTopic}
                     </Link>
                 </IonMenuToggle>
             </IonItem>
