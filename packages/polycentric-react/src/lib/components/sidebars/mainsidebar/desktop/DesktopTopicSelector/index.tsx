@@ -7,6 +7,7 @@ import { Models, Util } from '@polycentric/polycentric-core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useProcessHandleManager } from '../../../../../hooks/processHandleManagerHooks';
 import {
+    QueryTopStringReferencesOptions,
     useQueryCRDTSet,
     useQueryTopStringReferences,
 } from '../../../../../hooks/queryHooks';
@@ -129,7 +130,15 @@ const TopicListItem = ({
 };
 
 const TrendingTopics = () => {
-    const trendingTopics = useQueryTopStringReferences(undefined);
+    const hookOptions: QueryTopStringReferencesOptions = useMemo(() => {
+        return {
+            query: undefined,
+            limit: 30,
+            timeRange: '7d',
+        };
+    }, []);
+
+    const trendingTopics = useQueryTopStringReferences(hookOptions);
 
     return (
         <>
