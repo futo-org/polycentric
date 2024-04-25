@@ -97,6 +97,7 @@ export const Compose = ({
     onPost,
     topicDisabled = false,
     flexGrow = false,
+    hfull = false,
     maxTextboxHeightPx = 440,
     minTextboxHeightPx = 125,
     postingProgress,
@@ -110,6 +111,7 @@ export const Compose = ({
     hideTopic?: boolean;
     topicDisabled?: boolean;
     flexGrow?: boolean;
+    hfull?: boolean;
     maxTextboxHeightPx?: number;
     minTextboxHeightPx?: number;
     postingProgress?: number;
@@ -132,26 +134,27 @@ export const Compose = ({
     }, [onPost, content, upload, minTextboxHeightPx, topic]);
 
     return (
-        <div className={`flex flex-col ${flexGrow ? 'flex-grow' : ''}`}>
+        <div
+            className={`flex flex-col 
+            ${flexGrow ? 'flex-grow' : ''} ${hfull ? 'h-full' : ''}`}
+        >
             {hideTopic ? null : (
-                <TopicBox
-                    topic={topic}
-                    setTopic={setTopic}
-                    disabled={topicDisabled}
-                />
+                <div className="flex-shrink-0">
+                    <TopicBox
+                        topic={topic}
+                        setTopic={setTopic}
+                        disabled={topicDisabled}
+                    />
+                </div>
             )}
             <div
-                className={`flex flex-col mt-1.5 w-full border rounded-md focus-within:border-gray-300  ${
+                className={`flex flex-col mt-1.5 w-full border rounded-md focus-within:border-gray-300 overflow-y-auto ${
                     flexGrow ? 'flex-grow' : ''
                 }`}
             >
                 <textarea
-                    className={`w-full resize-none leading-normal whitespace-pre-line text-lg placeholder:text-gray-300 text-gray-900 font-normal rounded-lg p-3.5 focus:outline-none`}
-                    style={
-                        flexGrow
-                            ? { height: '100%' }
-                            : { minHeight: minTextboxHeightPx + 'px' }
-                    }
+                    className={`w-full resize-none leading-normal whitespace-pre-line text-lg placeholder:text-gray-300 text-gray-900 font-normal rounded-lg p-3.5 focus:outline-none flex-grow`}
+                    style={{ minHeight: minTextboxHeightPx + 'px' }}
                     value={content}
                     ref={textRef}
                     onChange={(e) => {

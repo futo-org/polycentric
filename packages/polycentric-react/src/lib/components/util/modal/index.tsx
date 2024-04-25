@@ -75,7 +75,7 @@ export const Modal = ({
                             </button>
                         </div>
 
-                        <div className="flex flex-col flex-grow px-7">
+                        <div className="flex flex-col flex-grow px-7 overflow-hidden">
                             {children}
                         </div>
                     </Transition.Child>
