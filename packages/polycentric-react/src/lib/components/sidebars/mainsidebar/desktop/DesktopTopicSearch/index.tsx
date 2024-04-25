@@ -3,6 +3,7 @@ import { Models, Util } from '@polycentric/polycentric-core';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useProcessHandleManager } from '../../../../../hooks/processHandleManagerHooks';
 import {
+    QueryTopStringReferencesOptions,
     useQueryIfAdded,
     useQueryTopStringReferences,
 } from '../../../../../hooks/queryHooks';
@@ -61,7 +62,15 @@ export const DesktopTopicSearch = ({
 }) => {
     const [topicSearchQuery, setTopicSearchQuery] = useState('');
     const [topicSearchFocus, setTopicSearchFocus] = useState(false);
-    const topicSearchResults = useQueryTopStringReferences(topicSearchQuery, 3);
+    const topicSearchOptions: QueryTopStringReferencesOptions = useMemo(
+        () => ({
+            query: topicSearchQuery,
+            minQueryChars: 3,
+        }),
+        [topicSearchQuery],
+    );
+
+    const topicSearchResults = useQueryTopStringReferences(topicSearchOptions);
 
     const searchBoxBlurTimeout = useRef<number | null>(null);
 

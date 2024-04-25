@@ -289,26 +289,30 @@ export async function getSearch(
     return Models.ResultEventsAndRelatedEventsAndCursor.fromBuffer(rawBody);
 }
 
+export type TopStringReferenceTimeRange = '12h' | '1d' | '7d' | '30d';
+
 export async function getTopStringReferences(
     server: string,
-    query?: string,
-    limit?: number,
-    timeRange?: '12h' | '1d' | '7d' | '30d',
+    options: {
+        query?: string;
+        timeRange?: TopStringReferenceTimeRange;
+        limit?: number;
+    },
 ): Promise<Models.ResultTopStringReferences.Type> {
     let path = '/top_string_references?';
 
     const params = new URLSearchParams();
 
-    if (query !== undefined) {
-        params.append('query', query);
+    if (options.query !== undefined) {
+        params.append('query', options.query);
     }
 
-    if (limit !== undefined) {
-        params.append('limit', limit.toString());
+    if (options.limit !== undefined) {
+        params.append('limit', options.limit.toString());
     }
 
-    if (timeRange !== undefined) {
-        params.append('time_range', timeRange);
+    if (options.timeRange !== undefined) {
+        params.append('time_range', options.timeRange);
     }
 
     path += params.toString();

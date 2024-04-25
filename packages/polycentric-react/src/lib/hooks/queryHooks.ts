@@ -815,41 +815,45 @@ export function useQueryCRDTSet(
     return [events, advance];
 }
 
+export interface QueryTopStringReferencesOptions {
+    query: string | undefined;
+    minQueryChars?: number;
+    timeoutMS?: number;
+    timeRange?: APIMethods.TopStringReferenceTimeRange;
+    limit?: number;
+}
+
 export function useQueryTopStringReferences(
-    query: string | undefined,
-    minQueryChars = 0,
-    timeoutMS?: number,
+    options?: QueryTopStringReferencesOptions,
 ): Models.AggregationBucket.Type[] {
     const queryManager = useQueryManager();
     const [state, setState] = useState<Models.AggregationBucket.Type[]>([]);
 
     useEffect(() => {
         if (
-            minQueryChars > 0 &&
-            (query === undefined || query.length < minQueryChars)
+            options &&
+            options.query !== undefined &&
+            options.minQueryChars !== undefined &&
+            options.query.length < options.minQueryChars
         ) {
             return;
         }
 
         const cancelContext = new CancelContext.CancelContext();
 
-        queryManager.queryTopStringReferences.query(
-            query,
-            (topReferences) => {
-                if (cancelContext.cancelled()) {
-                    return;
-                }
+        queryManager.queryTopStringReferences.query((topReferences) => {
+            if (cancelContext.cancelled()) {
+                return;
+            }
 
-                setState(topReferences);
-            },
-            timeoutMS,
-        );
+            setState(topReferences);
+        }, options);
 
         return () => {
             cancelContext.cancel();
             setState([]);
         };
-    }, [query, queryManager, minQueryChars, timeoutMS]);
+    }, [queryManager, options]);
 
     return state;
 }

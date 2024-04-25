@@ -22,9 +22,18 @@ export class QueryTopStringReferences {
     }
 
     public query(
-        query: string | undefined,
         callback: Callback,
-        timeoutMS = 200,
+        {
+            timeoutMS = 200,
+            query,
+            timeRange,
+            limit,
+        }: {
+            timeoutMS?: number;
+            query?: string;
+            timeRange?: APIMethods.TopStringReferenceTimeRange;
+            limit?: number;
+        } = {},
     ) {
         QueryServers.queryServersObservable(
             this.queryServers,
@@ -35,13 +44,16 @@ export class QueryTopStringReferences {
                 RXJS.switchMap((servers) => {
                     const requestObservables = [...servers].map((server) => {
                         return fromPromiseExceptionToEmpty(
-                            APIMethods.getTopStringReferences(server, query),
+                            APIMethods.getTopStringReferences(server, {
+                                query,
+                                timeRange,
+                                limit,
+                            }),
                         ).pipe(RXJS.timeout({ first: timeoutMS }));
                     });
                     return RXJS.forkJoin(requestObservables);
                 }),
                 RXJS.map((responses) => {
-                    console.log(responses);
                     const topReferences = new Map<string, number>();
                     responses.forEach((response) => {
                         response.buckets.forEach((bucket) => {
@@ -66,11 +78,16 @@ export class QueryTopStringReferences {
 
 export function queryTopStringReferencesObservable(
     queryManager: QueryTopStringReferences,
-    query?: string | undefined,
+    options: {
+        timeoutMS?: number;
+        query?: string;
+        timeRange?: APIMethods.TopStringReferenceTimeRange;
+        limit?: number;
+    },
 ): RXJS.Observable<Models.AggregationBucket.Type[]> {
     return new RXJS.Observable((subscriber) => {
-        queryManager.query(query, (result) => {
+        queryManager.query((result) => {
             subscriber.next(result);
-        });
+        }, options);
     });
 }

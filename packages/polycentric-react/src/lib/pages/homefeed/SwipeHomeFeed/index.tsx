@@ -94,7 +94,11 @@ const TopicSearchResultsItem = ({
 };
 
 const TopicSearchResults = ({ query }: { query?: string }) => {
-    const topTopics = useQueryTopStringReferences(query, 3);
+    const hookOptions = useMemo(() => {
+        return { query, minQueryChars: 3 };
+    }, [query]);
+
+    const topTopics = useQueryTopStringReferences(hookOptions);
 
     return (
         <div className="flex flex-col space-y-2 w-[18rem] pt-4">
