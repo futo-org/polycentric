@@ -65,6 +65,11 @@ export const DesktopTopicSearch = ({
 
     const searchBoxBlurTimeout = useRef<number | null>(null);
 
+    const onSearchboxFocus = () => {
+        setTopicSearchFocus(true);
+        onFocusChange?.(true);
+    };
+
     const onSearchboxBlur = () => {
         if (!searchBoxBlurTimeout.current) {
             searchBoxBlurTimeout.current = window.setTimeout(() => {
@@ -84,16 +89,17 @@ export const DesktopTopicSearch = ({
     return (
         <Menu as="div" className="flex-grow relative">
             <input
-                className={`rounded-l-full rounded-tr-full w-full p-2 pl-4 border 
+                className={`rounded-full w-full p-2 pl-4 border 
                             border-gray-100 focus:outline-none 
                             placeholder:font-light focus:shadow-lg ${
-                                topicSearchFocus ? 'shadow-lg' : ''
+                                topicSearchFocus ? 'rounded-br-none' : ''
                             }`}
                 placeholder="Search Topics"
                 value={topicSearchQuery}
                 onChange={(e) => {
                     setTopicSearchQuery(e.target.value);
                 }}
+                onFocus={onSearchboxFocus}
                 onBlur={onSearchboxBlur}
                 autoCapitalize="none"
                 autoComplete="off"
@@ -101,7 +107,7 @@ export const DesktopTopicSearch = ({
             />
             {topicSearchFocus && topicSearchResults.length > 0 && (
                 <Menu.Items
-                    className={`absolute top-11 right-0 rounded-[1.5rem] rounded-tr-none border border-gray-100 bg-white w-[calc(100%_+_2.5rem_+_1.0rem)] h-64 shadow-lg pl-1 pt-1 flex flex-col overflow-y-auto`}
+                    className={`z-10 absolute top-11 right-0 rounded-[1.5rem] rounded-tr-none border border-gray-100 bg-white w-[calc(100%_+_2.5rem_+_1.0rem)] h-64 shadow-lg pl-1 pt-1 flex flex-col overflow-y-auto`}
                     ref={menuItemsRef}
                     static={true}
                     onFocus={() => {

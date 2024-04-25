@@ -67,7 +67,7 @@ export const MainSidebar = () => {
                     <img src={polycentricIcon} className="inline h-[20px]" />{' '}
                     Polycentric
                 </h1>
-                <div className="flex flex-col text-left lg:text-right min-h-0">
+                <div className="flex flex-col text-left min-h-0">
                     <SidebarLink to="/following" topicName="Following">
                         Following
                     </SidebarLink>
