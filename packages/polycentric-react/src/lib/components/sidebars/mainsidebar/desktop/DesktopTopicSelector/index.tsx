@@ -37,7 +37,8 @@ const TopicListItem = ({
     const { processHandle } = useProcessHandleManager();
     const system = useMemo(() => processHandle.system(), [processHandle]);
 
-    const [hovered, setHovered] = useState(false);
+    const [mainHovered, setMainHovered] = useState(false);
+    const [buttonHovered, setButtonHovered] = useState(false);
 
     const [topicJoined, setTopicJoined] = useState(false);
 
@@ -61,16 +62,20 @@ const TopicListItem = ({
     const topicLink = useTopicLink(topic.key);
     const topicString = useTopicDisplayText(topic.key);
 
+    const styleMainAsHovered = mainHovered && !buttonHovered;
+
     return (
         <Link
-            className="h-12 p-1 rounded-l-full rounded-r flex items-center space-x-2 ml-11 text-left 
-    group hover:bg-gray-100 transition-colors duration-200 cursor-pointer"
+            className={`py-0.5 px-1 rounded flex items-center space-x-2 text-left 
+            transition-colors duration-200 cursor-pointer ${
+                styleMainAsHovered ? 'hover:bg-gray-100' : ''
+            }`}
             activeClassName={'bg-gray-100 text-gray-800'}
             key={topic.key}
             routerLink={topicLink}
             routerDirection="root"
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
+            onMouseEnter={() => setMainHovered(true)}
+            onMouseLeave={() => setMainHovered(false)}
         >
             <button
                 className="h-10 w-10"
@@ -88,43 +93,54 @@ const TopicListItem = ({
                             .then(() => void refreshIfAdded());
                     }
                 }}
+                onMouseEnter={() => setButtonHovered(true)}
+                onMouseLeave={() => setButtonHovered(false)}
             >
-                {mode === 'trend' && !hovered ? (
+                {mode === 'trend' && !buttonHovered ? (
                     <div
-                        className={`h-10 aspect-square text-xs text-gray-900 rounded-full flex 
-                                    justify-center items-center bg-opacity-30
-                                    ${topicJoined ? 'bg-blue-200' : ''}`}
+                        className={`h-9 aspect-square text-xs text-gray-900 rounded-full flex 
+                                    justify-center items-center border-2 bg-gray-50
+                                    ${
+                                        topicJoined
+                                            ? 'border-blue-100'
+                                            : 'border-gray-50'
+                                    }`}
                     >
                         {valueString}
                     </div>
                 ) : (
                     <div
-                        className={`h-10 aspect-square rounded-full 
-                                    flex justify-center items-center bg-opacity-30 
+                        className={`h-9 aspect-square rounded-full 
+                                    flex justify-center items-center transition-[border-radius]
                                      ${
                                          topicJoined
-                                             ? 'bg-blue-200'
+                                             ? 'bg-gray-50'
                                              : 'hover:bg-gray-50 hover:bg-opacity-50'
-                                     }`}
+                                     }
+                                     ${
+                                         topicJoined && mode === 'trend'
+                                             ? 'border-2 border-blue-100'
+                                             : 'border-0'
+                                     }
+                                     `}
                     >
-                        {
-                            // @ts-ignore
-                            topicJoined ? (
-                                <StarIconSolid
-                                    className={`h-6 w-6 text-gray-200 group-hover:text-slate-300`}
-                                />
-                            ) : (
-                                <StarIconOutlined
-                                    className={`h-6 w-6 text-gray-200 group-hover:text-slate-300`}
-                                />
-                            )
-                        }
+                        {buttonHovered ? (
+                            <StarIconOutlined
+                                className={`h-4 w-4 text-gray-700`}
+                            />
+                        ) : (
+                            <StarIconSolid
+                                className={`h-4 w-4 text-gray-300`}
+                            />
+                        )}
                     </div>
                 )}
             </button>
-            <div className="flex-grow pl-4 overflow-hidden text-ellipsis whitespace-nowrap">
+            <div className="flex-grow pl-1 overflow-hidden text-ellipsis whitespace-nowrap">
                 {topicString}
             </div>
+            {/* Add another w-9 empty thing here so the text doesn't stretch to the end */}
+            <div className="w-9 flex-shrink-0" />
         </Link>
     );
 };
@@ -212,7 +228,7 @@ export const DesktopTopicSelector = () => {
     }, []);
 
     return (
-        <div className="flex flex-col space-y-0 text-left flex-shrink min-h-0">
+        <div className="flex flex-col text-left flex-shrink min-h-0">
             <div className="flex items-center space-x-2">
                 <button
                     className={`h-10 w-10 flex-shrink-0 rounded-full flex justify-center items-center ${
@@ -252,10 +268,10 @@ export const DesktopTopicSelector = () => {
                 <DesktopTopicSearch onFocusChange={onFocusChange} />
             </div>
             <div
-                className={`flex flex-col flex-shrink space-y-1 pt-1 text-gray-600 text-lg
+                className={`flex flex-col flex-shrink pt-2 text-gray-600 text-md space-y-1
                             ${
                                 searchboxFocused
-                                    ? 'overflow-y-hidden'
+                                    ? 'overflow-y-hidden opacity-10'
                                     : 'overflow-y-auto'
                             }`}
                 ref={scrollboxRef}
