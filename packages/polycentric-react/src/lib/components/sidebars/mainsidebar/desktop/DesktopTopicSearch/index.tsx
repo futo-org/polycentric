@@ -46,7 +46,7 @@ group hover:bg-gray-100 transition-colors duration-200 cursor-pointer max-w-full
                 >
                     {quantityString}
                 </div>
-                <div className="flex-grow pl-4 overflow-ellipsis overflow-hidden min-w-0">
+                <div className="flex-grow pl-4 overflow-ellipsis overflow-hidden min-w-0 whitespace-nowrap">
                     {topicString}
                 </div>
             </Link>
