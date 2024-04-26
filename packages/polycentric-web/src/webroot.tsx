@@ -65,7 +65,7 @@ function createPersistenceDriverIndexedDB(): PersistenceDriver.IPersistenceDrive
 
 const ServiceWorkerUpdateButton = () => {
     const [needsRefresh, setNeedsRefresh] = useState(false);
-    const [updateSW, setUpdateSW] = useState<() => void | undefined>();
+    const [updateSW, setUpdateSW] = useState<() => Promise<void> | undefined>();
     const [pressed, setPressed] = useState(false);
 
     useEffect(() => {
