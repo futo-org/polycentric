@@ -308,17 +308,18 @@ export function fromPromiseExceptionToNever<T>(
     });
 }
 
-export function fromPromiseExceptionToEmpty<T>(
+export function fromPromiseExceptionToValue<T, V>(
     promise: Promise<T>,
-): RXJS.Observable<T> {
+    value: V,
+): RXJS.Observable<T | V> {
     return new RXJS.Observable((subscriber) => {
         promise
             .then((value) => {
                 subscriber.next(value);
                 subscriber.complete();
             })
-            .catch((err) => {
-                void err;
+            .catch(() => {
+                subscriber.next(value);
                 subscriber.complete();
             });
     });
