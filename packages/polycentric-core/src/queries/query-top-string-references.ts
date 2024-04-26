@@ -3,7 +3,7 @@ import * as RXJS from 'rxjs';
 import * as APIMethods from '../api-methods';
 import * as Models from '../models';
 import * as ProcessHandle from '../process-handle';
-import { fromPromiseExceptionToEmpty } from '../util';
+import * as Util from '../util';
 import * as QueryServers from './query-servers';
 
 export type Callback = (topReferences: Models.AggregationBucket.Type[]) => void;
@@ -43,24 +43,31 @@ export class QueryTopStringReferences {
                 RXJS.first(),
                 RXJS.switchMap((servers) => {
                     const requestObservables = [...servers].map((server) => {
-                        return fromPromiseExceptionToEmpty(
+                        return Util.fromPromiseExceptionToValue(
                             APIMethods.getTopStringReferences(server, {
                                 query,
                                 timeRange,
                                 limit,
                             }),
-                        ).pipe(RXJS.timeout({ first: timeoutMS }));
+                            undefined,
+                        ).pipe(
+                            RXJS.timeout({ first: timeoutMS }),
+                            RXJS.catchError(() => {
+                                return RXJS.of(undefined);
+                            }),
+                        );
                     });
                     return RXJS.forkJoin(requestObservables);
                 }),
                 RXJS.map((responses) => {
                     const topReferences = new Map<string, number>();
-                    responses.forEach((response) => {
+                    Util.filterUndefined(responses).forEach((response) => {
                         response.buckets.forEach((bucket) => {
                             const count = topReferences.get(bucket.key) ?? 0;
                             topReferences.set(bucket.key, count + bucket.value);
                         });
                     });
+
                     return [...topReferences.entries()]
                         .sort((a, b) => b[1] - a[1])
                         .slice(0, 10)
