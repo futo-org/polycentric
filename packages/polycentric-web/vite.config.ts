@@ -33,7 +33,7 @@ export default defineConfig(({ command }) => ({
     plugins: [
         react(),
         VitePWA({
-            registerType: 'autoUpdate',
+            registerType: "prompt",
             devOptions: {
                 enabled: true,
             },
