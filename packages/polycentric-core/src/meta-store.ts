@@ -1,9 +1,9 @@
 import * as Base64 from '@borderless/base64';
 
-import * as Util from './util';
 import * as Models from './models';
 import * as PersistenceDriver from './persistence-driver';
 import * as Protocol from './protocol';
+import * as Util from './util';
 
 const ACTIVE_STORE_KEY = Util.encodeText('ACTIVE_STORE');
 
@@ -107,8 +107,8 @@ export async function createMetaStore(
     const metaStore = await persistenceDriver.openStore('metav2');
 
     const metaStoreStores = metaStore.sublevel('stores', {
-        keyEncoding: PersistenceDriver.deepCopyTranscoder(),
-        valueEncoding: PersistenceDriver.deepCopyTranscoder(),
+        keyEncoding: metaStore.keyEncoding(),
+        valueEncoding: metaStore.valueEncoding(),
     }) as PersistenceDriver.BinaryAbstractLevel;
 
     const openStore = async (
