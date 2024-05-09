@@ -1,2 +1,2 @@
 *
-!./server/target/debug/server
+!./server/target/release/server
