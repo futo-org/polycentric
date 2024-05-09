@@ -1,3 +1,3 @@
 FROM ubuntu:22.04
-COPY ./server/target/debug/server /server
+COPY ./server/target/release/server /server
 CMD /server
