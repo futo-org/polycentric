@@ -19,7 +19,7 @@ async fn handler_inner(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
-    let mut transaction = state.pool.begin().await?;
+    let mut transaction = state.pool_read_only.begin().await?;
 
     let head_signed_events =
         crate::postgres::load_system_head(&mut transaction, &query.system)

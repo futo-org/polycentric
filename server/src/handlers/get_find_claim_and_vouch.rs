@@ -50,7 +50,8 @@ pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
-    let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
+    let mut transaction =
+        crate::warp_try_err_500!(state.pool_read_only.begin().await);
 
     let potential_db_result = crate::warp_try_err_500!(
         crate::queries::query_find_claim_and_vouch::query_find_claim_and_vouch(
