@@ -17,7 +17,8 @@ pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
-    let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
+    let mut transaction =
+        crate::warp_try_err_500!(state.pool_read_only.begin().await);
 
     let processes = crate::warp_try_err_500!(
         crate::postgres::load_processes_for_system(

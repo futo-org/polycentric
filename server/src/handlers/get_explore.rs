@@ -23,7 +23,8 @@ pub(crate) async fn handler(
 
     let limit = query.limit.unwrap_or(10);
 
-    let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
+    let mut transaction =
+        crate::warp_try_err_500!(state.pool_read_only.begin().await);
 
     let db_result = crate::warp_try_err_500!(
         crate::postgres::load_posts_before_id(

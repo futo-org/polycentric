@@ -5,7 +5,8 @@ pub(crate) async fn handler(
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let mut result = crate::protocol::PublicKeys::new();
 
-    let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
+    let mut transaction =
+        crate::warp_try_err_500!(state.pool_read_only.begin().await);
 
     let random_identities = crate::warp_try_err_500!(
         crate::postgres::load_random_profiles(&mut transaction).await
