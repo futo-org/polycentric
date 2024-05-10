@@ -143,6 +143,25 @@ struct OpenSearchSearchL0 {
     aggregations: Option<OpenSearchAggregationsL1>,
 }
 
+enum Mode {
+    ServeAPI,
+    BackfillSearch,
+    BackfillRemoteServer,
+}
+
+impl ::std::str::FromStr for Mode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Mode, ()> {
+        match s {
+            "SERVE_API" => Ok(Mode::ServeAPI),
+            "BACKFILL_SEARCH" => Ok(Mode::BackfillSearch),
+            "BACKFILL_REMOTE_SERVER" => Ok(Mode::BackfillRemoteServer),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(::envconfig::Envconfig)]
 struct Config {
     #[envconfig(from = "HTTP_PORT_API", default = "8081")]
@@ -172,8 +191,11 @@ struct Config {
     #[envconfig(from = "CHALLENGE_KEY")]
     pub challenge_key: String,
 
-    #[envconfig(from = "BACKFILL", default = "false")]
-    pub backfill: bool,
+    #[envconfig(from = "MODE", default = "SERVE_API")]
+    pub mode: Mode,
+
+    #[envconfig(from = "BACKFILL_REMOTE_SERVER_ADDRESS")]
+    pub backfill_remote_server_address: Option<String>,
 }
 
 async fn serve_api(
@@ -427,30 +449,48 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
 
     let config = Config::init_from_env().unwrap();
 
-    if !config.backfill {
-        info!("mode: serve_api");
+    match config.mode {
+        Mode::ServeAPI => {
+            info!("mode: ServeAPI");
 
-        serve_api(&config).await?;
-    } else {
-        info!("mode: backfill");
+            serve_api(&config).await?;
+        }
+        Mode::BackfillSearch => {
+            info!("mode: BackfillSearch");
 
-        info!("Connecting to Postgres");
-        let pool = ::sqlx::postgres::PgPoolOptions::new()
-            .max_connections(10)
-            .connect(&config.postgres_string)
-            .await?;
+            info!("Connecting to Postgres");
+            let pool = ::sqlx::postgres::PgPoolOptions::new()
+                .max_connections(10)
+                .connect(&config.postgres_string)
+                .await?;
 
-        let opensearch_transport =
-            ::opensearch::http::transport::Transport::single_node(
-                &config.opensearch_string,
-            )?;
+            let opensearch_transport =
+                ::opensearch::http::transport::Transport::single_node(
+                    &config.opensearch_string,
+                )?;
 
-        let opensearch_client =
-            ::opensearch::OpenSearch::new(opensearch_transport);
+            let opensearch_client =
+                ::opensearch::OpenSearch::new(opensearch_transport);
 
-        info!("Connecting to OpenSearch");
+            info!("Connecting to OpenSearch");
 
-        crate::migrate::backfill(pool, opensearch_client).await?;
+            crate::migrate::backfill_search(pool, opensearch_client).await?;
+        }
+        Mode::BackfillRemoteServer => {
+            info!("mode: BackfillRemoteServer");
+
+            let address = config
+                .backfill_remote_server_address
+                .context("BACKFILL_REMOTE_SERVER_ADDRESS required")?;
+
+            info!("Connecting to Postgres");
+            let pool = ::sqlx::postgres::PgPoolOptions::new()
+                .max_connections(10)
+                .connect(&config.postgres_string)
+                .await?;
+
+            crate::migrate::backfill_remote_server(pool, address).await?;
+        }
     }
 
     Ok(())
