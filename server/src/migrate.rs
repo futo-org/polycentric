@@ -1,3 +1,5 @@
+use ::protobuf::Message;
+
 async fn load_version(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
 ) -> ::anyhow::Result<i64> {
@@ -112,7 +114,7 @@ pub(crate) async fn migrate(
     Ok(())
 }
 
-pub(crate) async fn backfill(
+pub(crate) async fn backfill_search(
     pool: ::sqlx::PgPool,
     search: ::opensearch::OpenSearch,
 ) -> ::anyhow::Result<()> {
@@ -141,6 +143,52 @@ pub(crate) async fn backfill(
         for signed_event in batch.events {
             crate::ingest::ingest_event_search(&search, &signed_event).await?;
         }
+    }
+
+    Ok(())
+}
+
+pub(crate) async fn backfill_remote_server(
+    pool: ::sqlx::PgPool,
+    address: String,
+) -> ::anyhow::Result<()> {
+    let http_client = ::reqwest::Client::new();
+
+    let mut position = None;
+
+    loop {
+        ::log::info!("position: {:?}", position);
+
+        let mut transaction = pool.begin().await?;
+
+        let batch = crate::postgres::load_events_after_id(
+            &mut transaction,
+            &position,
+            50,
+        )
+        .await?;
+
+        transaction.commit().await?;
+
+        if batch.cursor.is_none() {
+            break;
+        } else {
+            position = batch.cursor;
+        }
+
+        let mut batch_proto = crate::protocol::Events::new();
+
+        for event in batch.events.iter() {
+            batch_proto
+                .events
+                .push(crate::model::signed_event::to_proto(event));
+        }
+
+        http_client
+            .post(&address)
+            .body(batch_proto.write_to_bytes()?)
+            .send()
+            .await?;
     }
 
     Ok(())
