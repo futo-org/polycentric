@@ -50,6 +50,7 @@ macro_rules! warp_try_err_400 {
 
 struct State {
     pool: ::sqlx::PgPool,
+    pool_read_only: ::sqlx::PgPool,
     search: ::opensearch::OpenSearch,
     admin_token: String,
     statsd_client: ::cadence::StatsdClient,
@@ -154,6 +155,9 @@ struct Config {
     )]
     pub postgres_string: String,
 
+    #[envconfig(from = "DATABASE_URL_READ_ONLY")]
+    pub postgres_string_read_only: Option<String>,
+
     #[envconfig(
         from = "OPENSEARCH_STRING",
         default = "http://opensearch-node1:9200"
@@ -183,6 +187,16 @@ async fn serve_api(
     let pool = ::sqlx::postgres::PgPoolOptions::new()
         .max_connections(10)
         .connect(&config.postgres_string)
+        .await?;
+
+    let pool_read_only = ::sqlx::postgres::PgPoolOptions::new()
+        .max_connections(10)
+        .connect(
+            &config
+                .postgres_string_read_only
+                .clone()
+                .unwrap_or(config.postgres_string.clone()),
+        )
         .await?;
 
     let opensearch_transport =
@@ -217,6 +231,7 @@ async fn serve_api(
 
     let state = ::std::sync::Arc::new(State {
         pool,
+        pool_read_only,
         search: opensearch_client,
         admin_token: config.admin_token.clone(),
         challenge_key: config.challenge_key.clone(),
