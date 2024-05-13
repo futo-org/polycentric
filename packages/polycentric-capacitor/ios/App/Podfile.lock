@@ -1,0 +1,59 @@
+PODS:
+  - Capacitor (5.6.0):
+    - CapacitorCordova
+  - CapacitorApp (5.0.6):
+    - Capacitor
+  - CapacitorCordova (5.6.0)
+  - CapacitorHaptics (5.0.6):
+    - Capacitor
+  - CapacitorKeyboard (5.0.7):
+    - Capacitor
+  - CapacitorStatusBar (5.0.6):
+    - Capacitor
+  - leveldb-library (1.22.5)
+  - PolycentricLeveldbCapacitorPlugin (0.0.1):
+    - Capacitor
+    - leveldb-library (~> 1.22.5)
+
+DEPENDENCIES:
+  - "Capacitor (from `../../../../node_modules/@capacitor/ios`)"
+  - "CapacitorApp (from `../../../../node_modules/@capacitor/app`)"
+  - "CapacitorCordova (from `../../../../node_modules/@capacitor/ios`)"
+  - "CapacitorHaptics (from `../../../../node_modules/@capacitor/haptics`)"
+  - "CapacitorKeyboard (from `../../../../node_modules/@capacitor/keyboard`)"
+  - "CapacitorStatusBar (from `../../../../node_modules/@capacitor/status-bar`)"
+  - PolycentricLeveldbCapacitorPlugin (from `../../../../../leveldb-capacitor-plugin`)
+
+SPEC REPOS:
+  trunk:
+    - leveldb-library
+
+EXTERNAL SOURCES:
+  Capacitor:
+    :path: "../../../../node_modules/@capacitor/ios"
+  CapacitorApp:
+    :path: "../../../../node_modules/@capacitor/app"
+  CapacitorCordova:
+    :path: "../../../../node_modules/@capacitor/ios"
+  CapacitorHaptics:
+    :path: "../../../../node_modules/@capacitor/haptics"
+  CapacitorKeyboard:
+    :path: "../../../../node_modules/@capacitor/keyboard"
+  CapacitorStatusBar:
+    :path: "../../../../node_modules/@capacitor/status-bar"
+  PolycentricLeveldbCapacitorPlugin:
+    :path: "../../../../../leveldb-capacitor-plugin"
+
+SPEC CHECKSUMS:
+  Capacitor: ebfc16cdb8116d04c101686b080342872da42d43
+  CapacitorApp: 024e1b1bea5f883d79f6330d309bc441c88ad04a
+  CapacitorCordova: 931b48fcdbc9bc985fc2f16cec9f77c794a27729
+  CapacitorHaptics: 1fffc1217c7e64a472d7845be50fb0c2f7d4204c
+  CapacitorKeyboard: ce5e01064cf57a2c05b32565310713b7fe6cc6f9
+  CapacitorStatusBar: 565c0a1ebd79bb40d797606a8992b4a105885309
+  leveldb-library: e8eadf9008a61f9e1dde3978c086d2b6d9b9dc28
+  PolycentricLeveldbCapacitorPlugin: 819b590760c124837fb573bc0f2289324c46764c
+
+PODFILE CHECKSUM: e25e89b73f5b7f950a4749fdb529607511ab7cc2
+
+COCOAPODS: 1.12.1
