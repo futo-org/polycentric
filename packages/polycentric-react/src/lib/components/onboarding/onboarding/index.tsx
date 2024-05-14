@@ -13,9 +13,7 @@ import internetTodayURL from '../../../../graphics/onboarding/internettoday.svg'
 import starterURL from '../../../../graphics/onboarding/starter.svg';
 import { StackRouterContext } from '../../../app/contexts';
 import { useGestureWall } from '../../../hooks/ionicHooks';
-import {
-    useOnboardingProcessHandleManager
-} from '../../../hooks/processHandleManagerHooks';
+import { useOnboardingProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import { useIsMobile, useThemeColor } from '../../../hooks/styleHooks';
 import { publishBlobToAvatar } from '../../../util/imageProcessing';
 import { ProfileAvatarInput } from '../../profile/edit/inputs/ProfileAvatarInput';
