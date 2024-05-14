@@ -225,19 +225,28 @@ pub(crate) async fn backfill_remote_server(
         ::tokio::spawn(async move {
             let _permit = permit;
 
-            let response = http_client
+            let result = http_client
                 .post(address + "/events")
                 .body(batch_bytes)
                 .send()
                 .await;
 
-            if let Ok(response) = response {
-                if response.status() == ::reqwest::StatusCode::OK {
-                    return;
+            match result {
+                Ok(response) => {
+                    if response.status() == ::reqwest::StatusCode::OK {
+                        return;
+                    } else {
+                        ::log::error!(
+                            "request failed with code {:?}",
+                            response.status()
+                        );
+                    }
+                }
+                Err(err) => {
+                    ::log::error!("request failed with error {:?}", err);
                 }
             }
 
-            ::log::error!("failed request");
             *failed.lock().await = true;
         });
     }
