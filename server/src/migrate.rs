@@ -154,9 +154,30 @@ pub(crate) async fn backfill_remote_server(
 ) -> ::anyhow::Result<()> {
     let http_client = ::reqwest::Client::new();
 
+    {
+        let response =
+            http_client.get(address.clone() + "/version").send().await?;
+
+        if response.status() != ::reqwest::StatusCode::OK {
+            ::log::error!("invalid server");
+
+            return Ok(());
+        }
+    }
+
     let mut position = None;
 
+    let http_concurrency = 20;
+
+    let failed = ::std::sync::Arc::new(::tokio::sync::Mutex::new(false));
+    let semaphore =
+        ::std::sync::Arc::new(::tokio::sync::Semaphore::new(http_concurrency));
+
     loop {
+        if *failed.lock().await {
+            break;
+        }
+
         ::log::info!("position: {:?}", position);
 
         let mut transaction = pool.begin().await?;
@@ -171,7 +192,12 @@ pub(crate) async fn backfill_remote_server(
         transaction.commit().await?;
 
         if batch.cursor.is_none() {
-            break;
+            ::log::info!("no more events, waiting");
+
+            ::tokio::time::sleep(::tokio::time::Duration::from_millis(5000))
+                .await;
+
+            continue;
         } else {
             position = batch.cursor;
         }
@@ -184,11 +210,45 @@ pub(crate) async fn backfill_remote_server(
                 .push(crate::model::signed_event::to_proto(event));
         }
 
-        http_client
-            .post(&address)
-            .body(batch_proto.write_to_bytes()?)
-            .send()
-            .await?;
+        let failed = failed.clone();
+        let address = address.clone();
+        let batch_bytes = batch_proto.write_to_bytes()?;
+        let http_client = http_client.clone();
+
+        let semaphore = ::std::sync::Arc::clone(&semaphore);
+        let permit = semaphore.acquire_owned().await?;
+
+        if *failed.lock().await {
+            break;
+        }
+
+        ::tokio::spawn(async move {
+            let _permit = permit;
+
+            let result = http_client
+                .post(address + "/events")
+                .body(batch_bytes)
+                .send()
+                .await;
+
+            match result {
+                Ok(response) => {
+                    if response.status() == ::reqwest::StatusCode::OK {
+                        return;
+                    } else {
+                        ::log::error!(
+                            "request failed with code {:?}",
+                            response.status()
+                        );
+                    }
+                }
+                Err(err) => {
+                    ::log::error!("request failed with error {:?}", err);
+                }
+            }
+
+            *failed.lock().await = true;
+        });
     }
 
     Ok(())
