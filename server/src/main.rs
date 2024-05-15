@@ -200,6 +200,9 @@ struct Config {
 
     #[envconfig(from = "BACKFILL_REMOTE_SERVER_ADDRESS")]
     pub backfill_remote_server_address: Option<String>,
+
+    #[envconfig(from = "BACKFILL_REMOTE_SERVER_POSITION")]
+    pub backfill_remote_server_position: Option<u64>,
 }
 
 async fn serve_api(
@@ -504,7 +507,12 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
                 .connect(&config.postgres_string)
                 .await?;
 
-            crate::migrate::backfill_remote_server(pool, address).await?;
+            crate::migrate::backfill_remote_server(
+                pool,
+                address,
+                config.backfill_remote_server_position,
+            )
+            .await?;
         }
     }
 
