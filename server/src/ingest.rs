@@ -174,6 +174,7 @@ pub(crate) async fn ingest_event_postgres(
             .await?;
     }
 
+    /*
     if let Some(lww_element) = event.lww_element() {
         crate::postgres::insert_lww_element(
             &mut *transaction,
@@ -182,6 +183,7 @@ pub(crate) async fn ingest_event_postgres(
         )
         .await?;
     }
+    */
 
     /*
     crate::queries::update_counts::update_lww_element_reference(

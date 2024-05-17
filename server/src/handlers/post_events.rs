@@ -63,6 +63,20 @@ async fn handle_batch(
             }
         }
 
+        let mut insert_lww_element_batch = crate::postgres::InsertLWWElementBatch::new();
+
+        for mutation in &mutations {
+            insert_lww_element_batch.append(
+                mutation.event_id,
+                &mutation.event,
+            )?;
+        }
+
+        crate::postgres::insert_lww_element_batch(
+            &mut transaction,
+            &insert_lww_element_batch,
+        ).await?;
+
         crate::queries::update_counts::update_lww_element_reference_bytes_batch(
             &mut transaction,
             &mutations,
