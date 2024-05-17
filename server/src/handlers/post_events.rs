@@ -20,6 +20,15 @@ async fn handle_batch(
     user_agent: &Option<String>,
     signed_events: &::std::vec::Vec<crate::model::signed_event::SignedEvent>,
 ) -> ::anyhow::Result<()> {
+    /*
+    let mut transaction = state.pool.begin().await?;
+
+    crate::ingest::ingest_events_postgres_batch(&mut transaction, signed_events)
+        .await?;
+
+    transaction.commit().await?;
+    */
+
     let mut signed_events_to_ingest_with_pointers = vec![];
 
     {
@@ -41,12 +50,23 @@ async fn handle_batch(
     if !signed_events_to_ingest_with_pointers.is_empty() {
         let mut transaction = state.pool.begin().await?;
 
-        for (signed_event, _) in &signed_events_to_ingest_with_pointers {
-            crate::ingest::trace_event(user_agent, signed_event)?;
+        let mut mutations = vec![];
 
-            crate::ingest::ingest_event(&mut transaction, signed_event, state)
+        for (signed_event, _) in &signed_events_to_ingest_with_pointers {
+            // crate::ingest::trace_event(user_agent, signed_event)?;
+
+            let mutated = crate::ingest::ingest_event_postgres(&mut transaction, signed_event)
                 .await?;
+
+            if let Some(subject) = mutated {
+                mutations.push(subject);
+            }
         }
+
+        crate::queries::update_counts::update_lww_element_reference_bytes_batch(
+            &mut transaction,
+            &mutations,
+        ).await?;
 
         transaction.commit().await?;
 

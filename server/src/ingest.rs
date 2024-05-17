@@ -59,18 +59,48 @@ pub(crate) fn trace_event(
     Ok(())
 }
 
+pub(crate) async fn ingest_events_postgres_batch(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    signed_events: &Vec::<crate::model::signed_event::SignedEvent>,
+) -> ::anyhow::Result<()> {
+    let server_time = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)?
+        .as_secs();
+
+    for signed_event in signed_events {
+        let event = crate::model::event::from_vec(signed_event.event())?;
+
+        if crate::postgres::does_event_exist(&mut *transaction, &event).await? {
+            continue;
+        }
+
+        if crate::postgres::is_event_deleted(&mut *transaction, &event).await? {
+            continue;
+        }
+
+        let event_id = crate::postgres::insert_event(
+            &mut *transaction,
+            signed_event,
+            server_time,
+        )
+        .await?;
+    }
+
+    Ok(())
+}
+
 pub(crate) async fn ingest_event_postgres(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     signed_event: &crate::model::signed_event::SignedEvent,
-) -> ::anyhow::Result<()> {
+) -> ::anyhow::Result<Option<crate::queries::update_counts::EventWithRowId>> {
     let event = crate::model::event::from_vec(signed_event.event())?;
 
     if crate::postgres::does_event_exist(&mut *transaction, &event).await? {
-        return Ok(());
+        return Ok(None);
     }
 
     if crate::postgres::is_event_deleted(&mut *transaction, &event).await? {
-        return Ok(());
+        return Ok(None);
     }
 
     let server_time = SystemTime::now()
@@ -82,13 +112,14 @@ pub(crate) async fn ingest_event_postgres(
         event.content(),
     )?;
 
-    // update_counts must run before delete_event or event inserted
+    /*
     crate::queries::update_counts::update_counts(
         &mut *transaction,
         &event,
         &content,
     )
     .await?;
+    */
 
     let event_id = crate::postgres::insert_event(
         &mut *transaction,
@@ -152,14 +183,19 @@ pub(crate) async fn ingest_event_postgres(
         .await?;
     }
 
+    /*
     crate::queries::update_counts::update_lww_element_reference(
         &mut *transaction,
         event_id,
         &event,
     )
     .await?;
+    */
 
-    Ok(())
+    Ok(Some(crate::queries::update_counts::EventWithRowId{
+        event_id: event_id,
+        event: event,
+    }))
 }
 
 pub(crate) async fn ingest_event_search(

@@ -395,6 +395,130 @@ async fn upsert_count_lww_element_references(
     Ok(())
 }
 
+pub(crate) struct EventWithRowId {
+    pub(crate) event_id: u64,
+    pub(crate) event: crate::model::event::Event,
+}
+
+pub(crate) async fn update_lww_element_reference_bytes_batch(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    mutations: &Vec<EventWithRowId>,
+) -> ::anyhow::Result<()> {
+    let query_bytes = "
+        INSERT INTO lww_element_latest_reference_bytes (
+            event_id,
+            system_key_type,
+            system_key,
+            process,
+            content_type,
+            lww_element_unix_milliseconds,
+            subject
+        )
+            SELECT DISTINCT ON (
+                system_key_type,
+                system_key,
+                content_type,
+                subject
+            ) * FROM UNNEST (
+                $1::bigint[],
+                $2::bigint[],
+                $3::bytea[],
+                $4::bytea[],
+                $5::bigint[],
+                $6::bigint[],
+                $7::bytea[]
+            ) as p (
+                event_id,
+                system_key_type,
+                system_key,
+                process,
+                content_type,
+                lww_element_unix_milliseconds,
+                subject
+            )
+            ORDER BY
+                system_key_type,
+                system_key,
+                content_type,
+                subject,
+                lww_element_unix_milliseconds DESC
+        ON CONFLICT (
+            system_key_type,
+            system_key,
+            content_type,
+            subject
+        )
+        DO UPDATE
+        SET
+            event_id = EXCLUDED.event_id,
+            process = EXCLUDED.process,
+            lww_element_unix_milliseconds = EXCLUDED.lww_element_unix_milliseconds
+        WHERE
+            (
+                EXCLUDED.lww_element_unix_milliseconds,
+                EXCLUDED.process
+            )
+            >
+            (
+                lww_element_latest_reference_bytes.lww_element_unix_milliseconds,
+                lww_element_latest_reference_bytes.process
+            );
+    ";
+
+    let mut event_id = vec![];
+    let mut system_key_type = vec![];
+    let mut system_key = vec![];
+    let mut process = vec![];
+    let mut content_type = vec![];
+    let mut unix_milliseconds = vec![];
+    let mut p_bytes = vec![];
+
+    for row in mutations {
+        if let Some(lww_element) = row.event.lww_element() {
+            if let Some(reference) = row.event.references().first() {
+                match reference {
+                    crate::model::reference::Reference::Bytes(bytes) => {
+                        event_id.push(i64::try_from(row.event_id)?);
+                        system_key_type.push(
+                            i64::try_from(
+                                crate::model::public_key::get_key_type(
+                                    row.event.system(),
+                                ),
+                            )? 
+                        );
+                        system_key.push(
+                            crate::model::public_key::get_key_bytes(
+                                row.event.system(),
+                            )
+                        );
+                        process.push(row.event.process().bytes());
+                        content_type.push(i64::try_from(*row.event.content_type())?);
+                        unix_milliseconds.push(i64::try_from(lww_element.unix_milliseconds)?);
+                        p_bytes.push(bytes.clone());
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    if event_id.len() > 0 {
+        ::sqlx::query(query_bytes)
+            .bind(event_id)
+            .bind(system_key_type)
+            .bind(system_key)
+            .bind(process)
+            .bind(content_type)
+            .bind(unix_milliseconds)
+            .bind(p_bytes)
+            .execute(&mut **transaction)
+            .await?;
+    }
+
+    Ok(())
+}
+
+
 pub(crate) async fn update_lww_element_reference(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event_id: u64,
