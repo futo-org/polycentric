@@ -188,117 +188,6 @@ pub(crate) async fn ingest_events_postgres_batch(
     Ok(())
 }
 
-pub(crate) async fn ingest_event_postgres(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    signed_event: &crate::model::signed_event::SignedEvent,
-) -> ::anyhow::Result<Option<crate::queries::update_counts::EventWithRowId>> {
-    let event = crate::model::event::from_vec(signed_event.event())?;
-
-    if crate::postgres::does_event_exist(&mut *transaction, &event).await? {
-        return Ok(None);
-    }
-
-    if crate::postgres::is_event_deleted(&mut *transaction, &event).await? {
-        return Ok(None);
-    }
-
-    let server_time = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)?
-        .as_secs();
-
-    let content = crate::model::content::decode_content(
-        *event.content_type(),
-        event.content(),
-    )?;
-
-    /*
-    crate::queries::update_counts::update_counts(
-        &mut *transaction,
-        &event,
-        &content,
-    )
-    .await?;
-    */
-
-    let event_id = crate::postgres::insert_event(
-        &mut *transaction,
-        signed_event,
-        server_time,
-    )
-    .await?;
-
-    for reference in event.references().iter() {
-        match reference {
-            crate::model::reference::Reference::Pointer(pointer) => {
-                crate::postgres::insert_event_link(
-                    &mut *transaction,
-                    event_id,
-                    *event.content_type(),
-                    pointer,
-                )
-                .await?;
-            }
-            crate::model::reference::Reference::Bytes(bytes) => {
-                crate::postgres::insert_event_reference_bytes(
-                    &mut *transaction,
-                    bytes,
-                    event_id,
-                )
-                .await?;
-            }
-            _ => {}
-        }
-    }
-
-    for index in event.indices().indices.iter() {
-        crate::postgres::insert_event_index(
-            &mut *transaction,
-            event_id,
-            index.index_type,
-            index.logical_clock,
-        )
-        .await?;
-    }
-
-    if let crate::model::content::Content::Delete(body) = &content {
-        crate::postgres::delete_event(
-            &mut *transaction,
-            event_id,
-            event.system(),
-            body,
-        )
-        .await?;
-    } else if let crate::model::content::Content::Claim(body) = &content {
-        crate::postgres::insert_claim(&mut *transaction, event_id, body)
-            .await?;
-    }
-
-    /*
-    if let Some(lww_element) = event.lww_element() {
-        crate::postgres::insert_lww_element(
-            &mut *transaction,
-            event_id,
-            lww_element,
-        )
-        .await?;
-    }
-    */
-
-    /*
-    crate::queries::update_counts::update_lww_element_reference(
-        &mut *transaction,
-        event_id,
-        &event,
-    )
-    .await?;
-    */
-
-    Ok(Some(crate::queries::update_counts::EventWithRowId {
-        event_id: event_id,
-        event: event,
-    }))
-}
-
 pub(crate) async fn ingest_event_search(
     search: &::opensearch::OpenSearch,
     signed_event: &crate::model::signed_event::SignedEvent,
@@ -391,17 +280,6 @@ pub(crate) async fn ingest_event_batch(
     for item in batch.values() {
         ingest_event_search(&state.search, item.signed_event()).await?;
     }
-
-    Ok(())
-}
-
-pub(crate) async fn ingest_event(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    signed_event: &crate::model::signed_event::SignedEvent,
-    state: &::std::sync::Arc<crate::State>,
-) -> ::anyhow::Result<()> {
-    ingest_event_postgres(transaction, signed_event).await?;
-    ingest_event_search(&state.search, signed_event).await?;
 
     Ok(())
 }
