@@ -114,6 +114,9 @@ pub(crate) async fn ingest_events_postgres_batch(
     let mut insert_delete_batch =
         crate::queries::insert_delete_batch::Batch::new();
 
+    let mut insert_claim_batch =
+        crate::queries::insert_claim_batch::Batch::new();
+
     for item in inserted_events.values() {
         for reference in item.layers().event().references().iter() {
             match reference {
@@ -139,6 +142,9 @@ pub(crate) async fn ingest_events_postgres_batch(
                         body,
                     )?;
                 }
+                crate::model::content::Content::Claim(body) => {
+                    insert_claim_batch.append(item.id(), body)?;
+                }
                 _ => {}
             }
         }
@@ -159,6 +165,12 @@ pub(crate) async fn ingest_events_postgres_batch(
     crate::queries::insert_delete_batch::insert(
         &mut *transaction,
         insert_delete_batch,
+    )
+    .await?;
+
+    crate::queries::insert_claim_batch::insert(
+        &mut *transaction,
+        insert_claim_batch,
     )
     .await?;
 
