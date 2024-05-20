@@ -58,6 +58,12 @@ pub(crate) async fn insert_event_batch(
             server_time,
             unix_milliseconds
         )
+        ORDER BY (
+            system_key_type,
+            system_key,
+            process,
+            logical_clock
+        )
         WHERE NOT EXISTS
         AND
             system_key_type,
