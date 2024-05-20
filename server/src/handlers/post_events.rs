@@ -21,15 +21,6 @@ async fn handle_batch(
     user_agent: &Option<String>,
     signed_events: &::std::vec::Vec<crate::model::signed_event::SignedEvent>,
 ) -> ::anyhow::Result<()> {
-    /*
-    let mut transaction = state.pool.begin().await?;
-
-    crate::ingest::ingest_events_postgres_batch(&mut transaction, signed_events)
-        .await?;
-
-    transaction.commit().await?;
-    */
-
     let mut signed_events_to_ingest_with_pointers = vec![];
 
     {

@@ -133,7 +133,7 @@ pub(crate) async fn insert_bytes(
         )
         SELECT * FROM UNNEST (
             $1,
-            $2,
+            $2
         ) as p (
             subject_bytes,
             event_id
