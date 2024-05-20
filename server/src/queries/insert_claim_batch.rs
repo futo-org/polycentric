@@ -40,7 +40,7 @@ pub(crate) async fn insert(
         (
             claim_type,
             event_id,
-            fields,
+            fields
         )
         SELECT * FROM UNNEST (
             $1,

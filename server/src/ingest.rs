@@ -153,10 +153,7 @@ pub(crate) async fn ingest_events_postgres_batch(
         }
 
         if let Some(lww_element) = item.layers().event().lww_element() {
-            insert_lww_element_batch.append(
-                item.id(),
-                lww_element,
-            )?;
+            insert_lww_element_batch.append(item.id(), lww_element)?;
         }
     }
 

@@ -55,5 +55,58 @@ pub(crate) async fn insert(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     batch: Batch,
 ) -> ::anyhow::Result<()> {
+    let query_insert_delete = "
+        INSERT INTO deletions
+        (
+            system_key_type,
+            system_key,
+            process,
+            logical_clock,
+            event_id,
+            unix_milliseconds,
+            content_type
+        )
+        SELECT * FROM UNNEST (
+            $1, $2, $3, $4, $5, $6, $7
+        );
+    ";
+
+    let query_delete_event = "
+        DELETE FROM events
+        WHERE system_key_type = system_key_type
+        AND system_key = system_key
+        AND process = process
+        AND logical_clock = logical_clock
+        SELECT * FROM UNNEST (
+            $1, $2, $3, $4
+        ) as p (
+            system_key_type,
+            system_key,
+            process,
+            logical_clock
+        )
+    ";
+
+    if batch.p_system_key_type.len() > 0 {
+        ::sqlx::query(query_insert_delete)
+            .bind(&batch.p_system_key_type)
+            .bind(&batch.p_system_key)
+            .bind(&batch.p_process)
+            .bind(&batch.p_logical_clock)
+            .bind(&batch.p_event_id)
+            .bind(&batch.p_unix_milliseconds)
+            .bind(&batch.p_content_type)
+            .execute(&mut **transaction)
+            .await?;
+
+        ::sqlx::query(query_delete_event)
+            .bind(batch.p_system_key_type)
+            .bind(batch.p_system_key)
+            .bind(batch.p_process)
+            .bind(batch.p_logical_clock)
+            .execute(&mut **transaction)
+            .await?;
+    }
+
     Ok(())
 }
