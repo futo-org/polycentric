@@ -1,6 +1,7 @@
 use ::protobuf::Message;
 use ::std::collections::HashMap;
 
+#[derive(PartialEq)]
 pub(crate) struct EventIdWithLayers {
     id: i64,
     layers: crate::model::EventLayers,
@@ -58,19 +59,12 @@ pub(crate) async fn insert_event_batch(
             server_time,
             unix_milliseconds
         )
-        ORDER BY (
+        WHERE (
             system_key_type,
             system_key,
             process,
             logical_clock
-        )
-        WHERE NOT EXISTS
-        AND
-            system_key_type,
-            system_key,
-            process,
-            logical_clock
-        NOT IN (
+        ) NOT IN (
             SELECT
                 system_key_type,
                 system_key,
@@ -87,6 +81,11 @@ pub(crate) async fn insert_event_batch(
             AND
                 deletions.logical_clock = logical_clock
         )
+        ORDER BY
+            system_key_type,
+            system_key,
+            process,
+            logical_clock
         ON CONFLICT DO NOTHING
         RETURNING
             id,
@@ -186,4 +185,51 @@ pub(crate) async fn insert_event_batch(
     }
 
     Ok(result)
+}
+
+#[cfg(test)]
+pub mod tests {
+    use ::std::collections::HashMap;
+
+    #[::sqlx::test]
+    async fn insert_event_batch(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
+        let keypair = crate::model::tests::make_test_keypair();
+        let process = crate::model::tests::make_test_process();
+
+        let signed_event =
+            crate::model::tests::make_test_event(&keypair, &process, 52);
+
+        let layers = crate::model::EventLayers::new(signed_event)?;
+
+        let server_time = ::std::time::SystemTime::now()
+            .duration_since(::std::time::SystemTime::UNIX_EPOCH)?
+            .as_secs();
+
+        let mut batch = HashMap::new();
+
+        batch.insert(
+            crate::model::InsecurePointer::new(
+                layers.event().system().clone(),
+                layers.event().process().clone(),
+                layers.event().logical_clock().clone(),
+            ),
+            layers,
+        );
+
+        let mut transaction = pool.begin().await?;
+
+        crate::postgres::prepare_database(&mut transaction).await?;
+
+        let result = crate::queries::insert_event_batch::insert_event_batch(
+            &mut transaction,
+            &mut batch,
+            server_time
+        ).await?;
+
+        transaction.commit().await?;
+
+        assert!(result.len() == 1);
+
+        Ok(())
+    }
 }

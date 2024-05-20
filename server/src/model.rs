@@ -395,7 +395,7 @@ where
     .map_err(::serde::de::Error::custom)
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub(crate) struct EventLayers {
     raw_event: ::std::vec::Vec<u8>,
     signed_event: crate::model::signed_event::SignedEvent,
