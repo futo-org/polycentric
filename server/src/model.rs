@@ -106,6 +106,14 @@ impl InsecurePointer {
         }
     }
 
+    pub fn from_event(event: &crate::model::event::Event) -> InsecurePointer {
+        InsecurePointer::new(
+            event.system().clone(),
+            event.process().clone(),
+            event.logical_clock().clone(),
+        )
+    }
+
     pub fn system(&self) -> &crate::model::public_key::PublicKey {
         &self.system
     }

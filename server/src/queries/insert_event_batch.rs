@@ -218,11 +218,7 @@ pub mod tests {
         let mut batch = HashMap::new();
 
         batch.insert(
-            crate::model::InsecurePointer::new(
-                layers.event().system().clone(),
-                layers.event().process().clone(),
-                layers.event().logical_clock().clone(),
-            ),
+            crate::model::InsecurePointer::from_event(layers.event()),
             layers,
         );
 

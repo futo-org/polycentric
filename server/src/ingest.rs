@@ -388,3 +388,48 @@ pub(crate) async fn ingest_event(
 
     Ok(())
 }
+
+#[cfg(test)]
+pub mod tests {
+    use ::std::collections::HashMap;
+
+    #[::sqlx::test]
+    async fn ingest_event_batch(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
+        let keypair = crate::model::tests::make_test_keypair();
+        let process = crate::model::tests::make_test_process();
+
+        let signed_event =
+            crate::model::tests::make_test_event(&keypair, &process, 52);
+
+        let layers = crate::model::EventLayers::new(signed_event)?;
+
+        let server_time = ::std::time::SystemTime::now()
+            .duration_since(::std::time::SystemTime::UNIX_EPOCH)?
+            .as_secs();
+
+        let mut batch = HashMap::new();
+
+        batch.insert(
+            crate::model::InsecurePointer::new(
+                layers.event().system().clone(),
+                layers.event().process().clone(),
+                layers.event().logical_clock().clone(),
+            ),
+            layers,
+        );
+
+        let mut transaction = pool.begin().await?;
+
+        crate::postgres::prepare_database(&mut transaction).await?;
+
+        crate::ingest::ingest_events_postgres_batch(
+            &mut transaction,
+            &mut batch,
+        )
+        .await?;
+
+        transaction.commit().await?;
+
+        Ok(())
+    }
+}
