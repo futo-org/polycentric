@@ -73,8 +73,8 @@ fn filter_subjects_of_deletes(
         {
             to_remove.push(crate::model::InsecurePointer::new(
                 layers.event().system().clone(),
-                layers.event().process().clone(),
-                *layers.event().logical_clock(),
+                body.process().clone(),
+                *body.logical_clock(),
             ));
         }
     }
