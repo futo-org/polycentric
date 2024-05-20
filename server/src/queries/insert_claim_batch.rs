@@ -35,5 +35,28 @@ pub(crate) async fn insert(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     batch: Batch,
 ) -> ::anyhow::Result<()> {
+    let query = "
+        INSERT INTO claims
+        (
+            claim_type,
+            event_id,
+            fields,
+        )
+        SELECT * FROM UNNEST (
+            $1,
+            $2,
+            $3
+        );
+    ";
+
+    if batch.p_claim_type.len() > 0 {
+        ::sqlx::query(query)
+            .bind(batch.p_claim_type)
+            .bind(batch.p_event_id)
+            .bind(batch.p_fields)
+            .execute(&mut **transaction)
+            .await?;
+    }
+
     Ok(())
 }
