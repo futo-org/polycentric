@@ -220,15 +220,24 @@ pub mod tests {
 
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let result = crate::queries::insert_event_batch::insert_event_batch(
+        let result1 = crate::queries::insert_event_batch::insert_event_batch(
             &mut transaction,
             &mut batch,
-            server_time
-        ).await?;
+            server_time,
+        )
+        .await?;
+
+        let result2 = crate::queries::insert_event_batch::insert_event_batch(
+            &mut transaction,
+            &mut batch,
+            server_time,
+        )
+        .await?;
 
         transaction.commit().await?;
 
-        assert!(result.len() == 1);
+        assert!(result1.len() == 1);
+        assert!(result2.len() == 0);
 
         Ok(())
     }
