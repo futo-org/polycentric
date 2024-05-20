@@ -209,6 +209,12 @@ pub(crate) async fn ingest_events_postgres_batch(
         }
     }
 
+    crate::queries::upsert_count_references::upsert_bytes(
+        &mut *transaction,
+        upsert_count_references_batch_bytes,
+    )
+    .await?;
+
     Ok(())
 }
 
