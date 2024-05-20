@@ -86,6 +86,39 @@ pub mod digest {
     }
 }
 
+#[derive(Hash, Eq, PartialEq, Clone, Debug)]
+pub(crate) struct InsecurePointer {
+    system: crate::model::public_key::PublicKey,
+    process: crate::model::process::Process,
+    logical_clock: u64,
+}
+
+impl InsecurePointer {
+    pub fn new(
+        system: crate::model::public_key::PublicKey,
+        process: crate::model::process::Process,
+        logical_clock: u64,
+    ) -> InsecurePointer {
+        InsecurePointer {
+            system,
+            process,
+            logical_clock,
+        }
+    }
+
+    pub fn system(&self) -> &crate::model::public_key::PublicKey {
+        &self.system
+    }
+
+    pub fn process(&self) -> &crate::model::process::Process {
+        &self.process
+    }
+
+    pub fn logical_clock(&self) -> &u64 {
+        &self.logical_clock
+    }
+}
+
 pub mod pointer {
     use protobuf::Message;
 
@@ -360,6 +393,54 @@ where
         &::bytes::Bytes::from(bytes),
     )
     .map_err(::serde::de::Error::custom)
+}
+
+pub(crate) struct EventLayers {
+    raw_event: ::std::vec::Vec<u8>,
+    signed_event: crate::model::signed_event::SignedEvent,
+    event: crate::model::event::Event,
+    content: crate::model::content::Content,
+}
+
+impl EventLayers {
+    pub(crate) fn new(
+        signed_event: crate::model::signed_event::SignedEvent,
+    ) -> ::anyhow::Result<EventLayers> {
+        let raw_event = crate::model::signed_event::to_proto(&signed_event)
+            .write_to_bytes()?;
+
+        let event = crate::model::event::from_proto(
+            &crate::protocol::Event::parse_from_bytes(signed_event.event())?,
+        )?;
+
+        let content = crate::model::content::decode_content(
+            *event.content_type(),
+            event.content(),
+        )?;
+
+        Ok(EventLayers {
+            raw_event,
+            signed_event,
+            event,
+            content,
+        })
+    }
+
+    pub fn raw_event(&self) -> &::std::vec::Vec<u8> {
+        &self.raw_event
+    }
+
+    pub fn signed_event(&self) -> &crate::model::signed_event::SignedEvent {
+        &self.signed_event
+    }
+
+    pub fn event(&self) -> &crate::model::event::Event {
+        &self.event
+    }
+
+    pub fn content(&self) -> &crate::model::content::Content {
+        &self.content
+    }
 }
 
 pub mod event {

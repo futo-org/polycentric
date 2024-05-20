@@ -55,27 +55,30 @@ async fn handle_batch(
         for (signed_event, _) in &signed_events_to_ingest_with_pointers {
             // crate::ingest::trace_event(user_agent, signed_event)?;
 
-            let mutated = crate::ingest::ingest_event_postgres(&mut transaction, signed_event)
-                .await?;
+            let mutated = crate::ingest::ingest_event_postgres(
+                &mut transaction,
+                signed_event,
+            )
+            .await?;
 
             if let Some(subject) = mutated {
                 mutations.push(subject);
             }
         }
 
-        let mut insert_lww_element_batch = crate::postgres::InsertLWWElementBatch::new();
+        let mut insert_lww_element_batch =
+            crate::postgres::InsertLWWElementBatch::new();
 
         for mutation in &mutations {
-            insert_lww_element_batch.append(
-                mutation.event_id,
-                &mutation.event,
-            )?;
+            insert_lww_element_batch
+                .append(mutation.event_id, &mutation.event)?;
         }
 
         crate::postgres::insert_lww_element_batch(
             &mut transaction,
             &insert_lww_element_batch,
-        ).await?;
+        )
+        .await?;
 
         crate::queries::update_counts::update_lww_element_reference_bytes_batch(
             &mut transaction,

@@ -1136,7 +1136,7 @@ pub(crate) struct InsertLWWElementBatch {
 }
 
 impl InsertLWWElementBatch {
-    pub (crate) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         InsertLWWElementBatch {
             p_value: vec![],
             p_unix_milliseconds: vec![],
@@ -1144,16 +1144,15 @@ impl InsertLWWElementBatch {
         }
     }
 
-    pub (crate) fn append(
+    pub(crate) fn append(
         &mut self,
         event_id: u64,
         event: &crate::model::event::Event,
     ) -> ::anyhow::Result<()> {
         if let Some(lww_element) = event.lww_element() {
             self.p_value.push(lww_element.value.clone());
-            self.p_unix_milliseconds.push(
-                i64::try_from(lww_element.unix_milliseconds)?
-            );
+            self.p_unix_milliseconds
+                .push(i64::try_from(lww_element.unix_milliseconds)?);
             self.p_event_id.push(i64::try_from(event_id)?);
         }
         Ok(())

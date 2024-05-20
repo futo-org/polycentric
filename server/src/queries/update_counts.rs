@@ -479,21 +479,22 @@ pub(crate) async fn update_lww_element_reference_bytes_batch(
                 match reference {
                     crate::model::reference::Reference::Bytes(bytes) => {
                         event_id.push(i64::try_from(row.event_id)?);
-                        system_key_type.push(
-                            i64::try_from(
-                                crate::model::public_key::get_key_type(
-                                    row.event.system(),
-                                ),
-                            )? 
-                        );
+                        system_key_type.push(i64::try_from(
+                            crate::model::public_key::get_key_type(
+                                row.event.system(),
+                            ),
+                        )?);
                         system_key.push(
                             crate::model::public_key::get_key_bytes(
                                 row.event.system(),
-                            )
+                            ),
                         );
                         process.push(row.event.process().bytes());
-                        content_type.push(i64::try_from(*row.event.content_type())?);
-                        unix_milliseconds.push(i64::try_from(lww_element.unix_milliseconds)?);
+                        content_type
+                            .push(i64::try_from(*row.event.content_type())?);
+                        unix_milliseconds.push(i64::try_from(
+                            lww_element.unix_milliseconds,
+                        )?);
                         p_bytes.push(bytes.clone());
                     }
                     _ => {}
@@ -517,7 +518,6 @@ pub(crate) async fn update_lww_element_reference_bytes_batch(
 
     Ok(())
 }
-
 
 pub(crate) async fn update_lww_element_reference(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,

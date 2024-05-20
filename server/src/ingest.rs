@@ -3,10 +3,11 @@ use crate::{
     protocol::Post,
 };
 use ::log::*;
+use ::opensearch::IndexParts;
 use ::protobuf::Message;
-use opensearch::IndexParts;
-use std::fmt::Error;
-use std::time::SystemTime;
+use ::std::collections::HashMap;
+use ::std::fmt::Error;
+use ::std::time::SystemTime;
 
 pub(crate) fn trace_event(
     user_agent: &Option<String>,
@@ -59,32 +60,42 @@ pub(crate) fn trace_event(
     Ok(())
 }
 
+fn filter_subjects_of_deletes(
+    batch: &mut HashMap<
+        crate::model::InsecurePointer,
+        crate::model::EventLayers,
+    >,
+) {
+    let mut to_remove = vec![];
+
+    for (insecure_pointer, layers) in batch.into_iter() {
+        if let crate::model::content::Content::Delete(body) = &layers.content()
+        {
+            to_remove.push(crate::model::InsecurePointer::new(
+                layers.event().system().clone(),
+                layers.event().process().clone(),
+                *layers.event().logical_clock(),
+            ));
+        }
+    }
+
+    for insecure_pointer in to_remove.into_iter() {
+        batch.remove(&insecure_pointer);
+    }
+}
+
 pub(crate) async fn ingest_events_postgres_batch(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    signed_events: &Vec::<crate::model::signed_event::SignedEvent>,
+    batch: &mut HashMap<
+        crate::model::InsecurePointer,
+        crate::model::EventLayers,
+    >,
 ) -> ::anyhow::Result<()> {
+    filter_subjects_of_deletes(batch);
+
     let server_time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
-
-    for signed_event in signed_events {
-        let event = crate::model::event::from_vec(signed_event.event())?;
-
-        if crate::postgres::does_event_exist(&mut *transaction, &event).await? {
-            continue;
-        }
-
-        if crate::postgres::is_event_deleted(&mut *transaction, &event).await? {
-            continue;
-        }
-
-        let event_id = crate::postgres::insert_event(
-            &mut *transaction,
-            signed_event,
-            server_time,
-        )
-        .await?;
-    }
 
     Ok(())
 }
@@ -194,7 +205,7 @@ pub(crate) async fn ingest_event_postgres(
     .await?;
     */
 
-    Ok(Some(crate::queries::update_counts::EventWithRowId{
+    Ok(Some(crate::queries::update_counts::EventWithRowId {
         event_id: event_id,
         event: event,
     }))
