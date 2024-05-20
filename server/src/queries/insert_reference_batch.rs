@@ -67,14 +67,21 @@ pub(crate) async fn insert_pointer(
             link_content_type,
             event_id
         )
-        VALUES (
+        SELECT * FROM UNNEST (
             $1,
             $2,
             $3,
             $4,
             $5,
             $6
-        );
+        ) as p (
+            subject_system_key_type,
+            subject_system_key,
+            subject_process,
+            subject_logical_clock,
+            link_content_type,
+            event_id
+        )
     ";
 
     if batch.p_subject_system_key_type.len() == 0 {
