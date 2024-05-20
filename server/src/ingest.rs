@@ -118,6 +118,9 @@ pub(crate) async fn ingest_events_postgres_batch(
     let mut insert_lww_element_batch =
         crate::queries::insert_lww_element_batch::Batch::new();
 
+    let mut upsert_count_references_batch_bytes =
+        crate::queries::upsert_count_references::BytesBatch::new();
+
     for item in inserted_events.values() {
         for reference in item.layers().event().references().iter() {
             match reference {
@@ -131,6 +134,12 @@ pub(crate) async fn ingest_events_postgres_batch(
                 crate::model::reference::Reference::Bytes(bytes) => {
                     insert_reference_batch_bytes
                         .append(item.id(), bytes.clone())?;
+
+                    upsert_count_references_batch_bytes.append(
+                        *item.layers().event().content_type(),
+                        bytes.clone(),
+                        crate::queries::upsert_count_references::Operation::Increment,
+                    );
                 }
                 _ => {}
             }
@@ -155,6 +164,12 @@ pub(crate) async fn ingest_events_postgres_batch(
         }
     }
 
+    let deleted_events = crate::queries::insert_delete_batch::insert(
+        &mut *transaction,
+        insert_delete_batch,
+    )
+    .await?;
+
     crate::queries::insert_reference_batch::insert_pointer(
         &mut *transaction,
         insert_reference_batch_pointer,
@@ -164,12 +179,6 @@ pub(crate) async fn ingest_events_postgres_batch(
     crate::queries::insert_reference_batch::insert_bytes(
         &mut *transaction,
         insert_reference_batch_bytes,
-    )
-    .await?;
-
-    crate::queries::insert_delete_batch::insert(
-        &mut *transaction,
-        insert_delete_batch,
     )
     .await?;
 
@@ -184,6 +193,21 @@ pub(crate) async fn ingest_events_postgres_batch(
         insert_lww_element_batch,
     )
     .await?;
+
+    for item in deleted_events.values() {
+        for reference in item.event().references().iter() {
+            match reference {
+                crate::model::reference::Reference::Bytes(bytes) => {
+                    upsert_count_references_batch_bytes.append(
+                        *item.event().content_type(),
+                        bytes.clone(),
+                        crate::queries::upsert_count_references::Operation::Decrement,
+                    );
+                }
+                _ => {}
+            }
+        }
+    }
 
     Ok(())
 }
