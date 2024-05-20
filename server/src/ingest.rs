@@ -117,6 +117,9 @@ pub(crate) async fn ingest_events_postgres_batch(
     let mut insert_claim_batch =
         crate::queries::insert_claim_batch::Batch::new();
 
+    let mut insert_lww_element_batch =
+        crate::queries::insert_lww_element_batch::Batch::new();
+
     for item in inserted_events.values() {
         for reference in item.layers().event().references().iter() {
             match reference {
@@ -133,20 +136,27 @@ pub(crate) async fn ingest_events_postgres_batch(
                 }
                 _ => {}
             }
+        }
 
-            match item.layers().content() {
-                crate::model::content::Content::Delete(body) => {
-                    insert_delete_batch.append(
-                        item.id(),
-                        item.layers().event().system(),
-                        body,
-                    )?;
-                }
-                crate::model::content::Content::Claim(body) => {
-                    insert_claim_batch.append(item.id(), body)?;
-                }
-                _ => {}
+        match item.layers().content() {
+            crate::model::content::Content::Delete(body) => {
+                insert_delete_batch.append(
+                    item.id(),
+                    item.layers().event().system(),
+                    body,
+                )?;
             }
+            crate::model::content::Content::Claim(body) => {
+                insert_claim_batch.append(item.id(), body)?;
+            }
+            _ => {}
+        }
+
+        if let Some(lww_element) = item.layers().event().lww_element() {
+            insert_lww_element_batch.append(
+                item.id(),
+                lww_element,
+            )?;
         }
     }
 
@@ -171,6 +181,12 @@ pub(crate) async fn ingest_events_postgres_batch(
     crate::queries::insert_claim_batch::insert(
         &mut *transaction,
         insert_claim_batch,
+    )
+    .await?;
+
+    crate::queries::insert_lww_element_batch::insert(
+        &mut *transaction,
+        insert_lww_element_batch,
     )
     .await?;
 
