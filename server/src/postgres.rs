@@ -1129,67 +1129,6 @@ pub(crate) async fn insert_claim(
     Ok(())
 }
 
-pub(crate) struct InsertLWWElementBatch {
-    p_value: Vec<Vec<u8>>,
-    p_unix_milliseconds: Vec<i64>,
-    p_event_id: Vec<i64>,
-}
-
-impl InsertLWWElementBatch {
-    pub(crate) fn new() -> Self {
-        InsertLWWElementBatch {
-            p_value: vec![],
-            p_unix_milliseconds: vec![],
-            p_event_id: vec![],
-        }
-    }
-
-    pub(crate) fn append(
-        &mut self,
-        event_id: u64,
-        event: &crate::model::event::Event,
-    ) -> ::anyhow::Result<()> {
-        if let Some(lww_element) = event.lww_element() {
-            self.p_value.push(lww_element.value.clone());
-            self.p_unix_milliseconds
-                .push(i64::try_from(lww_element.unix_milliseconds)?);
-            self.p_event_id.push(i64::try_from(event_id)?);
-        }
-        Ok(())
-    }
-}
-
-pub(crate) async fn insert_lww_element_batch(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    batch: &InsertLWWElementBatch,
-) -> ::anyhow::Result<()> {
-    let query = "
-        INSERT INTO lww_elements 
-        (
-            value,
-            unix_milliseconds,
-            event_id
-        )
-            SELECT * FROM UNNEST (
-                $1,
-                $2,
-                $3
-            )
-        ON CONFLICT DO NOTHING;
-    ";
-
-    if batch.p_value.len() > 0 {
-        ::sqlx::query(query)
-            .bind(&batch.p_value)
-            .bind(&batch.p_unix_milliseconds)
-            .bind(&batch.p_event_id)
-            .execute(&mut **transaction)
-            .await?;
-    }
-
-    Ok(())
-}
-
 pub(crate) async fn insert_lww_element(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event_id: u64,

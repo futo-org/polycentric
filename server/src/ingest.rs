@@ -68,7 +68,7 @@ fn filter_subjects_of_deletes(
 ) {
     let mut to_remove = vec![];
 
-    for (insecure_pointer, layers) in batch.into_iter() {
+    for layers in batch.values() {
         if let crate::model::content::Content::Delete(body) = &layers.content()
         {
             to_remove.push(crate::model::InsecurePointer::new(
