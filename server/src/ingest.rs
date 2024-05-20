@@ -97,6 +97,14 @@ pub(crate) async fn ingest_events_postgres_batch(
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
 
+    let inserted_events =
+        crate::queries::insert_event_batch::insert_event_batch(
+            &mut *transaction,
+            batch,
+            server_time,
+        )
+        .await?;
+
     Ok(())
 }
 

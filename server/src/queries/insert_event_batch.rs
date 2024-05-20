@@ -1,9 +1,20 @@
-use ::std::collections::HashMap;
 use ::protobuf::Message;
+use ::std::collections::HashMap;
 
-pub(crate) struct EventLayersWithId {
+pub(crate) struct EventIdWithLayers {
     id: i64,
     layers: crate::model::EventLayers,
+}
+
+#[derive(::sqlx::FromRow)]
+struct ResultRow {
+    id: i64,
+    #[sqlx(try_from = "i64")]
+    system_key_type: u64,
+    system_key: ::std::vec::Vec<u8>,
+    process: ::std::vec::Vec<u8>,
+    #[sqlx(try_from = "i64")]
+    logical_clock: u64,
 }
 
 pub(crate) async fn insert_event_batch(
@@ -13,8 +24,9 @@ pub(crate) async fn insert_event_batch(
         crate::model::EventLayers,
     >,
     server_time: u64,
-) -> ::anyhow::Result<()> {
-    let query_insert_event = "
+) -> ::anyhow::Result<HashMap<crate::model::InsecurePointer, EventIdWithLayers>>
+{
+    let query = "
         INSERT INTO events
         (
             system_key_type,
@@ -106,17 +118,17 @@ pub(crate) async fn insert_event_batch(
 
         p_content_type.push(i64::try_from(*layers.event().content_type())?);
 
-        p_content.push(layers.event().content());
+        p_content.push(layers.event().content().clone());
 
         p_vector_clock.push(layers.event().vector_clock().write_to_bytes()?);
 
         p_indices.push(layers.event().indices().write_to_bytes()?);
 
-        p_signature.push(layers.signed_event().signature());
+        p_signature.push(layers.signed_event().signature().clone());
 
-        p_raw_event.push(layers.raw_event());
+        p_raw_event.push(layers.raw_event().clone());
 
-        p_server_time.push(server_time);
+        p_server_time.push(i64::try_from(server_time)?);
 
         p_unix_milliseconds.push(
             layers
@@ -127,5 +139,45 @@ pub(crate) async fn insert_event_batch(
         );
     }
 
-    Ok(())
+    let rows = ::sqlx::query_as::<_, ResultRow>(query)
+        .bind(p_system_key_type)
+        .bind(p_system_key)
+        .bind(p_process)
+        .bind(p_logical_clock)
+        .bind(p_content_type)
+        .bind(p_content)
+        .bind(p_vector_clock)
+        .bind(p_indices)
+        .bind(p_signature)
+        .bind(p_raw_event)
+        .bind(p_server_time)
+        .bind(p_unix_milliseconds)
+        .fetch_all(&mut **transaction)
+        .await
+        .map_err(::anyhow::Error::new)?;
+
+    let mut result = HashMap::new();
+
+    for row in rows {
+        let pointer = crate::model::InsecurePointer::new(
+            crate::model::public_key::from_type_and_bytes(
+                row.system_key_type,
+                &row.system_key,
+            )?,
+            crate::model::process::from_vec(&row.process)?,
+            u64::try_from(row.logical_clock)?,
+        );
+
+        if let Some(layers) = batch.get(&pointer) {
+            result.insert(
+                pointer,
+                EventIdWithLayers {
+                    id: row.id,
+                    layers: layers.clone(),
+                },
+            );
+        }
+    }
+
+    Ok(result)
 }
