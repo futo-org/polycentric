@@ -105,6 +105,29 @@ pub(crate) async fn ingest_events_postgres_batch(
         )
         .await?;
 
+    let mut insert_reference_batch_pointer =
+        crate::queries::insert_reference_batch::PointerBatch::new();
+
+    for item in inserted_events.values() {
+        for reference in item.layers().event().references().iter() {
+            match reference {
+                crate::model::reference::Reference::Pointer(pointer) => {
+                    insert_reference_batch_pointer.append(
+                        item.id(),
+                        *item.layers().event().content_type(),
+                        &pointer,
+                    )?
+                }
+                _ => {},
+            }
+        }
+    }
+
+    crate::queries::insert_reference_batch::insert_pointer(
+        &mut *transaction,
+        insert_reference_batch_pointer,
+    ).await?;
+
     Ok(())
 }
 

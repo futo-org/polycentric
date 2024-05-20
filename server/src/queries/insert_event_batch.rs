@@ -7,6 +7,16 @@ pub(crate) struct EventIdWithLayers {
     layers: crate::model::EventLayers,
 }
 
+impl EventIdWithLayers {
+    pub fn id(&self) -> i64 {
+        self.id
+    }
+
+    pub fn layers(&self) -> &crate::model::EventLayers {
+        &self.layers
+    }
+}
+
 #[derive(::sqlx::FromRow)]
 struct ResultRow {
     id: i64,
