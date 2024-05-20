@@ -1,3 +1,5 @@
+use ::std::collections::HashMap;
+
 pub(crate) struct Batch {
     p_system_key_type: Vec<i64>,
     p_system_key: Vec<Vec<u8>>,
@@ -54,7 +56,9 @@ impl Batch {
 pub(crate) async fn insert(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     batch: Batch,
-) -> ::anyhow::Result<()> {
+) -> ::anyhow::Result<
+    HashMap<crate::model::InsecurePointer, crate::model::EventLayers>,
+> {
     let query_insert_delete = "
         INSERT INTO deletions
         (
@@ -85,7 +89,10 @@ pub(crate) async fn insert(
             process,
             logical_clock
         )
+        RETURNING raw_event;
     ";
+
+    let mut result = HashMap::new();
 
     if batch.p_system_key_type.len() > 0 {
         ::sqlx::query(query_insert_delete)
@@ -99,14 +106,26 @@ pub(crate) async fn insert(
             .execute(&mut **transaction)
             .await?;
 
-        ::sqlx::query(query_delete_event)
-            .bind(batch.p_system_key_type)
-            .bind(batch.p_system_key)
-            .bind(batch.p_process)
-            .bind(batch.p_logical_clock)
-            .execute(&mut **transaction)
-            .await?;
+        let deleted_rows =
+            ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query_delete_event)
+                .bind(batch.p_system_key_type)
+                .bind(batch.p_system_key)
+                .bind(batch.p_process)
+                .bind(batch.p_logical_clock)
+                .fetch_all(&mut **transaction)
+                .await?;
+
+        for raw_event in deleted_rows {
+            let layers = crate::model::EventLayers::new(
+                crate::model::signed_event::from_vec(&raw_event)?,
+            )?;
+
+            result.insert(
+                crate::model::InsecurePointer::from_event(layers.event()),
+                layers,
+            );
+        }
     }
 
-    Ok(())
+    Ok(result)
 }
