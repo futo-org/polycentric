@@ -91,8 +91,6 @@ pub(crate) async fn ingest_events_postgres_batch(
         crate::model::EventLayers,
     >,
 ) -> ::anyhow::Result<()> {
-    filter_subjects_of_deletes(batch);
-
     let server_time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
@@ -373,6 +371,25 @@ pub(crate) async fn ingest_event_search(
             .body(body)
             .send()
             .await?;
+    }
+
+    Ok(())
+}
+
+pub(crate) async fn ingest_event_batch(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    state: &::std::sync::Arc<crate::State>,
+    batch: &mut HashMap<
+        crate::model::InsecurePointer,
+        crate::model::EventLayers,
+    >,
+) -> ::anyhow::Result<()> {
+    filter_subjects_of_deletes(batch);
+
+    ingest_events_postgres_batch(transaction, batch).await?;
+
+    for item in batch.values() {
+        ingest_event_search(&state.search, item.signed_event()).await?;
     }
 
     Ok(())
