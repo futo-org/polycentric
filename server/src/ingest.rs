@@ -121,6 +121,9 @@ pub(crate) async fn ingest_events_postgres_batch(
     let mut upsert_count_references_batch_bytes =
         crate::queries::upsert_count_references::BytesBatch::new();
 
+    let mut upsert_count_references_batch_pointer =
+        crate::queries::upsert_count_references::PointerBatch::new();
+
     for item in inserted_events.values() {
         for reference in item.layers().event().references().iter() {
             match reference {
@@ -130,6 +133,12 @@ pub(crate) async fn ingest_events_postgres_batch(
                         *item.layers().event().content_type(),
                         &pointer,
                     )?;
+
+                    upsert_count_references_batch_pointer.append(
+                        *item.layers().event().content_type(),
+                        pointer,
+                        crate::queries::upsert_count_references::Operation::Increment,
+                    );
                 }
                 crate::model::reference::Reference::Bytes(bytes) => {
                     insert_reference_batch_bytes
@@ -197,6 +206,13 @@ pub(crate) async fn ingest_events_postgres_batch(
     for item in deleted_events.values() {
         for reference in item.event().references().iter() {
             match reference {
+                crate::model::reference::Reference::Pointer(pointer) => {
+                    upsert_count_references_batch_pointer.append(
+                        *item.event().content_type(),
+                        pointer,
+                        crate::queries::upsert_count_references::Operation::Decrement,
+                    );
+                }
                 crate::model::reference::Reference::Bytes(bytes) => {
                     upsert_count_references_batch_bytes.append(
                         *item.event().content_type(),
@@ -212,6 +228,12 @@ pub(crate) async fn ingest_events_postgres_batch(
     crate::queries::upsert_count_references::upsert_bytes(
         &mut *transaction,
         upsert_count_references_batch_bytes,
+    )
+    .await?;
+
+    crate::queries::upsert_count_references::upsert_pointer(
+        &mut *transaction,
+        upsert_count_references_batch_pointer,
     )
     .await?;
 
