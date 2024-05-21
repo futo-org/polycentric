@@ -77,17 +77,20 @@ pub(crate) async fn insert(
 
     let query_delete_event = "
         DELETE FROM events
-        WHERE system_key_type = system_key_type
-        AND system_key = system_key
-        AND process = process
-        AND logical_clock = logical_clock
-        SELECT * FROM UNNEST (
-            $1, $2, $3, $4
-        ) as p (
+        WHERE (
             system_key_type,
             system_key,
             process,
             logical_clock
+        ) IN (
+            SELECT * FROM UNNEST (
+                $1, $2, $3, $4
+            ) as p (
+                system_key_type,
+                system_key,
+                process,
+                logical_clock
+            )
         )
         RETURNING raw_event;
     ";
