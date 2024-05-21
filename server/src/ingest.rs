@@ -146,14 +146,17 @@ pub(crate) async fn ingest_events_postgres_batch(
                         crate::queries::upsert_count_references::Operation::Increment,
                     );
 
-                    if let Some(lww_element) = item.layers().event().lww_element() {
-                        upsert_lww_element_latest_reference_batch_pointer.append(
-                            item.id(),
-                            &key,
-                            *item.layers().event().content_type(),
-                            lww_element,
-                            &pointer,
-                        )?;
+                    if let Some(lww_element) =
+                        item.layers().event().lww_element()
+                    {
+                        upsert_lww_element_latest_reference_batch_pointer
+                            .append(
+                                item.id(),
+                                &key,
+                                *item.layers().event().content_type(),
+                                lww_element,
+                                &pointer,
+                            )?;
                     }
                 }
                 crate::model::reference::Reference::Bytes(bytes) => {
@@ -166,14 +169,17 @@ pub(crate) async fn ingest_events_postgres_batch(
                         crate::queries::upsert_count_references::Operation::Increment,
                     );
 
-                    if let Some(lww_element) = item.layers().event().lww_element() {
-                        upsert_lww_element_latest_reference_batch_bytes.append(
-                            item.id(),
-                            &key,
-                            *item.layers().event().content_type(),
-                            lww_element,
-                            &bytes,
-                        )?;
+                    if let Some(lww_element) =
+                        item.layers().event().lww_element()
+                    {
+                        upsert_lww_element_latest_reference_batch_bytes
+                            .append(
+                                item.id(),
+                                &key,
+                                *item.layers().event().content_type(),
+                                lww_element,
+                                &bytes,
+                            )?;
                     }
                 }
                 _ => {}

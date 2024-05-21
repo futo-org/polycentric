@@ -8,7 +8,6 @@ pub(crate) struct BytesBatch {
     p_subject: Vec<Vec<u8>>,
 }
 
-
 impl BytesBatch {
     pub(crate) fn new() -> BytesBatch {
         BytesBatch {
@@ -31,6 +30,25 @@ impl BytesBatch {
         subject: &Vec<u8>,
     ) -> ::anyhow::Result<()> {
         self.p_event_id.push(event_id);
+
+        self.p_system_key_type.push(i64::try_from(
+            crate::model::public_key::get_key_type(event_pointer.system()),
+        )?);
+
+        self.p_system_key
+            .push(crate::model::public_key::get_key_bytes(
+                event_pointer.system(),
+            ));
+
+        self.p_process
+            .push(event_pointer.process().bytes().to_vec());
+
+        self.p_content_type.push(i64::try_from(content_type)?);
+
+        self.p_lww_element_unix_milliseconds
+            .push(i64::try_from(lww_element.unix_milliseconds)?);
+
+        self.p_subject.push(subject.clone());
 
         Ok(())
     }
@@ -75,7 +93,36 @@ impl PointerBatch {
     ) -> ::anyhow::Result<()> {
         self.p_event_id.push(event_id);
 
+        self.p_system_key_type.push(i64::try_from(
+            crate::model::public_key::get_key_type(event_pointer.system()),
+        )?);
+
+        self.p_system_key
+            .push(crate::model::public_key::get_key_bytes(
+                event_pointer.system(),
+            ));
+
+        self.p_process
+            .push(event_pointer.process().bytes().to_vec());
+
+        self.p_content_type.push(i64::try_from(content_type)?);
+
+        self.p_lww_element_unix_milliseconds
+            .push(i64::try_from(lww_element.unix_milliseconds)?);
+
+        self.p_subject_system_key_type.push(i64::try_from(
+            crate::model::public_key::get_key_type(subject.system()),
+        )?);
+
+        self.p_subject_system_key
+            .push(crate::model::public_key::get_key_bytes(subject.system()));
+
+        self.p_subject_process
+            .push(subject.process().bytes().to_vec());
+
+        self.p_subject_logical_clock
+            .push(i64::try_from(*subject.logical_clock())?);
+
         Ok(())
     }
 }
-
