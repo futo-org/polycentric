@@ -126,3 +126,186 @@ impl PointerBatch {
         Ok(())
     }
 }
+
+pub(crate) async fn upsert_bytes(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    batch: BytesBatch,
+) -> ::anyhow::Result<()> {
+    let query = "
+        INSERT INTO lww_element_latest_reference_bytes (
+            event_id,
+            system_key_type,
+            system_key,
+            process,
+            content_type,
+            lww_element_unix_milliseconds,
+            subject
+        )
+            SELECT DISTINCT ON (
+                system_key_type,
+                system_key,
+                content_type,
+                subject
+            ) * FROM UNNEST (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7
+            ) as p (
+                event_id,
+                system_key_type,
+                system_key,
+                process,
+                content_type,
+                lww_element_unix_milliseconds,
+                subject
+            )
+            ORDER BY
+                system_key_type,
+                system_key,
+                content_type,
+                subject,
+                lww_element_unix_milliseconds DESC
+        ON CONFLICT (
+            system_key_type,
+            system_key,
+            content_type,
+            subject
+        )
+        DO UPDATE
+        SET
+            event_id = EXCLUDED.event_id,
+            process = EXCLUDED.process,
+            lww_element_unix_milliseconds = EXCLUDED.lww_element_unix_milliseconds
+        WHERE
+            (
+                EXCLUDED.lww_element_unix_milliseconds,
+                EXCLUDED.process
+            )
+            >
+            (
+                lww_element_latest_reference_bytes.lww_element_unix_milliseconds,
+                lww_element_latest_reference_bytes.process
+            );
+    ";
+
+    if batch.p_event_id.len() > 0 {
+        ::sqlx::query(query)
+            .bind(batch.p_event_id)
+            .bind(batch.p_system_key_type)
+            .bind(batch.p_system_key)
+            .bind(batch.p_process)
+            .bind(batch.p_content_type)
+            .bind(batch.p_lww_element_unix_milliseconds)
+            .bind(batch.p_subject)
+            .execute(&mut **transaction)
+            .await?;
+    }
+
+    Ok(())
+}
+
+pub(crate) async fn upsert_pointer(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    batch: PointerBatch,
+) -> ::anyhow::Result<()> {
+    let query = "
+        INSERT INTO lww_element_latest_reference_bytes (
+            event_id,
+            system_key_type,
+            system_key,
+            process,
+            content_type,
+            lww_element_unix_milliseconds,
+            subject_system_key_type,
+            subject_system_key,
+            subject_process,
+            subject_logical_clock
+        )
+            SELECT DISTINCT ON (
+                system_key_type,
+                system_key,
+                content_type,
+                subject_system_key_type,
+                subject_system_key,
+                subject_process,
+                subject_logical_clock
+            ) * FROM UNNEST (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7,
+                $8,
+                $9,
+                $10
+            ) as p (
+                event_id,
+                system_key_type,
+                system_key,
+                process,
+                content_type,
+                lww_element_unix_milliseconds,
+                subject_system_key_type,
+                subject_system_key,
+                subject_process,
+                subject_logical_clock
+            )
+            ORDER BY
+                system_key_type,
+                system_key,
+                content_type,
+                subject_system_key_type,
+                subject_system_key,
+                subject_process,
+                subject_logical_clock,
+                lww_element_unix_milliseconds DESC
+        ON CONFLICT (
+            system_key_type,
+            system_key,
+            content_type,
+            subject_system_key_type,
+            subject_system_key,
+            subject_process,
+            subject_logical_clock
+        )
+        DO UPDATE
+        SET
+            event_id = EXCLUDED.event_id,
+            process = EXCLUDED.process,
+            lww_element_unix_milliseconds = EXCLUDED.lww_element_unix_milliseconds
+        WHERE
+            (
+                EXCLUDED.lww_element_unix_milliseconds,
+                EXCLUDED.process
+            )
+            >
+            (
+                lww_element_latest_reference_bytes.lww_element_unix_milliseconds,
+                lww_element_latest_reference_bytes.process
+            );
+    ";
+
+    if batch.p_event_id.len() > 0 {
+        ::sqlx::query(query)
+            .bind(batch.p_event_id)
+            .bind(batch.p_system_key_type)
+            .bind(batch.p_system_key)
+            .bind(batch.p_process)
+            .bind(batch.p_content_type)
+            .bind(batch.p_lww_element_unix_milliseconds)
+            .bind(batch.p_subject_system_key_type)
+            .bind(batch.p_subject_system_key)
+            .bind(batch.p_subject_process)
+            .bind(batch.p_subject_logical_clock)
+            .execute(&mut **transaction)
+            .await?;
+    }
+
+    Ok(())
+}

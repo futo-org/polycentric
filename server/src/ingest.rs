@@ -211,6 +211,18 @@ pub(crate) async fn ingest_events_postgres_batch(
     )
     .await?;
 
+    crate::queries::upsert_lww_element_latest_reference_batch::upsert_bytes(
+        &mut *transaction,
+        upsert_lww_element_latest_reference_batch_bytes,
+    )
+    .await?;
+
+    crate::queries::upsert_lww_element_latest_reference_batch::upsert_pointer(
+        &mut *transaction,
+        upsert_lww_element_latest_reference_batch_pointer,
+    )
+    .await?;
+
     crate::queries::insert_reference_batch::insert_pointer(
         &mut *transaction,
         insert_reference_batch_pointer,
