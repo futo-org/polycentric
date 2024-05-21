@@ -124,7 +124,13 @@ pub(crate) async fn ingest_events_postgres_batch(
     let mut upsert_count_references_batch_pointer =
         crate::queries::upsert_count_references::PointerBatch::new();
 
-    for item in inserted_events.values() {
+    let mut upsert_lww_element_latest_reference_batch_bytes =
+        crate::queries::upsert_lww_element_latest_reference_batch::BytesBatch::new();
+
+    let mut upsert_lww_element_latest_reference_batch_pointer =
+        crate::queries::upsert_lww_element_latest_reference_batch::PointerBatch::new();
+
+    for (key, item) in inserted_events {
         for reference in item.layers().event().references().iter() {
             match reference {
                 crate::model::reference::Reference::Pointer(pointer) => {
@@ -139,6 +145,16 @@ pub(crate) async fn ingest_events_postgres_batch(
                         pointer,
                         crate::queries::upsert_count_references::Operation::Increment,
                     );
+
+                    if let Some(lww_element) = item.layers().event().lww_element() {
+                        upsert_lww_element_latest_reference_batch_pointer.append(
+                            item.id(),
+                            &key,
+                            *item.layers().event().content_type(),
+                            lww_element,
+                            &pointer,
+                        )?;
+                    }
                 }
                 crate::model::reference::Reference::Bytes(bytes) => {
                     insert_reference_batch_bytes
@@ -149,6 +165,16 @@ pub(crate) async fn ingest_events_postgres_batch(
                         bytes.clone(),
                         crate::queries::upsert_count_references::Operation::Increment,
                     );
+
+                    if let Some(lww_element) = item.layers().event().lww_element() {
+                        upsert_lww_element_latest_reference_batch_bytes.append(
+                            item.id(),
+                            &key,
+                            *item.layers().event().content_type(),
+                            lww_element,
+                            &bytes,
+                        )?;
+                    }
                 }
                 _ => {}
             }

@@ -28,7 +28,7 @@ impl BytesBatch {
         event_pointer: &crate::model::InsecurePointer,
         content_type: u64,
         lww_element: &crate::protocol::LWWElement,
-        subject: Vec<u8>,
+        subject: &Vec<u8>,
     ) -> ::anyhow::Result<()> {
         self.p_event_id.push(event_id);
 
