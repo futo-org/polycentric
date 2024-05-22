@@ -175,7 +175,7 @@ pub(crate) async fn upsert_pointer(
         )
         DO UPDATE
         SET
-            count = count_references_bytes.count + EXCLUDED.count
+            count = count_references_pointer.count + EXCLUDED.count
     ";
 
     let mut p_subject_system_key_type = vec![];

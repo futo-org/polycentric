@@ -1,3 +1,5 @@
+use ::std::collections::HashMap;
+
 pub(crate) struct BytesBatch {
     p_event_id: Vec<i64>,
     p_system_key_type: Vec<i64>,
@@ -130,7 +132,62 @@ impl PointerBatch {
 pub(crate) async fn upsert_bytes(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     batch: BytesBatch,
-) -> ::anyhow::Result<()> {
+) -> ::anyhow::Result<
+    HashMap<crate::model::InsecurePointer, crate::model::EventLayers>,
+> {
+    let query_old = "
+        SELECT
+            '\\xDEADBEEF'::bytea
+        FROM
+            lww_element_latest_reference_bytes
+        INNER JOIN (
+            SELECT
+                *
+            FROM UNNEST (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7
+            ) as p (
+                event_id,
+                system_key_type,
+                system_key,
+                process,
+                content_type,
+                lww_element_unix_milliseconds,
+                subject
+            )
+        ) as p
+        ON
+            lww_element_latest_reference_bytes.system_key_type = p.system_key_type
+        AND
+            lww_element_latest_reference_bytes.system_key = p.system_key
+        AND
+            lww_element_latest_reference_bytes.content_type = p.content_type
+        AND
+            lww_element_latest_reference_bytes.subject = p.subject
+        WHERE
+            (
+                p.lww_element_unix_milliseconds,
+                p.process
+            )
+            >
+            (
+                lww_element_latest_reference_bytes.lww_element_unix_milliseconds,
+                lww_element_latest_reference_bytes.process
+            )
+        ORDER BY
+            lww_element_latest_reference_bytes.system_key_type,
+            lww_element_latest_reference_bytes.system_key,
+            lww_element_latest_reference_bytes.content_type,
+            lww_element_latest_reference_bytes.subject,
+            lww_element_latest_reference_bytes.lww_element_unix_milliseconds DESC
+        FOR UPDATE;
+    ";
+
     let query = "
         INSERT INTO lww_element_latest_reference_bytes (
             event_id,
@@ -192,7 +249,20 @@ pub(crate) async fn upsert_bytes(
             );
     ";
 
+    let mut result = HashMap::new();
+
     if batch.p_event_id.len() > 0 {
+        let updated_rows = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query_old)
+            .bind(&batch.p_event_id)
+            .bind(&batch.p_system_key_type)
+            .bind(&batch.p_system_key)
+            .bind(&batch.p_process)
+            .bind(&batch.p_content_type)
+            .bind(&batch.p_lww_element_unix_milliseconds)
+            .bind(&batch.p_subject)
+            .fetch_all(&mut **transaction)
+            .await?;
+
         ::sqlx::query(query)
             .bind(batch.p_event_id)
             .bind(batch.p_system_key_type)
@@ -203,9 +273,22 @@ pub(crate) async fn upsert_bytes(
             .bind(batch.p_subject)
             .execute(&mut **transaction)
             .await?;
+
+        /*
+        for raw_event in updated_rows {
+            let layers = crate::model::EventLayers::new(
+                crate::model::signed_event::from_vec(&raw_event)?,
+            )?;
+
+            result.insert(
+                crate::model::InsecurePointer::from_event(layers.event()),
+                layers,
+            );
+        }
+        */
     }
 
-    Ok(())
+    Ok(result)
 }
 
 pub(crate) async fn upsert_pointer(
@@ -213,7 +296,7 @@ pub(crate) async fn upsert_pointer(
     batch: PointerBatch,
 ) -> ::anyhow::Result<()> {
     let query = "
-        INSERT INTO lww_element_latest_reference_bytes (
+        INSERT INTO lww_element_latest_reference_pointer (
             event_id,
             system_key_type,
             system_key,
@@ -286,8 +369,8 @@ pub(crate) async fn upsert_pointer(
             )
             >
             (
-                lww_element_latest_reference_bytes.lww_element_unix_milliseconds,
-                lww_element_latest_reference_bytes.process
+                lww_element_latest_reference_pointer.lww_element_unix_milliseconds,
+                lww_element_latest_reference_pointer.process
             );
     ";
 
