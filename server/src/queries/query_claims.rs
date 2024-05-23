@@ -59,6 +59,8 @@ pub(crate) async fn query_claims_match_any_field(
             vouch_events.system_key_type = $5
         AND
             vouch_events.system_key = $6
+        ORDER BY
+            vouch_events.unix_milliseconds DESC
     ";
 
     ::sqlx::query_as::<_, Row>(query)
@@ -132,6 +134,8 @@ pub(crate) async fn query_claims_match_all_fields(
             vouch_events.system_key_type = $5
         AND
             vouch_events.system_key = $6
+        ORDER BY
+            vouch_events.unix_milliseconds DESC
     ";
 
     ::sqlx::query_as::<_, Row>(query)

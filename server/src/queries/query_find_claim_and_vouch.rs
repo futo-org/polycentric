@@ -64,6 +64,8 @@ pub(crate) async fn query_find_claim_and_vouch(
             vouch_events.system_key_type = $7
         AND
             vouch_events.system_key = $8
+        ORDER BY
+            vouch_events.unix_milliseconds DESC
         LIMIT 1;
     ";
 
