@@ -151,6 +151,7 @@ pub(crate) async fn backfill_search(
 pub(crate) async fn backfill_remote_server(
     pool: ::sqlx::PgPool,
     address: String,
+    starting_position: ::std::option::Option<u64>,
 ) -> ::anyhow::Result<()> {
     let http_client = ::reqwest::Client::new();
 
@@ -165,7 +166,7 @@ pub(crate) async fn backfill_remote_server(
         }
     }
 
-    let mut position = None;
+    let mut position = starting_position;
 
     let http_concurrency = 20;
 
@@ -225,29 +226,47 @@ pub(crate) async fn backfill_remote_server(
         ::tokio::spawn(async move {
             let _permit = permit;
 
-            let result = http_client
-                .post(address + "/events")
-                .body(batch_bytes)
-                .send()
-                .await;
+            let op = || async {
+                let result = http_client
+                    .post(address.clone() + "/events")
+                    .body(batch_bytes.clone())
+                    .send()
+                    .await;
 
-            match result {
-                Ok(response) => {
-                    if response.status() == ::reqwest::StatusCode::OK {
-                        return;
-                    } else {
-                        ::log::error!(
-                            "request failed with code {:?}",
-                            response.status()
-                        );
+                match result {
+                    Ok(response) => {
+                        if response.status()
+                            == ::reqwest::StatusCode::BAD_REQUEST
+                        {
+                            Err(::backoff::Error::permanent(
+                                ::anyhow::Error::msg("BAD_REQUEST"),
+                            ))
+                        } else if response.status() != ::reqwest::StatusCode::OK
+                        {
+                            ::log::warn!(
+                                "temporary failure with status {:?}",
+                                response.status(),
+                            );
+
+                            Err(::backoff::Error::transient(
+                                ::anyhow::Error::msg("bad code"),
+                            ))
+                        } else {
+                            Ok(())
+                        }
                     }
+                    Err(err) => Err(::backoff::Error::transient(
+                        ::anyhow::Error::from(err),
+                    )),
                 }
-                Err(err) => {
-                    ::log::error!("request failed with error {:?}", err);
-                }
-            }
+            };
 
-            *failed.lock().await = true;
+            let backoff = ::backoff::ExponentialBackoff::default();
+
+            if let Err(err) = ::backoff::future::retry(backoff, op).await {
+                ::log::error!("permanent failure with error {:?}", err);
+                *failed.lock().await = true;
+            }
         });
     }
 
