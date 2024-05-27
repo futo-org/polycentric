@@ -480,8 +480,7 @@ async fn serve_api(
     Ok(())
 }
 
-#[::tokio::main]
-async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
+async fn tokio_main() -> Result<(), Box<dyn ::std::error::Error>> {
     ::env_logger::init();
 
     let config = Config::init_from_env().unwrap();
@@ -531,4 +530,16 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
     }
 
     Ok(())
+}
+
+fn main() {
+    let runtime = ::tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .thread_stack_size(16 * 1024 * 1024)
+        .build()
+        .unwrap();
+
+    runtime.block_on(async {
+        tokio_main().await.unwrap();
+    });
 }
