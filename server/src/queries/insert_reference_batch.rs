@@ -47,49 +47,40 @@ impl PointerBatch {
     }
 }
 
+pub(crate) async fn prepare_pointer(
+    transaction: &::deadpool_postgres::Transaction<'_>,
+) -> ::anyhow::Result<::tokio_postgres::Statement> {
+    let statement = transaction
+        .prepare_cached(::std::include_str!(
+            "../sql/insert_reference_pointer.sql"
+        ))
+        .await?;
+
+    Ok(statement)
+}
+
 pub(crate) async fn insert_pointer(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    transaction: &::deadpool_postgres::Transaction<'_>,
     batch: PointerBatch,
 ) -> ::anyhow::Result<()> {
-    let query = "
-        INSERT INTO event_links
-        (
-            subject_system_key_type,
-            subject_system_key,
-            subject_process,
-            subject_logical_clock,
-            link_content_type,
-            event_id
-        )
-        SELECT * FROM UNNEST (
-            $1,
-            $2,
-            $3,
-            $4,
-            $5,
-            $6
-        ) as p (
-            subject_system_key_type,
-            subject_system_key,
-            subject_process,
-            subject_logical_clock,
-            link_content_type,
-            event_id
-        )
-    ";
-
     if batch.p_subject_system_key_type.len() == 0 {
         return Ok(());
     }
 
-    ::sqlx::query(query)
-        .bind(batch.p_subject_system_key_type)
-        .bind(batch.p_subject_system_key)
-        .bind(batch.p_subject_process)
-        .bind(batch.p_subject_logical_clock)
-        .bind(batch.p_link_content_type)
-        .bind(batch.p_event_id)
-        .execute(&mut **transaction)
+    let statement = prepare_pointer(&transaction).await?;
+
+    transaction
+        .query(
+            &statement,
+            &[
+                &batch.p_subject_system_key_type,
+                &batch.p_subject_system_key,
+                &batch.p_subject_process,
+                &batch.p_subject_logical_clock,
+                &batch.p_link_content_type,
+                &batch.p_event_id,
+            ],
+        )
         .await?;
 
     Ok(())
@@ -121,33 +112,30 @@ impl BytesBatch {
     }
 }
 
+pub(crate) async fn prepare_bytes(
+    transaction: &::deadpool_postgres::Transaction<'_>,
+) -> ::anyhow::Result<::tokio_postgres::Statement> {
+    let statement = transaction
+        .prepare_cached(::std::include_str!(
+            "../sql/insert_reference_bytes.sql"
+        ))
+        .await?;
+
+    Ok(statement)
+}
+
 pub(crate) async fn insert_bytes(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    transaction: &::deadpool_postgres::Transaction<'_>,
     batch: BytesBatch,
 ) -> ::anyhow::Result<()> {
-    let query = "
-        INSERT INTO event_references_bytes
-        (
-            subject_bytes,
-            event_id
-        )
-        SELECT * FROM UNNEST (
-            $1,
-            $2
-        ) as p (
-            subject_bytes,
-            event_id
-        )
-    ";
-
     if batch.p_subject_bytes.len() == 0 {
         return Ok(());
     }
 
-    ::sqlx::query(query)
-        .bind(batch.p_subject_bytes)
-        .bind(batch.p_event_id)
-        .execute(&mut **transaction)
+    let statement = prepare_bytes(&transaction).await?;
+
+    transaction
+        .query(&statement, &[&batch.p_subject_bytes, &batch.p_event_id])
         .await?;
 
     Ok(())
