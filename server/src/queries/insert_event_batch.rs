@@ -37,7 +37,6 @@ struct ResultRow2 {
     logical_clock: i64,
 }
 
-
 pub (crate) async fn prepare(
     transaction: &::deadpool_postgres::Transaction<'_>,
 ) -> ::anyhow::Result<::tokio_postgres::Statement> {
@@ -85,7 +84,7 @@ pub(crate) fn parse_rows(
     Ok(result)
 }
 
-pub(crate) async fn insert2(
+pub(crate) async fn insert(
     transaction: &::deadpool_postgres::Transaction<'_>,
     batch: &HashMap<
         crate::model::InsecurePointer,
@@ -142,10 +141,8 @@ pub(crate) async fn insert2(
         );
     }
 
-    ::log::info!("prepare");
     let statement = prepare(&transaction).await?;
 
-    ::log::info!("query");
     Ok(transaction
         .query(
             &statement,

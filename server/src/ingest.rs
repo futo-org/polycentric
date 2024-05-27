@@ -96,29 +96,21 @@ pub(crate) async fn ingest_events_postgres_batch2(
     let server_time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
-    ::log::info!("---- ");
 
-    ::log::info!("insert 1");
-    let f = crate::queries::insert_event_batch::insert2(
+    let f1 = crate::queries::get_locks::select(
+        &transaction,
+        batch,
+    );
+
+    let f2 = crate::queries::insert_event_batch::insert(
         &transaction,
         batch,
         server_time,
     );
-
-    ::log::info!("insert 2");
-    let f2 = crate::queries::insert_event_batch::insert2(
-        &transaction,
-        batch,
-        server_time,
-    );
-
-    ::log::info!("pre join");
 
     ::futures::future::try_join(
-        f, f2
+        f1, f2
     ).await?;
-    
-    ::log::info!("post join");
 
     Ok(())
 }
@@ -129,6 +121,7 @@ pub(crate) async fn deadpool_prepare_all(
     let mut client = state.deadpool_write.get().await?;
     let transaction = client.transaction().await?;
 
+    crate::queries::get_locks::prepare(&transaction).await?;
     crate::queries::insert_event_batch::prepare(&transaction).await?;
 
     Ok(())
