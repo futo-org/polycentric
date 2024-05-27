@@ -31,30 +31,28 @@ impl Batch {
     }
 }
 
+pub(crate) async fn prepare(
+    transaction: &::deadpool_postgres::Transaction<'_>,
+) -> ::anyhow::Result<::tokio_postgres::Statement> {
+    let statement = transaction
+        .prepare_cached(::std::include_str!("../sql/insert_claim.sql"))
+        .await?;
+
+    Ok(statement)
+}
+
 pub(crate) async fn insert(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    transaction: &::deadpool_postgres::Transaction<'_>,
     batch: Batch,
 ) -> ::anyhow::Result<()> {
-    let query = "
-        INSERT INTO claims
-        (
-            claim_type,
-            event_id,
-            fields
-        )
-        SELECT * FROM UNNEST (
-            $1,
-            $2,
-            $3
-        );
-    ";
-
     if batch.p_claim_type.len() > 0 {
-        ::sqlx::query(query)
-            .bind(batch.p_claim_type)
-            .bind(batch.p_event_id)
-            .bind(batch.p_fields)
-            .execute(&mut **transaction)
+        let statement = prepare(&transaction).await?;
+
+        transaction
+            .query(
+                &statement,
+                &[&batch.p_claim_type, &batch.p_event_id, &batch.p_fields],
+            )
             .await?;
     }
 
