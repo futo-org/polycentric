@@ -29,30 +29,32 @@ impl Batch {
     }
 }
 
+pub(crate) async fn prepare(
+    transaction: &::deadpool_postgres::Transaction<'_>,
+) -> ::anyhow::Result<::tokio_postgres::Statement> {
+    let statement = transaction
+        .prepare_cached(::std::include_str!("../sql/insert_lww_element.sql"))
+        .await?;
+
+    Ok(statement)
+}
+
 pub(crate) async fn insert(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    transaction: &::deadpool_postgres::Transaction<'_>,
     batch: Batch,
 ) -> ::anyhow::Result<()> {
-    let query = "
-        INSERT INTO lww_elements 
-        (
-            value,
-            unix_milliseconds,
-            event_id
-        )
-        SELECT * FROM UNNEST (
-            $1,
-            $2,
-            $3
-        );
-    ";
-
     if batch.p_value.len() > 0 {
-        ::sqlx::query(query)
-            .bind(batch.p_value)
-            .bind(batch.p_unix_milliseconds)
-            .bind(batch.p_event_id)
-            .execute(&mut **transaction)
+        let statement = prepare(&transaction).await?;
+
+        transaction
+            .query(
+                &statement,
+                &[
+                    &batch.p_value,
+                    &batch.p_unix_milliseconds,
+                    &batch.p_event_id,
+                ],
+            )
             .await?;
     }
 

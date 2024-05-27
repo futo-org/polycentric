@@ -226,6 +226,10 @@ pub(crate) async fn ingest_events_postgres_batch2(
             &transaction,
             insert_claim_batch,
         ),
+        crate::queries::insert_lww_element_batch::insert(
+            &transaction,
+            insert_lww_element_batch,
+        ),
     )?;
 
     Ok(())
@@ -243,6 +247,7 @@ pub(crate) async fn deadpool_prepare_all(
     crate::queries::insert_reference_batch::prepare_pointer(&transaction)
         .await?;
     crate::queries::insert_claim_batch::prepare(&transaction).await?;
+    crate::queries::insert_lww_element_batch::prepare(&transaction).await?;
 
     Ok(())
 }
@@ -410,11 +415,13 @@ pub(crate) async fn ingest_events_postgres_batch(
     .await?;
     */
 
+    /*
     crate::queries::insert_lww_element_batch::insert(
         &mut *transaction,
         insert_lww_element_batch,
     )
     .await?;
+    */
 
     for item in deleted_events.values() {
         for reference in item.event().references().iter() {
