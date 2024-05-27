@@ -252,16 +252,17 @@ pub(crate) async fn upsert_bytes(
     let mut result = HashMap::new();
 
     if batch.p_event_id.len() > 0 {
-        let updated_rows = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query_old)
-            .bind(&batch.p_event_id)
-            .bind(&batch.p_system_key_type)
-            .bind(&batch.p_system_key)
-            .bind(&batch.p_process)
-            .bind(&batch.p_content_type)
-            .bind(&batch.p_lww_element_unix_milliseconds)
-            .bind(&batch.p_subject)
-            .fetch_all(&mut **transaction)
-            .await?;
+        let updated_rows =
+            ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query_old)
+                .bind(&batch.p_event_id)
+                .bind(&batch.p_system_key_type)
+                .bind(&batch.p_system_key)
+                .bind(&batch.p_process)
+                .bind(&batch.p_content_type)
+                .bind(&batch.p_lww_element_unix_milliseconds)
+                .bind(&batch.p_subject)
+                .fetch_all(&mut **transaction)
+                .await?;
 
         ::sqlx::query(query)
             .bind(batch.p_event_id)

@@ -1,5 +1,6 @@
 pub(crate) mod count_lww_element_references;
 pub(crate) mod count_references;
+pub(crate) mod get_locks;
 pub(crate) mod insert_claim_batch;
 pub(crate) mod insert_delete_batch;
 pub(crate) mod insert_event_batch;
