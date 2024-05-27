@@ -55,8 +55,10 @@ async fn handle_batch(
     let mut client = state.deadpool_write.get().await?;
     let transaction = client.transaction().await?;
 
-    crate::ingest::ingest_events_postgres_batch2(transaction, &mut batch)
+    crate::ingest::ingest_events_postgres_batch2(&transaction, &mut batch)
         .await?;
+
+    transaction.commit().await?;
 
     /*
     if !signed_events_to_ingest_with_pointers.is_empty() {
