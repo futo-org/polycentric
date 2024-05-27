@@ -281,6 +281,8 @@ async fn serve_api(
         ingest_cache,
     });
 
+    crate::ingest::deadpool_prepare_all(&state.clone()).await?;
+
     let cors = ::warp::cors()
         .allow_any_origin()
         .max_age(::std::time::Duration::from_secs(60 * 5))

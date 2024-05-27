@@ -94,6 +94,17 @@ pub(crate) async fn ingest_events_postgres_batch2(
     Ok(())
 }
 
+pub(crate) async fn deadpool_prepare_all(
+    state: &::std::sync::Arc<crate::State>,
+) -> ::anyhow::Result<()> {
+    let mut client = state.deadpool_write.get().await?;
+    let transaction = client.transaction().await?;
+
+    crate::queries::insert_event_batch::prepare(&transaction).await?;
+
+    Ok(())
+}
+
 pub(crate) async fn ingest_events_postgres_batch(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     batch: &mut HashMap<

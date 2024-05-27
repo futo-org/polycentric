@@ -37,15 +37,10 @@ struct ResultRow2 {
     logical_clock: i64,
 }
 
-pub(crate) async fn insert_event_batch2(
-    transaction: ::deadpool_postgres::Transaction<'_>,
-    batch: &mut HashMap<
-        crate::model::InsecurePointer,
-        crate::model::EventLayers,
-    >,
-    server_time: u64,
-) -> ::anyhow::Result<HashMap<crate::model::InsecurePointer, EventIdWithLayers>>
-{
+
+pub (crate) async fn prepare(
+    transaction: &::deadpool_postgres::Transaction<'_>,
+) -> ::anyhow::Result<::tokio_postgres::Statement> {
     let query = "
         INSERT INTO events
         (
@@ -63,7 +58,18 @@ pub(crate) async fn insert_event_batch2(
             unix_milliseconds
         )
         SELECT * FROM UNNEST (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+            $1::bigint[],
+            $2::bytea[],
+            $3::bytea[],
+            $4::bigint[],
+            $5::bigint[],
+            $6::bytea[],
+            $7::bytea[],
+            $8::bytea[],
+            $9::bytea[],
+            $10::bytea[],
+            $11::bigint[],
+            $12::bigint[]
         ) as p (
             system_key_type,
             system_key,
@@ -114,6 +120,20 @@ pub(crate) async fn insert_event_batch2(
             logical_clock;
     ";
 
+    let statement = transaction.prepare_cached(query).await?;
+
+    Ok(statement)
+}
+
+pub(crate) async fn insert_event_batch2(
+    transaction: &::deadpool_postgres::Transaction<'_>,
+    batch: &mut HashMap<
+        crate::model::InsecurePointer,
+        crate::model::EventLayers,
+    >,
+    server_time: u64,
+) -> ::anyhow::Result<HashMap<crate::model::InsecurePointer, EventIdWithLayers>>
+{
     let mut p_system_key_type = vec![];
     let mut p_system_key = vec![];
     let mut p_process = vec![];
@@ -163,7 +183,7 @@ pub(crate) async fn insert_event_batch2(
         );
     }
 
-    let statement = transaction.prepare_cached(query).await?;
+    let statement = prepare(&transaction).await?;
 
     let rows = transaction
         .query(
