@@ -48,15 +48,51 @@ pub (crate) async fn prepare(
     Ok(statement)
 }
 
-pub(crate) async fn insert_event_batch2(
-    transaction: &::deadpool_postgres::Transaction<'_>,
+pub(crate) fn parse_rows(
     batch: &mut HashMap<
         crate::model::InsecurePointer,
         crate::model::EventLayers,
     >,
-    server_time: u64,
+    rows: &Vec<::tokio_postgres::Row>,
 ) -> ::anyhow::Result<HashMap<crate::model::InsecurePointer, EventIdWithLayers>>
 {
+    let mut result = HashMap::new();
+
+    for row in rows {
+        let parsed_row: ResultRow2 =
+            ::postgres_from_row::FromRow::try_from_row(&row)?;
+
+        let pointer = crate::model::InsecurePointer::new(
+            crate::model::public_key::from_type_and_bytes(
+                u64::try_from(parsed_row.system_key_type)?,
+                &parsed_row.system_key,
+            )?,
+            crate::model::process::from_vec(&parsed_row.process)?,
+            u64::try_from(parsed_row.logical_clock)?,
+        );
+
+        if let Some(layers) = batch.get(&pointer) {
+            result.insert(
+                pointer,
+                EventIdWithLayers {
+                    id: parsed_row.id,
+                    layers: layers.clone(),
+                },
+            );
+        }
+    }
+
+    Ok(result)
+}
+
+pub(crate) async fn insert2(
+    transaction: &::deadpool_postgres::Transaction<'_>,
+    batch: &HashMap<
+        crate::model::InsecurePointer,
+        crate::model::EventLayers,
+    >,
+    server_time: u64,
+) -> ::anyhow::Result<Vec<::tokio_postgres::Row>> {
     let mut p_system_key_type = vec![];
     let mut p_system_key = vec![];
     let mut p_process = vec![];
@@ -106,9 +142,11 @@ pub(crate) async fn insert_event_batch2(
         );
     }
 
+    ::log::info!("prepare");
     let statement = prepare(&transaction).await?;
 
-    let rows = transaction
+    ::log::info!("query");
+    Ok(transaction
         .query(
             &statement,
             &[
@@ -125,36 +163,7 @@ pub(crate) async fn insert_event_batch2(
                 &p_server_time,
                 &p_unix_milliseconds,
             ],
-        )
-        .await?;
-
-    let mut result = HashMap::new();
-
-    for row in rows {
-        let parsed_row: ResultRow2 =
-            ::postgres_from_row::FromRow::try_from_row(&row)?;
-
-        let pointer = crate::model::InsecurePointer::new(
-            crate::model::public_key::from_type_and_bytes(
-                u64::try_from(parsed_row.system_key_type)?,
-                &parsed_row.system_key,
-            )?,
-            crate::model::process::from_vec(&parsed_row.process)?,
-            u64::try_from(parsed_row.logical_clock)?,
-        );
-
-        if let Some(layers) = batch.get(&pointer) {
-            result.insert(
-                pointer,
-                EventIdWithLayers {
-                    id: parsed_row.id,
-                    layers: layers.clone(),
-                },
-            );
-        }
-    }
-
-    Ok(result)
+        ).await?)
 }
 
 pub(crate) async fn insert_event_batch(

@@ -91,6 +91,35 @@ pub(crate) async fn ingest_events_postgres_batch2(
         crate::model::EventLayers,
     >,
 ) -> ::anyhow::Result<()> {
+    filter_subjects_of_deletes(batch);
+
+    let server_time = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)?
+        .as_secs();
+    ::log::info!("---- ");
+
+    ::log::info!("insert 1");
+    let f = crate::queries::insert_event_batch::insert2(
+        &transaction,
+        batch,
+        server_time,
+    );
+
+    ::log::info!("insert 2");
+    let f2 = crate::queries::insert_event_batch::insert2(
+        &transaction,
+        batch,
+        server_time,
+    );
+
+    ::log::info!("pre join");
+
+    ::futures::future::try_join(
+        f, f2
+    ).await?;
+    
+    ::log::info!("post join");
+
     Ok(())
 }
 
