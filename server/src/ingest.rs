@@ -230,6 +230,14 @@ pub(crate) async fn ingest_events_postgres_batch2(
             &transaction,
             insert_lww_element_batch,
         ),
+        crate::queries::upsert_count_references::upsert_bytes(
+            &transaction,
+            upsert_count_references_batch_bytes,
+        ),
+        crate::queries::upsert_count_references::upsert_pointer(
+            &transaction,
+            upsert_count_references_batch_pointer,
+        ),
     )?;
 
     Ok(())
@@ -248,6 +256,10 @@ pub(crate) async fn deadpool_prepare_all(
         .await?;
     crate::queries::insert_claim_batch::prepare(&transaction).await?;
     crate::queries::insert_lww_element_batch::prepare(&transaction).await?;
+    crate::queries::upsert_count_references::prepare_bytes(&transaction)
+        .await?;
+    crate::queries::upsert_count_references::prepare_pointer(&transaction)
+        .await?;
 
     Ok(())
 }
@@ -445,6 +457,7 @@ pub(crate) async fn ingest_events_postgres_batch(
         }
     }
 
+    /*
     crate::queries::upsert_count_references::upsert_bytes(
         &mut *transaction,
         upsert_count_references_batch_bytes,
@@ -456,6 +469,7 @@ pub(crate) async fn ingest_events_postgres_batch(
         upsert_count_references_batch_pointer,
     )
     .await?;
+    */
 
     Ok(())
 }

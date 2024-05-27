@@ -41,37 +41,22 @@ impl BytesBatch {
     }
 }
 
+pub(crate) async fn prepare_bytes(
+    transaction: &::deadpool_postgres::Transaction<'_>,
+) -> ::anyhow::Result<::tokio_postgres::Statement> {
+    let statement = transaction
+        .prepare_cached(::std::include_str!(
+            "../sql/upsert_count_references_bytes.sql"
+        ))
+        .await?;
+
+    Ok(statement)
+}
+
 pub(crate) async fn upsert_bytes(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    transaction: &::deadpool_postgres::Transaction<'_>,
     batch: BytesBatch,
 ) -> ::anyhow::Result<()> {
-    let query = "
-        INSERT INTO count_references_bytes (
-            subject_bytes,
-            from_type,
-            count
-        )
-            SELECT * FROM UNNEST (
-                $1,
-                $2,
-                $3
-            ) as p (
-                subject_bytes,
-                from_type,
-                count
-            )
-            ORDER BY
-                subject_bytes,
-                from_type
-        ON CONFLICT (
-            subject_bytes,
-            from_type
-        )
-        DO UPDATE
-        SET
-            count = count_references_bytes.count + EXCLUDED.count
-    ";
-
     let mut p_subject_bytes = vec![];
     let mut p_content_type = vec![];
     let mut p_count = vec![];
@@ -85,11 +70,10 @@ pub(crate) async fn upsert_bytes(
     }
 
     if p_subject_bytes.len() > 0 {
-        ::sqlx::query(query)
-            .bind(p_subject_bytes)
-            .bind(p_content_type)
-            .bind(p_count)
-            .execute(&mut **transaction)
+        let statement = prepare_bytes(&transaction).await?;
+
+        transaction
+            .query(&statement, &[&p_subject_bytes, &p_content_type, &p_count])
             .await?;
     }
 
@@ -132,52 +116,22 @@ impl PointerBatch {
     }
 }
 
+pub(crate) async fn prepare_pointer(
+    transaction: &::deadpool_postgres::Transaction<'_>,
+) -> ::anyhow::Result<::tokio_postgres::Statement> {
+    let statement = transaction
+        .prepare_cached(::std::include_str!(
+            "../sql/upsert_count_references_pointer.sql"
+        ))
+        .await?;
+
+    Ok(statement)
+}
+
 pub(crate) async fn upsert_pointer(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    transaction: &::deadpool_postgres::Transaction<'_>,
     batch: PointerBatch,
 ) -> ::anyhow::Result<()> {
-    let query = "
-        INSERT INTO count_references_pointer (
-            subject_system_key_type,
-            subject_system_key,
-            subject_process,
-            subject_logical_clock,
-            from_type,
-            count
-        )
-            SELECT * FROM UNNEST (
-                $1,
-                $2,
-                $3,
-                $4,
-                $5,
-                $6
-            ) as p (
-                subject_system_key_type,
-                subject_system_key,
-                subject_process,
-                subject_logical_clock,
-                from_type,
-                count
-            )
-            ORDER BY
-                subject_system_key_type,
-                subject_system_key,
-                subject_process,
-                subject_logical_clock,
-                from_type
-        ON CONFLICT (
-            subject_system_key_type,
-            subject_system_key,
-            subject_process,
-            subject_logical_clock,
-            from_type
-        )
-        DO UPDATE
-        SET
-            count = count_references_pointer.count + EXCLUDED.count
-    ";
-
     let mut p_subject_system_key_type = vec![];
     let mut p_subject_system_key = vec![];
     let mut p_subject_process = vec![];
@@ -202,14 +156,20 @@ pub(crate) async fn upsert_pointer(
     }
 
     if p_subject_system_key_type.len() > 0 {
-        ::sqlx::query(query)
-            .bind(p_subject_system_key_type)
-            .bind(p_subject_system_key)
-            .bind(p_subject_process)
-            .bind(p_subject_logical_clock)
-            .bind(p_content_type)
-            .bind(p_count)
-            .execute(&mut **transaction)
+        let statement = prepare_pointer(&transaction).await?;
+
+        transaction
+            .query(
+                &statement,
+                &[
+                    &p_subject_system_key_type,
+                    &p_subject_system_key,
+                    &p_subject_process,
+                    &p_subject_logical_clock,
+                    &p_content_type,
+                    &p_count,
+                ],
+            )
             .await?;
     }
 
