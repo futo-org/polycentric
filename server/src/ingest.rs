@@ -97,20 +97,24 @@ pub(crate) async fn ingest_events_postgres_batch2(
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
 
-    let f1 = crate::queries::get_locks::select(
-        &transaction,
-        batch,
-    );
+    let get_locks_select_future =
+        crate::queries::get_locks::select(&transaction, batch);
 
-    let f2 = crate::queries::insert_event_batch::insert(
+    let insert_event_batch_future = crate::queries::insert_event_batch::insert(
         &transaction,
         batch,
         server_time,
     );
 
-    ::futures::future::try_join(
-        f1, f2
-    ).await?;
+    let (_, insert_event_batch_result) = ::tokio::try_join!(
+        get_locks_select_future,
+        insert_event_batch_future,
+    )?;
+
+    let inserted_events = crate::queries::insert_event_batch::parse_rows(
+        batch,
+        &insert_event_batch_result,
+    )?;
 
     Ok(())
 }

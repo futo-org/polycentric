@@ -37,21 +37,18 @@ struct ResultRow2 {
     logical_clock: i64,
 }
 
-pub (crate) async fn prepare(
+pub(crate) async fn prepare(
     transaction: &::deadpool_postgres::Transaction<'_>,
 ) -> ::anyhow::Result<::tokio_postgres::Statement> {
-    let statement = transaction.prepare_cached(
-        ::std::include_str!("../sql/insert_event_batch.sql"),
-    ).await?;
+    let statement = transaction
+        .prepare_cached(::std::include_str!("../sql/insert_event_batch.sql"))
+        .await?;
 
     Ok(statement)
 }
 
 pub(crate) fn parse_rows(
-    batch: &mut HashMap<
-        crate::model::InsecurePointer,
-        crate::model::EventLayers,
-    >,
+    batch: &HashMap<crate::model::InsecurePointer, crate::model::EventLayers>,
     rows: &Vec<::tokio_postgres::Row>,
 ) -> ::anyhow::Result<HashMap<crate::model::InsecurePointer, EventIdWithLayers>>
 {
@@ -86,10 +83,7 @@ pub(crate) fn parse_rows(
 
 pub(crate) async fn insert(
     transaction: &::deadpool_postgres::Transaction<'_>,
-    batch: &HashMap<
-        crate::model::InsecurePointer,
-        crate::model::EventLayers,
-    >,
+    batch: &HashMap<crate::model::InsecurePointer, crate::model::EventLayers>,
     server_time: u64,
 ) -> ::anyhow::Result<Vec<::tokio_postgres::Row>> {
     let mut p_system_key_type = vec![];
@@ -160,7 +154,8 @@ pub(crate) async fn insert(
                 &p_server_time,
                 &p_unix_milliseconds,
             ],
-        ).await?)
+        )
+        .await?)
 }
 
 pub(crate) async fn insert_event_batch(

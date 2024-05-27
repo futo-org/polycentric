@@ -1,21 +1,18 @@
 use ::std::collections::HashMap;
 
-pub (crate) async fn prepare(
+pub(crate) async fn prepare(
     transaction: &::deadpool_postgres::Transaction<'_>,
 ) -> ::anyhow::Result<::tokio_postgres::Statement> {
-    let statement = transaction.prepare_cached(
-        ::std::include_str!("../sql/select_system_lock.sql"),
-    ).await?;
+    let statement = transaction
+        .prepare_cached(::std::include_str!("../sql/select_system_lock.sql"))
+        .await?;
 
     Ok(statement)
 }
 
 pub(crate) async fn select(
     transaction: &::deadpool_postgres::Transaction<'_>,
-    batch: &HashMap<
-        crate::model::InsecurePointer,
-        crate::model::EventLayers,
-    >,
+    batch: &HashMap<crate::model::InsecurePointer, crate::model::EventLayers>,
 ) -> ::anyhow::Result<()> {
     let statement = prepare(&transaction).await?;
 
@@ -27,11 +24,7 @@ pub(crate) async fn select(
         ));
     }
 
-    transaction
-       .query(
-           &statement,
-           &[&p_system_key],
-        ).await?;
+    transaction.query(&statement, &[&p_system_key]).await?;
 
     Ok(())
 }
