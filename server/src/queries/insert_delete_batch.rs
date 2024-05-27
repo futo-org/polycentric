@@ -7,7 +7,7 @@ pub(crate) struct Batch {
     p_logical_clock: Vec<i64>,
     p_unix_milliseconds: Vec<Option<i64>>,
     p_content_type: Vec<i64>,
-    p_event_id: Vec<i64>,
+    p_event_id: Vec<Option<i64>>,
 }
 
 impl Batch {
@@ -25,7 +25,7 @@ impl Batch {
 
     pub(crate) fn append(
         &mut self,
-        event_id: i64,
+        event_id: Option<i64>,
         system: &crate::model::public_key::PublicKey,
         delete: &crate::model::delete::Delete,
     ) -> ::anyhow::Result<()> {
@@ -47,88 +47,99 @@ impl Batch {
         self.p_content_type
             .push(i64::try_from(*delete.content_type())?);
 
-        self.p_event_id.push(event_id);
+        self.p_event_id
+            .push(event_id.map(i64::try_from).transpose()?);
 
         Ok(())
     }
 }
 
-pub(crate) async fn insert(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    batch: Batch,
+pub(crate) async fn prepare_delete(
+    transaction: &::deadpool_postgres::Transaction<'_>,
+) -> ::anyhow::Result<::tokio_postgres::Statement> {
+    let statement = transaction
+        .prepare_cached(::std::include_str!("../sql/delete_event.sql"))
+        .await?;
+
+    Ok(statement)
+}
+
+pub(crate) async fn prepare_insert(
+    transaction: &::deadpool_postgres::Transaction<'_>,
+) -> ::anyhow::Result<::tokio_postgres::Statement> {
+    let statement = transaction
+        .prepare_cached(::std::include_str!("../sql/insert_delete.sql"))
+        .await?;
+
+    Ok(statement)
+}
+
+pub(crate) fn parse_rows(
+    rows: &Vec<::tokio_postgres::Row>,
 ) -> ::anyhow::Result<
     HashMap<crate::model::InsecurePointer, crate::model::EventLayers>,
 > {
-    let query_insert_delete = "
-        INSERT INTO deletions
-        (
-            system_key_type,
-            system_key,
-            process,
-            logical_clock,
-            event_id,
-            unix_milliseconds,
-            content_type
-        )
-        SELECT * FROM UNNEST (
-            $1, $2, $3, $4, $5, $6, $7
-        );
-    ";
-
-    let query_delete_event = "
-        DELETE FROM events
-        WHERE (
-            system_key_type,
-            system_key,
-            process,
-            logical_clock
-        ) IN (
-            SELECT * FROM UNNEST (
-                $1, $2, $3, $4
-            ) as p (
-                system_key_type,
-                system_key,
-                process,
-                logical_clock
-            )
-        )
-        RETURNING raw_event;
-    ";
-
     let mut result = HashMap::new();
 
-    if batch.p_system_key_type.len() > 0 {
-        ::sqlx::query(query_insert_delete)
-            .bind(&batch.p_system_key_type)
-            .bind(&batch.p_system_key)
-            .bind(&batch.p_process)
-            .bind(&batch.p_logical_clock)
-            .bind(&batch.p_event_id)
-            .bind(&batch.p_unix_milliseconds)
-            .bind(&batch.p_content_type)
-            .execute(&mut **transaction)
-            .await?;
+    for row in rows {
+        let layers = crate::model::EventLayers::new(
+            crate::model::signed_event::from_vec(row.try_get(0)?)?,
+        )?;
 
-        let deleted_rows =
-            ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query_delete_event)
-                .bind(batch.p_system_key_type)
-                .bind(batch.p_system_key)
-                .bind(batch.p_process)
-                .bind(batch.p_logical_clock)
-                .fetch_all(&mut **transaction)
-                .await?;
-
-        for raw_event in deleted_rows {
-            let layers = crate::model::EventLayers::new(
-                crate::model::signed_event::from_vec(&raw_event)?,
-            )?;
-
-            result.insert(
-                crate::model::InsecurePointer::from_event(layers.event()),
-                layers,
-            );
-        }
+        result.insert(
+            crate::model::InsecurePointer::from_event(layers.event()),
+            layers,
+        );
     }
 
     Ok(result)
+}
+
+pub(crate) async fn insert(
+    transaction: &::deadpool_postgres::Transaction<'_>,
+    batch: Batch,
+) -> ::anyhow::Result<()> {
+    if batch.p_system_key_type.len() > 0 {
+        let statement = prepare_insert(&transaction).await?;
+
+        transaction
+            .query(
+                &statement,
+                &[
+                    &batch.p_system_key_type,
+                    &batch.p_system_key,
+                    &batch.p_process,
+                    &batch.p_logical_clock,
+                    &batch.p_event_id,
+                    &batch.p_unix_milliseconds,
+                    &batch.p_content_type,
+                ],
+            )
+            .await?;
+    }
+
+    Ok(())
+}
+
+pub(crate) async fn delete(
+    transaction: &::deadpool_postgres::Transaction<'_>,
+    batch: Batch,
+) -> ::anyhow::Result<Vec<::tokio_postgres::Row>> {
+    if batch.p_system_key_type.len() > 0 {
+        let statement = prepare_delete(&transaction).await?;
+
+        Ok(transaction
+            .query(
+                &statement,
+                &[
+                    &batch.p_system_key_type,
+                    &batch.p_system_key,
+                    &batch.p_process,
+                    &batch.p_logical_clock,
+                ],
+            )
+            .await?)
+    } else {
+        Ok(vec![])
+    }
 }

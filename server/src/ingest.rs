@@ -60,7 +60,7 @@ pub(crate) fn trace_event(
     Ok(())
 }
 
-fn filter_subjects_of_deletes(
+pub(crate) fn filter_subjects_of_deletes(
     batch: &mut HashMap<
         crate::model::InsecurePointer,
         crate::model::EventLayers,
@@ -86,29 +86,44 @@ fn filter_subjects_of_deletes(
 
 pub(crate) async fn ingest_events_postgres_batch2(
     transaction: &::deadpool_postgres::Transaction<'_>,
-    batch: &mut HashMap<
-        crate::model::InsecurePointer,
-        crate::model::EventLayers,
-    >,
+    batch: &HashMap<crate::model::InsecurePointer, crate::model::EventLayers>,
 ) -> ::anyhow::Result<()> {
-    filter_subjects_of_deletes(batch);
-
     let server_time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_secs();
 
-    let (_, insert_event_batch_result) = ::tokio::try_join!(
+    let mut delete_event_batch =
+        crate::queries::insert_delete_batch::Batch::new();
+
+    for (key, item) in batch {
+        match item.content() {
+            crate::model::content::Content::Delete(body) => {
+                delete_event_batch.append(None, item.event().system(), body)?;
+            }
+            _ => {}
+        }
+    }
+
+    let (_, insert_event_batch_result, delete_event_batch_result) = ::tokio::try_join!(
         crate::queries::get_locks::select(&transaction, batch),
         crate::queries::insert_event_batch::insert(
             &transaction,
             batch,
             server_time,
-        )
+        ),
+        crate::queries::insert_delete_batch::delete(
+            &transaction,
+            delete_event_batch,
+        ),
     )?;
 
     let inserted_events = crate::queries::insert_event_batch::parse_rows(
         batch,
         &insert_event_batch_result,
+    )?;
+
+    let deleted_events = crate::queries::insert_delete_batch::parse_rows(
+        &delete_event_batch_result,
     )?;
 
     let mut insert_reference_batch_pointer =
@@ -197,7 +212,7 @@ pub(crate) async fn ingest_events_postgres_batch2(
         match item.layers().content() {
             crate::model::content::Content::Delete(body) => {
                 insert_delete_batch.append(
-                    item.id(),
+                    Some(item.id()),
                     item.layers().event().system(),
                     body,
                 )?;
@@ -210,6 +225,28 @@ pub(crate) async fn ingest_events_postgres_batch2(
 
         if let Some(lww_element) = item.layers().event().lww_element() {
             insert_lww_element_batch.append(item.id(), lww_element)?;
+        }
+    }
+
+    for item in deleted_events.values() {
+        for reference in item.event().references().iter() {
+            match reference {
+                crate::model::reference::Reference::Pointer(pointer) => {
+                    upsert_count_references_batch_pointer.append(
+                        *item.event().content_type(),
+                        pointer,
+                        crate::queries::upsert_count_references::Operation::Decrement,
+                    );
+                }
+                crate::model::reference::Reference::Bytes(bytes) => {
+                    upsert_count_references_batch_bytes.append(
+                        *item.event().content_type(),
+                        bytes.clone(),
+                        crate::queries::upsert_count_references::Operation::Decrement,
+                    );
+                }
+                _ => {}
+            }
         }
     }
 
@@ -238,6 +275,10 @@ pub(crate) async fn ingest_events_postgres_batch2(
             &transaction,
             upsert_count_references_batch_pointer,
         ),
+        crate::queries::insert_delete_batch::insert(
+            &transaction,
+            insert_delete_batch,
+        ),
     )?;
 
     Ok(())
@@ -260,6 +301,8 @@ pub(crate) async fn deadpool_prepare_all(
         .await?;
     crate::queries::upsert_count_references::prepare_pointer(&transaction)
         .await?;
+    crate::queries::insert_delete_batch::prepare_delete(&transaction).await?;
+    crate::queries::insert_delete_batch::prepare_insert(&transaction).await?;
 
     Ok(())
 }
@@ -368,6 +411,7 @@ pub(crate) async fn ingest_events_postgres_batch(
             }
         }
 
+        /*
         match item.layers().content() {
             crate::model::content::Content::Delete(body) => {
                 insert_delete_batch.append(
@@ -381,17 +425,20 @@ pub(crate) async fn ingest_events_postgres_batch(
             }
             _ => {}
         }
+        */
 
         if let Some(lww_element) = item.layers().event().lww_element() {
             insert_lww_element_batch.append(item.id(), lww_element)?;
         }
     }
 
+    /*
     let deleted_events = crate::queries::insert_delete_batch::insert(
         &mut *transaction,
         insert_delete_batch,
     )
     .await?;
+    */
 
     crate::queries::upsert_lww_element_latest_reference_batch::upsert_bytes(
         &mut *transaction,
@@ -435,6 +482,7 @@ pub(crate) async fn ingest_events_postgres_batch(
     .await?;
     */
 
+    /*
     for item in deleted_events.values() {
         for reference in item.event().references().iter() {
             match reference {
@@ -456,6 +504,7 @@ pub(crate) async fn ingest_events_postgres_batch(
             }
         }
     }
+    */
 
     /*
     crate::queries::upsert_count_references::upsert_bytes(

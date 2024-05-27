@@ -52,11 +52,12 @@ async fn handle_batch(
         );
     }
 
+    crate::ingest::filter_subjects_of_deletes(&mut batch);
+
     let mut client = state.deadpool_write.get().await?;
     let transaction = client.transaction().await?;
 
-    crate::ingest::ingest_events_postgres_batch2(&transaction, &mut batch)
-        .await?;
+    crate::ingest::ingest_events_postgres_batch2(&transaction, &batch).await?;
 
     transaction.commit().await?;
 
