@@ -50,6 +50,7 @@ macro_rules! warp_try_err_400 {
 
 struct State {
     pool: ::sqlx::PgPool,
+    deadpool_write: ::deadpool_postgres::Pool,
     pool_read_only: ::sqlx::PgPool,
     search: ::opensearch::OpenSearch,
     admin_token: String,
@@ -206,6 +207,24 @@ async fn serve_api(
     config: &Config,
 ) -> Result<(), Box<dyn ::std::error::Error>> {
     info!("Connecting to Postgres");
+    let tokio_postgres_config = config
+        .postgres_string
+        .parse::<::tokio_postgres::config::Config>()?;
+
+    let deadpool_manager_config = ::deadpool_postgres::ManagerConfig {
+        recycling_method: ::deadpool_postgres::RecyclingMethod::Fast,
+    };
+
+    let deadpool_manager = ::deadpool_postgres::Manager::from_config(
+        tokio_postgres_config,
+        ::tokio_postgres::NoTls,
+        deadpool_manager_config,
+    );
+
+    let deadpool_write = ::deadpool_postgres::Pool::builder(deadpool_manager)
+        .max_size(16)
+        .build()?;
+
     let pool = ::sqlx::postgres::PgPoolOptions::new()
         .max_connections(10)
         .connect(&config.postgres_string)
@@ -253,6 +272,7 @@ async fn serve_api(
 
     let state = ::std::sync::Arc::new(State {
         pool,
+        deadpool_write,
         pool_read_only,
         search: opensearch_client,
         admin_token: config.admin_token.clone(),

@@ -21,6 +21,7 @@ async fn handle_batch(
     user_agent: &Option<String>,
     signed_events: &::std::vec::Vec<crate::model::signed_event::SignedEvent>,
 ) -> ::anyhow::Result<()> {
+    /*
     let mut signed_events_to_ingest_with_pointers = vec![];
 
     {
@@ -38,6 +39,7 @@ async fn handle_batch(
             }
         }
     }
+    */
 
     let mut batch = HashMap::new();
 
@@ -50,6 +52,13 @@ async fn handle_batch(
         );
     }
 
+    let mut client = state.deadpool_write.get().await?;
+    let transaction = client.transaction().await?;
+
+    crate::ingest::ingest_events_postgres_batch2(transaction, &mut batch)
+        .await?;
+
+    /*
     if !signed_events_to_ingest_with_pointers.is_empty() {
         let mut transaction = state.pool.begin().await?;
 
@@ -66,6 +75,7 @@ async fn handle_batch(
             }
         }
     }
+    */
 
     Ok(())
 }

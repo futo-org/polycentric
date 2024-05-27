@@ -84,6 +84,16 @@ fn filter_subjects_of_deletes(
     }
 }
 
+pub(crate) async fn ingest_events_postgres_batch2(
+    transaction: ::deadpool_postgres::Transaction<'_>,
+    batch: &mut HashMap<
+        crate::model::InsecurePointer,
+        crate::model::EventLayers,
+    >,
+) -> ::anyhow::Result<()> {
+    Ok(())
+}
+
 pub(crate) async fn ingest_events_postgres_batch(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     batch: &mut HashMap<

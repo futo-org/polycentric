@@ -29,6 +29,10 @@ constant_time_eq = "0.3.0"
 regex = "1.10.3"
 lru = "0.12.3"
 reqwest = "0.12.4"
+tokio-postgres = { version = "0.7.10", features = ["array-impls"] }
+deadpool-postgres = "0.13.2"
+postgres-types = "0.2.6"
+postgres-from-row = "0.5.2"
 
 [build-dependencies]
 protobuf-codegen = "3.0.3"
