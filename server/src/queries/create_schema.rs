@@ -5,4 +5,3 @@ pub(crate) async fn execute(
         .batch_execute(::std::include_str!("../sql/schema.sql"))
         .await?)
 }
-
