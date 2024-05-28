@@ -14,3 +14,4 @@ pub(crate) mod query_references;
 pub(crate) mod update_counts;
 pub(crate) mod upsert_count_references;
 pub(crate) mod upsert_lww_element_latest_reference_batch;
+pub(crate) mod create_schema;

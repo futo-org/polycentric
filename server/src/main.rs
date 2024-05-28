@@ -13,6 +13,7 @@ mod opensearch;
 mod postgres;
 mod queries;
 mod version;
+mod test_util;
 
 include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 
@@ -249,12 +250,15 @@ async fn serve_api(
 
     info!("Connecting to OpenSearch");
 
-    let mut transaction = pool.begin().await?;
+    {
+        info!("Creating Schema");
+        let mut client = deadpool_write.get().await?;
+        let transaction = client.transaction().await?;
+        crate::queries::create_schema::execute(&transaction).await?;
+        transaction.commit().await?;
+    }
 
-    crate::postgres::prepare_database(&mut transaction).await?;
-
-    crate::migrate::migrate(&mut transaction).await?;
-    transaction.commit().await?;
+    // crate::migrate::migrate(&mut transaction).await?;
 
     crate::opensearch::prepare_indices(&opensearch_client).await?;
 
