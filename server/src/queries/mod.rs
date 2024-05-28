@@ -14,6 +14,7 @@ pub(crate) mod query_find_claim_and_vouch;
 pub(crate) mod query_index;
 pub(crate) mod query_references;
 pub(crate) mod select_locks;
+pub(crate) mod select_random_systems;
 pub(crate) mod update_counts;
 pub(crate) mod upsert_count_references;
 pub(crate) mod upsert_lww_element_latest_reference_batch;
