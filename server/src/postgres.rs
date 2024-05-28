@@ -2,16 +2,6 @@ use ::protobuf::Message;
 use ::std::convert::TryFrom;
 
 #[derive(::sqlx::Type)]
-#[sqlx(type_name = "censorship_type")]
-#[sqlx(rename_all = "snake_case")]
-#[derive(::serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum CensorshipType {
-    DoNotRecommend,
-    RefuseStorage,
-}
-
-#[derive(::sqlx::Type)]
 #[sqlx(type_name = "link_type")]
 #[sqlx(rename_all = "snake_case")]
 pub(crate) enum LinkType {
@@ -453,61 +443,6 @@ pub(crate) async fn known_ranges_for_system(
     }
 
     Ok(result)
-}
-
-pub(crate) async fn censor_event(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    censor_type: CensorshipType,
-    system: &crate::model::public_key::PublicKey,
-    process: &crate::model::process::Process,
-    logical_clock: u64,
-) -> ::anyhow::Result<()> {
-    let query = "
-        INSERT INTO censored_events (
-            system_key_type,
-            system_key,
-            process,
-            logical_clock,
-            censorship_type
-        )
-        VALUES ($1, $2, $3, $4, $5);
-        ";
-    ::sqlx::query(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
-            system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
-        .bind(process.bytes())
-        .bind(i64::try_from(logical_clock)?)
-        .bind(censor_type)
-        .execute(&mut **transaction)
-        .await?;
-
-    Ok(())
-}
-pub(crate) async fn censor_system(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    censor_type: CensorshipType,
-    system: crate::model::public_key::PublicKey,
-) -> ::anyhow::Result<()> {
-    let query = "
-        INSERT INTO censored_systems (
-            system_key_type,
-            system_key,
-            censorship_type
-        )
-        VALUES ($1, $2, $3);
-        ";
-    ::sqlx::query(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
-            &system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(&system))
-        .bind(censor_type)
-        .execute(&mut **transaction)
-        .await?;
-
-    Ok(())
 }
 
 pub(crate) async fn load_random_profiles(

@@ -3,7 +3,7 @@ use std::fmt::Error;
 
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
-    censorship_type: crate::postgres::CensorshipType,
+    censorship_type: crate::queries::censor::CensorshipType,
 }
 
 pub(crate) async fn handler(
@@ -36,7 +36,9 @@ pub(crate) async fn handler(
         crate::protocol::URLInfo::parse_from_bytes(&bytes2)
     );
 
-    let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
+    let mut client = crate::warp_try_err_500!(state.deadpool_write.get().await);
+
+    let transaction = crate::warp_try_err_500!(client.transaction().await);
 
     if url_info.url_type == 1 {
         let body_system = crate::warp_try_err_500!(
@@ -48,10 +50,10 @@ pub(crate) async fn handler(
             crate::model::public_key::from_url_proto(&body_system)
         );
         crate::warp_try_err_500!(
-            crate::postgres::censor_system(
-                &mut transaction,
+            crate::queries::censor::insert_system(
+                &transaction,
                 query.censorship_type,
-                system
+                &system
             )
             .await
         );
@@ -69,8 +71,8 @@ pub(crate) async fn handler(
         let logical_clock = body_proto.logical_clock;
 
         crate::warp_try_err_500!(
-            crate::postgres::censor_event(
-                &mut transaction,
+            crate::queries::censor::insert_event(
+                &transaction,
                 query.censorship_type,
                 &system,
                 &process,
