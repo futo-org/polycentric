@@ -11,11 +11,12 @@ pub(crate) async fn handler(
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let handle: String = query.handle.clone();
 
-    let mut transaction =
-        crate::warp_try_err_500!(state.pool_read_only.begin().await);
+    let mut client = crate::warp_try_err_500!(state.deadpool_write.get().await);
+
+    let transaction = crate::warp_try_err_500!(client.transaction().await);
 
     let identity = crate::warp_try_err_500!(
-        crate::postgres::resolve_handle(&mut transaction, handle).await
+        crate::queries::handle::select(&transaction, handle).await
     );
 
     crate::warp_try_err_500!(transaction.commit().await);
