@@ -105,7 +105,7 @@ pub(crate) async fn ingest_events_postgres_batch2(
     }
 
     let (_, insert_event_batch_result, delete_event_batch_result) = ::tokio::try_join!(
-        crate::queries::get_locks::select(&transaction, batch),
+        crate::queries::select_locks::select(&transaction, batch),
         crate::queries::insert_event_batch::insert(
             &transaction,
             batch,
