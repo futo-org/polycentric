@@ -58,7 +58,7 @@ const LIKES_DISLIKES_QUERY_FRAGMENT: &str = "
         dislikes.value = '\\002'::bytea
 ";
 
-pub(crate) async fn query_pointer(
+pub(crate) async fn select_pointer(
     transaction: &::deadpool_postgres::Transaction<'_>,
     system: &crate::model::public_key::PublicKey,
     process: &crate::model::process::Process,
@@ -128,7 +128,7 @@ pub(crate) async fn query_pointer(
     process_rows(rows, limit, cursor)
 }
 
-pub(crate) async fn query_bytes(
+pub(crate) async fn select_bytes(
     transaction: &::deadpool_postgres::Transaction<'_>,
     bytes: &::std::vec::Vec<::std::vec::Vec<u8>>,
     from_type: &::std::option::Option<u64>,
@@ -189,7 +189,7 @@ pub(crate) async fn query_bytes(
     process_rows(rows, limit, cursor)
 }
 
-pub(crate) async fn query_references(
+pub(crate) async fn select(
     transaction: &::deadpool_postgres::Transaction<'_>,
     reference: &crate::model::PointerOrByteReferences,
     from_type: &::std::option::Option<u64>,
@@ -198,7 +198,7 @@ pub(crate) async fn query_references(
 ) -> ::anyhow::Result<QueryResult> {
     match reference {
         crate::model::PointerOrByteReferences::Pointer(pointer) => {
-            query_pointer(
+            select_pointer(
                 transaction,
                 pointer.system(),
                 pointer.process(),
@@ -210,7 +210,7 @@ pub(crate) async fn query_references(
             .await
         }
         crate::model::PointerOrByteReferences::Bytes(bytes) => {
-            query_bytes(transaction, bytes, from_type, cursor, limit).await
+            select_bytes(transaction, bytes, from_type, cursor, limit).await
         }
     }
 }

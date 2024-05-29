@@ -66,15 +66,16 @@ pub(crate) async fn handler(
         None
     };
 
-    let mut transaction =
-        crate::warp_try_err_500!(state.pool_read_only.begin().await);
+    let mut client = crate::warp_try_err_500!(state.deadpool_write.get().await);
+
+    let transaction = crate::warp_try_err_500!(client.transaction().await);
 
     let mut result = crate::protocol::QueryReferencesResponse::new();
 
     if let Some(request_events) = query.query.request_events.0 {
         let query_result = crate::warp_try_err_500!(
-            crate::queries::query_references::query_references(
-                &mut transaction,
+            crate::queries::select_references::select(
+                &transaction,
                 &subject,
                 &request_events.from_type,
                 &query_cursor,
