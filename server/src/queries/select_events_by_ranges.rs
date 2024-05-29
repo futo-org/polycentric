@@ -23,7 +23,9 @@ pub(crate) async fn select(
     }
 
     let statement = transaction
-        .prepare_cached(::std::include_str!("../sql/select_head.sql"))
+        .prepare_cached(::std::include_str!(
+            "../sql/select_events_by_ranges.sql"
+        ))
         .await?;
 
     let rows = transaction
