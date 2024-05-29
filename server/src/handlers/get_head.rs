@@ -19,8 +19,6 @@ async fn handler_inner(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
-    let mut transaction = state.pool_read_only.begin().await?;
-
     let mut client = state.deadpool_write.get().await?;
 
     let transaction = client.transaction().await?;
