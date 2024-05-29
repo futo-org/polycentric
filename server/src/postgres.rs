@@ -166,49 +166,6 @@ pub(crate) async fn load_processes_for_system(
         >>()
 }
 
-pub(crate) async fn load_latest_system_wide_lww_event_by_type(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
-    content_type: u64,
-) -> ::anyhow::Result<Option<crate::model::signed_event::SignedEvent>> {
-    let query = "
-        SELECT
-            events.raw_event
-        FROM
-            events 
-        INNER JOIN
-            lww_elements 
-        ON
-            events.id = lww_elements.event_id 
-        WHERE
-            events.system_key_type = $1
-        AND
-            events.system_key = $2
-        AND
-            events.content_type = $3
-        ORDER BY
-            lww_elements.unix_milliseconds DESC,
-            events.process DESC
-        LIMIT 1;
-    ";
-
-    let potential_raw = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
-            system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
-        .bind(i64::try_from(content_type)?)
-        .fetch_optional(&mut **transaction)
-        .await?;
-
-    match potential_raw {
-        Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
-            &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
-        )?)),
-        None => Ok(None),
-    }
-}
-
 pub(crate) fn claim_fields_to_json_object(
     fields: &[crate::protocol::ClaimFieldEntry],
 ) -> ::serde_json::Value {
