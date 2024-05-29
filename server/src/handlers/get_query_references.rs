@@ -114,6 +114,7 @@ pub(crate) async fn handler(
             }
 
             for params in request_events.count_references.iter() {
+                /*
                 item.counts.push(crate::warp_try_err_500!(
                     crate::queries::count_references::count_references_pointer(
                         &mut transaction,
@@ -124,6 +125,7 @@ pub(crate) async fn handler(
                     )
                     .await
                 ));
+                */
             }
 
             result.items.push(item);
@@ -143,6 +145,7 @@ pub(crate) async fn handler(
     }
 
     for params in query.query.count_references.iter() {
+        /*
         result.counts.push(crate::warp_try_err_500!(
             crate::queries::count_references::count_references(
                 &mut transaction,
@@ -151,6 +154,7 @@ pub(crate) async fn handler(
             )
             .await
         ));
+        */
     }
 
     crate::warp_try_err_500!(transaction.commit().await);

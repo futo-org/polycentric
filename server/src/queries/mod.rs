@@ -1,6 +1,5 @@
 pub(crate) mod censor;
 pub(crate) mod count_lww_element_references;
-pub(crate) mod count_references;
 pub(crate) mod create_schema;
 pub(crate) mod handle;
 pub(crate) mod insert_claim_batch;
