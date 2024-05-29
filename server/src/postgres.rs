@@ -201,45 +201,6 @@ pub(crate) async fn load_processes_for_system(
         >>()
 }
 
-pub(crate) async fn load_latest_event_by_type(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
-    process: &crate::model::process::Process,
-    content_type: u64,
-    limit: u64,
-) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
-{
-    let query = "
-        SELECT raw_event FROM events
-        WHERE system_key_type = $1
-        AND   system_key      = $2
-        AND   process         = $3
-        AND   content_type    = $4
-        ORDER BY logical_clock DESC
-        LIMIT $5;
-    ";
-
-    ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
-            system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
-        .bind(process.bytes())
-        .bind(i64::try_from(content_type)?)
-        .bind(i64::try_from(limit)?)
-        .fetch_all(&mut **transaction)
-        .await?
-        .iter()
-        .map(|raw| {
-            crate::model::signed_event::from_proto(
-                &crate::protocol::SignedEvent::parse_from_bytes(raw)?,
-            )
-        })
-        .collect::<::anyhow::Result<
-            ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
-        >>()
-}
-
 pub(crate) async fn load_latest_system_wide_lww_event_by_type(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     system: &crate::model::public_key::PublicKey,
