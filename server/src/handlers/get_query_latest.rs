@@ -17,39 +17,23 @@ pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
-    let mut transaction =
-        crate::warp_try_err_500!(state.pool_read_only.begin().await);
+    let mut client = crate::warp_try_err_500!(state.deadpool_write.get().await);
 
-    let processes = crate::warp_try_err_500!(
-        crate::postgres::load_processes_for_system(
-            &mut transaction,
-            &query.system,
-        )
-        .await
-    );
+    let transaction = crate::warp_try_err_500!(client.transaction().await);
 
     let mut result = crate::protocol::Events::new();
 
-    for process in processes.iter() {
-        for event_type in query.event_types.numbers.iter() {
-            let batch = crate::warp_try_err_500!(
-                crate::postgres::load_latest_event_by_type(
-                    &mut transaction,
-                    &query.system,
-                    process,
-                    *event_type,
-                    query.limit.unwrap_or(1),
-                )
-                .await
-            );
-
-            for event in batch.iter() {
-                result
-                    .events
-                    .push(crate::model::signed_event::to_proto(event));
-            }
-        }
-    }
+    result.events = crate::warp_try_err_500!(
+        crate::queries::select_latest::select(
+            &transaction,
+            &query.system,
+            &query.event_types.numbers,
+        )
+        .await
+    )
+    .iter()
+    .map(crate::model::signed_event::to_proto)
+    .collect();
 
     crate::warp_try_err_500!(transaction.commit().await);
 

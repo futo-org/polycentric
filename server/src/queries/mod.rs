@@ -15,6 +15,7 @@ pub(crate) mod query_index;
 pub(crate) mod query_references;
 pub(crate) mod select_events_by_ranges;
 pub(crate) mod select_head;
+pub(crate) mod select_latest;
 pub(crate) mod select_locks;
 pub(crate) mod select_random_systems;
 pub(crate) mod select_ranges_for_system;
