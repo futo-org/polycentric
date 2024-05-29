@@ -23,17 +23,20 @@ pub(crate) async fn handler(
 
     let limit = query.limit.unwrap_or(10);
 
-    let mut transaction =
-        crate::warp_try_err_500!(state.pool_read_only.begin().await);
+    let mut client = crate::warp_try_err_500!(state.deadpool_write.get().await);
+
+    let transaction = crate::warp_try_err_500!(client.transaction().await);
 
     let db_result = crate::warp_try_err_500!(
-        crate::postgres::load_posts_before_id(
-            &mut transaction,
+        crate::queries::select_events_before_id::select(
+            &transaction,
             start_id,
             limit
         )
         .await
     );
+
+    crate::warp_try_err_500!(transaction.commit().await);
 
     let mut events = Events::new();
 
@@ -50,7 +53,6 @@ pub(crate) async fn handler(
     result.cursor = db_result
         .cursor
         .map(|cursor| u64::to_le_bytes(cursor).to_vec());
-    crate::warp_try_err_500!(transaction.commit().await);
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
 
