@@ -23,3 +23,4 @@ pub(crate) mod select_ranges_for_system;
 pub(crate) mod update_counts;
 pub(crate) mod upsert_count_references;
 pub(crate) mod upsert_lww_element_latest_reference_batch;
+pub(crate) mod select_events_by_pointer;
