@@ -8,7 +8,6 @@ pub(crate) mod insert_lww_element_batch;
 pub(crate) mod insert_reference_batch;
 pub(crate) mod purge;
 pub(crate) mod query_index;
-pub(crate) mod query_references;
 pub(crate) mod select_claim_and_vouch;
 pub(crate) mod select_claims;
 pub(crate) mod select_count_references;
