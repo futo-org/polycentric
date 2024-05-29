@@ -251,6 +251,13 @@ pub(crate) async fn ingest_events_postgres_batch2(
     }
 
     ::tokio::try_join!(
+        crate::queries::upsert_lww_element_latest_reference_batch::upsert_bytes2(
+            &transaction,
+            upsert_lww_element_latest_reference_batch_bytes,
+        ),
+    )?;
+
+    ::tokio::try_join!(
         crate::queries::insert_reference_batch::insert_pointer(
             &transaction,
             insert_reference_batch_pointer,
@@ -303,6 +310,10 @@ pub(crate) async fn deadpool_prepare_all(
         .await?;
     crate::queries::insert_delete_batch::prepare_delete(&transaction).await?;
     crate::queries::insert_delete_batch::prepare_insert(&transaction).await?;
+    crate::queries::upsert_lww_element_latest_reference_batch::prepare_bytes(
+        &transaction,
+    )
+    .await?;
 
     Ok(())
 }

@@ -129,6 +129,41 @@ impl PointerBatch {
     }
 }
 
+pub(crate) async fn prepare_bytes(
+    transaction: &::deadpool_postgres::Transaction<'_>,
+) -> ::anyhow::Result<::tokio_postgres::Statement> {
+    let statement = transaction
+        .prepare_cached(::std::include_str!(
+            "../sql/upsert_lww_element_latest_reference_bytes.sql"
+        ))
+        .await?;
+
+    Ok(statement)
+}
+
+pub(crate) async fn upsert_bytes2(
+    transaction: &::deadpool_postgres::Transaction<'_>,
+    batch: BytesBatch,
+) -> ::anyhow::Result<Vec<::tokio_postgres::Row>> {
+    if batch.p_event_id.len() == 0 {
+        return Ok(vec![]);
+    }
+
+    let statement = prepare_bytes(&transaction).await?;
+
+    Ok(transaction
+        .query(&statement, &[
+            &batch.p_event_id,
+            &batch.p_system_key_type,
+            &batch.p_system_key,
+            &batch.p_process,
+            &batch.p_content_type,
+            &batch.p_lww_element_unix_milliseconds,
+            &batch.p_subject,
+        ])
+        .await?)
+}
+
 pub(crate) async fn upsert_bytes(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     batch: BytesBatch,
