@@ -55,7 +55,7 @@ pub(crate) async fn handler(
     let transaction = crate::warp_try_err_500!(client.transaction().await);
 
     let potential_db_result = crate::warp_try_err_500!(
-        crate::queries::query_find_claim_and_vouch::select(
+        crate::queries::select_claim_and_vouch::select(
             &transaction,
             &query.query.vouching_system,
             &query.query.claiming_system,
