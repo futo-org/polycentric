@@ -152,15 +152,18 @@ pub(crate) async fn upsert_bytes2(
     let statement = prepare_bytes(&transaction).await?;
 
     Ok(transaction
-        .query(&statement, &[
-            &batch.p_event_id,
-            &batch.p_system_key_type,
-            &batch.p_system_key,
-            &batch.p_process,
-            &batch.p_content_type,
-            &batch.p_lww_element_unix_milliseconds,
-            &batch.p_subject,
-        ])
+        .query(
+            &statement,
+            &[
+                &batch.p_event_id,
+                &batch.p_system_key_type,
+                &batch.p_system_key,
+                &batch.p_process,
+                &batch.p_content_type,
+                &batch.p_lww_element_unix_milliseconds,
+                &batch.p_subject,
+            ],
+        )
         .await?)
 }
 

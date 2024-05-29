@@ -12,8 +12,7 @@ pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
-    let mut client =
-        crate::warp_try_err_500!(state.deadpool_write.get().await);
+    let mut client = crate::warp_try_err_500!(state.deadpool_write.get().await);
 
     let transaction = crate::warp_try_err_500!(client.transaction().await);
 

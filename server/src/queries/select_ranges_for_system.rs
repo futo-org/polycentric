@@ -3,13 +3,20 @@ pub(crate) async fn select(
     system: &crate::model::public_key::PublicKey,
 ) -> ::anyhow::Result<crate::protocol::RangesForSystem> {
     let statement = transaction
-        .prepare_cached(::std::include_str!("../sql/select_ranges_for_system.sql"))
+        .prepare_cached(::std::include_str!(
+            "../sql/select_ranges_for_system.sql"
+        ))
         .await?;
 
-    let rows = transaction.query(&statement, &[
-        &i64::try_from(crate::model::public_key::get_key_type(system))?,
-        &crate::model::public_key::get_key_bytes(system),
-    ]).await?;
+    let rows = transaction
+        .query(
+            &statement,
+            &[
+                &i64::try_from(crate::model::public_key::get_key_type(system))?,
+                &crate::model::public_key::get_key_bytes(system),
+            ],
+        )
+        .await?;
 
     let mut result = crate::protocol::RangesForSystem::new();
 
