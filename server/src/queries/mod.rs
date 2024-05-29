@@ -13,6 +13,7 @@ pub(crate) mod query_claims;
 pub(crate) mod query_find_claim_and_vouch;
 pub(crate) mod query_index;
 pub(crate) mod query_references;
+pub(crate) mod select_claims;
 pub(crate) mod select_count_references;
 pub(crate) mod select_events_before_id;
 pub(crate) mod select_events_by_pointer;
