@@ -22,6 +22,7 @@ pub(crate) mod select_latest_lww;
 pub(crate) mod select_locks;
 pub(crate) mod select_random_systems;
 pub(crate) mod select_ranges_for_system;
+pub(crate) mod select_references;
 pub(crate) mod update_counts;
 pub(crate) mod upsert_count_references;
 pub(crate) mod upsert_lww_element_latest_reference_batch;
