@@ -43,13 +43,18 @@ pub(crate) async fn handler(
         )));
     }
 
-    let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
+    {
+        let mut client =
+            crate::warp_try_err_500!(state.deadpool_write.get().await);
 
-    crate::warp_try_err_500!(
-        crate::queries::purge::purge(&mut transaction, &system,).await
-    );
+        let transaction = crate::warp_try_err_500!(client.transaction().await);
 
-    crate::warp_try_err_500!(transaction.commit().await);
+        crate::warp_try_err_500!(
+            crate::queries::purge::purge(&transaction, &system).await
+        );
+
+        crate::warp_try_err_500!(transaction.commit().await);
+    }
 
     Ok(Box::new(::warp::reply::with_status(
         "",

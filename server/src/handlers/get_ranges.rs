@@ -12,12 +12,14 @@ pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
-    let mut transaction =
-        crate::warp_try_err_500!(state.pool_read_only.begin().await);
+    let mut client =
+        crate::warp_try_err_500!(state.deadpool_write.get().await);
+
+    let transaction = crate::warp_try_err_500!(client.transaction().await);
 
     let result = crate::warp_try_err_500!(
-        crate::postgres::known_ranges_for_system(
-            &mut transaction,
+        crate::queries::select_ranges_for_system::select(
+            &transaction,
             &query.system,
         )
         .await

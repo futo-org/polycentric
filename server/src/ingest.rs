@@ -105,7 +105,7 @@ pub(crate) async fn ingest_events_postgres_batch2(
     }
 
     let (_, insert_event_batch_result, delete_event_batch_result) = ::tokio::try_join!(
-        crate::queries::get_locks::select(&transaction, batch),
+        crate::queries::select_locks::select(&transaction, batch),
         crate::queries::insert_event_batch::insert(
             &transaction,
             batch,
@@ -297,7 +297,7 @@ pub(crate) async fn deadpool_prepare_all(
     let mut client = state.deadpool_write.get().await?;
     let transaction = client.transaction().await?;
 
-    crate::queries::get_locks::prepare(&transaction).await?;
+    crate::queries::select_locks::prepare(&transaction).await?;
     crate::queries::insert_event_batch::prepare(&transaction).await?;
     crate::queries::insert_reference_batch::prepare_bytes(&transaction).await?;
     crate::queries::insert_reference_batch::prepare_pointer(&transaction)
