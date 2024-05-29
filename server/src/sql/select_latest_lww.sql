@@ -10,8 +10,8 @@ WITH input_rows (
     ) * FROM
         UNNEST(
             $1::bigint [],
-            $2::bytea [],
-            $3::bigint []
+            $3::bytea [],
+            $5::bigint []
         ) AS p (
             system_key_type,
             system_key,
@@ -19,14 +19,20 @@ WITH input_rows (
         )
 )
 
-SELECT raw_event FROM events INNER JOIN input_rows ON
+SELECT DISTINCT ON (
+    events.system_key_type,
+    events.system_key,
+    events.content_type
+) raw_event FROM events INNER JOIN input_rows ON
     events.system_key_type = input_rows.system_key_type
 AND
     events.system_key = input_rows.system_key
 AND
-    events.process = input_rows.process
-AND
-    events.logical_clock = input_rows.logical_clock
-
-
+    events.content_type = input_rows.content_type
+INNER JOIN lww_elements
+ON
+    events.id = lww_elements.event_id 
+ORDER BY
+    lww_elements.unix_milliseconds DESC,
+    events.process DESC
 
