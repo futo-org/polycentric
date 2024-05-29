@@ -100,6 +100,7 @@ pub(crate) async fn handler(
             );
 
             for params in request_events.count_lww_element_references.iter() {
+                /*
                 item.counts.push(crate::warp_try_err_500!(
                         crate::queries::count_lww_element_references::
                             count_lww_element_references_pointer(
@@ -111,6 +112,7 @@ pub(crate) async fn handler(
                                 &params.from_type,
                             ).await
                     ));
+                */
             }
 
             for params in request_events.count_references.iter() {
@@ -133,6 +135,7 @@ pub(crate) async fn handler(
     }
 
     for params in query.query.count_lww_element_references.iter() {
+        /*
         result.counts.push(crate::warp_try_err_500!(
                 crate::queries::count_lww_element_references::
                     count_lww_element_references(
@@ -142,6 +145,7 @@ pub(crate) async fn handler(
                         &params.from_type,
                     ).await
             ));
+        */
     }
 
     for params in query.query.count_references.iter() {
