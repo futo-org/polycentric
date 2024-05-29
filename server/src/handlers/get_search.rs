@@ -77,29 +77,14 @@ pub(crate) async fn handler_inner(
 
     let response_body = response.json::<crate::OpenSearchSearchL0>().await?;
 
-    let mut transaction = state.pool_read_only.begin().await?;
-
-    let mut result_events = crate::protocol::Events::new();
+    let mut pointers_to_load = vec![];
+    let mut lww_to_load = vec![];
 
     if let Some(hits) = response_body.hits {
         for hit in hits.hits {
             let id = hit._id;
             if hit._index == "messages" {
-                let pointer = crate::model::pointer::from_base64(&id)?;
-
-                let event_result = crate::postgres::load_event(
-                    &mut transaction,
-                    pointer.system(),
-                    pointer.process(),
-                    *pointer.logical_clock(),
-                )
-                .await?;
-
-                if let Some(event_result) = event_result {
-                    result_events.events.push(
-                        crate::model::signed_event::to_proto(&event_result),
-                    );
-                };
+                pointers_to_load.push(crate::model::pointer::from_base64(&id)?);
             } else {
                 let system = crate::model::public_key::from_base64(&id)?;
 
@@ -109,21 +94,40 @@ pub(crate) async fn handler_inner(
                     crate::model::known_message_types::DESCRIPTION
                 };
 
-                let potential_event =
-                    crate::postgres::load_latest_system_wide_lww_event_by_type(
-                        &mut transaction,
-                        &system,
-                        content_type,
-                    )
-                    .await?;
-
-                if let Some(event) = potential_event {
-                    result_events
-                        .events
-                        .push(crate::model::signed_event::to_proto(&event));
-                }
+                lww_to_load.push(crate::queries::select_latest_lww::InputRow {
+                    system: system,
+                    content_type: content_type,
+                });
             }
         }
+    }
+
+    let mut result_events = crate::protocol::Events::new();
+
+    let mut client = state.deadpool_write.get().await?;
+
+    let transaction = client.transaction().await?;
+
+    let (batch1, batch2) = ::tokio::try_join!(
+        crate::queries::select_events_by_pointer::select(
+            &transaction,
+            pointers_to_load
+        ),
+        crate::queries::select_latest_lww::select(&transaction, lww_to_load),
+    )?;
+
+    transaction.commit().await?;
+
+    for signed_event in batch1 {
+        result_events
+            .events
+            .push(crate::model::signed_event::to_proto(&signed_event));
+    }
+
+    for signed_event in batch2 {
+        result_events
+            .events
+            .push(crate::model::signed_event::to_proto(&signed_event));
     }
 
     let mut result =
@@ -135,8 +139,6 @@ pub(crate) async fn handler_inner(
 
     result.cursor =
         Some(u64::to_le_bytes(start_count + returned_event_count).to_vec());
-
-    transaction.commit().await?;
 
     Ok(Box::new(::warp::reply::with_status(
         result.write_to_bytes()?,

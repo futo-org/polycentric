@@ -1,6 +1,6 @@
 pub(crate) struct InputRow {
-    system: crate::model::public_key::PublicKey,
-    content_type: u64,
+    pub(crate) system: crate::model::public_key::PublicKey,
+    pub(crate) content_type: u64,
 }
 
 pub(crate) async fn select(
