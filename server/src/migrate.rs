@@ -73,14 +73,14 @@ async fn migration_1_compute_reference_counts(
                 event.content(),
             )?;
 
-            crate::queries::update_counts::update_counts(
+            crate::postgres::update_counts::update_counts(
                 transaction,
                 &event,
                 &content,
             )
             .await?;
 
-            crate::queries::update_counts::update_lww_element_reference(
+            crate::postgres::update_counts::update_lww_element_reference(
                 transaction,
                 u64::try_from(row.id)?,
                 &event,

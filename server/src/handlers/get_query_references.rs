@@ -73,7 +73,7 @@ pub(crate) async fn handler(
 
     if let Some(request_events) = query.query.request_events.0 {
         let query_result = crate::warp_try_err_500!(
-            crate::queries::query_references::query_references(
+            crate::postgres::query_references::query_references(
                 &mut transaction,
                 &subject,
                 &request_events.from_type,
@@ -101,7 +101,7 @@ pub(crate) async fn handler(
 
             for params in request_events.count_lww_element_references.iter() {
                 item.counts.push(crate::warp_try_err_500!(
-                        crate::queries::count_lww_element_references::
+                        crate::postgres::count_lww_element_references::
                             count_lww_element_references_pointer(
                                 &mut transaction,
                                 event.system(),
@@ -115,7 +115,7 @@ pub(crate) async fn handler(
 
             for params in request_events.count_references.iter() {
                 item.counts.push(crate::warp_try_err_500!(
-                    crate::queries::count_references::count_references_pointer(
+                    crate::postgres::count_references::count_references_pointer(
                         &mut transaction,
                         event.system(),
                         event.process(),
@@ -132,7 +132,7 @@ pub(crate) async fn handler(
 
     for params in query.query.count_lww_element_references.iter() {
         result.counts.push(crate::warp_try_err_500!(
-                crate::queries::count_lww_element_references::
+                crate::postgres::count_lww_element_references::
                     count_lww_element_references(
                         &mut transaction,
                         &subject,
@@ -144,7 +144,7 @@ pub(crate) async fn handler(
 
     for params in query.query.count_references.iter() {
         result.counts.push(crate::warp_try_err_500!(
-            crate::queries::count_references::count_references(
+            crate::postgres::count_references::count_references(
                 &mut transaction,
                 &subject,
                 &params.from_type,

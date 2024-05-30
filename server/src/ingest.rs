@@ -83,7 +83,7 @@ pub(crate) async fn ingest_event_postgres(
     )?;
 
     // update_counts must run before delete_event or event inserted
-    crate::queries::update_counts::update_counts(
+    crate::postgres::update_counts::update_counts(
         &mut *transaction,
         &event,
         &content,
@@ -152,7 +152,7 @@ pub(crate) async fn ingest_event_postgres(
         .await?;
     }
 
-    crate::queries::update_counts::update_lww_element_reference(
+    crate::postgres::update_counts::update_lww_element_reference(
         &mut *transaction,
         event_id,
         &event,

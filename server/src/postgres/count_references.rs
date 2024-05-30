@@ -110,7 +110,7 @@ pub mod tests {
         );
 
         let result =
-            crate::queries::count_references::count_references_pointer(
+            crate::postgres::count_references::count_references_pointer(
                 &mut transaction,
                 &system,
                 &process,

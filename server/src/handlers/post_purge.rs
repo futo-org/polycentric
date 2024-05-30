@@ -46,7 +46,7 @@ pub(crate) async fn handler(
     let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
 
     crate::warp_try_err_500!(
-        crate::queries::purge::purge(&mut transaction, &system,).await
+        crate::postgres::purge::purge(&mut transaction, &system,).await
     );
 
     crate::warp_try_err_500!(transaction.commit().await);

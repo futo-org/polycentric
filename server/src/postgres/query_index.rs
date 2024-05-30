@@ -325,7 +325,7 @@ pub mod tests {
             keypair.verifying_key().clone(),
         );
 
-        let result = crate::queries::query_index::query_index(
+        let result = crate::postgres::query_index::query_index(
             &mut transaction,
             &system,
             crate::model::known_message_types::POST,
@@ -338,7 +338,7 @@ pub mod tests {
 
         assert!(
             result
-                == crate::queries::query_index::Result {
+                == crate::postgres::query_index::Result {
                     events: vec![],
                     proof: vec![],
                 }
@@ -376,7 +376,7 @@ pub mod tests {
             s1.verifying_key().clone(),
         );
 
-        let result = crate::queries::query_index::query_index(
+        let result = crate::postgres::query_index::query_index(
             &mut transaction,
             &system,
             crate::model::known_message_types::POST,
@@ -455,7 +455,7 @@ pub mod tests {
             s1.verifying_key().clone(),
         );
 
-        let result = crate::queries::query_index::query_index(
+        let result = crate::postgres::query_index::query_index(
             &mut transaction,
             &system,
             crate::model::known_message_types::POST,
@@ -519,7 +519,7 @@ pub mod tests {
             s1.verifying_key().clone(),
         );
 
-        let result = crate::queries::query_index::query_index(
+        let result = crate::postgres::query_index::query_index(
             &mut transaction,
             &system,
             crate::model::known_message_types::POST,

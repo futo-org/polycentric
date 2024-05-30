@@ -221,7 +221,7 @@ pub mod tests {
             keypair.verifying_key().clone(),
         );
 
-        let result = crate::queries::query_references::query_pointer(
+        let result = crate::postgres::query_references::query_pointer(
             &mut transaction,
             &system,
             &process,
@@ -234,7 +234,7 @@ pub mod tests {
 
         transaction.commit().await?;
 
-        let expected = crate::queries::query_references::QueryResult {
+        let expected = crate::postgres::query_references::QueryResult {
             cursor: None,
             events: vec![],
         };

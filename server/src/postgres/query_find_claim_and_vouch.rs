@@ -153,7 +153,7 @@ pub mod tests {
         crate::ingest::ingest_event_postgres(&mut transaction, &s2p1e1).await?;
 
         let result =
-            crate::queries::query_find_claim_and_vouch::query_find_claim_and_vouch(
+            crate::postgres::query_find_claim_and_vouch::query_find_claim_and_vouch(
                 &mut transaction,
                 &crate::model::public_key::PublicKey::Ed25519(
                     s2.verifying_key().clone()
@@ -169,7 +169,7 @@ pub mod tests {
         transaction.commit().await?;
 
         let expected =
-            Some(crate::queries::query_find_claim_and_vouch::Match {
+            Some(crate::postgres::query_find_claim_and_vouch::Match {
                 vouch_event: s2p1e1.clone(),
                 claim_event: s1p1e1.clone(),
             });
