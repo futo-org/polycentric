@@ -72,7 +72,10 @@ pub(crate) async fn handler(
 
     let mut result = crate::protocol::QueryReferencesResponse::new();
 
-    if let Some(request_events) = query.query.request_events.0 {
+    let mut count_lww_pointer_input = vec![];
+    let mut count_pointer_input = vec![];
+
+    if let Some(request_events) = &query.query.request_events.0 {
         let query_result = crate::warp_try_err_500!(
             crate::queries::select_references::select(
                 &transaction,
@@ -101,34 +104,28 @@ pub(crate) async fn handler(
             );
 
             for params in request_events.count_lww_element_references.iter() {
-                /*
-                item.counts.push(crate::warp_try_err_500!(
-                        crate::queries::count_lww_element_references::
-                            count_lww_element_references_pointer(
-                                &mut transaction,
-                                event.system(),
-                                event.process(),
-                                *event.logical_clock(),
-                                &params.value,
-                                &params.from_type,
-                            ).await
-                    ));
-                */
+                count_lww_pointer_input.push(
+                    crate::queries::select_count_references_lww_element::InputRowPointer{
+                        subject: crate::warp_try_err_500!(
+                            crate::model::pointer::from_signed_event(&signed_event)
+                        ),
+                        value: params.value.clone(),
+                        from_type: params.from_type.clone(),
+                    },
+                );
             }
 
             for params in request_events.count_references.iter() {
-                /*
-                item.counts.push(crate::warp_try_err_500!(
-                    crate::queries::count_references::count_references_pointer(
-                        &mut transaction,
-                        event.system(),
-                        event.process(),
-                        *event.logical_clock(),
-                        &params.from_type,
-                    )
-                    .await
-                ));
-                */
+                count_pointer_input.push(
+                    crate::queries::select_count_references::InputRowPointer {
+                        subject: crate::warp_try_err_500!(
+                            crate::model::pointer::from_signed_event(
+                                &signed_event
+                            )
+                        ),
+                        from_type: params.from_type.clone(),
+                    },
+                );
             }
 
             result.items.push(item);
@@ -162,7 +159,41 @@ pub(crate) async fn handler(
         */
     }
 
+    let pointer_counts = crate::warp_try_err_500!(
+        crate::queries::select_count_references::select_pointer(
+            &transaction,
+            count_pointer_input,
+        )
+        .await
+    );
+
+    let lww_pointer_counts = crate::warp_try_err_500!(
+        crate::queries::select_count_references_lww_element::select_pointer(
+            &transaction,
+            count_lww_pointer_input,
+        )
+        .await
+    );
+
     crate::warp_try_err_500!(transaction.commit().await);
+
+    let mut lww_pointer_counts_position = 0;
+    let mut pointer_counts_position = 0;
+
+    if let Some(request_events) = query.query.request_events.0 {
+        for item in result.items.iter_mut() {
+            for _ in request_events.count_lww_element_references.iter() {
+                item.counts
+                    .push(lww_pointer_counts[lww_pointer_counts_position]);
+                lww_pointer_counts_position += 1;
+            }
+
+            for _ in request_events.count_references.iter() {
+                item.counts.push(pointer_counts[pointer_counts_position]);
+                pointer_counts_position += 1;
+            }
+        }
+    }
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
 
