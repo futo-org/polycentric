@@ -4,7 +4,7 @@ pub(crate) struct InputRowPointer {
 }
 
 pub(crate) struct InputRowBytes {
-    pub(crate) subject: Vec<u8>,
+    pub(crate) subject: Vec<Vec<u8>>,
     pub(crate) from_type: Option<u64>,
 }
 

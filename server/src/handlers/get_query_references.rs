@@ -73,7 +73,9 @@ pub(crate) async fn handler(
     let mut result = crate::protocol::QueryReferencesResponse::new();
 
     let mut count_lww_pointer_input = vec![];
+    let mut count_lww_bytes_input = vec![];
     let mut count_pointer_input = vec![];
+    let mut count_bytes_input = vec![];
 
     if let Some(request_events) = &query.query.request_events.0 {
         let query_result = crate::warp_try_err_500!(
@@ -133,36 +135,61 @@ pub(crate) async fn handler(
     }
 
     for params in query.query.count_lww_element_references.iter() {
-        /*
-        result.counts.push(crate::warp_try_err_500!(
-                crate::queries::count_lww_element_references::
-                    count_lww_element_references(
-                        &mut transaction,
-                        &subject,
-                        &params.value,
-                        &params.from_type,
-                    ).await
-            ));
-        */
+        match &subject {
+            crate::model::PointerOrByteReferences::Pointer(pointer) => {
+                count_lww_pointer_input.push(
+                    crate::queries::select_count_references_lww_element::InputRowPointer{
+                        subject: pointer.clone(),
+                        value: params.value.clone(),
+                        from_type: params.from_type.clone(),
+                    },
+                );
+            }
+            crate::model::PointerOrByteReferences::Bytes(bytes) => {
+                count_lww_bytes_input.push(
+                    crate::queries::select_count_references_lww_element::InputRowBytes {
+                        subject: bytes.clone(),
+                        value: params.value.clone(),
+                        from_type: params.from_type.clone(),
+                    },
+                );
+            }
+        };
     }
 
     for params in query.query.count_references.iter() {
-        /*
-        result.counts.push(crate::warp_try_err_500!(
-            crate::queries::count_references::count_references(
-                &mut transaction,
-                &subject,
-                &params.from_type,
-            )
-            .await
-        ));
-        */
+        match &subject {
+            crate::model::PointerOrByteReferences::Pointer(pointer) => {
+                count_pointer_input.push(
+                    crate::queries::select_count_references::InputRowPointer {
+                        subject: pointer.clone(),
+                        from_type: params.from_type.clone(),
+                    },
+                );
+            }
+            crate::model::PointerOrByteReferences::Bytes(bytes) => {
+                count_bytes_input.push(
+                    crate::queries::select_count_references::InputRowBytes {
+                        subject: bytes.clone(),
+                        from_type: params.from_type.clone(),
+                    },
+                );
+            }
+        };
     }
 
     let pointer_counts = crate::warp_try_err_500!(
         crate::queries::select_count_references::select_pointer(
             &transaction,
             count_pointer_input,
+        )
+        .await
+    );
+
+    let bytes_counts = crate::warp_try_err_500!(
+        crate::queries::select_count_references::select_bytes(
+            &transaction,
+            &count_bytes_input,
         )
         .await
     );
@@ -175,10 +202,20 @@ pub(crate) async fn handler(
         .await
     );
 
+    let lww_bytes_counts = crate::warp_try_err_500!(
+        crate::queries::select_count_references_lww_element::select_bytes(
+            &transaction,
+            &count_lww_bytes_input,
+        )
+        .await
+    );
+
     crate::warp_try_err_500!(transaction.commit().await);
 
     let mut lww_pointer_counts_position = 0;
+    let mut lww_bytes_counts_position = 0;
     let mut pointer_counts_position = 0;
+    let mut bytes_counts_position = 0;
 
     if let Some(request_events) = query.query.request_events.0 {
         for item in result.items.iter_mut() {
@@ -193,6 +230,36 @@ pub(crate) async fn handler(
                 pointer_counts_position += 1;
             }
         }
+    }
+
+    for params in query.query.count_lww_element_references.iter() {
+        match &subject {
+            crate::model::PointerOrByteReferences::Pointer(_) => {
+                result
+                    .counts
+                    .push(lww_pointer_counts[lww_pointer_counts_position]);
+                lww_pointer_counts_position += 1;
+            }
+            crate::model::PointerOrByteReferences::Bytes(_) => {
+                result
+                    .counts
+                    .push(lww_bytes_counts[lww_bytes_counts_position]);
+                lww_bytes_counts_position += 1;
+            }
+        };
+    }
+
+    for params in query.query.count_references.iter() {
+        match &subject {
+            crate::model::PointerOrByteReferences::Pointer(_) => {
+                result.counts.push(pointer_counts[pointer_counts_position]);
+                pointer_counts_position += 1;
+            }
+            crate::model::PointerOrByteReferences::Bytes(_) => {
+                result.counts.push(bytes_counts[bytes_counts_position]);
+                bytes_counts_position += 1;
+            }
+        };
     }
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
