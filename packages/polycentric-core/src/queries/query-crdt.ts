@@ -3,10 +3,10 @@ import * as RXJS from 'rxjs';
 
 import * as Models from '../models';
 import * as Util from '../util';
-import * as QueryHead from './query-head';
-import { UnregisterCallback, DuplicatedCallbackError } from './shared';
 import { Box, OnceFlag } from '../util';
+import * as QueryHead from './query-head';
 import { QueryLatest, queryLatestObservable } from './query-latest';
+import { DuplicatedCallbackError, UnregisterCallback } from './shared';
 
 export interface CallbackValue {
     readonly missingData: boolean;
@@ -71,7 +71,7 @@ function computeCRDTValue(
             if (headEvent.contentType.notEquals(contentType)) {
                 const index = Models.Event.lookupIndex(headEvent, contentType);
 
-                if (index && index.notEquals(event.logicalClock)) {
+                if (index?.notEquals(event.logicalClock)) {
                     missingData = true;
                 }
             }
