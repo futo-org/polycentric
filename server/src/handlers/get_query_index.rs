@@ -19,7 +19,7 @@ pub(crate) async fn handler(
         crate::warp_try_err_500!(state.pool_read_only.begin().await);
 
     let query_result = crate::warp_try_err_500!(
-        crate::queries::query_index::query_index(
+        crate::postgres::query_index::query_index(
             &mut transaction,
             &query.system,
             query.content_type,

@@ -125,7 +125,7 @@ pub mod tests {
             keypair.verifying_key().clone(),
         );
 
-        let result = crate::queries::count_lww_element_references::
+        let result = crate::postgres::count_lww_element_references::
             count_lww_element_references_pointer(
                 &mut transaction,
                 &system,

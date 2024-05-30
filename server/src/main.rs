@@ -11,7 +11,6 @@ mod migrate;
 mod model;
 mod opensearch;
 mod postgres;
-mod queries;
 mod version;
 
 include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));

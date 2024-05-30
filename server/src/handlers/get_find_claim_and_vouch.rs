@@ -54,7 +54,7 @@ pub(crate) async fn handler(
         crate::warp_try_err_500!(state.pool_read_only.begin().await);
 
     let potential_db_result = crate::warp_try_err_500!(
-        crate::queries::query_find_claim_and_vouch::query_find_claim_and_vouch(
+        crate::postgres::query_find_claim_and_vouch::query_find_claim_and_vouch(
             &mut transaction,
             &query.query.vouching_system,
             &query.query.claiming_system,
