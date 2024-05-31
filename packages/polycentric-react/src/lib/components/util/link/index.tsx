@@ -8,7 +8,7 @@ import { StackElementPathContext } from './StackElementPathContext';
 
 const getUrlComponent = (url: string) => {
     const path = Object.keys(routeData).find((path) => {
-        const match = matchPath(url, { path, exact: true });
+        const match = matchPath(url, path);
         if (match) return true;
     });
 

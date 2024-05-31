@@ -288,7 +288,7 @@ describe('integration', () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         await s1p1.addServer(TEST_SERVER);
 
-        const username = Math.random() * 100000 + '';
+        const username = (Math.random() * 100000).toString();
         const description = 'Alerts for many rail lines';
         const newUsername =
             'South Eastern Pennsylvania Transportation Authority';
@@ -299,7 +299,7 @@ describe('integration', () => {
             'The Manayunk/Norristown line is delayed 15 minutes due to trackwork';
         const post2Content =
             'All trains are on a reduced schedule due to single-tracking at Jefferson station';
-        const post3Content = Math.random() * 100000 + '';
+        const post3Content = (Math.random() * 100000).toString();
         await s1p1.post(post1Content);
         await s1p1.post(post2Content);
 

@@ -9,8 +9,5 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js"
-  },
-  "devDependencies": {
-    "typescript": "^4.8.3"
   }
 }
