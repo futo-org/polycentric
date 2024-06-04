@@ -312,7 +312,10 @@ export const useStackRouter = (
 
 function getParams(url: string) {
     for (const path of Object.keys(routeData)) {
-        const match = matchPath(url, path);
+        const match = matchPath(url, {
+            path,
+            exact: true,
+        });
         if (match) {
             return match.params;
         }

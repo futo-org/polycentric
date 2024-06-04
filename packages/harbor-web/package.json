@@ -13,7 +13,7 @@
     "@mui/icons-material": "^5.13.7",
     "@polycentric/polycentric-core": "*",
     "react-intersection-observer": "^9.5.2",
-    "react-router-dom": "^6.16.0"
+    "react-router-dom": "^5.3.4"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.61.0",

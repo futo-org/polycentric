@@ -49,7 +49,7 @@ devcert:
 
 proto: proto/protocol.proto
 	npm install
-	npx protoc \
+	protoc \
 		--plugin=./node_modules/.bin/protoc-gen-ts_proto \
 		--ts_proto_opt=esModuleInterop=true \
 		--ts_proto_opt=forceLong=long \
