@@ -13,17 +13,14 @@ class MobileLevelDBPersistenceDriver {
     };
 
     openStore = async (path: string) => {
-        console.log("opening store " + path)
         const level = new MobileLevel(path, {
             keyEncoding: 'view',
             valueEncoding: 'view',
-        }) as unknown as PersistenceDriver.BinaryAbstractLevel;
+        }) as PersistenceDriver.BinaryAbstractLevel;
 
-        console.log("here")
         await level.open().catch((err) => {
-            console.warn(err);
-        })
-        console.log("there")
+            console.error(err);
+        });
 
         // assign level to the class level
         this.levels.set(path, level);
