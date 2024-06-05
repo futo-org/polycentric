@@ -357,7 +357,7 @@ export const SwipeHomeFeed = () => {
         return (
             isPlatform('mobile') && !isPlatform('ios') && !isPlatform('ipad')
         );
-    }, [])
+    }, []);
 
     return (
         <>

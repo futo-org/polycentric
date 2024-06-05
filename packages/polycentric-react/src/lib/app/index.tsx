@@ -1,12 +1,12 @@
 import {
     ArrowUpOnSquareIcon,
-    EllipsisVerticalIcon
+    EllipsisVerticalIcon,
 } from '@heroicons/react/24/outline';
 import { IonApp, IonNav, isPlatform, setupIonicReact } from '@ionic/react';
 import {
     MetaStore,
     PersistenceDriver,
-    ProcessHandle
+    ProcessHandle,
 } from '@polycentric/polycentric-core';
 import {
     useCallback,
@@ -14,7 +14,7 @@ import {
     useLayoutEffect,
     useMemo,
     useRef,
-    useState
+    useState,
 } from 'react';
 import * as UAParserJS from 'ua-parser-js';
 import { SidebarLayout } from '../components/layout/sidebarlayout';
@@ -23,7 +23,7 @@ import { MemoryRoutedComponent } from '../components/util/link';
 import { PersistenceDriverContext } from '../hooks/persistenceDriverHooks';
 import {
     BaseProcessHandleManagerContext,
-    useProcessHandleManagerBaseComponentHook
+    useProcessHandleManagerBaseComponentHook,
 } from '../hooks/processHandleManagerHooks';
 import { QueryManagerContext } from '../hooks/queryHooks';
 import { useStackRouter } from '../hooks/stackRouterHooks';
