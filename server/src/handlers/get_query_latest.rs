@@ -10,57 +10,41 @@ pub(crate) struct Query {
         deserialize_with = "crate::model::serde_url_deserialize_repeated_uint64"
     )]
     event_types: crate::protocol::RepeatedUInt64,
-    limit: ::core::option::Option<u64>,
+}
+
+async fn handler_inner(
+    state: ::std::sync::Arc<crate::State>,
+    query: Query,
+) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
+    let mut result = crate::protocol::Events::new();
+
+    let mut transaction = state.pool_read_only.begin().await?;
+
+    result.events = crate::postgres::select_latest_by_content_type::select(
+        &mut transaction,
+        &query.system,
+        &query.event_types.numbers,
+    )
+    .await?
+    .iter()
+    .map(crate::model::signed_event::to_proto)
+    .collect();
+
+    transaction.commit().await?;
+
+    Ok(Box::new(::warp::reply::with_header(
+        ::warp::reply::with_status(
+            result.write_to_bytes()?,
+            ::warp::http::StatusCode::OK,
+        ),
+        "Cache-Control",
+        "public, max-age=30",
+    )))
 }
 
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
-    let mut transaction =
-        crate::warp_try_err_500!(state.pool_read_only.begin().await);
-
-    let processes = crate::warp_try_err_500!(
-        crate::postgres::load_processes_for_system(
-            &mut transaction,
-            &query.system,
-        )
-        .await
-    );
-
-    let mut result = crate::protocol::Events::new();
-
-    for process in processes.iter() {
-        for event_type in query.event_types.numbers.iter() {
-            let batch = crate::warp_try_err_500!(
-                crate::postgres::load_latest_event_by_type(
-                    &mut transaction,
-                    &query.system,
-                    process,
-                    *event_type,
-                    query.limit.unwrap_or(1),
-                )
-                .await
-            );
-
-            for event in batch.iter() {
-                result
-                    .events
-                    .push(crate::model::signed_event::to_proto(event));
-            }
-        }
-    }
-
-    crate::warp_try_err_500!(transaction.commit().await);
-
-    let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
-
-    Ok(Box::new(::warp::reply::with_header(
-        ::warp::reply::with_status(
-            result_serialized,
-            ::warp::http::StatusCode::OK,
-        ),
-        "Cache-Control",
-        "public, max-age=30",
-    )))
+    Ok(crate::warp_try_err_500!(handler_inner(state, query).await))
 }
