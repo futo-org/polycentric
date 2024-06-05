@@ -16,7 +16,7 @@ class MobileLevelDBPersistenceDriver {
         const level = new MobileLevel(path, {
             keyEncoding: 'view',
             valueEncoding: 'view',
-        }) as PersistenceDriver.BinaryAbstractLevel;
+        });
 
         await level.open().catch((err) => {
             console.error(err);
