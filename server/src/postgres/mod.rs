@@ -9,6 +9,7 @@ pub(crate) mod query_claims;
 pub(crate) mod query_find_claim_and_vouch;
 pub(crate) mod query_index;
 pub(crate) mod query_references;
+pub(crate) mod select_events_by_ranges;
 pub(crate) mod update_counts;
 
 #[derive(::sqlx::Type)]
@@ -673,34 +674,6 @@ pub(crate) async fn load_system_head(
         .collect::<::anyhow::Result<
             ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
         >>()
-}
-
-pub(crate) async fn load_event_ranges(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
-    ranges: &crate::protocol::RangesForSystem,
-) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
-{
-    let mut result = vec![];
-
-    for process_ranges in ranges.ranges_for_processes.iter() {
-        let process =
-            crate::model::process::from_vec(&process_ranges.process.process)?;
-
-        for range in process_ranges.ranges.iter() {
-            for logical_clock in range.low..=range.high {
-                let potential_event =
-                    load_event(transaction, system, &process, logical_clock)
-                        .await?;
-
-                if let Some(event) = potential_event {
-                    result.push(event);
-                }
-            }
-        }
-    }
-
-    Ok(result)
 }
 
 pub(crate) async fn known_ranges_for_system(

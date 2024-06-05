@@ -37,7 +37,7 @@ async fn handler_inner(
 
     let mut result = crate::protocol::Events::new();
 
-    result.events = crate::postgres::load_event_ranges(
+    result.events = crate::postgres::select_events_by_ranges::select(
         &mut transaction,
         &query.system,
         &query.ranges,
