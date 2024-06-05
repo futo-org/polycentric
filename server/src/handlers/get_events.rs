@@ -29,37 +29,39 @@ pub(crate) struct Query {
     ranges: crate::protocol::RangesForSystem,
 }
 
-pub(crate) async fn handler(
+async fn handler_inner(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
-) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
-    let mut transaction =
-        crate::warp_try_err_500!(state.pool_read_only.begin().await);
+) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
+    let mut transaction = state.pool_read_only.begin().await?;
 
     let mut result = crate::protocol::Events::new();
 
-    result.events = crate::warp_try_err_500!(
-        crate::postgres::load_event_ranges(
-            &mut transaction,
-            &query.system,
-            &query.ranges,
-        )
-        .await
+    result.events = crate::postgres::select_events_by_ranges::select(
+        &mut transaction,
+        &query.system,
+        &query.ranges,
     )
+    .await?
     .iter()
     .map(crate::model::signed_event::to_proto)
     .collect();
 
-    crate::warp_try_err_500!(transaction.commit().await);
-
-    let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
+    transaction.commit().await?;
 
     Ok(Box::new(::warp::reply::with_header(
         ::warp::reply::with_status(
-            result_serialized,
+            result.write_to_bytes()?,
             ::warp::http::StatusCode::OK,
         ),
         "Cache-Control",
         "public, max-age=30",
     )))
+}
+
+pub(crate) async fn handler(
+    state: ::std::sync::Arc<crate::State>,
+    query: Query,
+) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
+    Ok(crate::warp_try_err_500!(handler_inner(state, query).await))
 }
