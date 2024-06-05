@@ -20,7 +20,6 @@
     "@polycentric/polycentric-core": "*",
     "@polycentric/polycentric-react": "*",
     "@polycentric/leveldb-capacitor-plugin": "0.0.5",
-    "browser-level": "^1.0.1",
     "events": "^3.3.0"
   },
   "devDependencies": {
