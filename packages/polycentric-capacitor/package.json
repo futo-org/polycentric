@@ -17,12 +17,13 @@
     "@capacitor/ios": "^5.6.0",
     "@capacitor/keyboard": "^5.0.7",
     "@capacitor/status-bar": "^5.0.6",
+    "@polycentric/leveldb-capacitor-plugin": "0.0.5",
     "@polycentric/polycentric-core": "*",
     "@polycentric/polycentric-react": "*",
-    "@polycentric/leveldb-capacitor-plugin": "0.0.5",
     "events": "^3.3.0"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^5.6.0",
     "@testing-library/dom": ">=7.21.4",
     "@testing-library/jest-dom": "^5.16.5",
