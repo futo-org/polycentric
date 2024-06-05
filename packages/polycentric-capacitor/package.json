@@ -19,7 +19,7 @@
     "@capacitor/status-bar": "^5.0.6",
     "@polycentric/polycentric-core": "*",
     "@polycentric/polycentric-react": "*",
-    "@polycentric/leveldb-capacitor-plugin": "*",
+    "@polycentric/leveldb-capacitor-plugin": "0.0.4",
     "browser-level": "^1.0.1",
     "events": "^3.3.0"
   },
