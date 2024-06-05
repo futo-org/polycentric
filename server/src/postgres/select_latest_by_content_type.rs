@@ -3,7 +3,7 @@ use ::protobuf::Message;
 pub(crate) async fn select(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     system: &crate::model::public_key::PublicKey,
-    content_types: &Vec<u64>,
+    content_types: &[u64],
 ) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
 {
     let query = "
