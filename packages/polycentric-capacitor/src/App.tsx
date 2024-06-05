@@ -53,7 +53,13 @@ class MobileLevelDBPersistenceDriver {
     };
 
     destroyStore = async (path: string) => {
-        await indexedDB.deleteDatabase('level-js-' + path);
+        const level = this.levels.get(path);
+
+        if (level !== undefined) {
+            level.clear();
+            level.close();
+            this.levels.delete(path);
+        }
     };
 
     async close(path: string) {
