@@ -20,7 +20,6 @@
     "@typescript-eslint/parser": "^5.61.0",
     "@vitejs/plugin-basic-ssl": "^1.0.1",
     "autoprefixer": "^10.4.14",
-    "eslint": "^8.44.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.1",
     "postcss": "^8.4.25"
