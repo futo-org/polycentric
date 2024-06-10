@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import './capacitor.css';
 
 class MobileLevelDBPersistenceDriver {
-    levels = new Map<string, PersistenceDriver.BinaryAbstractLevel>();
+    levels = new Map<string, MobileLevel>();
 
     getImplementationName = () => {
         return 'MobileLevelDB';
@@ -34,17 +34,6 @@ class MobileLevelDBPersistenceDriver {
             bytesUsed: undefined,
         };
 
-        // TODO: this
-        // try {
-        //     const storageEstimate = await navigator.storage.estimate();
-
-        //     estimate.bytesAvailable = storageEstimate.quota;
-
-        //     estimate.bytesUsed = storageEstimate.usage;
-        // } catch (err) {
-        //     console.warn(err);
-        // }
-
         return estimate;
     };
 
@@ -56,9 +45,7 @@ class MobileLevelDBPersistenceDriver {
         const level = this.levels.get(path);
 
         if (level !== undefined) {
-            level.clear();
-            level.close();
-            this.levels.delete(path);
+            await level.destroy();
         }
     };
 

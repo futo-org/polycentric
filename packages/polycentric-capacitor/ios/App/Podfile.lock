@@ -11,7 +11,7 @@ PODS:
   - CapacitorStatusBar (5.0.7):
     - Capacitor
   - leveldb-library (1.22.5)
-  - PolycentricLeveldbCapacitorPlugin (0.0.1):
+  - PolycentricLeveldbCapacitorPlugin (0.0.6):
     - Capacitor
     - leveldb-library (~> 1.22.5)
 
@@ -52,7 +52,7 @@ SPEC CHECKSUMS:
   CapacitorKeyboard: aec619a578235c6ce279075009a2689c2cf5c42c
   CapacitorStatusBar: f390fbb49b82ffb754ea4b3cf71dc8b048baf3e7
   leveldb-library: e8eadf9008a61f9e1dde3978c086d2b6d9b9dc28
-  PolycentricLeveldbCapacitorPlugin: 76909f983eb44cab173d1b06069e659053410115
+  PolycentricLeveldbCapacitorPlugin: c1f9f655af3fef953c72bf1b32e9dfe788b87206
 
 PODFILE CHECKSUM: e25e89b73f5b7f950a4749fdb529607511ab7cc2
 
