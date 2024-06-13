@@ -48,7 +48,8 @@
     "unplugin-fonts": "^1.0.3"
   },
   "peerDependencies": {
-    "@polycentric/polycentric-core": "*"
+    "@polycentric/polycentric-core": "*",
+    "react": "^18.2.0"
   },
   "devDependencies": {
     "@laynezh/vite-plugin-lib-assets": "^0.5.5",
