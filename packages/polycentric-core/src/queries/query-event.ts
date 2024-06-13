@@ -1,20 +1,20 @@
 import Long from 'long';
 import * as RXJS from 'rxjs';
 
+import * as APIMethods from '../api-methods';
+import { CancelContext } from '../cancel-context';
 import * as Models from '../models';
 import * as Ranges from '../ranges';
-import * as APIMethods from '../api-methods';
-import * as Util from '../util';
-import * as Shared from './shared';
 import { IndexEvents } from '../store/index-events';
-import { QueryServers } from './query-servers';
+import * as Util from '../util';
 import { HasUpdate } from './has-update';
+import { QueryServers } from './query-servers';
+import * as Shared from './shared';
 import {
     DuplicatedCallbackError,
     ImpossibleError,
     UnregisterCallback,
 } from './shared';
-import { CancelContext } from '../cancel-context';
 
 export type Callback = (signedEvent: Models.SignedEvent.SignedEvent) => void;
 
@@ -54,7 +54,7 @@ interface StateForSystem {
 
 const DeleteOfDeleteError = new Error('cannot delete a delete event');
 
-export class QueryEvent extends HasUpdate {
+export class QueryEvent implements HasUpdate {
     private readonly state: Map<
         Models.PublicKey.PublicKeyString,
         StateForSystem
@@ -71,8 +71,6 @@ export class QueryEvent extends HasUpdate {
         queryServers: QueryServers,
         onLoadedBatch?: Shared.OnLoadedBatch,
     ) {
-        super();
-
         this.state = new Map();
         this.indexEvents = indexEvents;
         this.queryServers = queryServers;

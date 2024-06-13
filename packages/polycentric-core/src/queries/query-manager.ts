@@ -15,7 +15,7 @@ import { LoadedBatch } from './shared';
 
 import { HasUpdate } from './has-update';
 
-export class QueryManager extends HasUpdate {
+export class QueryManager implements HasUpdate {
     public skipLoadedBatchUpdate: boolean;
 
     public readonly processHandle: ProcessHandle.ProcessHandle;
@@ -35,8 +35,6 @@ export class QueryManager extends HasUpdate {
     private readonly stages: readonly HasUpdate[];
 
     public constructor(processHandle: ProcessHandle.ProcessHandle) {
-        super();
-
         this.skipLoadedBatchUpdate = false;
 
         this.processHandle = processHandle;

@@ -1,7 +1,7 @@
-import * as PersistenceDriver from '../persistence-driver';
 import * as Models from '../models';
-import * as Util from '../util';
+import * as PersistenceDriver from '../persistence-driver';
 import * as Protocol from '../protocol';
+import * as Util from '../util';
 import { HasIngest } from './has-ingest';
 
 export function makeSystemStateKey(
@@ -72,7 +72,7 @@ function updateSystemState(
     return mutated;
 }
 
-export class IndexSystemState extends HasIngest {
+export class IndexSystemState implements HasIngest {
     private readonly level: PersistenceDriver.BinaryAbstractSubLevel;
 
     constructor(
@@ -80,8 +80,6 @@ export class IndexSystemState extends HasIngest {
             prefix: string,
         ) => PersistenceDriver.BinaryAbstractSubLevel,
     ) {
-        super();
-
         this.level = registerSublevel('systemStates');
     }
 

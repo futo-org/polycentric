@@ -65,7 +65,7 @@ interface Batch {
     readonly signedEvents: readonly Models.SignedEvent.SignedEvent[];
 }
 
-export class QueryHead extends HasUpdate {
+export class QueryHead implements HasUpdate {
     private readonly processHandle: ProcessHandle.ProcessHandle;
     private readonly queryServers: QueryServers;
     private readonly state: Map<
@@ -81,8 +81,6 @@ export class QueryHead extends HasUpdate {
         queryServers: QueryServers,
         onLoadedBatch?: Shared.OnLoadedBatch,
     ) {
-        super();
-
         this.processHandle = processHandle;
         this.queryServers = queryServers;
         this.state = new Map();

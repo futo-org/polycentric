@@ -1,7 +1,7 @@
-import * as PersistenceDriver from '../persistence-driver';
 import * as Models from '../models';
-import * as Util from '../util';
+import * as PersistenceDriver from '../persistence-driver';
 import * as Protocol from '../protocol';
+import * as Util from '../util';
 import { HasIngest } from './has-ingest';
 
 export function makeEventKey(
@@ -17,7 +17,7 @@ export function makeEventKey(
     ]);
 }
 
-export class IndexEvents extends HasIngest {
+export class IndexEvents implements HasIngest {
     private readonly level: PersistenceDriver.BinaryAbstractSubLevel;
 
     constructor(
@@ -25,8 +25,6 @@ export class IndexEvents extends HasIngest {
             prefix: string,
         ) => PersistenceDriver.BinaryAbstractSubLevel,
     ) {
-        super();
-
         this.level = registerSublevel('events');
     }
 
