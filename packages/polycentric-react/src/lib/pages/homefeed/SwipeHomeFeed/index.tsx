@@ -1,4 +1,4 @@
-import { IonContent, IonHeader, IonMenuToggle } from '@ionic/react';
+import { IonContent, IonHeader, IonMenuToggle, isPlatform } from '@ionic/react';
 import {
     createContext,
     useCallback,
@@ -353,6 +353,12 @@ export const SwipeHomeFeed = () => {
 
     const [composeModalOpen, setComposeModalOpen] = useState(false);
 
+    const isMobileNonIOS = useMemo(() => {
+        return (
+            isPlatform('mobile') && !isPlatform('ios') && !isPlatform('ipad')
+        );
+    }, []);
+
     return (
         <>
             <IonHeader className="">
@@ -383,6 +389,7 @@ export const SwipeHomeFeed = () => {
                     edgeSwipeDetection={true}
                     edgeSwipeThreshold={50}
                     onSlideChange={handleSlideChange}
+                    cssMode={isMobileNonIOS}
                 >
                     {swipeTopics.map((topic) => (
                         <SwiperSlide key={topic} style={{ overflow: 'auto' }}>

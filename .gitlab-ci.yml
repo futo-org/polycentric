@@ -230,6 +230,12 @@ build-web:
       paths:
         - ./packages/polycentric-web/dist/
 
+build-capacitor: 
+  stage: build
+  cache: *node-cache-config
+  script: cd packages/polycentric-capacitor && npm run build
+  needs: ["build-core", "build-react"]
+
 build-harbor: 
   stage: build
   cache: *node-cache-config

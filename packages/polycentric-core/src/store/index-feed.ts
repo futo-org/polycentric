@@ -1,12 +1,12 @@
 import Long from 'long';
 
-import * as PersistenceDriver from '../persistence-driver';
-import * as Models from '../models';
-import * as Util from '../util';
-import * as Protocol from '../protocol';
 import * as Store from '.';
-import * as IndexEvents from './index-events';
+import * as Models from '../models';
+import * as PersistenceDriver from '../persistence-driver';
+import * as Protocol from '../protocol';
+import * as Util from '../util';
 import { HasIngest } from './has-ingest';
+import * as IndexEvents from './index-events';
 
 export type IndexFeedCursor = Readonly<Uint8Array> & {
     readonly __tag: unique symbol;
@@ -67,7 +67,7 @@ export function extractEventKeyFromCursor(cursor: IndexFeedCursor): Uint8Array {
     return cursor.subarray(startOfEventKey);
 }
 
-export class IndexFeed extends HasIngest {
+export class IndexFeed implements HasIngest {
     private readonly level: PersistenceDriver.BinaryAbstractSubLevel;
     private readonly store: Store.Store;
 
@@ -77,8 +77,6 @@ export class IndexFeed extends HasIngest {
             prefix: string,
         ) => PersistenceDriver.BinaryAbstractSubLevel,
     ) {
-        super();
-
         (this.store = store), (this.level = registerSublevel('indexFeed'));
     }
 

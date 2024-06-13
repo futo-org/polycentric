@@ -1,10 +1,10 @@
 import Long from 'long';
 
-import * as PersistenceDriver from '../persistence-driver';
 import * as Models from '../models';
+import * as PersistenceDriver from '../persistence-driver';
 import * as Util from '../util';
-import * as IndexEvents from './index-events';
 import { HasIngest } from './has-ingest';
+import * as IndexEvents from './index-events';
 
 export type Key = Readonly<Uint8Array> & {
     readonly __tag: unique symbol;
@@ -53,7 +53,7 @@ export function encodeKeyBoundary(
     return Util.concatBuffers(segments) as Key;
 }
 
-export class IndexSystemProcessContentTypeClock extends HasIngest {
+export class IndexSystemProcessContentTypeClock implements HasIngest {
     private readonly level: PersistenceDriver.BinaryAbstractSubLevel;
     private readonly indexEvents: IndexEvents.IndexEvents;
 
@@ -63,8 +63,6 @@ export class IndexSystemProcessContentTypeClock extends HasIngest {
         ) => PersistenceDriver.BinaryAbstractSubLevel,
         indexEvents: IndexEvents.IndexEvents,
     ) {
-        super();
-
         this.level = registerSublevel('indexSystemProcessContentTypeClock');
         this.indexEvents = indexEvents;
     }

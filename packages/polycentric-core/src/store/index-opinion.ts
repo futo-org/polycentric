@@ -1,10 +1,10 @@
-import * as PersistenceDriver from '../persistence-driver';
 import * as Models from '../models';
-import * as Util from '../util';
+import * as PersistenceDriver from '../persistence-driver';
 import * as Protocol from '../protocol';
+import * as Util from '../util';
 import { HasIngest } from './has-ingest';
 
-export class IndexOpinion extends HasIngest {
+export class IndexOpinion implements HasIngest {
     private _level: PersistenceDriver.BinaryAbstractSubLevel;
 
     constructor(
@@ -12,8 +12,6 @@ export class IndexOpinion extends HasIngest {
             prefix: string,
         ) => PersistenceDriver.BinaryAbstractSubLevel,
     ) {
-        super();
-
         this._level = registerSublevel('opinions');
     }
 

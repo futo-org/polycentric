@@ -48,7 +48,8 @@
     "unplugin-fonts": "^1.0.3"
   },
   "peerDependencies": {
-    "@polycentric/polycentric-core": "*"
+    "@polycentric/polycentric-core": "*",
+    "react": "^18.2.0"
   },
   "devDependencies": {
     "@laynezh/vite-plugin-lib-assets": "^0.5.5",
@@ -62,7 +63,6 @@
     "@storybook/testing-library": "0.2.2",
     "@testing-library/react": "14.0.0",
     "@types/ua-parser-js": "^0.7.39",
-    "@typescript-eslint/eslint-plugin": "5.60.0",
     "@vitest/coverage-c8": "0.32.2",
     "autoprefixer": "10.4.14",
     "eslint-config-prettier": "8.8.0",

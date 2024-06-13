@@ -1,4 +1,5 @@
 import { encode } from '@borderless/base64';
+import { isPlatform } from '@ionic/react';
 import { Models } from '@polycentric/polycentric-core';
 import {
     InputHTMLAttributes,
@@ -10,11 +11,10 @@ import {
 } from 'react';
 import internetTodayURL from '../../../../graphics/onboarding/internettoday.svg';
 import starterURL from '../../../../graphics/onboarding/starter.svg';
-import { useOnboardingProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
-import { useIsMobile, useThemeColor } from '../../../hooks/styleHooks';
-
 import { StackRouterContext } from '../../../app/contexts';
 import { useGestureWall } from '../../../hooks/ionicHooks';
+import { useOnboardingProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
+import { useIsMobile, useThemeColor } from '../../../hooks/styleHooks';
 import { publishBlobToAvatar } from '../../../util/imageProcessing';
 import { ProfileAvatarInput } from '../../profile/edit/inputs/ProfileAvatarInput';
 import { Carousel } from '../../util/carousel';
@@ -454,6 +454,11 @@ export const Onboarding = () => {
                 }
             });
         };
+
+        if (isPlatform('capacitor')) {
+            setAlreadyPersisted(true);
+            return;
+        }
 
         checkAndTryToPersist();
         window.addEventListener('appinstalled', checkAndTryToPersist);
