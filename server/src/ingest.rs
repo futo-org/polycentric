@@ -239,6 +239,23 @@ pub(crate) async fn ingest_event_search(
     Ok(())
 }
 
+pub(crate) async fn ingest_event_batch(
+    signed_events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+    state: &::std::sync::Arc<crate::State>,
+) -> ::anyhow::Result<()> {
+    let mut transaction = state.pool.begin().await?;
+    for signed_event in &signed_events {
+        ingest_event_postgres(&mut transaction, signed_event).await?;
+    }
+    transaction.commit().await?;
+
+    for signed_event in signed_events {
+        ingest_event_search(&state.search, &signed_event).await?;
+    }
+
+    Ok(())
+}
+
 pub(crate) async fn ingest_event(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     signed_event: &crate::model::signed_event::SignedEvent,
