@@ -274,15 +274,37 @@ async fn ingest_event_postgres_batch_transaction(
 // full ingestion pipeline
 pub(crate) async fn ingest_event_batch(
     state: &::std::sync::Arc<crate::State>,
+    user_agent: &Option<String>,
     signed_events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
 ) -> ::anyhow::Result<()> {
+    let mut signed_events_filtered = vec![];
+
+    {
+        let mut ingest_cache = state.ingest_cache.lock().unwrap();
+
+        for signed_event in &signed_events {
+            let pointer =
+                crate::model::pointer::from_signed_event(&signed_event)?;
+
+            if ingest_cache.get(&pointer).is_some() {
+                continue;
+            } else {
+                signed_events_filtered.push(signed_event.clone());
+                trace_event(user_agent, signed_event)?;
+            }
+        }
+    }
+
     for attempt in 1..4 {
         if attempt != 1 {
             ::log::warn!("ingest_event_postgres_batch failed, retrying");
         }
 
-        match ingest_event_postgres_batch_transaction(&state, &signed_events)
-            .await
+        match ingest_event_postgres_batch_transaction(
+            &state,
+            &signed_events_filtered,
+        )
+        .await
         {
             Ok(_) => {
                 break;
@@ -306,8 +328,18 @@ pub(crate) async fn ingest_event_batch(
         }
     }
 
-    for signed_event in signed_events {
+    for signed_event in &signed_events_filtered {
         ingest_event_search(&state.search, &signed_event).await?;
+    }
+
+    {
+        let mut ingest_cache = state.ingest_cache.lock().unwrap();
+
+        for signed_event in signed_events_filtered {
+            let pointer =
+                crate::model::pointer::from_signed_event(&signed_event)?;
+            ingest_cache.put(pointer.clone(), ());
+        }
     }
 
     Ok(())

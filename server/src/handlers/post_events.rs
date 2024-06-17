@@ -18,7 +18,8 @@ async fn handler_inner(
     user_agent: Option<String>,
     signed_events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
-    crate::ingest::ingest_event_batch(&state, signed_events).await?;
+    crate::ingest::ingest_event_batch(&state, &user_agent, signed_events)
+        .await?;
 
     Ok(Box::new(::warp::reply::with_status(
         "",
