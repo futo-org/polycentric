@@ -63,6 +63,25 @@ pub(crate) async fn ingest_event_postgres(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     signed_event: &crate::model::signed_event::SignedEvent,
 ) -> ::anyhow::Result<()> {
+    ingest_event_postgres_batch(&mut *transaction, &vec![signed_event.clone()])
+        .await?;
+    Ok(())
+}
+
+async fn ingest_event_postgres_batch(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    signed_events: &::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+) -> ::anyhow::Result<()> {
+    for signed_event in signed_events {
+        ingest_event_postgres_single(&mut *transaction, signed_event).await?;
+    }
+    Ok(())
+}
+
+async fn ingest_event_postgres_single(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    signed_event: &crate::model::signed_event::SignedEvent,
+) -> ::anyhow::Result<()> {
     let event = crate::model::event::from_vec(signed_event.event())?;
 
     if crate::postgres::does_event_exist(&mut *transaction, &event).await? {
@@ -244,9 +263,7 @@ pub(crate) async fn ingest_event_batch(
     state: &::std::sync::Arc<crate::State>,
 ) -> ::anyhow::Result<()> {
     let mut transaction = state.pool.begin().await?;
-    for signed_event in &signed_events {
-        ingest_event_postgres(&mut transaction, signed_event).await?;
-    }
+    ingest_event_postgres_batch(&mut transaction, &signed_events).await?;
     transaction.commit().await?;
 
     for signed_event in signed_events {
@@ -256,13 +273,3 @@ pub(crate) async fn ingest_event_batch(
     Ok(())
 }
 
-pub(crate) async fn ingest_event(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    signed_event: &crate::model::signed_event::SignedEvent,
-    state: &::std::sync::Arc<crate::State>,
-) -> ::anyhow::Result<()> {
-    ingest_event_postgres(transaction, signed_event).await?;
-    ingest_event_search(&state.search, signed_event).await?;
-
-    Ok(())
-}

@@ -15,25 +15,12 @@ fn parse_input(
         >>()
 }
 
-async fn ingest_event_transaction(
-    state: &::std::sync::Arc<crate::State>,
-    signed_event: &crate::model::signed_event::SignedEvent,
-) -> ::anyhow::Result<()> {
-    let mut transaction = state.pool.begin().await?;
-    crate::ingest::ingest_event(&mut transaction, signed_event, state).await?;
-    transaction.commit().await?;
-    Ok(())
-}
-
 async fn handler_inner(
     state: ::std::sync::Arc<crate::State>,
     user_agent: Option<String>,
     signed_events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
-    crate::ingest::ingest_event_batch(
-        signed_events,
-        &state,
-    ).await?;
+    crate::ingest::ingest_event_batch(signed_events, &state).await?;
 
     Ok(Box::new(::warp::reply::with_status(
         "",
