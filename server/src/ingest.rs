@@ -59,6 +59,7 @@ pub(crate) fn trace_event(
     Ok(())
 }
 
+// convenience function for tests
 pub(crate) async fn ingest_event_postgres(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     signed_event: &crate::model::signed_event::SignedEvent,
@@ -78,6 +79,7 @@ async fn ingest_event_postgres_batch(
     Ok(())
 }
 
+// singular event portion called only by ingest_event_postgres_batch
 async fn ingest_event_postgres_single(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     signed_event: &crate::model::signed_event::SignedEvent,
@@ -258,9 +260,10 @@ pub(crate) async fn ingest_event_search(
     Ok(())
 }
 
+// full ingestion pipeline
 pub(crate) async fn ingest_event_batch(
-    signed_events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
     state: &::std::sync::Arc<crate::State>,
+    signed_events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
 ) -> ::anyhow::Result<()> {
     let mut transaction = state.pool.begin().await?;
     ingest_event_postgres_batch(&mut transaction, &signed_events).await?;

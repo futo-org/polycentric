@@ -1,6 +1,4 @@
-use ::cadence::Counted;
 use ::protobuf::Message;
-use ::std::ops::Deref;
 
 fn parse_input(
     bytes: ::bytes::Bytes,
@@ -20,7 +18,7 @@ async fn handler_inner(
     user_agent: Option<String>,
     signed_events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
-    crate::ingest::ingest_event_batch(signed_events, &state).await?;
+    crate::ingest::ingest_event_batch(&state, signed_events).await?;
 
     Ok(Box::new(::warp::reply::with_status(
         "",
