@@ -3,10 +3,11 @@ use crate::{
     protocol::Post,
 };
 use ::log::*;
+use ::opensearch::IndexParts;
 use ::protobuf::Message;
-use opensearch::IndexParts;
-use std::fmt::Error;
-use std::time::SystemTime;
+use ::std::fmt::Error;
+use ::std::ops::Deref;
+use ::std::time::SystemTime;
 
 pub(crate) fn trace_event(
     user_agent: &Option<String>,
@@ -260,14 +261,52 @@ pub(crate) async fn ingest_event_search(
     Ok(())
 }
 
+async fn ingest_event_postgres_batch_transaction(
+    state: &::std::sync::Arc<crate::State>,
+    signed_events: &::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+) -> ::anyhow::Result<()> {
+    let mut transaction = state.pool.begin().await?;
+    ingest_event_postgres_batch(&mut transaction, &signed_events).await?;
+    transaction.commit().await?;
+    Ok(())
+}
+
 // full ingestion pipeline
 pub(crate) async fn ingest_event_batch(
     state: &::std::sync::Arc<crate::State>,
     signed_events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
 ) -> ::anyhow::Result<()> {
-    let mut transaction = state.pool.begin().await?;
-    ingest_event_postgres_batch(&mut transaction, &signed_events).await?;
-    transaction.commit().await?;
+    for attempt in 1..4 {
+        if attempt != 1 {
+            ::log::warn!("ingest_event_postgres_batch failed, retrying");
+        }
+
+        match ingest_event_postgres_batch_transaction(&state, &signed_events)
+            .await
+        {
+            Ok(_) => {
+                break;
+            }
+            Err(err) => {
+                if attempt == 3 {
+                    return Err(err);
+                }
+
+                match err.downcast_ref::<::sqlx::Error>() {
+                    Some(::sqlx::Error::Database(db_err)) => {
+                        if db_err.deref().is_unique_violation() {
+                            continue;
+                        }
+                    }
+                    _ => {
+                        return Err(err);
+                    }
+                }
+            }
+        }
+    }
+
+    ingest_event_postgres_batch_transaction(&state, &signed_events).await?;
 
     for signed_event in signed_events {
         ingest_event_search(&state.search, &signed_event).await?;
@@ -275,4 +314,3 @@ pub(crate) async fn ingest_event_batch(
 
     Ok(())
 }
-
