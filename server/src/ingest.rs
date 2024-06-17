@@ -306,8 +306,6 @@ pub(crate) async fn ingest_event_batch(
         }
     }
 
-    ingest_event_postgres_batch_transaction(&state, &signed_events).await?;
-
     for signed_event in signed_events {
         ingest_event_search(&state.search, &signed_event).await?;
     }
