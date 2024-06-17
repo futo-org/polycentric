@@ -2,6 +2,7 @@ use crate::{
     model::{known_message_types, pointer},
     protocol::Post,
 };
+use ::cadence::Counted;
 use ::log::*;
 use ::opensearch::IndexParts;
 use ::protobuf::Message;
@@ -335,12 +336,24 @@ pub(crate) async fn ingest_event_batch(
     {
         let mut ingest_cache = state.ingest_cache.lock().unwrap();
 
-        for signed_event in signed_events_filtered {
+        for signed_event in &signed_events_filtered {
             let pointer =
                 crate::model::pointer::from_signed_event(&signed_event)?;
             ingest_cache.put(pointer.clone(), ());
         }
     }
+
+    state
+        .statsd_client
+        .count_with_tags(
+            "ingest_success",
+            i64::try_from(signed_events_filtered.len())?,
+        )
+        .with_tag(
+            "user_agent",
+            &user_agent.clone().unwrap_or("unknown".to_string()),
+        )
+        .try_send()?;
 
     Ok(())
 }
