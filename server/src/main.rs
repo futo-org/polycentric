@@ -55,7 +55,7 @@ struct State {
     statsd_client: ::cadence::StatsdClient,
     challenge_key: String,
     ingest_cache:
-        ::std::sync::Mutex<::lru::LruCache<crate::model::pointer::Pointer, ()>>,
+        ::std::sync::Mutex<::lru::LruCache<crate::model::InsecurePointer, ()>>,
 }
 
 async fn handle_rejection(

@@ -1,6 +1,8 @@
+use ::std::collections::HashMap;
+
 pub(crate) async fn select(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    signed_events: &::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+    batch: &HashMap<crate::model::InsecurePointer, crate::model::EventLayers>,
 ) -> ::anyhow::Result<()> {
     let query = "
         SELECT
@@ -21,11 +23,10 @@ pub(crate) async fn select(
 
     let mut p_system_key = vec![];
 
-    for signed_event in signed_events {
-        let event = crate::model::event::from_vec(signed_event.event())?;
-
-        p_system_key
-            .push(crate::model::public_key::get_key_bytes(event.system()));
+    for layers in batch.values() {
+        p_system_key.push(crate::model::public_key::get_key_bytes(
+            layers.event().system(),
+        ));
     }
 
     ::sqlx::query(query)

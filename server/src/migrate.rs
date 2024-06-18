@@ -141,7 +141,11 @@ pub(crate) async fn backfill_search(
         }
 
         for signed_event in batch.events {
-            crate::ingest::ingest_event_search(&search, &signed_event).await?;
+            crate::ingest::ingest_event_search(
+                &search,
+                &crate::model::EventLayers::new(signed_event)?,
+            )
+            .await?;
         }
     }
 
