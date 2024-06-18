@@ -62,6 +62,7 @@ pub(crate) fn trace_event(
 }
 
 // convenience function for tests
+#[allow(dead_code)]
 pub(crate) async fn ingest_event_postgres(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     signed_event: &crate::model::signed_event::SignedEvent,
