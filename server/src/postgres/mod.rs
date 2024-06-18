@@ -11,6 +11,7 @@ pub(crate) mod query_index;
 pub(crate) mod query_references;
 pub(crate) mod select_events_by_ranges;
 pub(crate) mod select_latest_by_content_type;
+pub(crate) mod select_system_locks;
 pub(crate) mod update_counts;
 
 #[derive(::sqlx::Type)]

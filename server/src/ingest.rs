@@ -2,11 +2,13 @@ use crate::{
     model::{known_message_types, pointer},
     protocol::Post,
 };
+use ::cadence::Counted;
 use ::log::*;
+use ::opensearch::IndexParts;
 use ::protobuf::Message;
-use opensearch::IndexParts;
-use std::fmt::Error;
-use std::time::SystemTime;
+use ::std::fmt::Error;
+use ::std::ops::Deref;
+use ::std::time::SystemTime;
 
 pub(crate) fn trace_event(
     user_agent: &Option<String>,
@@ -59,7 +61,36 @@ pub(crate) fn trace_event(
     Ok(())
 }
 
+// convenience function for tests
+#[allow(dead_code)]
 pub(crate) async fn ingest_event_postgres(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    signed_event: &crate::model::signed_event::SignedEvent,
+) -> ::anyhow::Result<()> {
+    ingest_event_postgres_batch(&mut *transaction, &vec![signed_event.clone()])
+        .await?;
+    Ok(())
+}
+
+async fn ingest_event_postgres_batch(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    signed_events: &::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+) -> ::anyhow::Result<()> {
+    crate::postgres::select_system_locks::select(
+        &mut *transaction,
+        signed_events,
+    )
+    .await?;
+
+    for signed_event in signed_events {
+        ingest_event_postgres_single(&mut *transaction, signed_event).await?;
+    }
+
+    Ok(())
+}
+
+// singular event portion called only by ingest_event_postgres_batch
+async fn ingest_event_postgres_single(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     signed_event: &crate::model::signed_event::SignedEvent,
 ) -> ::anyhow::Result<()> {
@@ -239,13 +270,98 @@ pub(crate) async fn ingest_event_search(
     Ok(())
 }
 
-pub(crate) async fn ingest_event(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    signed_event: &crate::model::signed_event::SignedEvent,
+async fn ingest_event_postgres_batch_transaction(
     state: &::std::sync::Arc<crate::State>,
+    signed_events: &::std::vec::Vec<crate::model::signed_event::SignedEvent>,
 ) -> ::anyhow::Result<()> {
-    ingest_event_postgres(transaction, signed_event).await?;
-    ingest_event_search(&state.search, signed_event).await?;
+    let mut transaction = state.pool.begin().await?;
+    ingest_event_postgres_batch(&mut transaction, signed_events).await?;
+    transaction.commit().await?;
+    Ok(())
+}
+
+// full ingestion pipeline
+pub(crate) async fn ingest_event_batch(
+    state: &::std::sync::Arc<crate::State>,
+    user_agent: &Option<String>,
+    signed_events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+) -> ::anyhow::Result<()> {
+    let mut signed_events_filtered = vec![];
+
+    {
+        let mut ingest_cache = state.ingest_cache.lock().unwrap();
+
+        for signed_event in &signed_events {
+            let pointer =
+                crate::model::pointer::from_signed_event(signed_event)?;
+
+            if ingest_cache.get(&pointer).is_some() {
+                continue;
+            } else {
+                signed_events_filtered.push(signed_event.clone());
+                trace_event(user_agent, signed_event)?;
+            }
+        }
+    }
+
+    for attempt in 1..4 {
+        if attempt != 1 {
+            ::log::warn!("ingest_event_postgres_batch failed, retrying");
+        }
+
+        match ingest_event_postgres_batch_transaction(
+            state,
+            &signed_events_filtered,
+        )
+        .await
+        {
+            Ok(_) => {
+                break;
+            }
+            Err(err) => {
+                if attempt == 3 {
+                    return Err(err);
+                }
+
+                match err.downcast_ref::<::sqlx::Error>() {
+                    Some(::sqlx::Error::Database(db_err)) => {
+                        if db_err.deref().is_unique_violation() {
+                            continue;
+                        }
+                    }
+                    _ => {
+                        return Err(err);
+                    }
+                }
+            }
+        }
+    }
+
+    for signed_event in &signed_events_filtered {
+        ingest_event_search(&state.search, signed_event).await?;
+    }
+
+    {
+        let mut ingest_cache = state.ingest_cache.lock().unwrap();
+
+        for signed_event in &signed_events_filtered {
+            let pointer =
+                crate::model::pointer::from_signed_event(signed_event)?;
+            ingest_cache.put(pointer.clone(), ());
+        }
+    }
+
+    state
+        .statsd_client
+        .count_with_tags(
+            "ingest_success",
+            i64::try_from(signed_events_filtered.len())?,
+        )
+        .with_tag(
+            "user_agent",
+            &user_agent.clone().unwrap_or("unknown".to_string()),
+        )
+        .try_send()?;
 
     Ok(())
 }
