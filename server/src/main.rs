@@ -4,6 +4,7 @@ use ::envconfig::Envconfig;
 use ::log::*;
 use ::std::net::UdpSocket;
 use ::warp::Filter;
+use ::warp::Reply;
 
 mod handlers;
 mod ingest;
@@ -56,6 +57,13 @@ struct State {
     challenge_key: String,
     ingest_cache:
         ::std::sync::Mutex<::lru::LruCache<crate::model::InsecurePointer, ()>>,
+}
+
+async fn handler_404(path: ::warp::path::FullPath) -> ::warp::reply::Response {
+    ::log::warn!("404 {}", path.as_str());
+
+    ::warp::reply::with_status("404", ::warp::http::StatusCode::NOT_FOUND)
+        .into_response()
 }
 
 async fn handle_rejection(
@@ -431,6 +439,11 @@ async fn serve_api(
         .and_then(crate::handlers::get_resolve_handle::handler)
         .with(cors.clone());
 
+    let route_404 = ::warp::any()
+        .and(::warp::path::full())
+        .then(handler_404)
+        .with(cors.clone());
+
     let routes = route_post_events
         .or(route_get_head)
         .or(route_get_query_latest)
@@ -450,6 +463,7 @@ async fn serve_api(
         .or(route_post_purge)
         .or(route_post_claim_handle)
         .or(route_get_resolve_handle)
+        .or(route_404)
         .recover(handle_rejection);
 
     info!("API server listening on {}", config.http_port_api);
