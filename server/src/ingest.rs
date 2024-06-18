@@ -75,9 +75,16 @@ async fn ingest_event_postgres_batch(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     signed_events: &::std::vec::Vec<crate::model::signed_event::SignedEvent>,
 ) -> ::anyhow::Result<()> {
+    crate::postgres::select_system_locks::select(
+        &mut *transaction,
+        signed_events,
+    )
+    .await?;
+
     for signed_event in signed_events {
         ingest_event_postgres_single(&mut *transaction, signed_event).await?;
     }
+
     Ok(())
 }
 
