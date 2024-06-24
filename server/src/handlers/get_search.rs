@@ -75,7 +75,9 @@ pub(crate) async fn handler_inner(
         .send()
         .await?;
 
-    let response_body = response.json::<crate::OpenSearchSearchL0>().await?;
+    let response_body = response
+        .json::<crate::opensearch::OpenSearchSearchL0>()
+        .await?;
 
     let mut transaction = state.pool_read_only.begin().await?;
 

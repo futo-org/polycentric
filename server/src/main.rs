@@ -89,68 +89,6 @@ async fn handle_rejection(
     ))
 }
 
-#[derive(::serde::Deserialize, ::serde::Serialize)]
-struct OpenSearchSearchDocumentMessage {
-    author_public_key: String,
-    writer_id: String,
-    sequence_number: i64,
-    message: Option<String>,
-}
-
-#[derive(::serde::Deserialize, ::serde::Serialize)]
-struct OpenSearchSearchDocumentProfile {
-    author_public_key: String,
-    writer_id: String,
-    sequence_number: i64,
-    profile_name: String,
-    profile_description: Option<String>,
-    unix_milliseconds: u64,
-}
-
-#[derive(::serde::Deserialize, ::serde::Serialize)]
-struct OpenSearchContent {
-    message_content: String,
-    // only serialize when it's not None
-    #[serde(skip_serializing_if = "Option::is_none")]
-    unix_milliseconds: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    byte_reference: Option<String>,
-}
-
-#[derive(::serde::Deserialize)]
-struct OpenSearchSearchHitsL2 {
-    _source: OpenSearchContent,
-    _id: String,
-    _index: String,
-}
-
-#[derive(::serde::Deserialize)]
-struct OpenSearchSearchHitsL1 {
-    hits: ::std::vec::Vec<OpenSearchSearchHitsL2>,
-}
-
-#[derive(::serde::Deserialize)]
-struct OpenSearchAggregationBucketL3 {
-    key: String,
-    doc_count: i64,
-}
-
-#[derive(::serde::Deserialize)]
-struct OpenSearchAggregationsL2 {
-    buckets: ::std::vec::Vec<OpenSearchAggregationBucketL3>,
-}
-
-#[derive(::serde::Deserialize)]
-struct OpenSearchAggregationsL1 {
-    top_byte_references: Option<OpenSearchAggregationsL2>,
-}
-
-#[derive(::serde::Deserialize)]
-struct OpenSearchSearchL0 {
-    hits: Option<OpenSearchSearchHitsL1>,
-    aggregations: Option<OpenSearchAggregationsL1>,
-}
-
 enum Mode {
     ServeAPI,
     BackfillSearch,

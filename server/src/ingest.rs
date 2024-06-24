@@ -334,7 +334,7 @@ pub(crate) async fn ingest_event_search(
         let index_name: &str;
         let index_id: String;
         let version: u64;
-        let body: crate::OpenSearchContent;
+        let body: crate::opensearch::OpenSearchContent;
 
         if event_type == known_message_types::POST {
             index_name = "messages";
@@ -359,7 +359,7 @@ pub(crate) async fn ingest_event_search(
 
             let unix_milliseconds = event.unix_milliseconds();
 
-            body = crate::OpenSearchContent {
+            body = crate::opensearch::OpenSearchContent {
                 message_content: content_str,
                 unix_milliseconds: *unix_milliseconds,
                 byte_reference,
@@ -378,7 +378,7 @@ pub(crate) async fn ingest_event_search(
             index_id = crate::model::public_key::to_base64(event.system())?;
             let content_str = String::from_utf8(lww_element.value)?;
 
-            body = crate::OpenSearchContent {
+            body = crate::opensearch::OpenSearchContent {
                 message_content: content_str,
                 byte_reference: None,
                 unix_milliseconds: None,
