@@ -481,44 +481,53 @@ describe('integration', () => {
     });
 
     test('claim and search identity handles', async () => {
+        const randomNumberString = () => {
+            return Math.floor(Math.random() * 2 ** 16).toString();
+        };
+
+        const handleContoso1 = 'contoso-1' + randomNumberString();
+        const handleContoso2 = 'contoso-2' + randomNumberString();
+        const handleContoso3 = 'contoso-3' + randomNumberString();
+        const handleOsotnocCorp = 'osotnoc_corp' + randomNumberString();
+
         // Test regular behavior
         const contoso =
-            await createHandleWithNameAndIdentityHandle('contoso-1');
+            await createHandleWithNameAndIdentityHandle(handleContoso1);
         const contoso2 =
-            await createHandleWithNameAndIdentityHandle('contoso-2');
+            await createHandleWithNameAndIdentityHandle(handleContoso2);
         const osotnoc =
-            await createHandleWithNameAndIdentityHandle('osotnoc_corp');
+            await createHandleWithNameAndIdentityHandle(handleOsotnocCorp);
 
         await contoso.synchronizer.debugWaitUntilSynchronizationComplete();
         await osotnoc.synchronizer.debugWaitUntilSynchronizationComplete();
 
         const result_contoso = await APIMethods.getResolveHandle(
             TEST_SERVER,
-            'contoso-1',
+            handleContoso1,
         );
         expect(result_contoso).toStrictEqual(contoso.system());
 
         const result_contoso2 = await APIMethods.getResolveHandle(
             TEST_SERVER,
-            'contoso-2',
+            handleContoso2,
         );
         expect(result_contoso2).toStrictEqual(contoso2.system());
 
         const result_osotnoc = await APIMethods.getResolveHandle(
             TEST_SERVER,
-            'osotnoc_corp',
+            handleOsotnocCorp,
         );
         expect(result_osotnoc).toStrictEqual(osotnoc.system());
 
         // Duplicate entry for system
         await APIMethods.postClaimHandle(TEST_SERVER, {
-            handle: 'contoso-3',
+            handle: handleContoso3,
             system: contoso2.system(),
         });
 
         const result_contoso3 = await APIMethods.getResolveHandle(
             TEST_SERVER,
-            'contoso-3',
+            handleContoso3,
         );
         expect(result_contoso3).toStrictEqual(contoso2.system());
 
@@ -549,7 +558,7 @@ describe('integration', () => {
         creation_failed = true;
         try {
             await APIMethods.postClaimHandle(TEST_SERVER, {
-                handle: 'contoso-1',
+                handle: handleContoso1,
                 system: contosoCopycat.system(),
             });
             creation_failed = false;
