@@ -121,6 +121,23 @@ build-server:
       paths:
         - ./build-artifacts
 
+build-server-release: 
+  stage: build
+  cache: 
+    - <<: *rust-cache-config
+    - <<: *rust-cache-build-config
+      key: ${CI_COMMIT_REF_SLUG}-rs-build-release
+  script: 
+    - ./version.sh
+    - cd server
+    - cargo build --release
+  needs: ["build-server"]
+  artifacts:
+      name: "artifacts"
+      expire_in: 10 mins
+      paths:
+        - ./server/target/release/
+
 build-core:
   stage: build
   cache:
@@ -132,7 +149,6 @@ build-core:
     - make proto
     - cd packages/polycentric-core
     - npm run build
-  needs: []
   artifacts:
       name: "artifacts"
       expire_in: 10 mins
@@ -279,16 +295,28 @@ test:
         - junit-server.xml
 
 deploy-polycentric-web-staging:
-  stage: deploy 
+  stage: deploy
   script: make deploy-polycentric-web-staging
   needs: ["check", "test", "build-web"]
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
 
 deploy-polycentric-web-production:
-  stage: deploy 
+  stage: deploy
   script: make deploy-polycentric-web-production
   needs: ["check", "test", "build-web"]
   rules:
     - if: $CI_COMMIT_BRANCH == "production"
+
+push-server-image-production:
+  stage: deploy
+  needs: ["check", "test", "build-server-release"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/server.Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}"
 
