@@ -56,53 +56,7 @@ stages:
 
 check:
   stage: check
-  script:
-    - |- 
-            NEW_DOCKERFILE_MD5=`cat Dockerfile | md5sum`
-
-            echo "EXPECTED MD5: $DOCKERFILE_MD5 -"
-            echo "ACTUAL   MD5: $NEW_DOCKERFILE_MD5"
-
-            if [[ $NEW_DOCKERFILE_MD5 != "$DOCKERFILE_MD5  -" ]]; then
-                echo "Dockerfile has been updated. Please ensure that the dev container has been pushed, then update the .gitlab-ci.yml file. You can do this by running ./update-dev-container.sh"
-                exit 1
-            else
-                echo "MD5s match. If you are still encountering errors, ensure you pushed the dockerfile with the correct tags!"
-            fi
-
-            echo 
-
-            if grep -q "$POSTGRES_IMAGE" docker-compose.development.yml
-            then 
-                echo "Postgres version matches in docker-compose.development.yml"
-            else 
-                echo "Postgres version mismatch in docker-compose.development.yml!"
-                exit 1
-            fi
-
-            if grep -q "$POSTGRES_IMAGE" docker-compose.production.yml
-            then 
-                echo "Postgres version matches in docker-compose.production.yml"
-            else 
-                echo "Postgres version mismatch in docker-compose.production.yml!"
-                exit 1
-            fi
-            
-            if grep -q "$SEARCH_IMAGE" docker-compose.development.yml
-            then 
-                echo "Search version matches in docker-compose.development.yml"
-            else 
-                echo "Search version mismatch in docker-compose.development.yml!"
-                exit 1
-            fi
-
-            if grep -q "$SEARCH_IMAGE" docker-compose.production.yml
-            then 
-                echo "Search version matches in docker-compose.production.yml"
-            else 
-                echo "Search version mismatch in docker-compose.production.yml!"
-                exit 1
-            fi
+  script: ./gitlab-ci/check-images.sh
 
 format-server: 
   stage: format
@@ -110,43 +64,37 @@ format-server:
     - ./version.sh
     - cd server
     - cargo-fmt --check
-  needs: []
 
 format-core:
   stage: format
   script:
     - ./version.sh
-    - npx prettier ./packages/polycentric-core/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-core/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
-  needs: []
+    - ./gitlab-ci/prettier-diff.sh ./packages/polycentric-core/src
 
 format-react:
   stage: format
   script:
     - ./version.sh
-    - npx prettier ./packages/polycentric-react/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-react/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
-  needs: []
+    - ./gitlab-ci/prettier-diff.sh ./packages/polycentric-react/src
 
 format-web:
   stage: format
   script:
     - ./version.sh
-    - npx prettier ./packages/polycentric-web/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-web/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
-  needs: []
+    - ./gitlab-ci/prettier-diff.sh ./packages/polycentric-web/src
 
 format-desktop:
   stage: format
   script:
     - ./version.sh
-    - npx prettier ./packages/polycentric-desktop/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-desktop/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
-    - npx prettier ./packages/polycentric-desktop/electron/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/polycentric-desktop/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
-  needs: []
+    - ./gitlab-ci/prettier-diff.sh ./packages/polycentric-desktop/src
+    - ./gitlab-ci/prettier-diff.sh ./packages/polycentric-desktop/electron
 
 format-harbor:
   stage: format
   script:
     - ./version.sh
-    - npx prettier ./packages/harbor-web/src/  -c || (npx prettier . -w --loglevel silent && git --no-pager diff --color ./packages/harbor-web/src/ ; git reset --hard &> /dev/null && echo "The above diffs were found by prettier. Please run prettier locally and commit the changes." && false)
-  needs: []
+    - ./gitlab-ci/prettier-diff.sh ./packages/harbor-web/src
 
 build-server: 
   stage: build
@@ -173,6 +121,23 @@ build-server:
       paths:
         - ./build-artifacts
 
+build-server-release: 
+  stage: build
+  cache: 
+    - <<: *rust-cache-config
+    - <<: *rust-cache-build-config
+      key: ${CI_COMMIT_REF_SLUG}-rs-build-release
+  script: 
+    - ./version.sh
+    - cd server
+    - cargo build --release
+  needs: ["build-server"]
+  artifacts:
+      name: "artifacts"
+      expire_in: 10 mins
+      paths:
+        - ./server/target/release/server
+
 build-core:
   stage: build
   cache:
@@ -184,7 +149,6 @@ build-core:
     - make proto
     - cd packages/polycentric-core
     - npm run build
-  needs: []
   artifacts:
       name: "artifacts"
       expire_in: 10 mins
@@ -331,16 +295,45 @@ test:
         - junit-server.xml
 
 deploy-polycentric-web-staging:
-  stage: deploy 
+  stage: deploy
   script: make deploy-polycentric-web-staging
   needs: ["check", "test", "build-web"]
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
 
 deploy-polycentric-web-production:
-  stage: deploy 
+  stage: deploy
   script: make deploy-polycentric-web-production
   needs: ["check", "test", "build-web"]
   rules:
     - if: $CI_COMMIT_BRANCH == "production"
+
+push-server-image-staging:
+  stage: deploy
+  needs: ["check", "test", "build-server-release"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/server.dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:stg"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+
+push-server-image-production:
+  stage: deploy
+  needs: ["check", "test", "build-server-release"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/server.dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "production"
+
 
