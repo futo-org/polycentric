@@ -317,6 +317,6 @@ push-server-image-production:
   script:
     - /kaniko/executor
       --context "${CI_PROJECT_DIR}"
-      --dockerfile "${CI_PROJECT_DIR}/server.Dockerfile"
+      --dockerfile "${CI_PROJECT_DIR}/server.dockerfile"
       --destination "${CI_REGISTRY_IMAGE}"
 
