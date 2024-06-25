@@ -136,7 +136,7 @@ build-server-release:
       name: "artifacts"
       expire_in: 10 mins
       paths:
-        - ./server/target/release/
+        - ./server/target/release/server
 
 build-core:
   stage: build
@@ -308,6 +308,20 @@ deploy-polycentric-web-production:
   rules:
     - if: $CI_COMMIT_BRANCH == "production"
 
+push-server-image-staging:
+  stage: deploy
+  needs: ["check", "test", "build-server-release"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/server.dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:stg"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+
 push-server-image-production:
   stage: deploy
   needs: ["check", "test", "build-server-release"]
@@ -319,4 +333,7 @@ push-server-image-production:
       --context "${CI_PROJECT_DIR}"
       --dockerfile "${CI_PROJECT_DIR}/server.dockerfile"
       --destination "${CI_REGISTRY_IMAGE}"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "production"
+
 
