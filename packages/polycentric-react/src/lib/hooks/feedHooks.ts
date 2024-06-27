@@ -40,8 +40,13 @@ export const useAuthorFeed: FeedHook = (system: Models.PublicKey.PublicKey) => {
 };
 
 export const useExploreFeed: FeedHook = () => {
+    const queryManager = useQueryManager();
+
     const loadCallback = useMemo(
-        () => Queries.QueryCursor.makeGetExploreCallback(),
+        () =>
+            Queries.QueryCursor.makeGetExploreCallback(
+                queryManager.processHandle,
+            ),
         [],
     );
 
