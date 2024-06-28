@@ -47,7 +47,7 @@ export const useExploreFeed: FeedHook = () => {
             Queries.QueryCursor.makeGetExploreCallback(
                 queryManager.processHandle,
             ),
-        [],
+        [queryManager.processHandle],
     );
 
     return useQueryCursor(loadCallback, decodePost);
