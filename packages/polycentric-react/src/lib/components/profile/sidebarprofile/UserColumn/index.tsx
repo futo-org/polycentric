@@ -21,6 +21,7 @@ export const UserColumn = ({
     const { processHandle } = useProcessHandleManager();
 
     const [localFollowing, setLocalFollowing] = useState<boolean | undefined>();
+    const [localBlocked, setLocalBlocked] = useState<boolean | undefined>();
 
     const encodedSystem = useMemo(
         () => Protocol.PublicKey.encode(system).finish(),
@@ -33,12 +34,26 @@ export const UserColumn = ({
         encodedSystem,
     );
 
+    const remotelyBlocked = useQueryIfAdded(
+        Models.ContentType.ContentTypeBlock,
+        processHandle.system(),
+        encodedSystem,
+    );
+
     const follow = useCallback(() => {
         processHandle.follow(system).then(() => setLocalFollowing(true));
     }, [processHandle, system]);
 
     const unfollow = useCallback(() => {
         processHandle.unfollow(system).then(() => setLocalFollowing(false));
+    }, [processHandle, system]);
+
+    const block = useCallback(() => {
+        processHandle.block(system).then(() => setLocalBlocked(true));
+    }, [processHandle, system]);
+
+    const unblock = useCallback(() => {
+        processHandle.unblock(system).then(() => setLocalBlocked(false));
     }, [processHandle, system]);
 
     const isMyProfile = useMemo(
@@ -52,6 +67,11 @@ export const UserColumn = ({
     const iAmFollowing = useMemo(
         () => (localFollowing ? localFollowing : remotelyFollowing),
         [localFollowing, remotelyFollowing],
+    );
+
+    const iBlocked = useMemo(
+        () => (localBlocked ? localBlocked : remotelyBlocked),
+        [localBlocked, remotelyBlocked],
     );
 
     const editProfileActions = useMemo(() => {
@@ -71,6 +91,7 @@ export const UserColumn = ({
             avatarURL,
             isMyProfile,
             iAmFollowing: iAmFollowing,
+            iBlocked: iBlocked,
             followerCount: followers,
             followingCount: following,
             system,
@@ -81,6 +102,7 @@ export const UserColumn = ({
         avatarURL,
         isMyProfile,
         iAmFollowing,
+        iBlocked,
         followers,
         following,
         system,
@@ -92,6 +114,8 @@ export const UserColumn = ({
             editProfileActions={editProfileActions}
             follow={follow}
             unfollow={unfollow}
+            block={block}
+            unblock={unblock}
         />
     );
 };
