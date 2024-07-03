@@ -81,7 +81,7 @@ export const PureSidebarProfile = ({
                         </>
                     ) : (
                         <button
-                            className="border font-medium  px-4 py-2 rounded-full"
+                            className="border font-medium  px-4 py-2 rounded-full col-span-2"
                             onClick={() => setEditProfileOpen(true)}
                         >
                             Edit profile
