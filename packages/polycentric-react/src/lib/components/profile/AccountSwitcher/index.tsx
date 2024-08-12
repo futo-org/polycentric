@@ -42,7 +42,7 @@ const AccountSwitcherItem = ({
     const avatarURL = useAvatar(system);
     const username = useUsernameCRDTQuery(system);
     const displayKey = useTextPublicKey(system, 6);
-    const { changeHandle, signOutOtherUser } = useProcessHandleManager();
+    const { changeHandle, signOut } = useProcessHandleManager();
 
     return (
         <div className="flex justify-between w-full p-2">
@@ -63,7 +63,7 @@ const AccountSwitcherItem = ({
                     },
                     {
                         label: 'Sign Out',
-                        action: () => signOutOtherUser(storeInfo),
+                        action: () => signOut(storeInfo),
                     },
                 ]}
                 title={username}
@@ -77,7 +77,7 @@ export const AccountSwitcher = () => {
     const [expanded, setExpanded] = useState(false);
     const [subMenuExpanded, setSubMenuExpanded] = useState(false);
 
-    const { stores, processHandle } = useProcessHandleManager();
+    const { stores, processHandle, signOut } = useProcessHandleManager();
 
     const username = useUsernameCRDTQuery(processHandle.system());
     const avatarURL = useAvatar(processHandle.system());
@@ -159,13 +159,17 @@ export const AccountSwitcher = () => {
                         <div className="min-w-[3rem] min-h-[3rem] flex flex-col justify-end items-end">
                             <CircleExpandMenuReverse
                                 menuItems={[
-                                    {
-                                        label: 'Add Account',
-                                        routerLink: '/add-account',
-                                    },
+                                    // {
+                                    //     label: 'Add Account',
+                                    //     routerLink: '/add-account',
+                                    // },
                                     {
                                         label: 'Settings',
                                         routerLink: '/settings',
+                                    },
+                                    {
+                                        label: "Sign Out",
+                                        action: () => signOut(),
                                     },
                                 ]}
                                 title={username}
