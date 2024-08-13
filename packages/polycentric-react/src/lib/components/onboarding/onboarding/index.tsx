@@ -2,14 +2,16 @@ import { encode } from '@borderless/base64';
 import { isPlatform } from '@ionic/react';
 import { Models } from '@polycentric/polycentric-core';
 import {
+    createContext,
+    Dispatch,
     InputHTMLAttributes,
     ReactNode,
+    SetStateAction,
     useContext,
     useEffect,
     useMemo,
     useState,
 } from 'react';
-import internetTodayURL from '../../../../graphics/onboarding/internettoday.svg';
 import starterURL from '../../../../graphics/onboarding/starter.svg';
 import { StackRouterContext } from '../../../app/contexts';
 import { useGestureWall } from '../../../hooks/ionicHooks';
@@ -40,49 +42,46 @@ const OnboardingPanel = ({
     </div>
 );
 
-const WelcomePanel = ({ nextSlide }: { nextSlide: () => void }) => (
-    <OnboardingPanel imgSrc={starterURL}>
-        <div className="flex flex-col justify-center h-full text-left p-10 space-y-10 md:space-y-4">
-            <div className="text-4xl md:font-6xl font-bold">
-                Welcome to Polycentric
-            </div>
-            <div className="text-gray-400 text-lg">Posting for communities</div>
-            <button
-                className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
-                onClick={nextSlide}
-            >
-                Try it (no email needed)
-            </button>
-            <div className="text-gray-400 text-lg pt-20">
-                Note: Polycentric is still a work in progress, and data on this
-                version may be unavailable in the future
-            </div>
-        </div>
-    </OnboardingPanel>
-);
+const WelcomePanel = ({ nextSlide }: { nextSlide: () => void }) => {
+    const { setIsSigningIn } = useContext(SignInContext);
 
-const InternetTodayPanel = ({ nextSlide }: { nextSlide: () => void }) => (
-    <OnboardingPanel imgSrc={internetTodayURL}>
-        <div className="flex flex-col p-10 gap-y-10 h-full justify-center">
-            <div className="text-4xl font-bold">This is the internet today</div>
-            <p className="text-xl">
-                {
-                    "Two guys in California control every piece of content you see. If you hurt their feelings, you're out."
-                }
-            </p>
-            <p className="text-xl">
-                Polycentric was developed with a love for the old internet,
-                built around communities and respect for you.
-            </p>
-            <button
-                className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
-                onClick={nextSlide}
-            >
-                Lets go
-            </button>
-        </div>
-    </OnboardingPanel>
-);
+    return (
+        <OnboardingPanel imgSrc={starterURL}>
+            <div className="flex flex-col justify-between h-full p-10">
+                <div className="flex flex-row justify-end">
+                    <button
+                        type="submit"
+                        className=" bg-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+                        onClick={() => {
+                            setIsSigningIn(true);
+                            nextSlide();
+                        }}
+                    >
+                        Sign in
+                    </button>
+                </div>
+                <div className="flex flex-col justify-center h-full text-left space-y-10 md:space-y-4">
+                    <div className="text-4xl md:font-6xl font-bold">
+                        Welcome to Polycentric
+                    </div>
+                    <div className="text-gray-400 text-lg">
+                        Posting for communities
+                    </div>
+                    <button
+                        className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+                        onClick={nextSlide}
+                    >
+                        Create Account (no email necessary)
+                    </button>
+                    <div className="text-gray-400 text-lg pt-20">
+                        Note: Polycentric is still a work in progress, and data
+                        on this version may be unavailable in the future
+                    </div>
+                </div>
+            </div>
+        </OnboardingPanel>
+    );
+};
 
 const RequestNotificationsPanel = ({
     nextSlide,
@@ -378,7 +377,7 @@ const CredsPanelSignIn = () => {
 };
 
 const CredsPanel = ({}: { nextSlide: () => void }) => {
-    const [state, setState] = useState<'signup' | 'signin'>('signup');
+    const { isSigningIn, setIsSigningIn } = useContext(SignInContext);
 
     return (
         <OnboardingPanel imgSrc={starterURL}>
@@ -386,14 +385,12 @@ const CredsPanel = ({}: { nextSlide: () => void }) => {
                 <div className="md:-mt-[5rem]">
                     <button
                         className="float-right bg-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
-                        onClick={() =>
-                            setState(state === 'signup' ? 'signin' : 'signup')
-                        }
+                        onClick={() => setIsSigningIn((cur) => !cur)}
                     >
-                        {state === 'signup' ? 'Sign in' : 'Sign up'}
+                        {isSigningIn ? 'Sign up' : 'Sign in'}
                     </button>
                 </div>
-                {state === 'signup' ? (
+                {isSigningIn === false ? (
                     <CredsPanelSignUp />
                 ) : (
                     <CredsPanelSignIn />
@@ -421,12 +418,18 @@ const OnboardingBackButton = () => {
     );
 };
 
+// This is a hack for now
+const SignInContext = createContext<{
+    isSigningIn: boolean;
+    setIsSigningIn: Dispatch<SetStateAction<boolean>>;
+}>({ isSigningIn: false, setIsSigningIn: () => {} });
+
 export const Onboarding = () => {
     useThemeColor('#0096E6');
     useGestureWall();
 
     const [alreadyPersisted, setAlreadyPersisted] = useState(false);
-
+    const [isSigningIn, setIsSigningIn] = useState(false);
     // @ts-ignore
     const isChromium = !!window.chrome;
 
@@ -479,7 +482,6 @@ export const Onboarding = () => {
             WelcomePanel,
             // I literally submitted a proposal to the EMCAscript spec to avoid this syntax but it got rejected
             // https://es.discourse.group/t/conditionally-add-elements-to-declaratively-defined-arrays/1041
-            ...(isMobile ? [] : [InternetTodayPanel]),
             ...(alreadyPersisted ? [] : [RequestPersistenceComponent]),
             CredsPanel,
         ],
@@ -491,16 +493,18 @@ export const Onboarding = () => {
         history !== undefined && history?.length > 1 && isMobile;
 
     return (
-        <div className="md:flex justify-center items-center relative bg-[#0096E6] md:bg-white">
-            {
-                // @ts-ignore
-                showBackButton && <OnboardingBackButton />
-            }
-            <Carousel
-                swiperClassName={showBackButton ? 'mt-20' : undefined}
-                childComponents={childComponents}
-                className="w-full md:max-w-7xl"
-            />
-        </div>
+        <SignInContext.Provider value={{ isSigningIn, setIsSigningIn }}>
+            <div className="md:flex justify-center items-center relative bg-[#0096E6] md:bg-white">
+                {
+                    // @ts-ignore
+                    showBackButton && <OnboardingBackButton />
+                }
+                <Carousel
+                    swiperClassName={showBackButton ? 'mt-20' : undefined}
+                    childComponents={childComponents}
+                    className="w-full md:max-w-7xl"
+                />
+            </div>
+        </SignInContext.Provider>
     );
 };
