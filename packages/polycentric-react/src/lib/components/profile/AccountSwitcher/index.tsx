@@ -168,7 +168,7 @@ export const AccountSwitcher = () => {
                                         routerLink: '/settings',
                                     },
                                     {
-                                        label: "Sign Out",
+                                        label: 'Sign Out',
                                         action: () => signOut(),
                                     },
                                 ]}

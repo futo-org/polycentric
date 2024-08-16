@@ -68,9 +68,8 @@ export function useProcessHandleManagerBaseComponentHook(
                     account.version,
                 );
                 const store = new Store.Store(level);
-                const processHandle = await ProcessHandle.ProcessHandle.load(
-                    store,
-                );
+                const processHandle =
+                    await ProcessHandle.ProcessHandle.load(store);
                 setInternalHookState({
                     activeStore: account,
                     processHandle,
@@ -203,7 +202,10 @@ export function useProcessHandleManagerBaseComponentHook(
                 const currentStores = await metaStore.listStores();
                 const otherStores = currentStores.filter(
                     (store) =>
-                        !Models.PublicKey.equal(store.system, accountToSignOut.system),
+                        !Models.PublicKey.equal(
+                            store.system,
+                            accountToSignOut.system,
+                        ),
                 );
 
                 if (otherStores.length === 0) {
@@ -213,7 +215,10 @@ export function useProcessHandleManagerBaseComponentHook(
                 }
             }
 
-            await metaStore.deleteStore(accountToSignOut.system, accountToSignOut.version);
+            await metaStore.deleteStore(
+                accountToSignOut.system,
+                accountToSignOut.version,
+            );
             const stores = await metaStore.listStores();
             setStores(stores);
         },
