@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import 'swiper/css';
 import { Swiper, SwiperRef, SwiperSlide } from 'swiper/react';
+import { useIsMobile } from '../../../hooks/styleHooks';
 
 const LeftArrow = () => (
     <svg
@@ -66,8 +67,10 @@ export const Carousel = ({
         }
     }, [isTransitioning, currentSlide]);
 
+    const isMobile = useIsMobile();
+
     return (
-        <div className={className}>
+        <div className={`${className} relative`}>
             <Swiper
                 onSlideChange={(swiper) => {
                     setCurrentSlide(swiper.activeIndex);
@@ -78,6 +81,7 @@ export const Carousel = ({
                 allowSlidePrev={currentSlide > 0 || isTransitioning}
                 className={swiperClassName}
                 ref={swiper}
+                allowTouchMove={isMobile}
             >
                 {childComponents.map((Child, i) => (
                     <SwiperSlide key={i}>
@@ -98,7 +102,7 @@ export const Carousel = ({
                     </SwiperSlide>
                 ))}
             </Swiper>
-            <div className="hidden md:flex w-full justify-between space-x-5">
+            <div className="hidden md:flex absolute top-1/2 w-full justify-between space-x-5 z-20">
                 {currentSlide > 0 ? (
                     <button
                         className={`swiper-button-prev md:flex justify-self-end w-20 h-20 rounded-full bg-white border justify-center items-center`}
