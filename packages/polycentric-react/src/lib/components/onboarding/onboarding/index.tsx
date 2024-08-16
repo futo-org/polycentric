@@ -485,7 +485,7 @@ export const Onboarding = () => {
             ...(alreadyPersisted ? [] : [RequestPersistenceComponent]),
             CredsPanel,
         ],
-        [isMobile, alreadyPersisted, RequestPersistenceComponent],
+        [alreadyPersisted, RequestPersistenceComponent],
     );
 
     const history = useContext(StackRouterContext)?.history;
