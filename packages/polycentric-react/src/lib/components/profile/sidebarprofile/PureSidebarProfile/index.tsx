@@ -1,7 +1,7 @@
 import { Models } from '@polycentric/polycentric-core';
 import { useState } from 'react';
-import { FollowingList } from '../../FollowingList';
 import { BlockedList } from '../../BlockedList';
+import { FollowingList } from '../../FollowingList';
 import { ProfilePicture } from '../../ProfilePicture';
 import {
     EditProfileActions,
@@ -61,45 +61,49 @@ export const PureSidebarProfile = ({
                 <div className="text-2xl font-medium px-8 break-words max-w-full text-center">
                     {profile.name}
                 </div>
-                <div className="flex space-x-3">
-                    <button
-                        onClick={() => setFollowingPanelOpen(true)}
-                        className="text-gray-400"
-                    >
-                        See Following
-                    </button>
-                </div>
-                <div className="flex space-x-3">
-                    <button
-                        onClick={() => setBlockedPanelOpen(true)}
-                        className="text-gray-400"
-                    >
-                        See Blocked
-                    </button>
-                </div>
-                {profile.isMyProfile == false ? (
-                    <>
+                <div className="grid grid-cols-2 gap-4 text-center">
+                    {profile.isMyProfile == false ? (
+                        <>
+                            <button
+                                onClick={
+                                    profile.iAmFollowing ? unfollow : follow
+                                }
+                                className="bg-blue-500 text-white px-4 py-2 rounded-full"
+                            >
+                                {profile.iAmFollowing ? 'Unfollow' : 'Follow'}
+                            </button>
+                            <button
+                                onClick={profile.iBlocked ? unblock : block}
+                                className="bg-blue-500 text-white px-4 py-2 rounded-full"
+                            >
+                                {profile.iBlocked ? 'Unblock' : 'Block'}
+                            </button>
+                        </>
+                    ) : (
                         <button
-                            onClick={profile.iAmFollowing ? unfollow : follow}
-                            className="bg-blue-500 text-white px-4 py-2 rounded-full"
+                            className="border font-medium  px-4 py-2 rounded-full col-span-2"
+                            onClick={() => setEditProfileOpen(true)}
                         >
-                            {profile.iAmFollowing ? 'Unfollow' : 'Follow'}
+                            Edit profile
                         </button>
+                    )}
+                    <div className="">
                         <button
-                            onClick={profile.iBlocked ? unblock : block}
-                            className="bg-blue-500 text-white px-4 py-2 rounded-full"
+                            onClick={() => setFollowingPanelOpen(true)}
+                            className="text-gray-400"
                         >
-                            {profile.iBlocked ? 'Unblock' : 'Block'}
+                            See Following
                         </button>
-                    </>
-                ) : (
-                    <button
-                        className="border font-medium  px-4 py-2 rounded-full"
-                        onClick={() => setEditProfileOpen(true)}
-                    >
-                        Edit profile
-                    </button>
-                )}
+                    </div>
+                    <div className="">
+                        <button
+                            onClick={() => setBlockedPanelOpen(true)}
+                            className="text-gray-400"
+                        >
+                            See Blocked
+                        </button>
+                    </div>
+                </div>
                 <div className="text-gray-500 text-pretty px-8 break-words max-w-full">
                     {profile.description}
                 </div>
