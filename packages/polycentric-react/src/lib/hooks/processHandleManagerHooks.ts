@@ -222,7 +222,7 @@ export function useProcessHandleManagerBaseComponentHook(
             const stores = await metaStore.listStores();
             setStores(stores);
         },
-        [metaStore, internalHookState.activeStore],
+        [metaStore, internalHookState.activeStore, changeHandle],
     );
 
     useEffect(() => {
