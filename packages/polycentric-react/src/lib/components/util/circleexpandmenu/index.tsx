@@ -23,7 +23,7 @@ const CircleExpandMenuInteriorReverse = ({
     return (
         <div
             className={`absolute rounded-[1.5rem] border bottom-0 right-0 bg-white ${
-                open ? 'z-10 shadow' : ''
+                open ? 'z-10 shadow overflow-hidden' : ''
             } grid`}
         >
             <Menu.Items as="div">

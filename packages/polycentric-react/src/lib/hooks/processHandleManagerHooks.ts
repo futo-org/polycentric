@@ -30,7 +30,7 @@ type BaseProcessHandleManagerHookReturn = {
     createHandleFromExportBundle: (
         identity: string,
     ) => Promise<ProcessHandle.ProcessHandle>;
-    signOutOtherUser: (account: MetaStore.StoreInfo) => Promise<void>;
+    signOut: (account?: MetaStore.StoreInfo) => Promise<void>;
     metaStore: MetaStore.IMetaStore;
 };
 
@@ -182,24 +182,47 @@ export function useProcessHandleManagerBaseComponentHook(
         [metaStore],
     );
 
-    const signOutOtherUser = useCallback(
-        async (account: MetaStore.StoreInfo) => {
+    const signOut = useCallback(
+        async (account?: MetaStore.StoreInfo) => {
+            if (!internalHookState.activeStore) {
+                return;
+            }
+
+            // If no account is provided, we're signing out the currently active account
+            const accountToSignOut = account ?? internalHookState.activeStore;
+
+            // If the account to sign out is the currently active account, we need to try to switch to another account
             if (
                 internalHookState.activeStore &&
                 Models.PublicKey.equal(
                     internalHookState.activeStore?.system,
-                    account.system,
+                    accountToSignOut.system,
                 )
             ) {
-                throw new Error(
-                    'Cannot sign out the currently active user. Prompt the user to switch accounts instead.',
+                const currentStores = await metaStore.listStores();
+                const otherStores = currentStores.filter(
+                    (store) =>
+                        !Models.PublicKey.equal(
+                            store.system,
+                            accountToSignOut.system,
+                        ),
                 );
+
+                if (otherStores.length === 0) {
+                    await changeHandle(undefined);
+                } else {
+                    await changeHandle(otherStores[0]);
+                }
             }
-            await metaStore.deleteStore(account.system, account.version);
+
+            await metaStore.deleteStore(
+                accountToSignOut.system,
+                accountToSignOut.version,
+            );
             const stores = await metaStore.listStores();
             setStores(stores);
         },
-        [metaStore, internalHookState.activeStore],
+        [metaStore, internalHookState.activeStore, changeHandle],
     );
 
     useEffect(() => {
@@ -232,7 +255,7 @@ export function useProcessHandleManagerBaseComponentHook(
         changeHandle,
         createHandle,
         createHandleFromExportBundle,
-        signOutOtherUser,
+        signOut,
         metaStore,
     };
 }
