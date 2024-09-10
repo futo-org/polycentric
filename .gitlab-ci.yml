@@ -33,10 +33,8 @@ default:
 .rust-cache-config: &rust-cache-config
   key:
     files:
-      - server/Cargo.lock
       - server/Cargo.toml
       - polycentric-protocol/Cargo.toml
-      - polycentric-protocol/Cargo.lock
   paths:
     - ${CI_PROJECT_DIR}/.sccache/
     - ${CI_PROJECT_DIR}/.cargo/
