@@ -22,7 +22,9 @@ pub fn make_test_event_with_content(
     references: ::std::vec::Vec<crate::model::reference::Reference>,
 ) -> crate::model::signed_event::SignedEvent {
     let event = crate::model::event::Event::new(
-        crate::model::public_key::PublicKey::Ed25519(keypair.verifying_key().clone()),
+        crate::model::public_key::PublicKey::Ed25519(
+            keypair.verifying_key().clone(),
+        ),
         process.clone(),
         logical_clock,
         content_type,
@@ -50,7 +52,9 @@ pub fn make_test_event(
     logical_clock: u64,
 ) -> crate::model::signed_event::SignedEvent {
     let event = crate::model::event::Event::new(
-        crate::model::public_key::PublicKey::Ed25519(keypair.verifying_key().clone()),
+        crate::model::public_key::PublicKey::Ed25519(
+            keypair.verifying_key().clone(),
+        ),
         process.clone(),
         logical_clock,
         3,
@@ -79,7 +83,9 @@ pub fn make_test_event_with_time(
     unix_milliseconds: u64,
 ) -> crate::model::signed_event::SignedEvent {
     let event = crate::model::event::Event::new(
-        crate::model::public_key::PublicKey::Ed25519(keypair.verifying_key().clone()),
+        crate::model::public_key::PublicKey::Ed25519(
+            keypair.verifying_key().clone(),
+        ),
         process.clone(),
         logical_clock,
         crate::model::known_message_types::POST,
@@ -108,10 +114,13 @@ pub fn make_delete_event_from_event(
     logical_clock: u64,
     unix_milliseconds: u64,
 ) -> crate::model::signed_event::SignedEvent {
-    let subject_event = crate::model::event::from_vec(subject_signed_event.event()).unwrap();
+    let subject_event =
+        crate::model::event::from_vec(subject_signed_event.event()).unwrap();
 
     let event = crate::model::event::Event::new(
-        crate::model::public_key::PublicKey::Ed25519(keypair.verifying_key().clone()),
+        crate::model::public_key::PublicKey::Ed25519(
+            keypair.verifying_key().clone(),
+        ),
         process.clone(),
         logical_clock,
         crate::model::known_message_types::DELETE,

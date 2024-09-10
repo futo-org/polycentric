@@ -51,7 +51,9 @@ pub mod digest {
         SHA256([u8; 32]),
     }
 
-    pub fn from_proto(proto: &crate::protocol::Digest) -> ::anyhow::Result<Digest> {
+    pub fn from_proto(
+        proto: &crate::protocol::Digest,
+    ) -> ::anyhow::Result<Digest> {
         match proto.digest_type {
             1 => Ok(Digest::SHA256(proto.digest.as_slice().try_into()?)),
             _ => ::anyhow::bail!("unknown digest_type"),
@@ -180,7 +182,9 @@ pub mod pointer {
         ))
     }
 
-    pub fn from_proto(proto: &crate::protocol::Pointer) -> ::anyhow::Result<Pointer> {
+    pub fn from_proto(
+        proto: &crate::protocol::Pointer,
+    ) -> ::anyhow::Result<Pointer> {
         Ok(Pointer::new(
             crate::model::public_key::from_proto(&proto.system)?,
             crate::model::process::from_proto(&proto.process)?,
@@ -197,13 +201,16 @@ pub mod pointer {
 
     pub fn to_proto(pointer: &Pointer) -> crate::protocol::Pointer {
         let mut result = crate::protocol::Pointer::new();
-        result.system =
-            ::protobuf::MessageField::some(crate::model::public_key::to_proto(pointer.system()));
-        result.process =
-            ::protobuf::MessageField::some(crate::model::process::to_proto(pointer.process()));
+        result.system = ::protobuf::MessageField::some(
+            crate::model::public_key::to_proto(pointer.system()),
+        );
+        result.process = ::protobuf::MessageField::some(
+            crate::model::process::to_proto(pointer.process()),
+        );
         result.logical_clock = *pointer.logical_clock();
-        result.event_digest =
-            ::protobuf::MessageField::some(crate::model::digest::to_proto(pointer.event_digest()));
+        result.event_digest = ::protobuf::MessageField::some(
+            crate::model::digest::to_proto(pointer.event_digest()),
+        );
         result
     }
 
@@ -236,7 +243,10 @@ pub mod public_key {
         }
     }
 
-    pub fn from_type_and_bytes(key_type: u64, key: &[u8]) -> ::anyhow::Result<PublicKey> {
+    pub fn from_type_and_bytes(
+        key_type: u64,
+        key: &[u8],
+    ) -> ::anyhow::Result<PublicKey> {
         match key_type {
             1 => Ok(PublicKey::Ed25519(
                 ::ed25519_dalek::VerifyingKey::from_bytes(key.try_into()?)?,
@@ -262,7 +272,9 @@ pub mod public_key {
         }
     }
 
-    pub fn from_proto(proto: &crate::protocol::PublicKey) -> ::anyhow::Result<PublicKey> {
+    pub fn from_proto(
+        proto: &crate::protocol::PublicKey,
+    ) -> ::anyhow::Result<PublicKey> {
         from_type_and_bytes(proto.key_type, &proto.key)
     }
 
@@ -294,12 +306,15 @@ pub mod public_key {
 
     pub fn from_base64(string: &String) -> ::anyhow::Result<PublicKey> {
         let bytes = base64::decode(string)?;
-        let protocol_obj = crate::protocol::PublicKey::parse_from_bytes(&bytes)?;
+        let protocol_obj =
+            crate::protocol::PublicKey::parse_from_bytes(&bytes)?;
         let pub_key = from_proto(&protocol_obj)?;
         Ok(pub_key)
     }
 
-    pub fn serde_url_deserialize<'de, D>(deserializer: D) -> Result<PublicKey, D::Error>
+    pub fn serde_url_deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<PublicKey, D::Error>
     where
         D: ::serde::Deserializer<'de>,
     {
@@ -308,9 +323,10 @@ pub mod public_key {
         let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
             .map_err(::serde::de::Error::custom)?;
 
-        let proto =
-            crate::protocol::PublicKey::parse_from_tokio_bytes(&::bytes::Bytes::from(bytes))
-                .map_err(::serde::de::Error::custom)?;
+        let proto = crate::protocol::PublicKey::parse_from_tokio_bytes(
+            &::bytes::Bytes::from(bytes),
+        )
+        .map_err(::serde::de::Error::custom)?;
 
         from_proto(&proto).map_err(::serde::de::Error::custom)
     }
@@ -338,7 +354,9 @@ pub mod process {
         Ok(Process::new(bytes.as_slice().try_into()?))
     }
 
-    pub fn from_proto(proto: &crate::protocol::Process) -> ::anyhow::Result<Process> {
+    pub fn from_proto(
+        proto: &crate::protocol::Process,
+    ) -> ::anyhow::Result<Process> {
         Ok(Process::new(proto.process.as_slice().try_into()?))
     }
 
@@ -348,7 +366,9 @@ pub mod process {
         proto
     }
 
-    pub fn serde_url_deserialize<'de, D>(deserializer: D) -> Result<Process, D::Error>
+    pub fn serde_url_deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Process, D::Error>
     where
         D: ::serde::Deserializer<'de>,
     {
@@ -357,8 +377,10 @@ pub mod process {
         let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
             .map_err(::serde::de::Error::custom)?;
 
-        let proto = crate::protocol::Process::parse_from_tokio_bytes(&::bytes::Bytes::from(bytes))
-            .map_err(::serde::de::Error::custom)?;
+        let proto = crate::protocol::Process::parse_from_tokio_bytes(
+            &::bytes::Bytes::from(bytes),
+        )
+        .map_err(::serde::de::Error::custom)?;
 
         from_proto(&proto).map_err(::serde::de::Error::custom)
     }
@@ -372,11 +394,13 @@ where
 {
     let string: &str = ::serde::Deserialize::deserialize(deserializer)?;
 
-    let bytes =
-        ::base64::decode_config(string, ::base64::URL_SAFE).map_err(::serde::de::Error::custom)?;
+    let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
+        .map_err(::serde::de::Error::custom)?;
 
-    crate::protocol::RepeatedUInt64::parse_from_tokio_bytes(&::bytes::Bytes::from(bytes))
-        .map_err(::serde::de::Error::custom)
+    crate::protocol::RepeatedUInt64::parse_from_tokio_bytes(
+        &::bytes::Bytes::from(bytes),
+    )
+    .map_err(::serde::de::Error::custom)
 }
 
 #[derive(Clone, PartialEq)]
@@ -391,14 +415,17 @@ impl EventLayers {
     pub fn new(
         signed_event: crate::model::signed_event::SignedEvent,
     ) -> ::anyhow::Result<EventLayers> {
-        let raw_event = crate::model::signed_event::to_proto(&signed_event).write_to_bytes()?;
+        let raw_event = crate::model::signed_event::to_proto(&signed_event)
+            .write_to_bytes()?;
 
-        let event = crate::model::event::from_proto(&crate::protocol::Event::parse_from_bytes(
-            signed_event.event(),
-        )?)?;
+        let event = crate::model::event::from_proto(
+            &crate::protocol::Event::parse_from_bytes(signed_event.event())?,
+        )?;
 
-        let content =
-            crate::model::content::decode_content(*event.content_type(), event.content())?;
+        let content = crate::model::content::decode_content(
+            *event.content_type(),
+            event.content(),
+        )?;
 
         Ok(EventLayers {
             raw_event,
@@ -456,7 +483,9 @@ pub mod event {
             indices: crate::protocol::Indices,
             references: ::std::vec::Vec<crate::model::reference::Reference>,
             lww_element: ::std::option::Option<crate::protocol::LWWElement>,
-            lww_element_set: ::std::option::Option<crate::protocol::LWWElementSet>,
+            lww_element_set: ::std::option::Option<
+                crate::protocol::LWWElementSet,
+            >,
             unix_milliseconds: ::std::option::Option<u64>,
         ) -> Event {
             Event {
@@ -502,15 +531,21 @@ pub mod event {
             &self.indices
         }
 
-        pub fn references(&self) -> &::std::vec::Vec<crate::model::reference::Reference> {
+        pub fn references(
+            &self,
+        ) -> &::std::vec::Vec<crate::model::reference::Reference> {
             &self.references
         }
 
-        pub fn lww_element(&self) -> &::std::option::Option<crate::protocol::LWWElement> {
+        pub fn lww_element(
+            &self,
+        ) -> &::std::option::Option<crate::protocol::LWWElement> {
             &self.lww_element
         }
 
-        pub fn lww_element_set(&self) -> &::std::option::Option<crate::protocol::LWWElementSet> {
+        pub fn lww_element_set(
+            &self,
+        ) -> &::std::option::Option<crate::protocol::LWWElementSet> {
             &self.lww_element_set
         }
 
@@ -519,7 +554,9 @@ pub mod event {
         }
     }
 
-    pub fn from_proto(proto: &crate::protocol::Event) -> ::anyhow::Result<Event> {
+    pub fn from_proto(
+        proto: &crate::protocol::Event,
+    ) -> ::anyhow::Result<Event> {
         Ok(Event::new(
             crate::model::public_key::from_proto(&proto.system)?,
             crate::model::process::from_proto(&proto.process)?,
@@ -540,8 +577,9 @@ pub mod event {
                 .references
                 .iter()
                 .map(crate::model::reference::from_proto)
-                .collect::<::anyhow::Result<::std::vec::Vec<crate::model::reference::Reference>>>(
-                )?,
+                .collect::<::anyhow::Result<
+                    ::std::vec::Vec<crate::model::reference::Reference>,
+                >>()?,
             proto.lww_element.clone().into_option(),
             proto.lww_element_set.clone().into_option(),
             proto.unix_milliseconds,
@@ -555,23 +593,29 @@ pub mod event {
     pub fn to_proto(event: &Event) -> ::anyhow::Result<crate::protocol::Event> {
         let mut result = crate::protocol::Event::new();
 
-        result.system =
-            ::protobuf::MessageField::some(crate::model::public_key::to_proto(event.system()));
-        result.process =
-            ::protobuf::MessageField::some(crate::model::process::to_proto(event.process()));
+        result.system = ::protobuf::MessageField::some(
+            crate::model::public_key::to_proto(event.system()),
+        );
+        result.process = ::protobuf::MessageField::some(
+            crate::model::process::to_proto(event.process()),
+        );
         result.logical_clock = *event.logical_clock();
         result.content_type = *event.content_type();
         result.content = event.content().clone();
-        result.vector_clock = ::protobuf::MessageField::some(event.vector_clock().clone());
-        result.indices = ::protobuf::MessageField::some(event.indices().clone());
+        result.vector_clock =
+            ::protobuf::MessageField::some(event.vector_clock().clone());
+        result.indices =
+            ::protobuf::MessageField::some(event.indices().clone());
         result.references = event
             .references()
             .iter()
             .map(crate::model::reference::to_proto)
             .collect::<::anyhow::Result<::std::vec::Vec<crate::protocol::Reference>>>()?;
-        result.lww_element = ::protobuf::MessageField::from_option(event.lww_element().clone());
-        result.lww_element_set =
-            ::protobuf::MessageField::from_option(event.lww_element_set().clone());
+        result.lww_element =
+            ::protobuf::MessageField::from_option(event.lww_element().clone());
+        result.lww_element_set = ::protobuf::MessageField::from_option(
+            event.lww_element_set().clone(),
+        );
         result.unix_milliseconds = *event.unix_milliseconds();
 
         Ok(result)
@@ -597,7 +641,11 @@ pub mod signed_event {
                 &crate::protocol::Event::parse_from_bytes(&event)?,
             )?;
 
-            crate::model::public_key::validate_signature(parsed.system(), &signature, &event)?;
+            crate::model::public_key::validate_signature(
+                parsed.system(),
+                &signature,
+                &event,
+            )?;
 
             Ok(SignedEvent { event, signature })
         }
@@ -623,7 +671,9 @@ pub mod signed_event {
         }
     }
 
-    pub fn from_proto(proto: &crate::protocol::SignedEvent) -> ::anyhow::Result<SignedEvent> {
+    pub fn from_proto(
+        proto: &crate::protocol::SignedEvent,
+    ) -> ::anyhow::Result<SignedEvent> {
         SignedEvent::new(proto.event.clone(), proto.signature.clone())
     }
 
@@ -689,7 +739,9 @@ pub mod delete {
         }
     }
 
-    pub fn from_proto(proto: &crate::protocol::Delete) -> ::anyhow::Result<Delete> {
+    pub fn from_proto(
+        proto: &crate::protocol::Delete,
+    ) -> ::anyhow::Result<Delete> {
         Ok(Delete::new(
             crate::model::process::from_proto(&proto.process)?,
             proto.logical_clock,
@@ -705,8 +757,9 @@ pub mod delete {
 
     pub fn to_proto(item: &Delete) -> crate::protocol::Delete {
         let mut result = crate::protocol::Delete::new();
-        result.process =
-            ::protobuf::MessageField::some(crate::model::process::to_proto(item.process()));
+        result.process = ::protobuf::MessageField::some(
+            crate::model::process::to_proto(item.process()),
+        );
         result.logical_clock = *item.logical_clock();
         result.indices = ::protobuf::MessageField::some(item.indices().clone());
         result.unix_milliseconds = *item.unix_milliseconds();
@@ -725,7 +778,9 @@ pub mod reference {
         Bytes(::std::vec::Vec<u8>),
     }
 
-    pub fn to_proto(reference: &Reference) -> ::anyhow::Result<crate::protocol::Reference> {
+    pub fn to_proto(
+        reference: &Reference,
+    ) -> ::anyhow::Result<crate::protocol::Reference> {
         let mut result = crate::protocol::Reference::new();
 
         match reference {
@@ -750,19 +805,25 @@ pub mod reference {
         Ok(result)
     }
 
-    pub fn from_proto(reference: &crate::protocol::Reference) -> ::anyhow::Result<Reference> {
+    pub fn from_proto(
+        reference: &crate::protocol::Reference,
+    ) -> ::anyhow::Result<Reference> {
         match reference.reference_type {
             1 => {
-                let proto = crate::protocol::PublicKey::parse_from_bytes(&reference.reference)
-                    .map_err(::anyhow::Error::new)?;
+                let proto = crate::protocol::PublicKey::parse_from_bytes(
+                    &reference.reference,
+                )
+                .map_err(::anyhow::Error::new)?;
 
                 Ok(Reference::System(crate::model::public_key::from_proto(
                     &proto,
                 )?))
             }
             2 => {
-                let proto = crate::protocol::Pointer::parse_from_bytes(&reference.reference)
-                    .map_err(::anyhow::Error::new)?;
+                let proto = crate::protocol::Pointer::parse_from_bytes(
+                    &reference.reference,
+                )
+                .map_err(::anyhow::Error::new)?;
 
                 Ok(Reference::Pointer(crate::model::pointer::from_proto(
                     &proto,
@@ -784,7 +845,10 @@ pub mod claim {
     }
 
     impl Claim {
-        pub fn new(claim_type: u64, claim_fields: &[crate::protocol::ClaimFieldEntry]) -> Claim {
+        pub fn new(
+            claim_type: u64,
+            claim_fields: &[crate::protocol::ClaimFieldEntry],
+        ) -> Claim {
             Claim {
                 claim_type,
                 claim_fields: claim_fields.to_owned(),
@@ -795,7 +859,9 @@ pub mod claim {
             &self.claim_type
         }
 
-        pub fn claim_fields(&self) -> &::std::vec::Vec<crate::protocol::ClaimFieldEntry> {
+        pub fn claim_fields(
+            &self,
+        ) -> &::std::vec::Vec<crate::protocol::ClaimFieldEntry> {
             &self.claim_fields
         }
     }
@@ -811,7 +877,9 @@ pub mod claim {
         Claim::new(proto.claim_type, &proto.claim_fields)
     }
 
-    pub fn serde_url_deserialize<'de, D>(deserializer: D) -> Result<Claim, D::Error>
+    pub fn serde_url_deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Claim, D::Error>
     where
         D: ::serde::Deserializer<'de>,
     {
@@ -820,8 +888,10 @@ pub mod claim {
         let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
             .map_err(::serde::de::Error::custom)?;
 
-        let proto = crate::protocol::Claim::parse_from_tokio_bytes(&::bytes::Bytes::from(bytes))
-            .map_err(::serde::de::Error::custom)?;
+        let proto = crate::protocol::Claim::parse_from_tokio_bytes(
+            &::bytes::Bytes::from(bytes),
+        )
+        .map_err(::serde::de::Error::custom)?;
 
         Ok(from_proto(&proto))
     }
@@ -837,7 +907,10 @@ pub mod content {
         Unknown(u64, ::std::vec::Vec<u8>),
     }
 
-    pub fn decode_content(content_type: u64, content: &[u8]) -> ::anyhow::Result<Content> {
+    pub fn decode_content(
+        content_type: u64,
+        content: &[u8],
+    ) -> ::anyhow::Result<Content> {
         match content_type {
             1 => {
                 let proto = crate::protocol::Delete::parse_from_bytes(content)
@@ -863,7 +936,9 @@ pub mod content {
         }
     }
 
-    pub fn encode_content(content: &Content) -> ::anyhow::Result<::std::vec::Vec<u8>> {
+    pub fn encode_content(
+        content: &Content,
+    ) -> ::anyhow::Result<::std::vec::Vec<u8>> {
         match content {
             Content::Delete(body) => crate::model::delete::to_proto(body)
                 .write_to_bytes()
@@ -887,11 +962,14 @@ pub mod tests {
 
         let process = crate::test_utils::make_test_process();
 
-        let signed_event = crate::test_utils::make_test_event(&identity_keypair, &process, 52);
+        let signed_event =
+            crate::test_utils::make_test_event(&identity_keypair, &process, 52);
 
-        let protobuf_event = crate::model::signed_event::to_proto(&signed_event);
+        let protobuf_event =
+            crate::model::signed_event::to_proto(&signed_event);
 
-        let parsed_event = crate::model::signed_event::from_proto(&protobuf_event).unwrap();
+        let parsed_event =
+            crate::model::signed_event::from_proto(&protobuf_event).unwrap();
 
         assert!(signed_event == parsed_event);
     }
