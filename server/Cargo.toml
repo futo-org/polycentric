@@ -30,10 +30,4 @@ regex = "1.10.3"
 lru = "0.12.3"
 reqwest = "0.12.4"
 backoff = { version = "0.4.0", features = ["tokio"] }
-
-[build-dependencies]
-protobuf-codegen = "3.0.3"
-protoc-bin-vendored = "3.0.0"
-
-[profile.release]
-lto = true
+polycentric-protocol = { path = "../polycentric-protocol" }

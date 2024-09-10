@@ -2,7 +2,10 @@ use ::std::collections::HashMap;
 
 pub(crate) async fn select(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    batch: &HashMap<crate::model::InsecurePointer, crate::model::EventLayers>,
+    batch: &HashMap<
+        polycentric_protocol::model::InsecurePointer,
+        polycentric_protocol::model::EventLayers,
+    >,
 ) -> ::anyhow::Result<()> {
     let query = "
         SELECT
@@ -24,9 +27,11 @@ pub(crate) async fn select(
     let mut p_system_key = vec![];
 
     for layers in batch.values() {
-        p_system_key.push(crate::model::public_key::get_key_bytes(
-            layers.event().system(),
-        ));
+        p_system_key.push(
+            polycentric_protocol::model::public_key::get_key_bytes(
+                layers.event().system(),
+            ),
+        );
     }
 
     ::sqlx::query(query)

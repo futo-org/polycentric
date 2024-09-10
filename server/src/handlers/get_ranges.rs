@@ -3,9 +3,9 @@ use ::protobuf::Message;
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
     #[serde(
-        deserialize_with = "crate::model::public_key::serde_url_deserialize"
+        deserialize_with = "polycentric_protocol::model::public_key::serde_url_deserialize"
     )]
-    system: crate::model::public_key::PublicKey,
+    system: polycentric_protocol::model::public_key::PublicKey,
 }
 
 pub(crate) async fn handler(

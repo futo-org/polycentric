@@ -20,7 +20,7 @@ pub(crate) async fn handler(
 
     crate::warp_try_err_500!(transaction.commit().await);
 
-    let result = crate::model::public_key::to_proto(&identity);
+    let result = polycentric_protocol::model::public_key::to_proto(&identity);
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
 
     Ok(Box::new(::warp::reply::with_status(

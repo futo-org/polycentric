@@ -1,6 +1,6 @@
 pub(crate) async fn purge(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
+    system: &polycentric_protocol::model::public_key::PublicKey,
 ) -> ::anyhow::Result<()> {
     let query = "
         DELETE FROM events
@@ -9,10 +9,12 @@ pub(crate) async fn purge(
     ";
 
     ::sqlx::query(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .execute(&mut **transaction)
         .await?;
 

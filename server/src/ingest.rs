@@ -1,21 +1,21 @@
-use crate::{
-    model::{known_message_types, pointer},
-    protocol::Post,
-};
 use ::cadence::Counted;
 use ::log::*;
 use ::opensearch::IndexParts;
+use ::polycentric_protocol::protocol::Post;
 use ::protobuf::Message;
 use ::std::collections::HashMap;
 use ::std::fmt::Error;
 use ::std::ops::Deref;
 use ::std::time::SystemTime;
+use polycentric_protocol::model::{known_message_types, pointer};
 
 // full ingestion pipeline
 pub(crate) async fn ingest_event_batch(
     state: &::std::sync::Arc<crate::State>,
     user_agent: &Option<String>,
-    signed_events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+    signed_events: ::std::vec::Vec<
+        polycentric_protocol::model::signed_event::SignedEvent,
+    >,
 ) -> ::anyhow::Result<()> {
     let mut batch = construct_event_batch(signed_events.clone())?;
 
@@ -74,30 +74,37 @@ pub(crate) async fn ingest_event_batch(
 
 fn trace_event(
     user_agent: &Option<String>,
-    event: &crate::model::event::Event,
+    event: &polycentric_protocol::model::event::Event,
 ) -> ::anyhow::Result<()> {
     let mut content_str: String = "unknown".to_string();
 
     let content_type = *event.content_type();
 
-    if content_type == crate::model::known_message_types::POST {
+    if content_type == polycentric_protocol::model::known_message_types::POST {
         content_str = Post::parse_from_bytes(event.content())?
             .content
             .ok_or(Error)?;
-    } else if content_type == crate::model::known_message_types::USERNAME
-        || content_type == crate::model::known_message_types::DESCRIPTION
-        || content_type == crate::model::known_message_types::STORE
+    } else if content_type
+        == polycentric_protocol::model::known_message_types::USERNAME
+        || content_type
+            == polycentric_protocol::model::known_message_types::DESCRIPTION
+        || content_type
+            == polycentric_protocol::model::known_message_types::STORE
     {
         let lww_element = event.lww_element().clone().ok_or(Error)?;
 
         content_str = String::from_utf8(lww_element.value)?;
-    } else if content_type == crate::model::known_message_types::SERVER
-        || content_type == crate::model::known_message_types::AUTHORITY
+    } else if content_type
+        == polycentric_protocol::model::known_message_types::SERVER
+        || content_type
+            == polycentric_protocol::model::known_message_types::AUTHORITY
     {
         let lww_element_set = event.lww_element_set().clone().ok_or(Error)?;
 
         content_str = String::from_utf8(lww_element_set.value)?;
-    } else if content_type == crate::model::known_message_types::OPINION {
+    } else if content_type
+        == polycentric_protocol::model::known_message_types::OPINION
+    {
         let lww_element = event.lww_element().clone().ok_or(Error)?;
 
         if lww_element.value == vec![1] {
@@ -112,9 +119,11 @@ fn trace_event(
     debug!(
         "ingesting {:?} {}:{} event_type: {} details: {}",
         user_agent,
-        crate::model::public_key::to_base64(event.system())?,
+        polycentric_protocol::model::public_key::to_base64(event.system())?,
         *event.logical_clock(),
-        crate::model::content_type_to_string(*event.content_type()),
+        polycentric_protocol::model::content_type_to_string(
+            *event.content_type()
+        ),
         content_str,
     );
 
@@ -123,16 +132,17 @@ fn trace_event(
 
 fn filter_subjects_of_deletes(
     batch: &mut HashMap<
-        crate::model::InsecurePointer,
-        crate::model::EventLayers,
+        polycentric_protocol::model::InsecurePointer,
+        polycentric_protocol::model::EventLayers,
     >,
 ) {
     let mut to_remove = vec![];
 
     for layers in batch.values() {
-        if let crate::model::content::Content::Delete(body) = &layers.content()
+        if let polycentric_protocol::model::content::Content::Delete(body) =
+            &layers.content()
         {
-            to_remove.push(crate::model::InsecurePointer::new(
+            to_remove.push(polycentric_protocol::model::InsecurePointer::new(
                 layers.event().system().clone(),
                 body.process().clone(),
                 *body.logical_clock(),
@@ -148,8 +158,8 @@ fn filter_subjects_of_deletes(
 fn filter_recently_ingested(
     state: &::std::sync::Arc<crate::State>,
     batch: &mut HashMap<
-        crate::model::InsecurePointer,
-        crate::model::EventLayers,
+        polycentric_protocol::model::InsecurePointer,
+        polycentric_protocol::model::EventLayers,
     >,
 ) {
     let mut to_remove = vec![];
@@ -171,7 +181,10 @@ fn filter_recently_ingested(
 
 fn mark_as_recently_ingested(
     state: &::std::sync::Arc<crate::State>,
-    batch: &HashMap<crate::model::InsecurePointer, crate::model::EventLayers>,
+    batch: &HashMap<
+        polycentric_protocol::model::InsecurePointer,
+        polycentric_protocol::model::EventLayers,
+    >,
 ) {
     let mut ingest_cache = state.ingest_cache.lock().unwrap();
 
@@ -184,14 +197,15 @@ fn mark_as_recently_ingested(
 #[allow(dead_code)]
 pub(crate) async fn ingest_event_postgres(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    signed_event: &crate::model::signed_event::SignedEvent,
+    signed_event: &polycentric_protocol::model::signed_event::SignedEvent,
 ) -> ::anyhow::Result<()> {
     let mut batch = HashMap::new();
 
-    let layers = crate::model::EventLayers::new(signed_event.clone())?;
+    let layers =
+        polycentric_protocol::model::EventLayers::new(signed_event.clone())?;
 
     batch.insert(
-        crate::model::InsecurePointer::new(
+        polycentric_protocol::model::InsecurePointer::new(
             layers.event().system().clone(),
             layers.event().process().clone(),
             *layers.event().logical_clock(),
@@ -206,7 +220,10 @@ pub(crate) async fn ingest_event_postgres(
 
 async fn ingest_event_postgres_batch(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    batch: &HashMap<crate::model::InsecurePointer, crate::model::EventLayers>,
+    batch: &HashMap<
+        polycentric_protocol::model::InsecurePointer,
+        polycentric_protocol::model::EventLayers,
+    >,
 ) -> ::anyhow::Result<()> {
     crate::postgres::select_system_locks::select(&mut *transaction, batch)
         .await?;
@@ -221,7 +238,7 @@ async fn ingest_event_postgres_batch(
 // singular event portion called only by ingest_event_postgres_batch
 async fn ingest_event_postgres_single(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    layers: &crate::model::EventLayers,
+    layers: &polycentric_protocol::model::EventLayers,
 ) -> ::anyhow::Result<()> {
     let event = layers.event();
 
@@ -256,7 +273,9 @@ async fn ingest_event_postgres_single(
 
     for reference in event.references().iter() {
         match reference {
-            crate::model::reference::Reference::Pointer(pointer) => {
+            polycentric_protocol::model::reference::Reference::Pointer(
+                pointer,
+            ) => {
                 crate::postgres::insert_event_link(
                     &mut *transaction,
                     event_id,
@@ -265,7 +284,7 @@ async fn ingest_event_postgres_single(
                 )
                 .await?;
             }
-            crate::model::reference::Reference::Bytes(bytes) => {
+            polycentric_protocol::model::reference::Reference::Bytes(bytes) => {
                 crate::postgres::insert_event_reference_bytes(
                     &mut *transaction,
                     bytes,
@@ -287,7 +306,9 @@ async fn ingest_event_postgres_single(
         .await?;
     }
 
-    if let crate::model::content::Content::Delete(body) = &content {
+    if let polycentric_protocol::model::content::Content::Delete(body) =
+        &content
+    {
         crate::postgres::delete_event(
             &mut *transaction,
             event_id,
@@ -295,7 +316,9 @@ async fn ingest_event_postgres_single(
             body,
         )
         .await?;
-    } else if let crate::model::content::Content::Claim(body) = &content {
+    } else if let polycentric_protocol::model::content::Content::Claim(body) =
+        &content
+    {
         crate::postgres::insert_claim(&mut *transaction, event_id, body)
             .await?;
     }
@@ -321,7 +344,7 @@ async fn ingest_event_postgres_single(
 
 pub(crate) async fn ingest_event_search(
     search: &::opensearch::OpenSearch,
-    layers: &crate::model::EventLayers,
+    layers: &polycentric_protocol::model::EventLayers,
 ) -> ::anyhow::Result<()> {
     let signed_event = layers.signed_event();
     let event = layers.event();
@@ -348,7 +371,7 @@ pub(crate) async fn ingest_event_search(
 
             let byte_reference =
                 event.references().iter().find_map(|reference| {
-                    if let crate::model::reference::Reference::Bytes(bytes) =
+                    if let polycentric_protocol::model::reference::Reference::Bytes(bytes) =
                         reference
                     {
                         String::from_utf8(bytes.clone()).ok()
@@ -375,7 +398,9 @@ pub(crate) async fn ingest_event_search(
                 Error
             })?;
             version = lww_element.unix_milliseconds;
-            index_id = crate::model::public_key::to_base64(event.system())?;
+            index_id = polycentric_protocol::model::public_key::to_base64(
+                event.system(),
+            )?;
             let content_str = String::from_utf8(lww_element.value)?;
 
             body = crate::opensearch::OpenSearchContent {
@@ -399,7 +424,10 @@ pub(crate) async fn ingest_event_search(
 
 async fn ingest_event_postgres_batch_transaction(
     state: &::std::sync::Arc<crate::State>,
-    batch: &HashMap<crate::model::InsecurePointer, crate::model::EventLayers>,
+    batch: &HashMap<
+        polycentric_protocol::model::InsecurePointer,
+        polycentric_protocol::model::EventLayers,
+    >,
 ) -> ::anyhow::Result<()> {
     let mut transaction = state.pool.begin().await?;
     ingest_event_postgres_batch(&mut transaction, batch).await?;
@@ -408,17 +436,23 @@ async fn ingest_event_postgres_batch_transaction(
 }
 
 fn construct_event_batch(
-    signed_events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+    signed_events: ::std::vec::Vec<
+        polycentric_protocol::model::signed_event::SignedEvent,
+    >,
 ) -> ::anyhow::Result<
-    HashMap<crate::model::InsecurePointer, crate::model::EventLayers>,
+    HashMap<
+        polycentric_protocol::model::InsecurePointer,
+        polycentric_protocol::model::EventLayers,
+    >,
 > {
     let mut batch = HashMap::new();
 
     for signed_event in signed_events {
-        let layers = crate::model::EventLayers::new(signed_event)?;
+        let layers =
+            polycentric_protocol::model::EventLayers::new(signed_event)?;
 
         batch.insert(
-            crate::model::InsecurePointer::new(
+            polycentric_protocol::model::InsecurePointer::new(
                 layers.event().system().clone(),
                 layers.event().process().clone(),
                 *layers.event().logical_clock(),

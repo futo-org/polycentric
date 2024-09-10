@@ -9,12 +9,9 @@ use ::warp::Reply;
 mod handlers;
 mod ingest;
 mod migrate;
-mod model;
 mod opensearch;
 mod postgres;
 mod version;
-
-include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 
 #[macro_export]
 macro_rules! warp_try_err_500 {
@@ -55,8 +52,9 @@ struct State {
     admin_token: String,
     statsd_client: ::cadence::StatsdClient,
     challenge_key: String,
-    ingest_cache:
-        ::std::sync::Mutex<::lru::LruCache<crate::model::InsecurePointer, ()>>,
+    ingest_cache: ::std::sync::Mutex<
+        ::lru::LruCache<polycentric_protocol::model::InsecurePointer, ()>,
+    >,
 }
 
 async fn handler_404(path: ::warp::path::FullPath) -> ::warp::reply::Response {

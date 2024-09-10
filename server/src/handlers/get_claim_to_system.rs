@@ -8,17 +8,19 @@ pub(crate) struct Query {
 
 enum QueryType {
     MatchAnyField(String),
-    MatchAllFields(::std::vec::Vec<crate::protocol::ClaimFieldEntry>),
+    MatchAllFields(
+        ::std::vec::Vec<polycentric_protocol::protocol::ClaimFieldEntry>,
+    ),
 }
 
 struct Request {
     claim_type: u64,
-    trust_root: crate::model::public_key::PublicKey,
+    trust_root: polycentric_protocol::model::public_key::PublicKey,
     query: QueryType,
 }
 
 fn request_from_proto(
-    proto: &crate::protocol::QueryClaimToSystemRequest,
+    proto: &polycentric_protocol::protocol::QueryClaimToSystemRequest,
 ) -> ::anyhow::Result<Request> {
     let query = if proto.has_match_any_field() {
         QueryType::MatchAnyField(proto.match_any_field().to_string())
@@ -30,7 +32,9 @@ fn request_from_proto(
 
     Ok(Request {
         claim_type: proto.claim_type,
-        trust_root: crate::model::public_key::from_proto(&proto.trust_root)?,
+        trust_root: polycentric_protocol::model::public_key::from_proto(
+            &proto.trust_root,
+        )?,
         query,
     })
 }
@@ -45,7 +49,7 @@ where
         .map_err(::serde::de::Error::custom)?;
 
     let proto =
-        crate::protocol::QueryClaimToSystemRequest::parse_from_tokio_bytes(
+        polycentric_protocol::protocol::QueryClaimToSystemRequest::parse_from_tokio_bytes(
             &::bytes::Bytes::from(bytes),
         )
         .map_err(::serde::de::Error::custom)?;
@@ -83,18 +87,22 @@ pub(crate) async fn handler(
 
     crate::warp_try_err_500!(transaction.commit().await);
 
-    let mut result = crate::protocol::QueryClaimToSystemResponse::new();
+    let mut result =
+        polycentric_protocol::protocol::QueryClaimToSystemResponse::new();
 
     for match_item in matches.iter() {
-        let mut item = crate::protocol::QueryClaimToSystemResponseMatch::new();
+        let mut item = polycentric_protocol::protocol::QueryClaimToSystemResponseMatch::new();
 
         item.claim = ::protobuf::MessageField::some(
-            crate::model::signed_event::to_proto(&match_item.claim),
+            polycentric_protocol::model::signed_event::to_proto(
+                &match_item.claim,
+            ),
         );
 
         for vouch_item in match_item.path.iter() {
-            item.proof_chain
-                .push(crate::model::signed_event::to_proto(vouch_item));
+            item.proof_chain.push(
+                polycentric_protocol::model::signed_event::to_proto(vouch_item),
+            );
         }
 
         result.matches.push(item);
