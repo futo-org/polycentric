@@ -1,0 +1,14 @@
+[package]
+name = "client-lib"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+polycentric-protocol = { path = "../polycentric-protocol" }
+tokio = { version = "1", features = ["full"] }
+bytes = "1.2.0"
+base64 = "0.13.0"
+anyhow = { version = "1.0", features = ["backtrace"] }
+reqwest = "0.12.7"
+protobuf =  { version = "3.1.0", features = ["bytes"] }
+serde = { version = "1.0.140", features = ["derive"] }

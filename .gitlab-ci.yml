@@ -73,6 +73,13 @@ format-protocol:
     - cd polycentric-protocol
     - cargo-fmt --check
 
+format-client-lib: 
+  stage: format
+  script: 
+    - ./version.sh
+    - cd client-lib
+    - cargo-fmt --check
+
 format-core:
   stage: format
   script:
@@ -114,7 +121,7 @@ build-protocol:
     - ./version.sh
     - cd polycentric-protocol
     - echo "Building protocol binary"
-    - cargo build
+    - cargo build --release
     - echo "Running protocol tests"
     - cargo test
   needs: ["check"]
@@ -123,6 +130,24 @@ build-protocol:
       expire_in: 10 mins
       paths:
         - ./polycentric-protocol/target/release/polycentric-protocol
+
+build-client-lib: 
+  stage: build
+  cache: 
+   - <<: *rust-cache-config
+   - <<: *rust-cache-build-config
+     key: ${CI_COMMIT_REF_SLUG}-rs-build
+  script:
+    - ./version.sh
+    - cd client-lib
+    - echo "Building client library"
+    - cargo build --release
+  needs: ["check", "build-protocol"]
+  artifacts:
+      name: "artifacts"
+      expire_in: 10 mins
+      paths:
+        - ./client-lib/target/release/client-lib
 
 build-server: 
   stage: build
@@ -142,7 +167,7 @@ build-server:
     - echo "Test binary built at $TEST_BIN"
     - mv ./$TEST_BIN ../build-artifacts/server-test
     - mv ./target/debug/server ../build-artifacts/server
-  needs: ["check"]
+  needs: ["check", "build-protocol"]
   artifacts:
       name: "artifacts"
       expire_in: 10 mins
@@ -245,6 +270,18 @@ lint-protocol:
     - cd polycentric-protocol
     - cargo-clippy --no-deps -- -D warnings
   needs: ["build-protocol"]
+
+lint-client-lib: 
+  stage: lint
+  cache: 
+    - <<: *rust-cache-config
+    - <<: *rust-cache-build-config
+      key: ${CI_COMMIT_REF_SLUG}-rs-lint
+  script: 
+    - ./version.sh
+    - cd client-lib
+    - cargo-clippy --no-deps -- -D warnings
+  needs: ["build-client-lib"]
 
 lint-server: 
   stage: lint
