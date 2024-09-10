@@ -3,7 +3,7 @@ use ::protobuf::Message;
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
-    let mut result = crate::protocol::PublicKeys::new();
+    let mut result = polycentric_protocol::protocol::PublicKeys::new();
 
     let mut transaction =
         crate::warp_try_err_500!(state.pool_read_only.begin().await);
@@ -17,7 +17,7 @@ pub(crate) async fn handler(
     for identity in random_identities.iter() {
         result
             .systems
-            .push(crate::model::public_key::to_proto(identity));
+            .push(polycentric_protocol::model::public_key::to_proto(identity));
     }
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());

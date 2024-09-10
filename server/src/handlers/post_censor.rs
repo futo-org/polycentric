@@ -33,19 +33,21 @@ pub(crate) async fn handler(
         ::base64::URL_SAFE
     ));
     let url_info = crate::warp_try_err_500!(
-        crate::protocol::URLInfo::parse_from_bytes(&bytes2)
+        polycentric_protocol::protocol::URLInfo::parse_from_bytes(&bytes2)
     );
 
     let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
 
     if url_info.url_type == 1 {
         let body_system = crate::warp_try_err_500!(
-            crate::protocol::URLInfoSystemLink::parse_from_bytes(
+            polycentric_protocol::protocol::URLInfoSystemLink::parse_from_bytes(
                 &url_info.body
             )
         );
         let system = crate::warp_try_err_500!(
-            crate::model::public_key::from_url_proto(&body_system)
+            polycentric_protocol::model::public_key::from_url_proto(
+                &body_system
+            )
         );
         crate::warp_try_err_500!(
             crate::postgres::censor_system(
@@ -57,14 +59,20 @@ pub(crate) async fn handler(
         );
     } else if url_info.url_type == 2 {
         let body_proto = crate::warp_try_err_500!(
-            crate::protocol::URLInfoEventLink::parse_from_bytes(&url_info.body)
+            polycentric_protocol::protocol::URLInfoEventLink::parse_from_bytes(
+                &url_info.body
+            )
         );
 
         let system = crate::warp_try_err_500!(
-            crate::model::public_key::from_proto(&body_proto.system)
+            polycentric_protocol::model::public_key::from_proto(
+                &body_proto.system
+            )
         );
         let process = crate::warp_try_err_500!(
-            crate::model::process::from_proto(&body_proto.process)
+            polycentric_protocol::model::process::from_proto(
+                &body_proto.process
+            )
         );
         let logical_clock = body_proto.logical_clock;
 

@@ -1,7 +1,7 @@
 pub(crate) async fn count_references_pointer(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
-    process: &crate::model::process::Process,
+    system: &polycentric_protocol::model::public_key::PublicKey,
+    process: &polycentric_protocol::model::process::Process,
     logical_clock: u64,
     from_type: &::std::option::Option<u64>,
 ) -> ::anyhow::Result<u64> {
@@ -29,10 +29,12 @@ pub(crate) async fn count_references_pointer(
     };
 
     let count = ::sqlx::query_scalar::<_, i64>(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .bind(process.bytes())
         .bind(i64::try_from(logical_clock)?)
         .bind(from_type_query)
@@ -75,11 +77,13 @@ pub(crate) async fn count_references_bytes(
 
 pub(crate) async fn count_references(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    reference: &crate::model::PointerOrByteReferences,
+    reference: &polycentric_protocol::model::PointerOrByteReferences,
     from_type: &::std::option::Option<u64>,
 ) -> ::anyhow::Result<u64> {
     match reference {
-        crate::model::PointerOrByteReferences::Pointer(pointer) => {
+        polycentric_protocol::model::PointerOrByteReferences::Pointer(
+            pointer,
+        ) => {
             count_references_pointer(
                 transaction,
                 pointer.system(),
@@ -89,7 +93,7 @@ pub(crate) async fn count_references(
             )
             .await
         }
-        crate::model::PointerOrByteReferences::Bytes(bytes) => {
+        polycentric_protocol::model::PointerOrByteReferences::Bytes(bytes) => {
             count_references_bytes(transaction, bytes, from_type).await
         }
     }
@@ -102,12 +106,13 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let keypair = crate::model::tests::make_test_keypair();
-        let process = crate::model::tests::make_test_process();
+        let keypair = polycentric_protocol::test_utils::make_test_keypair();
+        let process = polycentric_protocol::test_utils::make_test_process();
 
-        let system = crate::model::public_key::PublicKey::Ed25519(
-            keypair.verifying_key().clone(),
-        );
+        let system =
+            polycentric_protocol::model::public_key::PublicKey::Ed25519(
+                keypair.verifying_key().clone(),
+            );
 
         let result =
             crate::postgres::count_references::count_references_pointer(
