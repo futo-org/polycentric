@@ -2,7 +2,7 @@ use ::protobuf::Message;
 
 pub fn serde_url_deserialize_ranges_for_system<'de, D>(
     deserializer: D,
-) -> Result<crate::protocol::RangesForSystem, D::Error>
+) -> Result<polycentric_protocol::protocol::RangesForSystem, D::Error>
 where
     D: ::serde::Deserializer<'de>,
 {
@@ -11,7 +11,7 @@ where
     let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
         .map_err(::serde::de::Error::custom)?;
 
-    let proto = crate::protocol::RangesForSystem::parse_from_tokio_bytes(
+    let proto = polycentric_protocol::protocol::RangesForSystem::parse_from_tokio_bytes(
         &::bytes::Bytes::from(bytes),
     )
     .map_err(::serde::de::Error::custom)?;
@@ -26,7 +26,7 @@ pub(crate) struct Query {
     )]
     system: crate::model::public_key::PublicKey,
     #[serde(deserialize_with = "serde_url_deserialize_ranges_for_system")]
-    ranges: crate::protocol::RangesForSystem,
+    ranges: polycentric_protocol::protocol::RangesForSystem,
 }
 
 async fn handler_inner(
@@ -35,7 +35,7 @@ async fn handler_inner(
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
     let mut transaction = state.pool_read_only.begin().await?;
 
-    let mut result = crate::protocol::Events::new();
+    let mut result = polycentric_protocol::protocol::Events::new();
 
     result.events = crate::postgres::select_events_by_ranges::select(
         &mut transaction,

@@ -65,7 +65,7 @@ async fn handler_inner(
 
     transaction.commit().await?;
 
-    let mut result = crate::protocol::Events::new();
+    let mut result = polycentric_protocol::protocol::Events::new();
 
     result.events = result_signed_events
         .iter()

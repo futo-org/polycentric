@@ -81,7 +81,7 @@ pub(crate) async fn handler_inner(
 
     let mut transaction = state.pool_read_only.begin().await?;
 
-    let mut result_events = crate::protocol::Events::new();
+    let mut result_events = polycentric_protocol::protocol::Events::new();
 
     if let Some(hits) = response_body.hits {
         for hit in hits.hits {
@@ -129,7 +129,7 @@ pub(crate) async fn handler_inner(
     }
 
     let mut result =
-        crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
+        polycentric_protocol::protocol::ResultEventsAndRelatedEventsAndCursor::new();
 
     let returned_event_count = u64::try_from(result_events.events.len())?;
 

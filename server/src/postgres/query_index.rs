@@ -157,7 +157,7 @@ pub(crate) async fn load_event_later_than(
 
     match potential_raw {
         Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
-            &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+            &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(&raw)?,
         )?)),
         None => Ok(None),
     }
@@ -233,7 +233,7 @@ pub(crate) async fn load_event_earlier_than(
 
     match potential_raw {
         Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
-            &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+            &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(&raw)?,
         )?)),
         None => Ok(None),
     }

@@ -52,7 +52,7 @@ pub mod digest {
     }
 
     pub fn from_proto(
-        proto: &crate::protocol::Digest,
+        proto: &polycentric_protocol::protocol::Digest,
     ) -> ::anyhow::Result<Digest> {
         match proto.digest_type {
             1 => Ok(Digest::SHA256(proto.digest.as_slice().try_into()?)),
@@ -72,8 +72,8 @@ pub mod digest {
         }
     }
 
-    pub fn to_proto(digest: &Digest) -> crate::protocol::Digest {
-        let mut result = crate::protocol::Digest::new();
+    pub fn to_proto(digest: &Digest) -> polycentric_protocol::protocol::Digest {
+        let mut result = polycentric_protocol::protocol::Digest::new();
         result.digest_type = get_digest_type(digest);
         result.digest = get_digest_bytes(digest);
         result
@@ -183,7 +183,7 @@ pub mod pointer {
     }
 
     pub fn from_proto(
-        proto: &crate::protocol::Pointer,
+        proto: &polycentric_protocol::protocol::Pointer,
     ) -> ::anyhow::Result<Pointer> {
         Ok(Pointer::new(
             crate::model::public_key::from_proto(&proto.system)?,
@@ -195,12 +195,12 @@ pub mod pointer {
 
     pub fn from_base64(string: &String) -> ::anyhow::Result<Pointer> {
         let bytes = base64::decode(string)?;
-        let protocol_ptr = crate::protocol::Pointer::parse_from_bytes(&bytes)?;
+        let protocol_ptr = polycentric_protocol::protocol::Pointer::parse_from_bytes(&bytes)?;
         from_proto(&protocol_ptr)
     }
 
-    pub fn to_proto(pointer: &Pointer) -> crate::protocol::Pointer {
-        let mut result = crate::protocol::Pointer::new();
+    pub fn to_proto(pointer: &Pointer) -> polycentric_protocol::protocol::Pointer {
+        let mut result = polycentric_protocol::protocol::Pointer::new();
         result.system = ::protobuf::MessageField::some(
             crate::model::public_key::to_proto(pointer.system()),
         );
@@ -273,19 +273,19 @@ pub mod public_key {
     }
 
     pub fn from_proto(
-        proto: &crate::protocol::PublicKey,
+        proto: &polycentric_protocol::protocol::PublicKey,
     ) -> ::anyhow::Result<PublicKey> {
         from_type_and_bytes(proto.key_type, &proto.key)
     }
 
     pub fn from_url_proto(
-        proto: &crate::protocol::URLInfoSystemLink,
+        proto: &polycentric_protocol::protocol::URLInfoSystemLink,
     ) -> ::anyhow::Result<PublicKey> {
         from_proto(&proto.system)
     }
 
-    pub fn to_proto(public_key: &PublicKey) -> crate::protocol::PublicKey {
-        let mut proto = crate::protocol::PublicKey::new();
+    pub fn to_proto(public_key: &PublicKey) -> polycentric_protocol::protocol::PublicKey {
+        let mut proto = polycentric_protocol::protocol::PublicKey::new();
 
         match public_key {
             PublicKey::Ed25519(key) => {
@@ -307,7 +307,7 @@ pub mod public_key {
     pub fn from_base64(string: &String) -> ::anyhow::Result<PublicKey> {
         let bytes = base64::decode(string)?;
         let protocol_obj =
-            crate::protocol::PublicKey::parse_from_bytes(&bytes)?;
+            polycentric_protocol::protocol::PublicKey::parse_from_bytes(&bytes)?;
         let pub_key = from_proto(&protocol_obj)?;
         Ok(pub_key)
     }
@@ -323,7 +323,7 @@ pub mod public_key {
         let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
             .map_err(::serde::de::Error::custom)?;
 
-        let proto = crate::protocol::PublicKey::parse_from_tokio_bytes(
+        let proto = polycentric_protocol::protocol::PublicKey::parse_from_tokio_bytes(
             &::bytes::Bytes::from(bytes),
         )
         .map_err(::serde::de::Error::custom)?;
@@ -355,13 +355,13 @@ pub mod process {
     }
 
     pub fn from_proto(
-        proto: &crate::protocol::Process,
+        proto: &polycentric_protocol::protocol::Process,
     ) -> ::anyhow::Result<Process> {
         Ok(Process::new(proto.process.as_slice().try_into()?))
     }
 
-    pub fn to_proto(process: &Process) -> crate::protocol::Process {
-        let mut proto = crate::protocol::Process::new();
+    pub fn to_proto(process: &Process) -> polycentric_protocol::protocol::Process {
+        let mut proto = polycentric_protocol::protocol::Process::new();
         proto.process = process.bytes().to_vec();
         proto
     }
@@ -377,7 +377,7 @@ pub mod process {
         let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
             .map_err(::serde::de::Error::custom)?;
 
-        let proto = crate::protocol::Process::parse_from_tokio_bytes(
+        let proto = polycentric_protocol::protocol::Process::parse_from_tokio_bytes(
             &::bytes::Bytes::from(bytes),
         )
         .map_err(::serde::de::Error::custom)?;
@@ -388,7 +388,7 @@ pub mod process {
 
 pub fn serde_url_deserialize_repeated_uint64<'de, D>(
     deserializer: D,
-) -> Result<crate::protocol::RepeatedUInt64, D::Error>
+) -> Result<polycentric_protocol::protocol::RepeatedUInt64, D::Error>
 where
     D: ::serde::Deserializer<'de>,
 {
@@ -397,7 +397,7 @@ where
     let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
         .map_err(::serde::de::Error::custom)?;
 
-    crate::protocol::RepeatedUInt64::parse_from_tokio_bytes(
+    polycentric_protocol::protocol::RepeatedUInt64::parse_from_tokio_bytes(
         &::bytes::Bytes::from(bytes),
     )
     .map_err(::serde::de::Error::custom)
@@ -419,7 +419,7 @@ impl EventLayers {
             .write_to_bytes()?;
 
         let event = crate::model::event::from_proto(
-            &crate::protocol::Event::parse_from_bytes(signed_event.event())?,
+            &polycentric_protocol::protocol::Event::parse_from_bytes(signed_event.event())?,
         )?;
 
         let content = crate::model::content::decode_content(
@@ -463,11 +463,11 @@ pub mod event {
         logical_clock: u64,
         content_type: u64,
         content: ::std::vec::Vec<u8>,
-        vector_clock: crate::protocol::VectorClock,
-        indices: crate::protocol::Indices,
+        vector_clock: polycentric_protocol::protocol::VectorClock,
+        indices: polycentric_protocol::protocol::Indices,
         references: ::std::vec::Vec<crate::model::reference::Reference>,
-        lww_element: ::std::option::Option<crate::protocol::LWWElement>,
-        lww_element_set: ::std::option::Option<crate::protocol::LWWElementSet>,
+        lww_element: ::std::option::Option<polycentric_protocol::protocol::LWWElement>,
+        lww_element_set: ::std::option::Option<polycentric_protocol::protocol::LWWElementSet>,
         unix_milliseconds: ::std::option::Option<u64>,
     }
 
@@ -479,12 +479,12 @@ pub mod event {
             logical_clock: u64,
             content_type: u64,
             content: ::std::vec::Vec<u8>,
-            vector_clock: crate::protocol::VectorClock,
-            indices: crate::protocol::Indices,
+            vector_clock: polycentric_protocol::protocol::VectorClock,
+            indices: polycentric_protocol::protocol::Indices,
             references: ::std::vec::Vec<crate::model::reference::Reference>,
-            lww_element: ::std::option::Option<crate::protocol::LWWElement>,
+            lww_element: ::std::option::Option<polycentric_protocol::protocol::LWWElement>,
             lww_element_set: ::std::option::Option<
-                crate::protocol::LWWElementSet,
+                polycentric_protocol::protocol::LWWElementSet,
             >,
             unix_milliseconds: ::std::option::Option<u64>,
         ) -> Event {
@@ -523,11 +523,11 @@ pub mod event {
             &self.content
         }
 
-        pub fn vector_clock(&self) -> &crate::protocol::VectorClock {
+        pub fn vector_clock(&self) -> &polycentric_protocol::protocol::VectorClock {
             &self.vector_clock
         }
 
-        pub fn indices(&self) -> &crate::protocol::Indices {
+        pub fn indices(&self) -> &polycentric_protocol::protocol::Indices {
             &self.indices
         }
 
@@ -539,13 +539,13 @@ pub mod event {
 
         pub fn lww_element(
             &self,
-        ) -> &::std::option::Option<crate::protocol::LWWElement> {
+        ) -> &::std::option::Option<polycentric_protocol::protocol::LWWElement> {
             &self.lww_element
         }
 
         pub fn lww_element_set(
             &self,
-        ) -> &::std::option::Option<crate::protocol::LWWElementSet> {
+        ) -> &::std::option::Option<polycentric_protocol::protocol::LWWElementSet> {
             &self.lww_element_set
         }
 
@@ -555,7 +555,7 @@ pub mod event {
     }
 
     pub fn from_proto(
-        proto: &crate::protocol::Event,
+        proto: &polycentric_protocol::protocol::Event,
     ) -> ::anyhow::Result<Event> {
         Ok(Event::new(
             crate::model::public_key::from_proto(&proto.system)?,
@@ -587,13 +587,13 @@ pub mod event {
     }
 
     pub fn from_vec(vec: &[u8]) -> ::anyhow::Result<Event> {
-        from_proto(&crate::protocol::Event::parse_from_bytes(vec)?)
+        from_proto(&polycentric_protocol::protocol::Event::parse_from_bytes(vec)?)
     }
 
     pub(crate) fn to_proto(
         event: &Event,
-    ) -> ::anyhow::Result<crate::protocol::Event> {
-        let mut result = crate::protocol::Event::new();
+    ) -> ::anyhow::Result<polycentric_protocol::protocol::Event> {
+        let mut result = polycentric_protocol::protocol::Event::new();
 
         result.system = ::protobuf::MessageField::some(
             crate::model::public_key::to_proto(event.system()),
@@ -611,7 +611,7 @@ pub mod event {
         result.references = event.references().iter()
             .map(crate::model::reference::to_proto)
             .collect::<::anyhow::Result<
-                ::std::vec::Vec<crate::protocol::Reference>
+                ::std::vec::Vec<polycentric_protocol::protocol::Reference>
             >>()?;
         result.lww_element =
             ::protobuf::MessageField::from_option(event.lww_element().clone());
@@ -640,7 +640,7 @@ pub mod signed_event {
             signature: std::vec::Vec<u8>,
         ) -> ::anyhow::Result<SignedEvent> {
             let parsed = crate::model::event::from_proto(
-                &crate::protocol::Event::parse_from_bytes(&event)?,
+                &polycentric_protocol::protocol::Event::parse_from_bytes(&event)?,
             )?;
 
             crate::model::public_key::validate_signature(
@@ -674,19 +674,19 @@ pub mod signed_event {
     }
 
     pub fn from_proto(
-        proto: &crate::protocol::SignedEvent,
+        proto: &polycentric_protocol::protocol::SignedEvent,
     ) -> ::anyhow::Result<SignedEvent> {
         SignedEvent::new(proto.event.clone(), proto.signature.clone())
     }
 
     pub fn from_vec(vec: &[u8]) -> ::anyhow::Result<SignedEvent> {
-        from_proto(&crate::protocol::SignedEvent::parse_from_bytes(vec)?)
+        from_proto(&polycentric_protocol::protocol::SignedEvent::parse_from_bytes(vec)?)
     }
 
     pub(crate) fn to_proto(
         event: &SignedEvent,
-    ) -> crate::protocol::SignedEvent {
-        let mut result = crate::protocol::SignedEvent::new();
+    ) -> polycentric_protocol::protocol::SignedEvent {
+        let mut result = polycentric_protocol::protocol::SignedEvent::new();
         result.event = event.event.clone();
         result.signature = event.signature.clone();
         result
@@ -700,7 +700,7 @@ pub mod delete {
     pub struct Delete {
         process: crate::model::process::Process,
         logical_clock: u64,
-        indices: crate::protocol::Indices,
+        indices: polycentric_protocol::protocol::Indices,
         unix_milliseconds: ::std::option::Option<u64>,
         content_type: u64,
     }
@@ -709,7 +709,7 @@ pub mod delete {
         pub fn new(
             process: crate::model::process::Process,
             logical_clock: u64,
-            indices: crate::protocol::Indices,
+            indices: polycentric_protocol::protocol::Indices,
             unix_milliseconds: ::std::option::Option<u64>,
             content_type: u64,
         ) -> Delete {
@@ -730,7 +730,7 @@ pub mod delete {
             &self.logical_clock
         }
 
-        pub fn indices(&self) -> &crate::protocol::Indices {
+        pub fn indices(&self) -> &polycentric_protocol::protocol::Indices {
             &self.indices
         }
 
@@ -744,7 +744,7 @@ pub mod delete {
     }
 
     pub fn from_proto(
-        proto: &crate::protocol::Delete,
+        proto: &polycentric_protocol::protocol::Delete,
     ) -> ::anyhow::Result<Delete> {
         Ok(Delete::new(
             crate::model::process::from_proto(&proto.process)?,
@@ -759,8 +759,8 @@ pub mod delete {
         ))
     }
 
-    pub fn to_proto(item: &Delete) -> crate::protocol::Delete {
-        let mut result = crate::protocol::Delete::new();
+    pub fn to_proto(item: &Delete) -> polycentric_protocol::protocol::Delete {
+        let mut result = polycentric_protocol::protocol::Delete::new();
         result.process = ::protobuf::MessageField::some(
             crate::model::process::to_proto(item.process()),
         );
@@ -784,8 +784,8 @@ pub mod reference {
 
     pub fn to_proto(
         reference: &Reference,
-    ) -> ::anyhow::Result<crate::protocol::Reference> {
-        let mut result = crate::protocol::Reference::new();
+    ) -> ::anyhow::Result<polycentric_protocol::protocol::Reference> {
+        let mut result = polycentric_protocol::protocol::Reference::new();
 
         match reference {
             Reference::System(system) => {
@@ -810,11 +810,11 @@ pub mod reference {
     }
 
     pub fn from_proto(
-        reference: &crate::protocol::Reference,
+        reference: &polycentric_protocol::protocol::Reference,
     ) -> ::anyhow::Result<Reference> {
         match reference.reference_type {
             1 => {
-                let proto = crate::protocol::PublicKey::parse_from_bytes(
+                let proto = polycentric_protocol::protocol::PublicKey::parse_from_bytes(
                     &reference.reference,
                 )
                 .map_err(::anyhow::Error::new)?;
@@ -824,7 +824,7 @@ pub mod reference {
                 )?))
             }
             2 => {
-                let proto = crate::protocol::Pointer::parse_from_bytes(
+                let proto = polycentric_protocol::protocol::Pointer::parse_from_bytes(
                     &reference.reference,
                 )
                 .map_err(::anyhow::Error::new)?;
@@ -845,13 +845,13 @@ pub mod claim {
     #[derive(PartialEq, Clone, Debug)]
     pub struct Claim {
         claim_type: u64,
-        claim_fields: ::std::vec::Vec<crate::protocol::ClaimFieldEntry>,
+        claim_fields: ::std::vec::Vec<polycentric_protocol::protocol::ClaimFieldEntry>,
     }
 
     impl Claim {
         pub fn new(
             claim_type: u64,
-            claim_fields: &[crate::protocol::ClaimFieldEntry],
+            claim_fields: &[polycentric_protocol::protocol::ClaimFieldEntry],
         ) -> Claim {
             Claim {
                 claim_type,
@@ -865,19 +865,19 @@ pub mod claim {
 
         pub fn claim_fields(
             &self,
-        ) -> &::std::vec::Vec<crate::protocol::ClaimFieldEntry> {
+        ) -> &::std::vec::Vec<polycentric_protocol::protocol::ClaimFieldEntry> {
             &self.claim_fields
         }
     }
 
-    pub fn to_proto(claim: &Claim) -> crate::protocol::Claim {
-        let mut proto = crate::protocol::Claim::new();
+    pub fn to_proto(claim: &Claim) -> polycentric_protocol::protocol::Claim {
+        let mut proto = polycentric_protocol::protocol::Claim::new();
         proto.claim_type = *claim.claim_type();
         proto.claim_fields = claim.claim_fields().clone();
         proto
     }
 
-    pub fn from_proto(proto: &crate::protocol::Claim) -> Claim {
+    pub fn from_proto(proto: &polycentric_protocol::protocol::Claim) -> Claim {
         Claim::new(proto.claim_type, &proto.claim_fields)
     }
 
@@ -892,7 +892,7 @@ pub mod claim {
         let bytes = ::base64::decode_config(string, ::base64::URL_SAFE)
             .map_err(::serde::de::Error::custom)?;
 
-        let proto = crate::protocol::Claim::parse_from_tokio_bytes(
+        let proto = polycentric_protocol::protocol::Claim::parse_from_tokio_bytes(
             &::bytes::Bytes::from(bytes),
         )
         .map_err(::serde::de::Error::custom)?;
@@ -917,13 +917,13 @@ pub mod content {
     ) -> ::anyhow::Result<Content> {
         match content_type {
             1 => {
-                let proto = crate::protocol::Delete::parse_from_bytes(content)
+                let proto = polycentric_protocol::protocol::Delete::parse_from_bytes(content)
                     .map_err(::anyhow::Error::new)?;
 
                 Ok(Content::Delete(crate::model::delete::from_proto(&proto)?))
             }
             12 => {
-                let proto = crate::protocol::Claim::parse_from_bytes(content)
+                let proto = polycentric_protocol::protocol::Claim::parse_from_bytes(content)
                     .map_err(::anyhow::Error::new)?;
 
                 Ok(Content::Claim(crate::model::claim::from_proto(&proto)))
@@ -992,8 +992,8 @@ pub mod tests {
             logical_clock,
             content_type,
             content.clone(),
-            crate::protocol::VectorClock::new(),
-            crate::protocol::Indices::new(),
+            polycentric_protocol::protocol::VectorClock::new(),
+            polycentric_protocol::protocol::Indices::new(),
             references,
             None,
             None,
@@ -1022,8 +1022,8 @@ pub mod tests {
             logical_clock,
             3,
             vec![0, 1, 2, 3],
-            crate::protocol::VectorClock::new(),
-            crate::protocol::Indices::new(),
+            polycentric_protocol::protocol::VectorClock::new(),
+            polycentric_protocol::protocol::Indices::new(),
             vec![],
             None,
             None,
@@ -1053,8 +1053,8 @@ pub mod tests {
             logical_clock,
             crate::model::known_message_types::POST,
             vec![0, 1, 2, 3],
-            crate::protocol::VectorClock::new(),
-            crate::protocol::Indices::new(),
+            polycentric_protocol::protocol::VectorClock::new(),
+            polycentric_protocol::protocol::Indices::new(),
             vec![],
             None,
             None,
@@ -1097,8 +1097,8 @@ pub mod tests {
             ))
             .write_to_bytes()
             .unwrap(),
-            crate::protocol::VectorClock::new(),
-            crate::protocol::Indices::new(),
+            polycentric_protocol::protocol::VectorClock::new(),
+            polycentric_protocol::protocol::Indices::new(),
             vec![],
             None,
             None,

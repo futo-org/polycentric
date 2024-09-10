@@ -90,7 +90,7 @@ pub(crate) async fn query_claims_match_all_fields(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     claim_type: u64,
     trust_root: &crate::model::public_key::PublicKey,
-    match_all_fields: &[crate::protocol::ClaimFieldEntry],
+    match_all_fields: &[polycentric_protocol::protocol::ClaimFieldEntry],
 ) -> ::anyhow::Result<::std::vec::Vec<Match>> {
     let query = "
         SELECT
@@ -175,7 +175,7 @@ pub mod tests {
 
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let mut claim_hacker_news = crate::protocol::ClaimFieldEntry::new();
+        let mut claim_hacker_news = polycentric_protocol::protocol::ClaimFieldEntry::new();
         claim_hacker_news.key = 1;
         claim_hacker_news.value = "hello".to_string();
 
@@ -249,11 +249,11 @@ pub mod tests {
 
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let mut claim_field_1 = crate::protocol::ClaimFieldEntry::new();
+        let mut claim_field_1 = polycentric_protocol::protocol::ClaimFieldEntry::new();
         claim_field_1.key = 1;
         claim_field_1.value = "alpha".to_string();
 
-        let mut claim_field_2 = crate::protocol::ClaimFieldEntry::new();
+        let mut claim_field_2 = polycentric_protocol::protocol::ClaimFieldEntry::new();
         claim_field_2.key = 2;
         claim_field_2.value = "bravo".to_string();
 

@@ -16,7 +16,7 @@ pub(crate) async fn query_find_claim_and_vouch(
     vouching_system: &crate::model::public_key::PublicKey,
     claiming_system: &crate::model::public_key::PublicKey,
     claim_type: u64,
-    fields: &[crate::protocol::ClaimFieldEntry],
+    fields: &[polycentric_protocol::protocol::ClaimFieldEntry],
 ) -> ::anyhow::Result<::std::option::Option<Match>> {
     let query = "
         SELECT
@@ -108,7 +108,7 @@ pub mod tests {
 
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let mut claim_hacker_news = crate::protocol::ClaimFieldEntry::new();
+        let mut claim_hacker_news = polycentric_protocol::protocol::ClaimFieldEntry::new();
         claim_hacker_news.key = 1;
         claim_hacker_news.value = "hello".to_string();
 

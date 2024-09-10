@@ -119,7 +119,7 @@ pub(crate) async fn load_event(
 
     match potential_raw {
         Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
-            &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+            &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(&raw)?,
         )?)),
         None => Ok(None),
     }
@@ -268,7 +268,7 @@ pub(crate) async fn load_latest_system_wide_lww_event_by_type(
 
     match potential_raw {
         Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
-            &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+            &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(&raw)?,
         )?)),
         None => Ok(None),
     }
@@ -408,7 +408,7 @@ pub(crate) async fn insert_event(
     ";
 
     let event = crate::model::event::from_proto(
-        &crate::protocol::Event::parse_from_bytes(signed_event.event())?,
+        &polycentric_protocol::protocol::Event::parse_from_bytes(signed_event.event())?,
     )?;
 
     let serialized =
@@ -536,7 +536,7 @@ pub(crate) async fn insert_event_index(
 }
 
 pub(crate) fn claim_fields_to_json_object(
-    fields: &[crate::protocol::ClaimFieldEntry],
+    fields: &[polycentric_protocol::protocol::ClaimFieldEntry],
 ) -> ::serde_json::Value {
     ::serde_json::Value::Object(
         fields
@@ -580,7 +580,7 @@ pub(crate) async fn insert_claim(
 pub(crate) async fn insert_lww_element(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event_id: u64,
-    lww_element: &crate::protocol::LWWElement,
+    lww_element: &polycentric_protocol::protocol::LWWElement,
 ) -> ::anyhow::Result<()> {
     let query = "
         INSERT INTO lww_elements 
@@ -631,7 +631,7 @@ pub(crate) async fn load_system_head(
         .iter()
         .map(|raw| {
             crate::model::signed_event::from_proto(
-                &crate::protocol::SignedEvent::parse_from_bytes(raw)?,
+                &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(raw)?,
             )
         })
         .collect::<::anyhow::Result<
@@ -642,7 +642,7 @@ pub(crate) async fn load_system_head(
 pub(crate) async fn known_ranges_for_system(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     system: &crate::model::public_key::PublicKey,
-) -> ::anyhow::Result<crate::protocol::RangesForSystem> {
+) -> ::anyhow::Result<polycentric_protocol::protocol::RangesForSystem> {
     let query = "
         SELECT
             process,
@@ -684,7 +684,7 @@ pub(crate) async fn known_ranges_for_system(
         .await
         .map_err(::anyhow::Error::new)?;
 
-    let mut result = crate::protocol::RangesForSystem::new();
+    let mut result = polycentric_protocol::protocol::RangesForSystem::new();
 
     for range in ranges.iter() {
         let process =
@@ -692,7 +692,7 @@ pub(crate) async fn known_ranges_for_system(
                 &crate::model::process::from_vec(&range.process)?,
             ));
 
-        let mut found: Option<&mut crate::protocol::RangesForProcess> = None;
+        let mut found: Option<&mut polycentric_protocol::protocol::RangesForProcess> = None;
 
         for ranges_for_process in result.ranges_for_processes.iter_mut() {
             if ranges_for_process.process == process {
@@ -705,14 +705,14 @@ pub(crate) async fn known_ranges_for_system(
         let ranges_for_process = match found {
             Some(x) => x,
             None => {
-                let mut next = crate::protocol::RangesForProcess::new();
+                let mut next = polycentric_protocol::protocol::RangesForProcess::new();
                 next.process = process;
                 result.ranges_for_processes.push(next);
                 result.ranges_for_processes.last_mut().unwrap()
             }
         };
 
-        let mut range_proto = crate::protocol::Range::new();
+        let mut range_proto = polycentric_protocol::protocol::Range::new();
         range_proto.low = range.low;
         range_proto.high = range.high;
         ranges_for_process.ranges.push(range_proto);
@@ -1002,13 +1002,13 @@ pub mod tests {
         let s1p2e1 = crate::model::tests::make_test_event(&s1, &s1p2, 1);
         let s2p1e5 = crate::model::tests::make_test_event(&s2, &s2p1, 5);
 
-        let mut delete = crate::protocol::Delete::new();
+        let mut delete = polycentric_protocol::protocol::Delete::new();
         delete.process = ::protobuf::MessageField::some(
             crate::model::process::to_proto(&s1p1),
         );
         delete.logical_clock = 2;
         delete.indices =
-            ::protobuf::MessageField::some(crate::protocol::Indices::new());
+            ::protobuf::MessageField::some(polycentric_protocol::protocol::Indices::new());
 
         let s1p1e3 = crate::model::tests::make_test_event_with_content(
             &s1,
@@ -1036,30 +1036,30 @@ pub mod tests {
 
         transaction.commit().await?;
 
-        let mut expected = crate::protocol::RangesForSystem::new();
+        let mut expected = polycentric_protocol::protocol::RangesForSystem::new();
 
-        let mut expected_p1 = crate::protocol::RangesForProcess::new();
+        let mut expected_p1 = polycentric_protocol::protocol::RangesForProcess::new();
         expected_p1.process = ::protobuf::MessageField::some(
             crate::model::process::to_proto(&s1p1),
         );
 
-        let mut expected_p1r1 = crate::protocol::Range::new();
+        let mut expected_p1r1 = polycentric_protocol::protocol::Range::new();
         expected_p1r1.low = 1;
         expected_p1r1.high = 3;
 
-        let mut expected_p1r2 = crate::protocol::Range::new();
+        let mut expected_p1r2 = polycentric_protocol::protocol::Range::new();
         expected_p1r2.low = 6;
         expected_p1r2.high = 6;
 
         expected_p1.ranges.push(expected_p1r1);
         expected_p1.ranges.push(expected_p1r2);
 
-        let mut expected_p2 = crate::protocol::RangesForProcess::new();
+        let mut expected_p2 = polycentric_protocol::protocol::RangesForProcess::new();
         expected_p2.process = ::protobuf::MessageField::some(
             crate::model::process::to_proto(&s1p2),
         );
 
-        let mut expected_p2r1 = crate::protocol::Range::new();
+        let mut expected_p2r1 = polycentric_protocol::protocol::Range::new();
         expected_p2r1.low = 1;
         expected_p2r1.high = 1;
 

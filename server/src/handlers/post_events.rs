@@ -4,7 +4,7 @@ fn parse_input(
     bytes: ::bytes::Bytes,
 ) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
 {
-    crate::protocol::Events::parse_from_tokio_bytes(&bytes)?
+    polycentric_protocol::protocol::Events::parse_from_tokio_bytes(&bytes)?
         .events
         .iter()
         .map(crate::model::signed_event::from_proto)

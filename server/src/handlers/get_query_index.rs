@@ -31,7 +31,7 @@ pub(crate) async fn handler(
 
     crate::warp_try_err_500!(transaction.commit().await);
 
-    let mut result = crate::protocol::QueryIndexResponse::new();
+    let mut result = polycentric_protocol::protocol::QueryIndexResponse::new();
 
     result.events = query_result
         .events

@@ -6,7 +6,7 @@ pub(crate) async fn handler(
     bytes: ::bytes::Bytes,
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let request = crate::warp_try_err_400!(
-        crate::protocol::HarborValidateRequest::parse_from_tokio_bytes(&bytes)
+        polycentric_protocol::protocol::HarborValidateRequest::parse_from_tokio_bytes(&bytes)
     );
 
     let system =
@@ -19,7 +19,7 @@ pub(crate) async fn handler(
         ));
 
     let request_body = crate::warp_try_err_400!(
-        crate::protocol::HarborChallengeResponseBody::parse_from_bytes(
+        polycentric_protocol::protocol::HarborChallengeResponseBody::parse_from_bytes(
             &request.challenge.body
         )
     );

@@ -1586,6 +1586,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14e6ab3f592e6fb464fc9712d8d6e6912de6473954635fd76a589d832cffcbb0"
 
 [[package]]
+name = "polycentric-protocol"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.13.1",
+ "bytes",
+ "ed25519-dalek",
+ "hmac-sha256",
+ "protobuf",
+ "protobuf-codegen",
+ "protoc-bin-vendored",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2129,6 +2145,7 @@ dependencies = [
  "log",
  "lru",
  "opensearch",
+ "polycentric-protocol",
  "protobuf",
  "protobuf-codegen",
  "protoc-bin-vendored",

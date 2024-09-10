@@ -1,4 +1,4 @@
-use crate::protocol::Events;
+use polycentric_protocol::protocol::Events;
 use ::protobuf::{Message, MessageField};
 
 #[derive(::serde::Deserialize)]
@@ -44,7 +44,7 @@ pub(crate) async fn handler(
     }
 
     let mut result =
-        crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
+        polycentric_protocol::protocol::ResultEventsAndRelatedEventsAndCursor::new();
     result.result_events = MessageField::some(events);
 
     result.cursor = db_result

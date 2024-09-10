@@ -70,7 +70,7 @@ pub(crate) async fn select(
         .iter()
         .map(|raw| {
             crate::model::signed_event::from_proto(
-                &crate::protocol::SignedEvent::parse_from_bytes(raw)?,
+                &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(raw)?,
             )
         })
         .collect::<::anyhow::Result<

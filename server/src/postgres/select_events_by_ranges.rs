@@ -3,7 +3,7 @@ use ::protobuf::Message;
 pub(crate) async fn select(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     system: &crate::model::public_key::PublicKey,
-    ranges: &crate::protocol::RangesForSystem,
+    ranges: &polycentric_protocol::protocol::RangesForSystem,
 ) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
 {
     let query = "
@@ -79,7 +79,7 @@ pub(crate) async fn select(
         .iter()
         .map(|raw| {
             crate::model::signed_event::from_proto(
-                &crate::protocol::SignedEvent::parse_from_bytes(raw)?,
+                &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(raw)?,
             )
         })
         .collect::<::anyhow::Result<

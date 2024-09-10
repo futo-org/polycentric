@@ -241,7 +241,7 @@ async fn load_previous_with_bytes(
 
     match potential_raw {
         Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
-            &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+            &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(&raw)?,
         )?)),
         None => Ok(None),
     }
@@ -300,7 +300,7 @@ async fn load_previous_with_pointer(
 
     match potential_raw {
         Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
-            &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
+            &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(&raw)?,
         )?)),
         None => Ok(None),
     }

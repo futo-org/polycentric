@@ -3,12 +3,12 @@ use ::protobuf::Message;
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
     #[serde(deserialize_with = "deserialize_query")]
-    query: crate::protocol::QueryReferencesRequest,
+    query: polycentric_protocol::protocol::QueryReferencesRequest,
 }
 
 fn deserialize_query<'de, D>(
     deserializer: D,
-) -> Result<crate::protocol::QueryReferencesRequest, D::Error>
+) -> Result<polycentric_protocol::protocol::QueryReferencesRequest, D::Error>
 where
     D: ::serde::Deserializer<'de>,
 {
@@ -18,7 +18,7 @@ where
         .map_err(::serde::de::Error::custom)?;
 
     let proto =
-        crate::protocol::QueryReferencesRequest::parse_from_tokio_bytes(
+        polycentric_protocol::protocol::QueryReferencesRequest::parse_from_tokio_bytes(
             &::bytes::Bytes::from(bytes),
         )
         .map_err(::serde::de::Error::custom)?;
@@ -69,7 +69,7 @@ pub(crate) async fn handler(
     let mut transaction =
         crate::warp_try_err_500!(state.pool_read_only.begin().await);
 
-    let mut result = crate::protocol::QueryReferencesResponse::new();
+    let mut result = polycentric_protocol::protocol::QueryReferencesResponse::new();
 
     if let Some(request_events) = query.query.request_events.0 {
         let query_result = crate::warp_try_err_500!(
@@ -93,7 +93,7 @@ pub(crate) async fn handler(
             );
 
             let mut item =
-                crate::protocol::QueryReferencesResponseEventItem::new();
+                polycentric_protocol::protocol::QueryReferencesResponseEventItem::new();
 
             item.event = ::protobuf::MessageField::some(
                 crate::model::signed_event::to_proto(signed_event),

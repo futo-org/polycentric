@@ -7,7 +7,7 @@ pub(crate) async fn handler(
     bytes: ::bytes::Bytes,
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let request = crate::warp_try_err_400!(
-        crate::protocol::ClaimHandleRequest::parse_from_tokio_bytes(&bytes)
+        polycentric_protocol::protocol::ClaimHandleRequest::parse_from_tokio_bytes(&bytes)
     );
 
     let system =

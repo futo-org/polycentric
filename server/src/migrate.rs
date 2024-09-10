@@ -207,7 +207,7 @@ pub(crate) async fn backfill_remote_server(
             position = batch.cursor;
         }
 
-        let mut batch_proto = crate::protocol::Events::new();
+        let mut batch_proto = polycentric_protocol::protocol::Events::new();
 
         for event in batch.events.iter() {
             batch_proto
