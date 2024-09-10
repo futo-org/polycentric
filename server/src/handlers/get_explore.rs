@@ -18,7 +18,7 @@ pub(crate) async fn handler(
         .as_slice()
         .try_into()))
     } else {
-        crate::warp_try_err_500!(u64::try_from(i64::max_value()))
+        crate::warp_try_err_500!(u64::try_from(i64::MAX))
     };
 
     let limit = query.limit.unwrap_or(10);

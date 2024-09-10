@@ -18,17 +18,15 @@ pub fn make_test_event_with_content(
     process: &crate::model::process::Process,
     logical_clock: u64,
     content_type: u64,
-    content: &::std::vec::Vec<u8>,
+    content: &[u8],
     references: ::std::vec::Vec<crate::model::reference::Reference>,
 ) -> crate::model::signed_event::SignedEvent {
     let event = crate::model::event::Event::new(
-        crate::model::public_key::PublicKey::Ed25519(
-            keypair.verifying_key().clone(),
-        ),
+        crate::model::public_key::PublicKey::Ed25519(keypair.verifying_key()),
         process.clone(),
         logical_clock,
         content_type,
-        content.clone(),
+        content.to_owned(),
         crate::protocol::VectorClock::new(),
         crate::protocol::Indices::new(),
         references,
@@ -42,7 +40,7 @@ pub fn make_test_event_with_content(
             .unwrap()
             .write_to_bytes()
             .unwrap(),
-        &keypair,
+        keypair,
     )
 }
 
@@ -52,9 +50,7 @@ pub fn make_test_event(
     logical_clock: u64,
 ) -> crate::model::signed_event::SignedEvent {
     let event = crate::model::event::Event::new(
-        crate::model::public_key::PublicKey::Ed25519(
-            keypair.verifying_key().clone(),
-        ),
+        crate::model::public_key::PublicKey::Ed25519(keypair.verifying_key()),
         process.clone(),
         logical_clock,
         3,
@@ -72,7 +68,7 @@ pub fn make_test_event(
             .unwrap()
             .write_to_bytes()
             .unwrap(),
-        &keypair,
+        keypair,
     )
 }
 
@@ -83,9 +79,7 @@ pub fn make_test_event_with_time(
     unix_milliseconds: u64,
 ) -> crate::model::signed_event::SignedEvent {
     let event = crate::model::event::Event::new(
-        crate::model::public_key::PublicKey::Ed25519(
-            keypair.verifying_key().clone(),
-        ),
+        crate::model::public_key::PublicKey::Ed25519(keypair.verifying_key()),
         process.clone(),
         logical_clock,
         crate::model::known_message_types::POST,
@@ -103,7 +97,7 @@ pub fn make_test_event_with_time(
             .unwrap()
             .write_to_bytes()
             .unwrap(),
-        &keypair,
+        keypair,
     )
 }
 
@@ -118,15 +112,13 @@ pub fn make_delete_event_from_event(
         crate::model::event::from_vec(subject_signed_event.event()).unwrap();
 
     let event = crate::model::event::Event::new(
-        crate::model::public_key::PublicKey::Ed25519(
-            keypair.verifying_key().clone(),
-        ),
+        crate::model::public_key::PublicKey::Ed25519(keypair.verifying_key()),
         process.clone(),
         logical_clock,
         crate::model::known_message_types::DELETE,
         crate::model::delete::to_proto(&crate::model::delete::Delete::new(
             subject_event.process().clone(),
-            subject_event.logical_clock().clone(),
+            *subject_event.logical_clock(),
             subject_event.indices().clone(),
             *subject_event.unix_milliseconds(),
             *subject_event.content_type(),
@@ -146,6 +138,6 @@ pub fn make_delete_event_from_event(
             .unwrap()
             .write_to_bytes()
             .unwrap(),
-        &keypair,
+        keypair,
     )
 }

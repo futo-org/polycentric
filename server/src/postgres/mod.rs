@@ -242,7 +242,7 @@ pub(crate) async fn load_processes_for_system(
         .fetch_all(&mut **transaction)
         .await?
         .iter()
-        .map(|raw| polycentric_protocol::model::process::from_vec(raw))
+        .map(polycentric_protocol::model::process::from_vec)
         .collect::<::anyhow::Result<
             ::std::vec::Vec<polycentric_protocol::model::process::Process>,
         >>()
@@ -618,7 +618,7 @@ pub(crate) async fn insert_claim(
     ::sqlx::query(query_insert_claim)
         .bind(i64::try_from(*claim.claim_type())?)
         .bind(i64::try_from(event_id)?)
-        .bind(&claim_fields_to_json_object(claim.claim_fields()))
+        .bind(claim_fields_to_json_object(claim.claim_fields()))
         .execute(&mut **transaction)
         .await?;
 
