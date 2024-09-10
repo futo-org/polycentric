@@ -31,11 +31,13 @@ pub(crate) async fn handler(
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let reference = crate::warp_try_err_400!(
-        crate::model::reference::from_proto(&query.query.reference,)
+        polycentric_protocol::model::reference::from_proto(
+            &query.query.reference,
+        )
     );
 
     let subject = match &reference {
-        crate::model::reference::Reference::Pointer(pointer) => {
+        polycentric_protocol::model::reference::Reference::Pointer(pointer) => {
             if !query.query.extra_byte_references.is_empty() {
                 return Ok(Box::new(::warp::reply::with_status(
                     "cannot use extra_byte_references with pointer reference",
@@ -43,12 +45,18 @@ pub(crate) async fn handler(
                 )));
             }
 
-            crate::model::PointerOrByteReferences::Pointer(pointer.clone())
+            polycentric_protocol::model::PointerOrByteReferences::Pointer(
+                pointer.clone(),
+            )
         }
-        crate::model::reference::Reference::Bytes(primary_reference) => {
+        polycentric_protocol::model::reference::Reference::Bytes(
+            primary_reference,
+        ) => {
             let mut byte_references = query.query.extra_byte_references.clone();
             byte_references.push(primary_reference.clone());
-            crate::model::PointerOrByteReferences::Bytes(byte_references)
+            polycentric_protocol::model::PointerOrByteReferences::Bytes(
+                byte_references,
+            )
         }
         _ => {
             return Ok(Box::new(::warp::reply::with_status(
@@ -69,7 +77,8 @@ pub(crate) async fn handler(
     let mut transaction =
         crate::warp_try_err_500!(state.pool_read_only.begin().await);
 
-    let mut result = polycentric_protocol::protocol::QueryReferencesResponse::new();
+    let mut result =
+        polycentric_protocol::protocol::QueryReferencesResponse::new();
 
     if let Some(request_events) = query.query.request_events.0 {
         let query_result = crate::warp_try_err_500!(
@@ -89,14 +98,18 @@ pub(crate) async fn handler(
 
         for signed_event in query_result.events.iter() {
             let event = crate::warp_try_err_500!(
-                crate::model::event::from_vec(signed_event.event())
+                polycentric_protocol::model::event::from_vec(
+                    signed_event.event()
+                )
             );
 
             let mut item =
                 polycentric_protocol::protocol::QueryReferencesResponseEventItem::new();
 
             item.event = ::protobuf::MessageField::some(
-                crate::model::signed_event::to_proto(signed_event),
+                polycentric_protocol::model::signed_event::to_proto(
+                    signed_event,
+                ),
             );
 
             for params in request_events.count_lww_element_references.iter() {

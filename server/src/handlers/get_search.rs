@@ -87,7 +87,8 @@ pub(crate) async fn handler_inner(
         for hit in hits.hits {
             let id = hit._id;
             if hit._index == "messages" {
-                let pointer = crate::model::pointer::from_base64(&id)?;
+                let pointer =
+                    polycentric_protocol::model::pointer::from_base64(&id)?;
 
                 let event_result = crate::postgres::load_event(
                     &mut transaction,
@@ -99,16 +100,19 @@ pub(crate) async fn handler_inner(
 
                 if let Some(event_result) = event_result {
                     result_events.events.push(
-                        crate::model::signed_event::to_proto(&event_result),
+                        polycentric_protocol::model::signed_event::to_proto(
+                            &event_result,
+                        ),
                     );
                 };
             } else {
-                let system = crate::model::public_key::from_base64(&id)?;
+                let system =
+                    polycentric_protocol::model::public_key::from_base64(&id)?;
 
                 let content_type = if hit._index == "profile_names" {
-                    crate::model::known_message_types::USERNAME
+                    polycentric_protocol::model::known_message_types::USERNAME
                 } else {
-                    crate::model::known_message_types::DESCRIPTION
+                    polycentric_protocol::model::known_message_types::DESCRIPTION
                 };
 
                 let potential_event =
@@ -120,9 +124,11 @@ pub(crate) async fn handler_inner(
                     .await?;
 
                 if let Some(event) = potential_event {
-                    result_events
-                        .events
-                        .push(crate::model::signed_event::to_proto(&event));
+                    result_events.events.push(
+                        polycentric_protocol::model::signed_event::to_proto(
+                            &event,
+                        ),
+                    );
                 }
             }
         }

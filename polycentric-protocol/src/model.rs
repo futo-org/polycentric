@@ -87,7 +87,7 @@ pub mod digest {
 }
 
 #[derive(Hash, Eq, PartialEq, Clone, Debug)]
-pub(crate) struct InsecurePointer {
+pub struct InsecurePointer {
     system: crate::model::public_key::PublicKey,
     process: crate::model::process::Process,
     logical_clock: u64,
@@ -404,7 +404,7 @@ where
 }
 
 #[derive(Clone, PartialEq)]
-pub(crate) struct EventLayers {
+pub struct EventLayers {
     raw_event: ::std::vec::Vec<u8>,
     signed_event: crate::model::signed_event::SignedEvent,
     event: crate::model::event::Event,
@@ -412,7 +412,7 @@ pub(crate) struct EventLayers {
 }
 
 impl EventLayers {
-    pub(crate) fn new(
+    pub fn new(
         signed_event: crate::model::signed_event::SignedEvent,
     ) -> ::anyhow::Result<EventLayers> {
         let raw_event = crate::model::signed_event::to_proto(&signed_event)
@@ -590,7 +590,7 @@ pub mod event {
         from_proto(&crate::protocol::Event::parse_from_bytes(vec)?)
     }
 
-    pub(crate) fn to_proto(
+    pub fn to_proto(
         event: &Event,
     ) -> ::anyhow::Result<crate::protocol::Event> {
         let mut result = crate::protocol::Event::new();
@@ -683,7 +683,7 @@ pub mod signed_event {
         from_proto(&crate::protocol::SignedEvent::parse_from_bytes(vec)?)
     }
 
-    pub(crate) fn to_proto(
+    pub fn to_proto(
         event: &SignedEvent,
     ) -> crate::protocol::SignedEvent {
         let mut result = crate::protocol::SignedEvent::new();

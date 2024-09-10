@@ -6,7 +6,8 @@ struct QueryRow {
 #[derive(PartialEq)]
 pub(crate) struct QueryResult {
     pub(crate) cursor: ::std::option::Option<u64>,
-    pub(crate) events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+    pub(crate) events:
+        ::std::vec::Vec<polycentric_protocol::model::signed_event::SignedEvent>,
 }
 
 fn process_rows(
@@ -26,9 +27,15 @@ fn process_rows(
         },
         events: rows
             .iter()
-            .map(|row| crate::model::signed_event::from_vec(&row.raw_event))
+            .map(|row| {
+                polycentric_protocol::model::signed_event::from_vec(
+                    &row.raw_event,
+                )
+            })
             .collect::<::anyhow::Result<
-                ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+                ::std::vec::Vec<
+                    polycentric_protocol::model::signed_event::SignedEvent,
+                >,
             >>()?,
     })
 }
@@ -62,8 +69,8 @@ const LIKES_DISLIKES_QUERY_FRAGMENT: &str = "
 
 pub(crate) async fn query_pointer(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
-    process: &crate::model::process::Process,
+    system: &polycentric_protocol::model::public_key::PublicKey,
+    process: &polycentric_protocol::model::process::Process,
     logical_clock: u64,
     from_type: &::std::option::Option<u64>,
     cursor: &::std::option::Option<u64>,
@@ -111,10 +118,12 @@ pub(crate) async fn query_pointer(
     };
 
     let rows = ::sqlx::query_as::<_, QueryRow>(&query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .bind(process.bytes())
         .bind(i64::try_from(logical_clock)?)
         .bind(from_type_query)
@@ -183,13 +192,15 @@ pub(crate) async fn query_bytes(
 
 pub(crate) async fn query_references(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    reference: &crate::model::PointerOrByteReferences,
+    reference: &polycentric_protocol::model::PointerOrByteReferences,
     from_type: &::std::option::Option<u64>,
     cursor: &::std::option::Option<u64>,
     limit: u64,
 ) -> ::anyhow::Result<QueryResult> {
     match reference {
-        crate::model::PointerOrByteReferences::Pointer(pointer) => {
+        polycentric_protocol::model::PointerOrByteReferences::Pointer(
+            pointer,
+        ) => {
             query_pointer(
                 transaction,
                 pointer.system(),
@@ -201,7 +212,7 @@ pub(crate) async fn query_references(
             )
             .await
         }
-        crate::model::PointerOrByteReferences::Bytes(bytes) => {
+        polycentric_protocol::model::PointerOrByteReferences::Bytes(bytes) => {
             query_bytes(transaction, bytes, from_type, cursor, limit).await
         }
     }
@@ -214,12 +225,13 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let keypair = crate::model::tests::make_test_keypair();
-        let process = crate::model::tests::make_test_process();
+        let keypair = polycentric_protocol::model::tests::make_test_keypair();
+        let process = polycentric_protocol::model::tests::make_test_process();
 
-        let system = crate::model::public_key::PublicKey::Ed25519(
-            keypair.verifying_key().clone(),
-        );
+        let system =
+            polycentric_protocol::model::public_key::PublicKey::Ed25519(
+                keypair.verifying_key().clone(),
+            );
 
         let result = crate::postgres::query_references::query_pointer(
             &mut transaction,

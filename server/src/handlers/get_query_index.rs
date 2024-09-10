@@ -3,9 +3,9 @@ use ::protobuf::Message;
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
     #[serde(
-        deserialize_with = "crate::model::public_key::serde_url_deserialize"
+        deserialize_with = "polycentric_protocol::model::public_key::serde_url_deserialize"
     )]
-    system: crate::model::public_key::PublicKey,
+    system: polycentric_protocol::model::public_key::PublicKey,
     content_type: u64,
     after: ::core::option::Option<u64>,
     limit: ::core::option::Option<u64>,
@@ -36,13 +36,13 @@ pub(crate) async fn handler(
     result.events = query_result
         .events
         .iter()
-        .map(crate::model::signed_event::to_proto)
+        .map(polycentric_protocol::model::signed_event::to_proto)
         .collect();
 
     result.proof = query_result
         .proof
         .iter()
-        .map(crate::model::signed_event::to_proto)
+        .map(polycentric_protocol::model::signed_event::to_proto)
         .collect();
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());

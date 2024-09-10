@@ -122,7 +122,8 @@ pub(crate) async fn handler_inner(
         .json::<crate::opensearch::OpenSearchSearchL0>()
         .await?;
 
-    let mut result = polycentric_protocol::protocol::ResultTopStringReferences::new();
+    let mut result =
+        polycentric_protocol::protocol::ResultTopStringReferences::new();
 
     if let Some(aggregations) = response_body.aggregations {
         if let Some(top_byte_references) = aggregations.top_byte_references {

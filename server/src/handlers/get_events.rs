@@ -22,9 +22,9 @@ where
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
     #[serde(
-        deserialize_with = "crate::model::public_key::serde_url_deserialize"
+        deserialize_with = "polycentric_protocol::model::public_key::serde_url_deserialize"
     )]
-    system: crate::model::public_key::PublicKey,
+    system: polycentric_protocol::model::public_key::PublicKey,
     #[serde(deserialize_with = "serde_url_deserialize_ranges_for_system")]
     ranges: polycentric_protocol::protocol::RangesForSystem,
 }
@@ -44,7 +44,7 @@ async fn handler_inner(
     )
     .await?
     .iter()
-    .map(crate::model::signed_event::to_proto)
+    .map(polycentric_protocol::model::signed_event::to_proto)
     .collect();
 
     transaction.commit().await?;

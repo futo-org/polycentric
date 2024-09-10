@@ -2,21 +2,26 @@ use ::protobuf::Message;
 
 fn parse_input(
     bytes: ::bytes::Bytes,
-) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
-{
+) -> ::anyhow::Result<
+    ::std::vec::Vec<polycentric_protocol::model::signed_event::SignedEvent>,
+> {
     polycentric_protocol::protocol::Events::parse_from_tokio_bytes(&bytes)?
         .events
         .iter()
-        .map(crate::model::signed_event::from_proto)
+        .map(polycentric_protocol::model::signed_event::from_proto)
         .collect::<::anyhow::Result<
-            ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+            ::std::vec::Vec<
+                polycentric_protocol::model::signed_event::SignedEvent,
+            >,
         >>()
 }
 
 async fn handler_inner(
     state: ::std::sync::Arc<crate::State>,
     user_agent: Option<String>,
-    signed_events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+    signed_events: ::std::vec::Vec<
+        polycentric_protocol::model::signed_event::SignedEvent,
+    >,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
     crate::ingest::ingest_event_batch(&state, &user_agent, signed_events)
         .await?;

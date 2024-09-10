@@ -1,7 +1,9 @@
 #[derive(PartialEq, Debug)]
 pub(crate) struct Match {
-    pub(crate) claim_event: crate::model::signed_event::SignedEvent,
-    pub(crate) vouch_event: crate::model::signed_event::SignedEvent,
+    pub(crate) claim_event:
+        polycentric_protocol::model::signed_event::SignedEvent,
+    pub(crate) vouch_event:
+        polycentric_protocol::model::signed_event::SignedEvent,
 }
 
 #[allow(dead_code)]
@@ -13,8 +15,8 @@ struct Row {
 
 pub(crate) async fn query_find_claim_and_vouch(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    vouching_system: &crate::model::public_key::PublicKey,
-    claiming_system: &crate::model::public_key::PublicKey,
+    vouching_system: &polycentric_protocol::model::public_key::PublicKey,
+    claiming_system: &polycentric_protocol::model::public_key::PublicKey,
     claim_type: u64,
     fields: &[polycentric_protocol::protocol::ClaimFieldEntry],
 ) -> ::anyhow::Result<::std::option::Option<Match>> {
@@ -70,27 +72,39 @@ pub(crate) async fn query_find_claim_and_vouch(
     ";
 
     let potential_row = ::sqlx::query_as::<_, Row>(query)
-        .bind(i64::try_from(crate::model::known_message_types::CLAIM)?)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::known_message_types::CLAIM,
+        )?)
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(
+                claiming_system,
+            ),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             claiming_system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(claiming_system))
+        ))
         .bind(i64::try_from(claim_type)?)
         .bind(crate::postgres::claim_fields_to_json_object(fields))
-        .bind(i64::try_from(crate::model::known_message_types::VOUCH)?)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::known_message_types::VOUCH,
+        )?)
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(
+                vouching_system,
+            ),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             vouching_system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(vouching_system))
+        ))
         .fetch_optional(&mut **transaction)
         .await?;
 
     match potential_row {
         Some(row) => Ok(Some(Match {
-            claim_event: crate::model::signed_event::from_vec(
+            claim_event: polycentric_protocol::model::signed_event::from_vec(
                 &row.claim_event,
             )?,
-            vouch_event: crate::model::signed_event::from_vec(
+            vouch_event: polycentric_protocol::model::signed_event::from_vec(
                 &row.vouch_event,
             )?,
         })),
@@ -108,44 +122,49 @@ pub mod tests {
 
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let mut claim_hacker_news = polycentric_protocol::protocol::ClaimFieldEntry::new();
+        let mut claim_hacker_news =
+            polycentric_protocol::protocol::ClaimFieldEntry::new();
         claim_hacker_news.key = 1;
         claim_hacker_news.value = "hello".to_string();
 
-        let claim =
-            crate::model::claim::Claim::new(1, &[claim_hacker_news.clone()]);
-
-        let s1 = crate::model::tests::make_test_keypair();
-        let s1p1 = crate::model::tests::make_test_process();
-
-        let s1p1e1 = crate::model::tests::make_test_event_with_content(
-            &s1,
-            &s1p1,
+        let claim = polycentric_protocol::model::claim::Claim::new(
             1,
-            crate::model::known_message_types::CLAIM,
-            &crate::model::claim::to_proto(&claim).write_to_bytes()?,
-            vec![],
+            &[claim_hacker_news.clone()],
         );
+
+        let s1 = polycentric_protocol::model::tests::make_test_keypair();
+        let s1p1 = polycentric_protocol::model::tests::make_test_process();
+
+        let s1p1e1 =
+            polycentric_protocol::model::tests::make_test_event_with_content(
+                &s1,
+                &s1p1,
+                1,
+                polycentric_protocol::model::known_message_types::CLAIM,
+                &polycentric_protocol::model::claim::to_proto(&claim)
+                    .write_to_bytes()?,
+                vec![],
+            );
 
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e1).await?;
 
-        let s2 = crate::model::tests::make_test_keypair();
-        let s2p1 = crate::model::tests::make_test_process();
+        let s2 = polycentric_protocol::model::tests::make_test_keypair();
+        let s2p1 = polycentric_protocol::model::tests::make_test_process();
 
-        let s2p1e1 = crate::model::tests::make_test_event_with_content(
+        let s2p1e1 = polycentric_protocol::model::tests::make_test_event_with_content(
             &s2,
             &s2p1,
             1,
-            crate::model::known_message_types::VOUCH,
+            polycentric_protocol::model::known_message_types::VOUCH,
             &vec![],
-            vec![crate::model::reference::Reference::Pointer(
-                crate::model::pointer::Pointer::new(
-                    crate::model::public_key::PublicKey::Ed25519(
+            vec![polycentric_protocol::model::reference::Reference::Pointer(
+                polycentric_protocol::model::pointer::Pointer::new(
+                    polycentric_protocol::model::public_key::PublicKey::Ed25519(
                         s1.verifying_key().clone(),
                     ),
                     s1p1,
                     1,
-                    crate::model::digest::compute(s1p1e1.event()),
+                    polycentric_protocol::model::digest::compute(s1p1e1.event()),
                 ),
             )],
         );
@@ -155,10 +174,10 @@ pub mod tests {
         let result =
             crate::postgres::query_find_claim_and_vouch::query_find_claim_and_vouch(
                 &mut transaction,
-                &crate::model::public_key::PublicKey::Ed25519(
+                &polycentric_protocol::model::public_key::PublicKey::Ed25519(
                     s2.verifying_key().clone()
                 ),
-                &crate::model::public_key::PublicKey::Ed25519(
+                &polycentric_protocol::model::public_key::PublicKey::Ed25519(
                     s1.verifying_key().clone(),
                 ),
                 1,

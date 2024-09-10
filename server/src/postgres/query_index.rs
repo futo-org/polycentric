@@ -3,13 +3,15 @@ use ::protobuf::Message;
 
 #[derive(PartialEq)]
 pub(crate) struct Result {
-    pub(crate) events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
-    pub(crate) proof: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+    pub(crate) events:
+        ::std::vec::Vec<polycentric_protocol::model::signed_event::SignedEvent>,
+    pub(crate) proof:
+        ::std::vec::Vec<polycentric_protocol::model::signed_event::SignedEvent>,
 }
 
 pub(crate) async fn query_index(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
+    system: &polycentric_protocol::model::public_key::PublicKey,
     content_type: u64,
     limit: u64,
     cursor: &::std::option::Option<u64>,
@@ -36,11 +38,11 @@ pub(crate) async fn query_index(
         crate::postgres::load_processes_for_system(&mut *transaction, system)
             .await?;
 
-    let latest_event = crate::model::event::from_vec(
+    let latest_event = polycentric_protocol::model::event::from_vec(
         result.events.first().context("impossible")?.event(),
     )?;
 
-    let earliest_event = crate::model::event::from_vec(
+    let earliest_event = polycentric_protocol::model::event::from_vec(
         result.events.last().context("impossible")?.event(),
     )?;
 
@@ -89,12 +91,14 @@ pub(crate) async fn query_index(
 
 pub(crate) async fn load_event_later_than(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
-    process: &crate::model::process::Process,
+    system: &polycentric_protocol::model::public_key::PublicKey,
+    process: &polycentric_protocol::model::process::Process,
     content_type: u64,
     later_than_unix_milliseconds: u64,
 ) -> ::anyhow::Result<
-    ::std::option::Option<crate::model::signed_event::SignedEvent>,
+    ::std::option::Option<
+        polycentric_protocol::model::signed_event::SignedEvent,
+    >,
 > {
     let query = "
         SELECT
@@ -145,10 +149,12 @@ pub(crate) async fn load_event_later_than(
     ";
 
     let potential_raw = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .bind(process.bytes())
         .bind(i64::try_from(content_type)?)
         .bind(i64::try_from(later_than_unix_milliseconds)?)
@@ -156,21 +162,27 @@ pub(crate) async fn load_event_later_than(
         .await?;
 
     match potential_raw {
-        Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
-            &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(&raw)?,
-        )?)),
+        Some(raw) => {
+            Ok(Some(polycentric_protocol::model::signed_event::from_proto(
+                &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(
+                    &raw,
+                )?,
+            )?))
+        }
         None => Ok(None),
     }
 }
 
 pub(crate) async fn load_event_earlier_than(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
-    process: &crate::model::process::Process,
+    system: &polycentric_protocol::model::public_key::PublicKey,
+    process: &polycentric_protocol::model::process::Process,
     content_type: u64,
     earlier_than_unix_milliseconds: u64,
 ) -> ::anyhow::Result<
-    ::std::option::Option<crate::model::signed_event::SignedEvent>,
+    ::std::option::Option<
+        polycentric_protocol::model::signed_event::SignedEvent,
+    >,
 > {
     let query = "
         SELECT
@@ -221,10 +233,12 @@ pub(crate) async fn load_event_earlier_than(
     ";
 
     let potential_raw = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .bind(process.bytes())
         .bind(i64::try_from(content_type)?)
         .bind(i64::try_from(earlier_than_unix_milliseconds)?)
@@ -232,21 +246,26 @@ pub(crate) async fn load_event_earlier_than(
         .await?;
 
     match potential_raw {
-        Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
-            &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(&raw)?,
-        )?)),
+        Some(raw) => {
+            Ok(Some(polycentric_protocol::model::signed_event::from_proto(
+                &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(
+                    &raw,
+                )?,
+            )?))
+        }
         None => Ok(None),
     }
 }
 
 pub(crate) async fn load_events_by_time(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
+    system: &polycentric_protocol::model::public_key::PublicKey,
     content_type: u64,
     limit: u64,
     after: &::std::option::Option<u64>,
-) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
-{
+) -> ::anyhow::Result<
+    ::std::vec::Vec<polycentric_protocol::model::signed_event::SignedEvent>,
+> {
     let query = "
         SELECT
             raw_event
@@ -296,19 +315,23 @@ pub(crate) async fn load_events_by_time(
     ";
 
     ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .bind(i64::try_from(content_type)?)
         .bind(after.map(i64::try_from).transpose()?)
         .bind(i64::try_from(limit)?)
         .fetch_all(&mut **transaction)
         .await?
         .iter()
-        .map(|raw| crate::model::signed_event::from_vec(raw))
+        .map(|raw| polycentric_protocol::model::signed_event::from_vec(raw))
         .collect::<::anyhow::Result<
-            ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+            ::std::vec::Vec<
+                polycentric_protocol::model::signed_event::SignedEvent,
+            >,
         >>()
 }
 
@@ -319,16 +342,17 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let keypair = crate::model::tests::make_test_keypair();
+        let keypair = polycentric_protocol::model::tests::make_test_keypair();
 
-        let system = crate::model::public_key::PublicKey::Ed25519(
-            keypair.verifying_key().clone(),
-        );
+        let system =
+            polycentric_protocol::model::public_key::PublicKey::Ed25519(
+                keypair.verifying_key().clone(),
+            );
 
         let result = crate::postgres::query_index::query_index(
             &mut transaction,
             &system,
-            crate::model::known_message_types::POST,
+            polycentric_protocol::model::known_message_types::POST,
             10,
             &None,
         )
@@ -352,19 +376,29 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let s1 = crate::model::tests::make_test_keypair();
-        let s1p1 = crate::model::tests::make_test_process();
+        let s1 = polycentric_protocol::model::tests::make_test_keypair();
+        let s1p1 = polycentric_protocol::model::tests::make_test_process();
 
         let s1p1e1 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 1, 12);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p1, 1, 12,
+            );
         let s1p1e2 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 2, 13);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p1, 2, 13,
+            );
         let s1p1e3 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 3, 14);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p1, 3, 14,
+            );
         let s1p1e4 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 4, 15);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p1, 4, 15,
+            );
         let s1p1e5 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 5, 20);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p1, 5, 20,
+            );
 
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e1).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e2).await?;
@@ -372,14 +406,15 @@ pub mod tests {
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e4).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e5).await?;
 
-        let system = crate::model::public_key::PublicKey::Ed25519(
-            s1.verifying_key().clone(),
-        );
+        let system =
+            polycentric_protocol::model::public_key::PublicKey::Ed25519(
+                s1.verifying_key().clone(),
+            );
 
         let result = crate::postgres::query_index::query_index(
             &mut transaction,
             &system,
-            crate::model::known_message_types::POST,
+            polycentric_protocol::model::known_message_types::POST,
             4,
             &None,
         )
@@ -407,35 +442,57 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let s1 = crate::model::tests::make_test_keypair();
-        let s1p1 = crate::model::tests::make_test_process();
-        let s1p2 = crate::model::tests::make_test_process();
-        let s1p3 = crate::model::tests::make_test_process();
+        let s1 = polycentric_protocol::model::tests::make_test_keypair();
+        let s1p1 = polycentric_protocol::model::tests::make_test_process();
+        let s1p2 = polycentric_protocol::model::tests::make_test_process();
+        let s1p3 = polycentric_protocol::model::tests::make_test_process();
 
         let s1p1e1 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 1, 12);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p1, 1, 12,
+            );
         let s1p1e2 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 2, 13);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p1, 2, 13,
+            );
         let s1p1e3 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 3, 14);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p1, 3, 14,
+            );
         let s1p1e4 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 4, 15);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p1, 4, 15,
+            );
         let s1p1e5 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 5, 20);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p1, 5, 20,
+            );
 
         let s1p2e1 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p2, 1, 9);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p2, 1, 9,
+            );
         let s1p2e2 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p2, 2, 16);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p2, 2, 16,
+            );
         let s1p2e3 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p2, 3, 19);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p2, 3, 19,
+            );
 
         let s1p3e1 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p3, 1, 8);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p3, 1, 8,
+            );
         let s1p3e2 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p3, 2, 17);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p3, 2, 17,
+            );
         let s1p3e3 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p3, 3, 18);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p3, 3, 18,
+            );
 
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e1).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e2).await?;
@@ -451,14 +508,15 @@ pub mod tests {
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p3e2).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p3e3).await?;
 
-        let system = crate::model::public_key::PublicKey::Ed25519(
-            s1.verifying_key().clone(),
-        );
+        let system =
+            polycentric_protocol::model::public_key::PublicKey::Ed25519(
+                s1.verifying_key().clone(),
+            );
 
         let result = crate::postgres::query_index::query_index(
             &mut transaction,
             &system,
-            crate::model::known_message_types::POST,
+            polycentric_protocol::model::known_message_types::POST,
             4,
             &None,
         )
@@ -490,23 +548,34 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let s1 = crate::model::tests::make_test_keypair();
-        let s1p1 = crate::model::tests::make_test_process();
+        let s1 = polycentric_protocol::model::tests::make_test_keypair();
+        let s1p1 = polycentric_protocol::model::tests::make_test_process();
 
         let s1p1e1 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 1, 12);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p1, 1, 12,
+            );
         let s1p1e2 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 2, 13);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p1, 2, 13,
+            );
         let s1p1e3 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 3, 14);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p1, 3, 14,
+            );
         let s1p1e4 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 4, 15);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p1, 4, 15,
+            );
         let s1p1e5 =
-            crate::model::tests::make_test_event_with_time(&s1, &s1p1, 5, 20);
+            polycentric_protocol::model::tests::make_test_event_with_time(
+                &s1, &s1p1, 5, 20,
+            );
 
-        let s1p1e6 = crate::model::tests::make_delete_event_from_event(
-            &s1, &s1p1, &s1p1e3, 6, 21,
-        );
+        let s1p1e6 =
+            polycentric_protocol::model::tests::make_delete_event_from_event(
+                &s1, &s1p1, &s1p1e3, 6, 21,
+            );
 
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e1).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e2).await?;
@@ -515,14 +584,15 @@ pub mod tests {
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e5).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e6).await?;
 
-        let system = crate::model::public_key::PublicKey::Ed25519(
-            s1.verifying_key().clone(),
-        );
+        let system =
+            polycentric_protocol::model::public_key::PublicKey::Ed25519(
+                s1.verifying_key().clone(),
+            );
 
         let result = crate::postgres::query_index::query_index(
             &mut transaction,
             &system,
-            crate::model::known_message_types::POST,
+            polycentric_protocol::model::known_message_types::POST,
             4,
             &None,
         )

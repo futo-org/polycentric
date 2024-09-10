@@ -81,7 +81,8 @@ struct SystemRow {
 }
 
 pub(crate) struct EventsAndCursor {
-    pub events: ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+    pub events:
+        ::std::vec::Vec<polycentric_protocol::model::signed_event::SignedEvent>,
     pub cursor: Option<u64>,
 }
 
@@ -94,10 +95,12 @@ pub(crate) async fn prepare_database(
 
 pub(crate) async fn load_event(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
-    process: &crate::model::process::Process,
+    system: &polycentric_protocol::model::public_key::PublicKey,
+    process: &polycentric_protocol::model::process::Process,
     logical_clock: u64,
-) -> ::anyhow::Result<Option<crate::model::signed_event::SignedEvent>> {
+) -> ::anyhow::Result<
+    Option<polycentric_protocol::model::signed_event::SignedEvent>,
+> {
     let query = "
         SELECT raw_event FROM events
         WHERE system_key_type = $1
@@ -108,19 +111,25 @@ pub(crate) async fn load_event(
     ";
 
     let potential_raw = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .bind(process.bytes())
         .bind(i64::try_from(logical_clock)?)
         .fetch_optional(&mut **transaction)
         .await?;
 
     match potential_raw {
-        Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
-            &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(&raw)?,
-        )?)),
+        Some(raw) => {
+            Ok(Some(polycentric_protocol::model::signed_event::from_proto(
+                &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(
+                    &raw,
+                )?,
+            )?))
+        }
         None => Ok(None),
     }
 }
@@ -157,7 +166,9 @@ pub(crate) async fn load_events_after_id(
     let mut result_set = vec![];
 
     for row in rows.iter() {
-        let event = crate::model::signed_event::from_vec(&row.raw_event)?;
+        let event = polycentric_protocol::model::signed_event::from_vec(
+            &row.raw_event,
+        )?;
         result_set.push(event);
     }
 
@@ -184,7 +195,9 @@ pub(crate) async fn load_posts_before_id(
 
     let rows = ::sqlx::query_as::<_, ExploreRow>(query)
         .bind(i64::try_from(start_id)?)
-        .bind(i64::try_from(crate::model::known_message_types::POST)?)
+        .bind(i64::try_from(
+            polycentric_protocol::model::known_message_types::POST,
+        )?)
         .bind(i64::try_from(limit)?)
         .fetch_all(&mut **transaction)
         .await?;
@@ -192,7 +205,9 @@ pub(crate) async fn load_posts_before_id(
     let mut result_set = vec![];
 
     for row in rows.iter() {
-        let event = crate::model::signed_event::from_vec(&row.raw_event)?;
+        let event = polycentric_protocol::model::signed_event::from_vec(
+            &row.raw_event,
+        )?;
         result_set.push(event);
     }
 
@@ -206,8 +221,10 @@ pub(crate) async fn load_posts_before_id(
 
 pub(crate) async fn load_processes_for_system(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
-) -> ::anyhow::Result<::std::vec::Vec<crate::model::process::Process>> {
+    system: &polycentric_protocol::model::public_key::PublicKey,
+) -> ::anyhow::Result<
+    ::std::vec::Vec<polycentric_protocol::model::process::Process>,
+> {
     let query = "
         SELECT DISTINCT process
         FROM events
@@ -216,26 +233,28 @@ pub(crate) async fn load_processes_for_system(
         ";
 
     ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
-                    system,
-                    ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
+            system,
+        ))
         .fetch_all(&mut **transaction)
         .await?
         .iter()
-        .map(|raw| {
-            crate::model::process::from_vec(raw)
-        })
-    .collect::<::anyhow::Result<
-        ::std::vec::Vec<crate::model::process::Process>,
+        .map(|raw| polycentric_protocol::model::process::from_vec(raw))
+        .collect::<::anyhow::Result<
+            ::std::vec::Vec<polycentric_protocol::model::process::Process>,
         >>()
 }
 
 pub(crate) async fn load_latest_system_wide_lww_event_by_type(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
+    system: &polycentric_protocol::model::public_key::PublicKey,
     content_type: u64,
-) -> ::anyhow::Result<Option<crate::model::signed_event::SignedEvent>> {
+) -> ::anyhow::Result<
+    Option<polycentric_protocol::model::signed_event::SignedEvent>,
+> {
     let query = "
         SELECT
             events.raw_event
@@ -258,25 +277,31 @@ pub(crate) async fn load_latest_system_wide_lww_event_by_type(
     ";
 
     let potential_raw = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .bind(i64::try_from(content_type)?)
         .fetch_optional(&mut **transaction)
         .await?;
 
     match potential_raw {
-        Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
-            &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(&raw)?,
-        )?)),
+        Some(raw) => {
+            Ok(Some(polycentric_protocol::model::signed_event::from_proto(
+                &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(
+                    &raw,
+                )?,
+            )?))
+        }
         None => Ok(None),
     }
 }
 
 pub(crate) async fn does_event_exist(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    event: &crate::model::event::Event,
+    event: &polycentric_protocol::model::event::Event,
 ) -> ::anyhow::Result<bool> {
     let query_select_deleted = "
         SELECT 1 FROM events
@@ -288,10 +313,14 @@ pub(crate) async fn does_event_exist(
     ";
 
     let does_exist = ::sqlx::query_scalar::<_, i32>(query_select_deleted)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(
+                event.system(),
+            ),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             event.system(),
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(event.system()))
+        ))
         .bind(event.process().bytes())
         .bind(i64::try_from(*event.logical_clock())?)
         .fetch_optional(&mut **transaction)
@@ -302,7 +331,7 @@ pub(crate) async fn does_event_exist(
 
 pub(crate) async fn is_event_deleted(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    event: &crate::model::event::Event,
+    event: &polycentric_protocol::model::event::Event,
 ) -> ::anyhow::Result<bool> {
     let query_select_deleted = "
         SELECT 1 FROM deletions
@@ -314,10 +343,14 @@ pub(crate) async fn is_event_deleted(
     ";
 
     let is_deleted = ::sqlx::query_scalar::<_, i32>(query_select_deleted)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(
+                event.system(),
+            ),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             event.system(),
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(event.system()))
+        ))
         .bind(event.process().bytes())
         .bind(i64::try_from(*event.logical_clock())?)
         .fetch_optional(&mut **transaction)
@@ -329,8 +362,8 @@ pub(crate) async fn is_event_deleted(
 pub(crate) async fn delete_event(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event_id: u64,
-    system: &crate::model::public_key::PublicKey,
-    delete: &crate::model::delete::Delete,
+    system: &polycentric_protocol::model::public_key::PublicKey,
+    delete: &polycentric_protocol::model::delete::Delete,
 ) -> ::anyhow::Result<()> {
     let query_insert_delete = "
         INSERT INTO deletions
@@ -357,10 +390,12 @@ pub(crate) async fn delete_event(
     ";
 
     ::sqlx::query(query_insert_delete)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .bind(delete.process().bytes())
         .bind(i64::try_from(*delete.logical_clock())?)
         .bind(i64::try_from(event_id)?)
@@ -370,10 +405,12 @@ pub(crate) async fn delete_event(
         .await?;
 
     ::sqlx::query(query_delete_event)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .bind(delete.process().bytes())
         .bind(i64::try_from(*delete.logical_clock())?)
         .execute(&mut **transaction)
@@ -384,7 +421,7 @@ pub(crate) async fn delete_event(
 
 pub(crate) async fn insert_event(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    signed_event: &crate::model::signed_event::SignedEvent,
+    signed_event: &polycentric_protocol::model::signed_event::SignedEvent,
     server_time: u64,
 ) -> ::anyhow::Result<u64> {
     let query_insert_event = "
@@ -407,18 +444,25 @@ pub(crate) async fn insert_event(
         RETURNING id;
     ";
 
-    let event = crate::model::event::from_proto(
-        &polycentric_protocol::protocol::Event::parse_from_bytes(signed_event.event())?,
+    let event = polycentric_protocol::model::event::from_proto(
+        &polycentric_protocol::protocol::Event::parse_from_bytes(
+            signed_event.event(),
+        )?,
     )?;
 
     let serialized =
-        crate::model::signed_event::to_proto(signed_event).write_to_bytes()?;
+        polycentric_protocol::model::signed_event::to_proto(signed_event)
+            .write_to_bytes()?;
 
     let id = ::sqlx::query_scalar::<_, i64>(query_insert_event)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(
+                event.system(),
+            ),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             event.system(),
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(event.system()))
+        ))
         .bind(event.process().bytes())
         .bind(i64::try_from(*event.logical_clock())?)
         .bind(i64::try_from(*event.content_type())?)
@@ -439,7 +483,7 @@ pub(crate) async fn insert_event_link(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event_id: u64,
     link_content_type: u64,
-    pointer: &crate::model::pointer::Pointer,
+    pointer: &polycentric_protocol::model::pointer::Pointer,
 ) -> ::anyhow::Result<()> {
     let query_insert_event_link = "
         INSERT INTO event_links
@@ -463,10 +507,14 @@ pub(crate) async fn insert_event_link(
     ";
 
     ::sqlx::query(query_insert_event_link)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(
+                pointer.system(),
+            ),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             pointer.system(),
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(pointer.system()))
+        ))
         .bind(pointer.process().bytes())
         .bind(i64::try_from(*pointer.logical_clock())?)
         .bind(i64::try_from(link_content_type)?)
@@ -554,7 +602,7 @@ pub(crate) fn claim_fields_to_json_object(
 pub(crate) async fn insert_claim(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event_id: u64,
-    claim: &crate::model::claim::Claim,
+    claim: &polycentric_protocol::model::claim::Claim,
 ) -> ::anyhow::Result<()> {
     let query_insert_claim = "
         INSERT INTO claims
@@ -605,9 +653,10 @@ pub(crate) async fn insert_lww_element(
 
 pub(crate) async fn load_system_head(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
-) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
-{
+    system: &polycentric_protocol::model::public_key::PublicKey,
+) -> ::anyhow::Result<
+    ::std::vec::Vec<polycentric_protocol::model::signed_event::SignedEvent>,
+> {
     let query = "
         SELECT DISTINCT ON (
             system_key_type,
@@ -622,26 +671,32 @@ pub(crate) async fn load_system_head(
     ";
 
     ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .fetch_all(&mut **transaction)
         .await?
         .iter()
         .map(|raw| {
-            crate::model::signed_event::from_proto(
-                &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(raw)?,
+            polycentric_protocol::model::signed_event::from_proto(
+                &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(
+                    raw,
+                )?,
             )
         })
         .collect::<::anyhow::Result<
-            ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+            ::std::vec::Vec<
+                polycentric_protocol::model::signed_event::SignedEvent,
+            >,
         >>()
 }
 
 pub(crate) async fn known_ranges_for_system(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
+    system: &polycentric_protocol::model::public_key::PublicKey,
 ) -> ::anyhow::Result<polycentric_protocol::protocol::RangesForSystem> {
     let query = "
         SELECT
@@ -676,10 +731,12 @@ pub(crate) async fn known_ranges_for_system(
     ";
 
     let ranges = ::sqlx::query_as::<_, RangeRow>(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .fetch_all(&mut **transaction)
         .await
         .map_err(::anyhow::Error::new)?;
@@ -687,12 +744,17 @@ pub(crate) async fn known_ranges_for_system(
     let mut result = polycentric_protocol::protocol::RangesForSystem::new();
 
     for range in ranges.iter() {
-        let process =
-            ::protobuf::MessageField::some(crate::model::process::to_proto(
-                &crate::model::process::from_vec(&range.process)?,
-            ));
+        let process = ::protobuf::MessageField::some(
+            polycentric_protocol::model::process::to_proto(
+                &polycentric_protocol::model::process::from_vec(
+                    &range.process,
+                )?,
+            ),
+        );
 
-        let mut found: Option<&mut polycentric_protocol::protocol::RangesForProcess> = None;
+        let mut found: Option<
+            &mut polycentric_protocol::protocol::RangesForProcess,
+        > = None;
 
         for ranges_for_process in result.ranges_for_processes.iter_mut() {
             if ranges_for_process.process == process {
@@ -705,7 +767,8 @@ pub(crate) async fn known_ranges_for_system(
         let ranges_for_process = match found {
             Some(x) => x,
             None => {
-                let mut next = polycentric_protocol::protocol::RangesForProcess::new();
+                let mut next =
+                    polycentric_protocol::protocol::RangesForProcess::new();
                 next.process = process;
                 result.ranges_for_processes.push(next);
                 result.ranges_for_processes.last_mut().unwrap()
@@ -724,8 +787,8 @@ pub(crate) async fn known_ranges_for_system(
 pub(crate) async fn censor_event(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     censor_type: CensorshipType,
-    system: &crate::model::public_key::PublicKey,
-    process: &crate::model::process::Process,
+    system: &polycentric_protocol::model::public_key::PublicKey,
+    process: &polycentric_protocol::model::process::Process,
     logical_clock: u64,
 ) -> ::anyhow::Result<()> {
     let query = "
@@ -739,10 +802,12 @@ pub(crate) async fn censor_event(
         VALUES ($1, $2, $3, $4, $5);
         ";
     ::sqlx::query(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .bind(process.bytes())
         .bind(i64::try_from(logical_clock)?)
         .bind(censor_type)
@@ -754,7 +819,7 @@ pub(crate) async fn censor_event(
 pub(crate) async fn censor_system(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     censor_type: CensorshipType,
-    system: crate::model::public_key::PublicKey,
+    system: polycentric_protocol::model::public_key::PublicKey,
 ) -> ::anyhow::Result<()> {
     let query = "
         INSERT INTO censored_systems (
@@ -765,10 +830,12 @@ pub(crate) async fn censor_system(
         VALUES ($1, $2, $3);
         ";
     ::sqlx::query(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(&system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             &system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(&system))
+        ))
         .bind(censor_type)
         .execute(&mut **transaction)
         .await?;
@@ -779,7 +846,7 @@ pub(crate) async fn censor_system(
 pub(crate) async fn claim_handle(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     handle: String,
-    system: &crate::model::public_key::PublicKey,
+    system: &polycentric_protocol::model::public_key::PublicKey,
 ) -> ::anyhow::Result<()> {
     let query_del = "
         DELETE FROM identity_handles 
@@ -791,10 +858,12 @@ pub(crate) async fn claim_handle(
         ";
 
     ::sqlx::query(query_del)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .execute(&mut **transaction)
         .await?;
 
@@ -807,10 +876,12 @@ pub(crate) async fn claim_handle(
         VALUES ($1, $2, $3);
         ";
     ::sqlx::query(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .bind(handle)
         .execute(&mut **transaction)
         .await?;
@@ -821,7 +892,7 @@ pub(crate) async fn claim_handle(
 pub(crate) async fn resolve_handle(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     handle: String,
-) -> ::anyhow::Result<crate::model::public_key::PublicKey> {
+) -> ::anyhow::Result<polycentric_protocol::model::public_key::PublicKey> {
     let query = "
         SELECT
             system_key,
@@ -838,7 +909,7 @@ pub(crate) async fn resolve_handle(
         .await
         .map_err(::anyhow::Error::new)?;
 
-    let sys = crate::model::public_key::from_type_and_bytes(
+    let sys = polycentric_protocol::model::public_key::from_type_and_bytes(
         sys_row.system_key_type,
         &sys_row.system_key,
     )?;
@@ -848,7 +919,7 @@ pub(crate) async fn resolve_handle(
 
 pub(crate) async fn load_random_profiles(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-) -> ::anyhow::Result<Vec<crate::model::public_key::PublicKey>> {
+) -> ::anyhow::Result<Vec<polycentric_protocol::model::public_key::PublicKey>> {
     let query = "
     SELECT 
       system_key_type, 
@@ -878,7 +949,7 @@ pub(crate) async fn load_random_profiles(
 
     let mut result_set = vec![];
     for sys_row in sys_rows.iter() {
-        let sys = crate::model::public_key::from_type_and_bytes(
+        let sys = polycentric_protocol::model::public_key::from_type_and_bytes(
             sys_row.system_key_type,
             &sys_row.system_key,
         )?;
@@ -905,18 +976,20 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let keypair = crate::model::tests::make_test_keypair();
-        let process = crate::model::tests::make_test_process();
+        let keypair = polycentric_protocol::model::tests::make_test_keypair();
+        let process = polycentric_protocol::model::tests::make_test_process();
 
-        let signed_event =
-            crate::model::tests::make_test_event(&keypair, &process, 52);
+        let signed_event = polycentric_protocol::model::tests::make_test_event(
+            &keypair, &process, 52,
+        );
 
         crate::ingest::ingest_event_postgres(&mut transaction, &signed_event)
             .await?;
 
-        let system = crate::model::public_key::PublicKey::Ed25519(
-            keypair.verifying_key().clone(),
-        );
+        let system =
+            polycentric_protocol::model::public_key::PublicKey::Ed25519(
+                keypair.verifying_key().clone(),
+            );
 
         let loaded_event = crate::postgres::load_event(
             &mut transaction,
@@ -938,26 +1011,31 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let s1 = crate::model::tests::make_test_keypair();
-        let s2 = crate::model::tests::make_test_keypair();
+        let s1 = polycentric_protocol::model::tests::make_test_keypair();
+        let s2 = polycentric_protocol::model::tests::make_test_keypair();
 
-        let s1p1 = crate::model::tests::make_test_process();
-        let s1p2 = crate::model::tests::make_test_process();
-        let s2p1 = crate::model::tests::make_test_process();
+        let s1p1 = polycentric_protocol::model::tests::make_test_process();
+        let s1p2 = polycentric_protocol::model::tests::make_test_process();
+        let s2p1 = polycentric_protocol::model::tests::make_test_process();
 
-        let s1p1e1 = crate::model::tests::make_test_event(&s1, &s1p1, 1);
-        let s1p1e2 = crate::model::tests::make_test_event(&s1, &s1p1, 2);
-        let s1p2e1 = crate::model::tests::make_test_event(&s1, &s1p2, 1);
-        let s2p1e5 = crate::model::tests::make_test_event(&s2, &s2p1, 5);
+        let s1p1e1 =
+            polycentric_protocol::model::tests::make_test_event(&s1, &s1p1, 1);
+        let s1p1e2 =
+            polycentric_protocol::model::tests::make_test_event(&s1, &s1p1, 2);
+        let s1p2e1 =
+            polycentric_protocol::model::tests::make_test_event(&s1, &s1p2, 1);
+        let s2p1e5 =
+            polycentric_protocol::model::tests::make_test_event(&s2, &s2p1, 5);
 
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e1).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e2).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p2e1).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s2p1e5).await?;
 
-        let system = crate::model::public_key::PublicKey::Ed25519(
-            s1.verifying_key().clone(),
-        );
+        let system =
+            polycentric_protocol::model::public_key::PublicKey::Ed25519(
+                s1.verifying_key().clone(),
+            );
 
         let head = crate::postgres::load_system_head(&mut transaction, &system)
             .await?;
@@ -989,35 +1067,42 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let s1 = crate::model::tests::make_test_keypair();
-        let s2 = crate::model::tests::make_test_keypair();
+        let s1 = polycentric_protocol::model::tests::make_test_keypair();
+        let s2 = polycentric_protocol::model::tests::make_test_keypair();
 
-        let s1p1 = crate::model::tests::make_test_process();
-        let s1p2 = crate::model::tests::make_test_process();
-        let s2p1 = crate::model::tests::make_test_process();
+        let s1p1 = polycentric_protocol::model::tests::make_test_process();
+        let s1p2 = polycentric_protocol::model::tests::make_test_process();
+        let s2p1 = polycentric_protocol::model::tests::make_test_process();
 
-        let s1p1e1 = crate::model::tests::make_test_event(&s1, &s1p1, 1);
-        let s1p1e2 = crate::model::tests::make_test_event(&s1, &s1p1, 2);
-        let s1p1e6 = crate::model::tests::make_test_event(&s1, &s1p1, 6);
-        let s1p2e1 = crate::model::tests::make_test_event(&s1, &s1p2, 1);
-        let s2p1e5 = crate::model::tests::make_test_event(&s2, &s2p1, 5);
+        let s1p1e1 =
+            polycentric_protocol::model::tests::make_test_event(&s1, &s1p1, 1);
+        let s1p1e2 =
+            polycentric_protocol::model::tests::make_test_event(&s1, &s1p1, 2);
+        let s1p1e6 =
+            polycentric_protocol::model::tests::make_test_event(&s1, &s1p1, 6);
+        let s1p2e1 =
+            polycentric_protocol::model::tests::make_test_event(&s1, &s1p2, 1);
+        let s2p1e5 =
+            polycentric_protocol::model::tests::make_test_event(&s2, &s2p1, 5);
 
         let mut delete = polycentric_protocol::protocol::Delete::new();
         delete.process = ::protobuf::MessageField::some(
-            crate::model::process::to_proto(&s1p1),
+            polycentric_protocol::model::process::to_proto(&s1p1),
         );
         delete.logical_clock = 2;
-        delete.indices =
-            ::protobuf::MessageField::some(polycentric_protocol::protocol::Indices::new());
-
-        let s1p1e3 = crate::model::tests::make_test_event_with_content(
-            &s1,
-            &s1p1,
-            3,
-            0,
-            &delete.write_to_bytes()?,
-            vec![],
+        delete.indices = ::protobuf::MessageField::some(
+            polycentric_protocol::protocol::Indices::new(),
         );
+
+        let s1p1e3 =
+            polycentric_protocol::model::tests::make_test_event_with_content(
+                &s1,
+                &s1p1,
+                3,
+                0,
+                &delete.write_to_bytes()?,
+                vec![],
+            );
 
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e1).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e2).await?;
@@ -1026,9 +1111,10 @@ pub mod tests {
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p2e1).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s2p1e5).await?;
 
-        let system = crate::model::public_key::PublicKey::Ed25519(
-            s1.verifying_key().clone(),
-        );
+        let system =
+            polycentric_protocol::model::public_key::PublicKey::Ed25519(
+                s1.verifying_key().clone(),
+            );
 
         let ranges =
             crate::postgres::known_ranges_for_system(&mut transaction, &system)
@@ -1036,11 +1122,13 @@ pub mod tests {
 
         transaction.commit().await?;
 
-        let mut expected = polycentric_protocol::protocol::RangesForSystem::new();
+        let mut expected =
+            polycentric_protocol::protocol::RangesForSystem::new();
 
-        let mut expected_p1 = polycentric_protocol::protocol::RangesForProcess::new();
+        let mut expected_p1 =
+            polycentric_protocol::protocol::RangesForProcess::new();
         expected_p1.process = ::protobuf::MessageField::some(
-            crate::model::process::to_proto(&s1p1),
+            polycentric_protocol::model::process::to_proto(&s1p1),
         );
 
         let mut expected_p1r1 = polycentric_protocol::protocol::Range::new();
@@ -1054,9 +1142,10 @@ pub mod tests {
         expected_p1.ranges.push(expected_p1r1);
         expected_p1.ranges.push(expected_p1r2);
 
-        let mut expected_p2 = polycentric_protocol::protocol::RangesForProcess::new();
+        let mut expected_p2 =
+            polycentric_protocol::protocol::RangesForProcess::new();
         expected_p2.process = ::protobuf::MessageField::some(
-            crate::model::process::to_proto(&s1p2),
+            polycentric_protocol::model::process::to_proto(&s1p2),
         );
 
         let mut expected_p2r1 = polycentric_protocol::protocol::Range::new();
@@ -1094,16 +1183,18 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let s1 = crate::model::tests::make_test_keypair();
-        let s2 = crate::model::tests::make_test_keypair();
+        let s1 = polycentric_protocol::model::tests::make_test_keypair();
+        let s2 = polycentric_protocol::model::tests::make_test_keypair();
 
-        let system1 = crate::model::public_key::PublicKey::Ed25519(
-            s1.verifying_key().clone(),
-        );
+        let system1 =
+            polycentric_protocol::model::public_key::PublicKey::Ed25519(
+                s1.verifying_key().clone(),
+            );
 
-        let system2 = crate::model::public_key::PublicKey::Ed25519(
-            s2.verifying_key().clone(),
-        );
+        let system2 =
+            polycentric_protocol::model::public_key::PublicKey::Ed25519(
+                s2.verifying_key().clone(),
+            );
 
         transaction.commit().await?;
 

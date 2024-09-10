@@ -10,14 +10,15 @@ pub(crate) async fn handler(
         polycentric_protocol::protocol::ClaimHandleRequest::parse_from_tokio_bytes(&bytes)
     );
 
-    let system =
-        crate::warp_try_err_400!(crate::model::public_key::from_proto(
+    let system = crate::warp_try_err_400!(
+        polycentric_protocol::model::public_key::from_proto(
             crate::warp_try_err_400!(&request
                 .system
                 .clone()
                 .into_option()
                 .context("expected system"))
-        ));
+        )
+    );
 
     let handle: String = request.handle.clone();
 

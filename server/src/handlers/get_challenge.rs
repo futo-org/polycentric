@@ -10,7 +10,8 @@ pub(crate) async fn handler(
 fn handler_inner(
     state: ::std::sync::Arc<crate::State>,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
-    let mut body = polycentric_protocol::protocol::HarborChallengeResponseBody::new();
+    let mut body =
+        polycentric_protocol::protocol::HarborChallengeResponseBody::new();
     body.challenge = ::rand::thread_rng().gen::<[u8; 32]>().to_vec();
     body.created_on = u64::try_from(
         ::std::time::SystemTime::now()
@@ -20,7 +21,8 @@ fn handler_inner(
 
     let body_bytes = body.write_to_bytes()?;
 
-    let mut challenge_wrapper = polycentric_protocol::protocol::HarborChallengeResponse::new();
+    let mut challenge_wrapper =
+        polycentric_protocol::protocol::HarborChallengeResponse::new();
     challenge_wrapper.hmac = ::hmac_sha256::HMAC::mac(
         body_bytes.clone(),
         state.challenge_key.as_bytes(),
