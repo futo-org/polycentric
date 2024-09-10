@@ -243,7 +243,7 @@ lint-protocol:
   script: 
     - ./version.sh
     - cd polycentric-protocol
-    - cargo-clippy --no-deps --locked -- -D warnings
+    - cargo-clippy --no-deps -- -D warnings
   needs: ["build-protocol"]
 
 lint-server: 
