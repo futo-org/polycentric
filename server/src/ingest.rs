@@ -1,10 +1,8 @@
-use crate::{
-    model::{known_message_types, pointer},
-    protocol::Post,
-};
+use crate::model::{known_message_types, pointer};
 use ::cadence::Counted;
 use ::log::*;
 use ::opensearch::IndexParts;
+use ::polycentric_protocol::protocol::Post;
 use ::protobuf::Message;
 use ::std::collections::HashMap;
 use ::std::fmt::Error;

@@ -2147,8 +2147,6 @@ dependencies = [
  "opensearch",
  "polycentric-protocol",
  "protobuf",
- "protobuf-codegen",
- "protoc-bin-vendored",
  "rand",
  "regex",
  "reqwest 0.12.4",

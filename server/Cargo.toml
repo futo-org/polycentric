@@ -31,7 +31,3 @@ lru = "0.12.3"
 reqwest = "0.12.4"
 backoff = { version = "0.4.0", features = ["tokio"] }
 polycentric-protocol = { path = "../polycentric-protocol" }
-
-[build-dependencies]
-protobuf-codegen = "3.0.3"
-protoc-bin-vendored = "3.0.0"
