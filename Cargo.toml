@@ -1,9 +1,0 @@
-[workspace]
-resolver = "2"
-members = [
-    "polycentric-protocol",
-    "server",
-]
-
-[profile.release]
-lto = true
