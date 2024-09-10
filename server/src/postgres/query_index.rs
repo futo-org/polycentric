@@ -342,7 +342,7 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let keypair = polycentric_protocol::model::tests::make_test_keypair();
+        let keypair = polycentric_protocol::test_utils::make_test_keypair();
 
         let system =
             polycentric_protocol::model::public_key::PublicKey::Ed25519(
@@ -376,27 +376,27 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let s1 = polycentric_protocol::model::tests::make_test_keypair();
-        let s1p1 = polycentric_protocol::model::tests::make_test_process();
+        let s1 = polycentric_protocol::test_utils::make_test_keypair();
+        let s1p1 = polycentric_protocol::test_utils::make_test_process();
 
         let s1p1e1 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p1, 1, 12,
             );
         let s1p1e2 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p1, 2, 13,
             );
         let s1p1e3 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p1, 3, 14,
             );
         let s1p1e4 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p1, 4, 15,
             );
         let s1p1e5 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p1, 5, 20,
             );
 
@@ -442,55 +442,55 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let s1 = polycentric_protocol::model::tests::make_test_keypair();
-        let s1p1 = polycentric_protocol::model::tests::make_test_process();
-        let s1p2 = polycentric_protocol::model::tests::make_test_process();
-        let s1p3 = polycentric_protocol::model::tests::make_test_process();
+        let s1 = polycentric_protocol::test_utils::make_test_keypair();
+        let s1p1 = polycentric_protocol::test_utils::make_test_process();
+        let s1p2 = polycentric_protocol::test_utils::make_test_process();
+        let s1p3 = polycentric_protocol::test_utils::make_test_process();
 
         let s1p1e1 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p1, 1, 12,
             );
         let s1p1e2 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p1, 2, 13,
             );
         let s1p1e3 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p1, 3, 14,
             );
         let s1p1e4 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p1, 4, 15,
             );
         let s1p1e5 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p1, 5, 20,
             );
 
         let s1p2e1 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p2, 1, 9,
             );
         let s1p2e2 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p2, 2, 16,
             );
         let s1p2e3 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p2, 3, 19,
             );
 
         let s1p3e1 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p3, 1, 8,
             );
         let s1p3e2 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p3, 2, 17,
             );
         let s1p3e3 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p3, 3, 18,
             );
 
@@ -548,32 +548,32 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let s1 = polycentric_protocol::model::tests::make_test_keypair();
-        let s1p1 = polycentric_protocol::model::tests::make_test_process();
+        let s1 = polycentric_protocol::test_utils::make_test_keypair();
+        let s1p1 = polycentric_protocol::test_utils::make_test_process();
 
         let s1p1e1 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p1, 1, 12,
             );
         let s1p1e2 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p1, 2, 13,
             );
         let s1p1e3 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p1, 3, 14,
             );
         let s1p1e4 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p1, 4, 15,
             );
         let s1p1e5 =
-            polycentric_protocol::model::tests::make_test_event_with_time(
+            polycentric_protocol::test_utils::make_test_event_with_time(
                 &s1, &s1p1, 5, 20,
             );
 
         let s1p1e6 =
-            polycentric_protocol::model::tests::make_delete_event_from_event(
+            polycentric_protocol::test_utils::make_delete_event_from_event(
                 &s1, &s1p1, &s1p1e3, 6, 21,
             );
 

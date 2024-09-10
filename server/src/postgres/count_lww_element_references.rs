@@ -122,8 +122,8 @@ pub mod tests {
         let mut transaction = pool.begin().await?;
         crate::postgres::prepare_database(&mut transaction).await?;
 
-        let keypair = polycentric_protocol::model::tests::make_test_keypair();
-        let process = polycentric_protocol::model::tests::make_test_process();
+        let keypair = polycentric_protocol::test_utils::make_test_keypair();
+        let process = polycentric_protocol::test_utils::make_test_process();
 
         let system =
             polycentric_protocol::model::public_key::PublicKey::Ed25519(
