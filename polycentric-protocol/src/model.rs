@@ -953,6 +953,9 @@ pub mod content {
 
 #[cfg(test)]
 pub mod tests {
+    use protobuf::Message;
+    use rand::Rng;
+
     #[test]
     fn signed_event_to_from_protobuf_event_is_isomorphic() {
         let identity_keypair = crate::test_utils::make_test_keypair();
