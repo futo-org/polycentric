@@ -35,6 +35,8 @@ default:
     files:
       - server/Cargo.lock
       - server/Cargo.toml
+      - polycentric-protocol/Cargo.toml
+      - polycentric-protocol/Cargo.lock
   paths:
     - ${CI_PROJECT_DIR}/.sccache/
     - ${CI_PROJECT_DIR}/.cargo/
@@ -44,6 +46,7 @@ default:
   key: ${CI_COMMIT_REF_SLUG}
   paths:
     - ${CI_PROJECT_DIR}/server/target
+    - ${CI_PROJECT_DIR}/polycentric-protocol/target
   policy: pull-push
 
 stages:
@@ -63,6 +66,13 @@ format-server:
   script: 
     - ./version.sh
     - cd server
+    - cargo-fmt --check
+
+format-protocol: 
+  stage: format
+  script: 
+    - ./version.sh
+    - cd polycentric-protocol
     - cargo-fmt --check
 
 format-core:
@@ -95,6 +105,26 @@ format-harbor:
   script:
     - ./version.sh
     - ./gitlab-ci/prettier-diff.sh ./packages/harbor-web/src
+
+build-protocol: 
+  stage: build
+  cache: 
+   - <<: *rust-cache-config
+   - <<: *rust-cache-build-config
+     key: ${CI_COMMIT_REF_SLUG}-rs-build
+  script:
+    - ./version.sh
+    - cd polycentric-protocol
+    - echo "Building protocol binary"
+    - cargo build
+    - echo "Running protocol tests"
+    - cargo test
+  needs: ["check"]
+  artifacts:
+      name: "artifacts"
+      expire_in: 10 mins
+      paths:
+        - ./polycentric-protocol/target/release/polycentric-protocol
 
 build-server: 
   stage: build
@@ -205,6 +235,18 @@ build-harbor:
   cache: *node-cache-config
   script: cd packages/harbor-web && npm run build
   needs: ["build-core"]
+
+lint-protocol: 
+  stage: lint
+  cache: 
+    - <<: *rust-cache-config
+    - <<: *rust-cache-build-config
+      key: ${CI_COMMIT_REF_SLUG}-rs-lint
+  script: 
+    - ./version.sh
+    - cd polycentric-protocol
+    - cargo-clippy --no-deps --locked -- -D warnings
+  needs: ["build-protocol"]
 
 lint-server: 
   stage: lint
