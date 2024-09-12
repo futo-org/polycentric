@@ -322,6 +322,10 @@ push-server-image-staging:
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
 
+    # - ./version.sh
+    # - echo "{\"auths\":{\"$DO_OCI_REGISTRY\":{\"username\":\"doadmin\",\"password\":\"$CI_DO_OCI_TOKEN\"}}}" > /kaniko/.docker/config.json
+    # - /kaniko/executor --context "${CI_PROJECT_DIR}" --dockerfile ${CI_PROJECT_DIR}/server.dockerfile --destination $DO_OCI_REGISTRY/$CI_PROJECT_DIR:stg
+
 push-server-image-production:
   stage: deploy
   needs: ["check", "test", "build-server-release"]
@@ -336,4 +340,7 @@ push-server-image-production:
   rules:
     - if: $CI_COMMIT_BRANCH == "production"
 
+    # - ./version.sh
+    # - echo "{\"auths\":{\"$DO_OCI_REGISTRY\":{\"username\":\"doadmin\",\"password\":\"$CI_DO_OCI_TOKEN\"}}}" > /kaniko/.docker/config.json
+    # - /kaniko/executor --context "${CI_PROJECT_DIR}" --dockerfile "${CI_PROJECT_DIR}/server.dockerfile" --destination $DO_OCI_REGISTRY/$CI_PROJECT_DIR:$VERSION
 
