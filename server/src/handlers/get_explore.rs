@@ -1,5 +1,5 @@
-use crate::protocol::Events;
 use ::protobuf::{Message, MessageField};
+use polycentric_protocol::protocol::Events;
 
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
@@ -18,7 +18,7 @@ pub(crate) async fn handler(
         .as_slice()
         .try_into()))
     } else {
-        crate::warp_try_err_500!(u64::try_from(i64::max_value()))
+        crate::warp_try_err_500!(u64::try_from(i64::MAX))
     };
 
     let limit = query.limit.unwrap_or(10);
@@ -40,11 +40,11 @@ pub(crate) async fn handler(
     for event in db_result.events.iter() {
         events
             .events
-            .push(crate::model::signed_event::to_proto(event));
+            .push(polycentric_protocol::model::signed_event::to_proto(event));
     }
 
     let mut result =
-        crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
+        polycentric_protocol::protocol::ResultEventsAndRelatedEventsAndCursor::new();
     result.result_events = MessageField::some(events);
 
     result.cursor = db_result

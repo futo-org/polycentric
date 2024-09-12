@@ -90,7 +90,7 @@ async fn upsert_count_lww_element_references_bytes(
 
 async fn upsert_count_references_pointer(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    pointer: &crate::model::pointer::Pointer,
+    pointer: &polycentric_protocol::model::pointer::Pointer,
     content_type: u64,
     operation: Operation,
 ) -> ::anyhow::Result<()> {
@@ -124,10 +124,14 @@ async fn upsert_count_references_pointer(
     ";
 
     ::sqlx::query(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(
+                pointer.system(),
+            ),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             pointer.system(),
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(pointer.system()))
+        ))
         .bind(pointer.process().bytes())
         .bind(i64::try_from(*pointer.logical_clock())?)
         .bind(i64::try_from(content_type)?)
@@ -143,7 +147,7 @@ async fn upsert_count_references_pointer(
 
 async fn upsert_count_lww_element_references_pointer(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    pointer: &crate::model::pointer::Pointer,
+    pointer: &polycentric_protocol::model::pointer::Pointer,
     value: &::std::vec::Vec<u8>,
     content_type: u64,
     operation: Operation,
@@ -181,10 +185,14 @@ async fn upsert_count_lww_element_references_pointer(
     ";
 
     ::sqlx::query(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(
+                pointer.system(),
+            ),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             pointer.system(),
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(pointer.system()))
+        ))
         .bind(pointer.process().bytes())
         .bind(i64::try_from(*pointer.logical_clock())?)
         .bind(i64::try_from(content_type)?)
@@ -201,10 +209,12 @@ async fn upsert_count_lww_element_references_pointer(
 
 async fn load_previous_with_bytes(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
+    system: &polycentric_protocol::model::public_key::PublicKey,
     content_type: u64,
     subject: &::std::vec::Vec<u8>,
-) -> ::anyhow::Result<Option<crate::model::signed_event::SignedEvent>> {
+) -> ::anyhow::Result<
+    Option<polycentric_protocol::model::signed_event::SignedEvent>,
+> {
     let query = "
         SELECT
             raw_event
@@ -230,29 +240,37 @@ async fn load_previous_with_bytes(
     ";
 
     let potential_raw = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .bind(i64::try_from(content_type)?)
         .bind(subject)
         .fetch_optional(&mut **transaction)
         .await?;
 
     match potential_raw {
-        Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
-            &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
-        )?)),
+        Some(raw) => {
+            Ok(Some(polycentric_protocol::model::signed_event::from_proto(
+                &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(
+                    &raw,
+                )?,
+            )?))
+        }
         None => Ok(None),
     }
 }
 
 async fn load_previous_with_pointer(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
+    system: &polycentric_protocol::model::public_key::PublicKey,
     content_type: u64,
-    subject: &crate::model::pointer::Pointer,
-) -> ::anyhow::Result<Option<crate::model::signed_event::SignedEvent>> {
+    subject: &polycentric_protocol::model::pointer::Pointer,
+) -> ::anyhow::Result<
+    Option<polycentric_protocol::model::signed_event::SignedEvent>,
+> {
     let query = "
         SELECT
             raw_event
@@ -284,36 +302,48 @@ async fn load_previous_with_pointer(
     ";
 
     let potential_raw = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(system),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             system,
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(system))
+        ))
         .bind(i64::try_from(content_type)?)
-        .bind(i64::try_from(crate::model::public_key::get_key_type(
+        .bind(i64::try_from(
+            polycentric_protocol::model::public_key::get_key_type(
+                subject.system(),
+            ),
+        )?)
+        .bind(polycentric_protocol::model::public_key::get_key_bytes(
             subject.system(),
-        ))?)
-        .bind(crate::model::public_key::get_key_bytes(subject.system()))
+        ))
         .bind(subject.process().bytes())
         .bind(i64::try_from(*subject.logical_clock())?)
         .fetch_optional(&mut **transaction)
         .await?;
 
     match potential_raw {
-        Some(raw) => Ok(Some(crate::model::signed_event::from_proto(
-            &crate::protocol::SignedEvent::parse_from_bytes(&raw)?,
-        )?)),
+        Some(raw) => {
+            Ok(Some(polycentric_protocol::model::signed_event::from_proto(
+                &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(
+                    &raw,
+                )?,
+            )?))
+        }
         None => Ok(None),
     }
 }
 
 async fn load_previous(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
-    reference: &crate::model::reference::Reference,
+    system: &polycentric_protocol::model::public_key::PublicKey,
+    reference: &polycentric_protocol::model::reference::Reference,
     content_type: u64,
-) -> ::anyhow::Result<Option<crate::model::signed_event::SignedEvent>> {
+) -> ::anyhow::Result<
+    Option<polycentric_protocol::model::signed_event::SignedEvent>,
+> {
     Ok(match reference {
-        crate::model::reference::Reference::Pointer(pointer) => {
+        polycentric_protocol::model::reference::Reference::Pointer(pointer) => {
             load_previous_with_pointer(
                 transaction,
                 system,
@@ -322,7 +352,7 @@ async fn load_previous(
             )
             .await?
         }
-        crate::model::reference::Reference::Bytes(bytes) => {
+        polycentric_protocol::model::reference::Reference::Bytes(bytes) => {
             load_previous_with_bytes(transaction, system, content_type, bytes)
                 .await?
         }
@@ -334,12 +364,12 @@ async fn load_previous(
 
 async fn upsert_count_references(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    reference: &crate::model::reference::Reference,
+    reference: &polycentric_protocol::model::reference::Reference,
     content_type: u64,
     operation: Operation,
 ) -> ::anyhow::Result<()> {
     match reference {
-        crate::model::reference::Reference::Pointer(pointer) => {
+        polycentric_protocol::model::reference::Reference::Pointer(pointer) => {
             upsert_count_references_pointer(
                 transaction,
                 pointer,
@@ -348,7 +378,7 @@ async fn upsert_count_references(
             )
             .await?;
         }
-        crate::model::reference::Reference::Bytes(bytes) => {
+        polycentric_protocol::model::reference::Reference::Bytes(bytes) => {
             upsert_count_references_bytes(
                 transaction,
                 bytes,
@@ -364,13 +394,13 @@ async fn upsert_count_references(
 
 async fn upsert_count_lww_element_references(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    reference: &crate::model::reference::Reference,
+    reference: &polycentric_protocol::model::reference::Reference,
     value: &::std::vec::Vec<u8>,
     content_type: u64,
     operation: Operation,
 ) -> ::anyhow::Result<()> {
     match reference {
-        crate::model::reference::Reference::Pointer(pointer) => {
+        polycentric_protocol::model::reference::Reference::Pointer(pointer) => {
             upsert_count_lww_element_references_pointer(
                 transaction,
                 pointer,
@@ -380,7 +410,7 @@ async fn upsert_count_lww_element_references(
             )
             .await?;
         }
-        crate::model::reference::Reference::Bytes(bytes) => {
+        polycentric_protocol::model::reference::Reference::Bytes(bytes) => {
             upsert_count_lww_element_references_bytes(
                 transaction,
                 bytes,
@@ -398,7 +428,7 @@ async fn upsert_count_lww_element_references(
 pub(crate) async fn update_lww_element_reference(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event_id: u64,
-    event: &crate::model::event::Event,
+    event: &polycentric_protocol::model::event::Event,
 ) -> ::anyhow::Result<()> {
     let query_bytes = "
         INSERT INTO lww_element_latest_reference_bytes (
@@ -477,26 +507,28 @@ pub(crate) async fn update_lww_element_reference(
     if let Some(lww_element) = event.lww_element() {
         if let Some(reference) = event.references().first() {
             match reference {
-                crate::model::reference::Reference::Pointer(pointer) => {
+                polycentric_protocol::model::reference::Reference::Pointer(
+                    pointer,
+                ) => {
                     ::sqlx::query(query_pointer)
                         .bind(i64::try_from(event_id)?)
                         .bind(i64::try_from(
-                            crate::model::public_key::get_key_type(
+                            polycentric_protocol::model::public_key::get_key_type(
                                 event.system(),
                             ),
                         )?)
-                        .bind(crate::model::public_key::get_key_bytes(
+                        .bind(polycentric_protocol::model::public_key::get_key_bytes(
                             event.system(),
                         ))
                         .bind(event.process().bytes())
                         .bind(i64::try_from(*event.content_type())?)
                         .bind(i64::try_from(lww_element.unix_milliseconds)?)
                         .bind(i64::try_from(
-                            crate::model::public_key::get_key_type(
+                            polycentric_protocol::model::public_key::get_key_type(
                                 pointer.system(),
                             ),
                         )?)
-                        .bind(crate::model::public_key::get_key_bytes(
+                        .bind(polycentric_protocol::model::public_key::get_key_bytes(
                             pointer.system(),
                         ))
                         .bind(pointer.process().bytes())
@@ -504,15 +536,17 @@ pub(crate) async fn update_lww_element_reference(
                         .execute(&mut **transaction)
                         .await?;
                 }
-                crate::model::reference::Reference::Bytes(bytes) => {
+                polycentric_protocol::model::reference::Reference::Bytes(
+                    bytes,
+                ) => {
                     ::sqlx::query(query_bytes)
                         .bind(i64::try_from(event_id)?)
                         .bind(i64::try_from(
-                            crate::model::public_key::get_key_type(
+                            polycentric_protocol::model::public_key::get_key_type(
                                 event.system(),
                             ),
                         )?)
-                        .bind(crate::model::public_key::get_key_bytes(
+                        .bind(polycentric_protocol::model::public_key::get_key_bytes(
                             event.system(),
                         ))
                         .bind(event.process().bytes())
@@ -532,8 +566,8 @@ pub(crate) async fn update_lww_element_reference(
 
 pub(crate) async fn update_counts(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    event: &crate::model::event::Event,
-    content: &crate::model::content::Content,
+    event: &polycentric_protocol::model::event::Event,
+    content: &polycentric_protocol::model::content::Content,
 ) -> ::anyhow::Result<()> {
     for reference in event.references().iter() {
         upsert_count_references(
@@ -545,7 +579,9 @@ pub(crate) async fn update_counts(
         .await?;
     }
 
-    if let crate::model::content::Content::Delete(body) = &content {
+    if let polycentric_protocol::model::content::Content::Delete(body) =
+        &content
+    {
         let potential_existing = crate::postgres::load_event(
             transaction,
             event.system(),
@@ -555,8 +591,9 @@ pub(crate) async fn update_counts(
         .await?;
 
         if let Some(existing_signed_event) = potential_existing {
-            let existing_event =
-                crate::model::event::from_vec(existing_signed_event.event())?;
+            let existing_event = polycentric_protocol::model::event::from_vec(
+                existing_signed_event.event(),
+            )?;
 
             for reference in existing_event.references().iter() {
                 upsert_count_references(
@@ -585,8 +622,9 @@ pub(crate) async fn update_counts(
             };
 
         if let Some(previous_signed_event) = potential_previous {
-            let previous_event =
-                crate::model::event::from_vec(previous_signed_event.event())?;
+            let previous_event = polycentric_protocol::model::event::from_vec(
+                previous_signed_event.event(),
+            )?;
 
             if let Some(previous_lww_element) = previous_event.lww_element() {
                 if lww_element.unix_milliseconds

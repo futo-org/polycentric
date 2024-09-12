@@ -2,10 +2,11 @@ use ::protobuf::Message;
 
 pub(crate) async fn select(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    system: &crate::model::public_key::PublicKey,
+    system: &polycentric_protocol::model::public_key::PublicKey,
     content_types: &[u64],
-) -> ::anyhow::Result<::std::vec::Vec<crate::model::signed_event::SignedEvent>>
-{
+) -> ::anyhow::Result<
+    ::std::vec::Vec<polycentric_protocol::model::signed_event::SignedEvent>,
+> {
     let query = "
         WITH input_rows (
             system_key_type,
@@ -55,9 +56,11 @@ pub(crate) async fn select(
 
     for content_type in content_types.iter() {
         p_system_key_type.push(i64::try_from(
-            crate::model::public_key::get_key_type(system),
+            polycentric_protocol::model::public_key::get_key_type(system),
         )?);
-        p_system_key.push(crate::model::public_key::get_key_bytes(system));
+        p_system_key.push(
+            polycentric_protocol::model::public_key::get_key_bytes(system),
+        );
         p_content_type.push(i64::try_from(*content_type)?);
     }
 
@@ -69,11 +72,15 @@ pub(crate) async fn select(
         .await?
         .iter()
         .map(|raw| {
-            crate::model::signed_event::from_proto(
-                &crate::protocol::SignedEvent::parse_from_bytes(raw)?,
+            polycentric_protocol::model::signed_event::from_proto(
+                &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(
+                    raw,
+                )?,
             )
         })
         .collect::<::anyhow::Result<
-            ::std::vec::Vec<crate::model::signed_event::SignedEvent>,
+            ::std::vec::Vec<
+                polycentric_protocol::model::signed_event::SignedEvent,
+            >,
         >>()
 }

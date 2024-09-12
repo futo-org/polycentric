@@ -87,7 +87,7 @@ pub mod digest {
 }
 
 #[derive(Hash, Eq, PartialEq, Clone, Debug)]
-pub(crate) struct InsecurePointer {
+pub struct InsecurePointer {
     system: crate::model::public_key::PublicKey,
     process: crate::model::process::Process,
     logical_clock: u64,
@@ -404,7 +404,7 @@ where
 }
 
 #[derive(Clone, PartialEq)]
-pub(crate) struct EventLayers {
+pub struct EventLayers {
     raw_event: ::std::vec::Vec<u8>,
     signed_event: crate::model::signed_event::SignedEvent,
     event: crate::model::event::Event,
@@ -412,7 +412,7 @@ pub(crate) struct EventLayers {
 }
 
 impl EventLayers {
-    pub(crate) fn new(
+    pub fn new(
         signed_event: crate::model::signed_event::SignedEvent,
     ) -> ::anyhow::Result<EventLayers> {
         let raw_event = crate::model::signed_event::to_proto(&signed_event)
@@ -590,9 +590,7 @@ pub mod event {
         from_proto(&crate::protocol::Event::parse_from_bytes(vec)?)
     }
 
-    pub(crate) fn to_proto(
-        event: &Event,
-    ) -> ::anyhow::Result<crate::protocol::Event> {
+    pub fn to_proto(event: &Event) -> ::anyhow::Result<crate::protocol::Event> {
         let mut result = crate::protocol::Event::new();
 
         result.system = ::protobuf::MessageField::some(
@@ -608,11 +606,11 @@ pub mod event {
             ::protobuf::MessageField::some(event.vector_clock().clone());
         result.indices =
             ::protobuf::MessageField::some(event.indices().clone());
-        result.references = event.references().iter()
+        result.references = event
+            .references()
+            .iter()
             .map(crate::model::reference::to_proto)
-            .collect::<::anyhow::Result<
-                ::std::vec::Vec<crate::protocol::Reference>
-            >>()?;
+            .collect::<::anyhow::Result<::std::vec::Vec<crate::protocol::Reference>>>()?;
         result.lww_element =
             ::protobuf::MessageField::from_option(event.lww_element().clone());
         result.lww_element_set = ::protobuf::MessageField::from_option(
@@ -683,9 +681,7 @@ pub mod signed_event {
         from_proto(&crate::protocol::SignedEvent::parse_from_bytes(vec)?)
     }
 
-    pub(crate) fn to_proto(
-        event: &SignedEvent,
-    ) -> crate::protocol::SignedEvent {
+    pub fn to_proto(event: &SignedEvent) -> crate::protocol::SignedEvent {
         let mut result = crate::protocol::SignedEvent::new();
         result.event = event.event.clone();
         result.signature = event.signature.clone();
@@ -960,167 +956,14 @@ pub mod tests {
     use protobuf::Message;
     use rand::Rng;
 
-    pub fn make_test_keypair() -> ::ed25519_dalek::SigningKey {
-        ::ed25519_dalek::SigningKey::generate(&mut ::rand::thread_rng())
-    }
-
-    pub fn make_test_process() -> crate::model::process::Process {
-        crate::model::process::Process::new(
-            rand::thread_rng().gen::<[u8; 16]>(),
-        )
-    }
-
-    pub fn make_test_process_from_number(
-        n: u8,
-    ) -> crate::model::process::Process {
-        crate::model::process::Process::new([n; 16])
-    }
-
-    pub fn make_test_event_with_content(
-        keypair: &::ed25519_dalek::SigningKey,
-        process: &crate::model::process::Process,
-        logical_clock: u64,
-        content_type: u64,
-        content: &::std::vec::Vec<u8>,
-        references: ::std::vec::Vec<crate::model::reference::Reference>,
-    ) -> crate::model::signed_event::SignedEvent {
-        let event = crate::model::event::Event::new(
-            crate::model::public_key::PublicKey::Ed25519(
-                keypair.verifying_key().clone(),
-            ),
-            process.clone(),
-            logical_clock,
-            content_type,
-            content.clone(),
-            crate::protocol::VectorClock::new(),
-            crate::protocol::Indices::new(),
-            references,
-            None,
-            None,
-            None,
-        );
-
-        crate::model::signed_event::SignedEvent::sign(
-            crate::model::event::to_proto(&event)
-                .unwrap()
-                .write_to_bytes()
-                .unwrap(),
-            &keypair,
-        )
-    }
-
-    pub fn make_test_event(
-        keypair: &::ed25519_dalek::SigningKey,
-        process: &crate::model::process::Process,
-        logical_clock: u64,
-    ) -> crate::model::signed_event::SignedEvent {
-        let event = crate::model::event::Event::new(
-            crate::model::public_key::PublicKey::Ed25519(
-                keypair.verifying_key().clone(),
-            ),
-            process.clone(),
-            logical_clock,
-            3,
-            vec![0, 1, 2, 3],
-            crate::protocol::VectorClock::new(),
-            crate::protocol::Indices::new(),
-            vec![],
-            None,
-            None,
-            None,
-        );
-
-        crate::model::signed_event::SignedEvent::sign(
-            crate::model::event::to_proto(&event)
-                .unwrap()
-                .write_to_bytes()
-                .unwrap(),
-            &keypair,
-        )
-    }
-
-    pub fn make_test_event_with_time(
-        keypair: &::ed25519_dalek::SigningKey,
-        process: &crate::model::process::Process,
-        logical_clock: u64,
-        unix_milliseconds: u64,
-    ) -> crate::model::signed_event::SignedEvent {
-        let event = crate::model::event::Event::new(
-            crate::model::public_key::PublicKey::Ed25519(
-                keypair.verifying_key().clone(),
-            ),
-            process.clone(),
-            logical_clock,
-            crate::model::known_message_types::POST,
-            vec![0, 1, 2, 3],
-            crate::protocol::VectorClock::new(),
-            crate::protocol::Indices::new(),
-            vec![],
-            None,
-            None,
-            Some(unix_milliseconds),
-        );
-
-        crate::model::signed_event::SignedEvent::sign(
-            crate::model::event::to_proto(&event)
-                .unwrap()
-                .write_to_bytes()
-                .unwrap(),
-            &keypair,
-        )
-    }
-
-    pub fn make_delete_event_from_event(
-        keypair: &::ed25519_dalek::SigningKey,
-        process: &crate::model::process::Process,
-        subject_signed_event: &crate::model::signed_event::SignedEvent,
-        logical_clock: u64,
-        unix_milliseconds: u64,
-    ) -> crate::model::signed_event::SignedEvent {
-        let subject_event =
-            crate::model::event::from_vec(subject_signed_event.event())
-                .unwrap();
-
-        let event = crate::model::event::Event::new(
-            crate::model::public_key::PublicKey::Ed25519(
-                keypair.verifying_key().clone(),
-            ),
-            process.clone(),
-            logical_clock,
-            crate::model::known_message_types::DELETE,
-            crate::model::delete::to_proto(&crate::model::delete::Delete::new(
-                subject_event.process().clone(),
-                subject_event.logical_clock().clone(),
-                subject_event.indices().clone(),
-                *subject_event.unix_milliseconds(),
-                *subject_event.content_type(),
-            ))
-            .write_to_bytes()
-            .unwrap(),
-            crate::protocol::VectorClock::new(),
-            crate::protocol::Indices::new(),
-            vec![],
-            None,
-            None,
-            Some(unix_milliseconds),
-        );
-
-        crate::model::signed_event::SignedEvent::sign(
-            crate::model::event::to_proto(&event)
-                .unwrap()
-                .write_to_bytes()
-                .unwrap(),
-            &keypair,
-        )
-    }
-
     #[test]
     fn signed_event_to_from_protobuf_event_is_isomorphic() {
-        let identity_keypair = make_test_keypair();
+        let identity_keypair = crate::test_utils::make_test_keypair();
 
-        let process = make_test_process();
+        let process = crate::test_utils::make_test_process();
 
-        let signed_event = make_test_event(&identity_keypair, &process, 52);
+        let signed_event =
+            crate::test_utils::make_test_event(&identity_keypair, &process, 52);
 
         let protobuf_event =
             crate::model::signed_event::to_proto(&signed_event);

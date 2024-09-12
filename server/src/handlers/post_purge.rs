@@ -6,29 +6,32 @@ pub(crate) async fn handler(
     bytes: ::bytes::Bytes,
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let request = crate::warp_try_err_400!(
-        crate::protocol::HarborValidateRequest::parse_from_tokio_bytes(&bytes)
+        polycentric_protocol::protocol::HarborValidateRequest::parse_from_tokio_bytes(&bytes)
     );
 
-    let system =
-        crate::warp_try_err_400!(crate::model::public_key::from_proto(
+    let system = crate::warp_try_err_400!(
+        polycentric_protocol::model::public_key::from_proto(
             crate::warp_try_err_400!(&request
                 .system
                 .clone()
                 .into_option()
                 .context("expected system"))
-        ));
+        )
+    );
 
     let request_body = crate::warp_try_err_400!(
-        crate::protocol::HarborChallengeResponseBody::parse_from_bytes(
+        polycentric_protocol::protocol::HarborChallengeResponseBody::parse_from_bytes(
             &request.challenge.body
         )
     );
 
-    crate::warp_try_err_400!(crate::model::public_key::validate_signature(
-        &system,
-        &request.signature,
-        &request_body.challenge,
-    ));
+    crate::warp_try_err_400!(
+        polycentric_protocol::model::public_key::validate_signature(
+            &system,
+            &request.signature,
+            &request_body.challenge,
+        )
+    );
 
     let hmac = ::hmac_sha256::HMAC::mac(
         request.challenge.body.clone(),

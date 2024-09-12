@@ -3,20 +3,20 @@ use ::protobuf::Message;
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
     #[serde(
-        deserialize_with = "crate::model::public_key::serde_url_deserialize"
+        deserialize_with = "polycentric_protocol::model::public_key::serde_url_deserialize"
     )]
-    system: crate::model::public_key::PublicKey,
+    system: polycentric_protocol::model::public_key::PublicKey,
     #[serde(
-        deserialize_with = "crate::model::serde_url_deserialize_repeated_uint64"
+        deserialize_with = "polycentric_protocol::model::serde_url_deserialize_repeated_uint64"
     )]
-    event_types: crate::protocol::RepeatedUInt64,
+    event_types: polycentric_protocol::protocol::RepeatedUInt64,
 }
 
 async fn handler_inner(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
-    let mut result = crate::protocol::Events::new();
+    let mut result = polycentric_protocol::protocol::Events::new();
 
     let mut transaction = state.pool_read_only.begin().await?;
 
@@ -27,7 +27,7 @@ async fn handler_inner(
     )
     .await?
     .iter()
-    .map(crate::model::signed_event::to_proto)
+    .map(polycentric_protocol::model::signed_event::to_proto)
     .collect();
 
     transaction.commit().await?;

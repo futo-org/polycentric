@@ -64,11 +64,15 @@ async fn migration_1_compute_reference_counts(
 
         for row in rows.iter() {
             let signed_event =
-                crate::model::signed_event::from_vec(&row.raw_event)?;
+                polycentric_protocol::model::signed_event::from_vec(
+                    &row.raw_event,
+                )?;
 
-            let event = crate::model::event::from_vec(signed_event.event())?;
+            let event = polycentric_protocol::model::event::from_vec(
+                signed_event.event(),
+            )?;
 
-            let content = crate::model::content::decode_content(
+            let content = polycentric_protocol::model::content::decode_content(
                 *event.content_type(),
                 event.content(),
             )?;
@@ -143,7 +147,7 @@ pub(crate) async fn backfill_search(
         for signed_event in batch.events {
             crate::ingest::ingest_event_search(
                 &search,
-                &crate::model::EventLayers::new(signed_event)?,
+                &polycentric_protocol::model::EventLayers::new(signed_event)?,
             )
             .await?;
         }
@@ -207,12 +211,12 @@ pub(crate) async fn backfill_remote_server(
             position = batch.cursor;
         }
 
-        let mut batch_proto = crate::protocol::Events::new();
+        let mut batch_proto = polycentric_protocol::protocol::Events::new();
 
         for event in batch.events.iter() {
-            batch_proto
-                .events
-                .push(crate::model::signed_event::to_proto(event));
+            batch_proto.events.push(
+                polycentric_protocol::model::signed_event::to_proto(event),
+            );
         }
 
         let failed = failed.clone();
