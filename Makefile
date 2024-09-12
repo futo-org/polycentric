@@ -120,12 +120,12 @@ deploy-harbor-spa:
 		./packages/harbor-web/dist/ --branch main
 
 build-ci-deps:
-	cd infra/dockerfiles/ci/kaniko
 	DOCKER_BUILDKIT=1 docker build \
+        -f infra/ci-infra/dockerfiles/terraform/Dockerfile \
+		-t gitlab.futo.org:5050/polycentric/polycentric/terraform:latest .
+	docker push gitlab.futo.org:5050/polycentric/polycentric/terraform:latest
+	DOCKER_BUILDKIT=1 docker build \
+        -f infra/ci-infra/dockerfiles/kaniko/Dockerfile \
 		-t gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest .
 	docker push gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest
 
-	cd infra/dockerfiles/ci/terraform
-	DOCKER_BUILDKIT=1 docker build \
-		-t gitlab.futo.org:5050/polycentric/polycentric/terraform:latest .
-	docker push gitlab.futo.org:5050/polycentric/polycentric/terraform:latest
