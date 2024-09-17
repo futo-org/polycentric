@@ -70,7 +70,7 @@ async fn get_blob(
     // concat the sorted event.content() into a single buffer
     let mut blob = Vec::new();
     for (row,) in rows.iter() {
-        blob.extend_from_slice(&row);
+        blob.extend_from_slice(row);
     }
 
     Ok(blob)
@@ -137,9 +137,9 @@ async fn pull_queue_events(
     for row in candidate_rows.iter() {
         let signed_event =
             crate::model::signed_event::from_vec(&row.raw_event)?;
-        let event = crate::model::event::from_vec(&signed_event.event())?;
+        let event = crate::model::event::from_vec(signed_event.event())?;
         let post = polycentric_protocol::protocol::Post::parse_from_bytes(
-            &event.content(),
+            event.content(),
         )?;
 
         let blob = match *event.content_type() {
@@ -173,13 +173,10 @@ struct ModerationResult {
 }
 
 async fn process(
-    csam: &Box<dyn providers::csam::interface::ModerationCSAMProvider>,
-    tag: &Option<
-        Box<dyn providers::tags::interface::ModerationTaggingProvider>,
-    >,
+    csam: &dyn providers::csam::interface::ModerationCSAMProvider,
+    tag: Option<&dyn providers::tags::interface::ModerationTaggingProvider>,
     events: &[ModerationQueueItem],
 ) -> ::anyhow::Result<Vec<ModerationResult>> {
-    // create an static array of size events.len()
     let mut moderation_results = vec![
         ModerationResult {
             event_id: 0,
@@ -237,7 +234,7 @@ async fn process(
         tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
     }
 
-    return Ok(moderation_results);
+    Ok(moderation_results)
 }
 
 async fn apply_moderation_results(
@@ -274,8 +271,8 @@ async fn apply_moderation_results(
 
 pub async fn run(
     pool: ::sqlx::PgPool,
-    csam: Box<dyn providers::csam::interface::ModerationCSAMProvider>,
-    tag: Option<Box<dyn providers::tags::interface::ModerationTaggingProvider>>,
+    csam: &dyn providers::csam::interface::ModerationCSAMProvider,
+    tag: Option<&dyn providers::tags::interface::ModerationTaggingProvider>,
 ) -> ::anyhow::Result<()> {
     // loop until task is cancelled
     loop {
@@ -283,7 +280,7 @@ pub async fn run(
         let events = pull_queue_events(&mut transaction).await?;
         transaction.commit().await?;
 
-        let results = process(&csam, &tag, &events).await?;
+        let results = process(csam, tag, &events).await?;
 
         // separate transaction because this can take a while and we want to
         // avoid blocking other writes

@@ -398,8 +398,8 @@ async fn run_moderation_queue(
         async move {
             let result = moderation::moderation_queue::run(
                 pool_clone,
-                csam_provider,
-                tag_provider,
+                csam_provider.as_ref(),
+                tag_provider.as_deref(),
             )
             .await;
             if let Err(e) = result {
