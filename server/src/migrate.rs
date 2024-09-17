@@ -94,6 +94,22 @@ async fn migration_1_compute_reference_counts(
     }
 }
 
+async fn migration_2_add_moderation_tags_cols(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+) -> ::anyhow::Result<()> {
+    ::sqlx::query(
+        "
+        ALTER TABLE events
+        ADD COLUMN moderation_status moderation_status_enum NOT NULL DEFAULT 'pending',
+        ADD COLUMN moderation_tags moderation_tag_type[];
+        ",
+    )
+    .execute(&mut **transaction)
+    .await?;
+
+    Ok(())
+}
+
 pub(crate) async fn migrate(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
 ) -> ::anyhow::Result<()> {
@@ -106,7 +122,10 @@ pub(crate) async fn migrate(
             0 => {
                 migration_1_compute_reference_counts(&mut *transaction).await?
             }
-            1 => break,
+            1 => {
+                migration_2_add_moderation_tags_cols(&mut *transaction).await?
+            }
+            2 => break,
             _ => ::anyhow::bail!("schema too new for this server version"),
         }
 
@@ -117,6 +136,8 @@ pub(crate) async fn migrate(
 
     Ok(())
 }
+
+
 
 pub(crate) async fn backfill_search(
     pool: ::sqlx::PgPool,
