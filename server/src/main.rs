@@ -4,8 +4,8 @@ use ::log::*;
 use ::std::net::UdpSocket;
 use ::warp::Filter;
 use ::warp::Reply;
-use polycentric_protocol::model;
 use envconfig::Envconfig;
+use polycentric_protocol::model;
 
 mod config;
 mod handlers;

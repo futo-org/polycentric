@@ -1,6 +1,5 @@
 use ::envconfig::Envconfig;
 
-
 pub(crate) enum Mode {
     ServeAPI,
     BackfillSearch,
@@ -51,7 +50,6 @@ pub(crate) struct Config {
     #[envconfig(from = "CSAM_INTERFACE")]
     pub csam_interface: Option<String>,
 
-    
     #[envconfig(from = "TAG_INTERFACE")]
     pub tag_interface: Option<String>,
 
@@ -61,7 +59,10 @@ pub(crate) struct Config {
     #[envconfig(from = "AZURE_TAGGING_SUBSCRIPTION_KEY")]
     pub azure_tagging_subscription_key: String,
 
-    #[envconfig(from = "AZURE_TAGGING_API_VERSION", default = "2024-02-15-preview")]
+    #[envconfig(
+        from = "AZURE_TAGGING_API_VERSION",
+        default = "2024-02-15-preview"
+    )]
     pub azure_tagging_api_version: String,
 
     #[envconfig(from = "PHOTODNA_KEY")]

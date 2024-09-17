@@ -1,5 +1,8 @@
+use crate::{
+    config::Config, model::moderation_tag::ModerationTag,
+    moderation::moderation_queue::ModerationQueueItem,
+};
 use async_trait::async_trait;
-use crate::{config::Config, model::moderation_tag::ModerationTag, moderation::moderation_queue::ModerationQueueItem};
 
 pub struct ModerationTaggingResult {
     pub tags: Vec<ModerationTag>,

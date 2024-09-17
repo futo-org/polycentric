@@ -65,7 +65,7 @@ pub(crate) async fn query_index(
                 process,
                 content_type,
                 latest_time,
-                moderation_options
+                moderation_options,
             )
             .await?;
 
@@ -169,7 +169,11 @@ pub(crate) async fn load_event_later_than(
             .bind(process.bytes())
             .bind(i64::try_from(content_type)?)
             .bind(i64::try_from(later_than_unix_milliseconds)?)
-            .bind(moderation_options.as_ref().unwrap_or(&ModerationOptions::default()))
+            .bind(
+                moderation_options
+                    .as_ref()
+                    .unwrap_or(&ModerationOptions::default()),
+            )
             .fetch_optional(&mut **transaction)
             .await?;
 
@@ -259,7 +263,11 @@ pub(crate) async fn load_event_earlier_than(
             .bind(process.bytes())
             .bind(i64::try_from(content_type)?)
             .bind(i64::try_from(earlier_than_unix_milliseconds)?)
-            .bind(moderation_options.as_ref().unwrap_or(&ModerationOptions::default()))
+            .bind(
+                moderation_options
+                    .as_ref()
+                    .unwrap_or(&ModerationOptions::default()),
+            )
             .fetch_optional(&mut **transaction)
             .await?;
 

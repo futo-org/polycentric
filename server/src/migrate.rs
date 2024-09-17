@@ -137,8 +137,6 @@ pub(crate) async fn migrate(
     Ok(())
 }
 
-
-
 pub(crate) async fn backfill_search(
     pool: ::sqlx::PgPool,
     search: ::opensearch::OpenSearch,

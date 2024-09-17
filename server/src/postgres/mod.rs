@@ -219,7 +219,11 @@ pub(crate) async fn load_posts_before_id(
             polycentric_protocol::model::known_message_types::POST,
         )?)
         .bind(i64::try_from(limit)?)
-        .bind(moderation_options.as_ref().unwrap_or(&ModerationOptions::default()))
+        .bind(
+            moderation_options
+                .as_ref()
+                .unwrap_or(&ModerationOptions::default()),
+        )
         .fetch_all(&mut **transaction)
         .await?;
 
@@ -969,7 +973,11 @@ pub(crate) async fn load_random_profiles(
     ";
 
     let sys_rows = ::sqlx::query_as::<_, SystemRow>(query)
-        .bind(moderation_options.as_ref().unwrap_or(&ModerationOptions::empty()))
+        .bind(
+            moderation_options
+                .as_ref()
+                .unwrap_or(&ModerationOptions::empty()),
+        )
         .fetch_all(&mut **transaction)
         .await?;
 

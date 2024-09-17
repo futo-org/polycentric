@@ -1,4 +1,6 @@
-use crate::{config::Config, moderation::moderation_queue::ModerationQueueItem};
+use crate::{
+    config::Config, moderation::moderation_queue::ModerationQueueItem,
+};
 use async_trait::async_trait;
 
 pub struct ModerationCSAMResult {
