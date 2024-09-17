@@ -62,8 +62,9 @@ struct ExploreRow {
     #[sqlx(try_from = "i64")]
     server_time: u64,
     raw_event: ::std::vec::Vec<u8>,
-    moderation_tags:
-        ::std::vec::Vec<crate::model::moderation_tag::ModerationTag>,
+    moderation_tags: ::std::vec::Vec<
+        polycentric_protocol::model::moderation_tag::ModerationTag,
+    >,
 }
 
 #[allow(dead_code)]
@@ -122,7 +123,7 @@ pub(crate) async fn load_event(
         LIMIT 1;
     ";
 
-    let potential_raw = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
+    let potential_raw = ::sqlx::query_as::<_, RawEventRow>(query)
         .bind(i64::try_from(
             polycentric_protocol::model::public_key::get_key_type(system),
         )?)
@@ -136,11 +137,12 @@ pub(crate) async fn load_event(
 
     match potential_raw {
         Some(raw) => Ok(Some({
-            let mut event = polycentric_protocol::model::signed_event::from_proto(
-                &crate::protocol::SignedEvent::parse_from_bytes(
-                    &raw.raw_event,
-                )?,
-            )?;
+            let mut event =
+                polycentric_protocol::model::signed_event::from_proto(
+                    &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(
+                        &raw.raw_event,
+                    )?,
+                )?;
             event.set_moderation_tags(raw.moderation_tags.unwrap_or_default());
             event
         })),
@@ -200,7 +202,7 @@ pub(crate) async fn load_posts_before_id(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     start_id: u64,
     limit: u64,
-    moderation_options: Option<ModerationOptions>,
+    moderation_options: &Option<ModerationOptions>,
 ) -> ::anyhow::Result<EventsAndCursor> {
     let query = "
         SELECT id, raw_event, server_time, moderation_tags FROM events
@@ -217,7 +219,7 @@ pub(crate) async fn load_posts_before_id(
             polycentric_protocol::model::known_message_types::POST,
         )?)
         .bind(i64::try_from(limit)?)
-        .bind(moderation_options.unwrap_or_default())
+        .bind(moderation_options.as_ref().unwrap_or(&ModerationOptions::default()))
         .fetch_all(&mut **transaction)
         .await?;
 
@@ -940,6 +942,7 @@ pub(crate) async fn resolve_handle(
 
 pub(crate) async fn load_random_profiles(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    moderation_options: &Option<ModerationOptions>,
 ) -> ::anyhow::Result<Vec<polycentric_protocol::model::public_key::PublicKey>> {
     let query = "
     SELECT 
@@ -966,7 +969,7 @@ pub(crate) async fn load_random_profiles(
     ";
 
     let sys_rows = ::sqlx::query_as::<_, SystemRow>(query)
-        .bind(moderation_options.unwrap_or_default())
+        .bind(moderation_options.as_ref().unwrap_or(&ModerationOptions::empty()))
         .fetch_all(&mut **transaction)
         .await?;
 

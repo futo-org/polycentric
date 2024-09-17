@@ -623,6 +623,7 @@ pub mod event {
 }
 
 pub mod moderation_tag {
+    #[cfg(feature = "sqlx")]
     use sqlx::{postgres::PgTypeInfo, Postgres, Type};
 
     // This is added so sqlx infers the type as a varchar and not a string
@@ -638,6 +639,7 @@ pub mod moderation_tag {
     }
 
     // In order for sqlx to correctly infer the type as a varchar(N) and not a string
+    #[cfg(feature = "sqlx")]
     impl Type<Postgres> for ModerationTagName {
         #[inline]
         fn type_info() -> <Postgres as sqlx::Database>::TypeInfo {
@@ -645,6 +647,7 @@ pub mod moderation_tag {
         }
     }
 
+    #[cfg(feature = "sqlx")]
     impl<'r> sqlx::Decode<'r, Postgres> for ModerationTagName {
         fn decode(
             value: sqlx::postgres::PgValueRef<'r>,
@@ -654,6 +657,7 @@ pub mod moderation_tag {
         }
     }
 
+    #[cfg(feature = "sqlx")]
     impl sqlx::Encode<'_, Postgres> for ModerationTagName {
         fn encode_by_ref(
             &self,
@@ -679,7 +683,7 @@ pub mod moderation_tag {
         }
     }
 
-    
+    #[cfg(feature = "sqlx")]
     #[derive(
         PartialEq,
         Debug,
@@ -690,14 +694,26 @@ pub mod moderation_tag {
         Clone,
     )]
     #[sqlx(type_name = "moderation_tag_type")]
-    pub(crate) struct ModerationTag {
+    pub struct ModerationTag {
+        tag: ModerationTagName,
+        level: i16,
+    }
+
+    #[cfg(not(feature = "sqlx"))]
+    #[derive(
+        PartialEq, Debug, ::serde::Deserialize, ::serde::Serialize, Clone,
+    )]
+    pub struct ModerationTag {
         tag: ModerationTagName,
         level: i16,
     }
 
     impl ModerationTag {
         pub fn new(tag: String, level: i16) -> ModerationTag {
-            ModerationTag { tag: ModerationTagName(tag), level }
+            ModerationTag {
+                tag: ModerationTagName(tag),
+                level,
+            }
         }
 
         pub fn tag(&self) -> &ModerationTagName {
@@ -709,6 +725,7 @@ pub mod moderation_tag {
         }
     }
 
+    #[cfg(feature = "sqlx")]
     impl sqlx::postgres::PgHasArrayType for ModerationTag {
         fn array_type_info() -> sqlx::postgres::PgTypeInfo {
             sqlx::postgres::PgTypeInfo::with_name("_moderation_tag_type")
@@ -735,7 +752,7 @@ pub mod signed_event {
     pub struct SignedEvent {
         event: ::std::vec::Vec<u8>,
         signature: ::std::vec::Vec<u8>,
-        moderation_tags: 
+        moderation_tags:
             ::std::vec::Vec<crate::model::moderation_tag::ModerationTag>,
     }
 

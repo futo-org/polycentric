@@ -9,7 +9,7 @@ pub(crate) struct Query {
     content_type: u64,
     after: ::core::option::Option<u64>,
     limit: ::core::option::Option<u64>,
-    moderation_options: ::core::option::Option<Vec<crate::moderation::ModerationFilter>>,
+    moderation_options: ::core::option::Option<crate::moderation::ModerationOptions>,
 }
 
 pub(crate) async fn handler(

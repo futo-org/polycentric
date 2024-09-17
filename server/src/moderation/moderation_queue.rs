@@ -28,7 +28,7 @@ pub struct ModerationQueueItem {
 async fn get_blob(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event: &crate::model::event::Event,
-    post: &crate::protocol::Post,
+    post: &polycentric_protocol::protocol::Post,
 ) -> ::anyhow::Result<Vec<u8>> {
     let mut logical_clocks = vec![];
     for range in post.image.sections.iter() {
@@ -138,7 +138,9 @@ async fn pull_queue_events(
         let signed_event =
             crate::model::signed_event::from_vec(&row.raw_event)?;
         let event = crate::model::event::from_vec(&signed_event.event())?;
-        let post = crate::protocol::Post::parse_from_bytes(&event.content())?;
+        let post = polycentric_protocol::protocol::Post::parse_from_bytes(
+            &event.content(),
+        )?;
 
         let blob = match *event.content_type() {
             crate::model::known_message_types::POST => {
@@ -337,22 +339,23 @@ mod tests {
         let mut transaction = pool.begin().await?;
         prepare_database(&mut transaction).await?;
 
-        let keypair = crate::model::tests::make_test_keypair();
-        let process = crate::model::tests::make_test_process();
+        let keypair = polycentric_protocol::test_utils::make_test_keypair();
+        let process = polycentric_protocol::test_utils::make_test_process();
 
-        let mut post = crate::protocol::Post::new();
+        let mut post = polycentric_protocol::protocol::Post::new();
         post.content = Some("test".to_string());
         // post.image = Some(crate::protocol::ImageManifest::new());
         // post.image.unwrap().sections.push(crate::protocol::ImageSection::new(1, 1));
 
-        let signed_event = crate::model::tests::make_test_event_with_content(
-            &keypair,
-            &process,
-            52,
-            3,
-            &post.write_to_bytes()?,
-            vec![],
-        );
+        let signed_event =
+            polycentric_protocol::test_utils::make_test_event_with_content(
+                &keypair,
+                &process,
+                52,
+                3,
+                &post.write_to_bytes()?,
+                vec![],
+            );
 
         crate::ingest::ingest_event_postgres(&mut transaction, &signed_event)
             .await?;
@@ -386,14 +389,14 @@ mod tests {
 
         let mut constructed_events = vec![];
         for _ in 0..4 {
-            let keypair = crate::model::tests::make_test_keypair();
-            let process = crate::model::tests::make_test_process();
+            let keypair = polycentric_protocol::test_utils::make_test_keypair();
+            let process = polycentric_protocol::test_utils::make_test_process();
 
-            let mut post = crate::protocol::Post::new();
+            let mut post = polycentric_protocol::protocol::Post::new();
             post.content = Some("test".to_string());
 
             let signed_event =
-                crate::model::tests::make_test_event_with_content(
+                polycentric_protocol::test_utils::make_test_event_with_content(
                     &keypair,
                     &process,
                     52,
@@ -511,20 +514,21 @@ mod tests {
         let mut transaction = pool.begin().await?;
         prepare_database(&mut transaction).await?;
 
-        let keypair = crate::model::tests::make_test_keypair();
-        let process = crate::model::tests::make_test_process();
+        let keypair = polycentric_protocol::test_utils::make_test_keypair();
+        let process = polycentric_protocol::test_utils::make_test_process();
 
-        let mut post = crate::protocol::Post::new();
+        let mut post = polycentric_protocol::protocol::Post::new();
         post.content = Some("test".to_string());
 
-        let signed_event = crate::model::tests::make_test_event_with_content(
-            &keypair,
-            &process,
-            52,
-            3,
-            &post.write_to_bytes()?,
-            vec![],
-        );
+        let signed_event =
+            polycentric_protocol::test_utils::make_test_event_with_content(
+                &keypair,
+                &process,
+                52,
+                3,
+                &post.write_to_bytes()?,
+                vec![],
+            );
 
         crate::ingest::ingest_event_postgres(&mut transaction, &signed_event)
             .await?;
@@ -533,7 +537,7 @@ mod tests {
             &mut transaction,
             100000,
             1,
-            Some(ModerationOptions(vec![ModerationFilter {
+            &Some(ModerationOptions(vec![ModerationFilter {
                 tag: ModerationTagName::new(String::from("sexual")),
                 max_level: 1,
                 strict_mode: true,
@@ -585,20 +589,21 @@ mod tests {
         let mut transaction = pool.begin().await?;
         prepare_database(&mut transaction).await?;
 
-        let keypair = crate::model::tests::make_test_keypair();
-        let process = crate::model::tests::make_test_process();
+        let keypair = polycentric_protocol::test_utils::make_test_keypair();
+        let process = polycentric_protocol::test_utils::make_test_process();
 
-        let mut post = crate::protocol::Post::new();
+        let mut post = polycentric_protocol::protocol::Post::new();
         post.content = Some("test".to_string());
 
-        let signed_event = crate::model::tests::make_test_event_with_content(
-            &keypair,
-            &process,
-            52,
-            3,
-            &post.write_to_bytes()?,
-            vec![],
-        );
+        let signed_event =
+            polycentric_protocol::test_utils::make_test_event_with_content(
+                &keypair,
+                &process,
+                52,
+                3,
+                &post.write_to_bytes()?,
+                vec![],
+            );
 
         crate::ingest::ingest_event_postgres(&mut transaction, &signed_event)
             .await?;
@@ -608,7 +613,7 @@ mod tests {
             &mut transaction,
             100000,
             1,
-            Some(ModerationOptions(vec![ModerationFilter {
+            &Some(ModerationOptions(vec![ModerationFilter {
                 tag: ModerationTagName::new(String::from("sexual")),
                 max_level: 0,
                 strict_mode: false,
@@ -638,7 +643,7 @@ mod tests {
             &mut transaction,
             100000,
             1,
-            Some(ModerationOptions(vec![ModerationFilter {
+            &Some(ModerationOptions(vec![ModerationFilter {
                 tag: ModerationTagName::new(String::from("sexual")),
                 max_level: 0,
                 strict_mode: false,
@@ -652,7 +657,7 @@ mod tests {
             &mut transaction,
             100000,
             1,
-            Some(ModerationOptions(vec![ModerationFilter {
+            &Some(ModerationOptions(vec![ModerationFilter {
                 tag: ModerationTagName::new(String::from("sexual")),
                 max_level: 3,
                 strict_mode: false,
@@ -666,7 +671,7 @@ mod tests {
             &mut transaction,
             100000,
             1,
-            None,
+            &None,
         )
         .await?;
 
@@ -680,20 +685,21 @@ mod tests {
         let mut transaction = pool.begin().await?;
         prepare_database(&mut transaction).await?;
 
-        let keypair = crate::model::tests::make_test_keypair();
-        let process = crate::model::tests::make_test_process();
+        let keypair = polycentric_protocol::test_utils::make_test_keypair();
+        let process = polycentric_protocol::test_utils::make_test_process();
 
-        let mut post = crate::protocol::Post::new();
+        let mut post = polycentric_protocol::protocol::Post::new();
         post.content = Some("test".to_string());
 
-        let signed_event = crate::model::tests::make_test_event_with_content(
-            &keypair,
-            &process,
-            52,
-            3,
-            &post.write_to_bytes()?,
-            vec![],
-        );
+        let signed_event =
+            polycentric_protocol::test_utils::make_test_event_with_content(
+                &keypair,
+                &process,
+                52,
+                3,
+                &post.write_to_bytes()?,
+                vec![],
+            );
 
         crate::ingest::ingest_event_postgres(&mut transaction, &signed_event)
             .await?;
@@ -717,7 +723,7 @@ mod tests {
             &mut transaction,
             100000,
             1,
-            Some(ModerationOptions(vec![ModerationFilter {
+            &Some(ModerationOptions(vec![ModerationFilter {
                 tag: ModerationTagName::new(String::from("violence")),
                 max_level: 1,
                 strict_mode: false,
@@ -731,7 +737,7 @@ mod tests {
             &mut transaction,
             100000,
             1,
-            Some(ModerationOptions(vec![ModerationFilter {
+            &Some(ModerationOptions(vec![ModerationFilter {
                 tag: ModerationTagName::new(String::from("sexual")),
                 max_level: 1,
                 strict_mode: false,

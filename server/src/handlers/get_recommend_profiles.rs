@@ -19,7 +19,7 @@ pub(crate) async fn handler(
     let random_identities = crate::warp_try_err_500!(
         crate::postgres::load_random_profiles(
             &mut transaction,
-            query.moderation_options
+            &query.moderation_options
         )
         .await
     );

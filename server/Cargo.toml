@@ -30,7 +30,7 @@ regex = "1.10.3"
 lru = "0.12.3"
 reqwest = "0.12.4"
 backoff = { version = "0.4.0", features = ["tokio"] }
-polycentric-protocol = { path = "../polycentric-protocol" }
+polycentric-protocol = { path = "../polycentric-protocol", features = ["sqlx"] }
 async-trait = "0.1.81"
 
 [build-dependencies]

@@ -13,7 +13,11 @@ serde = { version = "1.0.140", features = ["derive"] }
 ed25519-dalek = { version = "2.0.0", features = ["rand_core"] }
 hmac-sha256 = "1.1.4"
 rand = "0.8"
+sqlx = { version = "0.7.2", optional = true, features = [ "postgres" ] }
 
 [build-dependencies]
 protobuf-codegen = "3.0.3"
 protoc-bin-vendored = "3.0.0"
+
+[features]
+sqlx = ["dep:sqlx"]

@@ -18,7 +18,7 @@ impl sqlx::postgres::PgHasArrayType for ModerationFilter {
     }
 }
 
-#[derive(::serde::Deserialize)]
+#[derive(::serde::Deserialize, Clone)]
 pub(crate) struct ModerationOptions(Vec<ModerationFilter>);
 
 // We don't want to implement `sqlx::Type<T>` for `ModerationOptions` because it's not a valid SQL type.
@@ -68,5 +68,11 @@ impl Default for ModerationOptions {
                 strict_mode: true,
             },
         ])
+    }
+}
+
+impl ModerationOptions {
+    pub fn empty() -> Self {
+        ModerationOptions(vec![])
     }
 }

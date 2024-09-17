@@ -1,4 +1,4 @@
-use crate::{moderation::ModerationOptions, protocol::Events};
+use crate::moderation::ModerationOptions;
 use ::protobuf::{Message, MessageField};
 use polycentric_protocol::protocol::Events;
 
@@ -33,7 +33,7 @@ pub(crate) async fn handler(
             &mut transaction,
             start_id,
             limit,
-            query.moderation_options
+            &query.moderation_options
         )
         .await
     );
