@@ -2,6 +2,8 @@ use ::protobuf::Message;
 use ::sqlx::Executor;
 use ::std::convert::TryFrom;
 
+use crate::moderation::ModerationOptions;
+
 pub(crate) mod count_lww_element_references;
 pub(crate) mod count_references;
 pub(crate) mod purge;
@@ -60,6 +62,8 @@ struct ExploreRow {
     #[sqlx(try_from = "i64")]
     server_time: u64,
     raw_event: ::std::vec::Vec<u8>,
+    moderation_tags:
+        ::std::vec::Vec<crate::model::moderation_tag::ModerationTag>,
 }
 
 #[allow(dead_code)]
@@ -93,6 +97,14 @@ pub(crate) async fn prepare_database(
     Ok(())
 }
 
+#[allow(dead_code)]
+#[derive(PartialEq, Debug, ::sqlx::FromRow)]
+struct RawEventRow {
+    raw_event: ::std::vec::Vec<u8>,
+    moderation_tags:
+        Option<::std::vec::Vec<crate::model::moderation_tag::ModerationTag>>,
+}
+
 pub(crate) async fn load_event(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     system: &polycentric_protocol::model::public_key::PublicKey,
@@ -102,7 +114,7 @@ pub(crate) async fn load_event(
     Option<polycentric_protocol::model::signed_event::SignedEvent>,
 > {
     let query = "
-        SELECT raw_event FROM events
+        SELECT raw_event, moderation_tags FROM events
         WHERE system_key_type = $1
         AND   system_key      = $2
         AND   process         = $3
@@ -123,13 +135,15 @@ pub(crate) async fn load_event(
         .await?;
 
     match potential_raw {
-        Some(raw) => {
-            Ok(Some(polycentric_protocol::model::signed_event::from_proto(
-                &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(
-                    &raw,
+        Some(raw) => Ok(Some({
+            let mut event = polycentric_protocol::model::signed_event::from_proto(
+                &crate::protocol::SignedEvent::parse_from_bytes(
+                    &raw.raw_event,
                 )?,
-            )?))
-        }
+            )?;
+            event.set_moderation_tags(raw.moderation_tags.unwrap_or_default());
+            event
+        })),
         None => Ok(None),
     }
 }
@@ -141,7 +155,7 @@ pub(crate) async fn load_events_after_id(
 ) -> ::anyhow::Result<EventsAndCursor> {
     let query = "
         SELECT
-            id, raw_event, server_time
+            id, raw_event, server_time, moderation_tags
         FROM
             events
         WHERE
@@ -166,9 +180,11 @@ pub(crate) async fn load_events_after_id(
     let mut result_set = vec![];
 
     for row in rows.iter() {
-        let event = polycentric_protocol::model::signed_event::from_vec(
-            &row.raw_event,
-        )?;
+        let event =
+            polycentric_protocol::model::signed_event::from_raw_event_with_moderation_tags(
+                &row.raw_event,
+                &row.moderation_tags,
+            )?;
         result_set.push(event);
     }
 
@@ -184,11 +200,13 @@ pub(crate) async fn load_posts_before_id(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     start_id: u64,
     limit: u64,
+    moderation_options: Option<ModerationOptions>,
 ) -> ::anyhow::Result<EventsAndCursor> {
     let query = "
-        SELECT id, raw_event, server_time FROM events
+        SELECT id, raw_event, server_time, moderation_tags FROM events
         WHERE id < $1
         AND content_type = $2
+        AND filter_events_by_moderation(events, $4::moderation_filter_type[])
         ORDER BY id DESC
         LIMIT $3;
     ";
@@ -199,15 +217,18 @@ pub(crate) async fn load_posts_before_id(
             polycentric_protocol::model::known_message_types::POST,
         )?)
         .bind(i64::try_from(limit)?)
+        .bind(moderation_options.unwrap_or_default())
         .fetch_all(&mut **transaction)
         .await?;
 
     let mut result_set = vec![];
 
     for row in rows.iter() {
-        let event = polycentric_protocol::model::signed_event::from_vec(
-            &row.raw_event,
-        )?;
+        let event =
+            polycentric_protocol::model::signed_event::from_raw_event_with_moderation_tags(
+                &row.raw_event,
+                &row.moderation_tags,
+            )?;
         result_set.push(event);
     }
 
@@ -936,6 +957,7 @@ pub(crate) async fn load_random_profiles(
           AND events.system_key = censored_systems.system_key 
         WHERE 
           censored_systems.system_key IS NULL
+          AND filter_events_by_moderation(events, $1::moderation_filter_type[])
       ) AS systems 
     ORDER BY 
       RANDOM() 
@@ -944,6 +966,7 @@ pub(crate) async fn load_random_profiles(
     ";
 
     let sys_rows = ::sqlx::query_as::<_, SystemRow>(query)
+        .bind(moderation_options.unwrap_or_default())
         .fetch_all(&mut **transaction)
         .await?;
 

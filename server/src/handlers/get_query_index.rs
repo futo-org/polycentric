@@ -9,6 +9,7 @@ pub(crate) struct Query {
     content_type: u64,
     after: ::core::option::Option<u64>,
     limit: ::core::option::Option<u64>,
+    moderation_options: ::core::option::Option<Vec<crate::moderation::ModerationFilter>>,
 }
 
 pub(crate) async fn handler(
@@ -25,6 +26,7 @@ pub(crate) async fn handler(
             query.content_type,
             query.limit.unwrap_or(10),
             &query.after,
+            &query.moderation_options,
         )
         .await
     );

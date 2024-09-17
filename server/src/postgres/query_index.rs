@@ -1,5 +1,4 @@
 use ::anyhow::Context;
-use ::protobuf::Message;
 
 #[derive(PartialEq)]
 pub(crate) struct Result {
@@ -15,6 +14,7 @@ pub(crate) async fn query_index(
     content_type: u64,
     limit: u64,
     cursor: &::std::option::Option<u64>,
+    moderation_options: Option<ModerationOptions>,
 ) -> ::anyhow::Result<Result> {
     let mut result = Result {
         events: vec![],
@@ -27,6 +27,7 @@ pub(crate) async fn query_index(
         content_type,
         limit,
         cursor,
+        moderation_options.unwrap_or_default(),
     )
     .await?;
 
@@ -62,6 +63,7 @@ pub(crate) async fn query_index(
                 process,
                 content_type,
                 latest_time,
+                &moderation_filter_unwrapped,
             )
             .await?;
 
@@ -77,6 +79,7 @@ pub(crate) async fn query_index(
                 process,
                 content_type,
                 earliest_time,
+                moderation_options,
             )
             .await?;
 
@@ -95,6 +98,7 @@ pub(crate) async fn load_event_later_than(
     process: &polycentric_protocol::model::process::Process,
     content_type: u64,
     later_than_unix_milliseconds: u64,
+    moderation_options: Option<ModerationOptions>,
 ) -> ::anyhow::Result<
     ::std::option::Option<
         polycentric_protocol::model::signed_event::SignedEvent,
@@ -102,10 +106,11 @@ pub(crate) async fn load_event_later_than(
 > {
     let query = "
         SELECT
-            raw_event
+            raw_event, moderation_tags
         FROM (
             SELECT
                 raw_event as raw_event,
+                moderation_tags as moderation_tags,
                 unix_milliseconds,
                 process,
                 logical_clock,
@@ -114,9 +119,12 @@ pub(crate) async fn load_event_later_than(
                 content_type
             FROM
                 events
+            WHERE
+                filter_events_by_moderation(events, $6::moderation_filter_type[])
             UNION
             SELECT
                 events.raw_event as raw_event,
+                events.moderation_tags as moderation_tags,
                 deletions.unix_milliseconds as unix_milliseconds,
                 deletions.process as process,
                 deletions.logical_clock as logical_clock,
@@ -148,27 +156,26 @@ pub(crate) async fn load_event_later_than(
         LIMIT 1;
     ";
 
-    let potential_raw = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
-        .bind(i64::try_from(
-            polycentric_protocol::model::public_key::get_key_type(system),
-        )?)
-        .bind(polycentric_protocol::model::public_key::get_key_bytes(
-            system,
-        ))
-        .bind(process.bytes())
-        .bind(i64::try_from(content_type)?)
-        .bind(i64::try_from(later_than_unix_milliseconds)?)
-        .fetch_optional(&mut **transaction)
-        .await?;
+    let potential_raw =
+        ::sqlx::query_as::<_, crate::postgres::RawEventRow>(query)
+            .bind(i64::try_from(polycentric_protocol::model::public_key::get_key_type(
+                system,
+            ))?)
+            .bind(polycentric_protocol::model::public_key::get_key_bytes(system))
+            .bind(process.bytes())
+            .bind(i64::try_from(content_type)?)
+            .bind(i64::try_from(later_than_unix_milliseconds)?)
+            .bind(moderation_options.unwrap_or_default())
+            .fetch_optional(&mut **transaction)
+            .await?;
 
     match potential_raw {
-        Some(raw) => {
-            Ok(Some(polycentric_protocol::model::signed_event::from_proto(
-                &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(
-                    &raw,
-                )?,
-            )?))
-        }
+        Some(raw) => Ok(Some(
+            polycentric_protocol::model::signed_event::from_raw_event_with_moderation_tags(
+                &raw.raw_event,
+                &raw.moderation_tags.unwrap_or_default(),
+            )?,
+        )),
         None => Ok(None),
     }
 }
@@ -179,6 +186,7 @@ pub(crate) async fn load_event_earlier_than(
     process: &polycentric_protocol::model::process::Process,
     content_type: u64,
     earlier_than_unix_milliseconds: u64,
+    moderation_options: Option<ModerationOptions>,
 ) -> ::anyhow::Result<
     ::std::option::Option<
         polycentric_protocol::model::signed_event::SignedEvent,
@@ -186,10 +194,11 @@ pub(crate) async fn load_event_earlier_than(
 > {
     let query = "
         SELECT
-            raw_event
+            raw_event, moderation_tags
         FROM (
             SELECT
                 raw_event as raw_event,
+                moderation_tags as moderation_tags,
                 unix_milliseconds,
                 process,
                 logical_clock,
@@ -198,9 +207,12 @@ pub(crate) async fn load_event_earlier_than(
                 content_type
             FROM
                 events
+            WHERE
+                filter_events_by_moderation(events, $6::moderation_filter_type[])
             UNION
             SELECT
                 events.raw_event as raw_event,
+                events.moderation_tags as moderation_tags,
                 deletions.unix_milliseconds as unix_milliseconds,
                 deletions.process as process,
                 deletions.logical_clock as logical_clock,
@@ -232,27 +244,26 @@ pub(crate) async fn load_event_earlier_than(
         LIMIT 1;
     ";
 
-    let potential_raw = ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
-        .bind(i64::try_from(
-            polycentric_protocol::model::public_key::get_key_type(system),
-        )?)
-        .bind(polycentric_protocol::model::public_key::get_key_bytes(
-            system,
-        ))
-        .bind(process.bytes())
-        .bind(i64::try_from(content_type)?)
-        .bind(i64::try_from(earlier_than_unix_milliseconds)?)
-        .fetch_optional(&mut **transaction)
-        .await?;
+    let potential_raw =
+        ::sqlx::query_as::<_, crate::postgres::RawEventRow>(query)
+            .bind(i64::try_from(polycentric_protocol::model::public_key::get_key_type(
+                system,
+            ))?)
+            .bind(polycentric_protocol::model::public_key::get_key_bytes(system))
+            .bind(process.bytes())
+            .bind(i64::try_from(content_type)?)
+            .bind(i64::try_from(earlier_than_unix_milliseconds)?)
+            .bind(moderation_options.unwrap_or_default())
+            .fetch_optional(&mut **transaction)
+            .await?;
 
     match potential_raw {
-        Some(raw) => {
-            Ok(Some(polycentric_protocol::model::signed_event::from_proto(
-                &polycentric_protocol::protocol::SignedEvent::parse_from_bytes(
-                    &raw,
-                )?,
-            )?))
-        }
+        Some(row) => Ok(Some(
+            polycentric_protocol::model::signed_event::from_raw_event_with_moderation_tags(
+                &row.raw_event,
+                &row.moderation_tags.unwrap_or_default(),
+            )?,
+        )),
         None => Ok(None),
     }
 }
@@ -263,15 +274,17 @@ pub(crate) async fn load_events_by_time(
     content_type: u64,
     limit: u64,
     after: &::std::option::Option<u64>,
-) -> ::anyhow::Result<
-    ::std::vec::Vec<polycentric_protocol::model::signed_event::SignedEvent>,
-> {
+    moderation_options: Option<ModerationOptions>,
+) -> ::anyhow::Result<::std::vec::Vec<polycentric_protocol::model::signed_event::SignedEvent>>
+{
     let query = "
         SELECT
-            raw_event
+            raw_event,
+            moderation_tags
         FROM (
             SELECT
                 raw_event as raw_event,
+                moderation_tags as moderation_tags,
                 unix_milliseconds,
                 process,
                 logical_clock,
@@ -280,9 +293,12 @@ pub(crate) async fn load_events_by_time(
                 content_type
             FROM
                 events
+            WHERE
+                filter_events_by_moderation(events, $6::moderation_filter_type[])
             UNION
             SELECT
                 events.raw_event as raw_event,
+                events.moderation_tags as moderation_tags,
                 deletions.unix_milliseconds as unix_milliseconds,
                 deletions.process as process,
                 deletions.logical_clock as logical_clock,
@@ -314,20 +330,23 @@ pub(crate) async fn load_events_by_time(
         LIMIT $5
     ";
 
-    ::sqlx::query_scalar::<_, ::std::vec::Vec<u8>>(query)
-        .bind(i64::try_from(
-            polycentric_protocol::model::public_key::get_key_type(system),
-        )?)
-        .bind(polycentric_protocol::model::public_key::get_key_bytes(
+    ::sqlx::query_as::<_, crate::postgres::RawEventRow>(query)
+        .bind(i64::try_from(polycentric_protocol::model::public_key::get_key_type(
             system,
-        ))
+        )))
         .bind(i64::try_from(content_type)?)
         .bind(after.map(i64::try_from).transpose()?)
         .bind(i64::try_from(limit)?)
+        .bind(moderation_options.unwrap_or_default())
         .fetch_all(&mut **transaction)
         .await?
         .iter()
-        .map(|raw| polycentric_protocol::model::signed_event::from_vec(raw))
+        .map(|row| {
+            polycentric_protocol::model::signed_event::from_raw_event_with_moderation_tags(
+                &row.raw_event,
+                row.moderation_tags.as_ref().unwrap_or(&vec![]),
+            )
+        })
         .collect::<::anyhow::Result<
             ::std::vec::Vec<
                 polycentric_protocol::model::signed_event::SignedEvent,
@@ -355,6 +374,7 @@ pub mod tests {
             polycentric_protocol::model::known_message_types::POST,
             10,
             &None,
+            &Some(vec![]),
         )
         .await?;
 
@@ -406,10 +426,49 @@ pub mod tests {
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e4).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e5).await?;
 
-        let system =
-            polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                s1.verifying_key().clone(),
-            );
+        let s1_key = polycentric_protocol::model::public_key::PublicKey::Ed25519(
+            s1.verifying_key().clone(),
+        );
+
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            1,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            2,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            3,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            4,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            5,
+        )
+        .await?;
+
+        let system = polycentric_protocol::model::public_key::PublicKey::Ed25519(
+            s1.verifying_key().clone(),
+        );
 
         let result = crate::postgres::query_index::query_index(
             &mut transaction,
@@ -417,6 +476,7 @@ pub mod tests {
             polycentric_protocol::model::known_message_types::POST,
             4,
             &None,
+            &Some(vec![]),
         )
         .await?;
 
@@ -508,10 +568,93 @@ pub mod tests {
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p3e2).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p3e3).await?;
 
-        let system =
-            polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                s1.verifying_key().clone(),
-            );
+        let s1_key = polycentric_protocol::model::public_key::PublicKey::Ed25519(
+            s1.verifying_key().clone(),
+        );
+
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            1,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            2,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            3,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            4,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            5,
+        )
+        .await?;
+
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p2,
+            1,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p2,
+            2,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p2,
+            3,
+        )
+        .await?;
+
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p3,
+            1,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p3,
+            2,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p3,
+            3,
+        )
+        .await?;
+
+        let system = polycentric_protocol::model::public_key::PublicKey::Ed25519(
+            s1.verifying_key().clone(),
+        );
 
         let result = crate::postgres::query_index::query_index(
             &mut transaction,
@@ -519,6 +662,7 @@ pub mod tests {
             polycentric_protocol::model::known_message_types::POST,
             4,
             &None,
+            &Some(vec![]),
         )
         .await?;
 
@@ -584,10 +728,56 @@ pub mod tests {
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e5).await?;
         crate::ingest::ingest_event_postgres(&mut transaction, &s1p1e6).await?;
 
-        let system =
-            polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                s1.verifying_key().clone(),
-            );
+        let s1_key = polycentric_protocol::model::public_key::PublicKey::Ed25519(
+            s1.verifying_key().clone(),
+        );
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            1,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            2,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            3,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            4,
+        )
+        .await?;
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            5,
+        )
+        .await?;
+
+        crate::moderation::moderation_queue::approve_event(
+            &mut transaction,
+            &s1_key,
+            &s1p1,
+            6,
+        )
+        .await?;
+
+        let system = polycentric_protocol::model::public_key::PublicKey::Ed25519(
+            s1.verifying_key().clone(),
+        );
 
         let result = crate::postgres::query_index::query_index(
             &mut transaction,
@@ -595,6 +785,7 @@ pub mod tests {
             polycentric_protocol::model::known_message_types::POST,
             4,
             &None,
+            &Some(vec![]),
         )
         .await?;
 
