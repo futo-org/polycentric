@@ -622,6 +622,111 @@ pub mod event {
     }
 }
 
+pub mod moderation_tag {
+    use sqlx::{postgres::PgTypeInfo, Postgres, Type};
+
+    // This is added so sqlx infers the type as a varchar and not a string
+    #[derive(
+        Debug, Clone, PartialEq, Eq, ::serde::Deserialize, ::serde::Serialize,
+    )]
+    pub struct ModerationTagName(String);
+
+    impl ModerationTagName {
+        pub fn new(tag: String) -> ModerationTagName {
+            ModerationTagName(tag)
+        }
+    }
+
+    // In order for sqlx to correctly infer the type as a varchar(N) and not a string
+    impl Type<Postgres> for ModerationTagName {
+        #[inline]
+        fn type_info() -> <Postgres as sqlx::Database>::TypeInfo {
+            PgTypeInfo::with_name("VARCHAR")
+        }
+    }
+
+    impl<'r> sqlx::Decode<'r, Postgres> for ModerationTagName {
+        fn decode(
+            value: sqlx::postgres::PgValueRef<'r>,
+        ) -> Result<Self, sqlx::error::BoxDynError> {
+            let s = <&str as sqlx::Decode<Postgres>>::decode(value)?;
+            Ok(ModerationTagName(s.to_string()))
+        }
+    }
+
+    impl sqlx::Encode<'_, Postgres> for ModerationTagName {
+        fn encode_by_ref(
+            &self,
+            buf: &mut sqlx::postgres::PgArgumentBuffer,
+        ) -> sqlx::encode::IsNull {
+            <&str as sqlx::Encode<Postgres>>::encode(&self.0.as_str(), buf)
+        }
+
+        fn size_hint(&self) -> usize {
+            self.0.len() + 4
+        }
+    }
+
+    impl From<ModerationTagName> for String {
+        fn from(tag_name: ModerationTagName) -> Self {
+            tag_name.0
+        }
+    }
+
+    impl ToString for ModerationTagName {
+        fn to_string(&self) -> String {
+            self.0.clone()
+        }
+    }
+
+    
+    #[derive(
+        PartialEq,
+        Debug,
+        ::sqlx::FromRow,
+        ::sqlx::Type,
+        ::serde::Deserialize,
+        ::serde::Serialize,
+        Clone,
+    )]
+    #[sqlx(type_name = "moderation_tag_type")]
+    pub(crate) struct ModerationTag {
+        tag: ModerationTagName,
+        level: i16,
+    }
+
+    impl ModerationTag {
+        pub fn new(tag: String, level: i16) -> ModerationTag {
+            ModerationTag { tag: ModerationTagName(tag), level }
+        }
+
+        pub fn tag(&self) -> &ModerationTagName {
+            &self.tag
+        }
+
+        pub fn level(&self) -> &i16 {
+            &self.level
+        }
+    }
+
+    impl sqlx::postgres::PgHasArrayType for ModerationTag {
+        fn array_type_info() -> sqlx::postgres::PgTypeInfo {
+            sqlx::postgres::PgTypeInfo::with_name("_moderation_tag_type")
+        }
+    }
+
+    pub fn from_proto(proto: &crate::protocol::ModerationTag) -> ModerationTag {
+        ModerationTag::new(proto.tag.clone(), proto.level as i16)
+    }
+
+    pub fn to_proto(tag: &ModerationTag) -> crate::protocol::ModerationTag {
+        let mut proto = crate::protocol::ModerationTag::new();
+        proto.tag = tag.tag().clone().into();
+        proto.level = tag.level as u32;
+        proto
+    }
+}
+
 pub mod signed_event {
     use ed25519_dalek::Signer;
     use protobuf::Message;
@@ -630,12 +735,17 @@ pub mod signed_event {
     pub struct SignedEvent {
         event: ::std::vec::Vec<u8>,
         signature: ::std::vec::Vec<u8>,
+        moderation_tags: 
+            ::std::vec::Vec<crate::model::moderation_tag::ModerationTag>,
     }
 
     impl SignedEvent {
         pub fn new(
             event: ::std::vec::Vec<u8>,
             signature: std::vec::Vec<u8>,
+            moderation_tags: ::std::vec::Vec<
+                crate::model::moderation_tag::ModerationTag,
+            >,
         ) -> ::anyhow::Result<SignedEvent> {
             let parsed = crate::model::event::from_proto(
                 &crate::protocol::Event::parse_from_bytes(&event)?,
@@ -647,7 +757,11 @@ pub mod signed_event {
                 &event,
             )?;
 
-            Ok(SignedEvent { event, signature })
+            Ok(SignedEvent {
+                event,
+                signature,
+                moderation_tags,
+            })
         }
 
         pub fn sign(
@@ -659,6 +773,7 @@ pub mod signed_event {
             SignedEvent {
                 event,
                 signature: signature.to_bytes().to_vec(),
+                moderation_tags: ::std::vec::Vec::new(),
             }
         }
 
@@ -669,12 +784,51 @@ pub mod signed_event {
         pub fn signature(&self) -> &::std::vec::Vec<u8> {
             &self.signature
         }
+
+        pub fn moderation_tags(
+            &self,
+        ) -> &::std::vec::Vec<crate::model::moderation_tag::ModerationTag>
+        {
+            &self.moderation_tags
+        }
+
+        pub fn set_moderation_tags(
+            &mut self,
+            moderation_tags: ::std::vec::Vec<
+                crate::model::moderation_tag::ModerationTag,
+            >,
+        ) {
+            self.moderation_tags = moderation_tags;
+        }
     }
 
     pub fn from_proto(
         proto: &crate::protocol::SignedEvent,
     ) -> ::anyhow::Result<SignedEvent> {
-        SignedEvent::new(proto.event.clone(), proto.signature.clone())
+        SignedEvent::new(
+            proto.event.clone(),
+            proto.signature.clone(),
+            proto
+                .moderation_tags
+                .iter()
+                .map(|tag: &crate::protocol::ModerationTag| {
+                    crate::model::moderation_tag::from_proto(tag)
+                })
+                .collect(),
+        )
+    }
+
+    pub fn from_raw_event_with_moderation_tags(
+        raw: &[u8],
+        moderation_tags: &Vec<crate::model::moderation_tag::ModerationTag>,
+    ) -> ::anyhow::Result<SignedEvent> {
+        let mut signed_event = crate::model::signed_event::from_proto(
+            &crate::protocol::SignedEvent::parse_from_bytes(raw)?,
+        )?;
+
+        signed_event.set_moderation_tags(moderation_tags.clone());
+
+        Ok(signed_event)
     }
 
     pub fn from_vec(vec: &[u8]) -> ::anyhow::Result<SignedEvent> {
@@ -685,6 +839,12 @@ pub mod signed_event {
         let mut result = crate::protocol::SignedEvent::new();
         result.event = event.event.clone();
         result.signature = event.signature.clone();
+        result.moderation_tags = event
+            .moderation_tags
+            .iter()
+            .map(crate::model::moderation_tag::to_proto)
+            .collect::<::std::vec::Vec<crate::protocol::ModerationTag>>();
+
         result
     }
 }
