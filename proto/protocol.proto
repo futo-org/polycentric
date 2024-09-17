@@ -24,9 +24,15 @@ message VectorClock {
     repeated uint64 logical_clocks = 1;
 }
 
+message ModerationTag {
+    string tag   = 1;
+    uint32 level = 2;
+}
+
 message SignedEvent {
     bytes signature = 1;
     bytes event     = 2;
+    repeated ModerationTag moderation_tags = 3;
 }
 
 message LWWElementSet {
