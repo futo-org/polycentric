@@ -1,5 +1,45 @@
 use crate::moderation::providers;
+use futures::stream::{self, StreamExt};
 use protobuf::Message;
+use std::sync::Arc;
+use tokio::sync::Semaphore;
+use tokio::time::{self, Duration};
+
+use super::providers::csam::interface::ModerationCSAMResult;
+use super::providers::tags::interface::ModerationTaggingResult;
+
+#[allow(dead_code)]
+struct RateLimiter {
+    semaphore: Arc<Semaphore>,
+    tokens_per_second: u16,
+}
+
+impl RateLimiter {
+    fn new(max_tokens: u16, tokens_per_second: u16) -> Self {
+        let semaphore = Arc::new(Semaphore::new(max_tokens as usize));
+        let rate_limiter = RateLimiter {
+            semaphore,
+            tokens_per_second,
+        };
+
+        let semaphore_clone = Arc::clone(&rate_limiter.semaphore);
+        tokio::spawn(async move {
+            let interval_duration =
+                Duration::from_secs_f64(1.0 / tokens_per_second as f64);
+            let mut interval = time::interval(interval_duration);
+            loop {
+                interval.tick().await;
+                semaphore_clone.add_permits(1);
+            }
+        });
+
+        rate_limiter
+    }
+
+    async fn acquire(&self) {
+        self.semaphore.acquire().await.unwrap().forget();
+    }
+}
 
 #[allow(dead_code)]
 #[derive(::sqlx::FromRow, Debug)]
@@ -89,7 +129,7 @@ async fn pull_queue_events(
     LEFT JOIN event_processing_status eps ON e.id = eps.event_id
     WHERE (e.moderation_status = 'pending'
        OR (e.moderation_status = 'error' AND COALESCE(eps.failure_count, 0) < 3))
-       AND e.content_type = 3
+       AND e.content_type IN (3, 6, 9)
     ORDER BY 
         CASE 
             WHEN e.moderation_status = 'pending' THEN 0
@@ -172,69 +212,77 @@ struct ModerationResult {
     tags: Vec<crate::model::moderation_tag::ModerationTag>,
 }
 
+async fn process_event(
+    csam: Arc<&dyn providers::csam::interface::ModerationCSAMProvider>,
+    tag: Option<Arc<&dyn providers::tags::interface::ModerationTaggingProvider>>,
+    event: ModerationQueueItem,
+    request_rate_limiter: Arc<&RateLimiter>,
+) -> ModerationResult {
+    // Acquire a permit from the rate limiter
+    request_rate_limiter.acquire().await;
+
+    let should_csam = event.blob.is_some();
+
+    let tagging_future = match tag {
+        Some(tag) => tag.moderate(&event),
+        None => Box::pin(async { Ok(ModerationTaggingResult { tags: vec![] }) }),
+    };
+
+    let csam_future = if should_csam {
+        csam.moderate(&event)
+    } else {
+        Box::pin(async { Ok(ModerationCSAMResult { is_csam: false }) })
+    };
+
+    let (tagging_result, csam_result) =
+        tokio::join!(tagging_future, csam_future);
+
+    let has_error = tagging_result.is_err() || csam_result.is_err();
+
+    let is_csam = csam_result.as_ref().map_or(false, |res| res.is_csam);
+    let tags = match tagging_result {
+        Ok(result) => result.tags,
+        Err(_) => vec![],
+    };
+
+    ModerationResult {
+        event_id: event.id,
+        has_error,
+        tags,
+        is_csam,
+    }
+    // }
+}
+
 async fn process(
     csam: &dyn providers::csam::interface::ModerationCSAMProvider,
     tag: Option<&dyn providers::tags::interface::ModerationTaggingProvider>,
-    events: &[ModerationQueueItem],
+    events: Vec<ModerationQueueItem>,
+    request_rate_limiter: &RateLimiter,
 ) -> ::anyhow::Result<Vec<ModerationResult>> {
-    let mut moderation_results = vec![
-        ModerationResult {
-            event_id: 0,
-            has_error: false,
-            is_csam: false,
-            tags: vec![],
-        };
-        events.len()
-    ];
+    // Define the maximum concurrency based on the rate limiter's tokens per second
+    let max_concurrency = request_rate_limiter.tokens_per_second as usize;
 
-    for (i, event) in events.iter().enumerate() {
-        match tag {
-            Some(tagger) => {
-                let tagging_future = tagger.moderate(event);
-                let csam_future = csam.moderate(event);
-                let (tagging_result, csam_result) =
-                    tokio::join!(tagging_future, csam_future);
+    let csam_arc = Arc::new(csam);
+    let tag_arc = tag.map(|t| Arc::new(t));
+    let request_rate_limiter_arc = Arc::new(request_rate_limiter);
 
-                let has_error = tagging_result.is_err() || csam_result.is_err();
+    let results = stream::iter(events.into_iter())
+        .map(|event| {
+            let csam_arc_clone = Arc::clone(&csam_arc);
+            let tag_arc_clone = tag_arc.as_ref().map(Arc::clone);
+            let request_rate_limiter_clone = Arc::clone(&request_rate_limiter_arc);
 
-                let is_csam = match csam_result {
-                    Ok(csam_result) => csam_result.is_csam,
-                    Err(_) => false,
-                };
-                let tags = match tagging_result {
-                    Ok(tagging_result) => tagging_result.tags,
-                    Err(_) => vec![],
-                };
-
-                moderation_results[i] = ModerationResult {
-                    event_id: event.id,
-                    has_error,
-                    tags,
-                    is_csam,
-                };
+            async move {
+                process_event(csam_arc_clone, tag_arc_clone, event, request_rate_limiter_clone)
+                    .await
             }
-            _ => {
-                let csam_result = csam.moderate(event).await;
+        })
+        .buffer_unordered(max_concurrency)
+        .collect::<Vec<_>>()
+        .await;
 
-                let has_error = csam_result.is_err();
-                let is_csam = match csam_result {
-                    Ok(csam_result) => csam_result.is_csam,
-                    Err(_) => false,
-                };
-
-                moderation_results[i] = ModerationResult {
-                    event_id: event.id,
-                    has_error,
-                    tags: vec![],
-                    is_csam,
-                };
-            }
-        }
-        // sleep for 250ms
-        tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
-    }
-
-    Ok(moderation_results)
+    Ok(results)
 }
 
 async fn apply_moderation_results(
@@ -245,12 +293,16 @@ async fn apply_moderation_results(
         let event_id = result.event_id;
         let has_error = result.has_error;
         let is_csam = result.is_csam;
+        let has_any_over_level_2 =
+            result.tags.iter().any(|tag| *tag.level() > 2);
 
-        let new_moderation_status = match (has_error, is_csam) {
-            (true, _) => ModerationStatus::Error,
-            (false, true) => ModerationStatus::FlaggedAndRejected,
-            (false, false) => ModerationStatus::Approved,
-        };
+        let new_moderation_status =
+            match (has_error, is_csam, has_any_over_level_2) {
+                (true, _, _) => ModerationStatus::Error,
+                (false, true, _) => ModerationStatus::FlaggedAndRejected,
+                (false, _, true) => ModerationStatus::FlaggedAndRejected,
+                (false, false, false) => ModerationStatus::Approved,
+            };
 
         let query = "
             UPDATE events
@@ -273,14 +325,20 @@ pub async fn run(
     pool: ::sqlx::PgPool,
     csam: &dyn providers::csam::interface::ModerationCSAMProvider,
     tag: Option<&dyn providers::tags::interface::ModerationTaggingProvider>,
+    tagging_request_rate_limit: u16,
 ) -> ::anyhow::Result<()> {
     // loop until task is cancelled
+    let request_rate_limiter = Arc::new(RateLimiter::new(
+        tagging_request_rate_limit,
+        tagging_request_rate_limit,
+    ));
     loop {
         let mut transaction = pool.begin().await?;
         let events = pull_queue_events(&mut transaction).await?;
         transaction.commit().await?;
 
-        let results = process(csam, tag, &events).await?;
+        let results =
+            process(csam, tag, events, &request_rate_limiter).await?;
 
         // separate transaction because this can take a while and we want to
         // avoid blocking other writes
@@ -341,8 +399,6 @@ mod tests {
 
         let mut post = polycentric_protocol::protocol::Post::new();
         post.content = Some("test".to_string());
-        // post.image = Some(crate::protocol::ImageManifest::new());
-        // post.image.unwrap().sections.push(crate::protocol::ImageSection::new(1, 1));
 
         let signed_event =
             polycentric_protocol::test_utils::make_test_event_with_content(

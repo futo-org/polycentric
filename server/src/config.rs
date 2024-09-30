@@ -67,4 +67,7 @@ pub(crate) struct Config {
 
     #[envconfig(from = "PHOTODNA_KEY")]
     pub photodna_key: String,
+
+    #[envconfig(from = "TAGGING_REQUEST_RATE_LIMIT", default = "4")]
+    pub tagging_request_rate_limit: u16,
 }
