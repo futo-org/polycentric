@@ -107,7 +107,11 @@ impl PhotoDNAProvider {
 #[async_trait]
 impl ModerationCSAMProvider for PhotoDNAProvider {
     async fn init(&mut self, config: &Config) -> anyhow::Result<()> {
-        let photo_dna = PhotoDNA::new(config.photodna_key.clone(), true);
+        if config.photodna_key.is_none() {
+            return Err(anyhow::anyhow!("PhotoDNA key not set"));
+        }
+
+        let photo_dna = PhotoDNA::new(config.photodna_key.clone().unwrap(), true);
         self.photo_dna = Some(photo_dna);
         Ok(())
     }

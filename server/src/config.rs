@@ -48,26 +48,28 @@ pub(crate) struct Config {
     pub backfill_remote_server_position: Option<u64>,
 
     #[envconfig(from = "CSAM_INTERFACE")]
-    pub csam_interface: Option<String>,
+    pub csam_interface: String,
 
     #[envconfig(from = "TAG_INTERFACE")]
     pub tag_interface: Option<String>,
 
     #[envconfig(from = "AZURE_TAGGING_ENDPOINT")]
-    pub azure_tagging_endpoint: String,
+    pub azure_tagging_endpoint: Option<String>,
 
     #[envconfig(from = "AZURE_TAGGING_SUBSCRIPTION_KEY")]
-    pub azure_tagging_subscription_key: String,
+    pub azure_tagging_subscription_key: Option<String>,
 
     #[envconfig(
         from = "AZURE_TAGGING_API_VERSION",
-        default = "2024-02-15-preview"
     )]
-    pub azure_tagging_api_version: String,
+    pub azure_tagging_api_version: Option<String>,
 
     #[envconfig(from = "PHOTODNA_KEY")]
-    pub photodna_key: String,
+    pub photodna_key: Option<String>,
 
-    #[envconfig(from = "TAGGING_REQUEST_RATE_LIMIT", default = "4")]
+    #[envconfig(from = "TAGGING_REQUEST_RATE_LIMIT", default = "10")]
     pub tagging_request_rate_limit: u16,
+
+    #[envconfig(from = "CSAM_REQUEST_RATE_LIMIT", default = "4")]
+    pub csam_request_rate_limit: u16,
 }
