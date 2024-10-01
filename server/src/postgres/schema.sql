@@ -98,7 +98,7 @@ DECLARE
 BEGIN
     -- We only care about posts, descriptions and avatars
     IF event_row.content_type != 3 AND event_row.content_type != 6 AND event_row.content_type != 9 THEN
-        RETURN FALSE;
+        RETURN TRUE;
     END IF;
 
     IF event_row.moderation_status != 'approved' THEN
@@ -119,6 +119,10 @@ BEGIN
         
         FOREACH moderation_tag IN ARRAY event_row.moderation_tags
         LOOP
+            IF moderation_tag.tag = '3' THEN
+                RETURN FALSE;
+            END IF;
+
             IF moderation_tag.tag = filter_item.tag THEN
                 tag_found := TRUE;
                 IF moderation_tag.level > filter_item.max_level THEN
