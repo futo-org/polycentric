@@ -97,11 +97,12 @@ async fn migration_1_compute_reference_counts(
 async fn migration_2_add_moderation_tags_cols(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
 ) -> ::anyhow::Result<()> {
+    ::log::info!("running migration_2_add_moderation_tags_cols");
     ::sqlx::query(
         "
         ALTER TABLE events
-        ADD COLUMN moderation_status moderation_status_enum NOT NULL DEFAULT 'pending',
-        ADD COLUMN moderation_tags moderation_tag_type[];
+        ADD COLUMN IF NOT EXISTS moderation_status moderation_status_enum NOT NULL DEFAULT 'pending',
+        ADD COLUMN IF NOT EXISTS moderation_tags moderation_tag_type[];
         ",
     )
     .execute(&mut **transaction)
