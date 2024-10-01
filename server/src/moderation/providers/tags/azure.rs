@@ -17,11 +17,12 @@ pub enum MediaType {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Hash, Eq, PartialEq)]
+#[serde(rename_all = "PascalCase")]
 pub enum Category {
-    Hate = 1,
-    SelfHarm = 2,
-    Sexual = 3,
-    Violence = 4,
+    Hate,
+    SelfHarm,
+    Sexual,
+    Violence,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -56,31 +57,36 @@ pub struct Image {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[serde(untagged)]
+#[serde(rename_all = "camelCase")]
 pub enum DetectionRequest {
     Image {
         image: Image,
     },
     Text {
         text: String,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
         blocklist_names: Vec<String>,
     },
+    #[serde(rename_all = "camelCase")]
     ImageWithText {
         text: String,
         enable_ocr: bool,
         image: Image,
+        categories: Vec<Category>,
     },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CategoriesAnalysis {
-    pub category: Option<Category>,
-    pub severity: Option<i32>,
+    pub category: Category,
+    pub severity: i32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DetectionResult {
-    pub categories_analysis: Option<Vec<CategoriesAnalysis>>,
+    pub categories_analysis: Vec<CategoriesAnalysis>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -192,6 +198,12 @@ impl ContentSafety {
                 },
                 text: text_content.as_ref().unwrap().to_string(),
                 enable_ocr,
+                categories: vec![
+                    Category::Hate,
+                    Category::SelfHarm,
+                    Category::Sexual,
+                    Category::Violence,
+                ],
             },
         }
     }
@@ -214,11 +226,13 @@ impl ContentSafety {
             enable_ocr,
         );
 
+        let body_json = serde_json::to_string(&request_body)?;
+
         let response = self
             .client
             .post(&url)
             .headers((&headers).try_into()?)
-            .body(serde_json::to_string(&request_body)?)
+            .body(body_json)
             .send()
             .await?;
 
@@ -249,9 +263,21 @@ impl AzureTagProvider {
 #[async_trait]
 impl ModerationTaggingProvider for AzureTagProvider {
     async fn init(&mut self, config: &Config) -> anyhow::Result<()> {
-        let endpoint = config.azure_tagging_endpoint.clone();
-        let subscription_key = config.azure_tagging_subscription_key.clone();
-        let api_version = config.azure_tagging_api_version.clone();
+        if config.azure_tagging_endpoint.is_none() {
+            return Err(anyhow::anyhow!("Azure tagging endpoint not set"));
+        }
+        if config.azure_tagging_subscription_key.is_none() {
+            return Err(anyhow::anyhow!(
+                "Azure tagging subscription key not set"
+            ));
+        }
+        if config.azure_tagging_api_version.is_none() {
+            return Err(anyhow::anyhow!("Azure tagging API version not set"));
+        }
+        let endpoint = config.azure_tagging_endpoint.clone().unwrap();
+        let subscription_key =
+            config.azure_tagging_subscription_key.clone().unwrap();
+        let api_version = config.azure_tagging_api_version.clone().unwrap();
         self.content_safety =
             Some(ContentSafety::new(endpoint, subscription_key, api_version));
         Ok(())
@@ -267,7 +293,11 @@ impl ModerationTaggingProvider for AzureTagProvider {
 
         let detector = self.content_safety.as_ref().unwrap();
 
-        let media_type = match (event.content.is_some(), event.blob.is_some()) {
+        let media_type = match (
+            event.content.is_some()
+                && event.content.as_ref().unwrap().len() > 0,
+            event.blob.is_some(),
+        ) {
             (true, false) => MediaType::Text,
             (false, true) => MediaType::Image,
             (true, true) => MediaType::ImageWithText,
@@ -282,29 +312,24 @@ impl ModerationTaggingProvider for AzureTagProvider {
 
         // Always return ok, error is handled in the moderation queue
         match result {
-            Ok(result) => match result.categories_analysis {
-                Some(categories_analysis) => Ok(ModerationTaggingResult {
-                    tags: categories_analysis
-                        .iter()
-                        .map(|category| {
-                            ModerationTag::new(
-                                match category.category.unwrap() {
-                                    Category::Hate => "hate".to_string(),
-                                    Category::SelfHarm => {
-                                        "self_harm".to_string()
-                                    }
-                                    Category::Sexual => "sexual".to_string(),
-                                    Category::Violence => {
-                                        "violence".to_string()
-                                    }
-                                },
-                                category.severity.unwrap() as i16,
-                            )
-                        })
-                        .collect(),
-                }),
-                None => Err(anyhow::anyhow!("No detection result")),
-            },
+            Ok(result) => Ok(ModerationTaggingResult {
+                tags: result
+                    .categories_analysis
+                    .iter()
+                    .map(|category| {
+                        ModerationTag::new(
+                            match category.category {
+                                Category::Hate => "hate".to_string(),
+                                Category::SelfHarm => "self_harm".to_string(),
+                                Category::Sexual => "sexual".to_string(),
+                                Category::Violence => "violence".to_string(),
+                            },
+                            // We divide by 2 because the severity is a value between 0 and 6 and we want to map it to 0-3
+                            (category.severity as i16) / 2,
+                        )
+                    })
+                    .collect(),
+            }),
             Err(e) => Err(anyhow::anyhow!("Error detecting content: {}", e)),
         }
     }
