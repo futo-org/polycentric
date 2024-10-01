@@ -128,14 +128,6 @@ async fn serve_api(
     let opensearch_client = ::opensearch::OpenSearch::new(opensearch_transport);
 
     info!("Connecting to OpenSearch");
-
-    let mut transaction = pool.begin().await?;
-
-    crate::postgres::prepare_database(&mut transaction).await?;
-
-    crate::migrate::migrate(&mut transaction).await?;
-    transaction.commit().await?;
-
     crate::opensearch::prepare_indices(&opensearch_client).await?;
 
     info!("Connecting to StatsD");
@@ -370,31 +362,20 @@ async fn run_moderation_queue(
     config: &Config,
     pool: &::sqlx::PgPool,
 ) -> Result<(), Box<dyn ::std::error::Error>> {
-    let (csam_provider, tag_provider) = match (
-        config.csam_interface.as_ref(),
-        config.tag_interface.as_ref(),
-    ) {
-        // if no csam interface, refuse to run
-        (None, _) => {
-            error!("CSAM interface not provided, refusing to run");
-            ::std::process::exit(1);
-        }
-        (_, None) => {
-            info!("Moderation tagging interface not provided, skipping tagging queue");
-            return Ok(());
-        }
-        (Some(_), Some(_)) => {
-            let csam_provider =
-                moderation::providers::csam::make_provider(config).await?;
-            let tag_provider =
-                moderation::providers::tags::make_provider(config).await?;
-
-            (csam_provider, Some(tag_provider))
-        }
+    let csam_provider =
+        moderation::providers::csam::make_provider(config).await?;
+    let tag_provider = if config.tag_interface.is_none() {
+        info!(
+            "Moderation tagging interface not provided, skipping tagging queue"
+        );
+        None
+    } else {
+        Some(moderation::providers::tags::make_provider(config).await?)
     };
 
     let pool_clone = pool.clone();
     let tagging_request_rate_limit = config.tagging_request_rate_limit.clone();
+    let csam_request_rate_limiter = config.csam_request_rate_limit.clone();
     let task = tokio::task::spawn({
         async move {
             let result = moderation::moderation_queue::run(
@@ -402,6 +383,7 @@ async fn run_moderation_queue(
                 csam_provider.as_ref(),
                 tag_provider.as_deref(),
                 tagging_request_rate_limit,
+                csam_request_rate_limiter,
             )
             .await;
             if let Err(e) = result {
@@ -428,6 +410,13 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
                 .max_connections(10)
                 .connect(&config.postgres_string)
                 .await?;
+
+            let mut transaction = pool.begin().await?;
+
+            crate::postgres::prepare_database(&mut transaction).await?;
+
+            crate::migrate::migrate(&mut transaction).await?;
+            transaction.commit().await?;
 
             // Exit if either the moderation queue or the API server fails
             tokio::select! {
