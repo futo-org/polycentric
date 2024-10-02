@@ -4,6 +4,7 @@ import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
 import { AppInfoTable } from '../../components/settings/AppInfoTable';
 import { ExportKey } from '../../components/settings/ExportKey';
+import { ModerationTable } from '../../components/settings/ModerationTable';
 import { ServerListTable } from '../../components/settings/ServerTable';
 
 export const SettingsPage: Page = () => {
@@ -14,6 +15,7 @@ export const SettingsPage: Page = () => {
             <IonContent>
                 <RightCol rightCol={<div />} desktopTitle="Settings">
                     <div className="p-5 md:p-10 flex flex-col space-y-6 text-sm">
+                        <ModerationTable />
                         <div className="flex flex-col space-y-3">
                             <h2 className="font-medium">Edit Servers</h2>
                             <ServerListTable />
