@@ -1,7 +1,6 @@
 use crate::moderation::providers;
 use futures::stream::{self, StreamExt};
 use log::debug;
-use polycentric_protocol::model::moderation_tag::ModerationTagName;
 use protobuf::Message;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
