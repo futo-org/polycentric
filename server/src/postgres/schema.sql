@@ -151,7 +151,7 @@ ON
 events (content_type);
 
 CREATE TABLE IF NOT EXISTS event_processing_status (
-    event_id BIGINT PRIMARY KEY REFERENCES events(id),
+    event_id BIGINT PRIMARY KEY REFERENCES events(id) ON DELETE CASCADE,
     processing_started_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     failure_count INT NOT NULL DEFAULT 0,
     last_failure_at TIMESTAMP WITH TIME ZONE,
