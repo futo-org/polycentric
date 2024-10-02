@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use std::collections::HashMap;
+use std::{cmp, collections::HashMap};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum MediaType {
@@ -312,24 +312,57 @@ impl ModerationTaggingProvider for AzureTagProvider {
 
         // Always return ok, error is handled in the moderation queue
         match result {
-            Ok(result) => Ok(ModerationTaggingResult {
-                tags: result
+            Ok(result) => {
+                let hate_result = result
                     .categories_analysis
                     .iter()
-                    .map(|category| {
-                        ModerationTag::new(
-                            match category.category {
-                                Category::Hate => "hate".to_string(),
-                                Category::SelfHarm => "self_harm".to_string(),
-                                Category::Sexual => "sexual".to_string(),
-                                Category::Violence => "violence".to_string(),
-                            },
-                            // We divide by 2 because the severity is a value between 0 and 6 and we want to map it to 0-3
-                            (category.severity as i16) / 2,
-                        )
-                    })
-                    .collect(),
-            }),
+                    .find(|category| category.category == Category::Hate);
+                let sexual_result = result
+                    .categories_analysis
+                    .iter()
+                    .find(|category| category.category == Category::Sexual);
+                let violence_result = result
+                    .categories_analysis
+                    .iter()
+                    .find(|category| category.category == Category::Violence);
+                let self_harm_result = result
+                    .categories_analysis
+                    .iter()
+                    .find(|category| category.category == Category::SelfHarm);
+
+                let (hate_level, sexual_level, violence_level, self_harm_level) =
+                    match (
+                        hate_result,
+                        sexual_result,
+                        violence_result,
+                        self_harm_result,
+                    ) {
+                        (
+                            Some(hate),
+                            Some(sexual),
+                            Some(violence),
+                            Some(self_harm),
+                        ) => (
+                            hate.severity as i16 / 2,
+                            sexual.severity as i16 / 2,
+                            violence.severity as i16 / 2,
+                            self_harm.severity as i16 / 2,
+                        ),
+                        _ => (0, 0, 0, 0),
+                    };
+
+                let tags = vec![
+                    ModerationTag::new("hate".to_string(), hate_level),
+                    ModerationTag::new("sexual".to_string(), sexual_level),
+                    ModerationTag::new(
+                        "violence".to_string(),
+                        cmp::max(violence_level, self_harm_level),
+                    ),
+                ];
+
+                Ok(ModerationTaggingResult { tags })
+            }
+
             Err(e) => Err(anyhow::anyhow!("Error detecting content: {}", e)),
         }
     }
