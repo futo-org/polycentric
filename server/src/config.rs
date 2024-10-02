@@ -59,9 +59,7 @@ pub(crate) struct Config {
     #[envconfig(from = "AZURE_TAGGING_SUBSCRIPTION_KEY")]
     pub azure_tagging_subscription_key: Option<String>,
 
-    #[envconfig(
-        from = "AZURE_TAGGING_API_VERSION",
-    )]
+    #[envconfig(from = "AZURE_TAGGING_API_VERSION")]
     pub azure_tagging_api_version: Option<String>,
 
     #[envconfig(from = "PHOTODNA_KEY")]
