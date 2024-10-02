@@ -113,12 +113,12 @@ BEGIN
         tag_found := FALSE;
 
         IF filter_item IS NULL THEN
-            RETURN FALSE;
+            CONTINUE;
         END IF;
         
         FOREACH moderation_tag IN ARRAY event_row.moderation_tags
         LOOP
-            IF moderation_tag.tag = '3' THEN
+            IF moderation_tag.level > 2 THEN
                 RETURN FALSE;
             END IF;
 
@@ -130,10 +130,6 @@ BEGIN
                 EXIT;
             END IF;
         END LOOP;
-        
-        IF filter_item.max_level < 0 THEN
-            RETURN FALSE;
-        END IF;
 
         IF filter_item.strict_mode AND NOT tag_found THEN
             RETURN FALSE;
