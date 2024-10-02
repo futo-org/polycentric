@@ -837,13 +837,13 @@ pub mod signed_event {
 
     pub fn from_raw_event_with_moderation_tags(
         raw: &[u8],
-        moderation_tags: &[crate::model::moderation_tag::ModerationTag],
+        moderation_tags: Option<Vec<crate::model::moderation_tag::ModerationTag>>,
     ) -> ::anyhow::Result<SignedEvent> {
         let mut signed_event = crate::model::signed_event::from_proto(
             &crate::protocol::SignedEvent::parse_from_bytes(raw)?,
         )?;
 
-        signed_event.set_moderation_tags(moderation_tags.to_vec().clone());
+        signed_event.set_moderation_tags(moderation_tags.unwrap_or_default());
 
         Ok(signed_event)
     }
