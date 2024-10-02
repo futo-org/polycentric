@@ -404,8 +404,6 @@ async fn apply_moderation_results(
                 (false, false, false) => ModerationStatus::Approved,
             };
 
-        println!("new_moderation_status: {:?}", new_moderation_status);
-
         match new_moderation_status {
             ModerationStatus::FlaggedAndRejected => {
                 // Purge the really bad blobs
@@ -819,7 +817,7 @@ mod tests {
             100000,
             1,
             &Some(ModerationOptions(vec![ModerationFilter {
-                tag: ModerationTagName::new(String::from("sexual")),
+                name: ModerationTagName::new(String::from("sexual")),
                 max_level: 1,
                 strict_mode: true,
             }])),
@@ -840,7 +838,7 @@ mod tests {
         // return the filter's strict value
 
         let filter = ModerationFilter {
-            tag: ModerationTagName::new(String::from("sexual")),
+            name: ModerationTagName::new(String::from("sexual")),
             max_level: 1,
             strict_mode: true,
         };
@@ -853,7 +851,7 @@ mod tests {
 
         let result: bool = sqlx::query_scalar(query)
             .bind(&[filter.clone()])
-            .bind(&filter.tag.to_string())
+            .bind(&filter.name.to_string())
             .bind(filter.max_level)
             .fetch_one(&mut *transaction)
             .await?;
@@ -897,7 +895,7 @@ mod tests {
             100000,
             1,
             &Some(ModerationOptions(vec![ModerationFilter {
-                tag: ModerationTagName::new(String::from("sexual")),
+                name: ModerationTagName::new(String::from("sexual")),
                 max_level: 0,
                 strict_mode: false,
             }])),
@@ -931,7 +929,7 @@ mod tests {
             100000,
             1,
             &Some(ModerationOptions(vec![ModerationFilter {
-                tag: ModerationTagName::new(String::from("sexual")),
+                name: ModerationTagName::new(String::from("sexual")),
                 max_level: 0,
                 strict_mode: false,
             }])),
@@ -945,7 +943,7 @@ mod tests {
             100000,
             1,
             &Some(ModerationOptions(vec![ModerationFilter {
-                tag: ModerationTagName::new(String::from("sexual")),
+                name: ModerationTagName::new(String::from("sexual")),
                 max_level: 3,
                 strict_mode: false,
             }])),
@@ -1017,7 +1015,7 @@ mod tests {
             100000,
             1,
             &Some(ModerationOptions(vec![ModerationFilter {
-                tag: ModerationTagName::new(String::from("violence")),
+                name: ModerationTagName::new(String::from("violence")),
                 max_level: 1,
                 strict_mode: false,
             }])),
@@ -1031,7 +1029,7 @@ mod tests {
             100000,
             1,
             &Some(ModerationOptions(vec![ModerationFilter {
-                tag: ModerationTagName::new(String::from("sexual")),
+                name: ModerationTagName::new(String::from("sexual")),
                 max_level: 1,
                 strict_mode: false,
             }])),
