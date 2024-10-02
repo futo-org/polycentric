@@ -230,11 +230,11 @@ pub mod tests {
             &s2p1,
             1,
             polycentric_protocol::model::known_message_types::VOUCH,
-            &vec![],
+            &[],
             vec![polycentric_protocol::model::reference::Reference::Pointer(
                 polycentric_protocol::model::pointer::Pointer::new(
                     polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                        s1.verifying_key().clone(),
+                        s1.verifying_key(),
                     ),
                     s1p1,
                     1,
@@ -250,7 +250,7 @@ pub mod tests {
                 &mut transaction,
                 1,
                 &polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                    s2.verifying_key().clone(),
+                    s2.verifying_key(),
                 ),
                 &"hello".to_string(),
             )
@@ -315,11 +315,11 @@ pub mod tests {
             &s2p1,
             1,
             polycentric_protocol::model::known_message_types::VOUCH,
-            &vec![],
+            &[],
             vec![polycentric_protocol::model::reference::Reference::Pointer(
                 polycentric_protocol::model::pointer::Pointer::new(
                     polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                        s1.verifying_key().clone(),
+                        s1.verifying_key(),
                     ),
                     s1p1,
                     1,
@@ -335,7 +335,7 @@ pub mod tests {
                 &mut transaction,
                 1,
                 &polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                    s2.verifying_key().clone(),
+                    s2.verifying_key(),
                 ),
                 &claim_fields,
             )

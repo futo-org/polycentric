@@ -230,7 +230,7 @@ pub mod tests {
 
         let system =
             polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                keypair.verifying_key().clone(),
+                keypair.verifying_key(),
             );
 
         let result = crate::postgres::query_references::query_pointer(

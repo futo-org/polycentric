@@ -216,8 +216,8 @@ async fn pull_queue_events(
         result_set.push(ModerationQueueItem {
             id: row.id,
             content: post.content,
-            blob: blob,
-            blob_db_ids: blob_db_ids,
+            blob,
+            blob_db_ids,
         });
     }
 
@@ -235,33 +235,31 @@ struct ModerationResult {
 }
 
 async fn tag_event(
-    tag: Arc<&dyn providers::tags::interface::ModerationTaggingProvider>,
+    tag: &dyn providers::tags::interface::ModerationTaggingProvider,
     event: &ModerationQueueItem,
-    request_rate_limiter: Arc<&RateLimiter>,
+    request_rate_limiter: &RateLimiter,
 ) -> anyhow::Result<ModerationTaggingResult> {
     debug!("Tagging event: {:?}", event.id);
     request_rate_limiter.acquire().await;
-    tag.moderate(&event).await
+    tag.moderate(event).await
 }
 
 async fn csam_detect_event(
-    csam: Arc<&dyn providers::csam::interface::ModerationCSAMProvider>,
+    csam: &dyn providers::csam::interface::ModerationCSAMProvider,
     event: &ModerationQueueItem,
-    request_rate_limiter: Arc<&RateLimiter>,
+    request_rate_limiter: &RateLimiter,
 ) -> anyhow::Result<ModerationCSAMResult> {
     debug!("Detecting CSAM for event: {:?}", event.id);
     request_rate_limiter.acquire().await;
-    csam.moderate(&event).await
+    csam.moderate(event).await
 }
 
 async fn process_event(
-    csam: Option<Arc<&dyn providers::csam::interface::ModerationCSAMProvider>>,
-    tag: Option<
-        Arc<&dyn providers::tags::interface::ModerationTaggingProvider>,
-    >,
+    csam: Option<&dyn providers::csam::interface::ModerationCSAMProvider>,
+    tag: Option<&dyn providers::tags::interface::ModerationTaggingProvider>,
     event: &ModerationQueueItem,
-    request_rate_limiter: Arc<&RateLimiter>,
-    csam_request_rate_limiter: Arc<&RateLimiter>,
+    request_rate_limiter: &RateLimiter,
+    csam_request_rate_limiter: &RateLimiter,
 ) -> ModerationResult {
     debug!("Processing event: {:?}", event.id);
     // Acquire a permit from the rate limiter
@@ -351,27 +349,15 @@ async fn process(
     // Define the maximum concurrency based on the rate limiter's tokens per second
     let max_concurrency = 10;
 
-    let csam_arc = csam.map(|t| Arc::new(t));
-    let tag_arc = tag.map(|t| Arc::new(t));
-    let request_rate_limiter_arc = Arc::new(request_rate_limiter);
-    let csam_request_rate_limiter_arc = Arc::new(csam_request_rate_limiter);
-
     let results = stream::iter(events.into_iter())
         .map(|event| {
-            let csam_arc_clone = csam_arc.as_ref().map(Arc::clone);
-            let tag_arc_clone = tag_arc.as_ref().map(Arc::clone);
-
-            let request_rate_limiter_clone =
-                Arc::clone(&request_rate_limiter_arc);
-            let csam_request_rate_limiter_clone =
-                Arc::clone(&csam_request_rate_limiter_arc);
             async move {
                 process_event(
-                    csam_arc_clone,
-                    tag_arc_clone,
+                    csam,
+                    tag,
                     &event,
-                    request_rate_limiter_clone,
-                    csam_request_rate_limiter_clone,
+                    request_rate_limiter,
+                    csam_request_rate_limiter,
                 )
                 .await
             }
@@ -413,7 +399,7 @@ async fn apply_moderation_results(
                         WHERE id = ANY($1)
                     ";
                     ::sqlx::query(delete_blob_query)
-                        .bind(&blob_db_ids)
+                        .bind(blob_db_ids)
                         .execute(&mut **transaction)
                         .await?;
                 }
@@ -493,15 +479,15 @@ pub async fn run(
 ) -> ::anyhow::Result<()> {
     debug!("Starting run function");
     // loop until task is cancelled
-    let request_rate_limiter = Arc::new(RateLimiter::new(
+    let request_rate_limiter = RateLimiter::new(
         tagging_request_rate_limit,
         tagging_request_rate_limit,
-    ));
+    );
 
-    let csam_request_rate_limiter = Arc::new(RateLimiter::new(
+    let csam_request_rate_limiter = RateLimiter::new(
         csam_request_rate_limit,
         csam_request_rate_limit,
-    ));
+    );
 
     loop {
         let mut transaction = pool.begin().await?;
@@ -600,7 +586,7 @@ mod tests {
             .await?;
 
         let system = crate::model::public_key::PublicKey::Ed25519(
-            keypair.verifying_key().clone(),
+            keypair.verifying_key(),
         );
 
         let loaded_event = crate::postgres::load_event(
@@ -856,7 +842,7 @@ mod tests {
             .fetch_one(&mut *transaction)
             .await?;
 
-        assert_eq!(result, true);
+        assert!(result);
 
         Ok(())
     }

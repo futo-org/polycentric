@@ -378,8 +378,8 @@ async fn run_moderation_queue(
     };
 
     let pool_clone = pool.clone();
-    let tagging_request_rate_limit = config.tagging_request_rate_limit.clone();
-    let csam_request_rate_limiter = config.csam_request_rate_limit.clone();
+    let tagging_request_rate_limit = config.tagging_request_rate_limit;
+    let csam_request_rate_limiter = config.csam_request_rate_limit;
     let task = tokio::task::spawn({
         async move {
             let result = moderation::moderation_queue::run(

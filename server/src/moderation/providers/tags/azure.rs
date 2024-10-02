@@ -295,7 +295,7 @@ impl ModerationTaggingProvider for AzureTagProvider {
 
         let media_type = match (
             event.content.is_some()
-                && event.content.as_ref().unwrap().len() > 0,
+                && !event.content.as_ref().unwrap().is_empty(),
             event.blob.is_some(),
         ) {
             (true, false) => MediaType::Text,

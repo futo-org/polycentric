@@ -1024,7 +1024,7 @@ pub mod tests {
 
         let system =
             polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                keypair.verifying_key().clone(),
+                keypair.verifying_key(),
             );
 
         let loaded_event = crate::postgres::load_event(
@@ -1070,7 +1070,7 @@ pub mod tests {
 
         let system =
             polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                s1.verifying_key().clone(),
+                s1.verifying_key(),
             );
 
         let head = crate::postgres::load_system_head(&mut transaction, &system)
@@ -1078,7 +1078,7 @@ pub mod tests {
 
         transaction.commit().await?;
 
-        let expected = vec![s1p1e2, s1p2e1];
+        let expected = [s1p1e2, s1p2e1];
 
         assert!(expected.len() == head.len());
 
@@ -1149,7 +1149,7 @@ pub mod tests {
 
         let system =
             polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                s1.verifying_key().clone(),
+                s1.verifying_key(),
             );
 
         let ranges =
@@ -1224,12 +1224,12 @@ pub mod tests {
 
         let system1 =
             polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                s1.verifying_key().clone(),
+                s1.verifying_key(),
             );
 
         let system2 =
             polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                s2.verifying_key().clone(),
+                s2.verifying_key(),
             );
 
         transaction.commit().await?;
@@ -1253,7 +1253,6 @@ pub mod tests {
             )
             .await
             .is_ok()
-                == true
         );
 
         transaction.commit().await?;
@@ -1267,21 +1266,19 @@ pub mod tests {
             )
             .await
             .is_ok()
-                == true
         );
 
         transaction.commit().await?;
 
         transaction = pool.begin().await?;
         assert!(
-            crate::postgres::claim_handle(
+            !crate::postgres::claim_handle(
                 &mut transaction,
                 String::from("osotnoc"),
                 &system2
             )
             .await
             .is_ok()
-                == false
         );
 
         transaction = pool.begin().await?;

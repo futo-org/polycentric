@@ -385,7 +385,7 @@ pub mod tests {
 
         let system =
             polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                keypair.verifying_key().clone(),
+                keypair.verifying_key(),
             );
 
         let result = crate::postgres::query_index::query_index(
@@ -448,7 +448,7 @@ pub mod tests {
 
         let s1_key =
             polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                s1.verifying_key().clone(),
+                s1.verifying_key(),
             );
 
         crate::moderation::moderation_queue::approve_event(
@@ -489,7 +489,7 @@ pub mod tests {
 
         let system =
             polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                s1.verifying_key().clone(),
+                s1.verifying_key(),
             );
 
         let result = crate::postgres::query_index::query_index(
@@ -592,7 +592,7 @@ pub mod tests {
 
         let s1_key =
             polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                s1.verifying_key().clone(),
+                s1.verifying_key(),
             );
 
         crate::moderation::moderation_queue::approve_event(
@@ -677,7 +677,7 @@ pub mod tests {
 
         let system =
             polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                s1.verifying_key().clone(),
+                s1.verifying_key(),
             );
 
         let result = crate::postgres::query_index::query_index(
@@ -702,7 +702,7 @@ pub mod tests {
                 ],
         );
 
-        let proof = vec![s1p1e4, s1p2e2];
+        let proof = [s1p1e4, s1p2e2];
 
         assert!(proof.iter().all(|item| result.proof.contains(item)));
 
@@ -754,7 +754,7 @@ pub mod tests {
 
         let s1_key =
             polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                s1.verifying_key().clone(),
+                s1.verifying_key(),
             );
         crate::moderation::moderation_queue::approve_event(
             &mut transaction,
@@ -802,7 +802,7 @@ pub mod tests {
 
         let system =
             polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                s1.verifying_key().clone(),
+                s1.verifying_key(),
             );
 
         let result = crate::postgres::query_index::query_index(
