@@ -1245,41 +1245,35 @@ pub mod tests {
         transaction.commit().await?;
 
         transaction = pool.begin().await?;
-        assert!(
-            crate::postgres::claim_handle(
-                &mut transaction,
-                String::from("osotnoc_2"),
-                &system1
-            )
-            .await
-            .is_ok()
-        );
+        assert!(crate::postgres::claim_handle(
+            &mut transaction,
+            String::from("osotnoc_2"),
+            &system1
+        )
+        .await
+        .is_ok());
 
         transaction.commit().await?;
 
         transaction = pool.begin().await?;
-        assert!(
-            crate::postgres::claim_handle(
-                &mut transaction,
-                String::from("osotnoc"),
-                &system1
-            )
-            .await
-            .is_ok()
-        );
+        assert!(crate::postgres::claim_handle(
+            &mut transaction,
+            String::from("osotnoc"),
+            &system1
+        )
+        .await
+        .is_ok());
 
         transaction.commit().await?;
 
         transaction = pool.begin().await?;
-        assert!(
-            !crate::postgres::claim_handle(
-                &mut transaction,
-                String::from("osotnoc"),
-                &system2
-            )
-            .await
-            .is_ok()
-        );
+        assert!(!crate::postgres::claim_handle(
+            &mut transaction,
+            String::from("osotnoc"),
+            &system2
+        )
+        .await
+        .is_ok());
 
         transaction = pool.begin().await?;
         crate::postgres::claim_handle(

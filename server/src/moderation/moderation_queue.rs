@@ -350,17 +350,15 @@ async fn process(
     let max_concurrency = 10;
 
     let results = stream::iter(events.into_iter())
-        .map(|event| {
-            async move {
-                process_event(
-                    csam,
-                    tag,
-                    &event,
-                    request_rate_limiter,
-                    csam_request_rate_limiter,
-                )
-                .await
-            }
+        .map(|event| async move {
+            process_event(
+                csam,
+                tag,
+                &event,
+                request_rate_limiter,
+                csam_request_rate_limiter,
+            )
+            .await
         })
         .buffer_unordered(max_concurrency)
         .collect::<Vec<_>>()
@@ -484,10 +482,8 @@ pub async fn run(
         tagging_request_rate_limit,
     );
 
-    let csam_request_rate_limiter = RateLimiter::new(
-        csam_request_rate_limit,
-        csam_request_rate_limit,
-    );
+    let csam_request_rate_limiter =
+        RateLimiter::new(csam_request_rate_limit, csam_request_rate_limit);
 
     loop {
         let mut transaction = pool.begin().await?;
