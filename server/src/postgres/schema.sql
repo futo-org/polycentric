@@ -30,7 +30,7 @@ DO $$ BEGIN
 
 DO $$ BEGIN
     CREATE TYPE moderation_tag_type AS (
-        tag VARCHAR(20),
+        name VARCHAR(20),
         level SMALLINT
     );
 EXCEPTION
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS events (
 
 DO $$ BEGIN
     CREATE TYPE moderation_filter_type AS (
-        tag VARCHAR(20),
+        name VARCHAR(20),
         max_level SMALLINT,
         strict_mode BOOLEAN
     );
@@ -122,7 +122,7 @@ BEGIN
                 RETURN FALSE;
             END IF;
 
-            IF moderation_tag.tag = filter_item.tag THEN
+            IF moderation_tag.name = filter_item.name THEN
                 tag_found := TRUE;
                 IF moderation_tag.level > filter_item.max_level THEN
                     RETURN FALSE;

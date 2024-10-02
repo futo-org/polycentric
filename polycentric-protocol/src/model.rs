@@ -695,7 +695,7 @@ pub mod moderation_tag {
     )]
     #[sqlx(type_name = "moderation_tag_type")]
     pub struct ModerationTag {
-        tag: ModerationTagName,
+        name: ModerationTagName,
         level: i16,
     }
 
@@ -704,20 +704,20 @@ pub mod moderation_tag {
         PartialEq, Debug, ::serde::Deserialize, ::serde::Serialize, Clone,
     )]
     pub struct ModerationTag {
-        tag: ModerationTagName,
+        name: ModerationTagName,
         level: i16,
     }
 
     impl ModerationTag {
         pub fn new(tag: String, level: i16) -> ModerationTag {
             ModerationTag {
-                tag: ModerationTagName(tag),
+                name: ModerationTagName(tag),
                 level,
             }
         }
 
-        pub fn tag(&self) -> &ModerationTagName {
-            &self.tag
+        pub fn name(&self) -> &ModerationTagName {
+            &self.name
         }
 
         pub fn level(&self) -> &i16 {
@@ -733,12 +733,12 @@ pub mod moderation_tag {
     }
 
     pub fn from_proto(proto: &crate::protocol::ModerationTag) -> ModerationTag {
-        ModerationTag::new(proto.tag.clone(), proto.level as i16)
+        ModerationTag::new(proto.name.clone(), proto.level as i16)
     }
 
     pub fn to_proto(tag: &ModerationTag) -> crate::protocol::ModerationTag {
         let mut proto = crate::protocol::ModerationTag::new();
-        proto.tag = tag.tag().clone().into();
+        proto.name = tag.name().clone().into();
         proto.level = tag.level as u32;
         proto
     }

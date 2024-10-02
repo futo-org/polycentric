@@ -7,7 +7,7 @@ pub mod providers;
 #[sqlx(type_name = "moderation_filter_type")]
 #[derive(::serde::Deserialize, ::serde::Serialize, Debug, Clone)]
 pub(crate) struct ModerationFilter {
-    tag: ModerationTagName,
+    name: ModerationTagName,
     max_level: i16,
     strict_mode: bool,
 }
@@ -48,22 +48,22 @@ impl Default for ModerationOptions {
     fn default() -> Self {
         ModerationOptions(vec![
             ModerationFilter {
-                tag: ModerationTagName::new(String::from("violence")),
+                name: ModerationTagName::new(String::from("violence")),
                 max_level: 1,
                 strict_mode: true,
             },
             ModerationFilter {
-                tag: ModerationTagName::new(String::from("hate")),
+                name: ModerationTagName::new(String::from("hate")),
                 max_level: 1,
                 strict_mode: true,
             },
             ModerationFilter {
-                tag: ModerationTagName::new(String::from("self_harm")),
+                name: ModerationTagName::new(String::from("self_harm")),
                 max_level: 1,
                 strict_mode: true,
             },
             ModerationFilter {
-                tag: ModerationTagName::new(String::from("sexual")),
+                name: ModerationTagName::new(String::from("sexual")),
                 max_level: 1,
                 strict_mode: true,
             },

@@ -757,7 +757,7 @@ mod tests {
             }
 
             let tags_query = "
-                SELECT tag
+                SELECT name
                 FROM events, unnest(moderation_tags) AS tag_item
                 WHERE id = $1
             ";
@@ -770,7 +770,7 @@ mod tests {
             let expected_tags = moderation_result.unwrap().tags.clone();
 
             for expected_tag in expected_tags.iter() {
-                assert!(tags.contains(&expected_tag.tag().to_string()));
+                assert!(tags.contains(&expected_tag.name().to_string()));
             }
         }
 
@@ -846,7 +846,7 @@ mod tests {
         let query = "
             SELECT strict_mode
             FROM unnest($1::moderation_filter_type[]) AS filter
-            WHERE filter.tag = $2 AND filter.max_level = $3
+            WHERE filter.name = $2 AND filter.max_level = $3
         ";
 
         let result: bool = sqlx::query_scalar(query)

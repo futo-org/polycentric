@@ -25,7 +25,7 @@ message VectorClock {
 }
 
 message ModerationTag {
-    string tag   = 1;
+    string name  = 1;
     uint32 level = 2;
 }
 
