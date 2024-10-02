@@ -316,17 +316,17 @@ async fn process_event(
 
     let tags = match tagging_result {
         Some(ref result) => match result {
-            Ok(result) => &result.tags,
+            Ok(result) => result.tags.clone(),
             Err(e) => {
                 debug!(
                     "Tagging error for event: {:?}, error: {:?}",
                     event.id, e
                 );
                 has_error = true;
-                &Vec::new()
+                Vec::new()
             }
         },
-        None => &Vec::new(),
+        None => Vec::new(),
     };
 
     debug!("Event processed: {:?}", event.id);
