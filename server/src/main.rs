@@ -362,8 +362,12 @@ async fn run_moderation_queue(
     config: &Config,
     pool: &::sqlx::PgPool,
 ) -> Result<(), Box<dyn ::std::error::Error>> {
-    let csam_provider =
-        moderation::providers::csam::make_provider(config).await?;
+    let csam_provider = if config.csam_interface.is_none() {
+        info!("CSAM interface not provided, skipping CSAM queue");
+        None
+    } else {
+        Some(moderation::providers::csam::make_provider(config).await?)
+    };
     let tag_provider = if config.tag_interface.is_none() {
         info!(
             "Moderation tagging interface not provided, skipping tagging queue"
@@ -380,7 +384,7 @@ async fn run_moderation_queue(
         async move {
             let result = moderation::moderation_queue::run(
                 pool_clone,
-                csam_provider.as_ref(),
+                csam_provider.as_deref(),
                 tag_provider.as_deref(),
                 tagging_request_rate_limit,
                 csam_request_rate_limiter,

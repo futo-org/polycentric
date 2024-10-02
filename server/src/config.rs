@@ -48,7 +48,7 @@ pub(crate) struct Config {
     pub backfill_remote_server_position: Option<u64>,
 
     #[envconfig(from = "CSAM_INTERFACE")]
-    pub csam_interface: String,
+    pub csam_interface: Option<String>,
 
     #[envconfig(from = "TAG_INTERFACE")]
     pub tag_interface: Option<String>,
