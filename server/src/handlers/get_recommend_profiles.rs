@@ -1,7 +1,15 @@
 use ::protobuf::Message;
 
+use crate::moderation::ModerationOptions;
+
+#[derive(::serde::Deserialize)]
+pub(crate) struct Query {
+    moderation_options: ::std::option::Option<ModerationOptions>,
+}
+
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
+    query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::std::convert::Infallible> {
     let mut result = polycentric_protocol::protocol::PublicKeys::new();
 
@@ -9,7 +17,11 @@ pub(crate) async fn handler(
         crate::warp_try_err_500!(state.pool_read_only.begin().await);
 
     let random_identities = crate::warp_try_err_500!(
-        crate::postgres::load_random_profiles(&mut transaction).await
+        crate::postgres::load_random_profiles(
+            &mut transaction,
+            &query.moderation_options
+        )
+        .await
     );
 
     crate::warp_try_err_500!(transaction.commit().await);

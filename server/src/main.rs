@@ -1,17 +1,21 @@
 use ::anyhow::Context;
 use ::cadence::{StatsdClient, UdpMetricSink};
-use ::envconfig::Envconfig;
 use ::log::*;
 use ::std::net::UdpSocket;
 use ::warp::Filter;
 use ::warp::Reply;
+use envconfig::Envconfig;
+use polycentric_protocol::model;
 
+mod config;
 mod handlers;
 mod ingest;
 mod migrate;
+mod moderation;
 mod opensearch;
 mod postgres;
 mod version;
+use config::{Config, Mode};
 
 #[macro_export]
 macro_rules! warp_try_err_500 {
@@ -87,12 +91,6 @@ async fn handle_rejection(
     ))
 }
 
-enum Mode {
-    ServeAPI,
-    BackfillSearch,
-    BackfillRemoteServer,
-}
-
 impl ::std::str::FromStr for Mode {
     type Err = ();
 
@@ -106,56 +104,11 @@ impl ::std::str::FromStr for Mode {
     }
 }
 
-#[derive(::envconfig::Envconfig)]
-struct Config {
-    #[envconfig(from = "HTTP_PORT_API", default = "8081")]
-    pub http_port_api: u16,
-
-    #[envconfig(
-        from = "DATABASE_URL",
-        default = "postgres://postgres:testing@postgres"
-    )]
-    pub postgres_string: String,
-
-    #[envconfig(from = "DATABASE_URL_READ_ONLY")]
-    pub postgres_string_read_only: Option<String>,
-
-    #[envconfig(
-        from = "OPENSEARCH_STRING",
-        default = "http://opensearch-node1:9200"
-    )]
-    pub opensearch_string: String,
-
-    #[envconfig(from = "ADMIN_TOKEN")]
-    pub admin_token: String,
-
-    #[envconfig(from = "STATSD_ADDRESS", default = "telegraf")]
-    pub statsd_address: String,
-
-    #[envconfig(from = "STATSD_PORT", default = "8125")]
-    pub statsd_port: u16,
-
-    #[envconfig(from = "CHALLENGE_KEY")]
-    pub challenge_key: String,
-
-    #[envconfig(from = "MODE", default = "SERVE_API")]
-    pub mode: Mode,
-
-    #[envconfig(from = "BACKFILL_REMOTE_SERVER_ADDRESS")]
-    pub backfill_remote_server_address: Option<String>,
-
-    #[envconfig(from = "BACKFILL_REMOTE_SERVER_POSITION")]
-    pub backfill_remote_server_position: Option<u64>,
-}
-
 async fn serve_api(
     config: &Config,
+    pool: &::sqlx::PgPool,
 ) -> Result<(), Box<dyn ::std::error::Error>> {
     info!("Connecting to Postgres");
-    let pool = ::sqlx::postgres::PgPoolOptions::new()
-        .max_connections(10)
-        .connect(&config.postgres_string)
-        .await?;
 
     let pool_read_only = ::sqlx::postgres::PgPoolOptions::new()
         .max_connections(10)
@@ -175,14 +128,6 @@ async fn serve_api(
     let opensearch_client = ::opensearch::OpenSearch::new(opensearch_transport);
 
     info!("Connecting to OpenSearch");
-
-    let mut transaction = pool.begin().await?;
-
-    crate::postgres::prepare_database(&mut transaction).await?;
-
-    crate::migrate::migrate(&mut transaction).await?;
-    transaction.commit().await?;
-
     crate::opensearch::prepare_indices(&opensearch_client).await?;
 
     info!("Connecting to StatsD");
@@ -198,7 +143,7 @@ async fn serve_api(
     ));
 
     let state = ::std::sync::Arc::new(State {
-        pool,
+        pool: pool.clone(),
         pool_read_only,
         search: opensearch_client,
         admin_token: config.admin_token.clone(),
@@ -315,6 +260,9 @@ async fn serve_api(
         .and(::warp::path("recommended_profiles"))
         .and(::warp::path::end())
         .and(state_filter.clone())
+        .and(::warp::query::<
+            crate::handlers::get_recommend_profiles::Query,
+        >())
         .and_then(crate::handlers::get_recommend_profiles::handler)
         .with(cors.clone());
 
@@ -410,6 +358,48 @@ async fn serve_api(
     Ok(())
 }
 
+async fn run_moderation_queue(
+    config: &Config,
+    pool: &::sqlx::PgPool,
+) -> Result<(), Box<dyn ::std::error::Error>> {
+    let csam_provider = if config.csam_interface.is_none() {
+        info!("CSAM interface not provided, skipping CSAM queue");
+        None
+    } else {
+        Some(moderation::providers::csam::make_provider(config).await?)
+    };
+    let tag_provider = if config.tag_interface.is_none() {
+        info!(
+            "Moderation tagging interface not provided, skipping tagging queue"
+        );
+        None
+    } else {
+        Some(moderation::providers::tags::make_provider(config).await?)
+    };
+
+    let pool_clone = pool.clone();
+    let tagging_request_rate_limit = config.tagging_request_rate_limit;
+    let csam_request_rate_limiter = config.csam_request_rate_limit;
+    let task = tokio::task::spawn({
+        async move {
+            let result = moderation::moderation_queue::run(
+                pool_clone,
+                csam_provider.as_deref(),
+                tag_provider.as_deref(),
+                tagging_request_rate_limit,
+                csam_request_rate_limiter,
+            )
+            .await;
+            if let Err(e) = result {
+                error!("Error running moderation queue: {}", e);
+            }
+        }
+    });
+    task.await?;
+
+    Ok(())
+}
+
 #[::tokio::main]
 async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
     ::env_logger::init();
@@ -420,7 +410,27 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
         Mode::ServeAPI => {
             info!("mode: ServeAPI");
 
-            serve_api(&config).await?;
+            let pool = ::sqlx::postgres::PgPoolOptions::new()
+                .max_connections(10)
+                .connect(&config.postgres_string)
+                .await?;
+
+            let mut transaction = pool.begin().await?;
+
+            crate::postgres::prepare_database(&mut transaction).await?;
+
+            crate::migrate::migrate(&mut transaction).await?;
+            transaction.commit().await?;
+
+            // Exit if either the moderation queue or the API server fails
+            tokio::select! {
+                moderation_end_result = run_moderation_queue(&config, &pool) => {
+                    moderation_end_result?;
+                },
+                api_end_result = serve_api(&config, &pool) => {
+                    api_end_result?;
+                }
+            }
         }
         Mode::BackfillSearch => {
             info!("mode: BackfillSearch");
