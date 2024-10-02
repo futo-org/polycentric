@@ -1,10 +1,10 @@
 use crate::moderation::providers;
 use futures::stream::{self, StreamExt};
+use log::debug;
 use protobuf::Message;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tokio::time::{self, Duration};
-use log::debug;
 
 use super::providers::csam::interface::ModerationCSAMResult;
 use super::providers::tags::interface::ModerationTaggingResult;
@@ -51,7 +51,7 @@ struct ModerationQueueRawRow {
     raw_event: Vec<u8>,
 }
 
-#[derive(sqlx::Type, Debug)]
+#[derive(sqlx::Type, Debug, PartialEq)]
 #[sqlx(type_name = "moderation_status_enum", rename_all = "snake_case")]
 enum ModerationStatus {
     Pending,
@@ -66,13 +66,14 @@ pub struct ModerationQueueItem {
     pub id: i64,
     pub content: Option<String>,
     pub blob: Option<Vec<u8>>,
+    pub blob_db_ids: Option<Vec<i64>>,
 }
 
 async fn get_blob(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event: &crate::model::event::Event,
     post: &polycentric_protocol::protocol::Post,
-) -> ::anyhow::Result<Vec<u8>> {
+) -> ::anyhow::Result<(Vec<u8>, Vec<i64>)> {
     debug!("Getting blob for event");
     let mut logical_clocks = vec![];
     for range in post.image.sections.iter() {
@@ -84,7 +85,7 @@ async fn get_blob(
     }
 
     let query = "
-    SELECT content
+    SELECT content, id
     FROM events
     WHERE system_key_type = $1
     AND system_key = $2
@@ -103,7 +104,7 @@ async fn get_blob(
         .map(|lc| i64::try_from(lc).unwrap())
         .collect();
 
-    let rows: Vec<(Vec<u8>,)> = sqlx::query_as(query)
+    let rows: Vec<(Vec<u8>, i64)> = sqlx::query_as(query)
         .bind(system_key_type)
         .bind(system_key_bytes)
         .bind(process_bytes)
@@ -113,12 +114,17 @@ async fn get_blob(
 
     // concat the sorted event.content() into a single buffer
     let mut blob = Vec::new();
-    for (row,) in rows.iter() {
+    let mut blob_db_ids = Vec::new();
+    for (row, id) in rows.iter() {
         blob.extend_from_slice(row);
+        blob_db_ids.push(*id);
     }
 
-    debug!("Blob retrieved successfully for event: {:?}", event.logical_clock());
-    Ok(blob)
+    debug!(
+        "Blob retrieved successfully for event: {:?}",
+        event.logical_clock()
+    );
+    Ok((blob, blob_db_ids))
 }
 
 async fn pull_queue_events(
@@ -188,13 +194,15 @@ async fn pull_queue_events(
             event.content(),
         )?;
 
-        let blob = match *event.content_type() {
+        let (blob, blob_db_ids) = match *event.content_type() {
             crate::model::known_message_types::POST => {
                 if post.image.sections.is_empty() {
                     debug!("Event has no image sections, skipping");
-                    None
+                    (None, None)
                 } else {
-                    Some(get_blob(transaction, &event, &post).await?)
+                    let (blob, blob_db_ids) =
+                        get_blob(transaction, &event, &post).await?;
+                    (Some(blob), Some(blob_db_ids))
                 }
             }
             _ => {
@@ -209,6 +217,7 @@ async fn pull_queue_events(
             id: row.id,
             content: post.content,
             blob: blob,
+            blob_db_ids: blob_db_ids,
         });
     }
 
@@ -222,6 +231,7 @@ struct ModerationResult {
     has_error: bool,
     is_csam: bool,
     tags: Vec<crate::model::moderation_tag::ModerationTag>,
+    blob_db_ids: Option<Vec<i64>>,
 }
 
 async fn tag_event(
@@ -245,7 +255,7 @@ async fn csam_detect_event(
 }
 
 async fn process_event(
-    csam: Arc<&dyn providers::csam::interface::ModerationCSAMProvider>,
+    csam: Option<Arc<&dyn providers::csam::interface::ModerationCSAMProvider>>,
     tag: Option<
         Arc<&dyn providers::tags::interface::ModerationTaggingProvider>,
     >,
@@ -256,13 +266,18 @@ async fn process_event(
     debug!("Processing event: {:?}", event.id);
     // Acquire a permit from the rate limiter
 
-    let should_csam = event.blob.is_some();
+    let should_csam = event.blob.is_some() && csam.is_some();
 
+    // It's written like this so we can do a join if we need to do both
+    // Can't join on None
     let (tagging_result, csam_result) = match (tag, should_csam) {
         (Some(tag), true) => {
             let tagging_future = tag_event(tag, event, request_rate_limiter);
-            let csam_future =
-                csam_detect_event(csam, event, csam_request_rate_limiter);
+            let csam_future = csam_detect_event(
+                csam.unwrap(),
+                event,
+                csam_request_rate_limiter,
+            );
             let (tagging_result, csam_result) =
                 tokio::join!(tagging_future, csam_future);
             (Some(tagging_result), Some(csam_result))
@@ -274,7 +289,12 @@ async fn process_event(
         (None, true) => (
             None,
             Some(
-                csam_detect_event(csam, event, csam_request_rate_limiter).await,
+                csam_detect_event(
+                    csam.unwrap(),
+                    event,
+                    csam_request_rate_limiter,
+                )
+                .await,
             ),
         ),
         (None, false) => (None, None),
@@ -298,7 +318,10 @@ async fn process_event(
         Some(ref result) => match result {
             Ok(result) => &result.tags,
             Err(e) => {
-                debug!("Tagging error for event: {:?}, error: {:?}", event.id, e);
+                debug!(
+                    "Tagging error for event: {:?}, error: {:?}",
+                    event.id, e
+                );
                 has_error = true;
                 &Vec::new()
             }
@@ -311,13 +334,14 @@ async fn process_event(
         event_id: event.id,
         has_error,
         tags: tags.clone(),
+        blob_db_ids: event.blob_db_ids.clone(),
         is_csam,
     }
     // }
 }
 
 async fn process(
-    csam: &dyn providers::csam::interface::ModerationCSAMProvider,
+    csam: Option<&dyn providers::csam::interface::ModerationCSAMProvider>,
     tag: Option<&dyn providers::tags::interface::ModerationTaggingProvider>,
     events: Vec<ModerationQueueItem>,
     request_rate_limiter: &RateLimiter,
@@ -327,15 +351,16 @@ async fn process(
     // Define the maximum concurrency based on the rate limiter's tokens per second
     let max_concurrency = 10;
 
-    let csam_arc = Arc::new(csam);
+    let csam_arc = csam.map(|t| Arc::new(t));
     let tag_arc = tag.map(|t| Arc::new(t));
     let request_rate_limiter_arc = Arc::new(request_rate_limiter);
     let csam_request_rate_limiter_arc = Arc::new(csam_request_rate_limiter);
 
     let results = stream::iter(events.into_iter())
         .map(|event| {
-            let csam_arc_clone = Arc::clone(&csam_arc);
+            let csam_arc_clone = csam_arc.as_ref().map(Arc::clone);
             let tag_arc_clone = tag_arc.as_ref().map(Arc::clone);
+
             let request_rate_limiter_clone =
                 Arc::clone(&request_rate_limiter_arc);
             let csam_request_rate_limiter_clone =
@@ -373,49 +398,87 @@ async fn apply_moderation_results(
 
         let new_moderation_status =
             match (has_error, is_csam, has_any_over_level_2) {
-                (true, _, _) => ModerationStatus::Error,
                 (false, true, _) => ModerationStatus::FlaggedAndRejected,
                 (false, _, true) => ModerationStatus::FlaggedAndRejected,
+                (true, _, _) => ModerationStatus::Error,
                 (false, false, false) => ModerationStatus::Approved,
             };
 
-        debug!("new moderation status: {:?}", new_moderation_status);
-        debug!("tags: {:?}", result.tags);
+        println!("new_moderation_status: {:?}", new_moderation_status);
 
-        let update_query = "
-            UPDATE events
-            SET moderation_status = $1, moderation_tags = $2::moderation_tag_type[]
-            WHERE id = $3
-        ";
+        match new_moderation_status {
+            ModerationStatus::FlaggedAndRejected => {
+                // Purge the really bad blobs
+                if let Some(blob_db_ids) = &result.blob_db_ids {
+                    let delete_blob_query = "
+                        DELETE FROM blobs
+                        WHERE id = ANY($1)
+                    ";
+                    ::sqlx::query(delete_blob_query)
+                        .bind(&blob_db_ids)
+                        .execute(&mut **transaction)
+                        .await?;
+                }
 
-        ::sqlx::query(update_query)
-            .bind(new_moderation_status)
-            .bind(&result.tags)
-            .bind(event_id)
-            .execute(&mut **transaction)
-            .await?;
+                let delete_event_query = "
+                    DELETE FROM events
+                    WHERE id = $1
+                ";
 
-        if has_error {
-            let increment_failure_query = "
-                UPDATE event_processing_status
-                SET failure_count = failure_count + 1, last_failure_at = CURRENT_TIMESTAMP
-                WHERE event_id = $1
-            ";
+                ::sqlx::query(delete_event_query)
+                    .bind(event_id)
+                    .execute(&mut **transaction)
+                    .await?;
+            }
+            ModerationStatus::Error => {
+                let increment_failure_query = "
+                    UPDATE event_processing_status
+                    SET failure_count = failure_count + 1, last_failure_at = CURRENT_TIMESTAMP
+                    WHERE event_id = $1
+                ";
 
-            ::sqlx::query(increment_failure_query)
-                .bind(event_id)
-                .execute(&mut **transaction)
-                .await?;
-        } else {
-            let delete_status_query = "
-                DELETE FROM event_processing_status
-                WHERE event_id = $1
-            ";
+                ::sqlx::query(increment_failure_query)
+                    .bind(event_id)
+                    .execute(&mut **transaction)
+                    .await?;
 
-            ::sqlx::query(delete_status_query)
-                .bind(event_id)
-                .execute(&mut **transaction)
-                .await?;
+                let update_query = "
+                    UPDATE events
+                    SET moderation_status = $1
+                    WHERE id = $2
+                ";
+
+                ::sqlx::query(update_query)
+                    .bind(ModerationStatus::Error)
+                    .bind(event_id)
+                    .execute(&mut **transaction)
+                    .await?;
+            }
+            ModerationStatus::Approved => {
+                let update_query = "
+                    UPDATE events
+                    SET moderation_status = $1, moderation_tags = $2::moderation_tag_type[]
+                    WHERE id = $3
+                ";
+
+                ::sqlx::query(update_query)
+                    .bind(ModerationStatus::Approved)
+                    .bind(&result.tags)
+                    .bind(event_id)
+                    .execute(&mut **transaction)
+                    .await?;
+
+                let delete_processing_status_query = "
+                    DELETE FROM event_processing_status
+                    WHERE event_id = $1
+                ";
+
+                ::sqlx::query(delete_processing_status_query)
+                    .bind(event_id)
+                    .execute(&mut **transaction)
+                    .await?;
+            }
+            _ => {}
         }
     }
 
@@ -425,7 +488,7 @@ async fn apply_moderation_results(
 
 pub async fn run(
     pool: ::sqlx::PgPool,
-    csam: &dyn providers::csam::interface::ModerationCSAMProvider,
+    csam: Option<&dyn providers::csam::interface::ModerationCSAMProvider>,
     tag: Option<&dyn providers::tags::interface::ModerationTaggingProvider>,
     tagging_request_rate_limit: u16,
     csam_request_rate_limit: u16,
@@ -497,7 +560,10 @@ pub async fn approve_event(
         .fetch_optional(&mut **transaction)
         .await?;
 
-    debug!("Event approved successfully with logical_clock: {}", logical_clock);
+    debug!(
+        "Event approved successfully with logical_clock: {}",
+        logical_clock
+    );
     Ok(())
 }
 
@@ -513,7 +579,6 @@ mod tests {
 
     #[sqlx::test]
     async fn test_pull_queue_events(pool: PgPool) -> anyhow::Result<()> {
-        debug!("Running test_pull_queue_events");
         let mut transaction = pool.begin().await?;
         prepare_database(&mut transaction).await?;
 
@@ -555,18 +620,16 @@ mod tests {
         assert!(Some(signed_event) == loaded_event);
         assert_eq!(events.len(), 1);
 
-        debug!("test_pull_queue_events completed successfully");
         Ok(())
     }
 
     #[sqlx::test]
     async fn test_apply_moderation_results(pool: PgPool) -> anyhow::Result<()> {
-        debug!("Running test_apply_moderation_results");
         let mut transaction = pool.begin().await?;
         prepare_database(&mut transaction).await?;
 
         let mut constructed_events = vec![];
-        for _ in 0..4 {
+        for _ in 0..5 {
             let keypair = polycentric_protocol::test_utils::make_test_keypair();
             let process = polycentric_protocol::test_utils::make_test_process();
 
@@ -602,18 +665,21 @@ mod tests {
                 has_error: false,
                 is_csam: false,
                 tags: vec![],
+                blob_db_ids: None,
             },
             ModerationResult {
                 event_id: events[1].id,
                 has_error: false,
                 is_csam: true,
                 tags: vec![],
+                blob_db_ids: None,
             },
             ModerationResult {
                 event_id: events[2].id,
                 has_error: true,
                 is_csam: false,
                 tags: vec![],
+                blob_db_ids: None,
             },
             ModerationResult {
                 event_id: events[3].id,
@@ -629,11 +695,28 @@ mod tests {
                         2,
                     ),
                 ],
+                blob_db_ids: None,
+            },
+            // tags of 3 should be deleted
+            ModerationResult {
+                event_id: events[4].id,
+                has_error: false,
+                is_csam: false,
+                tags: vec![crate::model::moderation_tag::ModerationTag::new(
+                    "anything".to_string(),
+                    3,
+                )],
+                blob_db_ids: None,
             },
         ];
 
         // Apply moderation results
         apply_moderation_results(&mut transaction, &moderation_results).await?;
+
+        transaction.commit().await?;
+        transaction = pool.begin().await?;
+
+        let mut has_success = false;
 
         // Verify events after application
         for event in events.iter() {
@@ -643,10 +726,18 @@ mod tests {
                 WHERE id = $1
             ";
 
-            let status_str: String = sqlx::query_scalar(query)
+            let status_str: Option<String> = sqlx::query_scalar(query)
                 .bind(event.id)
-                .fetch_one(&mut *transaction)
+                .fetch_optional(&mut *transaction)
                 .await?;
+
+            // If the event was deleted, skip the rest of the loop
+            if status_str.is_none() {
+                assert!(event.id == events[1].id || event.id == events[4].id);
+                continue;
+            }
+
+            let status_str = status_str.unwrap();
 
             // find the moderation result for this event
             let moderation_result = moderation_results
@@ -661,7 +752,10 @@ mod tests {
             ) {
                 (true, _) => assert_eq!(status_str, "error"),
                 (_, true) => assert_eq!(status_str, "flagged_and_rejected"),
-                (false, false) => assert_eq!(status_str, "approved"),
+                (false, false) => {
+                    assert_eq!(status_str, "approved");
+                    has_success = true;
+                }
             }
 
             let tags_query = "
@@ -682,7 +776,8 @@ mod tests {
             }
         }
 
-        debug!("test_apply_moderation_results completed successfully");
+        assert!(has_success);
+
         Ok(())
     }
 
@@ -690,7 +785,6 @@ mod tests {
     async fn test_query_event_below_moderation_threshold_strict(
         pool: PgPool,
     ) -> anyhow::Result<()> {
-        debug!("Running test_query_event_below_moderation_threshold_strict");
         let mut transaction = pool.begin().await?;
         prepare_database(&mut transaction).await?;
 
@@ -710,12 +804,15 @@ mod tests {
                 vec![],
             );
 
+        println!("test_query_event_below_moderation_threshold_strict: ingesting event");
+
         crate::ingest::ingest_event_postgres(&mut transaction, &signed_event)
             .await?;
 
-        let system = crate::model::public_key::PublicKey::Ed25519(
-            keypair.verifying_key().clone(),
-        );
+        transaction.commit().await?;
+        transaction = pool.begin().await?;
+
+        println!("test_query_event_below_moderation_threshold_strict: loading events");
 
         let loaded_events = crate::postgres::load_posts_before_id(
             &mut transaction,
@@ -731,13 +828,11 @@ mod tests {
 
         assert_eq!(loaded_events.events.len(), 0);
 
-        debug!("test_query_event_below_moderation_threshold_strict completed successfully");
         Ok(())
     }
 
     #[sqlx::test]
     async fn test_moderation_filter_strict(pool: PgPool) -> anyhow::Result<()> {
-        debug!("Running test_moderation_filter_strict");
         let mut transaction = pool.begin().await?;
         prepare_database(&mut transaction).await?;
 
@@ -765,15 +860,12 @@ mod tests {
 
         assert_eq!(result, true);
 
-        debug!("test_moderation_filter_strict completed successfully");
         Ok(())
     }
-
     #[sqlx::test]
     async fn test_query_event_below_moderation_threshold_non_strict(
         pool: PgPool,
     ) -> anyhow::Result<()> {
-        debug!("Running test_query_event_below_moderation_threshold_non_strict");
         let mut transaction = pool.begin().await?;
         prepare_database(&mut transaction).await?;
 
@@ -795,6 +887,9 @@ mod tests {
 
         crate::ingest::ingest_event_postgres(&mut transaction, &signed_event)
             .await?;
+
+        transaction.commit().await?;
+        transaction = pool.begin().await?;
 
         // Don't load unapproved events
         let loaded_events = crate::postgres::load_posts_before_id(
@@ -821,11 +916,15 @@ mod tests {
             is_csam: false,
             tags: vec![crate::model::moderation_tag::ModerationTag::new(
                 "sexual".to_string(),
-                3,
+                2,
             )],
+            blob_db_ids: None,
         }];
 
         apply_moderation_results(&mut transaction, &moderation_results).await?;
+
+        transaction.commit().await?;
+        transaction = pool.begin().await?;
 
         let loaded_events = crate::postgres::load_posts_before_id(
             &mut transaction,
@@ -865,13 +964,11 @@ mod tests {
 
         assert_eq!(loaded_events_default.events.len(), 0);
 
-        debug!("test_query_event_below_moderation_threshold_non_strict completed successfully");
         Ok(())
     }
 
     #[sqlx::test]
     async fn test_above_threshold(pool: PgPool) -> anyhow::Result<()> {
-        debug!("Running test_above_threshold");
         let mut transaction = pool.begin().await?;
         prepare_database(&mut transaction).await?;
 
@@ -894,6 +991,9 @@ mod tests {
         crate::ingest::ingest_event_postgres(&mut transaction, &signed_event)
             .await?;
 
+        transaction.commit().await?;
+        transaction = pool.begin().await?;
+
         let events = pull_queue_events(&mut transaction).await?;
         assert_eq!(events.len(), 1);
 
@@ -903,11 +1003,14 @@ mod tests {
             is_csam: false,
             tags: vec![crate::model::moderation_tag::ModerationTag::new(
                 "violence".to_string(),
-                3,
+                2,
             )],
+            blob_db_ids: None,
         }];
 
         apply_moderation_results(&mut transaction, &moderation_results).await?;
+        transaction.commit().await?;
+        transaction = pool.begin().await?;
 
         let loaded_events = crate::postgres::load_posts_before_id(
             &mut transaction,

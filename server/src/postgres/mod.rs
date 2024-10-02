@@ -62,8 +62,10 @@ struct ExploreRow {
     #[sqlx(try_from = "i64")]
     server_time: u64,
     raw_event: ::std::vec::Vec<u8>,
-    moderation_tags: ::std::vec::Vec<
-        polycentric_protocol::model::moderation_tag::ModerationTag,
+    moderation_tags: Option<
+        ::std::vec::Vec<
+            polycentric_protocol::model::moderation_tag::ModerationTag,
+        >,
     >,
 }
 
@@ -185,7 +187,7 @@ pub(crate) async fn load_events_after_id(
         let event =
             polycentric_protocol::model::signed_event::from_raw_event_with_moderation_tags(
                 &row.raw_event,
-                &row.moderation_tags,
+                row.moderation_tags.clone()
             )?;
         result_set.push(event);
     }
@@ -233,7 +235,7 @@ pub(crate) async fn load_posts_before_id(
         let event =
             polycentric_protocol::model::signed_event::from_raw_event_with_moderation_tags(
                 &row.raw_event,
-                &row.moderation_tags,
+                row.moderation_tags.clone()
             )?;
         result_set.push(event);
     }
