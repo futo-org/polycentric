@@ -194,22 +194,15 @@ async fn pull_queue_events(
             event.content(),
         )?;
 
-        let (blob, blob_db_ids) = match *event.content_type() {
-            crate::model::known_message_types::POST => {
-                if post.image.sections.is_empty() {
-                    debug!("Event has no image sections, skipping");
-                    (None, None)
-                } else {
-                    let (blob, blob_db_ids) =
-                        get_blob(transaction, &event, &post).await?;
-                    (Some(blob), Some(blob_db_ids))
-                }
+        let (blob, blob_db_ids) = match post.image.sections.len() {
+            0 => {
+                debug!("Event has no image sections, skipping");
+                (None, None)
             }
             _ => {
-                return Err(::anyhow::anyhow!(
-                    "Unsupported content type: {}",
-                    event.content_type()
-                ));
+                let (blob, blob_db_ids) =
+                    get_blob(transaction, &event, &post).await?;
+                (Some(blob), Some(blob_db_ids))
             }
         };
 
