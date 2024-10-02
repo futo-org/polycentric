@@ -181,7 +181,7 @@ pub(crate) async fn load_event_later_than(
         Some(raw) => Ok(Some(
             polycentric_protocol::model::signed_event::from_raw_event_with_moderation_tags(
                 &raw.raw_event,
-                &raw.moderation_tags.unwrap_or_default(),
+                raw.moderation_tags.clone(),
             )?,
         )),
         None => Ok(None),
@@ -275,7 +275,7 @@ pub(crate) async fn load_event_earlier_than(
         Some(row) => Ok(Some(
             polycentric_protocol::model::signed_event::from_raw_event_with_moderation_tags(
                 &row.raw_event,
-                &row.moderation_tags.unwrap_or_default(),
+                row.moderation_tags.clone(),
             )?,
         )),
         None => Ok(None),
@@ -362,7 +362,7 @@ pub(crate) async fn load_events_by_time(
         .map(|row| {
             polycentric_protocol::model::signed_event::from_raw_event_with_moderation_tags(
                 &row.raw_event,
-                row.moderation_tags.as_ref().unwrap_or(&vec![]),
+                row.moderation_tags.clone(),
             )
         })
         .collect::<::anyhow::Result<
