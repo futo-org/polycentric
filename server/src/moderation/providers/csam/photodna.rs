@@ -111,7 +111,8 @@ impl ModerationCSAMProvider for PhotoDNAProvider {
             return Err(anyhow::anyhow!("PhotoDNA key not set"));
         }
 
-        let photo_dna = PhotoDNA::new(config.photodna_key.clone().unwrap(), true);
+        let photo_dna =
+            PhotoDNA::new(config.photodna_key.clone().unwrap(), true);
         self.photo_dna = Some(photo_dna);
         Ok(())
     }
