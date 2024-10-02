@@ -76,7 +76,6 @@ CREATE TABLE IF NOT EXISTS events (
 );
 
 DO $$ BEGIN
-    DROP TYPE IF EXISTS moderation_filter_type CASCADE;
     CREATE TYPE moderation_filter_type AS (
         tag VARCHAR(20),
         max_level SMALLINT,
