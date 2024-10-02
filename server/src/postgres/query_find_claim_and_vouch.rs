@@ -156,11 +156,11 @@ pub mod tests {
             &s2p1,
             1,
             polycentric_protocol::model::known_message_types::VOUCH,
-            &vec![],
+            &[],
             vec![polycentric_protocol::model::reference::Reference::Pointer(
                 polycentric_protocol::model::pointer::Pointer::new(
                     polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                        s1.verifying_key().clone(),
+                        s1.verifying_key(),
                     ),
                     s1p1,
                     1,
@@ -175,10 +175,10 @@ pub mod tests {
             crate::postgres::query_find_claim_and_vouch::query_find_claim_and_vouch(
                 &mut transaction,
                 &polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                    s2.verifying_key().clone()
+                    s2.verifying_key()
                 ),
                 &polycentric_protocol::model::public_key::PublicKey::Ed25519(
-                    s1.verifying_key().clone(),
+                    s1.verifying_key(),
                 ),
                 1,
                 &[claim_hacker_news],

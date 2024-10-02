@@ -567,6 +567,7 @@ export class ProcessHandle {
                         eventBuffer,
                     ),
                     event: eventBuffer,
+                    moderationTags: [],
                 });
 
                 return await this.ingestWithoutLock(signedEvent);

@@ -27,6 +27,28 @@ DO $$ BEGIN
             WHEN duplicate_object THEN null;
         END $$;
 
+
+DO $$ BEGIN
+    CREATE TYPE moderation_tag_type AS (
+        name VARCHAR(20),
+        level SMALLINT
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE moderation_status_enum AS ENUM (
+        'pending',
+        'processing',
+        'approved',
+        'flagged_and_rejected',
+        'error'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
 CREATE TABLE IF NOT EXISTS events (
     id BIGSERIAL PRIMARY KEY,
     system_key_type INT8 NOT NULL,
@@ -40,7 +62,10 @@ CREATE TABLE IF NOT EXISTS events (
     signature BYTEA NOT NULL,
     raw_event BYTEA NOT NULL,
     server_time INT8 NOT NULL,
-    unix_milliseconds INT8
+    unix_milliseconds INT8,
+
+    moderation_status moderation_status_enum NOT NULL DEFAULT 'pending',
+    moderation_tags moderation_tag_type[],
 
     CHECK (system_key_type >= 0),
     CHECK (LENGTH(process) = 16),
@@ -50,10 +75,90 @@ CREATE TABLE IF NOT EXISTS events (
     UNIQUE (system_key_type, system_key, process, logical_clock)
 );
 
+DO $$ BEGIN
+    CREATE TYPE moderation_filter_type AS (
+        name VARCHAR(20),
+        max_level SMALLINT,
+        strict_mode BOOLEAN
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+CREATE OR REPLACE FUNCTION filter_events_by_moderation(
+    event_row events,
+    filter_array moderation_filter_type[]
+)
+RETURNS BOOLEAN AS $$
+DECLARE
+    filter_item moderation_filter_type;
+    moderation_tag moderation_tag_type;
+    tag_found BOOLEAN;
+BEGIN
+    -- We only care about posts, descriptions and avatars
+    IF event_row.content_type != 3 AND event_row.content_type != 6 AND event_row.content_type != 9 THEN
+        RETURN TRUE;
+    END IF;
+
+    IF event_row.moderation_status != 'approved' THEN
+        RETURN FALSE;
+    END IF;
+    
+    IF filter_array IS NULL OR array_length(filter_array, 1) = 0 THEN
+        RETURN TRUE;
+    END IF;
+
+    FOREACH filter_item IN ARRAY filter_array
+    LOOP
+        tag_found := FALSE;
+
+        IF filter_item IS NULL THEN
+            CONTINUE;
+        END IF;
+        
+        FOREACH moderation_tag IN ARRAY event_row.moderation_tags
+        LOOP
+            IF moderation_tag.level > 2 THEN
+                RETURN FALSE;
+            END IF;
+
+            IF moderation_tag.name = filter_item.name THEN
+                tag_found := TRUE;
+                IF moderation_tag.level > filter_item.max_level THEN
+                    RETURN FALSE;
+                END IF;
+                EXIT;
+            END IF;
+        END LOOP;
+
+        IF filter_item.strict_mode AND NOT tag_found THEN
+            RETURN FALSE;
+        END IF;
+    END LOOP;
+    
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql;
+
+
 CREATE INDEX IF NOT EXISTS
 events_content_type_idx
 ON
 events (content_type);
+
+CREATE TABLE IF NOT EXISTS event_processing_status (
+    event_id BIGINT PRIMARY KEY REFERENCES events(id) ON DELETE CASCADE,
+    processing_started_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    failure_count INT NOT NULL DEFAULT 0,
+    last_failure_at TIMESTAMP WITH TIME ZONE,
+    last_error_message TEXT
+);
+
+CREATE INDEX IF NOT EXISTS event_processing_status_failure_count_idx
+ON event_processing_status (failure_count);
+
+CREATE INDEX IF NOT EXISTS event_processing_status_processing_started_at_idx
+ON event_processing_status (processing_started_at);
 
 CREATE TABLE IF NOT EXISTS count_references_bytes (
     id BIGSERIAL PRIMARY KEY,
