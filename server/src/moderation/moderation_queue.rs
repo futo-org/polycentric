@@ -264,7 +264,6 @@ async fn process_event(
     csam_request_rate_limiter: Arc<&RateLimiter>,
 ) -> ModerationResult {
     debug!("Processing event: {:?}", event.id);
-    // Acquire a permit from the rate limiter
 
     let should_csam = event.blob.is_some() && csam.is_some();
 
@@ -323,10 +322,14 @@ async fn process_event(
                     event.id, e
                 );
                 has_error = true;
-                &Vec::new()
+                let empty_vec = Vec::new();
+                &empty_vec
             }
         },
-        None => &Vec::new(),
+        None => {
+            let empty_vec = Vec::new();
+            &empty_vec
+        },
     };
 
     debug!("Event processed: {:?}", event.id);
