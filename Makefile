@@ -1,4 +1,4 @@
-.PHONY: proto pretty clean sandbox build-sandbox join-sandbox stop-sandbox join-postgres devcert deploy-polycentric-spa-staging
+.PHONY: proto pretty clean sandbox build-sandbox join-sandbox stop-sandbox join-postgres devcert deploy-polycentric-spa-staging build-ci-deps deploy-charts push-server-image
 
 CURRENT_UID := $(shell id -u)
 CURRENT_GID := $(shell id -g)
@@ -118,3 +118,19 @@ deploy-polycentric-web-staging:
 deploy-harbor-spa:
 	wrangler pages deploy --project-name harbor-social \
 		./packages/harbor-web/dist/ --branch main
+
+build-ci-deps:
+	DOCKER_BUILDKIT=1 docker build \
+        -f infra/ci-infra/dockerfiles/terraform/Dockerfile \
+		-t gitlab.futo.org:5050/polycentric/polycentric/terraform:latest .
+	docker push gitlab.futo.org:5050/polycentric/polycentric/terraform:latest
+	DOCKER_BUILDKIT=1 docker build \
+        -f infra/ci-infra/dockerfiles/kaniko/Dockerfile \
+		-t gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest .
+	docker push gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest
+
+push-server-image:
+	DOCKER_BUILDKIT=1 docker build \
+		-f server.dockerfile \
+		-t registry.digitalocean.com/polycentric/polycentric:latest .
+	docker push registry.digitalocean.com/polycentric/polycentric:latest
