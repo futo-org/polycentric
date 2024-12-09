@@ -425,15 +425,18 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
             };
 
             // Exit if either the moderation queue or the API server fails
-            if skip_moderation {
-                serve_api(&config, &pool).await?;
-            } else {
-                tokio::select! {
-                    moderation_end_result = run_moderation_queue(&config, &pool) => {
-                        moderation_end_result?;
-                    }
-                    api_end_result = serve_api(&config, &pool) => {
-                        api_end_result?;
+            match config.moderation_mode {
+                ModerationMode::Off => {
+                    serve_api(&config, &pool).await?;
+                }
+                _ => {
+                    tokio::select! {
+                        moderation_end_result = run_moderation_queue(&config, &pool) => {
+                            moderation_end_result?;
+                        }
+                        api_end_result = serve_api(&config, &pool) => {
+                            api_end_result?;
+                        }
                     }
                 }
             }
