@@ -54,7 +54,7 @@ struct ModerationQueueRawRow {
 #[derive(sqlx::Type, Debug, PartialEq)]
 #[sqlx(type_name = "moderation_status_enum", rename_all = "snake_case")]
 enum ModerationStatus {
-    Pending,
+    Unprocessed,
     Processing,
     Approved,
     FlaggedAndRejected,
@@ -139,12 +139,12 @@ async fn pull_queue_events(
            EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(eps.last_failure_at, '1970-01-01'::timestamp))) AS time_since_last_failure
     FROM events e
     LEFT JOIN event_processing_status eps ON e.id = eps.event_id
-    WHERE (e.moderation_status = 'pending'
+    WHERE (e.moderation_status = 'unprocessed'
        OR (e.moderation_status = 'error' AND COALESCE(eps.failure_count, 0) < 3))
        AND e.content_type IN (3, 6, 9)
     ORDER BY 
         CASE 
-            WHEN e.moderation_status = 'pending' THEN 0
+            WHEN e.moderation_status = 'unprocessed' THEN 0
             ELSE 1
         END,
         CASE 

@@ -102,7 +102,7 @@ async fn migration_2_add_moderation_tags_cols(
     ::sqlx::query(
         "
         ALTER TABLE events
-        ADD COLUMN IF NOT EXISTS moderation_status moderation_status_enum NOT NULL DEFAULT 'pending',
+        ADD COLUMN IF NOT EXISTS moderation_status moderation_status_enum NOT NULL DEFAULT 'unprocessed',
         ADD COLUMN IF NOT EXISTS moderation_tags moderation_tag_type[];
         ",
     )
