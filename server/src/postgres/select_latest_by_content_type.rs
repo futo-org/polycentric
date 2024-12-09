@@ -32,7 +32,6 @@ pub(crate) async fn select(
 
         SELECT DISTINCT ON (
             events.system_key_type,
-            events.system_key,
             events.process,
             events.content_type
         ) raw_event FROM
