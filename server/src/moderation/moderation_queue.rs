@@ -54,7 +54,7 @@ struct ModerationQueueRawRow {
 #[derive(sqlx::Type, Debug, PartialEq)]
 #[sqlx(type_name = "moderation_status_enum", rename_all = "snake_case")]
 enum ModerationStatus {
-    Pending,
+    Unprocessed,
     Processing,
     Approved,
     FlaggedAndRejected,
@@ -139,12 +139,12 @@ async fn pull_queue_events(
            EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(eps.last_failure_at, '1970-01-01'::timestamp))) AS time_since_last_failure
     FROM events e
     LEFT JOIN event_processing_status eps ON e.id = eps.event_id
-    WHERE (e.moderation_status = 'pending'
+    WHERE (e.moderation_status = 'unprocessed'
        OR (e.moderation_status = 'error' AND COALESCE(eps.failure_count, 0) < 3))
        AND e.content_type IN (3, 6, 9)
     ORDER BY 
         CASE 
-            WHEN e.moderation_status = 'pending' THEN 0
+            WHEN e.moderation_status = 'unprocessed' THEN 0
             ELSE 1
         END,
         CASE 
@@ -370,16 +370,12 @@ async fn apply_moderation_results(
         let event_id = result.event_id;
         let has_error = result.has_error;
         let is_csam = result.is_csam;
-        let has_any_over_level_2 =
-            result.tags.iter().any(|tag| *tag.level() > 2);
 
-        let new_moderation_status =
-            match (has_error, is_csam, has_any_over_level_2) {
-                (false, true, _) => ModerationStatus::FlaggedAndRejected,
-                (false, _, true) => ModerationStatus::FlaggedAndRejected,
-                (true, _, _) => ModerationStatus::Error,
-                (false, false, false) => ModerationStatus::Approved,
-            };
+        let new_moderation_status = match (has_error, is_csam) {
+            (false, true) => ModerationStatus::FlaggedAndRejected,
+            (true, _) => ModerationStatus::Error,
+            (false, false) => ModerationStatus::Approved,
+        };
 
         match new_moderation_status {
             ModerationStatus::FlaggedAndRejected => {
@@ -544,8 +540,9 @@ pub async fn approve_event(
 mod tests {
     use super::*;
     use crate::{
+        config::ModerationMode,
         model::moderation_tag::ModerationTagName,
-        moderation::{ModerationFilter, ModerationOptions},
+        moderation::{ModerationFilter, ModerationFilters, ModerationOptions},
         postgres::prepare_database,
     };
     use sqlx::PgPool;
@@ -583,6 +580,10 @@ mod tests {
             &system,
             &process,
             52,
+            &crate::moderation::ModerationOptions {
+                filters: None,
+                mode: ModerationMode::Off,
+            },
         )
         .await?;
 
@@ -791,11 +792,14 @@ mod tests {
             &mut transaction,
             100000,
             1,
-            &Some(ModerationOptions(vec![ModerationFilter {
-                name: ModerationTagName::new(String::from("sexual")),
-                max_level: 1,
-                strict_mode: true,
-            }])),
+            &ModerationOptions {
+                filters: Some(ModerationFilters(vec![ModerationFilter {
+                    name: ModerationTagName::new(String::from("sexual")),
+                    max_level: 1,
+                    strict_mode: true,
+                }])),
+                mode: ModerationMode::Strong,
+            },
         )
         .await?;
 
@@ -869,11 +873,14 @@ mod tests {
             &mut transaction,
             100000,
             1,
-            &Some(ModerationOptions(vec![ModerationFilter {
-                name: ModerationTagName::new(String::from("sexual")),
-                max_level: 0,
-                strict_mode: false,
-            }])),
+            &ModerationOptions {
+                filters: Some(ModerationFilters(vec![ModerationFilter {
+                    name: ModerationTagName::new(String::from("sexual")),
+                    max_level: 0,
+                    strict_mode: false,
+                }])),
+                mode: ModerationMode::Strong,
+            },
         )
         .await?;
 
@@ -903,11 +910,14 @@ mod tests {
             &mut transaction,
             100000,
             1,
-            &Some(ModerationOptions(vec![ModerationFilter {
-                name: ModerationTagName::new(String::from("sexual")),
-                max_level: 0,
-                strict_mode: false,
-            }])),
+            &ModerationOptions {
+                filters: Some(ModerationFilters(vec![ModerationFilter {
+                    name: ModerationTagName::new(String::from("sexual")),
+                    max_level: 0,
+                    strict_mode: false,
+                }])),
+                mode: ModerationMode::Strong,
+            },
         )
         .await?;
 
@@ -917,11 +927,14 @@ mod tests {
             &mut transaction,
             100000,
             1,
-            &Some(ModerationOptions(vec![ModerationFilter {
-                name: ModerationTagName::new(String::from("sexual")),
-                max_level: 3,
-                strict_mode: false,
-            }])),
+            &ModerationOptions {
+                filters: Some(ModerationFilters(vec![ModerationFilter {
+                    name: ModerationTagName::new(String::from("sexual")),
+                    max_level: 3,
+                    strict_mode: false,
+                }])),
+                mode: ModerationMode::Strong,
+            },
         )
         .await?;
 
@@ -931,7 +944,10 @@ mod tests {
             &mut transaction,
             100000,
             1,
-            &None,
+            &ModerationOptions {
+                filters: None,
+                mode: ModerationMode::Strong,
+            },
         )
         .await?;
 
@@ -989,11 +1005,14 @@ mod tests {
             &mut transaction,
             100000,
             1,
-            &Some(ModerationOptions(vec![ModerationFilter {
-                name: ModerationTagName::new(String::from("violence")),
-                max_level: 1,
-                strict_mode: false,
-            }])),
+            &ModerationOptions {
+                filters: Some(ModerationFilters(vec![ModerationFilter {
+                    name: ModerationTagName::new(String::from("violence")),
+                    max_level: 1,
+                    strict_mode: false,
+                }])),
+                mode: ModerationMode::Strong,
+            },
         )
         .await?;
 
@@ -1003,15 +1022,84 @@ mod tests {
             &mut transaction,
             100000,
             1,
-            &Some(ModerationOptions(vec![ModerationFilter {
-                name: ModerationTagName::new(String::from("sexual")),
-                max_level: 1,
-                strict_mode: false,
-            }])),
+            &ModerationOptions {
+                filters: Some(ModerationFilters(vec![ModerationFilter {
+                    name: ModerationTagName::new(String::from("sexual")),
+                    max_level: 1,
+                    strict_mode: false,
+                }])),
+                mode: ModerationMode::Strong,
+            },
         )
         .await?;
 
         assert_eq!(loaded_events2.events.len(), 1);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_moderation_modes(pool: PgPool) -> anyhow::Result<()> {
+        let mut transaction = pool.begin().await?;
+        prepare_database(&mut transaction).await?;
+
+        let keypair = polycentric_protocol::test_utils::make_test_keypair();
+        let process = polycentric_protocol::test_utils::make_test_process();
+
+        let mut post = polycentric_protocol::protocol::Post::new();
+        post.content = Some("test".to_string());
+
+        let signed_event =
+            polycentric_protocol::test_utils::make_test_event_with_content(
+                &keypair,
+                &process,
+                52,
+                3,
+                &post.write_to_bytes()?,
+                vec![],
+            );
+
+        crate::ingest::ingest_event_postgres(&mut transaction, &signed_event)
+            .await?;
+
+        transaction.commit().await?;
+        transaction = pool.begin().await?;
+
+        // In weak mode, events should be visible while we wait for moderation
+        let loaded_events_weak = crate::postgres::load_posts_before_id(
+            &mut transaction,
+            100000,
+            1,
+            &ModerationOptions {
+                filters: Some(ModerationFilters(vec![ModerationFilter {
+                    name: ModerationTagName::new(String::from("violence")),
+                    max_level: 3,
+                    strict_mode: false,
+                }])),
+                mode: ModerationMode::Lazy,
+            },
+        )
+        .await?;
+
+        assert_eq!(loaded_events_weak.events.len(), 1);
+
+        // In strong mode, events should not be visible until moderation is complete
+        let loaded_events_strong = crate::postgres::load_posts_before_id(
+            &mut transaction,
+            100000,
+            1,
+            &ModerationOptions {
+                filters: Some(ModerationFilters(vec![ModerationFilter {
+                    name: ModerationTagName::new(String::from("violence")),
+                    max_level: 3,
+                    strict_mode: false,
+                }])),
+                mode: ModerationMode::Strong,
+            },
+        )
+        .await?;
+
+        assert_eq!(loaded_events_strong.events.len(), 0);
 
         Ok(())
     }

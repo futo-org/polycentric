@@ -9,8 +9,8 @@ pub(crate) struct Query {
     content_type: u64,
     after: ::core::option::Option<u64>,
     limit: ::core::option::Option<u64>,
-    moderation_options:
-        ::core::option::Option<crate::moderation::ModerationOptions>,
+    moderation_filters:
+        ::core::option::Option<crate::moderation::ModerationFilters>,
 }
 
 pub(crate) async fn handler(
@@ -27,7 +27,10 @@ pub(crate) async fn handler(
             query.content_type,
             query.limit.unwrap_or(10),
             &query.after,
-            &query.moderation_options,
+            &crate::moderation::ModerationOptions {
+                filters: query.moderation_filters,
+                mode: state.moderation_mode,
+            },
         )
         .await
     );

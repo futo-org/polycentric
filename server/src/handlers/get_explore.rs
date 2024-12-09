@@ -1,4 +1,4 @@
-use crate::moderation::ModerationOptions;
+use crate::moderation::ModerationFilters;
 use ::protobuf::{Message, MessageField};
 use polycentric_protocol::protocol::Events;
 
@@ -6,7 +6,7 @@ use polycentric_protocol::protocol::Events;
 pub(crate) struct Query {
     cursor: ::std::option::Option<String>,
     limit: ::std::option::Option<u64>,
-    moderation_options: ::std::option::Option<ModerationOptions>,
+    moderation_filters: ::std::option::Option<ModerationFilters>,
 }
 
 pub(crate) async fn handler(
@@ -33,7 +33,10 @@ pub(crate) async fn handler(
             &mut transaction,
             start_id,
             limit,
-            &query.moderation_options
+            &crate::moderation::ModerationOptions {
+                filters: query.moderation_filters.clone(),
+                mode: state.moderation_mode,
+            }
         )
         .await
     );

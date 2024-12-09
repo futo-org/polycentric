@@ -587,6 +587,10 @@ pub(crate) async fn update_counts(
             event.system(),
             body.process(),
             *body.logical_clock(),
+            &crate::postgres::ModerationOptions {
+                filters: None,
+                mode: crate::config::ModerationMode::Off,
+            },
         )
         .await?;
 

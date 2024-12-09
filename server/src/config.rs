@@ -6,6 +6,41 @@ pub(crate) enum Mode {
     BackfillRemoteServer,
 }
 
+impl ::std::str::FromStr for Mode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Mode, ()> {
+        match s {
+            "SERVE_API" => Ok(Mode::ServeAPI),
+            "BACKFILL_SEARCH" => Ok(Mode::BackfillSearch),
+            "BACKFILL_REMOTE_SERVER" => Ok(Mode::BackfillRemoteServer),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Clone, Copy, ::sqlx::Type, ::serde::Deserialize)]
+#[sqlx(type_name = "moderation_mode")]
+#[sqlx(rename_all = "lowercase")]
+pub(crate) enum ModerationMode {
+    Off,
+    Lazy,
+    Strong,
+}
+
+impl ::std::str::FromStr for ModerationMode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<ModerationMode, ()> {
+        match s {
+            "OFF" => Ok(ModerationMode::Off),
+            "LAZY" => Ok(ModerationMode::Lazy),
+            "STRONG" => Ok(ModerationMode::Strong),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(::envconfig::Envconfig)]
 pub(crate) struct Config {
     #[envconfig(from = "HTTP_PORT_API", default = "8081")]
@@ -46,6 +81,9 @@ pub(crate) struct Config {
 
     #[envconfig(from = "BACKFILL_REMOTE_SERVER_POSITION")]
     pub backfill_remote_server_position: Option<u64>,
+
+    #[envconfig(from = "MODERATION_MODE", default = "LAZY")]
+    pub moderation_mode: ModerationMode,
 
     #[envconfig(from = "CSAM_INTERFACE")]
     pub csam_interface: Option<String>,

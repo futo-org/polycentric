@@ -1,3 +1,5 @@
+use super::{ModerationFilters, ModerationOptions};
+
 #[derive(::sqlx::FromRow)]
 struct QueryRow {
     raw_event: ::std::vec::Vec<u8>,
@@ -141,6 +143,7 @@ pub(crate) async fn query_bytes(
     from_type: &::std::option::Option<u64>,
     cursor: &::std::option::Option<u64>,
     limit: u64,
+    moderation_options: &ModerationOptions,
 ) -> ::anyhow::Result<QueryResult> {
     let query = format!(
         "
@@ -157,6 +160,8 @@ pub(crate) async fn query_bytes(
             event_references_bytes.subject_bytes = ANY($1)
         AND
             ($2 IS NULL OR events.content_type = $2)
+        AND
+            filter_events_by_moderation(events, $5::moderation_filter_type[], $6::moderation_mode)
         GROUP BY
             events.id
         ORDER BY
@@ -184,6 +189,13 @@ pub(crate) async fn query_bytes(
         .bind(from_type_query)
         .bind(cursor_query)
         .bind(i64::try_from(limit)?)
+        .bind(
+            moderation_options
+                .filters
+                .as_ref()
+                .unwrap_or(&ModerationFilters::default()),
+        )
+        .bind(moderation_options.mode)
         .fetch_all(&mut **transaction)
         .await?;
 
@@ -196,6 +208,7 @@ pub(crate) async fn query_references(
     from_type: &::std::option::Option<u64>,
     cursor: &::std::option::Option<u64>,
     limit: u64,
+    moderation_options: &ModerationOptions,
 ) -> ::anyhow::Result<QueryResult> {
     match reference {
         polycentric_protocol::model::PointerOrByteReferences::Pointer(
@@ -213,7 +226,15 @@ pub(crate) async fn query_references(
             .await
         }
         polycentric_protocol::model::PointerOrByteReferences::Bytes(bytes) => {
-            query_bytes(transaction, bytes, from_type, cursor, limit).await
+            query_bytes(
+                transaction,
+                bytes,
+                from_type,
+                cursor,
+                limit,
+                moderation_options,
+            )
+            .await
         }
     }
 }

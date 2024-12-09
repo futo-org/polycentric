@@ -1,3 +1,4 @@
+use crate::moderation::ModerationOptions;
 use ::protobuf::Message;
 
 async fn load_version(
@@ -101,7 +102,7 @@ async fn migration_2_add_moderation_tags_cols(
     ::sqlx::query(
         "
         ALTER TABLE events
-        ADD COLUMN IF NOT EXISTS moderation_status moderation_status_enum NOT NULL DEFAULT 'pending',
+        ADD COLUMN IF NOT EXISTS moderation_status moderation_status_enum NOT NULL DEFAULT 'unprocessed',
         ADD COLUMN IF NOT EXISTS moderation_tags moderation_tag_type[];
         ",
     )
@@ -153,6 +154,10 @@ pub(crate) async fn backfill_search(
             &mut transaction,
             &position,
             25,
+            &ModerationOptions {
+                filters: None,
+                mode: crate::config::ModerationMode::Off,
+            },
         )
         .await?;
 
@@ -215,6 +220,10 @@ pub(crate) async fn backfill_remote_server(
             &mut transaction,
             &position,
             50,
+            &ModerationOptions {
+                filters: None,
+                mode: crate::config::ModerationMode::Off,
+            },
         )
         .await?;
 
