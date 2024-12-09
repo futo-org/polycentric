@@ -145,33 +145,6 @@ pub(crate) async fn handler(
             }
 
             result.items.push(item);
-
-            let system = event.system();
-
-            for additional_event in
-                query.query.additional_system_lww_content_types.iter()
-            {
-                let additional_query_result = crate::warp_try_err_500!(
-                    crate::postgres::select_latest_by_content_type::select(
-                        &mut transaction,
-                        system,
-                        &additional_event.content_types,
-                        &crate::moderation::ModerationOptions {
-                            filters: query.moderation_filters.clone(),
-                            mode: state.moderation_mode,
-                        },
-                    )
-                    .await
-                );
-
-                for signed_event in additional_query_result.iter() {
-                    result.related_events.push(
-                        polycentric_protocol::model::signed_event::to_proto(
-                            signed_event,
-                        ),
-                    );
-                }
-            }
         }
     }
 
