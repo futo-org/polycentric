@@ -189,10 +189,12 @@ pub(crate) async fn query_bytes(
         .bind(from_type_query)
         .bind(cursor_query)
         .bind(i64::try_from(limit)?)
-        .bind(&moderation_options
-            .filters
-            .as_ref()
-            .unwrap_or(&ModerationFilters::default()))
+        .bind(
+            moderation_options
+                .filters
+                .as_ref()
+                .unwrap_or(&ModerationFilters::default()),
+        )
         .bind(moderation_options.mode)
         .fetch_all(&mut **transaction)
         .await?;
