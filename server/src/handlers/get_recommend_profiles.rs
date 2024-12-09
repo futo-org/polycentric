@@ -1,10 +1,10 @@
 use ::protobuf::Message;
 
-use crate::moderation::ModerationOptions;
+use crate::moderation::ModerationFilters;
 
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
-    moderation_options: ::std::option::Option<ModerationOptions>,
+    moderation_filters: ::std::option::Option<ModerationFilters>,
 }
 
 pub(crate) async fn handler(
@@ -19,7 +19,10 @@ pub(crate) async fn handler(
     let random_identities = crate::warp_try_err_500!(
         crate::postgres::load_random_profiles(
             &mut transaction,
-            &query.moderation_options
+            &crate::moderation::ModerationOptions {
+                filters: query.moderation_filters,
+                mode: crate::config::ModerationMode::Off,
+            },
         )
         .await
     );

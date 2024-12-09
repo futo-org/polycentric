@@ -39,11 +39,21 @@ END $$;
 
 DO $$ BEGIN
     CREATE TYPE moderation_status_enum AS ENUM (
-        'pending',
+        'unprocessed',
         'processing',
         'approved',
         'flagged_and_rejected',
         'error'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE moderation_mode AS ENUM (
+        'off',
+        'lazy',
+        'strong'
     );
 EXCEPTION
     WHEN duplicate_object THEN null;
@@ -64,7 +74,7 @@ CREATE TABLE IF NOT EXISTS events (
     server_time INT8 NOT NULL,
     unix_milliseconds INT8,
 
-    moderation_status moderation_status_enum NOT NULL DEFAULT 'pending',
+    moderation_status moderation_status_enum NOT NULL DEFAULT 'unprocessed',
     moderation_tags moderation_tag_type[],
 
     CHECK (system_key_type >= 0),
@@ -74,6 +84,9 @@ CREATE TABLE IF NOT EXISTS events (
 
     UNIQUE (system_key_type, system_key, process, logical_clock)
 );
+
+CREATE INDEX IF NOT EXISTS idx_events_system_key_type_system_key_content_type
+ON events (system_key_type, system_key, content_type);
 
 DO $$ BEGIN
     CREATE TYPE moderation_filter_type AS (
@@ -87,7 +100,8 @@ END $$;
 
 CREATE OR REPLACE FUNCTION filter_events_by_moderation(
     event_row events,
-    filter_array moderation_filter_type[]
+    filter_array moderation_filter_type[],
+    moderation_mode moderation_mode
 )
 RETURNS BOOLEAN AS $$
 DECLARE
@@ -100,8 +114,15 @@ BEGIN
         RETURN TRUE;
     END IF;
 
+    IF moderation_mode = 'off' THEN
+        RETURN TRUE;
+    END IF;
+
     IF event_row.moderation_status != 'approved' THEN
-        RETURN FALSE;
+        IF moderation_mode = 'strong' THEN
+            RETURN FALSE;
+        END IF;
+        RETURN TRUE;
     END IF;
     
     IF filter_array IS NULL OR array_length(filter_array, 1) = 0 THEN
@@ -257,6 +278,8 @@ CREATE TABLE IF NOT EXISTS event_links (
     ON DELETE CASCADE
 );
 
+CREATE INDEX IF NOT EXISTS idx_event_links_event_id ON event_links (event_id);
+
 CREATE INDEX IF NOT EXISTS
 event_links_subject_idx
 ON
@@ -278,6 +301,8 @@ CREATE TABLE IF NOT EXISTS event_references_bytes (
     ON DELETE CASCADE
 );
 
+CREATE INDEX IF NOT EXISTS idx_event_references_bytes_event_id ON event_references_bytes (event_id);
+
 CREATE INDEX IF NOT EXISTS
 event_references_bytes_subject_bytes_idx
 ON
@@ -298,6 +323,8 @@ CREATE TABLE IF NOT EXISTS event_indices (
     ON DELETE CASCADE
 );
 
+CREATE INDEX IF NOT EXISTS idx_event_indices_event_id ON event_indices (event_id);
+
 CREATE TABLE IF NOT EXISTS claims (
     id BIGSERIAL PRIMARY KEY,
     claim_type INT8 NOT NULL,
@@ -312,6 +339,9 @@ CREATE TABLE IF NOT EXISTS claims (
     ON DELETE CASCADE
 );
 
+CREATE INDEX IF NOT EXISTS idx_claims_event_id ON claims (event_id);
+CREATE INDEX IF NOT EXISTS idx_claims_type_fields ON claims (claim_type, fields);
+
 CREATE TABLE IF NOT EXISTS lww_elements (
     id BIGSERIAL PRIMARY KEY,
     unix_milliseconds INT8 NOT NULL,
@@ -325,6 +355,8 @@ CREATE TABLE IF NOT EXISTS lww_elements (
     REFERENCES events (id)
     ON DELETE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS idx_lww_elements_event_id ON lww_elements (event_id);
 
 CREATE TABLE IF NOT EXISTS process_state (
     id BIGSERIAL PRIMARY KEY,
@@ -359,6 +391,9 @@ CREATE TABLE IF NOT EXISTS deletions (
     REFERENCES events (id)
     ON DELETE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS idx_deletions_system_key_type_system_key ON deletions (system_key_type, system_key);
+CREATE INDEX IF NOT EXISTS idx_deletions_system_key_logical_clock ON deletions (system_key_type, system_key, process, logical_clock);
 
 CREATE TABLE IF NOT EXISTS censored_events (
     id BIGSERIAL PRIMARY KEY,
@@ -415,6 +450,8 @@ CREATE TABLE IF NOT EXISTS lww_element_latest_reference_pointer (
     )
 );
 
+CREATE INDEX IF NOT EXISTS idx_lww_element_latest_reference_pointer_event_id ON lww_element_latest_reference_pointer (event_id);
+
 CREATE INDEX IF NOT EXISTS
 lww_element_latest_reference_pointer_idx
 ON
@@ -452,6 +489,8 @@ CREATE TABLE IF NOT EXISTS lww_element_latest_reference_bytes (
         subject
     )
 );
+
+CREATE INDEX IF NOT EXISTS idx_lww_element_latest_reference_bytes_event_id ON lww_element_latest_reference_bytes (event_id);
 
 CREATE INDEX IF NOT EXISTS
 lww_element_latest_reference_bytes_idx

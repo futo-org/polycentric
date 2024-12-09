@@ -1,9 +1,12 @@
 use ::protobuf::Message;
 
+use super::ModerationFilters;
+
 pub(crate) async fn select(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     system: &polycentric_protocol::model::public_key::PublicKey,
     ranges: &polycentric_protocol::protocol::RangesForSystem,
+    moderation_options: &crate::moderation::ModerationOptions,
 ) -> ::anyhow::Result<
     ::std::vec::Vec<polycentric_protocol::model::signed_event::SignedEvent>,
 > {
@@ -49,6 +52,8 @@ pub(crate) async fn select(
             events.logical_clock >= input_rows.low
         AND
             events.logical_clock <= input_rows.high
+        AND
+            filter_events_by_moderation(events, $6::moderation_filter_type[], $7::moderation_mode)
     ";
 
     let mut p_system_key_type = vec![];
@@ -77,6 +82,8 @@ pub(crate) async fn select(
         .bind(p_process)
         .bind(p_low)
         .bind(p_high)
+        .bind(moderation_options.filters.as_ref().unwrap_or(&ModerationFilters::empty()))
+        .bind(moderation_options.mode)
         .fetch_all(&mut **transaction)
         .await?
         .iter()

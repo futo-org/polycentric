@@ -1,4 +1,5 @@
 use ::protobuf::Message;
+use crate::moderation::ModerationOptions;
 
 async fn load_version(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
@@ -153,6 +154,10 @@ pub(crate) async fn backfill_search(
             &mut transaction,
             &position,
             25,
+            &ModerationOptions {
+                filters: None,
+                mode: crate::config::ModerationMode::Off,
+            },
         )
         .await?;
 
@@ -215,6 +220,10 @@ pub(crate) async fn backfill_remote_server(
             &mut transaction,
             &position,
             50,
+            &ModerationOptions {
+                filters: None,
+                mode: crate::config::ModerationMode::Off,
+            },
         )
         .await?;
 

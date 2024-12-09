@@ -24,6 +24,10 @@ async fn handler_inner(
         &mut transaction,
         &query.system,
         &query.event_types.numbers,
+        &crate::moderation::ModerationOptions {
+            filters: None,
+            mode: state.moderation_mode,
+        },
     )
     .await?
     .iter()

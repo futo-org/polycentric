@@ -1,9 +1,12 @@
 use ::protobuf::Message;
 
+use super::ModerationFilters;
+
 pub(crate) async fn select(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     system: &polycentric_protocol::model::public_key::PublicKey,
     content_types: &[u64],
+    moderation_options: &crate::moderation::ModerationOptions,
 ) -> ::anyhow::Result<
     ::std::vec::Vec<polycentric_protocol::model::signed_event::SignedEvent>,
 > {
@@ -29,7 +32,6 @@ pub(crate) async fn select(
 
         SELECT DISTINCT ON (
             events.system_key_type,
-            events.system_key,
             events.process,
             events.content_type
         ) raw_event FROM
@@ -42,6 +44,8 @@ pub(crate) async fn select(
             events.system_key = input_rows.system_key
         AND
             events.content_type = input_rows.content_type
+        AND
+            filter_events_by_moderation(events, $4::moderation_filter_type[], $5::moderation_mode)
         ORDER BY
             events.system_key_type DESC,
             events.system_key DESC,
@@ -68,6 +72,8 @@ pub(crate) async fn select(
         .bind(p_system_key_type)
         .bind(p_system_key)
         .bind(p_content_type)
+        .bind(moderation_options.filters.as_ref().unwrap_or(&ModerationFilters::empty()))
+        .bind(moderation_options.mode)
         .fetch_all(&mut **transaction)
         .await?
         .iter()

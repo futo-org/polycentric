@@ -6,6 +6,7 @@ pub(crate) struct Query {
         deserialize_with = "polycentric_protocol::model::public_key::serde_url_deserialize"
     )]
     system: polycentric_protocol::model::public_key::PublicKey,
+    moderation_filters: ::core::option::Option<crate::moderation::ModerationFilters>,
 }
 
 pub(crate) async fn handler(
@@ -55,6 +56,10 @@ async fn handler_inner(
                     head_event.system(),
                     head_event.process(),
                     index.logical_clock,
+                    &crate::moderation::ModerationOptions {
+                        filters: query.moderation_filters.clone(),
+                        mode: state.moderation_mode,
+                    },
                 )
                 .await?;
 

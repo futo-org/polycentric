@@ -1,4 +1,4 @@
-use crate::model::moderation_tag::ModerationTagName;
+use crate::{config::ModerationMode, model::moderation_tag::ModerationTagName};
 
 pub mod moderation_queue;
 pub mod providers;
@@ -19,11 +19,11 @@ impl sqlx::postgres::PgHasArrayType for ModerationFilter {
 }
 
 #[derive(::serde::Deserialize, Clone, Debug)]
-pub(crate) struct ModerationOptions(Vec<ModerationFilter>);
+pub(crate) struct ModerationFilters(Vec<ModerationFilter>);
 
-// We don't want to implement `sqlx::Type<T>` for `ModerationOptions` because it's not a valid SQL type.
+// We don't want to implement `sqlx::Type<T>` for `ModerationFilters` because it's not a valid SQL type.
 // Rather, have it inherit all needed traits from `Vec<ModerationFilter>` so that we can use it in queries.
-impl<T: sqlx::Database> sqlx::Type<T> for ModerationOptions
+impl<T: sqlx::Database> sqlx::Type<T> for ModerationFilters
 where
     Vec<ModerationFilter>: sqlx::Type<T>,
 {
@@ -32,7 +32,7 @@ where
     }
 }
 
-impl<'q, T: sqlx::Database> sqlx::Encode<'q, T> for ModerationOptions
+impl<'q, T: sqlx::Database> sqlx::Encode<'q, T> for ModerationFilters
 where
     Vec<ModerationFilter>: sqlx::Encode<'q, T>,
 {
@@ -44,9 +44,9 @@ where
     }
 }
 
-impl Default for ModerationOptions {
+impl Default for ModerationFilters {
     fn default() -> Self {
-        ModerationOptions(vec![
+        ModerationFilters(vec![
             ModerationFilter {
                 name: ModerationTagName::new(String::from("violence")),
                 max_level: 1,
@@ -71,8 +71,13 @@ impl Default for ModerationOptions {
     }
 }
 
-impl ModerationOptions {
+impl ModerationFilters {
     pub fn empty() -> Self {
-        ModerationOptions(vec![])
+        ModerationFilters(vec![])
     }
+}
+
+pub(crate) struct ModerationOptions {
+    pub(crate) filters: Option<ModerationFilters>,
+    pub(crate) mode: ModerationMode,
 }

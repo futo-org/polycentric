@@ -3,6 +3,8 @@ use ::protobuf::Message;
 use ::protobuf::MessageField;
 use ::serde_json::json;
 
+use crate::moderation::{ModerationOptions, ModerationFilters};
+
 #[derive(::serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[derive(PartialEq, Debug, Clone)]
@@ -17,6 +19,7 @@ pub(crate) struct Query {
     cursor: ::std::option::Option<String>,
     limit: ::std::option::Option<u64>,
     search_type: ::std::option::Option<SearchType>,
+    moderation_filters: ::std::option::Option<ModerationFilters>,
 }
 
 pub(crate) async fn handler(
@@ -40,6 +43,7 @@ pub(crate) async fn handler(
             query.limit.unwrap_or(10),
             start_count,
             query.search_type.unwrap_or(SearchType::Messages),
+            &query.moderation_filters,
         )
         .await
     ))
@@ -51,6 +55,7 @@ pub(crate) async fn handler_inner(
     limit: u64,
     start_count: u64,
     search_type: SearchType,
+    moderation_filters: &Option<ModerationFilters>,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
     let response = state
         .search
@@ -95,6 +100,10 @@ pub(crate) async fn handler_inner(
                     pointer.system(),
                     pointer.process(),
                     *pointer.logical_clock(),
+                    &ModerationOptions {
+                        filters: moderation_filters.clone(),
+                        mode: state.moderation_mode,
+                    },
                 )
                 .await?;
 
