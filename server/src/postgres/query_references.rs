@@ -161,14 +161,14 @@ pub(crate) async fn query_bytes(
         AND
             ($2 IS NULL OR events.content_type = $2)
         AND
-            filter_events_by_moderation(events, $3::moderation_filter_type[], $4::moderation_mode)
+            filter_events_by_moderation(events, $5::moderation_filter_type[], $6::moderation_mode)
         GROUP BY
             events.id
         ORDER BY
             (SUM(COALESCE(likes.count, 0)) - SUM(COALESCE(dislikes.count, 0))) DESC,
             events.id DESC
-        OFFSET COALESCE($5, 0)
-        LIMIT $6
+        OFFSET COALESCE($3, 0)
+        LIMIT $4
     "
     );
 
@@ -189,12 +189,10 @@ pub(crate) async fn query_bytes(
         .bind(from_type_query)
         .bind(cursor_query)
         .bind(i64::try_from(limit)?)
-        .bind(
-            moderation_options
-                .filters
-                .as_ref()
-                .unwrap_or(&ModerationFilters::default()),
-        )
+        .bind(&moderation_options
+            .filters
+            .as_ref()
+            .unwrap_or(&ModerationFilters::default()))
         .bind(moderation_options.mode)
         .fetch_all(&mut **transaction)
         .await?;
