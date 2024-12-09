@@ -1,5 +1,5 @@
-use ::protobuf::Message;
 use crate::moderation::{ModerationFilters, ModerationOptions};
+use ::protobuf::Message;
 
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {

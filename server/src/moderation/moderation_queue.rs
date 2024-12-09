@@ -371,12 +371,11 @@ async fn apply_moderation_results(
         let has_error = result.has_error;
         let is_csam = result.is_csam;
 
-        let new_moderation_status =
-            match (has_error, is_csam) {
-                (false, true) => ModerationStatus::FlaggedAndRejected,
-                (true, _) => ModerationStatus::Error,
-                (false, false) => ModerationStatus::Approved,
-            };
+        let new_moderation_status = match (has_error, is_csam) {
+            (false, true) => ModerationStatus::FlaggedAndRejected,
+            (true, _) => ModerationStatus::Error,
+            (false, false) => ModerationStatus::Approved,
+        };
 
         match new_moderation_status {
             ModerationStatus::FlaggedAndRejected => {
@@ -541,7 +540,10 @@ pub async fn approve_event(
 mod tests {
     use super::*;
     use crate::{
-        config::ModerationMode, model::moderation_tag::ModerationTagName, moderation::{ModerationFilter, ModerationFilters, ModerationOptions}, postgres::prepare_database
+        config::ModerationMode,
+        model::moderation_tag::ModerationTagName,
+        moderation::{ModerationFilter, ModerationFilters, ModerationOptions},
+        postgres::prepare_database,
     };
     use sqlx::PgPool;
 
@@ -1047,16 +1049,18 @@ mod tests {
         let mut post = polycentric_protocol::protocol::Post::new();
         post.content = Some("test".to_string());
 
-        let signed_event = polycentric_protocol::test_utils::make_test_event_with_content(
-            &keypair,
-            &process,
-            52,
-            3,
-            &post.write_to_bytes()?,
-            vec![],
-        );
+        let signed_event =
+            polycentric_protocol::test_utils::make_test_event_with_content(
+                &keypair,
+                &process,
+                52,
+                3,
+                &post.write_to_bytes()?,
+                vec![],
+            );
 
-        crate::ingest::ingest_event_postgres(&mut transaction, &signed_event).await?;
+        crate::ingest::ingest_event_postgres(&mut transaction, &signed_event)
+            .await?;
 
         transaction.commit().await?;
         transaction = pool.begin().await?;

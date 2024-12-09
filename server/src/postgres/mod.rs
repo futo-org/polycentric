@@ -995,7 +995,12 @@ pub(crate) async fn load_random_profiles(
     ";
 
     let sys_rows = ::sqlx::query_as::<_, SystemRow>(query)
-        .bind(moderation_options.filters.as_ref().unwrap_or(&ModerationFilters::empty()))
+        .bind(
+            moderation_options
+                .filters
+                .as_ref()
+                .unwrap_or(&ModerationFilters::empty()),
+        )
         .bind(moderation_options.mode)
         .fetch_all(&mut **transaction)
         .await?;

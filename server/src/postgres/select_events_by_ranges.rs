@@ -82,7 +82,12 @@ pub(crate) async fn select(
         .bind(p_process)
         .bind(p_low)
         .bind(p_high)
-        .bind(moderation_options.filters.as_ref().unwrap_or(&ModerationFilters::empty()))
+        .bind(
+            moderation_options
+                .filters
+                .as_ref()
+                .unwrap_or(&ModerationFilters::empty()),
+        )
         .bind(moderation_options.mode)
         .fetch_all(&mut **transaction)
         .await?

@@ -3,7 +3,7 @@ use ::protobuf::Message;
 use ::protobuf::MessageField;
 use ::serde_json::json;
 
-use crate::moderation::{ModerationOptions, ModerationFilters};
+use crate::moderation::{ModerationFilters, ModerationOptions};
 
 #[derive(::serde::Deserialize)]
 #[serde(rename_all = "snake_case")]

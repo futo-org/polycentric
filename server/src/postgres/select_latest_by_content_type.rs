@@ -72,7 +72,12 @@ pub(crate) async fn select(
         .bind(p_system_key_type)
         .bind(p_system_key)
         .bind(p_content_type)
-        .bind(moderation_options.filters.as_ref().unwrap_or(&ModerationFilters::empty()))
+        .bind(
+            moderation_options
+                .filters
+                .as_ref()
+                .unwrap_or(&ModerationFilters::empty()),
+        )
         .bind(moderation_options.mode)
         .fetch_all(&mut **transaction)
         .await?
