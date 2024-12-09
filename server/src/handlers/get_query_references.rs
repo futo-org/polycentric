@@ -154,7 +154,7 @@ pub(crate) async fn handler(
                 let additional_query_result = crate::warp_try_err_500!(
                     crate::postgres::select_latest_by_content_type::select(
                         &mut transaction,
-                        &system,
+                        system,
                         &additional_event.content_types,
                         &crate::moderation::ModerationOptions {
                             filters: query.moderation_filters.clone(),
