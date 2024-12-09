@@ -2,7 +2,7 @@ use ::protobuf::Message;
 use ::sqlx::Executor;
 use ::std::convert::TryFrom;
 
-use crate::moderation::ModerationOptions;
+use crate::moderation::{ModerationFilters, ModerationOptions};
 
 pub(crate) mod count_lww_element_references;
 pub(crate) mod count_references;
@@ -113,6 +113,7 @@ pub(crate) async fn load_event(
     system: &polycentric_protocol::model::public_key::PublicKey,
     process: &polycentric_protocol::model::process::Process,
     logical_clock: u64,
+    moderation_options: &ModerationOptions,
 ) -> ::anyhow::Result<
     Option<polycentric_protocol::model::signed_event::SignedEvent>,
 > {
@@ -122,6 +123,7 @@ pub(crate) async fn load_event(
         AND   system_key      = $2
         AND   process         = $3
         AND   logical_clock   = $4
+        AND   filter_events_by_moderation(events, $5::moderation_filter_type[], $6::moderation_mode)
         LIMIT 1;
     ";
 
@@ -134,6 +136,13 @@ pub(crate) async fn load_event(
         ))
         .bind(process.bytes())
         .bind(i64::try_from(logical_clock)?)
+        .bind(
+            moderation_options
+                .filters
+                .as_ref()
+                .unwrap_or(&ModerationFilters::default()),
+        )
+        .bind(moderation_options.mode)
         .fetch_optional(&mut **transaction)
         .await?;
 
@@ -156,6 +165,7 @@ pub(crate) async fn load_events_after_id(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     start_id: &::std::option::Option<u64>,
     limit: u64,
+    moderation_options: &ModerationOptions,
 ) -> ::anyhow::Result<EventsAndCursor> {
     let query = "
         SELECT
@@ -164,6 +174,7 @@ pub(crate) async fn load_events_after_id(
             events
         WHERE
             ($1 IS NULL OR id > $1)
+        AND filter_events_by_moderation(events, $3::moderation_filter_type[], $4::moderation_mode)
         ORDER BY
             id ASC
         LIMIT $2;
@@ -178,6 +189,13 @@ pub(crate) async fn load_events_after_id(
     let rows = ::sqlx::query_as::<_, ExploreRow>(query)
         .bind(start_id_query)
         .bind(i64::try_from(limit)?)
+        .bind(
+            moderation_options
+                .filters
+                .as_ref()
+                .unwrap_or(&ModerationFilters::default()),
+        )
+        .bind(moderation_options.mode)
         .fetch_all(&mut **transaction)
         .await?;
 
@@ -204,13 +222,13 @@ pub(crate) async fn load_posts_before_id(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     start_id: u64,
     limit: u64,
-    moderation_options: &Option<ModerationOptions>,
+    moderation_options: &ModerationOptions,
 ) -> ::anyhow::Result<EventsAndCursor> {
     let query = "
         SELECT id, raw_event, server_time, moderation_tags FROM events
         WHERE id < $1
         AND content_type = $2
-        AND filter_events_by_moderation(events, $4::moderation_filter_type[])
+        AND filter_events_by_moderation(events, $4::moderation_filter_type[], $5::moderation_mode)
         ORDER BY id DESC
         LIMIT $3;
     ";
@@ -223,9 +241,11 @@ pub(crate) async fn load_posts_before_id(
         .bind(i64::try_from(limit)?)
         .bind(
             moderation_options
+                .filters
                 .as_ref()
-                .unwrap_or(&ModerationOptions::default()),
+                .unwrap_or(&ModerationFilters::default()),
         )
+        .bind(moderation_options.mode)
         .fetch_all(&mut **transaction)
         .await?;
 
@@ -948,7 +968,7 @@ pub(crate) async fn resolve_handle(
 
 pub(crate) async fn load_random_profiles(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    moderation_options: &Option<ModerationOptions>,
+    moderation_options: &ModerationOptions,
 ) -> ::anyhow::Result<Vec<polycentric_protocol::model::public_key::PublicKey>> {
     let query = "
     SELECT 
@@ -977,9 +997,11 @@ pub(crate) async fn load_random_profiles(
     let sys_rows = ::sqlx::query_as::<_, SystemRow>(query)
         .bind(
             moderation_options
+                .filters
                 .as_ref()
-                .unwrap_or(&ModerationOptions::empty()),
+                .unwrap_or(&ModerationFilters::empty()),
         )
+        .bind(moderation_options.mode)
         .fetch_all(&mut **transaction)
         .await?;
 
@@ -998,6 +1020,8 @@ pub(crate) async fn load_random_profiles(
 #[cfg(test)]
 pub mod tests {
     use ::protobuf::Message;
+
+    use crate::config::ModerationMode;
 
     #[::sqlx::test]
     async fn test_prepare_database(pool: ::sqlx::PgPool) -> ::sqlx::Result<()> {
@@ -1032,6 +1056,10 @@ pub mod tests {
             &system,
             &process,
             52,
+            &crate::postgres::ModerationOptions {
+                filters: None,
+                mode: ModerationMode::Off,
+            },
         )
         .await?;
 

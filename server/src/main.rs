@@ -4,6 +4,7 @@ use ::log::*;
 use ::std::net::UdpSocket;
 use ::warp::Filter;
 use ::warp::Reply;
+use config::ModerationMode;
 use envconfig::Envconfig;
 use polycentric_protocol::model;
 
@@ -59,6 +60,7 @@ struct State {
     ingest_cache: ::std::sync::Mutex<
         ::lru::LruCache<polycentric_protocol::model::InsecurePointer, ()>,
     >,
+    moderation_mode: ModerationMode,
 }
 
 async fn handler_404(path: ::warp::path::FullPath) -> ::warp::reply::Response {
@@ -89,19 +91,6 @@ async fn handle_rejection(
         "INTERNAL_SERVER_ERROR",
         ::warp::http::StatusCode::INTERNAL_SERVER_ERROR,
     ))
-}
-
-impl ::std::str::FromStr for Mode {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Mode, ()> {
-        match s {
-            "SERVE_API" => Ok(Mode::ServeAPI),
-            "BACKFILL_SEARCH" => Ok(Mode::BackfillSearch),
-            "BACKFILL_REMOTE_SERVER" => Ok(Mode::BackfillRemoteServer),
-            _ => Err(()),
-        }
-    }
 }
 
 async fn serve_api(
@@ -150,6 +139,7 @@ async fn serve_api(
         challenge_key: config.challenge_key.clone(),
         statsd_client,
         ingest_cache,
+        moderation_mode: config.moderation_mode,
     });
 
     let cors = ::warp::cors()
@@ -423,12 +413,19 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
             transaction.commit().await?;
 
             // Exit if either the moderation queue or the API server fails
-            tokio::select! {
-                moderation_end_result = run_moderation_queue(&config, &pool) => {
-                    moderation_end_result?;
-                },
-                api_end_result = serve_api(&config, &pool) => {
-                    api_end_result?;
+            match config.moderation_mode {
+                ModerationMode::Off => {
+                    serve_api(&config, &pool).await?;
+                }
+                _ => {
+                    tokio::select! {
+                        moderation_end_result = run_moderation_queue(&config, &pool) => {
+                            moderation_end_result?;
+                        }
+                        api_end_result = serve_api(&config, &pool) => {
+                            api_end_result?;
+                        }
+                    }
                 }
             }
         }

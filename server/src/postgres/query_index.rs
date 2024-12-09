@@ -1,6 +1,6 @@
 use ::anyhow::Context;
 
-use crate::moderation::ModerationOptions;
+use crate::moderation::ModerationFilters;
 
 #[derive(PartialEq)]
 pub(crate) struct Result {
@@ -16,7 +16,7 @@ pub(crate) async fn query_index(
     content_type: u64,
     limit: u64,
     cursor: &::std::option::Option<u64>,
-    moderation_options: &Option<ModerationOptions>,
+    moderation_options: &crate::moderation::ModerationOptions,
 ) -> ::anyhow::Result<Result> {
     let mut result = Result {
         events: vec![],
@@ -100,7 +100,7 @@ pub(crate) async fn load_event_later_than(
     process: &polycentric_protocol::model::process::Process,
     content_type: u64,
     later_than_unix_milliseconds: u64,
-    moderation_options: &Option<ModerationOptions>,
+    moderation_options: &crate::moderation::ModerationOptions,
 ) -> ::anyhow::Result<
     ::std::option::Option<
         polycentric_protocol::model::signed_event::SignedEvent,
@@ -122,7 +122,7 @@ pub(crate) async fn load_event_later_than(
             FROM
                 events
             WHERE
-                filter_events_by_moderation(events, $6::moderation_filter_type[])
+                filter_events_by_moderation(events, $6::moderation_filter_type[], $7::moderation_mode)
             UNION
             SELECT
                 events.raw_event as raw_event,
@@ -171,9 +171,11 @@ pub(crate) async fn load_event_later_than(
             .bind(i64::try_from(later_than_unix_milliseconds)?)
             .bind(
                 moderation_options
+                    .filters
                     .as_ref()
-                    .unwrap_or(&ModerationOptions::default()),
+                    .unwrap_or(&ModerationFilters::default()),
             )
+            .bind(moderation_options.mode)
             .fetch_optional(&mut **transaction)
             .await?;
 
@@ -194,7 +196,7 @@ pub(crate) async fn load_event_earlier_than(
     process: &polycentric_protocol::model::process::Process,
     content_type: u64,
     earlier_than_unix_milliseconds: u64,
-    moderation_options: &Option<ModerationOptions>,
+    moderation_options: &crate::moderation::ModerationOptions,
 ) -> ::anyhow::Result<
     ::std::option::Option<
         polycentric_protocol::model::signed_event::SignedEvent,
@@ -216,7 +218,7 @@ pub(crate) async fn load_event_earlier_than(
             FROM
                 events
             WHERE
-                filter_events_by_moderation(events, $6::moderation_filter_type[])
+                filter_events_by_moderation(events, $6::moderation_filter_type[], $7::moderation_mode)
             UNION
             SELECT
                 events.raw_event as raw_event,
@@ -265,9 +267,11 @@ pub(crate) async fn load_event_earlier_than(
             .bind(i64::try_from(earlier_than_unix_milliseconds)?)
             .bind(
                 moderation_options
+                    .filters
                     .as_ref()
-                    .unwrap_or(&ModerationOptions::default()),
+                    .unwrap_or(&ModerationFilters::default()),
             )
+            .bind(moderation_options.mode)
             .fetch_optional(&mut **transaction)
             .await?;
 
@@ -288,7 +292,7 @@ pub(crate) async fn load_events_by_time(
     content_type: u64,
     limit: u64,
     after: &::std::option::Option<u64>,
-    moderation_options: &Option<ModerationOptions>,
+    moderation_options: &crate::moderation::ModerationOptions,
 ) -> ::anyhow::Result<
     ::std::vec::Vec<polycentric_protocol::model::signed_event::SignedEvent>,
 > {
@@ -309,7 +313,7 @@ pub(crate) async fn load_events_by_time(
             FROM
                 events
             WHERE
-                filter_events_by_moderation(events, $6::moderation_filter_type[])
+                filter_events_by_moderation(events, $6::moderation_filter_type[], $7::moderation_mode)
             UNION
             SELECT
                 events.raw_event as raw_event,
@@ -355,7 +359,16 @@ pub(crate) async fn load_events_by_time(
     .bind(i64::try_from(content_type)?)
         .bind(after.map(i64::try_from).transpose()?)
         .bind(i64::try_from(limit)?)
-        .bind(moderation_options.as_ref().unwrap_or(&ModerationOptions::default()))
+        .bind(
+            moderation_options
+                .filters
+                .as_ref()
+                .unwrap_or(&ModerationFilters::default()),
+        )
+        .bind(
+            moderation_options
+                .mode
+        )
         .fetch_all(&mut **transaction)
         .await?
         .iter()
@@ -374,7 +387,7 @@ pub(crate) async fn load_events_by_time(
 
 #[cfg(test)]
 pub mod tests {
-    use crate::moderation::ModerationOptions;
+    use crate::moderation::ModerationFilters;
 
     #[::sqlx::test]
     async fn test_no_events(pool: ::sqlx::PgPool) -> ::anyhow::Result<()> {
@@ -394,7 +407,10 @@ pub mod tests {
             polycentric_protocol::model::known_message_types::POST,
             10,
             &None,
-            &Some(ModerationOptions::empty()),
+            &crate::moderation::ModerationOptions {
+                filters: Some(ModerationFilters::empty()),
+                mode: crate::config::ModerationMode::Off,
+            },
         )
         .await?;
 
@@ -498,7 +514,10 @@ pub mod tests {
             polycentric_protocol::model::known_message_types::POST,
             4,
             &None,
-            &Some(ModerationOptions::empty()),
+            &crate::moderation::ModerationOptions {
+                filters: Some(ModerationFilters::empty()),
+                mode: crate::config::ModerationMode::Off,
+            },
         )
         .await?;
 
@@ -686,7 +705,10 @@ pub mod tests {
             polycentric_protocol::model::known_message_types::POST,
             4,
             &None,
-            &Some(ModerationOptions::empty()),
+            &crate::moderation::ModerationOptions {
+                filters: Some(ModerationFilters::empty()),
+                mode: crate::config::ModerationMode::Off,
+            },
         )
         .await?;
 
@@ -811,7 +833,10 @@ pub mod tests {
             polycentric_protocol::model::known_message_types::POST,
             4,
             &None,
-            &Some(ModerationOptions::empty()),
+            &crate::moderation::ModerationOptions {
+                filters: Some(ModerationFilters::empty()),
+                mode: crate::config::ModerationMode::Off,
+            },
         )
         .await?;
 

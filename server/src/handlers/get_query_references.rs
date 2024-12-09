@@ -1,9 +1,11 @@
+use crate::moderation::{ModerationFilters, ModerationOptions};
 use ::protobuf::Message;
 
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
     #[serde(deserialize_with = "deserialize_query")]
     query: polycentric_protocol::protocol::QueryReferencesRequest,
+    moderation_filters: Option<ModerationFilters>,
 }
 
 fn deserialize_query<'de, D>(
@@ -25,7 +27,6 @@ where
 
     Ok(proto)
 }
-
 pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
@@ -88,6 +89,10 @@ pub(crate) async fn handler(
                 &request_events.from_type,
                 &query_cursor,
                 20,
+                &ModerationOptions {
+                    filters: query.moderation_filters.clone(),
+                    mode: state.moderation_mode,
+                },
             )
             .await
         );

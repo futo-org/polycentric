@@ -27,6 +27,8 @@ pub(crate) struct Query {
     system: polycentric_protocol::model::public_key::PublicKey,
     #[serde(deserialize_with = "serde_url_deserialize_ranges_for_system")]
     ranges: polycentric_protocol::protocol::RangesForSystem,
+    moderation_filters:
+        ::core::option::Option<crate::moderation::ModerationFilters>,
 }
 
 async fn handler_inner(
@@ -41,6 +43,10 @@ async fn handler_inner(
         &mut transaction,
         &query.system,
         &query.ranges,
+        &crate::moderation::ModerationOptions {
+            filters: query.moderation_filters.clone(),
+            mode: state.moderation_mode,
+        },
     )
     .await?
     .iter()
