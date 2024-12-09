@@ -32,6 +32,7 @@ pub(crate) async fn select(
 
         SELECT DISTINCT ON (
             events.system_key_type,
+            events.system_key,
             events.process,
             events.content_type
         ) raw_event FROM
@@ -47,10 +48,10 @@ pub(crate) async fn select(
         AND
             filter_events_by_moderation(events, $4::moderation_filter_type[], $5::moderation_mode)
         ORDER BY
-            events.system_key_type DESC,
-            events.system_key DESC,
-            events.process DESC,
-            events.content_type DESC,
+            events.system_key_type,
+            events.system_key,
+            events.process,
+            events.content_type,
             events.logical_clock DESC
     ";
 
