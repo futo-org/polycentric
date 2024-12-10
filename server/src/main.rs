@@ -412,19 +412,28 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
             crate::migrate::migrate(&mut transaction).await?;
             transaction.commit().await?;
 
+            let no_interface = config.csam_interface.is_none()
+                && config.tag_interface.is_none();
+
+            if no_interface {
+                info!("No moderation interface provided, skipping moderation queue");
+            }
+
+            let skip_moderation = match config.moderation_mode {
+                ModerationMode::Off => true,
+                _ => no_interface,
+            };
+
             // Exit if either the moderation queue or the API server fails
-            match config.moderation_mode {
-                ModerationMode::Off => {
-                    serve_api(&config, &pool).await?;
-                }
-                _ => {
-                    tokio::select! {
-                        moderation_end_result = run_moderation_queue(&config, &pool) => {
-                            moderation_end_result?;
-                        }
-                        api_end_result = serve_api(&config, &pool) => {
-                            api_end_result?;
-                        }
+            if skip_moderation {
+                serve_api(&config, &pool).await?;
+            } else {
+                tokio::select! {
+                    moderation_end_result = run_moderation_queue(&config, &pool) => {
+                        moderation_end_result?;
+                    }
+                    api_end_result = serve_api(&config, &pool) => {
+                        api_end_result?;
                     }
                 }
             }
