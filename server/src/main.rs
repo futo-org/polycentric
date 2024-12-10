@@ -415,7 +415,7 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
             let no_interface = config.csam_interface.is_none()
                 && config.tag_interface.is_none();
 
-            if (no_interface) {
+            if no_interface {
                 info!("No moderation interface provided, skipping moderation queue");
             }
 
