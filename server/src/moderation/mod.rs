@@ -54,7 +54,7 @@ impl Default for ModerationFilters {
             },
             ModerationFilter {
                 name: ModerationTagName::new(String::from("hate")),
-                max_level: 1,
+                max_level: 2,
                 strict_mode: true,
             },
             ModerationFilter {
