@@ -28,6 +28,14 @@ const dateToAgoString = (date: Date | undefined) => {
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
 
+    // If the date is in the future, return the time just HH:MM
+    if (date.getTime() > Date.now()) {
+        return date.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    }
+
     if (hours > 24) {
         return date.toLocaleDateString();
     } else if (hours > 1) {
