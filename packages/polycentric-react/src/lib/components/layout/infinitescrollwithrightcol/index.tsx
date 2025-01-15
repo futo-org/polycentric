@@ -202,7 +202,9 @@ export const InfiniteScrollWithRightCol = ({
                         className="noscrollbar virtuoso-root"
                         style={{ height: '100%' }}
                         customScrollParent={
-                            isMobile ? undefined : outerRef.current ?? undefined
+                            isMobile
+                                ? undefined
+                                : (outerRef.current ?? undefined)
                         }
                         onScroll={isMobile ? onScroll : undefined}
                         itemContent={(index, data) => (
