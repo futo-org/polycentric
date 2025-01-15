@@ -1,20 +1,20 @@
 import * as RXJS from 'rxjs';
 
 import * as APIMethods from '../api-methods';
+import { CancelContext } from '../cancel-context';
 import * as Models from '../models';
+import { IndexSystemProcessContentTypeClock } from '../store/index-system-process-content-type-clock';
+import * as Util from '../util';
+import { OnceFlag } from '../util';
+import { HasUpdate } from './has-update';
+import * as QueryHead from './query-head';
+import { QueryServers } from './query-servers';
+import * as Shared from './shared';
 import {
-    UnregisterCallback,
     DuplicatedCallbackError,
     ImpossibleError,
+    UnregisterCallback,
 } from './shared';
-import * as Util from '../util';
-import * as QueryHead from './query-head';
-import { OnceFlag } from '../util';
-import { CancelContext } from '../cancel-context';
-import { HasUpdate } from './has-update';
-import { QueryServers } from './query-servers';
-import { IndexSystemProcessContentTypeClock } from '../store/index-system-process-content-type-clock';
-import * as Shared from './shared';
 
 export type Callback = (
     values: ReadonlyMap<
@@ -102,7 +102,7 @@ function makeAttemptedBatch(
     return result;
 }
 
-export class QueryLatest extends HasUpdate {
+export class QueryLatest implements HasUpdate {
     private readonly state: Map<
         Models.PublicKey.PublicKeyString,
         StateForSystem
@@ -121,8 +121,6 @@ export class QueryLatest extends HasUpdate {
         queryHead: QueryHead.QueryHead,
         onLoadedBatch?: Shared.OnLoadedBatch,
     ) {
-        super();
-
         this.state = new Map();
         this.index = index;
         this.queryHead = queryHead;

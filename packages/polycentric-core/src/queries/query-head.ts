@@ -1,15 +1,15 @@
 import * as RXJS from 'rxjs';
 
 import * as APIMethods from '../api-methods';
-import * as ProcessHandle from '../process-handle';
-import * as Models from '../models';
-import * as Shared from './shared';
-import * as Util from '../util';
-import * as Protocol from '../protocol';
-import { HasUpdate } from './has-update';
 import { CancelContext } from '../cancel-context';
+import * as Models from '../models';
+import * as ProcessHandle from '../process-handle';
+import * as Protocol from '../protocol';
+import * as Util from '../util';
 import { OnceFlag } from '../util';
+import { HasUpdate } from './has-update';
 import { QueryServers } from './query-servers';
+import * as Shared from './shared';
 
 export interface CallbackValue {
     readonly missingData: boolean;
@@ -65,7 +65,7 @@ interface Batch {
     readonly signedEvents: readonly Models.SignedEvent.SignedEvent[];
 }
 
-export class QueryHead extends HasUpdate {
+export class QueryHead implements HasUpdate {
     private readonly processHandle: ProcessHandle.ProcessHandle;
     private readonly queryServers: QueryServers;
     private readonly state: Map<
@@ -81,8 +81,6 @@ export class QueryHead extends HasUpdate {
         queryServers: QueryServers,
         onLoadedBatch?: Shared.OnLoadedBatch,
     ) {
-        super();
-
         this.processHandle = processHandle;
         this.queryServers = queryServers;
         this.state = new Map();
@@ -431,7 +429,7 @@ export class QueryHead extends HasUpdate {
                     headEvent.contentType.equals(
                         Models.ContentType.ContentTypeSystemProcesses,
                     ) ||
-                    (index && index.equals(event.logicalClock))
+                    index?.equals(event.logicalClock)
                 ) {
                     stateForSystem.value.processLists.set(
                         processString,

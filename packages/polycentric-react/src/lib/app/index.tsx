@@ -181,7 +181,9 @@ const AddToHomeScreenBarrier = ({
                 window.navigator['standalone']) ||
             document.referrer.includes('android-app://');
 
-        return (isMobile && !isPWA) || isDesktopSafari;
+        const isCapacitor = isPlatform('capacitor');
+
+        return ((isMobile && !isPWA) || isDesktopSafari) && !isCapacitor;
     }, [parsedUserAgent, isDesktopSafari]);
 
     const isAndroid = useMemo(() => {

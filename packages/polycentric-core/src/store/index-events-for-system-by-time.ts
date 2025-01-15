@@ -1,10 +1,10 @@
 import Long from 'long';
 
-import * as PersistenceDriver from '../persistence-driver';
 import * as Models from '../models';
+import * as PersistenceDriver from '../persistence-driver';
 import * as Util from '../util';
-import * as IndexEvents from './index-events';
 import { HasIngest } from './has-ingest';
+import * as IndexEvents from './index-events';
 
 export const MIN_8BYTE_KEY = new Uint8Array(8).fill(0);
 export const MAX_8BYTE_KEY = new Uint8Array(8).fill(255);
@@ -42,7 +42,7 @@ function indexSystemContentTypeUnixMillisecondsProcessKey(
     ]);
 }
 
-export class IndexEventsForSystemByTime extends HasIngest {
+export class IndexEventsForSystemByTime implements HasIngest {
     private readonly level: PersistenceDriver.BinaryAbstractSubLevel;
     private readonly indexEvents: IndexEvents.IndexEvents;
 
@@ -52,8 +52,6 @@ export class IndexEventsForSystemByTime extends HasIngest {
         ) => PersistenceDriver.BinaryAbstractSubLevel,
         indexEvents: IndexEvents.IndexEvents,
     ) {
-        super();
-
         this.level = registerSublevel(
             'indexSystemContentTypeUnixMillisecondsProcess',
         );

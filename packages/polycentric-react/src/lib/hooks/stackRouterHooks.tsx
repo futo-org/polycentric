@@ -312,7 +312,10 @@ export const useStackRouter = (
 
 function getParams(url: string) {
     for (const path of Object.keys(routeData)) {
-        const match = matchPath(url, { path, exact: true });
+        const match = matchPath(url, {
+            path,
+            exact: true,
+        });
         if (match) {
             return match.params;
         }
@@ -320,19 +323,17 @@ function getParams(url: string) {
     return {};
 }
 
-type emptyObject = { [key: string]: never };
-
 export function useLocation(): string {
     const memoryPath = useContext(StackElementPathContext);
 
     return memoryPath;
 }
 
-export function useParams<Params extends { [K in keyof Params]?: string }>():
-    | Params
-    | emptyObject {
+export function useParams<
+    P extends { [K in keyof P]?: string | undefined },
+>(): P {
     const location = useLocation();
     return useMemo(() => {
-        return getParams(location);
+        return getParams(location) as P;
     }, [location]);
 }

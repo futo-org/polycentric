@@ -1,11 +1,11 @@
-import Long from 'long';
 import * as Base64 from '@borderless/base64';
+import Long from 'long';
 
-import * as PersistenceDriver from '../persistence-driver';
 import * as Models from '../models';
-import * as Util from '../util';
+import * as PersistenceDriver from '../persistence-driver';
 import * as Protocol from '../protocol';
 import * as Ranges from '../ranges';
+import * as Util from '../util';
 import { HasIngest } from './has-ingest';
 
 function makeProcessStateKey(
@@ -19,7 +19,7 @@ function makeProcessStateKey(
     );
 }
 
-export class IndexProcessState extends HasIngest {
+export class IndexProcessState implements HasIngest {
     private readonly level: PersistenceDriver.BinaryAbstractSubLevel;
 
     constructor(
@@ -27,8 +27,6 @@ export class IndexProcessState extends HasIngest {
             prefix: string,
         ) => PersistenceDriver.BinaryAbstractSubLevel,
     ) {
-        super();
-
         this.level = registerSublevel('processStates');
     }
 

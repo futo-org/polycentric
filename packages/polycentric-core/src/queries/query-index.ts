@@ -143,7 +143,7 @@ interface StateForSystem {
     readonly queries: Map<Callback, StateForQuery>;
 }
 
-export class QueryManager extends HasUpdate {
+export class QueryManager implements HasUpdate {
     private readonly _processHandle: ProcessHandle.ProcessHandle;
     private readonly _state: Map<
         Models.PublicKey.PublicKeyString,
@@ -157,8 +157,6 @@ export class QueryManager extends HasUpdate {
         processHandle: ProcessHandle.ProcessHandle,
         onLoadedBatch?: Shared.OnLoadedBatch,
     ) {
-        super();
-
         this._processHandle = processHandle;
         this._state = new Map();
         this._useDisk = true;

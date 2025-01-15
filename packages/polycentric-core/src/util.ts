@@ -304,7 +304,7 @@ export function fromPromiseExceptionToNever<T>(
             .then((value) => {
                 subscriber.next(value);
             })
-            .catch((err) => void err);
+            .catch((err: unknown) => void err);
     });
 }
 

@@ -1,3 +1,4 @@
 FROM ubuntu:22.04
-COPY ./server/target/debug/server /server
+RUN apt-get update -y && apt-get install -y ca-certificates
+COPY ./server/target/release/server /server
 CMD /server

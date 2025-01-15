@@ -1,20 +1,22 @@
 use ::anyhow::Context;
 use ::cadence::{StatsdClient, UdpMetricSink};
-use ::envconfig::Envconfig;
 use ::log::*;
 use ::std::net::UdpSocket;
 use ::warp::Filter;
+use ::warp::Reply;
+use config::ModerationMode;
+use envconfig::Envconfig;
+use polycentric_protocol::model;
 
+mod config;
 mod handlers;
 mod ingest;
 mod migrate;
-mod model;
+mod moderation;
 mod opensearch;
 mod postgres;
-mod queries;
 mod version;
-
-include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
+use config::{Config, Mode};
 
 #[macro_export]
 macro_rules! warp_try_err_500 {
@@ -50,12 +52,22 @@ macro_rules! warp_try_err_400 {
 
 struct State {
     pool: ::sqlx::PgPool,
+    pool_read_only: ::sqlx::PgPool,
     search: ::opensearch::OpenSearch,
     admin_token: String,
     statsd_client: ::cadence::StatsdClient,
     challenge_key: String,
-    ingest_cache:
-        ::std::sync::Mutex<::lru::LruCache<crate::model::pointer::Pointer, ()>>,
+    ingest_cache: ::std::sync::Mutex<
+        ::lru::LruCache<polycentric_protocol::model::InsecurePointer, ()>,
+    >,
+    moderation_mode: ModerationMode,
+}
+
+async fn handler_404(path: ::warp::path::FullPath) -> ::warp::reply::Response {
+    ::log::warn!("404 {}", path.as_str());
+
+    ::warp::reply::with_status("404", ::warp::http::StatusCode::NOT_FOUND)
+        .into_response()
 }
 
 async fn handle_rejection(
@@ -81,108 +93,20 @@ async fn handle_rejection(
     ))
 }
 
-#[derive(::serde::Deserialize, ::serde::Serialize)]
-struct OpenSearchSearchDocumentMessage {
-    author_public_key: String,
-    writer_id: String,
-    sequence_number: i64,
-    message: Option<String>,
-}
-
-#[derive(::serde::Deserialize, ::serde::Serialize)]
-struct OpenSearchSearchDocumentProfile {
-    author_public_key: String,
-    writer_id: String,
-    sequence_number: i64,
-    profile_name: String,
-    profile_description: Option<String>,
-    unix_milliseconds: u64,
-}
-
-#[derive(::serde::Deserialize, ::serde::Serialize)]
-struct OpenSearchContent {
-    message_content: String,
-    // only serialize when it's not None
-    #[serde(skip_serializing_if = "Option::is_none")]
-    unix_milliseconds: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    byte_reference: Option<String>,
-}
-
-#[derive(::serde::Deserialize)]
-struct OpenSearchSearchHitsL2 {
-    _source: OpenSearchContent,
-    _id: String,
-    _index: String,
-}
-
-#[derive(::serde::Deserialize)]
-struct OpenSearchSearchHitsL1 {
-    hits: ::std::vec::Vec<OpenSearchSearchHitsL2>,
-}
-
-#[derive(::serde::Deserialize)]
-struct OpenSearchAggregationBucketL3 {
-    key: String,
-    doc_count: i64,
-}
-
-#[derive(::serde::Deserialize)]
-struct OpenSearchAggregationsL2 {
-    buckets: ::std::vec::Vec<OpenSearchAggregationBucketL3>,
-}
-
-#[derive(::serde::Deserialize)]
-struct OpenSearchAggregationsL1 {
-    top_byte_references: Option<OpenSearchAggregationsL2>,
-}
-
-#[derive(::serde::Deserialize)]
-struct OpenSearchSearchL0 {
-    hits: Option<OpenSearchSearchHitsL1>,
-    aggregations: Option<OpenSearchAggregationsL1>,
-}
-
-#[derive(::envconfig::Envconfig)]
-struct Config {
-    #[envconfig(from = "HTTP_PORT_API", default = "8081")]
-    pub http_port_api: u16,
-
-    #[envconfig(
-        from = "DATABASE_URL",
-        default = "postgres://postgres:testing@postgres"
-    )]
-    pub postgres_string: String,
-
-    #[envconfig(
-        from = "OPENSEARCH_STRING",
-        default = "http://opensearch-node1:9200"
-    )]
-    pub opensearch_string: String,
-
-    #[envconfig(from = "ADMIN_TOKEN")]
-    pub admin_token: String,
-
-    #[envconfig(from = "STATSD_ADDRESS", default = "telegraf")]
-    pub statsd_address: String,
-
-    #[envconfig(from = "STATSD_PORT", default = "8125")]
-    pub statsd_port: u16,
-
-    #[envconfig(from = "CHALLENGE_KEY")]
-    pub challenge_key: String,
-
-    #[envconfig(from = "BACKFILL", default = "false")]
-    pub backfill: bool,
-}
-
 async fn serve_api(
     config: &Config,
+    pool: &::sqlx::PgPool,
 ) -> Result<(), Box<dyn ::std::error::Error>> {
     info!("Connecting to Postgres");
-    let pool = ::sqlx::postgres::PgPoolOptions::new()
+
+    let pool_read_only = ::sqlx::postgres::PgPoolOptions::new()
         .max_connections(10)
-        .connect(&config.postgres_string)
+        .connect(
+            &config
+                .postgres_string_read_only
+                .clone()
+                .unwrap_or(config.postgres_string.clone()),
+        )
         .await?;
 
     let opensearch_transport =
@@ -193,14 +117,6 @@ async fn serve_api(
     let opensearch_client = ::opensearch::OpenSearch::new(opensearch_transport);
 
     info!("Connecting to OpenSearch");
-
-    let mut transaction = pool.begin().await?;
-
-    crate::postgres::prepare_database(&mut transaction).await?;
-
-    crate::migrate::migrate(&mut transaction).await?;
-    transaction.commit().await?;
-
     crate::opensearch::prepare_indices(&opensearch_client).await?;
 
     info!("Connecting to StatsD");
@@ -216,12 +132,14 @@ async fn serve_api(
     ));
 
     let state = ::std::sync::Arc::new(State {
-        pool,
+        pool: pool.clone(),
+        pool_read_only,
         search: opensearch_client,
         admin_token: config.admin_token.clone(),
         challenge_key: config.challenge_key.clone(),
         statsd_client,
         ingest_cache,
+        moderation_mode: config.moderation_mode,
     });
 
     let cors = ::warp::cors()
@@ -332,6 +250,9 @@ async fn serve_api(
         .and(::warp::path("recommended_profiles"))
         .and(::warp::path::end())
         .and(state_filter.clone())
+        .and(::warp::query::<
+            crate::handlers::get_recommend_profiles::Query,
+        >())
         .and_then(crate::handlers::get_recommend_profiles::handler)
         .with(cors.clone());
 
@@ -392,6 +313,11 @@ async fn serve_api(
         .and_then(crate::handlers::get_resolve_handle::handler)
         .with(cors.clone());
 
+    let route_404 = ::warp::any()
+        .and(::warp::path::full())
+        .then(handler_404)
+        .with(cors.clone());
+
     let routes = route_post_events
         .or(route_get_head)
         .or(route_get_query_latest)
@@ -411,6 +337,7 @@ async fn serve_api(
         .or(route_post_purge)
         .or(route_post_claim_handle)
         .or(route_get_resolve_handle)
+        .or(route_404)
         .recover(handle_rejection);
 
     info!("API server listening on {}", config.http_port_api);
@@ -421,36 +348,137 @@ async fn serve_api(
     Ok(())
 }
 
+async fn run_moderation_queue(
+    config: &Config,
+    pool: &::sqlx::PgPool,
+) -> Result<(), Box<dyn ::std::error::Error>> {
+    let csam_provider = if config.csam_interface.is_none() {
+        info!("CSAM interface not provided, skipping CSAM queue");
+        None
+    } else {
+        Some(moderation::providers::csam::make_provider(config).await?)
+    };
+    let tag_provider = if config.tag_interface.is_none() {
+        info!(
+            "Moderation tagging interface not provided, skipping tagging queue"
+        );
+        None
+    } else {
+        Some(moderation::providers::tags::make_provider(config).await?)
+    };
+
+    let pool_clone = pool.clone();
+    let tagging_request_rate_limit = config.tagging_request_rate_limit;
+    let csam_request_rate_limiter = config.csam_request_rate_limit;
+    let task = tokio::task::spawn({
+        async move {
+            let result = moderation::moderation_queue::run(
+                pool_clone,
+                csam_provider.as_deref(),
+                tag_provider.as_deref(),
+                tagging_request_rate_limit,
+                csam_request_rate_limiter,
+            )
+            .await;
+            if let Err(e) = result {
+                error!("Error running moderation queue: {}", e);
+            }
+        }
+    });
+    task.await?;
+
+    Ok(())
+}
+
 #[::tokio::main]
 async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
     ::env_logger::init();
 
     let config = Config::init_from_env().unwrap();
 
-    if !config.backfill {
-        info!("mode: serve_api");
+    match config.mode {
+        Mode::ServeAPI => {
+            info!("mode: ServeAPI");
 
-        serve_api(&config).await?;
-    } else {
-        info!("mode: backfill");
+            let pool = ::sqlx::postgres::PgPoolOptions::new()
+                .max_connections(10)
+                .connect(&config.postgres_string)
+                .await?;
 
-        info!("Connecting to Postgres");
-        let pool = ::sqlx::postgres::PgPoolOptions::new()
-            .max_connections(10)
-            .connect(&config.postgres_string)
+            let mut transaction = pool.begin().await?;
+
+            crate::postgres::prepare_database(&mut transaction).await?;
+
+            crate::migrate::migrate(&mut transaction).await?;
+            transaction.commit().await?;
+
+            let no_interface = config.csam_interface.is_none()
+                && config.tag_interface.is_none();
+
+            if no_interface {
+                info!("No moderation interface provided, skipping moderation queue");
+            }
+
+            let skip_moderation = match config.moderation_mode {
+                ModerationMode::Off => true,
+                _ => no_interface,
+            };
+
+            // Exit if either the moderation queue or the API server fails
+            if skip_moderation {
+                serve_api(&config, &pool).await?;
+            } else {
+                tokio::select! {
+                    moderation_end_result = run_moderation_queue(&config, &pool) => {
+                        moderation_end_result?;
+                    }
+                    api_end_result = serve_api(&config, &pool) => {
+                        api_end_result?;
+                    }
+                }
+            }
+        }
+        Mode::BackfillSearch => {
+            info!("mode: BackfillSearch");
+
+            info!("Connecting to Postgres");
+            let pool = ::sqlx::postgres::PgPoolOptions::new()
+                .max_connections(10)
+                .connect(&config.postgres_string)
+                .await?;
+
+            let opensearch_transport =
+                ::opensearch::http::transport::Transport::single_node(
+                    &config.opensearch_string,
+                )?;
+
+            let opensearch_client =
+                ::opensearch::OpenSearch::new(opensearch_transport);
+
+            info!("Connecting to OpenSearch");
+
+            crate::migrate::backfill_search(pool, opensearch_client).await?;
+        }
+        Mode::BackfillRemoteServer => {
+            info!("mode: BackfillRemoteServer");
+
+            let address = config
+                .backfill_remote_server_address
+                .context("BACKFILL_REMOTE_SERVER_ADDRESS required")?;
+
+            info!("Connecting to Postgres");
+            let pool = ::sqlx::postgres::PgPoolOptions::new()
+                .max_connections(10)
+                .connect(&config.postgres_string)
+                .await?;
+
+            crate::migrate::backfill_remote_server(
+                pool,
+                address,
+                config.backfill_remote_server_position,
+            )
             .await?;
-
-        let opensearch_transport =
-            ::opensearch::http::transport::Transport::single_node(
-                &config.opensearch_string,
-            )?;
-
-        let opensearch_client =
-            ::opensearch::OpenSearch::new(opensearch_transport);
-
-        info!("Connecting to OpenSearch");
-
-        crate::migrate::backfill(pool, opensearch_client).await?;
+        }
     }
 
     Ok(())

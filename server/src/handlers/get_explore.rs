@@ -1,10 +1,12 @@
-use crate::protocol::Events;
+use crate::moderation::ModerationFilters;
 use ::protobuf::{Message, MessageField};
+use polycentric_protocol::protocol::Events;
 
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
     cursor: ::std::option::Option<String>,
     limit: ::std::option::Option<u64>,
+    moderation_filters: ::std::option::Option<ModerationFilters>,
 }
 
 pub(crate) async fn handler(
@@ -18,18 +20,23 @@ pub(crate) async fn handler(
         .as_slice()
         .try_into()))
     } else {
-        crate::warp_try_err_500!(u64::try_from(i64::max_value()))
+        crate::warp_try_err_500!(u64::try_from(i64::MAX))
     };
 
     let limit = query.limit.unwrap_or(10);
 
-    let mut transaction = crate::warp_try_err_500!(state.pool.begin().await);
+    let mut transaction =
+        crate::warp_try_err_500!(state.pool_read_only.begin().await);
 
     let db_result = crate::warp_try_err_500!(
         crate::postgres::load_posts_before_id(
             &mut transaction,
             start_id,
-            limit
+            limit,
+            &crate::moderation::ModerationOptions {
+                filters: query.moderation_filters.clone(),
+                mode: state.moderation_mode,
+            }
         )
         .await
     );
@@ -39,11 +46,11 @@ pub(crate) async fn handler(
     for event in db_result.events.iter() {
         events
             .events
-            .push(crate::model::signed_event::to_proto(event));
+            .push(polycentric_protocol::model::signed_event::to_proto(event));
     }
 
     let mut result =
-        crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
+        polycentric_protocol::protocol::ResultEventsAndRelatedEventsAndCursor::new();
     result.result_events = MessageField::some(events);
 
     result.cursor = db_result

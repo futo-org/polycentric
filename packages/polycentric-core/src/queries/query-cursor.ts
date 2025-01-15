@@ -1,9 +1,40 @@
 import * as APIMethods from '../api-methods';
 import * as Models from '../models';
+import * as Protocol from '../protocol';
 import * as ProcessHandle from '../process-handle';
 
-export function makeGetExploreCallback(): LoadCallback {
-    return APIMethods.getExplore;
+export function makeGetExploreCallback(
+    processHandle: ProcessHandle.ProcessHandle,
+): LoadCallback {
+    return async (server, limit, cursor) => {
+        const batch = await APIMethods.getExplore(server, limit, cursor);
+
+        const filteredResultEvents = [];
+
+        for (const signedEvent of batch.resultEvents.events) {
+            const event = Models.Event.fromBuffer(signedEvent.event);
+
+            const blocked = await processHandle
+                .store()
+                .indexCRDTElementSet.queryIfAdded(
+                    processHandle.system(),
+                    Models.ContentType.ContentTypeBlock,
+                    Protocol.PublicKey.encode(event.system).finish(),
+                );
+
+            if (!blocked) {
+                filteredResultEvents.push(signedEvent);
+            }
+        }
+
+        return Models.ResultEventsAndRelatedEventsAndCursor.fromProto({
+            resultEvents: {
+                events: filteredResultEvents,
+            },
+            relatedEvents: batch.relatedEvents,
+            cursor: batch.cursor,
+        });
+    };
 }
 
 export function makeGetSearchCallback(

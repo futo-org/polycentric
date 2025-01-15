@@ -3,9 +3,11 @@ use ::protobuf::Message;
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
     #[serde(
-        deserialize_with = "crate::model::public_key::serde_url_deserialize"
+        deserialize_with = "polycentric_protocol::model::public_key::serde_url_deserialize"
     )]
-    system: crate::model::public_key::PublicKey,
+    system: polycentric_protocol::model::public_key::PublicKey,
+    moderation_filters:
+        ::core::option::Option<crate::moderation::ModerationFilters>,
 }
 
 pub(crate) async fn handler(
@@ -19,7 +21,7 @@ async fn handler_inner(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
-    let mut transaction = state.pool.begin().await?;
+    let mut transaction = state.pool_read_only.begin().await?;
 
     let head_signed_events =
         crate::postgres::load_system_head(&mut transaction, &query.system)
@@ -28,11 +30,12 @@ async fn handler_inner(
     let mut result_signed_events = head_signed_events.clone();
 
     for head_signed_event in head_signed_events.into_iter() {
-        let head_event =
-            crate::model::event::from_vec(head_signed_event.event())?;
+        let head_event = polycentric_protocol::model::event::from_vec(
+            head_signed_event.event(),
+        )?;
 
         if *head_event.content_type()
-            == crate::model::known_message_types::SYSTEM_PROCESSES
+            == polycentric_protocol::model::known_message_types::SYSTEM_PROCESSES
         {
             continue;
         }
@@ -44,7 +47,7 @@ async fn handler_inner(
             .into_iter()
             .find(|index| {
                 index.index_type
-                    == crate::model::known_message_types::SYSTEM_PROCESSES
+                    == polycentric_protocol::model::known_message_types::SYSTEM_PROCESSES
             });
 
         if let Some(index) = previous_system_processes_index {
@@ -54,6 +57,10 @@ async fn handler_inner(
                     head_event.system(),
                     head_event.process(),
                     index.logical_clock,
+                    &crate::moderation::ModerationOptions {
+                        filters: query.moderation_filters.clone(),
+                        mode: state.moderation_mode,
+                    },
                 )
                 .await?;
 
@@ -65,11 +72,11 @@ async fn handler_inner(
 
     transaction.commit().await?;
 
-    let mut result = crate::protocol::Events::new();
+    let mut result = polycentric_protocol::protocol::Events::new();
 
     result.events = result_signed_events
         .iter()
-        .map(crate::model::signed_event::to_proto)
+        .map(polycentric_protocol::model::signed_event::to_proto)
         .collect();
 
     let result_serialized = result.write_to_bytes()?;

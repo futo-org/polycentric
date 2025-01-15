@@ -3,6 +3,8 @@ use ::protobuf::Message;
 use ::protobuf::MessageField;
 use ::serde_json::json;
 
+use crate::moderation::{ModerationFilters, ModerationOptions};
+
 #[derive(::serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 #[derive(PartialEq, Debug, Clone)]
@@ -17,6 +19,7 @@ pub(crate) struct Query {
     cursor: ::std::option::Option<String>,
     limit: ::std::option::Option<u64>,
     search_type: ::std::option::Option<SearchType>,
+    moderation_filters: ::std::option::Option<ModerationFilters>,
 }
 
 pub(crate) async fn handler(
@@ -40,6 +43,7 @@ pub(crate) async fn handler(
             query.limit.unwrap_or(10),
             start_count,
             query.search_type.unwrap_or(SearchType::Messages),
+            &query.moderation_filters,
         )
         .await
     ))
@@ -51,6 +55,7 @@ pub(crate) async fn handler_inner(
     limit: u64,
     start_count: u64,
     search_type: SearchType,
+    moderation_filters: &Option<ModerationFilters>,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
     let response = state
         .search
@@ -75,38 +80,48 @@ pub(crate) async fn handler_inner(
         .send()
         .await?;
 
-    let response_body = response.json::<crate::OpenSearchSearchL0>().await?;
+    let response_body = response
+        .json::<crate::opensearch::OpenSearchSearchL0>()
+        .await?;
 
-    let mut transaction = state.pool.begin().await?;
+    let mut transaction = state.pool_read_only.begin().await?;
 
-    let mut result_events = crate::protocol::Events::new();
+    let mut result_events = polycentric_protocol::protocol::Events::new();
 
     if let Some(hits) = response_body.hits {
         for hit in hits.hits {
             let id = hit._id;
             if hit._index == "messages" {
-                let pointer = crate::model::pointer::from_base64(&id)?;
+                let pointer =
+                    polycentric_protocol::model::pointer::from_base64(&id)?;
 
                 let event_result = crate::postgres::load_event(
                     &mut transaction,
                     pointer.system(),
                     pointer.process(),
                     *pointer.logical_clock(),
+                    &ModerationOptions {
+                        filters: moderation_filters.clone(),
+                        mode: state.moderation_mode,
+                    },
                 )
                 .await?;
 
                 if let Some(event_result) = event_result {
                     result_events.events.push(
-                        crate::model::signed_event::to_proto(&event_result),
+                        polycentric_protocol::model::signed_event::to_proto(
+                            &event_result,
+                        ),
                     );
                 };
             } else {
-                let system = crate::model::public_key::from_base64(&id)?;
+                let system =
+                    polycentric_protocol::model::public_key::from_base64(&id)?;
 
                 let content_type = if hit._index == "profile_names" {
-                    crate::model::known_message_types::USERNAME
+                    polycentric_protocol::model::known_message_types::USERNAME
                 } else {
-                    crate::model::known_message_types::DESCRIPTION
+                    polycentric_protocol::model::known_message_types::DESCRIPTION
                 };
 
                 let potential_event =
@@ -118,16 +133,18 @@ pub(crate) async fn handler_inner(
                     .await?;
 
                 if let Some(event) = potential_event {
-                    result_events
-                        .events
-                        .push(crate::model::signed_event::to_proto(&event));
+                    result_events.events.push(
+                        polycentric_protocol::model::signed_event::to_proto(
+                            &event,
+                        ),
+                    );
                 }
             }
         }
     }
 
     let mut result =
-        crate::protocol::ResultEventsAndRelatedEventsAndCursor::new();
+        polycentric_protocol::protocol::ResultEventsAndRelatedEventsAndCursor::new();
 
     let returned_event_count = u64::try_from(result_events.events.len())?;
 
