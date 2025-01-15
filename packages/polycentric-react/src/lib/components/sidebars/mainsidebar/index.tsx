@@ -64,10 +64,7 @@ export const MainSidebar = () => {
         <div className="h-full w-full flex flex-col space-y-5 justify-between md:p-5">
             <div className="flex flex-col space-y-5 flex-grow min-h-0">
                 <Link routerLink="/" className="text-lg">
-                    <img
-                        src={polycentricIcon}
-                        className="inline h-[20px]"
-                    />{' '}
+                    <img src={polycentricIcon} className="inline h-[20px]" />{' '}
                     Polycentric
                 </Link>
                 <div className="flex flex-col text-left min-h-0">
