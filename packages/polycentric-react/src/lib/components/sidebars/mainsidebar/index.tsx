@@ -63,10 +63,10 @@ export const MainSidebar = () => {
     return (
         <div className="h-full w-full flex flex-col space-y-5 justify-between md:p-5">
             <div className="flex flex-col space-y-5 flex-grow min-h-0">
-                <h1 className="text-lg">
+                <Link routerLink="/" className="text-lg">
                     <img src={polycentricIcon} className="inline h-[20px]" />{' '}
                     Polycentric
-                </h1>
+                </Link>
                 <div className="flex flex-col text-left min-h-0">
                     <SidebarLink to="/following" topicName="Following">
                         Following
