@@ -994,7 +994,7 @@ pub mod reference {
                 )
                 .map_err(::anyhow::Error::new)?;
 
-                Ok(Reference::System(crate::model::public_key::from_pproto(
+                Ok(Reference::System(crate::model::public_key::from_proto(
                     &proto,
                 )?))
             }
