@@ -102,10 +102,10 @@ export const Carousel = ({
                     </SwiperSlide>
                 ))}
             </Swiper>
-            <div className="hidden md:flex absolute top-1/2 w-full justify-between space-x-5 z-20">
+            <div className="hidden md:flex absolute top-1/2 w-full justify-between space-x-5 z-20 pointer-events-none">
                 {currentSlide > 0 ? (
                     <button
-                        className={`swiper-button-prev md:flex justify-self-end w-20 h-20 rounded-full bg-white border justify-center items-center`}
+                        className={`swiper-button-prev md:flex justify-self-end w-20 h-20 rounded-full bg-white border justify-center items-center pointer-events-auto`}
                         onClick={() => {
                             if (currentSlide > 0) {
                                 setCurrentSlide(currentSlide - 1);
