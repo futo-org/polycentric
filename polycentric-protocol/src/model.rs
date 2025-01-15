@@ -677,9 +677,9 @@ pub mod moderation_tag {
         }
     }
 
-    impl ToString for ModerationTagName {
-        fn to_string(&self) -> String {
-            self.0.clone()
+    impl std::fmt::Display for ModerationTagName {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.0)
         }
     }
 
