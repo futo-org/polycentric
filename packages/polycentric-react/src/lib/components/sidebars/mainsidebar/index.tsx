@@ -65,7 +65,10 @@ export const MainSidebar = () => {
             <div className="flex flex-col space-y-5 flex-grow min-h-0">
                 <a href="/">
                     <h1 className="text-lg">
-                        <img src={polycentricIcon} className="inline h-[20px]" />{' '}
+                        <img
+                            src={polycentricIcon}
+                            className="inline h-[20px]"
+                        />{' '}
                         Polycentric
                     </h1>
                 </a>
