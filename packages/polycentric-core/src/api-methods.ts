@@ -375,7 +375,7 @@ export async function getExplore(
 
     if (moderationLevels !== undefined) {
         params.append(
-            'moderation_levels',
+            'moderation_filters',
             // not base64 encoded
             JSON.stringify(
                 Object.entries(moderationLevels).map(([key, value]) => ({
