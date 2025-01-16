@@ -1,4 +1,5 @@
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from 'react';
+import { useModeration } from '../../../hooks/moderationHooks';
 
 const FancySlider = ({
     min = 0,
@@ -80,7 +81,13 @@ const categories = [
 ];
 
 export const ModerationTable = () => {
-    const [levels, setLevels] = useState<Record<string, number>>({});
+    const [levels, setLevels] = useState<Record<string, number>>(
+        JSON.parse(
+            localStorage.getItem('polycentric-moderation-levels') ?? '{}',
+        ),
+    );
+    const { setModerationLevels } = useModeration();
+
     const setLevelFunctions = useMemo(() => {
         return categories.map((category) => {
             return (level: React.SetStateAction<number>) => {
@@ -97,7 +104,8 @@ export const ModerationTable = () => {
             'polycentric-moderation-levels',
             JSON.stringify(levels),
         );
-    }, [levels]);
+        setModerationLevels(levels);
+    }, [levels, setModerationLevels]);
 
     return (
         <div className="flex flex-col space-y-3">

@@ -359,6 +359,7 @@ export async function getExplore(
     server: string,
     limit?: number,
     cursor?: Uint8Array,
+    moderationLevels?: Record<string, number>,
 ): Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type> {
     let path = '/explore?';
 
@@ -370,6 +371,20 @@ export async function getExplore(
 
     if (limit !== undefined) {
         params.append('limit', limit.toString());
+    }
+
+    if (moderationLevels !== undefined) {
+        params.append(
+            'moderation_levels',
+            // not base64 encoded
+            JSON.stringify(
+                Object.entries(moderationLevels).map(([key, value]) => ({
+                    name: key,
+                    max_level: value,
+                    strict_mode: false,
+                })),
+            ),
+        );
     }
 
     path += params.toString();

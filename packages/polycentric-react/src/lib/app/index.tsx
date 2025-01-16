@@ -30,7 +30,11 @@ import { QueryManagerContext } from '../hooks/queryHooks';
 import { useStackRouter } from '../hooks/stackRouterHooks';
 import { getFullPath } from '../util/etc';
 import { createSwipeBackGesture } from '../util/ionicfullpageswipebackgesture';
-import { MobileSwipeTopicContext, StackRouterContext } from './contexts';
+import {
+    MobileSwipeTopicContext,
+    ModerationContext,
+    StackRouterContext,
+} from './contexts';
 
 setupIonicReact({});
 setupDarkMode();
@@ -107,20 +111,39 @@ export const SignedinApp = ({
         };
     }, [mobileSwipeTopic, setMobileSwipeTopic]);
 
+    const [moderationLevels, setModerationLevels] = useState<
+        Record<string, number>
+    >(
+        JSON.parse(
+            localStorage.getItem('polycentric-moderation-levels') ?? '{}',
+        ),
+    );
+
+    const moderationContextContainer = useMemo(() => {
+        return {
+            moderationLevels,
+            setModerationLevels,
+        };
+    }, [moderationLevels, setModerationLevels]);
+
     return (
         <QueryManagerContext.Provider value={queryManager}>
             <StackRouterContext.Provider value={stackRouter}>
                 <MobileSwipeTopicContext.Provider
                     value={mobileSwipeTopicContextContainer}
                 >
-                    <SidebarLayout>
-                        <IonNav
-                            id="main-drawer"
-                            root={root}
-                            ref={ionNavRef}
-                            animated={!isFirefox}
-                        />
-                    </SidebarLayout>
+                    <ModerationContext.Provider
+                        value={moderationContextContainer}
+                    >
+                        <SidebarLayout>
+                            <IonNav
+                                id="main-drawer"
+                                root={root}
+                                ref={ionNavRef}
+                                animated={!isFirefox}
+                            />
+                        </SidebarLayout>
+                    </ModerationContext.Provider>
                 </MobileSwipeTopicContext.Provider>
             </StackRouterContext.Provider>
         </QueryManagerContext.Provider>
