@@ -483,7 +483,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                     }
                                                     className="text-inherit flex-shrink min-w-0"
                                                 >
-                                                    <address className="font-bold text-base author not-italic hover:underline h-[1.5rem] w-full overflow-hidden overflow-ellipsis">
+                                                    <address className="font-bold text-base author not-italic hover:underline h-[1.5rem] w-full overflow-hidden overflow-ellipsis text-black">
                                                         {main.author.name}
                                                     </address>
                                                 </Link>
@@ -627,7 +627,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                 e.stopPropagation();
                                                 setExpanded(true);
                                             }}
-                                            className="bg-gray-200 rounded-full font-bold px-10 z-10 py-3"
+                                            className="bg-gray-200 rounded-full font-bold px-10 z-10 py-3 text-black"
                                             onMouseEnter={() =>
                                                 setSubHover(true)
                                             }
