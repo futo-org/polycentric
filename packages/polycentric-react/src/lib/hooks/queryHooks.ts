@@ -260,7 +260,7 @@ export function useIndex<T>(
     contentType: Models.ContentType.ContentType,
     parse: (buffer: Uint8Array) => T,
     batchSize = 30,
-): [Array<ParsedEvent<T>>, () => void, boolean] {
+): [Array<ParsedEvent<T>>, () => Promise<void>, boolean] {
     const queryManager = useQueryManager();
 
     const [state, setState] = useState<Array<ClaimInfo<T>>>([]);
@@ -339,8 +339,10 @@ export function useIndex<T>(
             .filter((x) => x !== undefined) as ParsedEvent<T>[];
     }, [state]);
 
-    const advanceCallback = useCallback(() => {
-        advance?.(batchSize);
+    const advanceCallback = useMemo(() => {
+        return async () => {
+            await advance?.(batchSize);
+        };
     }, [advance, batchSize]);
 
     return [parsedEvents, advanceCallback, allSourcesAttempted];
@@ -857,3 +859,29 @@ export function useQueryTopStringReferences(
 
     return state;
 }
+
+export const useClaims = (system: Models.PublicKey.PublicKey) => {
+    const [claims, advance, allSourcesAttempted] = useIndex(
+        system,
+        Models.ContentType.ContentTypeClaim,
+        Protocol.Claim.decode,
+    );
+    // auto advance
+
+    useEffect(() => {
+        const autoAdvance = async () => {
+            if (!allSourcesAttempted) {
+                await advance();
+                setTimeout(autoAdvance, 1000); // wait for 1 second before trying again
+            }
+        };
+
+        autoAdvance();
+    }, [advance, allSourcesAttempted]);
+
+    const claimValues = useMemo(() => {
+        return claims.map((claim) => claim.value);
+    }, [claims]);
+
+    return claimValues;
+};

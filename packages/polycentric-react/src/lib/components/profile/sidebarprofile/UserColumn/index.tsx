@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useAvatar } from '../../../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../../../hooks/processHandleManagerHooks';
 import {
+    useClaims,
     useDescriptionCRDTQuery,
     useQueryIfAdded,
     useUsernameCRDTQuery,
@@ -18,6 +19,9 @@ export const UserColumn = ({
     const name = useUsernameCRDTQuery(system);
     const description = useDescriptionCRDTQuery(system);
     const avatarURL = useAvatar(system);
+
+    const claims = useClaims(system);
+
     const { processHandle } = useProcessHandleManager();
 
     const [localFollowing, setLocalFollowing] = useState<boolean | undefined>();
@@ -116,6 +120,7 @@ export const UserColumn = ({
             unfollow={unfollow}
             block={block}
             unblock={unblock}
+            claims={claims}
         />
     );
 };
