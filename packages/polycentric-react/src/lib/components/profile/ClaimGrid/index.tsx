@@ -250,13 +250,13 @@ const ClaimCircle: React.FC<{
             } ${
                 position === 'start'
                     ? 'left-0'
-                        : position === 'middle'
-                        ? isExpanded
-                            ? '-translate-x-[5rem]'
-                            : ''
-                        : isExpanded
-                            ? '-translate-x-[10rem]'
-                            : ''
+                    : position === 'middle'
+                    ? isExpanded
+                        ? '-translate-x-[5rem]'
+                        : ''
+                    : isExpanded
+                    ? '-translate-x-[10rem]'
+                    : ''
             }`}
             style={{ backgroundColor: color }}
             onMouseEnter={handleMouseEnter} // Handle hover for desktop
@@ -343,8 +343,8 @@ export const ClaimGrid: React.FC<{ claims: Protocol.Claim[] }> = ({
                                     index === 0
                                         ? 'start'
                                         : index === 1
-                                            ? 'middle'
-                                            : 'end'
+                                        ? 'middle'
+                                        : 'end'
                                 }
                             />
                         </div>
