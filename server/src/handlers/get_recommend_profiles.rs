@@ -4,6 +4,9 @@ use crate::moderation::ModerationFilters;
 
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
+    #[serde(
+        deserialize_with = "crate::handlers::util::deserialize_json_string"
+    )]
     moderation_filters: ::std::option::Option<ModerationFilters>,
 }
 
