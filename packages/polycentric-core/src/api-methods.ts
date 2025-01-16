@@ -219,6 +219,7 @@ export async function getQueryReferences(
     countLwwElementReferences?: Protocol.QueryReferencesRequestCountLWWElementReferences[],
     countReferences?: Protocol.QueryReferencesRequestCountReferences[],
     extraByteReferences?: Uint8Array[],
+    moderationLevels?: Record<string, number>,
 ): Promise<Protocol.QueryReferencesResponse> {
     const query: Protocol.QueryReferencesRequest = {
         reference: reference,
@@ -233,7 +234,11 @@ export async function getQueryReferences(
         Protocol.QueryReferencesRequest.encode(query).finish(),
     );
 
-    const path = `/query_references?query=${encodedQuery}`;
+    let path = `/query_references?query=${encodedQuery}`;
+
+    if (moderationLevels !== undefined) {
+        path += `&moderation_filters=${JSON.stringify(moderationLevels)}`;
+    }
 
     const response = await fetch(server + path, {
         method: 'GET',
@@ -260,6 +265,7 @@ export async function getSearch(
     limit?: number,
     cursor?: Uint8Array,
     searchType?: SearchType,
+    moderationLevels?: Record<string, number>,
 ): Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type> {
     let path = `/search?search=${encodeURIComponent(searchQuery)}`;
 
@@ -273,6 +279,10 @@ export async function getSearch(
 
     if (searchType !== undefined) {
         path += `&search_type=${searchType}`;
+    }
+
+    if (moderationLevels !== undefined) {
+        path += `&moderation_filters=${JSON.stringify(moderationLevels)}`;
     }
 
     const response = await fetch(server + path, {
