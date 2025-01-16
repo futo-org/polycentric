@@ -1,6 +1,5 @@
 use crate::moderation::ModerationOptions;
 use ::protobuf::Message;
-use crate::moderation::ModerationOptions;
 
 async fn load_version(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
