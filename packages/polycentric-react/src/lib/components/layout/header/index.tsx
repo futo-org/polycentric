@@ -30,7 +30,10 @@ export const Header = ({
     if (isMobile) {
         if (isPlatform('ios')) {
             return (
-                <IonHeader className="bg-white px-4 border-b text-black" ref={ref}>
+                <IonHeader
+                    className="bg-white px-4 border-b text-black"
+                    ref={ref}
+                >
                     {canHaveBackButton ? (
                         <Link
                             routerDirection={routerDirection}
@@ -47,7 +50,10 @@ export const Header = ({
             );
         } else {
             return (
-                <IonHeader className="bg-white px-4 border-b text-black" ref={ref}>
+                <IonHeader
+                    className="bg-white px-4 border-b text-black"
+                    ref={ref}
+                >
                     <div className="flex py-3 items-center">
                         {canHaveBackButton ? (
                             <Link
