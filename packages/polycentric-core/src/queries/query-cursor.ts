@@ -28,7 +28,20 @@ export function makeGetExploreCallback(
                     Protocol.PublicKey.encode(event.system).finish(),
                 );
 
-            if (!blocked) {
+            // Todo: Strict mode
+            const failsModerationSettings = moderationLevels
+                ? Object.entries(moderationLevels).some(
+                      ([settingName, settingLevel]) => {
+                          return signedEvent.moderationTags.some(
+                              (tag) =>
+                                  tag.name === settingName &&
+                                  tag.level > settingLevel,
+                          );
+                      },
+                  )
+                : false;
+
+            if (!blocked && !failsModerationSettings) {
                 filteredResultEvents.push(signedEvent);
             }
         }
