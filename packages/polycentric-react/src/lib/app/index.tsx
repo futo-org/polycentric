@@ -8,7 +8,6 @@ import {
     PersistenceDriver,
     ProcessHandle,
 } from '@polycentric/polycentric-core';
-import DarkReader from 'darkreader';
 import {
     useCallback,
     useEffect,
@@ -20,6 +19,7 @@ import {
 import * as UAParserJS from 'ua-parser-js';
 import { SidebarLayout } from '../components/layout/sidebarlayout';
 import { Onboarding } from '../components/onboarding';
+import { setupDarkMode } from '../components/settings/DarkModeSelector/setupDarkMode';
 import { MemoryRoutedComponent } from '../components/util/link';
 import { PersistenceDriverContext } from '../hooks/persistenceDriverHooks';
 import {
@@ -33,11 +33,7 @@ import { createSwipeBackGesture } from '../util/ionicfullpageswipebackgesture';
 import { MobileSwipeTopicContext, StackRouterContext } from './contexts';
 
 setupIonicReact({});
-DarkReader.auto({
-    brightness: 100,
-    contrast: 90,
-    sepia: 10,
-});
+setupDarkMode();
 
 // Currently, Polycentric can only be used while signed in
 export const SignedinApp = ({
