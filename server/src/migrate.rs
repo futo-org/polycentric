@@ -1,5 +1,6 @@
 use crate::moderation::ModerationOptions;
 use ::protobuf::Message;
+use crate::moderation::ModerationOptions;
 
 async fn load_version(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
@@ -112,21 +113,6 @@ async fn migration_2_add_moderation_tags_cols(
     Ok(())
 }
 
-async fn migration_3_change_moderation_enum_names(
-    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-) -> ::anyhow::Result<()> {
-    ::log::info!("running migration_3_change_moderation_enum_names");
-    ::sqlx::query(
-        "
-        ALTER TYPE moderation_status_enum RENAME VALUE 'pending' TO 'unprocessed';
-        ALTER TABLE events ALTER COLUMN moderation_status SET DEFAULT 'unprocessed';
-        ",
-    )
-    .execute(&mut **transaction)
-    .await?;
-    Ok(())
-}
-
 pub(crate) async fn migrate(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
 ) -> ::anyhow::Result<()> {
@@ -142,11 +128,7 @@ pub(crate) async fn migrate(
             1 => {
                 migration_2_add_moderation_tags_cols(&mut *transaction).await?
             }
-            2 => {
-                migration_3_change_moderation_enum_names(&mut *transaction)
-                    .await?
-            }
-            3 => break,
+            2 => break,
             _ => ::anyhow::bail!("schema too new for this server version"),
         }
 
