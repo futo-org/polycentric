@@ -293,9 +293,22 @@ export const ClaimGrid: React.FC<{ claims: Protocol.Claim[] }> = ({
         return out;
     }, [claimsUnwrapped]);
 
+    if (claimsInGroupsOfThree.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center space-y-3">
+                <div className="text-center text-xl font-semibold">Claims</div>
+                <div className="w-full h-px bg-gray-300" /> 
+                <div className="text-center text-m text-gray-400">
+                    None at the moment...
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col items-center justify-center space-y-3">
             <div className="text-center text-xl font-semibold">Claims</div>
+            <div className="w-full h-px bg-gray-300" /> 
             {claimsInGroupsOfThree.map((group, index) => (
                 <div key={index} className="grid relative grid-cols-3 gap-4">
                     {group.map((claim, index) => (
