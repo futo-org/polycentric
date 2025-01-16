@@ -1,32 +1,32 @@
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import React, { useMemo, useState } from 'react';
 
-import YouTubeIcon from '../../../../graphics/icons/rendered/youtube.svg.png';
-import TwitterIcon from '../../../../graphics/icons/rendered/x.svg.png';
-import RumbleIcon from '../../../../graphics/icons/rendered/rumble.svg.png';
-import OdyseeIcon from '../../../../graphics/icons/rendered/odysee.svg.png';
-import DiscordIcon from '../../../../graphics/icons/rendered/discord.svg.png';
-import InstagramIcon from '../../../../graphics/icons/rendered/instagram.svg.png';
-import GitHubIcon from '../../../../graphics/icons/rendered/github.svg.png';
-import MindsIcon from '../../../../graphics/icons/rendered/minds.svg.png';
-import PatreonIcon from '../../../../graphics/icons/rendered/patreon.svg.png';
-import SubstackIcon from '../../../../graphics/icons/rendered/substack.svg.png';
-import TwitchIcon from '../../../../graphics/icons/rendered/twitch.svg.png';
 import BitcoinIcon from '../../../../graphics/icons/rendered/bitcoin.svg.png';
+import DailyMotionIcon from '../../../../graphics/icons/rendered/dailymotion.svg.png';
+import DiscordIcon from '../../../../graphics/icons/rendered/discord.svg.png';
+import SkillIcon from '../../../../graphics/icons/rendered/gear.svg.png';
+import GitHubIcon from '../../../../graphics/icons/rendered/github.svg.png';
+import GitlabIcon from '../../../../graphics/icons/rendered/gitlab.svg.png';
 import HackerNewsIcon from '../../../../graphics/icons/rendered/hackernews.svg.png';
-import URLIcon from '../../../../graphics/icons/rendered/url.svg.png';
-import WebsiteIcon from '../../../../graphics/icons/rendered/website.svg.png';
-import WorkIcon from '../../../../graphics/icons/rendered/work.svg.png';
+import InstagramIcon from '../../../../graphics/icons/rendered/instagram.svg.png';
 import KickIcon from '../../../../graphics/icons/rendered/kick.svg.png';
-import SoundCloudIcon from '../../../../graphics/icons/rendered/soundcloud.svg.png';
-import VimeoIcon from '../../../../graphics/icons/rendered/vimeo.svg.png';
+import MindsIcon from '../../../../graphics/icons/rendered/minds.svg.png';
 import NebulaIcon from '../../../../graphics/icons/rendered/nebula.svg.png';
+import OdyseeIcon from '../../../../graphics/icons/rendered/odysee.svg.png';
+import PatreonIcon from '../../../../graphics/icons/rendered/patreon.svg.png';
+import PolycentricIcon from '../../../../graphics/icons/rendered/polycentric.svg.png';
+import RumbleIcon from '../../../../graphics/icons/rendered/rumble.svg.png';
+import SoundCloudIcon from '../../../../graphics/icons/rendered/soundcloud.svg.png';
 import SpotifyIcon from '../../../../graphics/icons/rendered/spotify.svg.png';
 import SpreadshopIcon from '../../../../graphics/icons/rendered/spreadshop.svg.png';
-import GitlabIcon from '../../../../graphics/icons/rendered/gitlab.svg.png';
-import DailyMotionIcon from '../../../../graphics/icons/rendered/dailymotion.svg.png';
-import PolycentricIcon from '../../../../graphics/icons/rendered/polycentric.svg.png';
-import SkillIcon from '../../../../graphics/icons/rendered/gear.svg.png';
+import SubstackIcon from '../../../../graphics/icons/rendered/substack.svg.png';
+import TwitchIcon from '../../../../graphics/icons/rendered/twitch.svg.png';
+import URLIcon from '../../../../graphics/icons/rendered/url.svg.png';
+import VimeoIcon from '../../../../graphics/icons/rendered/vimeo.svg.png';
+import WebsiteIcon from '../../../../graphics/icons/rendered/website.svg.png';
+import WorkIcon from '../../../../graphics/icons/rendered/work.svg.png';
+import TwitterIcon from '../../../../graphics/icons/rendered/x.svg.png';
+import YouTubeIcon from '../../../../graphics/icons/rendered/youtube.svg.png';
 
 const getIconFromClaimType = (
     type: Long,
