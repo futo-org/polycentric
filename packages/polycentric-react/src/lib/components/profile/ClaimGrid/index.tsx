@@ -34,7 +34,11 @@ const getIconFromClaimType = (
     switch (true) {
         case type.equals(Models.ClaimType.ClaimTypeHackerNews):
             return [
-                <img src={HackerNewsIcon} alt="Hacker News" className="w-6 h-6" />,
+                <img
+                    src={HackerNewsIcon}
+                    alt="Hacker News"
+                    className="w-6 h-6"
+                />,
                 '#ff6600',
             ];
         case type.equals(Models.ClaimType.ClaimTypeYouTube):
@@ -117,7 +121,11 @@ const getIconFromClaimType = (
             ];
         case type.equals(Models.ClaimType.ClaimTypeSoundcloud):
             return [
-                <img src={SoundCloudIcon} alt="Soundcloud" className="w-6 h-6" />,
+                <img
+                    src={SoundCloudIcon}
+                    alt="Soundcloud"
+                    className="w-6 h-6"
+                />,
                 '#ff8800',
             ];
         case type.equals(Models.ClaimType.ClaimTypeVimeo):
@@ -152,12 +160,20 @@ const getIconFromClaimType = (
             ];
         case type.equals(Models.ClaimType.ClaimTypeSpreadshop):
             return [
-                <img src={SpreadshopIcon} alt="Spreadshop" className="w-6 h-6" />,
+                <img
+                    src={SpreadshopIcon}
+                    alt="Spreadshop"
+                    className="w-6 h-6"
+                />,
                 '#ffcc00',
             ];
         case type.equals(Models.ClaimType.ClaimTypePolycentric):
             return [
-                <img src={PolycentricIcon} alt="Polycentric" className="w-6 h-6" />,
+                <img
+                    src={PolycentricIcon}
+                    alt="Polycentric"
+                    className="w-6 h-6"
+                />,
                 '#ffcc00',
             ];
         case type.equals(Models.ClaimType.ClaimTypeGitlab):
@@ -167,7 +183,11 @@ const getIconFromClaimType = (
             ];
         case type.equals(Models.ClaimType.ClaimTypeDailymotion):
             return [
-                <img src={DailyMotionIcon} alt="Dailymotion" className="w-6 h-6" />,
+                <img
+                    src={DailyMotionIcon}
+                    alt="Dailymotion"
+                    className="w-6 h-6"
+                />,
                 '#0066dc',
             ];
         default:
@@ -186,8 +206,14 @@ const ClaimCircle: React.FC<{
 }> = ({ claim, position }) => {
     const [expanded, setExpanded] = useState(false); // Tracks mobile toggle state
     const [hovering, setHovering] = useState(false); // Tracks desktop hover state
-    const [icon, color] = useMemo(() => getIconFromClaimType(claim.type), [claim.type]);
-    const url = useMemo(() => getAccountUrl(claim.type, claim.field.value), [claim.type, claim.field.value]);
+    const [icon, color] = useMemo(
+        () => getIconFromClaimType(claim.type),
+        [claim.type],
+    );
+    const url = useMemo(
+        () => getAccountUrl(claim.type, claim.field.value),
+        [claim.type, claim.field.value],
+    );
 
     // Determine if the circle should appear expanded
     const isExpanded = hovering || expanded;
@@ -242,9 +268,7 @@ const ClaimCircle: React.FC<{
     );
 };
 
-const getAccountUrl = (
-    type: Long, value: string
-): string | undefined => {
+const getAccountUrl = (type: Long, value: string): string | undefined => {
     switch (true) {
         case type.equals(Models.ClaimType.ClaimTypeTwitter):
             return `https://x.com/${value}`;
@@ -297,7 +321,7 @@ export const ClaimGrid: React.FC<{ claims: Protocol.Claim[] }> = ({
         return (
             <div className="flex flex-col items-center justify-center space-y-3">
                 <div className="text-center text-xl font-semibold">Claims</div>
-                <div className="w-full h-px bg-gray-300" /> 
+                <div className="w-full h-px bg-gray-300" />
                 <div className="text-center text-m text-gray-400">
                     None at the moment...
                 </div>
@@ -308,7 +332,7 @@ export const ClaimGrid: React.FC<{ claims: Protocol.Claim[] }> = ({
     return (
         <div className="flex flex-col items-center justify-center space-y-3">
             <div className="text-center text-xl font-semibold">Claims</div>
-            <div className="w-full h-px bg-gray-300" /> 
+            <div className="w-full h-px bg-gray-300" />
             {claimsInGroupsOfThree.map((group, index) => (
                 <div key={index} className="grid relative grid-cols-3 gap-4">
                     {group.map((claim, index) => (
