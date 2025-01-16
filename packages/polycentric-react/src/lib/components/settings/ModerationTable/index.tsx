@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useMemo, useState } from 'react';
+import { Dispatch, SetStateAction, useEffect, useMemo, useState } from 'react';
 
 const FancySlider = ({
     min = 0,
@@ -92,11 +92,18 @@ export const ModerationTable = () => {
         });
     }, []);
 
+    useEffect(() => {
+        localStorage.setItem(
+            'polycentric-moderation-levels',
+            JSON.stringify(levels),
+        );
+    }, [levels]);
+
     return (
         <div className="flex flex-col space-y-3">
             <h2 className="font-medium">Moderation Settings</h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-2 md:gap-10">
+            <div className="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-2 md:gap-10 border rounded-[2rem] p-6">
                 {categories.map((category, index) => (
                     <div key={category.tagName} className="contents">
                         <h3>{category.name}</h3>
