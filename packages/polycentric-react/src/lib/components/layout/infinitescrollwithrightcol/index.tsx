@@ -189,7 +189,7 @@ export const InfiniteScrollWithRightCol = ({
     return (
         <div
             ref={outerRef} // Attach the `outerRef` to the scroll container as the custom scroll parent so it includes the left column and the padding
-            className="h-full flex overflow-y-scroll noscrollbar"
+            className="h-full flex overflow-y-scroll noscrollbar bg-white"
             onScroll={isMobile ? undefined : onScroll}
         >
             <div className="w-full lg:w-[700px] xl:w-[776px]">

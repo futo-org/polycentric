@@ -581,7 +581,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                         />
                                                         <div className="flex flex-col ml-2 w-full">
                                                             <div className="flex justify-between w-full">
-                                                                <div className="font-bold">
+                                                                <div className="font-bold text-black">
                                                                     {
                                                                         sub
                                                                             .author
