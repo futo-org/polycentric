@@ -419,11 +419,6 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
                 info!("No moderation interface provided, skipping moderation queue");
             }
 
-            let skip_moderation = match config.moderation_mode {
-                ModerationMode::Off => true,
-                _ => no_interface,
-            };
-
             // Exit if either the moderation queue or the API server fails
             match config.moderation_mode {
                 ModerationMode::Off => {
