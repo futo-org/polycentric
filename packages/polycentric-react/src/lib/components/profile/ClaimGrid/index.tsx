@@ -251,12 +251,12 @@ const ClaimCircle: React.FC<{
                 position === 'start'
                     ? 'left-0'
                     : position === 'middle'
-                      ? isExpanded
-                          ? '-translate-x-[5rem]'
-                          : ''
-                      : isExpanded
-                        ? '-translate-x-[10rem]'
+                    ? isExpanded
+                        ? '-translate-x-[5rem]'
                         : ''
+                    : isExpanded
+                    ? '-translate-x-[10rem]'
+                    : ''
             }`}
             style={{ backgroundColor: color }}
             onMouseEnter={handleMouseEnter} // Handle hover for desktop
@@ -336,15 +336,19 @@ export const ClaimGrid: React.FC<{ claims: Protocol.Claim[] }> = ({
             {claimsInGroupsOfThree.map((group, index) => (
                 <div key={index} className="grid relative grid-cols-3 gap-4">
                     {group.map((claim, index) => (
-                        <div key={index} className="w-16 h-16">
+                        <div
+                            key={claim.field.value || index}
+                            className="w-16 h-16"
+                        >
+                            {' '}
                             <ClaimCircle
                                 claim={claim}
                                 position={
                                     index === 0
                                         ? 'start'
                                         : index === 1
-                                          ? 'middle'
-                                          : 'end'
+                                        ? 'middle'
+                                        : 'end'
                                 }
                             />
                         </div>
