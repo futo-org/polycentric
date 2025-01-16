@@ -2,7 +2,7 @@ import { Models, Protocol } from '@polycentric/polycentric-core';
 import React, { useMemo, useState } from 'react';
 
 import YouTubeIcon from '../../../../graphics/icons/rendered/youtube.svg.png';
-import TwitterIcon from '../../../../graphics/icons/rendered/twitter.svg.png';
+import TwitterIcon from '../../../../graphics/icons/rendered/x.svg.png';
 import RumbleIcon from '../../../../graphics/icons/rendered/rumble.svg.png';
 import OdyseeIcon from '../../../../graphics/icons/rendered/odysee.svg.png';
 import DiscordIcon from '../../../../graphics/icons/rendered/discord.svg.png';
@@ -184,37 +184,60 @@ const ClaimCircle: React.FC<{
     claim: { field: { value: string }; type: Long };
     position: 'start' | 'middle' | 'end';
 }> = ({ claim, position }) => {
-    const [expanded, setExpanded] = useState(false);
+    const [expanded, setExpanded] = useState(false); // Tracks mobile toggle state
+    const [hovering, setHovering] = useState(false); // Tracks desktop hover state
     const [icon, color] = useMemo(() => getIconFromClaimType(claim.type), [claim.type]);
     const url = useMemo(() => getAccountUrl(claim.type, claim.field.value), [claim.type, claim.field.value]);
 
-    const handleClick = () => {
-        if (url) {
-            window.open(url, '_blank');
+    // Determine if the circle should appear expanded
+    const isExpanded = hovering || expanded;
+
+    const handleMouseEnter = () => {
+        if (!expanded) setHovering(true); // Expand on hover for desktop
+    };
+
+    const handleMouseLeave = () => {
+        setHovering(false); // Collapse on hover out for desktop
+    };
+
+    const handleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+
+        if (hovering || expanded) {
+            // If hovering or already expanded, open the link directly
+            if (url) {
+                window.open(url, '_blank');
+            }
+            // Reset both hover and expanded states after interaction
+            setExpanded(false);
+            setHovering(false);
+        } else {
+            // For mobile or first click, expand the circle
+            setExpanded(true);
         }
     };
 
     return (
         <button
             className={`rounded-full w-16 h-16 p-2 flex items-center justify-center transition-all duration-300 whitespace-nowrap overflow-hidden ${
-                expanded ? 'absolute w-[14rem]' : ''
+                isExpanded ? 'absolute w-[14rem]' : ''
             } ${
                 position === 'start'
                     ? 'left-0'
                     : position === 'middle'
-                    ? expanded
+                    ? isExpanded
                         ? '-translate-x-[5rem]'
                         : ''
-                    : expanded
+                    : isExpanded
                     ? '-translate-x-[10rem]'
                     : ''
             }`}
             style={{ backgroundColor: color }}
-            onMouseEnter={() => setExpanded(true)}
-            onMouseLeave={() => setExpanded(false)}
-            onClick={handleClick}
+            onMouseEnter={handleMouseEnter} // Handle hover for desktop
+            onMouseLeave={handleMouseLeave} // Handle hover out for desktop
+            onClick={handleClick} // Handle click for both desktop and mobile
         >
-            {expanded ? claim.field.value : icon}
+            {isExpanded ? claim.field.value : icon}
         </button>
     );
 };
@@ -224,7 +247,7 @@ const getAccountUrl = (
 ): string | undefined => {
     switch (true) {
         case type.equals(Models.ClaimType.ClaimTypeTwitter):
-            return `https://twitter.com/${value}`;
+            return `https://x.com/${value}`;
         case type.equals(Models.ClaimType.ClaimTypeYouTube):
             return `https://www.youtube.com/channel/${value}`;
         case type.equals(Models.ClaimType.ClaimTypeDiscord):
