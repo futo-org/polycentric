@@ -6,6 +6,9 @@ use polycentric_protocol::protocol::Events;
 pub(crate) struct Query {
     cursor: ::std::option::Option<String>,
     limit: ::std::option::Option<u64>,
+    #[serde(
+        deserialize_with = "crate::handlers::util::deserialize_json_string"
+    )]
     moderation_filters: ::std::option::Option<ModerationFilters>,
 }
 
@@ -13,6 +16,10 @@ pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
+
+    // log moderation filters
+    println!("moderation filters: {:?}", query.moderation_filters);
+
     let start_id = if let Some(cursor) = query.cursor {
         u64::from_le_bytes(crate::warp_try_err_500!(crate::warp_try_err_500!(
             ::base64::decode_config(cursor, ::base64::URL_SAFE)

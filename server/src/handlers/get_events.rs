@@ -27,8 +27,11 @@ pub(crate) struct Query {
     system: polycentric_protocol::model::public_key::PublicKey,
     #[serde(deserialize_with = "serde_url_deserialize_ranges_for_system")]
     ranges: polycentric_protocol::protocol::RangesForSystem,
+    #[serde(
+        deserialize_with = "crate::handlers::util::deserialize_json_string"
+    )]
     moderation_filters:
-        ::core::option::Option<crate::moderation::ModerationFilters>,
+        ::std::option::Option<crate::moderation::ModerationFilters>,
 }
 
 async fn handler_inner(
