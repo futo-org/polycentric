@@ -48,18 +48,6 @@ const WelcomePanel = ({ nextSlide }: { nextSlide: () => void }) => {
     return (
         <OnboardingPanel imgSrc={starterURL}>
             <div className="flex flex-col justify-between h-full p-10">
-                <div className="flex flex-row justify-end">
-                    <button
-                        type="submit"
-                        className=" bg-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
-                        onClick={() => {
-                            setIsSigningIn(true);
-                            nextSlide();
-                        }}
-                    >
-                        Sign in
-                    </button>
-                </div>
                 <div className="flex flex-col justify-center h-full text-left space-y-10 md:space-y-4">
                     <div className="text-4xl md:font-6xl font-bold">
                         Welcome to Polycentric
@@ -72,6 +60,16 @@ const WelcomePanel = ({ nextSlide }: { nextSlide: () => void }) => {
                         onClick={nextSlide}
                     >
                         Create Account (no email necessary)
+                    </button>
+                    <button
+                        type="submit"
+                        className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+                        onClick={() => {
+                            setIsSigningIn(true);
+                            nextSlide();
+                        }}
+                    >
+                        Sign in
                     </button>
                     <div className="text-gray-400 text-lg pt-20">
                         Note: Polycentric is still a work in progress, and data
@@ -160,8 +158,8 @@ const RequestNotificationsPanel = ({
                     {state === 'notifications_request_failed'
                         ? 'Notifications request denied'
                         : state === 'persist_call_failed'
-                          ? 'Something went wrong'
-                          : 'Continue'}
+                        ? 'Something went wrong'
+                        : 'Continue'}
                 </button>
             </div>
         </OnboardingPanel>
