@@ -19,7 +19,6 @@ import {
     useState,
 } from 'react';
 import { useProcessHandleManager } from './processHandleManagerHooks';
-import { useAvatar } from './imageHooks';
 
 // Since we create query managers based on the driver passed in, we set the query managers value at the root of the app.
 // With this, it will never be undefined - but since typescript doesn't know that, we ignore the error.
@@ -867,17 +866,12 @@ export const useClaims = (system: Models.PublicKey.PublicKey) => {
         Models.ContentType.ContentTypeClaim,
         Protocol.Claim.decode,
     );
-    // auto advance
 
+    // Only advance once when the component mounts
     useEffect(() => {
-        const autoAdvance = async () => {
-            if (!allSourcesAttempted) {
-                await advance();
-                setTimeout(autoAdvance, 1000); // wait for 1 second before trying again
-            }
-        };
-
-        autoAdvance();
+        if (!allSourcesAttempted) {
+            advance();
+        }
     }, [advance, allSourcesAttempted]);
 
     const claimValues = useMemo(() => {
@@ -895,34 +889,73 @@ export const useClaimVouches = (
     claimPointer: Protocol.Reference | undefined
 ) => {
     const [cachedVouches, setCachedVouches] = useState<Models.PublicKey.PublicKey[] | null>(null);
+    const [loading, setLoading] = useState(true);
+    const { processHandle } = useProcessHandleManager();
 
-    const references = useQueryReferences(
-        system,
-        claimPointer,
-        undefined,
-        {
-            fromType: Models.ContentType.ContentTypeVouch,
-            countLwwElementReferences: [],
-            countReferences: [],
-        }
-    );
-
+    // Only fetch once when the component mounts or when system/claimPointer changes
     useEffect(() => {
-        if (references && cachedVouches === null) {
-            const vouches = references.flatMap((reference) =>
-                reference.items
-                    .filter((item) => item.event !== undefined)
-                    .map((item) =>
-                        Models.Event.fromBuffer(
-                            Models.SignedEvent.fromProto(item.event!).event
-                        ).system
-                    )
-            );
-            setCachedVouches(vouches);
+        if (!system || !claimPointer || cachedVouches !== null) {
+            return;
         }
-    }, [references, cachedVouches]);
 
-    const loading = cachedVouches === null;
+        const cancelContext = new CancelContext.CancelContext();
+
+        const fetchVouches = async () => {
+            try {
+                const systemState = await processHandle.loadSystemState(system);
+                const servers = systemState.servers();
+
+                const responses = await Promise.allSettled(
+                    servers.map((server) =>
+                        APIMethods.getQueryReferences(
+                            server,
+                            claimPointer,
+                            undefined,
+                            {
+                                fromType: Models.ContentType.ContentTypeVouch,
+                                countLwwElementReferences: [],
+                                countReferences: [],
+                            }
+                        ),
+                    ),
+                );
+
+                if (cancelContext.cancelled()) {
+                    return;
+                }
+
+                const fulfilledResponses = responses
+                    .filter((response) => response.status === 'fulfilled')
+                    .map(
+                        (response) =>
+                            (response as PromiseFulfilledResult<Protocol.QueryReferencesResponse>)
+                            .value,
+                    );
+
+                // Extract and process vouches from responses
+                const newVouches = fulfilledResponses.flatMap(response => 
+                    response.items
+                        .filter(item => item.event !== undefined)
+                        .map(item => Models.Event.fromBuffer(
+                            Models.SignedEvent.fromProto(item.event!).event
+                        ).system)
+                );
+
+                setCachedVouches(newVouches);
+                setLoading(false);
+            } catch (error) {
+                console.error('Error fetching vouches:', error);
+                setCachedVouches([]);
+                setLoading(false);
+            }
+        };
+
+        fetchVouches();
+
+        return () => {
+            cancelContext.cancel();
+        };
+    }, [system, claimPointer, processHandle]);
 
     return { vouches: cachedVouches || [], loading };
 };
