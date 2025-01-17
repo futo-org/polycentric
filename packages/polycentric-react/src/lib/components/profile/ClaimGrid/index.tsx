@@ -30,6 +30,7 @@ import YouTubeIcon from '../../../../graphics/icons/rendered/youtube.svg.png';
 import { useAvatar } from '../../../hooks/imageHooks';
 import {
     useClaimVouches,
+    useSystemLink,
     useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
 
@@ -205,12 +206,12 @@ const getIconFromClaimType = (
     }
 };
 
-export const VouchedBy: React.FC<{ vouchEvent: Models.Event.Event }> = ({
-    vouchEvent,
+export const VouchedBy: React.FC<{ system: Models.PublicKey.PublicKey }> = ({
+    system,
 }) => {
-    const avatar = useAvatar(vouchEvent.system);
-    const username = useUsernameCRDTQuery(vouchEvent.system);
-    const profileUrl = `/${Models.PublicKey.toString(vouchEvent.system)}`;
+    const avatar = useAvatar(system);
+    const username = useUsernameCRDTQuery(system);
+    const profileUrl = useSystemLink(system);
 
     return (
         <a
@@ -326,7 +327,7 @@ const ClaimCircle: React.FC<{
                                           key={index}
                                           className="flex flex-col items-center"
                                       >
-                                          <VouchedBy vouchEvent={vouch} />
+                                          <VouchedBy system={vouch.system} />
                                       </div>
                                   ),
                           )
