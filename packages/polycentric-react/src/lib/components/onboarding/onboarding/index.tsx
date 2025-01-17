@@ -158,8 +158,8 @@ const RequestNotificationsPanel = ({
                     {state === 'notifications_request_failed'
                         ? 'Notifications request denied'
                         : state === 'persist_call_failed'
-                        ? 'Something went wrong'
-                        : 'Continue'}
+                          ? 'Something went wrong'
+                          : 'Continue'}
                 </button>
             </div>
         </OnboardingPanel>
