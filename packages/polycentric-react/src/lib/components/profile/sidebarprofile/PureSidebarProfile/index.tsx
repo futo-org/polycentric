@@ -58,8 +58,13 @@ export const PureSidebarProfile = ({
             />
             <div className="flex flex-col items-center justify-center space-y-3">
                 <ProfilePicture className="h-24 w-24" src={profile.avatarURL} />
-                <div className="text-2xl font-medium px-8 break-words max-w-full text-center">
-                    {profile.name}
+                <div className="flex flex-col items-center">
+                    <div className="text-2xl font-medium px-8 break-words max-w-full text-center">
+                        {profile.name}
+                    </div>
+                    <div className="text-sm text-gray-500 font-mono text-center">
+                        {Models.PublicKey.toString(profile.system).slice(0, 6)}
+                    </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-center">
                     {profile.isMyProfile == false ? (
