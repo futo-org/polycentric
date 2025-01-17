@@ -877,7 +877,9 @@ export const useClaims = (system: Models.PublicKey.PublicKey) => {
     const claimValues = useMemo(() => {
         return claims.map((claim) => ({
             value: claim.value,
-            pointer: Models.pointerToReference(Models.signedEventToPointer(claim.signedEvent)),
+            pointer: Models.pointerToReference(
+                Models.signedEventToPointer(claim.signedEvent),
+            ),
         }));
     }, [claims]);
 
@@ -891,10 +893,12 @@ const useCachedQueryReferences = (
     cursor?: Uint8Array,
     requestEvents?: Protocol.QueryReferencesRequestEvents,
 ) => {
-    const [responses, setResponses] = useState<Protocol.QueryReferencesResponse[] | undefined>(undefined);
+    const [responses, setResponses] = useState<
+        Protocol.QueryReferencesResponse[] | undefined
+    >(undefined);
     const hasInitializedRef = useRef(false);
     const { processHandle } = useProcessHandleManager();
-    
+
     useEffect(() => {
         if (!hasInitializedRef.current && system && reference) {
             const fetchData = async () => {
@@ -907,14 +911,19 @@ const useCachedQueryReferences = (
                             server,
                             reference,
                             cursor,
-                            requestEvents
+                            requestEvents,
                         ),
                     ),
                 );
 
                 const fulfilledResponses = results
                     .filter((response) => response.status === 'fulfilled')
-                    .map((response) => (response as PromiseFulfilledResult<Protocol.QueryReferencesResponse>).value);
+                    .map(
+                        (response) =>
+                            (
+                                response as PromiseFulfilledResult<Protocol.QueryReferencesResponse>
+                            ).value,
+                    );
 
                 setResponses(fulfilledResponses);
                 hasInitializedRef.current = true;
@@ -929,11 +938,13 @@ const useCachedQueryReferences = (
 
 export const useClaimVouches = (
     system: Models.PublicKey.PublicKey,
-    claimPointer: Protocol.Reference | undefined
+    claimPointer: Protocol.Reference | undefined,
 ) => {
     const [loading, setLoading] = useState(true);
-    const [cachedVouches, setCachedVouches] = useState<Models.PublicKey.PublicKey[] | null>(null);
-    
+    const [cachedVouches, setCachedVouches] = useState<
+        Models.PublicKey.PublicKey[] | null
+    >(null);
+
     const references = useCachedQueryReferences(
         system,
         claimPointer,
@@ -942,17 +953,20 @@ export const useClaimVouches = (
             fromType: Models.ContentType.ContentTypeVouch,
             countLwwElementReferences: [],
             countReferences: [],
-        }
+        },
     );
 
     useEffect(() => {
         if (references && cachedVouches === null) {
-            const allVouches = references.flatMap(response => 
+            const allVouches = references.flatMap((response) =>
                 response.items
-                    .filter(item => item.event !== undefined)
-                    .map(item => Models.Event.fromBuffer(
-                        Models.SignedEvent.fromProto(item.event!).event
-                    ).system)
+                    .filter((item) => item.event !== undefined)
+                    .map(
+                        (item) =>
+                            Models.Event.fromBuffer(
+                                Models.SignedEvent.fromProto(item.event!).event,
+                            ).system,
+                    ),
             );
 
             setCachedVouches(allVouches);
@@ -960,8 +974,8 @@ export const useClaimVouches = (
         }
     }, [references, cachedVouches]);
 
-    return { 
-        vouches: cachedVouches || [], 
-        loading: loading && cachedVouches === null 
+    return {
+        vouches: cachedVouches || [],
+        loading: loading && cachedVouches === null,
     };
 };
