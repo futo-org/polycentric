@@ -19,6 +19,7 @@ import {
     useState,
 } from 'react';
 import { useProcessHandleManager } from './processHandleManagerHooks';
+import { useAvatar } from './imageHooks';
 
 // Since we create query managers based on the driver passed in, we set the query managers value at the root of the app.
 // With this, it will never be undefined - but since typescript doesn't know that, we ignore the error.
@@ -880,8 +881,48 @@ export const useClaims = (system: Models.PublicKey.PublicKey) => {
     }, [advance, allSourcesAttempted]);
 
     const claimValues = useMemo(() => {
-        return claims.map((claim) => claim.value);
+        return claims.map((claim) => ({
+            value: claim.value,
+            pointer: Models.pointerToReference(Models.signedEventToPointer(claim.signedEvent)),
+        }));
     }, [claims]);
 
     return claimValues;
+};
+
+export const useClaimVouches = (
+    system: Models.PublicKey.PublicKey,
+    claimPointer: Protocol.Reference | undefined
+) => {
+    const [cachedVouches, setCachedVouches] = useState<Models.PublicKey.PublicKey[] | null>(null);
+
+    const references = useQueryReferences(
+        system,
+        claimPointer,
+        undefined,
+        {
+            fromType: Models.ContentType.ContentTypeVouch,
+            countLwwElementReferences: [],
+            countReferences: [],
+        }
+    );
+
+    useEffect(() => {
+        if (references && cachedVouches === null) {
+            const vouches = references.flatMap((reference) =>
+                reference.items
+                    .filter((item) => item.event !== undefined)
+                    .map((item) =>
+                        Models.Event.fromBuffer(
+                            Models.SignedEvent.fromProto(item.event!).event
+                        ).system
+                    )
+            );
+            setCachedVouches(vouches);
+        }
+    }, [references, cachedVouches]);
+
+    const loading = cachedVouches === null;
+
+    return { vouches: cachedVouches || [], loading };
 };

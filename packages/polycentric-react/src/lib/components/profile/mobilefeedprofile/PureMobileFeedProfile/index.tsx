@@ -1,4 +1,4 @@
-import { Protocol } from '@polycentric/polycentric-core';
+import { Models, Protocol } from '@polycentric/polycentric-core';
 import { ArrowUpOnSquareIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 import { FollowingList } from '../../FollowingList';
@@ -22,7 +22,7 @@ export const PureMobileFeedProfile = ({
     unfollow: () => void;
     share: () => void;
     editProfileActions: EditProfileActions;
-    claims: Protocol.Claim[];
+    claims: { value: Protocol.Claim; pointer: Protocol.Reference }[];
 }) => {
     const [editProfileOpen, setEditProfileOpen] = useState(false);
     const [followingPanelOpen, setFollowingPanelOpen] = useState(false);
@@ -93,7 +93,7 @@ export const PureMobileFeedProfile = ({
                 <div className="w-full text text-gray-500 min-w-0 break-words">
                     {profile.description}
                 </div>
-                <ClaimGrid claims={claims} />
+                <ClaimGrid claims={claims} system={profile.system} />
             </div>
         </div>
     );

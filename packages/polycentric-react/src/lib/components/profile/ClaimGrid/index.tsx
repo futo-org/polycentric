@@ -1,5 +1,5 @@
 import { Models, Protocol } from '@polycentric/polycentric-core';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import BitcoinIcon from '../../../../graphics/icons/rendered/bitcoin.svg.png';
 import DailyMotionIcon from '../../../../graphics/icons/rendered/dailymotion.svg.png';
@@ -27,6 +27,8 @@ import WebsiteIcon from '../../../../graphics/icons/rendered/website.svg.png';
 import WorkIcon from '../../../../graphics/icons/rendered/work.svg.png';
 import TwitterIcon from '../../../../graphics/icons/rendered/x.svg.png';
 import YouTubeIcon from '../../../../graphics/icons/rendered/youtube.svg.png';
+import { useClaimVouches, useUsernameCRDTQuery } from '../../../hooks/queryHooks';
+import { useAvatar } from '../../../hooks/imageHooks';
 
 const getIconFromClaimType = (
     type: Long,
@@ -200,73 +202,126 @@ const getIconFromClaimType = (
     }
 };
 
-const ClaimCircle: React.FC<{
-    claim: { field: { value: string }; type: Long };
-    position: 'start' | 'middle' | 'end';
-}> = ({ claim, position }) => {
-    const [expanded, setExpanded] = useState(false); // Tracks mobile toggle state
-    const [hovering, setHovering] = useState(false); // Tracks desktop hover state
-    const [icon, color] = useMemo(
-        () => getIconFromClaimType(claim.type),
-        [claim.type],
-    );
-    const url = useMemo(
-        () => getAccountUrl(claim.type, claim.field.value),
-        [claim.type, claim.field.value],
-    );
+export const VouchedBy: React.FC<{ system: Models.PublicKey.PublicKey }> = ({ system }) => {
+    const avatar = useAvatar(system); // Fetch avatar
+    const username = useUsernameCRDTQuery(system); // Fetch username
 
-    // Determine if the circle should appear expanded
+    return (
+        <div className="relative flex items-center justify-center w-10 h-10">
+            {/* Username centered over the avatar */}
+            <div className="absolute inset-0 flex items-center justify-center text-xs text-white bg-black bg-opacity-50 rounded-full">
+                {username || 'Unknown'}
+            </div>
+            {/* Avatar */}
+            <a
+                href={`/${Models.PublicKey.toString(system)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                <img
+                    src={avatar}
+                    alt={username || 'User'}
+                    className="rounded-full w-full h-full border"
+                />
+            </a>
+        </div>
+    );
+};
+
+const ClaimCircle: React.FC<{
+    claim: { field: { value: string }; type: Long; pointer: Protocol.Reference };
+    position: 'start' | 'middle' | 'end';
+    system: Models.PublicKey.PublicKey;
+}> = React.memo(({ claim, position, system }) => {
+    const [expanded, setExpanded] = useState(false);
+    const [hovering, setHovering] = useState(false);
+
+    const [icon, color] = useMemo(() => getIconFromClaimType(claim.type), [claim.type]);
+    const url = useMemo(() => getAccountUrl(claim.type, claim.field.value), [
+        claim.type,
+        claim.field.value,
+    ]);
+
+    // Fetch vouches
+    const { vouches, loading } = useClaimVouches(system, claim.pointer);
+
     const isExpanded = hovering || expanded;
 
-    const handleMouseEnter = () => {
-        if (!expanded) setHovering(true); // Expand on hover for desktop
-    };
-
-    const handleMouseLeave = () => {
-        setHovering(false); // Collapse on hover out for desktop
-    };
+    const handleMouseEnter = () => !expanded && setHovering(true);
+    const handleMouseLeave = () => setHovering(false);
 
     const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-
         if (hovering || expanded) {
-            // If hovering or already expanded, open the link directly
-            if (url) {
-                window.open(url, '_blank');
-            }
-            // Reset both hover and expanded states after interaction
+            if (url) window.open(url, '_blank');
             setExpanded(false);
             setHovering(false);
         } else {
-            // For mobile or first click, expand the circle
             setExpanded(true);
         }
     };
 
+    const zIndex = isExpanded ? 10 : position === 'start' ? 1 : position === 'middle' ? 2 : 3;
+
     return (
-        <button
-            className={`rounded-full w-16 h-16 p-2 flex items-center justify-center transition-all duration-300 whitespace-nowrap overflow-hidden ${
-                isExpanded ? 'absolute w-[14rem]' : ''
-            } ${
-                position === 'start'
-                    ? 'left-0'
-                    : position === 'middle'
-                    ? isExpanded
-                        ? '-translate-x-[5rem]'
-                        : ''
-                    : isExpanded
-                    ? '-translate-x-[10rem]'
-                    : ''
-            }`}
-            style={{ backgroundColor: color }}
-            onMouseEnter={handleMouseEnter} // Handle hover for desktop
-            onMouseLeave={handleMouseLeave} // Handle hover out for desktop
-            onClick={handleClick} // Handle click for both desktop and mobile
+        <div
+            className="relative"
+            style={{
+                zIndex, // Apply z-index dynamically
+            }}
         >
-            {isExpanded ? claim.field.value : icon}
-        </button>
+            <button
+                className={`rounded-full w-16 h-16 p-2 flex items-center justify-center transition-all duration-300 whitespace-nowrap overflow-hidden ${
+                    isExpanded ? 'absolute w-[14rem]' : ''
+                } ${
+                    position === 'start'
+                        ? 'left-0'
+                        : position === 'middle'
+                        ? isExpanded
+                            ? '-translate-x-[5rem]'
+                            : ''
+                        : isExpanded
+                        ? '-translate-x-[10rem]'
+                        : ''
+                }`}
+                style={{ backgroundColor: color }}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                onClick={handleClick}
+            >
+                {isExpanded ? claim.field.value : icon}
+            </button>
+
+            {/* Vouches */}
+            {!loading && (
+                <div
+                    className={`absolute ${
+                        isExpanded
+                            ? 'bottom-[-12px] w-full flex justify-center gap-2'
+                            : 'bottom-0 right-0 flex justify-center'
+                    }`}
+                >
+                    {isExpanded ? (
+                        vouches.map((vouch, index) => (
+                            <div key={index} className="flex flex-col items-center">
+                                <VouchedBy system={vouch} />
+                            </div>
+                        ))
+                    ) : (
+                        vouches.length > 0 && (
+                            <div
+                                className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center"
+                                title={`${vouches.length} vouches`}
+                            >
+                                {vouches.length}
+                            </div>
+                        )
+                    )}
+                </div>
+            )}
+        </div>
     );
-};
+});
 
 const getAccountUrl = (type: Long, value: string): string | undefined => {
     switch (true) {
@@ -288,6 +343,14 @@ const getAccountUrl = (type: Long, value: string): string | undefined => {
             return `https://www.twitch.tv/${value}`;
         case type.equals(Models.ClaimType.ClaimTypeBitcoin):
             return `https://www.blockchain.com/btc/address/${value}`;
+        case type.equals(Models.ClaimType.ClaimTypeOdysee):
+            return `https://odysee.com/@${value}`;
+        case type.equals(Models.ClaimType.ClaimTypeRumble):
+            return `https://rumble.com/user/${value}`;
+        case type.equals(Models.ClaimType.ClaimTypeMinds):
+            return `https://minds.com/${value}`;
+        case type.equals(Models.ClaimType.ClaimTypeHackerNews):
+            return `https://news.ycombinator.com/user?id=${value}`;
         case type.equals(Models.ClaimType.ClaimTypeURL):
         case type.equals(Models.ClaimType.ClaimTypeWebsite):
             return value; // Assume the value is a URL.
@@ -296,17 +359,18 @@ const getAccountUrl = (type: Long, value: string): string | undefined => {
     }
 };
 
-export const ClaimGrid: React.FC<{ claims: Protocol.Claim[] }> = ({
-    claims,
-}) => {
+export const ClaimGrid: React.FC<{
+    system: Models.PublicKey.PublicKey;
+    claims: { value: Protocol.Claim; pointer: Protocol.Reference }[];
+}> = React.memo(({ system, claims }) => {
     const claimsUnwrapped = useMemo(() => {
-        const out = [];
-        for (const claim of claims) {
-            for (const field of claim.claimFields) {
-                out.push({ field, type: claim.claimType });
-            }
-        }
-        return out;
+        return claims.flatMap(({ value, pointer }) =>
+            value.claimFields.map((field) => ({
+                field,
+                type: value.claimType,
+                pointer, // Pass the stable pointer
+            }))
+        );
     }, [claims]);
 
     const claimsInGroupsOfThree = useMemo(() => {
@@ -340,7 +404,6 @@ export const ClaimGrid: React.FC<{ claims: Protocol.Claim[] }> = ({
                             key={claim.field.value || index}
                             className="w-16 h-16"
                         >
-                            {' '}
                             <ClaimCircle
                                 claim={claim}
                                 position={
@@ -350,6 +413,7 @@ export const ClaimGrid: React.FC<{ claims: Protocol.Claim[] }> = ({
                                         ? 'middle'
                                         : 'end'
                                 }
+                                system={system}
                             />
                         </div>
                     ))}
@@ -357,4 +421,4 @@ export const ClaimGrid: React.FC<{ claims: Protocol.Claim[] }> = ({
             ))}
         </div>
     );
-};
+});
