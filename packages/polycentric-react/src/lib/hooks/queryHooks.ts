@@ -884,78 +884,84 @@ export const useClaims = (system: Models.PublicKey.PublicKey) => {
     return claimValues;
 };
 
-export const useClaimVouches = (
-    system: Models.PublicKey.PublicKey,
-    claimPointer: Protocol.Reference | undefined
+// Create a new hook for cached references
+const useCachedQueryReferences = (
+    system: Models.PublicKey.PublicKey | undefined,
+    reference: Protocol.Reference | undefined,
+    cursor?: Uint8Array,
+    requestEvents?: Protocol.QueryReferencesRequestEvents,
 ) => {
-    const [cachedVouches, setCachedVouches] = useState<Models.PublicKey.PublicKey[] | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [responses, setResponses] = useState<Protocol.QueryReferencesResponse[] | undefined>(undefined);
+    const hasInitializedRef = useRef(false);
     const { processHandle } = useProcessHandleManager();
-
-    // Only fetch once when the component mounts or when system/claimPointer changes
+    
     useEffect(() => {
-        if (!system || !claimPointer || cachedVouches !== null) {
-            return;
-        }
-
-        const cancelContext = new CancelContext.CancelContext();
-
-        const fetchVouches = async () => {
-            try {
+        if (!hasInitializedRef.current && system && reference) {
+            const fetchData = async () => {
                 const systemState = await processHandle.loadSystemState(system);
                 const servers = systemState.servers();
 
-                const responses = await Promise.allSettled(
+                const results = await Promise.allSettled(
                     servers.map((server) =>
                         APIMethods.getQueryReferences(
                             server,
-                            claimPointer,
-                            undefined,
-                            {
-                                fromType: Models.ContentType.ContentTypeVouch,
-                                countLwwElementReferences: [],
-                                countReferences: [],
-                            }
+                            reference,
+                            cursor,
+                            requestEvents
                         ),
                     ),
                 );
 
-                if (cancelContext.cancelled()) {
-                    return;
-                }
-
-                const fulfilledResponses = responses
+                const fulfilledResponses = results
                     .filter((response) => response.status === 'fulfilled')
-                    .map(
-                        (response) =>
-                            (response as PromiseFulfilledResult<Protocol.QueryReferencesResponse>)
-                            .value,
-                    );
+                    .map((response) => (response as PromiseFulfilledResult<Protocol.QueryReferencesResponse>).value);
 
-                // Extract and process vouches from responses
-                const newVouches = fulfilledResponses.flatMap(response => 
-                    response.items
-                        .filter(item => item.event !== undefined)
-                        .map(item => Models.Event.fromBuffer(
-                            Models.SignedEvent.fromProto(item.event!).event
-                        ).system)
-                );
+                setResponses(fulfilledResponses);
+                hasInitializedRef.current = true;
+            };
 
-                setCachedVouches(newVouches);
-                setLoading(false);
-            } catch (error) {
-                console.error('Error fetching vouches:', error);
-                setCachedVouches([]);
-                setLoading(false);
-            }
-        };
+            fetchData();
+        }
+    }, [system, reference, cursor, requestEvents]);
 
-        fetchVouches();
+    return responses;
+};
 
-        return () => {
-            cancelContext.cancel();
-        };
-    }, [system, claimPointer, processHandle]);
+export const useClaimVouches = (
+    system: Models.PublicKey.PublicKey,
+    claimPointer: Protocol.Reference | undefined
+) => {
+    const [loading, setLoading] = useState(true);
+    const [cachedVouches, setCachedVouches] = useState<Models.PublicKey.PublicKey[] | null>(null);
+    
+    const references = useCachedQueryReferences(
+        system,
+        claimPointer,
+        undefined,
+        {
+            fromType: Models.ContentType.ContentTypeVouch,
+            countLwwElementReferences: [],
+            countReferences: [],
+        }
+    );
 
-    return { vouches: cachedVouches || [], loading };
+    useEffect(() => {
+        if (references && cachedVouches === null) {
+            const allVouches = references.flatMap(response => 
+                response.items
+                    .filter(item => item.event !== undefined)
+                    .map(item => Models.Event.fromBuffer(
+                        Models.SignedEvent.fromProto(item.event!).event
+                    ).system)
+            );
+
+            setCachedVouches(allVouches);
+            setLoading(false);
+        }
+    }, [references, cachedVouches]);
+
+    return { 
+        vouches: cachedVouches || [], 
+        loading: loading && cachedVouches === null 
+    };
 };
