@@ -295,8 +295,8 @@ const ClaimCircle: React.FC<{
                         ? 'left-0'
                         : position === 'middle'
                           ? isExpanded
-                            ? '-translate-x-[5rem]'
-                            : ''
+                              ? '-translate-x-[5rem]'
+                              : ''
                           : isExpanded
                             ? '-translate-x-[10rem]'
                             : ''
