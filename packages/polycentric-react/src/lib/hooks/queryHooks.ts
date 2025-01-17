@@ -905,15 +905,21 @@ export const useClaimVouches = (
     );
 
     const vouchEvents = useMemo(() => {
-        return (
-            vouches?.map((vouch) => {
-                const signedEvent = vouch.items[0]?.event;
-                if (signedEvent === undefined) {
-                    return undefined;
-                }
-                return Models.Event.fromBuffer(signedEvent.event);
-            }) ?? []
-        );
+        if (vouches === undefined) {
+            return [];
+        }
+
+        return vouches
+            ?.flatMap((vouch) =>
+                vouch.items.map((item) => {
+                    const signedEvent = item?.event;
+                    if (signedEvent === undefined) {
+                        return undefined;
+                    }
+                    return Models.Event.fromBuffer(signedEvent.event);
+                }),
+            )
+            .filter((event) => event !== undefined);
     }, [vouches]);
 
     return vouchEvents;
