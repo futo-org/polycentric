@@ -30,7 +30,6 @@ import YouTubeIcon from '../../../../graphics/icons/rendered/youtube.svg.png';
 import { useAvatar } from '../../../hooks/imageHooks';
 import {
     useClaimVouches,
-    useSystemLink,
     useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
 
@@ -206,12 +205,12 @@ const getIconFromClaimType = (
     }
 };
 
-export const VouchedBy: React.FC<{ system: Models.PublicKey.PublicKey }> = ({
-    system,
+export const VouchedBy: React.FC<{ vouchEvent: Models.Event.Event }> = ({
+    vouchEvent,
 }) => {
-    const avatar = useAvatar(system);
-    const username = useUsernameCRDTQuery(system);
-    const profileUrl = useSystemLink(system);
+    const avatar = useAvatar(vouchEvent.system);
+    const username = useUsernameCRDTQuery(vouchEvent.system);
+    const profileUrl = `/${Models.PublicKey.toString(vouchEvent.system)}`;
 
     return (
         <a
@@ -241,7 +240,7 @@ const ClaimCircle: React.FC<{
     };
     position: 'start' | 'middle' | 'end';
     system: Models.PublicKey.PublicKey;
-}> = React.memo(({ claim, position, system }) => {
+}> = ({ claim, position, system }) => {
     const [expanded, setExpanded] = useState(false);
     const [hovering, setHovering] = useState(false);
 
@@ -255,7 +254,7 @@ const ClaimCircle: React.FC<{
     );
 
     // Fetch vouches
-    const { vouches, loading } = useClaimVouches(system, claim.pointer);
+    const vouches = useClaimVouches(system, claim.pointer);
 
     const isExpanded = hovering || expanded;
 
@@ -311,7 +310,7 @@ const ClaimCircle: React.FC<{
             </button>
 
             {/* Vouches */}
-            {!loading && (
+            {vouches && (
                 <div
                     className={`absolute ${
                         isExpanded
@@ -320,14 +319,17 @@ const ClaimCircle: React.FC<{
                     }`}
                 >
                     {isExpanded
-                        ? vouches.map((vouch, index) => (
-                              <div
-                                  key={index}
-                                  className="flex flex-col items-center"
-                              >
-                                  <VouchedBy system={vouch} />
-                              </div>
-                          ))
+                        ? vouches.map(
+                              (vouch, index) =>
+                                  vouch && (
+                                      <div
+                                          key={index}
+                                          className="flex flex-col items-center"
+                                      >
+                                          <VouchedBy vouchEvent={vouch} />
+                                      </div>
+                                  ),
+                          )
                         : vouches.length > 0 && (
                               <div
                                   className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center"
@@ -340,7 +342,7 @@ const ClaimCircle: React.FC<{
             )}
         </div>
     );
-});
+};
 
 const getAccountUrl = (type: Long, value: string): string | undefined => {
     switch (true) {

@@ -886,96 +886,35 @@ export const useClaims = (system: Models.PublicKey.PublicKey) => {
     return claimValues;
 };
 
-// Create a new hook for cached references
-const useCachedQueryReferences = (
-    system: Models.PublicKey.PublicKey | undefined,
-    reference: Protocol.Reference | undefined,
-    cursor?: Uint8Array,
-    requestEvents?: Protocol.QueryReferencesRequestEvents,
-) => {
-    const [responses, setResponses] = useState<
-        Protocol.QueryReferencesResponse[] | undefined
-    >(undefined);
-    const hasInitializedRef = useRef(false);
-    const { processHandle } = useProcessHandleManager();
-
-    useEffect(() => {
-        if (!hasInitializedRef.current && system && reference) {
-            const fetchData = async () => {
-                const systemState = await processHandle.loadSystemState(system);
-                const servers = systemState.servers();
-
-                const results = await Promise.allSettled(
-                    servers.map((server) =>
-                        APIMethods.getQueryReferences(
-                            server,
-                            reference,
-                            cursor,
-                            requestEvents,
-                        ),
-                    ),
-                );
-
-                const fulfilledResponses = results
-                    .filter((response) => response.status === 'fulfilled')
-                    .map(
-                        (response) =>
-                            (
-                                response as PromiseFulfilledResult<Protocol.QueryReferencesResponse>
-                            ).value,
-                    );
-
-                setResponses(fulfilledResponses);
-                hasInitializedRef.current = true;
-            };
-
-            fetchData();
-        }
-    }, [system, reference, cursor, requestEvents]);
-
-    return responses;
+const claimVouchRequestEvents: Protocol.QueryReferencesRequestEvents = {
+    fromType: Models.ContentType.ContentTypeVouch,
+    countLwwElementReferences: [],
+    countReferences: [],
 };
 
 export const useClaimVouches = (
     system: Models.PublicKey.PublicKey,
-    claimPointer: Protocol.Reference | undefined,
+    claimReference: Protocol.Reference,
 ) => {
-    const [loading, setLoading] = useState(true);
-    const [cachedVouches, setCachedVouches] = useState<
-        Models.PublicKey.PublicKey[] | null
-    >(null);
-
-    const references = useCachedQueryReferences(
+    const vouches = useQueryReferences(
         system,
-        claimPointer,
+        claimReference,
         undefined,
-        {
-            fromType: Models.ContentType.ContentTypeVouch,
-            countLwwElementReferences: [],
-            countReferences: [],
-        },
+        claimVouchRequestEvents,
+        undefined,
     );
 
-    useEffect(() => {
-        if (references && cachedVouches === null) {
-            const allVouches = references.flatMap((response) =>
-                response.items
-                    .filter((item) => item.event !== undefined)
-                    .map(
-                        (item) =>
-                            Models.Event.fromBuffer(
-                                Models.SignedEvent.fromProto(item.event!).event,
-                            ).system,
-                    ),
-            );
+    const vouchEvents = useMemo(() => {
+        return (
+            vouches?.map((vouch) => {
+                const signedEvent = vouch.items[0]?.event;
+                if (signedEvent === undefined) {
+                    return undefined;
+                }
+                return Models.Event.fromBuffer(signedEvent.event);
+            }) ?? []
+        );
+    }, [vouches]);
 
-            setCachedVouches(allVouches);
-            setLoading(false);
-        }
-    }, [references, cachedVouches]);
-
-    return {
-        vouches: cachedVouches || [],
-        loading: loading && cachedVouches === null,
-    };
+    return vouchEvents;
 };
