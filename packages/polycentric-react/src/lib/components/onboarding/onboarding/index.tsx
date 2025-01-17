@@ -161,8 +161,8 @@ const RequestNotificationsPanel = ({
                     {state === 'notifications_request_failed'
                         ? 'Notifications request denied'
                         : state === 'persist_call_failed'
-                          ? 'Something went wrong'
-                          : 'Continue'}
+                        ? 'Something went wrong'
+                        : 'Continue'}
                 </button>
             </div>
         </OnboardingPanel>
@@ -261,11 +261,11 @@ const GenCredsPanelItem = ({
         if (input) {
             // Check if text is overflowing
             setHasOverflow(input.scrollWidth > input.clientWidth);
-            
+
             // Check if all text is selected
             setIsFullySelected(
-                input.selectionStart === 0 && 
-                input.selectionEnd === input.value.length
+                input.selectionStart === 0 &&
+                    input.selectionEnd === input.value.length,
             );
         }
     };
@@ -274,7 +274,8 @@ const GenCredsPanelItem = ({
         checkOverflowAndSelection();
         // Check on window resize
         window.addEventListener('resize', checkOverflowAndSelection);
-        return () => window.removeEventListener('resize', checkOverflowAndSelection);
+        return () =>
+            window.removeEventListener('resize', checkOverflowAndSelection);
     }, [rest.value]);
 
     return (
@@ -301,20 +302,20 @@ const GenCredsPanelItem = ({
                 )}
                 {/* Overflow indicator arrow */}
                 {hasOverflow && !isFullySelected && (
-                    <div 
+                    <div
                         className="absolute right-20 top-1/2 -translate-y-1/2 text-gray-400 animate-pulse"
                         title="More text available"
                     >
-                        <svg 
-                            xmlns="http://www.w3.org/2000/svg" 
-                            className="h-5 w-5" 
-                            viewBox="0 0 20 20" 
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5"
+                            viewBox="0 0 20 20"
                             fill="currentColor"
                         >
-                            <path 
-                                fillRule="evenodd" 
-                                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" 
-                                clipRule="evenodd" 
+                            <path
+                                fillRule="evenodd"
+                                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                                clipRule="evenodd"
                             />
                         </svg>
                     </div>
