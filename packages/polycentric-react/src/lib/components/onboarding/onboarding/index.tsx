@@ -11,6 +11,7 @@ import {
     useEffect,
     useMemo,
     useState,
+    useRef,
 } from 'react';
 import starterURL from '../../../../graphics/onboarding/starter.svg';
 import { StackRouterContext } from '../../../app/contexts';
@@ -230,6 +231,7 @@ const RequestPersistencePanel = ({ nextSlide }: { nextSlide: () => void }) => {
 const GenCredsPanelItem = ({
     title,
     hint,
+    copyable,
     ...rest
 }: {
     value?: string;
@@ -238,17 +240,90 @@ const GenCredsPanelItem = ({
     hint?: string;
     autoComplete?: string;
     readOnly?: boolean;
-} & InputHTMLAttributes<HTMLInputElement>) => (
-    <div className="flex flex-col gap-y-1">
-        <h3 className="font-medium">{title}</h3>
-        <input
-            type="text"
-            className="rounded-lg border text-xl p-3"
-            {...rest}
-        />
-        <p className="text-sm text-gray-700">{hint}</p>
-    </div>
-);
+    copyable?: boolean;
+} & InputHTMLAttributes<HTMLInputElement>) => {
+    const [copied, setCopied] = useState(false);
+    const [isFullySelected, setIsFullySelected] = useState(false);
+    const [hasOverflow, setHasOverflow] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    const handleCopy = async () => {
+        if (rest.value) {
+            await navigator.clipboard.writeText(rest.value);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
+
+    // Check for text overflow and selection state
+    const checkOverflowAndSelection = () => {
+        const input = inputRef.current;
+        if (input) {
+            // Check if text is overflowing
+            setHasOverflow(input.scrollWidth > input.clientWidth);
+            
+            // Check if all text is selected
+            setIsFullySelected(
+                input.selectionStart === 0 && 
+                input.selectionEnd === input.value.length
+            );
+        }
+    };
+
+    useEffect(() => {
+        checkOverflowAndSelection();
+        // Check on window resize
+        window.addEventListener('resize', checkOverflowAndSelection);
+        return () => window.removeEventListener('resize', checkOverflowAndSelection);
+    }, [rest.value]);
+
+    return (
+        <div className="flex flex-col gap-y-1">
+            <h3 className="font-medium">{title}</h3>
+            <div className="relative">
+                <input
+                    ref={inputRef}
+                    type="text"
+                    className={`rounded-lg border text-xl p-3 w-full ${
+                        copyable ? 'pr-24' : ''
+                    }`}
+                    onSelect={checkOverflowAndSelection}
+                    {...rest}
+                />
+                {copyable && (
+                    <button
+                        onClick={handleCopy}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-sm transition-colors min-w-16"
+                        title="Copy to clipboard"
+                    >
+                        {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                )}
+                {/* Overflow indicator arrow */}
+                {hasOverflow && !isFullySelected && (
+                    <div 
+                        className="absolute right-20 top-1/2 -translate-y-1/2 text-gray-400 animate-pulse"
+                        title="More text available"
+                    >
+                        <svg 
+                            xmlns="http://www.w3.org/2000/svg" 
+                            className="h-5 w-5" 
+                            viewBox="0 0 20 20" 
+                            fill="currentColor"
+                        >
+                            <path 
+                                fillRule="evenodd" 
+                                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" 
+                                clipRule="evenodd" 
+                            />
+                        </svg>
+                    </div>
+                )}
+            </div>
+            <p className="text-sm text-gray-700">{hint}</p>
+        </div>
+    );
+};
 
 const CredsPanelSignUp = () => {
     const [avatar, setAvatar] = useState<Blob>();
@@ -309,6 +384,8 @@ const CredsPanelSignUp = () => {
                 autoComplete="password"
                 value={encode(privateKey.key)}
                 readOnly={true}
+                copyable={true}
+                hint="Click 'Copy' to copy your password to clipboard"
             />
             <button
                 type="submit"
