@@ -1,5 +1,5 @@
 import { Models, Protocol } from '@polycentric/polycentric-core';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 
 import BitcoinIcon from '../../../../graphics/icons/rendered/bitcoin.svg.png';
 import DailyMotionIcon from '../../../../graphics/icons/rendered/dailymotion.svg.png';
@@ -27,8 +27,8 @@ import WebsiteIcon from '../../../../graphics/icons/rendered/website.svg.png';
 import WorkIcon from '../../../../graphics/icons/rendered/work.svg.png';
 import TwitterIcon from '../../../../graphics/icons/rendered/x.svg.png';
 import YouTubeIcon from '../../../../graphics/icons/rendered/youtube.svg.png';
-import { useClaimVouches, useUsernameCRDTQuery } from '../../../hooks/queryHooks';
 import { useAvatar } from '../../../hooks/imageHooks';
+import { useClaimVouches, useUsernameCRDTQuery } from '../../../hooks/queryHooks';
 
 const getIconFromClaimType = (
     type: Long,
@@ -203,28 +203,27 @@ const getIconFromClaimType = (
 };
 
 export const VouchedBy: React.FC<{ system: Models.PublicKey.PublicKey }> = ({ system }) => {
-    const avatar = useAvatar(system); // Fetch avatar
-    const username = useUsernameCRDTQuery(system); // Fetch username
+    const avatar = useAvatar(system);
+    const username = useUsernameCRDTQuery(system);
+    const profileUrl = `/${Models.PublicKey.toString(system)}`;
 
     return (
-        <div className="relative flex items-center justify-center w-10 h-10">
+        <a 
+            href={profileUrl}
+            className="relative flex items-center justify-center w-10 h-10 hover:opacity-80 transition-opacity"
+            title={username || 'View Profile'}
+        >
             {/* Username centered over the avatar */}
             <div className="absolute inset-0 flex items-center justify-center text-xs text-white bg-black bg-opacity-50 rounded-full">
                 {username || 'Unknown'}
             </div>
             {/* Avatar */}
-            <a
-                href={`/${Models.PublicKey.toString(system)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-            >
-                <img
-                    src={avatar}
-                    alt={username || 'User'}
-                    className="rounded-full w-full h-full border"
-                />
-            </a>
-        </div>
+            <img
+                src={avatar}
+                alt={username || 'User'}
+                className="rounded-full w-full h-full border"
+            />
+        </a>
     );
 };
 
