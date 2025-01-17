@@ -30,6 +30,7 @@ import YouTubeIcon from '../../../../graphics/icons/rendered/youtube.svg.png';
 import { useAvatar } from '../../../hooks/imageHooks';
 import {
     useClaimVouches,
+    useSystemLink,
     useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
 
@@ -210,7 +211,7 @@ export const VouchedBy: React.FC<{ system: Models.PublicKey.PublicKey }> = ({
 }) => {
     const avatar = useAvatar(system);
     const username = useUsernameCRDTQuery(system);
-    const profileUrl = `/${Models.PublicKey.toString(system)}`;
+    const profileUrl = useSystemLink(system);
 
     return (
         <a
