@@ -28,7 +28,10 @@ import WorkIcon from '../../../../graphics/icons/rendered/work.svg.png';
 import TwitterIcon from '../../../../graphics/icons/rendered/x.svg.png';
 import YouTubeIcon from '../../../../graphics/icons/rendered/youtube.svg.png';
 import { useAvatar } from '../../../hooks/imageHooks';
-import { useClaimVouches, useUsernameCRDTQuery } from '../../../hooks/queryHooks';
+import {
+    useClaimVouches,
+    useUsernameCRDTQuery,
+} from '../../../hooks/queryHooks';
 
 const getIconFromClaimType = (
     type: Long,
@@ -202,13 +205,15 @@ const getIconFromClaimType = (
     }
 };
 
-export const VouchedBy: React.FC<{ system: Models.PublicKey.PublicKey }> = ({ system }) => {
+export const VouchedBy: React.FC<{ system: Models.PublicKey.PublicKey }> = ({
+    system,
+}) => {
     const avatar = useAvatar(system);
     const username = useUsernameCRDTQuery(system);
     const profileUrl = `/${Models.PublicKey.toString(system)}`;
 
     return (
-        <a 
+        <a
             href={profileUrl}
             className="relative flex items-center justify-center w-10 h-10 hover:opacity-80 transition-opacity"
             title={username || 'View Profile'}
@@ -228,18 +233,25 @@ export const VouchedBy: React.FC<{ system: Models.PublicKey.PublicKey }> = ({ sy
 };
 
 const ClaimCircle: React.FC<{
-    claim: { field: { value: string }; type: Long; pointer: Protocol.Reference };
+    claim: {
+        field: { value: string };
+        type: Long;
+        pointer: Protocol.Reference;
+    };
     position: 'start' | 'middle' | 'end';
     system: Models.PublicKey.PublicKey;
 }> = React.memo(({ claim, position, system }) => {
     const [expanded, setExpanded] = useState(false);
     const [hovering, setHovering] = useState(false);
 
-    const [icon, color] = useMemo(() => getIconFromClaimType(claim.type), [claim.type]);
-    const url = useMemo(() => getAccountUrl(claim.type, claim.field.value), [
-        claim.type,
-        claim.field.value,
-    ]);
+    const [icon, color] = useMemo(
+        () => getIconFromClaimType(claim.type),
+        [claim.type],
+    );
+    const url = useMemo(
+        () => getAccountUrl(claim.type, claim.field.value),
+        [claim.type, claim.field.value],
+    );
 
     // Fetch vouches
     const { vouches, loading } = useClaimVouches(system, claim.pointer);
@@ -260,7 +272,13 @@ const ClaimCircle: React.FC<{
         }
     };
 
-    const zIndex = isExpanded ? 10 : position === 'start' ? 1 : position === 'middle' ? 2 : 3;
+    const zIndex = isExpanded
+        ? 10
+        : position === 'start'
+        ? 1
+        : position === 'middle'
+        ? 2
+        : 3;
 
     return (
         <div
@@ -300,22 +318,23 @@ const ClaimCircle: React.FC<{
                             : 'bottom-0 right-0 flex justify-center'
                     }`}
                 >
-                    {isExpanded ? (
-                        vouches.map((vouch, index) => (
-                            <div key={index} className="flex flex-col items-center">
-                                <VouchedBy system={vouch} />
-                            </div>
-                        ))
-                    ) : (
-                        vouches.length > 0 && (
-                            <div
-                                className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center"
-                                title={`${vouches.length} vouches`}
-                            >
-                                {vouches.length}
-                            </div>
-                        )
-                    )}
+                    {isExpanded
+                        ? vouches.map((vouch, index) => (
+                              <div
+                                  key={index}
+                                  className="flex flex-col items-center"
+                              >
+                                  <VouchedBy system={vouch} />
+                              </div>
+                          ))
+                        : vouches.length > 0 && (
+                              <div
+                                  className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center"
+                                  title={`${vouches.length} vouches`}
+                              >
+                                  {vouches.length}
+                              </div>
+                          )}
                 </div>
             )}
         </div>
@@ -368,7 +387,7 @@ export const ClaimGrid: React.FC<{
                 field,
                 type: value.claimType,
                 pointer, // Pass the stable pointer
-            }))
+            })),
         );
     }, [claims]);
 
@@ -409,8 +428,8 @@ export const ClaimGrid: React.FC<{
                                     index === 0
                                         ? 'start'
                                         : index === 1
-                                        ? 'middle'
-                                        : 'end'
+                                          ? 'middle'
+                                          : 'end'
                                 }
                                 system={system}
                             />
