@@ -229,7 +229,9 @@ const TopicSwipeSelect = ({
                             {topics.map((topic) => (
                                 <SwiperSlide key={topic}>
                                     <div className="flex h-full justify-center items-center">
-                                        <h1 className="text-2xl text-black">{topic}</h1>
+                                        <h1 className="text-2xl text-black">
+                                            {topic}
+                                        </h1>
                                     </div>
                                 </SwiperSlide>
                             ))}
