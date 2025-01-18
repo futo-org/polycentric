@@ -380,10 +380,10 @@ const ClaimCircle: React.FC<{
     const zIndex = isExpanded
         ? 10
         : position === 'start'
-        ? 1
+          ? 1
           : position === 'middle'
-           ? 2
-           : 3;
+             ? 2
+             : 3;
 
     return (
         <div
@@ -400,8 +400,8 @@ const ClaimCircle: React.FC<{
                         ? 'left-0'
                         : position === 'middle'
                           ? isExpanded
-                            ? '-translate-x-[5rem]'
-                            : ''
+                              ? '-translate-x-[5rem]'
+                              : ''
                           : isExpanded
                             ? '-translate-x-[10rem]'
                             : ''
