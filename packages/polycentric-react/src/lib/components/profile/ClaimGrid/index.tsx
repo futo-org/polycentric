@@ -382,8 +382,8 @@ const ClaimCircle: React.FC<{
         : position === 'start'
           ? 1
           : position === 'middle'
-             ? 2
-             : 3;
+            ? 2
+            : 3;
 
     return (
         <div
