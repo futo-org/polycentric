@@ -15,6 +15,7 @@ import { ProfilePicture } from '../../../profile/ProfilePicture';
 import { Link } from '../../../util/link';
 import { Linkify } from '../../../util/linkify';
 // Styling for image viewer
+import { Models } from '@polycentric/polycentric-core';
 import { useTopicLink } from '../../../../hooks/utilHooks';
 import './style.css';
 
@@ -483,9 +484,14 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                     }
                                                     className="text-inherit flex-shrink min-w-0"
                                                 >
-                                                    <address className="font-bold text-base author not-italic hover:underline h-[1.5rem] w-full overflow-hidden overflow-ellipsis">
-                                                        {main.author.name}
-                                                    </address>
+                                                    <div className="flex items-center gap-2">
+                                                        <address className="font-bold text-base author not-italic hover:underline h-[1.5rem] overflow-hidden overflow-ellipsis">
+                                                            {main.author.name}
+                                                        </address>
+                                                        <span className="text-sm text-gray-500 font-mono">
+                                                            {main.author.pubkey?.slice(0, 6)}
+                                                        </span>
+                                                    </div>
                                                 </Link>
                                                 <time className="text-right sm:text-right font-light text-gray-400 sm:text-sm flex-grow min-w-max">
                                                     {dateToAgoString(
