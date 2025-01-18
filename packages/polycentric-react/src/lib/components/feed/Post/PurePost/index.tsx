@@ -491,7 +491,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                         <span className="text-sm text-gray-500 font-mono">
                                                             {main.author.pubkey?.slice(
                                                                 0, 
-                                                                6
+                                                                6,
                                                             )}
                                                         </span>
                                                     </div>
