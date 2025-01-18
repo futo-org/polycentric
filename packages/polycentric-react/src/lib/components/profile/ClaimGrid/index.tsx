@@ -36,11 +36,12 @@ import {
 
 const getIconFromClaimType = (
     type: Long,
-): [string | React.ReactNode | undefined, string] => {
+): [React.ReactNode | undefined, string] => {
     switch (true) {
         case type.equals(Models.ClaimType.ClaimTypeHackerNews):
             return [
                 <img
+                    key="hackernews"
                     src={HackerNewsIcon}
                     alt="Hacker News"
                     className="w-6 h-6"
@@ -49,85 +50,155 @@ const getIconFromClaimType = (
             ];
         case type.equals(Models.ClaimType.ClaimTypeYouTube):
             return [
-                <img src={YouTubeIcon} alt="YouTube" className="w-6 h-6" />,
+                <img
+                    key="youtube"
+                    src={YouTubeIcon}
+                    alt="YouTube"
+                    className="w-6 h-6"
+                />,
                 '#ff0000',
             ];
         case type.equals(Models.ClaimType.ClaimTypeOdysee):
             return [
-                <img src={OdyseeIcon} alt="Odysee" className="w-6 h-6" />,
+                <img
+                    key="odysee"
+                    src={OdyseeIcon}
+                    alt="Odysee"
+                    className="w-6 h-6"
+                />,
                 '#cc0000',
             ];
         case type.equals(Models.ClaimType.ClaimTypeRumble):
             return [
-                <img src={RumbleIcon} alt="Rumble" className="w-6 h-6" />,
+                <img
+                    key="rumble"
+                    src={RumbleIcon}
+                    alt="Rumble"
+                    className="w-6 h-6"
+                />,
                 '#00ff00',
             ];
         case type.equals(Models.ClaimType.ClaimTypeTwitter):
             return [
-                <img src={TwitterIcon} alt="X" className="w-6 h-6" />,
+                <img
+                    key="twitter"
+                    src={TwitterIcon}
+                    alt="X"
+                    className="w-6 h-6"
+                />,
                 '#1da1f2',
             ];
         case type.equals(Models.ClaimType.ClaimTypeBitcoin):
             return [
-                <img src={BitcoinIcon} alt="Bitcoin" className="w-6 h-6" />,
+                <img
+                    key="bitcoin"
+                    src={BitcoinIcon}
+                    alt="Bitcoin"
+                    className="w-6 h-6"
+                />,
                 '#f7931a',
             ];
         case type.equals(Models.ClaimType.ClaimTypeGeneric):
             return [
-                <span className="text-sm" key="generic">
+                <span key="generic" className="text-sm">
                     ?
                 </span>,
                 '#cccccc',
             ];
         case type.equals(Models.ClaimType.ClaimTypeDiscord):
             return [
-                <img src={DiscordIcon} alt="Discord" className="w-6 h-6" />,
-
+                <img
+                    key="discord"
+                    src={DiscordIcon}
+                    alt="Discord"
+                    className="w-6 h-6"
+                />,
                 '#7289da',
             ];
         case type.equals(Models.ClaimType.ClaimTypeInstagram):
             return [
-                <img src={InstagramIcon} alt="Instagram" className="w-6 h-6" />,
+                <img
+                    key="instagram"
+                    src={InstagramIcon}
+                    alt="Instagram"
+                    className="w-6 h-6"
+                />,
                 '#e1306c',
             ];
         case type.equals(Models.ClaimType.ClaimTypeGitHub):
             return [
-                <img src={GitHubIcon} alt="Github" className="w-6 h-6" />,
+                <img
+                    key="github"
+                    src={GitHubIcon}
+                    alt="Github"
+                    className="w-6 h-6"
+                />,
                 '#333333',
             ];
         case type.equals(Models.ClaimType.ClaimTypeMinds):
             return [
-                <img src={MindsIcon} alt="Minds" className="w-6 h-6" />,
+                <img
+                    key="minds"
+                    src={MindsIcon}
+                    alt="Minds"
+                    className="w-6 h-6"
+                />,
                 '#fcd000',
             ];
         case type.equals(Models.ClaimType.ClaimTypePatreon):
             return [
-                <img src={PatreonIcon} alt="Patreon" className="w-6 h-6" />,
+                <img
+                    key="patreon"
+                    src={PatreonIcon}
+                    alt="Patreon"
+                    className="w-6 h-6"
+                />,
                 '#f96854',
             ];
         case type.equals(Models.ClaimType.ClaimTypeSubstack):
             return [
-                <img src={SubstackIcon} alt="Substack" className="w-6 h-6" />,
+                <img
+                    key="substack"
+                    src={SubstackIcon}
+                    alt="Substack"
+                    className="w-6 h-6"
+                />,
                 '#ff6719',
             ];
         case type.equals(Models.ClaimType.ClaimTypeTwitch):
             return [
-                <img src={TwitchIcon} alt="Twitch" className="w-6 h-6" />,
+                <img
+                    key="twitch"
+                    src={TwitchIcon}
+                    alt="Twitch"
+                    className="w-6 h-6"
+                />,
                 '#6441a5',
             ];
         case type.equals(Models.ClaimType.ClaimTypeWebsite):
             return [
-                <img src={WebsiteIcon} alt="Website" className="w-6 h-6" />,
+                <img
+                    key="website"
+                    src={WebsiteIcon}
+                    alt="Website"
+                    className="w-6 h-6"
+                />,
                 '#0000ff',
             ];
         case type.equals(Models.ClaimType.ClaimTypeKick):
             return [
-                <img src={KickIcon} alt="Kick" className="w-6 h-6" />,
+                <img
+                    key="kick"
+                    src={KickIcon}
+                    alt="Kick"
+                    className="w-6 h-6"
+                />,
                 '#00ff00',
             ];
         case type.equals(Models.ClaimType.ClaimTypeSoundcloud):
             return [
                 <img
+                    key="soundcloud"
                     src={SoundCloudIcon}
                     alt="Soundcloud"
                     className="w-6 h-6"
@@ -136,37 +207,63 @@ const getIconFromClaimType = (
             ];
         case type.equals(Models.ClaimType.ClaimTypeVimeo):
             return [
-                <img src={VimeoIcon} alt="Vimeo" className="w-6 h-6" />,
+                <img
+                    key="vimeo"
+                    src={VimeoIcon}
+                    alt="Vimeo"
+                    className="w-6 h-6"
+                />,
                 '#1ab7ea',
             ];
         case type.equals(Models.ClaimType.ClaimTypeNebula):
             return [
-                <img src={NebulaIcon} alt="Nebula" className="w-6 h-6" />,
+                <img
+                    key="nebula"
+                    src={NebulaIcon}
+                    alt="Nebula"
+                    className="w-6 h-6"
+                />,
                 '#0000ff',
             ];
         case type.equals(Models.ClaimType.ClaimTypeURL):
             return [
-                <img src={URLIcon} alt="URL" className="w-6 h-6" />,
+                <img key="url" src={URLIcon} alt="URL" className="w-6 h-6" />,
                 '#0000ff',
             ];
         case type.equals(Models.ClaimType.ClaimTypeOccupation):
             return [
-                <img src={WorkIcon} alt="Work" className="w-6 h-6" />,
+                <img
+                    key="occupation"
+                    src={WorkIcon}
+                    alt="Work"
+                    className="w-6 h-6"
+                />,
                 '#cccccc',
             ];
         case type.equals(Models.ClaimType.ClaimTypeSkill):
             return [
-                <img src={SkillIcon} alt="Skill" className="w-6 h-6" />,
+                <img
+                    key="skill"
+                    src={SkillIcon}
+                    alt="Skill"
+                    className="w-6 h-6"
+                />,
                 '#cccccc',
             ];
         case type.equals(Models.ClaimType.ClaimTypeSpotify):
             return [
-                <img src={SpotifyIcon} alt="Spotify" className="w-6 h-6" />,
+                <img
+                    key="spotify"
+                    src={SpotifyIcon}
+                    alt="Spotify"
+                    className="w-6 h-6"
+                />,
                 '#1db954',
             ];
         case type.equals(Models.ClaimType.ClaimTypeSpreadshop):
             return [
                 <img
+                    key="spreadshop"
                     src={SpreadshopIcon}
                     alt="Spreadshop"
                     className="w-6 h-6"
@@ -176,6 +273,7 @@ const getIconFromClaimType = (
         case type.equals(Models.ClaimType.ClaimTypePolycentric):
             return [
                 <img
+                    key="polycentric"
                     src={PolycentricIcon}
                     alt="Polycentric"
                     className="w-6 h-6"
@@ -184,12 +282,18 @@ const getIconFromClaimType = (
             ];
         case type.equals(Models.ClaimType.ClaimTypeGitlab):
             return [
-                <img src={GitlabIcon} alt="Gitlab" className="w-6 h-6" />,
+                <img
+                    key="gitlab"
+                    src={GitlabIcon}
+                    alt="Gitlab"
+                    className="w-6 h-6"
+                />,
                 '#fc6d26',
             ];
         case type.equals(Models.ClaimType.ClaimTypeDailymotion):
             return [
                 <img
+                    key="dailymotion"
                     src={DailyMotionIcon}
                     alt="Dailymotion"
                     className="w-6 h-6"
@@ -198,7 +302,7 @@ const getIconFromClaimType = (
             ];
         default:
             return [
-                <span className="text-sm" key="default">
+                <span key="default" className="text-sm">
                     ?
                 </span>,
                 '#cccccc',
@@ -276,10 +380,10 @@ const ClaimCircle: React.FC<{
     const zIndex = isExpanded
         ? 10
         : position === 'start'
-          ? 1
+        ? 1
           : position === 'middle'
-            ? 2
-            : 3;
+           ? 2
+           : 3;
 
     return (
         <div
@@ -296,8 +400,8 @@ const ClaimCircle: React.FC<{
                         ? 'left-0'
                         : position === 'middle'
                           ? isExpanded
-                              ? '-translate-x-[5rem]'
-                              : ''
+                            ? '-translate-x-[5rem]'
+                            : ''
                           : isExpanded
                             ? '-translate-x-[10rem]'
                             : ''
