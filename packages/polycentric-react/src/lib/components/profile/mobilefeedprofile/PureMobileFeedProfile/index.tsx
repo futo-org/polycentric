@@ -1,5 +1,6 @@
 import { Protocol } from '@polycentric/polycentric-core';
 import { ArrowUpOnSquareIcon } from '@heroicons/react/24/outline';
+import { Models } from '@polycentric/polycentric-core';
 import { useState } from 'react';
 import { FollowingList } from '../../FollowingList';
 import { ClaimGrid } from '../../ClaimGrid';
@@ -49,8 +50,13 @@ export const PureMobileFeedProfile = ({
             </div>
             <div className="w-full mt-6 mb-4"></div>
             <div className="flex gap-4 px-4 pb-4 flex-wrap">
-                <div className="text-2xl font-medium self-center max-w-full break-words">
-                    {profile.name}
+                <div className="flex flex-col">
+                    <div className="text-2xl font-medium self-center max-w-full break-words">
+                        {profile.name}
+                    </div>
+                    <div className="text-sm text-gray-500 font-mono">
+                        {Models.PublicKey.toString(profile.system).slice(0, 6)}
+                    </div>
                 </div>
                 <div className="w-1/2 flex items-end ml-auto">
                     {profile.isMyProfile ? (
