@@ -1,8 +1,8 @@
 import { PhotoIcon, TagIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { useCallback, useRef, useState } from 'react';
 import { useBlobDisplayURL } from '../../../hooks/imageHooks';
-import { TopicSuggestionBox } from '../TopicSuggestionBox';
 import { ClaimData, ClaimTypePopup, OccupationInput, SocialMediaInput, TextInput } from '../../profile/MakeClaim';
+import { TopicSuggestionBox } from '../TopicSuggestionBox';
 
 // const startsWithSlash = /^\/.*/
 // const hasNonAlphanumeric = /[^a-zA-Z0-9/]/
