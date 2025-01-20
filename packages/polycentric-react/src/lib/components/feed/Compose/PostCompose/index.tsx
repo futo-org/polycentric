@@ -47,7 +47,7 @@ export const PostCompose = () => {
     );
 
     return (
-        <div className="border-b">
+        <div className="border-b bg-white">
             <div className="py-3 lg:p-10">
                 <Compose onPost={onPost} postingProgress={postingProgress} />
             </div>

@@ -40,7 +40,7 @@ const MenuIcon = () => (
         viewBox="0 0 24 24"
         strokeWidth={1.5}
         stroke="currentColor"
-        className="w-8 h-8"
+        className="w-8 h-8 text-black"
     >
         <path
             strokeLinecap="round"
@@ -229,7 +229,9 @@ const TopicSwipeSelect = ({
                             {topics.map((topic) => (
                                 <SwiperSlide key={topic}>
                                     <div className="flex h-full justify-center items-center">
-                                        <h1 className="text-2xl">{topic}</h1>
+                                        <h1 className="text-2xl text-black">
+                                            {topic}
+                                        </h1>
                                     </div>
                                 </SwiperSlide>
                             ))}
