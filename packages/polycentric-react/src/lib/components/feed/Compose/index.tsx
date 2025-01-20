@@ -1,7 +1,8 @@
-import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, TagIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { useCallback, useRef, useState } from 'react';
 import { useBlobDisplayURL } from '../../../hooks/imageHooks';
 import { TopicSuggestionBox } from '../TopicSuggestionBox';
+import { ClaimData, ClaimTypePopup, OccupationInput, SocialMediaInput, TextInput } from '../../profile/MakeClaim';
 
 // const startsWithSlash = /^\/.*/
 // const hasNonAlphanumeric = /[^a-zA-Z0-9/]/
@@ -121,6 +122,8 @@ export const Compose = ({
     const [upload, setUpload] = useState<File | undefined>();
     const textRef = useRef<HTMLTextAreaElement | null>(null);
     const uploadRef = useRef<HTMLInputElement | null>(null);
+    const [showClaimPopup, setShowClaimPopup] = useState(false);
+    const [claimType, setClaimType] = useState<ClaimData['type'] | null>(null);
 
     const imageUrl = useBlobDisplayURL(upload);
 
@@ -132,6 +135,41 @@ export const Compose = ({
                 textRef.current.style.height = `${minTextboxHeightPx}px`;
         });
     }, [onPost, content, upload, minTextboxHeightPx, topic]);
+
+    const handleClaimSubmit = (data: any) => {
+        console.log('Claim submitted:', { type: claimType, data });
+        setClaimType(null);
+    };
+
+    const renderClaimInput = () => {
+        if (!claimType) return null;
+
+        switch (claimType) {
+            case 'social':
+                return (
+                    <SocialMediaInput
+                        onSubmit={(url) => handleClaimSubmit(url)}
+                        onCancel={() => setClaimType(null)}
+                    />
+                );
+            case 'occupation':
+                return (
+                    <OccupationInput
+                        onSubmit={(data) => handleClaimSubmit(data)}
+                        onCancel={() => setClaimType(null)}
+                    />
+                );
+            case 'skill':
+            case 'freeform':
+                return (
+                    <TextInput
+                        title={claimType === 'skill' ? 'Skill' : 'Freeform Claim'}
+                        onSubmit={(text) => handleClaimSubmit(text)}
+                        onCancel={() => setClaimType(null)}
+                    />
+                );
+        }
+    };
 
     return (
         <div
@@ -207,6 +245,22 @@ export const Compose = ({
                             strokeWidth="1"
                         />
                     </button>
+                    <button onClick={() => setShowClaimPopup(true)}>
+                        <TagIcon
+                            className="w-9 h-9 text-gray-300 hover:text-gray-400"
+                            strokeWidth="1"
+                        />
+                    </button>
+                    {showClaimPopup && (
+                        <ClaimTypePopup 
+                            onClose={() => setShowClaimPopup(false)}
+                            onSelect={(type) => {
+                                setClaimType(type);
+                                setShowClaimPopup(false);
+                            }}
+                        />
+                    )}
+                    {claimType && renderClaimInput()}
                     <input
                         type="file"
                         className="hidden"
