@@ -351,16 +351,28 @@ const ClaimCircle: React.FC<{
 }> = ({ claim, position, system, isMyProfile }) => {
     const [expanded, setExpanded] = useState(false);
     const { processHandle } = useProcessHandleManager();
-    const [icon, color] = useMemo(() => getIconFromClaimType(claim.type), [claim.type]);
-    const url = useMemo(() => getAccountUrl(claim.type, claim.field.value), [claim.type, claim.field.value]);
+    const [icon, color] = useMemo(
+        () => getIconFromClaimType(claim.type),
+        [claim.type],
+    );
+    const url = useMemo(
+        () => getAccountUrl(claim.type, claim.field.value),
+        [claim.type, claim.field.value],
+    );
     const vouches = useClaimVouches(system, claim.pointer);
+    const [vouchStatus, setVouchStatus] = useState<
+        'none' | 'success' | 'error'
+    >('none');
 
     const handleVouch = async () => {
         if (!processHandle) return;
         try {
-            await processHandle.vouch(claim.pointer);
+            await processHandle.vouchByReference(claim.pointer);
+            setVouchStatus('success');
         } catch (error) {
+            setVouchStatus('error');
             console.error('Failed to vouch:', error);
+            setTimeout(() => setVouchStatus('none'), 2000); // Reset after 2 seconds
         }
     };
 
@@ -380,9 +392,17 @@ const ClaimCircle: React.FC<{
     };
 
     return (
-        <div 
-            className="relative" 
-            style={{ zIndex: expanded ? 10 : position === 'start' ? 1 : position === 'middle' ? 2 : 3 }}
+        <div
+            className="relative"
+            style={{
+                zIndex: expanded
+                    ? 10
+                    : position === 'start'
+                    ? 1
+                    : position === 'middle'
+                    ? 2
+                    : 3,
+            }}
             onClick={() => expanded && setExpanded(false)}
         >
             <div
@@ -392,8 +412,12 @@ const ClaimCircle: React.FC<{
                     position === 'start'
                         ? 'left-0'
                         : position === 'middle'
-                          ? expanded ? '-translate-x-[5rem]' : ''
-                          : expanded ? '-translate-x-[10rem]' : ''
+                        ? expanded
+                            ? '-translate-x-[5rem]'
+                            : ''
+                        : expanded
+                        ? '-translate-x-[10rem]'
+                        : ''
                 }`}
                 style={{ backgroundColor: color }}
                 onClick={!expanded ? handleClick : undefined}
@@ -405,7 +429,9 @@ const ClaimCircle: React.FC<{
                     >
                         {claim.field.value}
                     </button>
-                ) : icon}
+                ) : (
+                    icon
+                )}
             </div>
 
             {/* Vouches and Vouch Button */}
@@ -413,13 +439,19 @@ const ClaimCircle: React.FC<{
                 <>
                     {/* Vouches */}
                     <div className="absolute -top-8 w-full flex justify-center gap-2">
-                        {vouches?.map((vouch, index) => vouch && (
-                            <div key={index} className="flex flex-col items-center">
-                                <VouchedBy system={vouch.system} />
-                            </div>
-                        ))}
+                        {vouches?.map(
+                            (vouch, index) =>
+                                vouch && (
+                                    <div
+                                        key={index}
+                                        className="flex flex-col items-center"
+                                    >
+                                        <VouchedBy system={vouch.system} />
+                                    </div>
+                                ),
+                        )}
                     </div>
-                    
+
                     {/* Vouch Button - only show on other profiles */}
                     {!isMyProfile && (
                         <div className="absolute -bottom-20 w-full flex justify-center">
@@ -428,7 +460,13 @@ const ClaimCircle: React.FC<{
                                     e.stopPropagation();
                                     handleVouch();
                                 }}
-                                className="px-4 py-1 text-sm text-white-600 hover:text-white-700 border border-white-600 rounded-md hover:bg-white-50 transition-colors bg-gray-100"
+                                className={`px-4 py-1 text-sm border rounded-md transition-all duration-300 ${
+                                    vouchStatus === 'success' 
+                                        ? 'bg-green-100 text-green-600 border-green-600 opacity-0'
+                                        : vouchStatus === 'error'
+                                            ? 'bg-red-100 text-red-600 border-red-600'
+                                            : 'bg-gray-100 text-blue-600 border-blue-600 hover:bg-blue-50'
+                                }`}
                             >
                                 Vouch
                             </button>
@@ -439,7 +477,10 @@ const ClaimCircle: React.FC<{
 
             {/* Non-expanded vouch count */}
             {!expanded && vouches?.length > 0 && (
-                <div className="absolute bottom-0 right-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center" title={`${vouches.length} vouches`}>
+                <div
+                    className="absolute bottom-0 right-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center"
+                    title={`${vouches.length} vouches`}
+                >
                     {vouches.length}
                 </div>
             )}
@@ -521,7 +562,7 @@ export const ClaimGrid: React.FC<{
             )}
             <div className="w-full h-px bg-gray-300" />
             {showClaimModal && (
-                <MakeClaim 
+                <MakeClaim
                     system={system}
                     onClose={() => setShowClaimModal(false)}
                 />
@@ -532,7 +573,10 @@ export const ClaimGrid: React.FC<{
                 </div>
             ) : (
                 claimsInGroupsOfThree.map((group, index) => (
-                    <div key={index} className="grid relative grid-cols-3 gap-4">
+                    <div
+                        key={index}
+                        className="grid relative grid-cols-3 gap-4"
+                    >
                         {group.map((claim, index) => (
                             <div
                                 key={claim.field.value || index}
@@ -544,8 +588,8 @@ export const ClaimGrid: React.FC<{
                                         index === 0
                                             ? 'start'
                                             : index === 1
-                                              ? 'middle'
-                                              : 'end'
+                                            ? 'middle'
+                                            : 'end'
                                     }
                                     system={system}
                                     isMyProfile={isMyProfile}

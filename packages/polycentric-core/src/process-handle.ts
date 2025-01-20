@@ -349,6 +349,18 @@ export class ProcessHandle {
         );
     }
 
+    public async vouchByReference(
+        reference: Protocol.Reference,
+    ): Promise<Models.Pointer.Pointer> {
+        return await this.publish(
+            Models.ContentType.ContentTypeVouch,
+            new Uint8Array(),
+            undefined,
+            undefined,
+            [reference],
+        );
+    }
+
     public async claim(
         claimValue: Protocol.Claim,
     ): Promise<Models.Pointer.Pointer> {
