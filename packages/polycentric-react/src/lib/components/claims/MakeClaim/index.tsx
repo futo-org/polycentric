@@ -1,7 +1,6 @@
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import { useCallback, useState } from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
-import { useQueryIfAdded } from '../../../hooks/queryHooks';
 
 export type SocialPlatform =
     | 'hackerNews'
@@ -291,22 +290,21 @@ export const OccupationInput = ({
     const [role, setRole] = useState('');
     const [location, setLocation] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { processHandle } = useProcessHandleManager();
+
     const addClaim = useCallback(async () => {
+        if (!processHandle) return;
         try {
             setIsSubmitting(true);
             const claim = Models.claimOccupation(organization, role, location);
-            await useQueryIfAdded(
-                Models.ContentType.ContentTypeClaim,
-                system,
-                Protocol.Claim.encode(claim).finish(),
-            );
+            await processHandle.claim(claim);
             onCancel();
         } catch (error) {
             console.error('Failed to submit claim:', error);
         } finally {
             setIsSubmitting(false);
         }
-    }, [organization, role, location, system, onCancel]);
+    }, [organization, role, location, processHandle, onCancel]);
 
     return (
         <div className="flex flex-col gap-4">
@@ -362,25 +360,24 @@ export const TextInput = ({
 }) => {
     const [text, setText] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { processHandle } = useProcessHandleManager();
+
     const addClaim = useCallback(async () => {
+        if (!processHandle) return;
         try {
             setIsSubmitting(true);
             const claim =
                 type === 'skill'
                     ? Models.claimSkill(text)
                     : Models.claimGeneric(text);
-            await useQueryIfAdded(
-                Models.ContentType.ContentTypeClaim,
-                system,
-                Protocol.Claim.encode(claim).finish(),
-            );
+            await processHandle.claim(claim);
             onCancel();
         } catch (error) {
             console.error('Failed to submit claim:', error);
         } finally {
             setIsSubmitting(false);
         }
-    }, [text, type, system, onCancel]);
+    }, [text, type, processHandle, onCancel]);
 
     return (
         <div className="flex flex-col gap-4">
