@@ -54,8 +54,8 @@ const MobileTopicSidebarItem = ({ topic }: { topic: string }) => {
                 <IonMenuToggle className="contents">
                     <Link
                         onClick={() => setTopic(topic)}
-                        className={`w-full h-full p-2 pl-4 hover:bg-[#f4f5f8] text-left overflow-hidden text-ellipsis whitespace-nowrap ${
-                            isCurrentTopic ? 'bg-gray-100' : ''
+                        className={`w-full h-full p-2 pl-4 hover:bg-[#f4f5f8] text-left overflow-hidden text-ellipsis whitespace-nowrap text-black ${
+                            isCurrentTopic ? 'bg-gray-100' : ' bg-white'
                         }`}
                         routerLink="/"
                         routerDirection="root"
