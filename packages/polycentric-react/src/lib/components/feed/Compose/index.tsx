@@ -153,7 +153,7 @@ export const Compose = ({
                 }`}
             >
                 <textarea
-                    className={`w-full resize-none leading-normal whitespace-pre-line text-lg placeholder:text-gray-300 text-gray-900 font-normal rounded-lg p-3.5 focus:outline-none flex-grow`}
+                    className={`w-full resize-none leading-normal whitespace-pre-line text-lg placeholder:text-gray-300 text-gray-900 font-normal rounded-lg p-3.5 focus:outline-none flex-grow bg-transparent`}
                     style={{ minHeight: minTextboxHeightPx + 'px' }}
                     value={content}
                     ref={textRef}
