@@ -213,11 +213,12 @@ export const SocialMediaInput = ({
     platform: SocialPlatform;
     onCancel: () => void;
 }) => {
-    const { processHandle } = useProcessHandleManager();
     const [url, setUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { processHandle } = useProcessHandleManager();
+
     const addClaim = useCallback(async () => {
-        if (!url) return;
+        if (!url || !processHandle) return;
         try {
             setIsSubmitting(true);
             let claim: Protocol.Claim;
@@ -267,14 +268,14 @@ export const SocialMediaInput = ({
                     break;
             }
             
-            await useQueryIfAdded(Models.ContentType.ContentTypeClaim, system, Protocol.Claim.encode(claim).finish());
+            await processHandle.claim(claim);
             onCancel();
         } catch (error) {
             console.error('Failed to submit claim:', error);
         } finally {
             setIsSubmitting(false);
         }
-    }, [url, platform, system, onCancel]);
+    }, [url, platform, processHandle, onCancel]);
 
     return (
         <div className="flex flex-col gap-4">
