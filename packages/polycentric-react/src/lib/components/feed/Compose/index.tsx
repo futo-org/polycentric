@@ -1,7 +1,9 @@
-import { PhotoIcon, TagIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import TagIcon from '@heroicons/react/24/solid/TagIcon';
+import { Models } from '@polycentric/polycentric-core';
 import { useCallback, useRef, useState } from 'react';
 import { useBlobDisplayURL } from '../../../hooks/imageHooks';
-import { ClaimData, ClaimTypePopup, OccupationInput, SocialMediaInput, TextInput } from '../../profile/MakeClaim';
+import { MakeClaim } from '../../claims/MakeClaim';
 import { TopicSuggestionBox } from '../TopicSuggestionBox';
 
 // const startsWithSlash = /^\/.*/
@@ -102,6 +104,7 @@ export const Compose = ({
     maxTextboxHeightPx = 440,
     minTextboxHeightPx = 125,
     postingProgress,
+    system,
 }: {
     onPost: (
         content: string,
@@ -116,6 +119,7 @@ export const Compose = ({
     maxTextboxHeightPx?: number;
     minTextboxHeightPx?: number;
     postingProgress?: number;
+    system: Models.PublicKey.PublicKey;
 }) => {
     const [content, setContent] = useState('');
     const [topic, setTopic] = useState(preSetTopic ?? '');
@@ -123,8 +127,6 @@ export const Compose = ({
     const textRef = useRef<HTMLTextAreaElement | null>(null);
     const uploadRef = useRef<HTMLInputElement | null>(null);
     const [showClaimPopup, setShowClaimPopup] = useState(false);
-    const [claimType, setClaimType] = useState<ClaimData['type'] | null>(null);
-
     const imageUrl = useBlobDisplayURL(upload);
 
     const post = useCallback(() => {
@@ -136,39 +138,11 @@ export const Compose = ({
         });
     }, [onPost, content, upload, minTextboxHeightPx, topic]);
 
-    const handleClaimSubmit = (data: any) => {
-        console.log('Claim submitted:', { type: claimType, data });
-        setClaimType(null);
-    };
-
-    const renderClaimInput = () => {
-        if (!claimType) return null;
-
-        switch (claimType) {
-            case 'social':
-                return (
-                    <SocialMediaInput
-                        onSubmit={(url) => handleClaimSubmit(url)}
-                        onCancel={() => setClaimType(null)}
-                    />
-                );
-            case 'occupation':
-                return (
-                    <OccupationInput
-                        onSubmit={(data) => handleClaimSubmit(data)}
-                        onCancel={() => setClaimType(null)}
-                    />
-                );
-            case 'skill':
-            case 'freeform':
-                return (
-                    <TextInput
-                        title={claimType === 'skill' ? 'Skill' : 'Freeform Claim'}
-                        onSubmit={(text) => handleClaimSubmit(text)}
-                        onCancel={() => setClaimType(null)}
-                    />
-                );
-        }
+    // Add console.log to debug
+    const handleClaimClick = () => {
+        console.log('Claim button clicked');
+        console.log('System:', system);
+        setShowClaimPopup(true);
     };
 
     return (
@@ -245,22 +219,6 @@ export const Compose = ({
                             strokeWidth="1"
                         />
                     </button>
-                    <button onClick={() => setShowClaimPopup(true)}>
-                        <TagIcon
-                            className="w-9 h-9 text-gray-300 hover:text-gray-400"
-                            strokeWidth="1"
-                        />
-                    </button>
-                    {showClaimPopup && (
-                        <ClaimTypePopup 
-                            onClose={() => setShowClaimPopup(false)}
-                            onSelect={(type) => {
-                                setClaimType(type);
-                                setShowClaimPopup(false);
-                            }}
-                        />
-                    )}
-                    {claimType && renderClaimInput()}
                     <input
                         type="file"
                         className="hidden"
@@ -274,6 +232,19 @@ export const Compose = ({
                             }
                         }}
                     />
+                </div>
+                <div className="w-full flex justify-between items-center pt-4">
+                    <div className="flex items-start space-x-4">
+                        <button onClick={handleClaimClick}>
+                            <TagIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" strokeWidth="1" />
+                        </button>
+                        {showClaimPopup && (
+                            <MakeClaim 
+                                system={system}
+                                onClose={() => setShowClaimPopup(false)}
+                            />
+                        )}
+                    </div>
                 </div>
                 <button
                     disabled={
