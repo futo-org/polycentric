@@ -115,7 +115,11 @@ export const PureSidebarProfile = ({
                 <div className="text-gray-500 text-pretty px-8 break-words max-w-full">
                     {profile.description}
                 </div>
-                <ClaimGrid claims={claims} system={profile.system} />
+                <ClaimGrid 
+                    claims={claims} 
+                    system={profile.system} 
+                    isMyProfile={profile.isMyProfile}
+                />
             </div>
         </div>
     );

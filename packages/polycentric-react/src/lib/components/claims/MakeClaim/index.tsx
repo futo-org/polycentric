@@ -42,9 +42,10 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
     const [claimType, setClaimType] = useState<ClaimData['type'] | null>(null);
     const [platform, setPlatform] = useState<SocialPlatform | undefined>();
 
-    console.log('MakeClaim rendered', { step, claimType, platform });
-
-    const handleSelect = (type: ClaimData['type'], platform?: SocialPlatform) => {
+    const handleSelect = (
+        type: ClaimData['type'],
+        platform?: SocialPlatform,
+    ) => {
         setClaimType(type);
         setPlatform(platform);
         setStep('input');
@@ -60,7 +61,9 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
 
         switch (claimType) {
             case 'social':
-                return platform ? <SocialMediaInput {...props} platform={platform} /> : null;
+                return platform ? (
+                    <SocialMediaInput {...props} platform={platform} />
+                ) : null;
             case 'occupation':
                 return <OccupationInput {...props} />;
             case 'skill':
@@ -70,11 +73,17 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
     };
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-[9999]" onClick={onClose}>
-            <div className="bg-white rounded-lg shadow-lg p-4 max-w-md w-full m-4" onClick={e => e.stopPropagation()}>
+        <div
+            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-[9999]"
+            onClick={onClose}
+        >
+            <div
+                className="bg-white rounded-lg shadow-lg p-4 max-w-md w-full m-4"
+                onClick={(e) => e.stopPropagation()}
+            >
                 {step === 'type' ? (
-                    <ClaimTypePopup 
-                        onClose={onClose} 
+                    <ClaimTypePopup
+                        onClose={onClose}
                         onSelect={handleSelect}
                         system={system}
                     />
@@ -84,43 +93,6 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
             </div>
         </div>
     );
-};
-
-const getPlatformClaimType = (platform: SocialPlatform): Long => {
-    switch (platform) {
-        case 'youtube':
-            return Models.ClaimType.ClaimTypeYouTube;
-        case 'twitter':
-            return Models.ClaimType.ClaimTypeTwitter;
-        case 'github':
-            return Models.ClaimType.ClaimTypeGitHub;
-        case 'discord':
-            return Models.ClaimType.ClaimTypeDiscord;
-        case 'instagram':
-            return Models.ClaimType.ClaimTypeInstagram;
-        case 'minds':
-            return Models.ClaimType.ClaimTypeMinds;
-        case 'odysee':
-            return Models.ClaimType.ClaimTypeOdysee;
-        case 'patreon':
-            return Models.ClaimType.ClaimTypePatreon;
-        case 'rumble':
-            return Models.ClaimType.ClaimTypeRumble;
-        case 'soundcloud':
-            return Models.ClaimType.ClaimTypeSoundcloud;
-        case 'spotify':
-            return Models.ClaimType.ClaimTypeSpotify;
-        case 'twitch':
-            return Models.ClaimType.ClaimTypeTwitch;
-        case 'vimeo':
-            return Models.ClaimType.ClaimTypeVimeo;
-        case 'dailymotion':
-            return Models.ClaimType.ClaimTypeDailymotion;
-        case 'gitlab':
-            return Models.ClaimType.ClaimTypeGitlab;
-        default:
-            throw new Error('Invalid platform');
-    }
 };
 
 export const ClaimTypePopup = ({
@@ -222,7 +194,7 @@ export const SocialMediaInput = ({
         try {
             setIsSubmitting(true);
             let claim: Protocol.Claim;
-            
+
             switch (platform) {
                 case 'hackerNews':
                     claim = Models.claimHackerNews(url);
@@ -267,7 +239,7 @@ export const SocialMediaInput = ({
                     claim = Models.claimURL(url);
                     break;
             }
-            
+
             await processHandle.claim(claim);
             onCancel();
         } catch (error) {
@@ -308,7 +280,10 @@ export const SocialMediaInput = ({
     );
 };
 
-export const OccupationInput = ({ system, onCancel }: {
+export const OccupationInput = ({
+    system,
+    onCancel,
+}: {
     system: Models.PublicKey.PublicKey;
     onCancel: () => void;
 }) => {
@@ -320,7 +295,11 @@ export const OccupationInput = ({ system, onCancel }: {
         try {
             setIsSubmitting(true);
             const claim = Models.claimOccupation(organization, role, location);
-            await useQueryIfAdded(Models.ContentType.ContentTypeClaim, system, Protocol.Claim.encode(claim).finish());
+            await useQueryIfAdded(
+                Models.ContentType.ContentTypeClaim,
+                system,
+                Protocol.Claim.encode(claim).finish(),
+            );
             onCancel();
         } catch (error) {
             console.error('Failed to submit claim:', error);
@@ -372,7 +351,11 @@ export const OccupationInput = ({ system, onCancel }: {
     );
 };
 
-export const TextInput = ({ system, type, onCancel }: {
+export const TextInput = ({
+    system,
+    type,
+    onCancel,
+}: {
     system: Models.PublicKey.PublicKey;
     type: 'skill' | 'freeform';
     onCancel: () => void;
@@ -382,10 +365,15 @@ export const TextInput = ({ system, type, onCancel }: {
     const addClaim = useCallback(async () => {
         try {
             setIsSubmitting(true);
-            const claim = type === 'skill' ? 
-                Models.claimSkill(text) : 
-                Models.claimGeneric(text);
-            await useQueryIfAdded(Models.ContentType.ContentTypeClaim, system, Protocol.Claim.encode(claim).finish());
+            const claim =
+                type === 'skill'
+                    ? Models.claimSkill(text)
+                    : Models.claimGeneric(text);
+            await useQueryIfAdded(
+                Models.ContentType.ContentTypeClaim,
+                system,
+                Protocol.Claim.encode(claim).finish(),
+            );
             onCancel();
         } catch (error) {
             console.error('Failed to submit claim:', error);

@@ -140,8 +140,6 @@ export const Compose = ({
 
     // Add console.log to debug
     const handleClaimClick = () => {
-        console.log('Claim button clicked');
-        console.log('System:', system);
         setShowClaimPopup(true);
     };
 
@@ -236,10 +234,13 @@ export const Compose = ({
                 <div className="w-full flex justify-between items-center pt-4">
                     <div className="flex items-start space-x-4">
                         <button onClick={handleClaimClick}>
-                            <TagIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" strokeWidth="1" />
+                            <TagIcon
+                                className="w-9 h-9 text-gray-300 hover:text-gray-400"
+                                strokeWidth="1"
+                            />
                         </button>
                         {showClaimPopup && (
-                            <MakeClaim 
+                            <MakeClaim
                                 system={system}
                                 onClose={() => setShowClaimPopup(false)}
                             />

@@ -28,11 +28,13 @@ import WorkIcon from '../../../../graphics/icons/rendered/work.svg.png';
 import TwitterIcon from '../../../../graphics/icons/rendered/x.svg.png';
 import YouTubeIcon from '../../../../graphics/icons/rendered/youtube.svg.png';
 import { useAvatar } from '../../../hooks/imageHooks';
+import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import {
     useClaimVouches,
     useSystemLink,
     useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
+import { MakeClaim } from '../../claims/MakeClaim';
 
 const getIconFromClaimType = (
     type: Long,
@@ -345,104 +347,100 @@ const ClaimCircle: React.FC<{
     };
     position: 'start' | 'middle' | 'end';
     system: Models.PublicKey.PublicKey;
-}> = ({ claim, position, system }) => {
+    isMyProfile?: boolean;
+}> = ({ claim, position, system, isMyProfile }) => {
     const [expanded, setExpanded] = useState(false);
-    const [hovering, setHovering] = useState(false);
-
-    const [icon, color] = useMemo(
-        () => getIconFromClaimType(claim.type),
-        [claim.type],
-    );
-    const url = useMemo(
-        () => getAccountUrl(claim.type, claim.field.value),
-        [claim.type, claim.field.value],
-    );
-
-    // Fetch vouches
+    const { processHandle } = useProcessHandleManager();
+    const [icon, color] = useMemo(() => getIconFromClaimType(claim.type), [claim.type]);
+    const url = useMemo(() => getAccountUrl(claim.type, claim.field.value), [claim.type, claim.field.value]);
     const vouches = useClaimVouches(system, claim.pointer);
 
-    const isExpanded = hovering || expanded;
-
-    const handleMouseEnter = () => !expanded && setHovering(true);
-    const handleMouseLeave = () => setHovering(false);
+    const handleVouch = async () => {
+        if (!processHandle) return;
+        try {
+            await processHandle.vouch(claim.pointer);
+        } catch (error) {
+            console.error('Failed to vouch:', error);
+        }
+    };
 
     const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (hovering || expanded) {
-            if (url) window.open(url, '_blank');
-            setExpanded(false);
-            setHovering(false);
-        } else {
+        if (!expanded) {
             setExpanded(true);
         }
     };
 
-    const zIndex = isExpanded
-        ? 10
-        : position === 'start'
-          ? 1
-          : position === 'middle'
-            ? 2
-            : 3;
+    const handleUrlClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (url) {
+            window.open(url, '_blank');
+        }
+        setExpanded(false);
+    };
 
     return (
-        <div
-            className="relative"
-            style={{
-                zIndex, // Apply z-index dynamically
-            }}
+        <div 
+            className="relative" 
+            style={{ zIndex: expanded ? 10 : position === 'start' ? 1 : position === 'middle' ? 2 : 3 }}
+            onClick={() => expanded && setExpanded(false)}
         >
-            <button
+            <div
                 className={`rounded-full w-16 h-16 p-2 flex items-center justify-center transition-all duration-300 whitespace-nowrap overflow-hidden ${
-                    isExpanded ? 'absolute w-[14rem]' : ''
+                    expanded ? 'absolute w-[14rem] h-[4rem]' : ''
                 } ${
                     position === 'start'
                         ? 'left-0'
                         : position === 'middle'
-                          ? isExpanded
-                              ? '-translate-x-[5rem]'
-                              : ''
-                          : isExpanded
-                            ? '-translate-x-[10rem]'
-                            : ''
+                          ? expanded ? '-translate-x-[5rem]' : ''
+                          : expanded ? '-translate-x-[10rem]' : ''
                 }`}
                 style={{ backgroundColor: color }}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-                onClick={handleClick}
+                onClick={!expanded ? handleClick : undefined}
             >
-                {isExpanded ? claim.field.value : icon}
-            </button>
+                {expanded ? (
+                    <button
+                        onClick={handleUrlClick}
+                        className="px-2 py-1 rounded hover:bg-black/10 transition-colors"
+                    >
+                        {claim.field.value}
+                    </button>
+                ) : icon}
+            </div>
 
-            {/* Vouches */}
-            {vouches && (
-                <div
-                    className={`absolute ${
-                        isExpanded
-                            ? 'bottom-[-12px] w-full flex justify-center gap-2'
-                            : 'bottom-0 right-0 flex justify-center'
-                    }`}
-                >
-                    {isExpanded
-                        ? vouches.map(
-                              (vouch, index) =>
-                                  vouch && (
-                                      <div
-                                          key={index}
-                                          className="flex flex-col items-center"
-                                      >
-                                          <VouchedBy system={vouch.system} />
-                                      </div>
-                                  ),
-                          )
-                        : vouches.length > 0 && (
-                              <div
-                                  className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center"
-                                  title={`${vouches.length} vouches`}
-                              >
-                                  {vouches.length}
-                              </div>
-                          )}
+            {/* Vouches and Vouch Button */}
+            {expanded && (
+                <>
+                    {/* Vouches */}
+                    <div className="absolute -top-8 w-full flex justify-center gap-2">
+                        {vouches?.map((vouch, index) => vouch && (
+                            <div key={index} className="flex flex-col items-center">
+                                <VouchedBy system={vouch.system} />
+                            </div>
+                        ))}
+                    </div>
+                    
+                    {/* Vouch Button - only show on other profiles */}
+                    {!isMyProfile && (
+                        <div className="absolute -bottom-20 w-full flex justify-center">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleVouch();
+                                }}
+                                className="px-4 py-1 text-sm text-white-600 hover:text-white-700 border border-white-600 rounded-md hover:bg-white-50 transition-colors bg-gray-100"
+                            >
+                                Vouch
+                            </button>
+                        </div>
+                    )}
+                </>
+            )}
+
+            {/* Non-expanded vouch count */}
+            {!expanded && vouches?.length > 0 && (
+                <div className="absolute bottom-0 right-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center" title={`${vouches.length} vouches`}>
+                    {vouches.length}
                 </div>
             )}
         </div>
@@ -488,7 +486,10 @@ const getAccountUrl = (type: Long, value: string): string | undefined => {
 export const ClaimGrid: React.FC<{
     system: Models.PublicKey.PublicKey;
     claims: { value: Protocol.Claim; pointer: Protocol.Reference }[];
-}> = ({ system, claims }) => {
+    isMyProfile?: boolean;
+}> = ({ system, claims, isMyProfile }) => {
+    const [showClaimModal, setShowClaimModal] = useState(false);
+
     const claimsUnwrapped = useMemo(() => {
         return claims.flatMap(({ value, pointer }) =>
             value.claimFields.map((field) => ({
@@ -507,44 +508,53 @@ export const ClaimGrid: React.FC<{
         return out;
     }, [claimsUnwrapped]);
 
-    if (claimsInGroupsOfThree.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center space-y-3">
-                <div className="text-center text-xl font-semibold">Claims</div>
-                <div className="w-full h-px bg-gray-300" />
-                <div className="text-center text-m text-gray-400">
-                    None at the moment...
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="flex flex-col items-center justify-center space-y-3">
             <div className="text-center text-xl font-semibold">Claims</div>
+            {isMyProfile && (
+                <button
+                    onClick={() => setShowClaimModal(true)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none"
+                >
+                    Make a Claim
+                </button>
+            )}
             <div className="w-full h-px bg-gray-300" />
-            {claimsInGroupsOfThree.map((group, index) => (
-                <div key={index} className="grid relative grid-cols-3 gap-4">
-                    {group.map((claim, index) => (
-                        <div
-                            key={claim.field.value || index}
-                            className="w-16 h-16"
-                        >
-                            <ClaimCircle
-                                claim={claim}
-                                position={
-                                    index === 0
-                                        ? 'start'
-                                        : index === 1
-                                          ? 'middle'
-                                          : 'end'
-                                }
-                                system={system}
-                            />
-                        </div>
-                    ))}
+            {showClaimModal && (
+                <MakeClaim 
+                    system={system}
+                    onClose={() => setShowClaimModal(false)}
+                />
+            )}
+            {claimsInGroupsOfThree.length === 0 ? (
+                <div className="text-center text-m text-gray-400">
+                    None at the moment...
                 </div>
-            ))}
+            ) : (
+                claimsInGroupsOfThree.map((group, index) => (
+                    <div key={index} className="grid relative grid-cols-3 gap-4">
+                        {group.map((claim, index) => (
+                            <div
+                                key={claim.field.value || index}
+                                className="w-16 h-16"
+                            >
+                                <ClaimCircle
+                                    claim={claim}
+                                    position={
+                                        index === 0
+                                            ? 'start'
+                                            : index === 1
+                                              ? 'middle'
+                                              : 'end'
+                                    }
+                                    system={system}
+                                    isMyProfile={isMyProfile}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                ))
+            )}
         </div>
     );
 };
