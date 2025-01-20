@@ -260,7 +260,7 @@ export function useIndex<T>(
     contentType: Models.ContentType.ContentType,
     parse: (buffer: Uint8Array) => T,
     batchSize = 30,
-): [Array<ParsedEvent<T>>, () => void, boolean] {
+): [Array<ParsedEvent<T>>, () => Promise<void>, boolean] {
     const queryManager = useQueryManager();
 
     const [state, setState] = useState<Array<ClaimInfo<T>>>([]);
@@ -339,8 +339,10 @@ export function useIndex<T>(
             .filter((x) => x !== undefined) as ParsedEvent<T>[];
     }, [state]);
 
-    const advanceCallback = useCallback(() => {
-        advance?.(batchSize);
+    const advanceCallback = useMemo(() => {
+        return async () => {
+            await advance?.(batchSize);
+        };
     }, [advance, batchSize]);
 
     return [parsedEvents, advanceCallback, allSourcesAttempted];
@@ -857,3 +859,68 @@ export function useQueryTopStringReferences(
 
     return state;
 }
+
+export const useClaims = (system: Models.PublicKey.PublicKey) => {
+    const [claims, advance, allSourcesAttempted] = useIndex(
+        system,
+        Models.ContentType.ContentTypeClaim,
+        Protocol.Claim.decode,
+    );
+
+    // Only advance once when the component mounts
+    useEffect(() => {
+        if (!allSourcesAttempted) {
+            advance();
+        }
+    }, [advance, allSourcesAttempted]);
+
+    const claimValues = useMemo(() => {
+        return claims.map((claim) => ({
+            value: claim.value,
+            pointer: Models.pointerToReference(
+                Models.signedEventToPointer(claim.signedEvent),
+            ),
+        }));
+    }, [claims]);
+
+    return claimValues;
+};
+
+const claimVouchRequestEvents: Protocol.QueryReferencesRequestEvents = {
+    fromType: Models.ContentType.ContentTypeVouch,
+    countLwwElementReferences: [],
+    countReferences: [],
+};
+
+export const useClaimVouches = (
+    system: Models.PublicKey.PublicKey,
+    claimReference: Protocol.Reference,
+) => {
+    const vouches = useQueryReferences(
+        system,
+        claimReference,
+        undefined,
+        claimVouchRequestEvents,
+        undefined,
+    );
+
+    const vouchEvents = useMemo(() => {
+        if (vouches === undefined) {
+            return [];
+        }
+
+        return vouches
+            ?.flatMap((vouch) =>
+                vouch.items.map((item) => {
+                    const signedEvent = item?.event;
+                    if (signedEvent === undefined) {
+                        return undefined;
+                    }
+                    return Models.Event.fromBuffer(signedEvent.event);
+                }),
+            )
+            .filter((event) => event !== undefined);
+    }, [vouches]);
+
+    return vouchEvents;
+};

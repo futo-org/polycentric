@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useAvatar } from '../../../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../../../hooks/processHandleManagerHooks';
 import {
+    useClaims,
     useDescriptionCRDTQuery,
     useQueryIfAdded,
     useSystemLink,
@@ -17,9 +18,10 @@ export const MobileProfileFeed = ({
     system: Models.PublicKey.PublicKey;
 }) => {
     const name = useUsernameCRDTQuery(system);
+    const description = useDescriptionCRDTQuery(system);
     const avatarURL = useAvatar(system);
 
-    const description = useDescriptionCRDTQuery(system);
+    const claims = useClaims(system);
 
     const { processHandle } = useProcessHandleManager();
 
@@ -102,6 +104,7 @@ export const MobileProfileFeed = ({
             follow={follow}
             unfollow={unfollow}
             share={share}
+            claims={claims}
         />
     );
 };

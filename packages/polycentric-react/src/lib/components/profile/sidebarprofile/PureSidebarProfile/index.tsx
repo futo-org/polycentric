@@ -1,6 +1,7 @@
-import { Models } from '@polycentric/polycentric-core';
+import { Models, Protocol } from '@polycentric/polycentric-core';
 import { useState } from 'react';
 import { BlockedList } from '../../BlockedList';
+import { ClaimGrid } from '../../ClaimGrid';
 import { FollowingList } from '../../FollowingList';
 import { ProfilePicture } from '../../ProfilePicture';
 import {
@@ -27,6 +28,7 @@ export const PureSidebarProfile = ({
     block,
     unblock,
     editProfileActions,
+    claims,
 }: {
     profile: PureSidebarProfileData;
     follow: () => void;
@@ -34,6 +36,7 @@ export const PureSidebarProfile = ({
     block: () => void;
     unblock: () => void;
     editProfileActions: EditProfileActions;
+    claims: { value: Protocol.Claim; pointer: Protocol.Reference }[];
 }) => {
     const [editProfileOpen, setEditProfileOpen] = useState(false);
     const [followingPanelOpen, setFollowingPanelOpen] = useState(false);
@@ -107,6 +110,7 @@ export const PureSidebarProfile = ({
                 <div className="text-gray-500 text-pretty px-8 break-words max-w-full">
                     {profile.description}
                 </div>
+                <ClaimGrid claims={claims} system={profile.system} />
             </div>
         </div>
     );
