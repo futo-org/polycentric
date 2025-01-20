@@ -1,4 +1,4 @@
-import { Models, Protocol } from '@polycentric/polycentric-core';
+import { Protocol } from '@polycentric/polycentric-core';
 import { ArrowUpOnSquareIcon } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 import { FollowingList } from '../../FollowingList';
