@@ -15,7 +15,6 @@ import { ProfilePicture } from '../../../profile/ProfilePicture';
 import { Link } from '../../../util/link';
 import { Linkify } from '../../../util/linkify';
 // Styling for image viewer
-import { Models } from '@polycentric/polycentric-core';
 import { useTopicLink } from '../../../../hooks/utilHooks';
 import './style.css';
 
