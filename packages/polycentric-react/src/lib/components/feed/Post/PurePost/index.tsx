@@ -485,7 +485,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                     className="text-inherit flex-shrink min-w-0"
                                                 >
                                                     <div className="flex items-center gap-2">
-                                                    <address className="font-bold text-base author not-italic hover:underline h-[1.5rem] w-full overflow-hidden overflow-ellipsis text-black">
+                                                        <address className="font-bold text-base author not-italic hover:underline h-[1.5rem] w-full overflow-hidden overflow-ellipsis text-black">
                                                             {main.author.name}
                                                         </address>
                                                         <span className="text-sm text-gray-500 font-mono">
