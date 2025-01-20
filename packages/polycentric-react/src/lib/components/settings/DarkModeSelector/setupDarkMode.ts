@@ -5,6 +5,7 @@ import {
 } from 'darkreader';
 
 export const setupDarkMode = () => {
+    // Settings can be changed in the future
     const darkReaderConfig = {
         brightness: 100,
         contrast: 90,
