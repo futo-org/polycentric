@@ -380,10 +380,10 @@ const ClaimCircle: React.FC<{
     const zIndex = isExpanded
         ? 10
         : position === 'start'
-          ? 1
-          : position === 'middle'
-            ? 2
-            : 3;
+        ? 1
+        : position === 'middle'
+        ? 2
+        : 3;
 
     return (
         <div
@@ -399,12 +399,12 @@ const ClaimCircle: React.FC<{
                     position === 'start'
                         ? 'left-0'
                         : position === 'middle'
-                          ? isExpanded
-                              ? '-translate-x-[5rem]'
-                              : ''
-                          : isExpanded
-                            ? '-translate-x-[10rem]'
+                        ? isExpanded
+                            ? '-translate-x-[5rem]'
                             : ''
+                        : isExpanded
+                        ? '-translate-x-[10rem]'
+                        : ''
                 }`}
                 style={{ backgroundColor: color }}
                 onMouseEnter={handleMouseEnter}
@@ -488,7 +488,7 @@ const getAccountUrl = (type: Long, value: string): string | undefined => {
 export const ClaimGrid: React.FC<{
     system: Models.PublicKey.PublicKey;
     claims: { value: Protocol.Claim; pointer: Protocol.Reference }[];
-}> = React.memo(({ system, claims }) => {
+}> = ({ system, claims }) => {
     const claimsUnwrapped = useMemo(() => {
         return claims.flatMap(({ value, pointer }) =>
             value.claimFields.map((field) => ({
@@ -536,8 +536,8 @@ export const ClaimGrid: React.FC<{
                                     index === 0
                                         ? 'start'
                                         : index === 1
-                                          ? 'middle'
-                                          : 'end'
+                                        ? 'middle'
+                                        : 'end'
                                 }
                                 system={system}
                             />
@@ -547,4 +547,4 @@ export const ClaimGrid: React.FC<{
             ))}
         </div>
     );
-});
+};
