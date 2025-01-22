@@ -49,9 +49,9 @@ export const PostCompose = ({ preSetTopic }: { preSetTopic?: string }) => {
     return (
         <div className="border-b bg-white">
             <div className="py-3 lg:p-10">
-                <Compose 
-                    onPost={onPost} 
-                    postingProgress={postingProgress} 
+                <Compose
+                    onPost={onPost}
+                    postingProgress={postingProgress}
                     preSetTopic={preSetTopic}
                 />
             </div>

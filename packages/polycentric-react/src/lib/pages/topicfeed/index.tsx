@@ -1,4 +1,7 @@
-import { PencilSquareIcon, StarIcon as StarIconOutlined } from '@heroicons/react/24/outline';
+import {
+    PencilSquareIcon,
+    StarIcon as StarIconOutlined,
+} from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { IonContent } from '@ionic/react';
 import { Models, Util } from '@polycentric/polycentric-core';
