@@ -398,10 +398,10 @@ const ClaimCircle: React.FC<{
                 zIndex: expanded
                     ? 10
                     : position === 'start'
-                    ? 1
-                    : position === 'middle'
-                    ? 2
-                    : 3,
+                      ? 1
+                      : position === 'middle'
+                        ? 2
+                        : 3,
             }}
             onClick={() => expanded && setExpanded(false)}
         >
