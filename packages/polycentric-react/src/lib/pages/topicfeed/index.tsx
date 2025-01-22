@@ -1,9 +1,10 @@
-import { StarIcon as StarIconOutlined } from '@heroicons/react/24/outline';
+import { PencilSquareIcon, StarIcon as StarIconOutlined } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { IonContent } from '@ionic/react';
 import { Models, Util } from '@polycentric/polycentric-core';
 import { useEffect, useMemo, useState } from 'react';
 import { Page } from '../../app/router';
+import { PopupComposeFullscreen } from '../../components';
 import { PostCompose } from '../../components/feed/Compose/PostCompose';
 import { Header } from '../../components/layout/header';
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol';
@@ -31,6 +32,7 @@ export const TopicFeedPage: Page = () => {
     const params = useParams<{ 0: string }>();
     const escapedTopic = params[0];
     const isMobile = useIsMobile();
+    const [composeModalOpen, setComposeModalOpen] = useState(false);
 
     const topic: string = useMemo(() => {
         return decodeURIComponent(escapedTopic);
@@ -162,6 +164,23 @@ export const TopicFeedPage: Page = () => {
                     topFeedComponentSticky={isMobile}
                     rightCol={<div />}
                 />
+                {isMobile && (
+                    <>
+                        <div className="relative z-50">
+                            <button
+                                onClick={() => setComposeModalOpen(true)}
+                                className="fixed bottom-4 right-4 w-16 h-16 bg-blue-500 rounded-full flex justify-center items-center z-50"
+                            >
+                                <PencilSquareIcon className="w-8 h-8 text-white" />
+                            </button>
+                        </div>
+                        <PopupComposeFullscreen
+                            open={composeModalOpen}
+                            setOpen={setComposeModalOpen}
+                            preSetTopic={topic}
+                        />
+                    </>
+                )}
             </IonContent>
         </>
     );

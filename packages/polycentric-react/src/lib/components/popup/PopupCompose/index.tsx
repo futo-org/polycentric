@@ -7,12 +7,14 @@ import { Modal } from '../../util/modal';
 
 export const PopupCompose = ({
     onPost,
+    preSetTopic,
 }: {
     onPost: (
         content: string,
         upload?: File | undefined,
         topic?: string | undefined,
     ) => Promise<boolean>;
+    preSetTopic?: string;
 }) => {
     return (
         <div className="h-full pb-7 md:px-7 bg-white overflow-clip flex flex-col space-y-0 w-auto md:w-[40rem]">
@@ -22,6 +24,7 @@ export const PopupCompose = ({
                 minTextboxHeightPx={200}
                 flexGrow={true}
                 hfull={true}
+                preSetTopic={preSetTopic}
             />
         </div>
     );
@@ -30,9 +33,11 @@ export const PopupCompose = ({
 export const PopupComposeFullscreen = ({
     open,
     setOpen,
+    preSetTopic,
 }: {
     open: boolean;
     setOpen: (b: boolean) => void;
+    preSetTopic?: string;
 }) => {
     const { processHandle } = useProcessHandleManager();
 
@@ -67,7 +72,7 @@ export const PopupComposeFullscreen = ({
 
     return (
         <Modal open={open} setOpen={setOpen}>
-            <PopupCompose onPost={onPost} />
+            <PopupCompose onPost={onPost} preSetTopic={preSetTopic} />
         </Modal>
     );
 };
