@@ -4,6 +4,7 @@ import { IonContent } from '@ionic/react';
 import { Models, Util } from '@polycentric/polycentric-core';
 import { useEffect, useMemo, useState } from 'react';
 import { Page } from '../../app/router';
+import { PostCompose } from '../../components/feed/Compose/PostCompose';
 import { Header } from '../../components/layout/header';
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol';
 import { useTopicFeed } from '../../hooks/feedHooks';
@@ -137,6 +138,7 @@ export const TopicFeedPage: Page = () => {
             <div className="w-full bg-white">
                 {isMobile === false && desktopTitleBar}
                 <TopFeedVideo topic={topic} />
+                {isMobile === false && <PostCompose preSetTopic={topic} />}
             </div>
         );
     }, [topic, isMobile, topicSelectButton]);
