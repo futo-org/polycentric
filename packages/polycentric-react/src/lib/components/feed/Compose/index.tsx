@@ -104,7 +104,6 @@ export const Compose = ({
     maxTextboxHeightPx = 440,
     minTextboxHeightPx = 125,
     postingProgress,
-    system,
 }: {
     onPost: (
         content: string,
@@ -119,14 +118,12 @@ export const Compose = ({
     maxTextboxHeightPx?: number;
     minTextboxHeightPx?: number;
     postingProgress?: number;
-    system: Models.PublicKey.PublicKey;
 }) => {
     const [content, setContent] = useState('');
     const [topic, setTopic] = useState(preSetTopic ?? '');
     const [upload, setUpload] = useState<File | undefined>();
     const textRef = useRef<HTMLTextAreaElement | null>(null);
     const uploadRef = useRef<HTMLInputElement | null>(null);
-    const [showClaimPopup, setShowClaimPopup] = useState(false);
     const imageUrl = useBlobDisplayURL(upload);
 
     const post = useCallback(() => {
@@ -137,11 +134,6 @@ export const Compose = ({
                 textRef.current.style.height = `${minTextboxHeightPx}px`;
         });
     }, [onPost, content, upload, minTextboxHeightPx, topic]);
-
-    // Add console.log to debug
-    const handleClaimClick = () => {
-        setShowClaimPopup(true);
-    };
 
     return (
         <div
@@ -230,22 +222,6 @@ export const Compose = ({
                             }
                         }}
                     />
-                </div>
-                <div className="w-full flex justify-between items-center pt-4">
-                    <div className="flex items-start space-x-4">
-                        <button onClick={handleClaimClick}>
-                            <TagIcon
-                                className="w-9 h-9 text-gray-300 hover:text-gray-400"
-                                strokeWidth="1"
-                            />
-                        </button>
-                        {showClaimPopup && (
-                            <MakeClaim
-                                system={system}
-                                onClose={() => setShowClaimPopup(false)}
-                            />
-                        )}
-                    </div>
                 </div>
                 <button
                     disabled={

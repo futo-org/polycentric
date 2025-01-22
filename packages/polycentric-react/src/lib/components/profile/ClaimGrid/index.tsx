@@ -489,7 +489,10 @@ const ClaimCircle: React.FC<{
                                             <p className="text-gray-600 mb-6">This action cannot be undone.</p>
                                             <div className="flex justify-end gap-4">
                                                 <button
-                                                    onClick={() => setShowDeleteConfirm(false)}
+                                                    onClick={() => {
+                                                        setShowDeleteConfirm(false);
+                                                        setExpanded(false);
+                                                    }}
                                                     className="px-4 py-2 text-gray-600 hover:text-gray-700"
                                                 >
                                                     Cancel
