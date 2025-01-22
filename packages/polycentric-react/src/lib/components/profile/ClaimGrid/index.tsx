@@ -363,6 +363,7 @@ const ClaimCircle: React.FC<{
     const [vouchStatus, setVouchStatus] = useState<
         'none' | 'success' | 'error'
     >('none');
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     const handleVouch = async () => {
         if (!processHandle) return;
@@ -373,6 +374,18 @@ const ClaimCircle: React.FC<{
             setVouchStatus('error');
             console.error('Failed to vouch:', error);
             setTimeout(() => setVouchStatus('none'), 2000); // Reset after 2 seconds
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!processHandle) return;
+        try {
+            const decodedReference = Protocol.Reference.decode(claim.pointer.reference);
+            await processHandle.delete(decodedReference.process, decodedReference.logicalClock);
+            setShowDeleteConfirm(false);
+            setExpanded(false);
+        } catch (error) {
+            console.error('Failed to delete claim:', error);
         }
     };
 
@@ -439,39 +452,77 @@ const ClaimCircle: React.FC<{
                 <>
                     {/* Vouches */}
                     <div className="absolute -top-8 w-full flex justify-center gap-2">
-                        {vouches?.map(
-                            (vouch, index) =>
-                                vouch && (
-                                    <div
-                                        key={index}
-                                        className="flex flex-col items-center"
-                                    >
-                                        <VouchedBy system={vouch.system} />
-                                    </div>
-                                ),
-                        )}
+                        {vouches?.map((vouch, index) => vouch && (
+                            <div key={index} className="flex flex-col items-center">
+                                <VouchedBy system={vouch.system} />
+                            </div>
+                        ))}
                     </div>
-
-                    {/* Vouch Button - only show on other profiles */}
-                    {!isMyProfile && (
-                        <div className="absolute -bottom-20 w-full flex justify-center">
+                    
+                    {/* Vouch/Remove Button */}
+                    <div className="absolute -bottom-20 w-full flex justify-center">
+                        {isMyProfile ? (
+                            <>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowDeleteConfirm(true);
+                                    }}
+                                    className="px-4 py-1 text-sm text-red-600 hover:text-red-700 border border-red-600 rounded-md hover:bg-red-50 transition-colors bg-gray-100"
+                                >
+                                    Remove
+                                </button>
+                                
+                                {showDeleteConfirm && (
+                                    <div 
+                                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowDeleteConfirm(false);
+                                        }}
+                                    >
+                                        <div 
+                                            className="bg-white p-6 rounded-lg shadow-lg max-w-sm mx-4"
+                                            onClick={e => e.stopPropagation()}
+                                        >
+                                            <h3 className="text-lg font-semibold mb-4">Delete Claim?</h3>
+                                            <p className="text-gray-600 mb-6">This action cannot be undone.</p>
+                                            <div className="flex justify-end gap-4">
+                                                <button
+                                                    onClick={() => setShowDeleteConfirm(false)}
+                                                    className="px-4 py-2 text-gray-600 hover:text-gray-700"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    onClick={handleDelete}
+                                                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     handleVouch();
                                 }}
                                 className={`px-4 py-1 text-sm border rounded-md transition-all duration-300 ${
-                                    vouchStatus === 'success'
+                                    vouchStatus === 'success' 
                                         ? 'bg-green-100 text-green-600 border-green-600 opacity-0'
                                         : vouchStatus === 'error'
-                                          ? 'bg-red-100 text-red-600 border-red-600'
-                                          : 'bg-gray-100 text-blue-600 border-blue-600 hover:bg-blue-50'
+                                            ? 'bg-red-100 text-red-600 border-red-600'
+                                            : 'bg-gray-100 text-blue-600 border-blue-600 hover:bg-blue-50'
                                 }`}
                             >
                                 Vouch
                             </button>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </>
             )}
 
