@@ -62,12 +62,13 @@ export const AccountList = ({
         <Virtuoso
             data={systems}
             endReached={advance}
-            itemContent={(index) => (
-                <AccountListItem
-                    system={systems[index]}
-                    key={Models.PublicKey.toString(systems[index])}
-                    onClick={() => onItemClick?.(index)}
-                />
+            itemContent={(index, system) => (
+                <div key={Models.PublicKey.toString(system)}>
+                    <AccountListItem
+                        system={system}
+                        onClick={() => onItemClick?.(index)}
+                    />
+                </div>
             )}
         />
     );
