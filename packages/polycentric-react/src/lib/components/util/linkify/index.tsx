@@ -32,7 +32,9 @@ const linkify = (
         value: match.groups?.[key] ?? '',
         start:
             (match.index ?? 0) +
-            (key === 'mention' ? 1 : match[0].indexOf(match[1])),
+            (key === 'mention'
+                ? 1
+                : match[0].indexOf(match.groups?.[key] ?? '')),
     }));
 };
 
@@ -173,30 +175,32 @@ const MentionLink = React.memo(
 
 MentionLink.displayName = 'MentionLink';
 
-export const Linkify = React.memo(
-    forwardRef<
-        HTMLDivElement,
-        {
-            as: React.ElementType;
-            className: string;
-            content: string;
-            stopPropagation?: boolean;
-            onContentChange?: (newContent: string) => void;
-        }
-    >(({ as, className, content, stopPropagation }, ref) => {
+interface LinkifyProps {
+    as: React.ElementType;
+    className: string;
+    content: string;
+    stopPropagation?: boolean;
+    onContentChange?: (newContent: string) => void;
+}
+
+export const Linkify = React.memo(forwardRef<HTMLDivElement, LinkifyProps>(
+    ({ as, className, content, stopPropagation }, ref) => {
         const jsx = useMemo(() => {
             const foundUrls = linkify(content, urlRegex, 'url');
             const foundTopics = linkify(content, topicRegex, 'topic');
             const foundMentions = linkify(content, mentionRegex, 'mention');
 
-            const items = [...foundUrls, ...foundTopics, ...foundMentions].sort(
-                (a, b) => a.start - b.start,
-            );
+            const items = [
+                ...foundUrls,
+                ...foundTopics,
+                ...foundMentions,
+            ].sort((a, b) => a.start - b.start);
 
             const out = [];
             let i = 0;
             for (const item of items) {
-                if (i < item.start) out.push(content.substring(i, item.start));
+                if (i < item.start)
+                    out.push(content.substring(i, item.start));
                 if (item.type === 'url') {
                     out.push(
                         <a
@@ -246,11 +250,7 @@ export const Linkify = React.memo(
                 {jsx}
             </Component>
         );
-    }),
-    (prevProps, nextProps) =>
-        prevProps.content === nextProps.content &&
-        prevProps.className === nextProps.className &&
-        prevProps.stopPropagation === nextProps.stopPropagation,
-);
+    },
+));
 
 Linkify.displayName = 'Linkify';
