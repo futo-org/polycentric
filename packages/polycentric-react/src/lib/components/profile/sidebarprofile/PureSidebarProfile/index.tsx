@@ -66,7 +66,7 @@ export const PureSidebarProfile = ({
                         {profile.name}
                     </div>
                     <div className="text-sm text-gray-500 font-mono text-center">
-                        {Models.PublicKey.toString(profile.system).slice(0, 6)}
+                        {Models.PublicKey.toString(profile.system).slice(0, 10)}
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-center">

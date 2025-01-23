@@ -1,4 +1,5 @@
 import { Models } from '@polycentric/polycentric-core';
+import { useMemo } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import { useAvatar } from '../../../hooks/imageHooks';
 import {
@@ -22,6 +23,12 @@ const AccountListItem = ({
     const description = useDescriptionCRDTQuery(system);
     const link = useSystemLink(system);
 
+    // Get last 6 characters of the public key
+    const shortKey = useMemo(() => {
+        const fullKey = Models.PublicKey.toString(system);
+        return fullKey.slice(0, 10);
+    }, [system]);
+
     return (
         <div className="flex flex-col items-center" onClick={onClick}>
             <Link
@@ -35,9 +42,14 @@ const AccountListItem = ({
                         className="w-12 h-12 rounded-full"
                     />
                     <div className="flex flex-col ml-2 flex-shrink min-w-0">
-                        <span className="text-sm font-semibold text-gray-800 overflow-hidden text-ellipsis whitespace-nowrap">
-                            {name}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-gray-800 overflow-hidden text-ellipsis whitespace-nowrap">
+                                {name}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                                #{shortKey}
+                            </span>
+                        </div>
                         <span className="text-xs font-normal text-gray-500 overflow-hidden text-ellipsis whitespace-nowrap">
                             {description}
                         </span>
@@ -62,12 +74,13 @@ export const AccountList = ({
         <Virtuoso
             data={systems}
             endReached={advance}
-            itemContent={(index) => (
-                <AccountListItem
-                    system={systems[index]}
-                    key={Models.PublicKey.toString(systems[index])}
-                    onClick={() => onItemClick?.(index)}
-                />
+            itemContent={(index, system) => (
+                <div key={Models.PublicKey.toString(system)}>
+                    <AccountListItem
+                        system={system}
+                        onClick={() => onItemClick?.(index)}
+                    />
+                </div>
             )}
         />
     );
