@@ -377,17 +377,17 @@ const ClaimCircle: React.FC<{
         }
     };
 
-    const handleDelete = async () => {
-        if (!processHandle) return;
-        try {
-            const decodedReference = Protocol.Reference.decode(claim.pointer.reference);
-            await processHandle.delete(decodedReference.process, decodedReference.logicalClock);
-            setShowDeleteConfirm(false);
-            setExpanded(false);
-        } catch (error) {
-            console.error('Failed to delete claim:', error);
-        }
-    };
+    // const handleDelete = async () => {
+    //     if (!processHandle) return;
+    //     try {
+    //         const decodedReference = Protocol.Reference.decode(claim.pointer.reference);
+    //         await processHandle.delete(decodedReference.process, decodedReference.logicalClock);
+    //         setShowDeleteConfirm(false);
+    //         setExpanded(false);
+    //     } catch (error) {
+    //         console.error('Failed to delete claim:', error);
+    //     }
+    // };
 
     const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -411,10 +411,10 @@ const ClaimCircle: React.FC<{
                 zIndex: expanded
                     ? 10
                     : position === 'start'
-                      ? 1
-                      : position === 'middle'
-                        ? 2
-                        : 3,
+                    ? 1
+                    : position === 'middle'
+                    ? 2
+                    : 3,
             }}
             onClick={() => expanded && setExpanded(false)}
         >
@@ -425,12 +425,12 @@ const ClaimCircle: React.FC<{
                     position === 'start'
                         ? 'left-0'
                         : position === 'middle'
-                          ? expanded
-                              ? '-translate-x-[5rem]'
-                              : ''
-                          : expanded
-                            ? '-translate-x-[10rem]'
+                        ? expanded
+                            ? '-translate-x-[5rem]'
                             : ''
+                        : expanded
+                        ? '-translate-x-[10rem]'
+                        : ''
                 }`}
                 style={{ backgroundColor: color }}
                 onClick={!expanded ? handleClick : undefined}
@@ -452,13 +452,19 @@ const ClaimCircle: React.FC<{
                 <>
                     {/* Vouches */}
                     <div className="absolute -top-8 w-full flex justify-center gap-2">
-                        {vouches?.map((vouch, index) => vouch && (
-                            <div key={index} className="flex flex-col items-center">
-                                <VouchedBy system={vouch.system} />
-                            </div>
-                        ))}
+                        {vouches?.map(
+                            (vouch, index) =>
+                                vouch && (
+                                    <div
+                                        key={index}
+                                        className="flex flex-col items-center"
+                                    >
+                                        <VouchedBy system={vouch.system} />
+                                    </div>
+                                ),
+                        )}
                     </div>
-                    
+
                     {/* Vouch/Remove Button */}
                     <div className="absolute -bottom-20 w-full flex justify-center">
                         {isMyProfile ? (
@@ -472,37 +478,43 @@ const ClaimCircle: React.FC<{
                                 >
                                     Remove
                                 </button>
-                                
+
                                 {showDeleteConfirm && (
-                                    <div 
+                                    <div
                                         className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             setShowDeleteConfirm(false);
                                         }}
                                     >
-                                        <div 
+                                        <div
                                             className="bg-white p-6 rounded-lg shadow-lg max-w-sm mx-4"
-                                            onClick={e => e.stopPropagation()}
+                                            onClick={(e) => e.stopPropagation()}
                                         >
-                                            <h3 className="text-lg font-semibold mb-4">Delete Claim?</h3>
-                                            <p className="text-gray-600 mb-6">This action cannot be undone.</p>
+                                            <h3 className="text-lg font-semibold mb-4">
+                                                Delete Claim?
+                                            </h3>
+                                            <p className="text-gray-600 mb-6">
+                                                This action cannot be undone.
+                                            </p>
                                             <div className="flex justify-end gap-4">
                                                 <button
                                                     onClick={() => {
-                                                        setShowDeleteConfirm(false);
+                                                        setShowDeleteConfirm(
+                                                            false,
+                                                        );
                                                         setExpanded(false);
                                                     }}
                                                     className="px-4 py-2 text-gray-600 hover:text-gray-700"
                                                 >
                                                     Cancel
                                                 </button>
-                                                <button
+                                                {/* <button
                                                     onClick={handleDelete}
                                                     className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                                                 >
                                                     Delete
-                                                </button>
+                                                </button> */}
                                             </div>
                                         </div>
                                     </div>
@@ -515,11 +527,11 @@ const ClaimCircle: React.FC<{
                                     handleVouch();
                                 }}
                                 className={`px-4 py-1 text-sm border rounded-md transition-all duration-300 ${
-                                    vouchStatus === 'success' 
+                                    vouchStatus === 'success'
                                         ? 'bg-green-100 text-green-600 border-green-600 opacity-0'
                                         : vouchStatus === 'error'
-                                            ? 'bg-red-100 text-red-600 border-red-600'
-                                            : 'bg-gray-100 text-blue-600 border-blue-600 hover:bg-blue-50'
+                                        ? 'bg-red-100 text-red-600 border-red-600'
+                                        : 'bg-gray-100 text-blue-600 border-blue-600 hover:bg-blue-50'
                                 }`}
                             >
                                 Vouch
@@ -642,8 +654,8 @@ export const ClaimGrid: React.FC<{
                                         index === 0
                                             ? 'start'
                                             : index === 1
-                                              ? 'middle'
-                                              : 'end'
+                                            ? 'middle'
+                                            : 'end'
                                     }
                                     system={system}
                                     isMyProfile={isMyProfile}
