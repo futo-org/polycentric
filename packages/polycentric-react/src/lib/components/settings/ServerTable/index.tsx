@@ -180,7 +180,10 @@ export const ServerListTable = () => {
             <table className="min-w-full divide-y divide-gray-200">
                 <thead>
                     <tr>
-                        <th scope="col" className="pt-6 pl-6 pb-3 text-left text-sm font-medium">
+                        <th
+                            scope="col"
+                            className="pt-6 pl-6 pb-3 text-left text-sm font-medium"
+                        >
                             My Servers
                         </th>
                     </tr>
@@ -206,13 +209,18 @@ export const ServerListTable = () => {
                 </tbody>
                 <thead>
                     <tr>
-                        <th scope="col" className="pt-6 pl-6 pb-3 text-left text-sm font-medium">
+                        <th
+                            scope="col"
+                            className="pt-6 pl-6 pb-3 text-left text-sm font-medium"
+                        >
                             Featured Servers
                         </th>
                     </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                    {FEATURED_SERVERS.filter(server => !servers.has(server)).map((server) => (
+                    {FEATURED_SERVERS.filter(
+                        (server) => !servers.has(server),
+                    ).map((server) => (
                         <tr key={server}>
                             <td className="px-6 py-3 whitespace-nowrap">
                                 <div className="flex items-center justify-between space-x-2">
@@ -220,7 +228,9 @@ export const ServerListTable = () => {
                                         {server}
                                     </div>
                                     <button
-                                        onClick={() => processHandle.addServer(server)}
+                                        onClick={() =>
+                                            processHandle.addServer(server)
+                                        }
                                         className="btn btn-primary rounded-full h-[2.25rem] px-3 border bg-white hover:bg-gray-50 text-gray-700"
                                     >
                                         Add Server
