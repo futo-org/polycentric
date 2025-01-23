@@ -4,7 +4,7 @@ import { Compose } from '..';
 import { useProcessHandleManager } from '../../../../hooks/processHandleManagerHooks';
 import { publishImageBlob } from '../../../../util/imageProcessing';
 
-export const PostCompose = () => {
+export const PostCompose = ({ preSetTopic }: { preSetTopic?: string }) => {
     const { processHandle } = useProcessHandleManager();
 
     const [postingProgress, setPostingProgress] = useState(0);
@@ -49,7 +49,11 @@ export const PostCompose = () => {
     return (
         <div className="border-b bg-white">
             <div className="py-3 lg:p-10">
-                <Compose onPost={onPost} postingProgress={postingProgress} />
+                <Compose
+                    onPost={onPost}
+                    postingProgress={postingProgress}
+                    preSetTopic={preSetTopic}
+                />
             </div>
             {postingProgress > 0 && (
                 <div
