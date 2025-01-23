@@ -1,6 +1,7 @@
 import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { useCallback, useRef, useState } from 'react';
 import { useBlobDisplayURL } from '../../../hooks/imageHooks';
+import { MentionSuggestions } from '../../util/linkify';
 import { TopicSuggestionBox } from '../TopicSuggestionBox';
 
 // const startsWithSlash = /^\/.*/
@@ -119,6 +120,12 @@ export const Compose = ({
     const [content, setContent] = useState('');
     const [topic, setTopic] = useState(preSetTopic ?? '');
     const [upload, setUpload] = useState<File | undefined>();
+    const [mentionState, setMentionState] = useState<{
+        active: boolean;
+        position: { top: number; left: number };
+        query: string;
+        startIndex: number;
+    } | null>(null);
     const textRef = useRef<HTMLTextAreaElement | null>(null);
     const uploadRef = useRef<HTMLInputElement | null>(null);
 
@@ -133,11 +140,80 @@ export const Compose = ({
         });
     }, [onPost, content, upload, minTextboxHeightPx, topic]);
 
+    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.key === 'NumpadEnter')) {
+            post();
+        }
+    }, [post]);
+
+    const handleInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const newContent = e.target.value;
+        const cursorPosition = e.target.selectionStart;
+        setContent(newContent);
+
+        // Handle textarea height
+        if (flexGrow === false) {
+            e.target.style.height = '0';
+            let height = Math.max(
+                minTextboxHeightPx,
+                e.target.scrollHeight,
+            );
+            if (maxTextboxHeightPx !== 0) {
+                height = Math.min(height, maxTextboxHeightPx);
+            }
+            e.target.style.height = `${height}px`;
+        }
+        
+        // Check if we just typed @ or are in an active mention
+        const textBeforeCursor = newContent.slice(0, cursorPosition);
+        const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
+    
+        
+        if (lastAtSymbol >= 0) {
+            // Check if this @ is at a word boundary
+            const charBeforeAt = textBeforeCursor[lastAtSymbol - 1];
+            const isAtWordBoundary = !charBeforeAt || charBeforeAt === ' ' || charBeforeAt === '\n';
+
+            if (isAtWordBoundary) {
+                const query = textBeforeCursor.slice(lastAtSymbol + 1);
+                const textAfterQuery = newContent.slice(cursorPosition);
+                const isQueryValid = !query.includes(' ') && !query.includes('\n');
+
+                if (isQueryValid) {
+                    const rect = e.target.getBoundingClientRect();
+                    const textareaStyle = window.getComputedStyle(e.target);
+                    const lineHeight = parseInt(textareaStyle.lineHeight || '20');
+                    const paddingLeft = parseInt(textareaStyle.paddingLeft || '0');
+                    
+                    // Get the current line's text
+                    const lines = textBeforeCursor.split('\n');
+                    const currentLineNumber = lines.length - 1;
+                    
+                    // Calculate position based on @ symbol location
+                    const position = {
+                        top: rect.top + (currentLineNumber * lineHeight) + lineHeight + window.scrollY,
+                        left: rect.left + paddingLeft + (lastAtSymbol * 8) // Approximate character width
+                    };
+
+                    setMentionState({
+                        active: true,
+                        position,
+                        query,
+                        startIndex: lastAtSymbol
+                    });
+                } else {
+                    setMentionState(null);
+                }
+            } else {
+                setMentionState(null);
+            }
+        } else {
+            setMentionState(null);
+        }
+    }, [mentionState, flexGrow, minTextboxHeightPx, maxTextboxHeightPx]);
+
     return (
-        <div
-            className={`flex flex-col 
-            ${flexGrow ? 'flex-grow' : ''} ${hfull ? 'h-full' : ''}`}
-        >
+        <div className={`flex flex-col ${flexGrow ? 'flex-grow' : ''} ${hfull ? 'h-full' : ''}`}>
             {hideTopic ? null : (
                 <div className="flex-shrink-0">
                     <TopicBox
@@ -147,40 +223,42 @@ export const Compose = ({
                     />
                 </div>
             )}
-            <div
-                className={`flex flex-col mt-1.5 w-full border rounded-md focus-within:border-gray-300 overflow-y-auto ${
-                    flexGrow ? 'flex-grow' : ''
-                }`}
-            >
+            <div className={`flex flex-col mt-1.5 w-full border rounded-md focus-within:border-gray-300 overflow-visible relative ${
+                flexGrow ? 'flex-grow' : ''
+            }`}>
                 <textarea
                     className={`w-full resize-none leading-normal whitespace-pre-line text-lg placeholder:text-gray-300 text-gray-900 font-normal rounded-lg p-3.5 focus:outline-none flex-grow bg-transparent`}
                     style={{ minHeight: minTextboxHeightPx + 'px' }}
                     value={content}
                     ref={textRef}
-                    onChange={(e) => {
-                        if (flexGrow === false) {
-                            e.target.style.height = '0';
-                            let height = Math.max(
-                                minTextboxHeightPx,
-                                e.target.scrollHeight,
-                            );
-                            if (maxTextboxHeightPx !== 0) {
-                                height = Math.min(height, maxTextboxHeightPx);
-                            }
-                            e.target.style.height = `${height}px`;
-                        }
-                        setContent(e.target.value);
-                    }}
-                    onKeyDown={(e) => {
-                        if (
-                            (e.ctrlKey || e.metaKey) &&
-                            (e.key === 'Enter' || e.key === 'NumpadEnter')
-                        ) {
-                            post();
-                        }
-                    }}
+                    onChange={handleInput}
+                    onKeyDown={handleKeyDown}
                     placeholder="What's going on?"
                 />
+                {mentionState && (
+                    <MentionSuggestions
+                        query={mentionState.query}
+                        position={mentionState.position}
+                        onSelect={(username: string) => {
+                            if (textRef.current) {
+                                const beforeMention = content.slice(0, mentionState.startIndex);
+                                const afterMention = content.slice(textRef.current.selectionStart);
+                                const newContent = `${beforeMention}@${username} ${afterMention}`;
+                                setContent(newContent);
+                                
+                                // Calculate new cursor position
+                                const newCursorPosition = mentionState.startIndex + username.length + 2; // +2 for @ and space
+                                setTimeout(() => {
+                                    if (textRef.current) {
+                                        textRef.current.focus();
+                                        textRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+                                    }
+                                }, 0);
+                            }
+                            setMentionState(null);
+                        }}
+                    />
+                )}
                 {upload && (
                     <div>
                         <div className="p-4 inline-block relative">
