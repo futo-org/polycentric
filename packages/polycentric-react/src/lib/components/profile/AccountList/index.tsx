@@ -26,7 +26,7 @@ const AccountListItem = ({
     // Get last 6 characters of the public key
     const shortKey = useMemo(() => {
         const fullKey = Models.PublicKey.toString(system);
-        return fullKey.slice(0,10);
+        return fullKey.slice(0, 10);
     }, [system]);
 
     return (
