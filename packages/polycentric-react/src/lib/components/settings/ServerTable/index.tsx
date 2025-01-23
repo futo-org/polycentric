@@ -165,18 +165,21 @@ const ServerListTableRow = ({
     );
 };
 
+const FEATURED_SERVERS = [
+    'https://srv1-prod.polycentric.io',
+    'https://prod-posts1.polycentric.io',
+];
+
 export const ServerListTable = () => {
     const { processHandle } = useProcessHandleManager();
-
     const [newServer, setNewServer] = useState(false);
-
     const servers = useQueryServers(processHandle.system());
 
     return (
         <div className="rounded-[2rem] border overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
-                <thead className=" ">
-                    <tr className="">
+                <thead>
+                    <tr>
                         <th
                             scope="col"
                             className="pt-6 pl-6 pb-3 text-left text-sm font-medium"
@@ -204,7 +207,40 @@ export const ServerListTable = () => {
                         />
                     )}
                 </tbody>
-                <tfoot className="">
+                <thead>
+                    <tr>
+                        <th
+                            scope="col"
+                            className="pt-6 pl-6 pb-3 text-left text-sm font-medium"
+                        >
+                            Featured Servers
+                        </th>
+                    </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                    {FEATURED_SERVERS.filter(
+                        (server) => !servers.has(server),
+                    ).map((server) => (
+                        <tr key={server}>
+                            <td className="px-6 py-3 whitespace-nowrap">
+                                <div className="flex items-center justify-between space-x-2">
+                                    <div className="text-sm font-medium text-gray-900">
+                                        {server}
+                                    </div>
+                                    <button
+                                        onClick={() =>
+                                            processHandle.addServer(server)
+                                        }
+                                        className="btn btn-primary rounded-full h-[2.25rem] px-3 border bg-white hover:bg-gray-50 text-gray-700"
+                                    >
+                                        Add Server
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+                <tfoot>
                     <tr>
                         <td
                             colSpan={3}
