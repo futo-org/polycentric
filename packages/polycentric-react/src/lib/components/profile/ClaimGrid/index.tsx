@@ -469,7 +469,7 @@ const ClaimCircle: React.FC<{
                     <div className="absolute -bottom-20 w-full flex justify-center">
                         {isMyProfile ? (
                             <>
-                                <button
+                                {/* <button
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setShowDeleteConfirm(true);
@@ -477,7 +477,7 @@ const ClaimCircle: React.FC<{
                                     className="px-4 py-1 text-sm text-red-600 hover:text-red-700 border border-red-600 rounded-md hover:bg-red-50 transition-colors bg-gray-100"
                                 >
                                     Remove
-                                </button>
+                                </button> */}
 
                                 {showDeleteConfirm && (
                                     <div
