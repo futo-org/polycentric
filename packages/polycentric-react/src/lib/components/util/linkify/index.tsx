@@ -183,74 +183,76 @@ interface LinkifyProps {
     onContentChange?: (newContent: string) => void;
 }
 
-export const Linkify = React.memo(forwardRef<HTMLDivElement, LinkifyProps>(
-    ({ as, className, content, stopPropagation }, ref) => {
-        const jsx = useMemo(() => {
-            const foundUrls = linkify(content, urlRegex, 'url');
-            const foundTopics = linkify(content, topicRegex, 'topic');
-            const foundMentions = linkify(content, mentionRegex, 'mention');
+export const Linkify = React.memo(
+    forwardRef<HTMLDivElement, LinkifyProps>(
+        ({ as, className, content, stopPropagation }, ref) => {
+            const jsx = useMemo(() => {
+                const foundUrls = linkify(content, urlRegex, 'url');
+                const foundTopics = linkify(content, topicRegex, 'topic');
+                const foundMentions = linkify(content, mentionRegex, 'mention');
 
-            const items = [
-                ...foundUrls,
-                ...foundTopics,
-                ...foundMentions,
-            ].sort((a, b) => a.start - b.start);
+                const items = [
+                    ...foundUrls,
+                    ...foundTopics,
+                    ...foundMentions,
+                ].sort((a, b) => a.start - b.start);
 
-            const out = [];
-            let i = 0;
-            for (const item of items) {
-                if (i < item.start)
-                    out.push(content.substring(i, item.start));
-                if (item.type === 'url') {
-                    out.push(
-                        <a
-                            href={item.value}
-                            className="text-blue-500 hover:underline"
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) =>
-                                stopPropagation && e.stopPropagation()
-                            }
-                            key={`${item.start}-${item.value}`}
-                        >
-                            {item.value}
-                        </a>,
-                    );
-                } else if (item.type === 'topic') {
-                    out.push(
-                        <Link
-                            routerLink={`/t${item.value}`}
-                            className="text-purple-500 hover:underline"
-                            routerDirection="forward"
-                            stopPropagation={stopPropagation}
-                            key={`${item.start}-${item.value}`}
-                        >
-                            {item.value}
-                        </Link>,
-                    );
-                } else if (item.type === 'mention') {
-                    out.push(
-                        <MentionLink
-                            key={`${item.start}-${item.value}`}
-                            value={item.value}
-                            stopPropagation={stopPropagation}
-                        />,
-                    );
+                const out = [];
+                let i = 0;
+                for (const item of items) {
+                    if (i < item.start)
+                        out.push(content.substring(i, item.start));
+                    if (item.type === 'url') {
+                        out.push(
+                            <a
+                                href={item.value}
+                                className="text-blue-500 hover:underline"
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(e) =>
+                                    stopPropagation && e.stopPropagation()
+                                }
+                                key={`${item.start}-${item.value}`}
+                            >
+                                {item.value}
+                            </a>,
+                        );
+                    } else if (item.type === 'topic') {
+                        out.push(
+                            <Link
+                                routerLink={`/t${item.value}`}
+                                className="text-purple-500 hover:underline"
+                                routerDirection="forward"
+                                stopPropagation={stopPropagation}
+                                key={`${item.start}-${item.value}`}
+                            >
+                                {item.value}
+                            </Link>,
+                        );
+                    } else if (item.type === 'mention') {
+                        out.push(
+                            <MentionLink
+                                key={`${item.start}-${item.value}`}
+                                value={item.value}
+                                stopPropagation={stopPropagation}
+                            />,
+                        );
+                    }
+                    i = item.start + item.value.length;
                 }
-                i = item.start + item.value.length;
-            }
-            out.push(content.substring(i));
-            return out;
-        }, [content, stopPropagation]);
+                out.push(content.substring(i));
+                return out;
+            }, [content, stopPropagation]);
 
-        const Component = useMemo(() => as, [as]);
+            const Component = useMemo(() => as, [as]);
 
-        return (
-            <Component className={`${className} relative`} ref={ref}>
-                {jsx}
-            </Component>
-        );
-    },
-));
+            return (
+                <Component className={`${className} relative`} ref={ref}>
+                    {jsx}
+                </Component>
+            );
+        },
+    ),
+);
 
 Linkify.displayName = 'Linkify';
