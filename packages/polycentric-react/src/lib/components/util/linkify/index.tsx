@@ -22,17 +22,12 @@ const linkify = (
     regex: RegExp,
     key: LinkifyType,
 ): LinkifyItem[] => {
-    
     const matches = [...content.matchAll(regex)];
-    
-    return matches.map((match) => {
-        const item = {
-            type: key,
-            value: match.groups?.[key] ?? '',
-            start: (match.index ?? 0) + (match[0].startsWith('@') ? 1 : 0),
-        };
-        return item;
-    });
+    return matches.map((match) => ({
+        type: key,
+        value: match.groups?.[key] ?? '',
+        start: (match.index ?? 0) + (key === 'mention' ? 1 : match[0].indexOf(match[1])),
+    }));
 };
 
 interface SuggestionPopup {
@@ -161,14 +156,46 @@ export const Linkify = React.memo(forwardRef<
         stopPropagation?: boolean;
         onContentChange?: (newContent: string) => void;
     }
->(({ as, className, content, stopPropagation, onContentChange }, ref) => {
+>(({ as, className, content, stopPropagation }, ref) => {
     const jsx = useMemo(() => {
+        const foundUrls = linkify(content, urlRegex, 'url');
+        const foundTopics = linkify(content, topicRegex, 'topic');
         const foundMentions = linkify(content, mentionRegex, 'mention');
+
+        const items = [...foundUrls, ...foundTopics, ...foundMentions].sort(
+            (a, b) => a.start - b.start,
+        );
+
         const out = [];
         let i = 0;
-        for (const item of foundMentions) {
+        for (const item of items) {
             if (i < item.start) out.push(content.substring(i, item.start));
-            if (item.type === 'mention') {
+            if (item.type === 'url') {
+                out.push(
+                    <a
+                        href={item.value}
+                        className="text-blue-500 hover:underline"
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => stopPropagation && e.stopPropagation()}
+                        key={`${item.start}-${item.value}`}
+                    >
+                        {item.value}
+                    </a>,
+                );
+            } else if (item.type === 'topic') {
+                out.push(
+                    <Link
+                        routerLink={`/t${item.value}`}
+                        className="text-purple-500 hover:underline"
+                        routerDirection="forward"
+                        stopPropagation={stopPropagation}
+                        key={`${item.start}-${item.value}`}
+                    >
+                        {item.value}
+                    </Link>,
+                );
+            } else if (item.type === 'mention') {
                 out.push(
                     <MentionLink
                         key={`${item.start}-${item.value}`}
