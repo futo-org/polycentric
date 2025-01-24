@@ -6,8 +6,12 @@ import { AppInfoTable } from '../../components/settings/AppInfoTable';
 import { DarkModeSelector } from '../../components/settings/DarkModeSelector';
 import { ExportKey } from '../../components/settings/ExportKey';
 import { ServerListTable } from '../../components/settings/ServerTable';
+import { StorageInfo } from '../../components/settings/StorageInfo';
+import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks';
 
 export const SettingsPage: Page = () => {
+    const processHandle = useProcessHandleManager();
+
     return (
         <>
             <Header canHaveBackButton={false}>Settings</Header>
@@ -32,6 +36,10 @@ export const SettingsPage: Page = () => {
                         <div className="flex flex-col space-y-3">
                             <h2 className="font-medium">Dark Mode</h2>
                             <DarkModeSelector />
+                        </div>
+                        <div className="flex flex-col space-y-3">
+                            <h2 className="font-medium">Storage</h2>
+                            <StorageInfo processHandle={processHandle} />
                         </div>
                     </div>
                 </RightCol>
