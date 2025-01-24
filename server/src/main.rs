@@ -8,6 +8,7 @@ use config::ModerationMode;
 use envconfig::Envconfig;
 use polycentric_protocol::model;
 
+mod cache;
 mod config;
 mod handlers;
 mod ingest;
@@ -16,7 +17,6 @@ mod moderation;
 mod opensearch;
 mod postgres;
 mod version;
-mod cache;
 use config::{Config, Mode};
 
 #[macro_export]
