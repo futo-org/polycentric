@@ -108,4 +108,13 @@ pub(crate) struct Config {
 
     #[envconfig(from = "CSAM_REQUEST_RATE_LIMIT", default = "4")]
     pub csam_request_rate_limit: u16,
+
+    #[envconfig(from = "CACHE_INTERFACE")]
+    pub cache_interface: Option<String>,
+
+    #[envconfig(from = "CLOUDFLARE_ZONE_ID")]
+    pub cloudflare_zone_id: Option<String>,
+
+    #[envconfig(from = "CLOUDFLARE_AUTH_TOKEN")]
+    pub cloudflare_auth_token: Option<String>,
 }
