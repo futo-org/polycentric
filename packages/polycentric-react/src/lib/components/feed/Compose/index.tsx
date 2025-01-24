@@ -185,7 +185,6 @@ export const Compose = ({
 
                 if (isAtWordBoundary) {
                     const query = textBeforeCursor.slice(lastAtSymbol + 1);
-                    const textAfterQuery = newContent.slice(cursorPosition);
                     const isQueryValid =
                         !query.includes(' ') && !query.includes('\n');
 
@@ -229,7 +228,7 @@ export const Compose = ({
                 setMentionState(null);
             }
         },
-        [mentionState, flexGrow, minTextboxHeightPx, maxTextboxHeightPx],
+        [flexGrow, minTextboxHeightPx, maxTextboxHeightPx],
     );
 
     return (
