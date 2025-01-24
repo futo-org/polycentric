@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import React, { forwardRef, useEffect, useMemo } from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
