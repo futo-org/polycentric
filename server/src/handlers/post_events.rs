@@ -23,8 +23,18 @@ async fn handler_inner(
         polycentric_protocol::model::signed_event::SignedEvent,
     >,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
+    let tags: Vec<_> = signed_events
+        .iter()
+        .flat_map(crate::cache::util::signed_event_to_cache_tags)
+        .collect();
+
     crate::ingest::ingest_event_batch(&state, &user_agent, signed_events)
         .await?;
+
+    match &state.cache_provider {
+        Some(provider) => provider.purge_tags(&tags).await,
+        None => Ok(()),
+    }?;
 
     Ok(Box::new(::warp::reply::with_status(
         "",
