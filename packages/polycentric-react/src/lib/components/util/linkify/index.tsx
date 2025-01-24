@@ -68,7 +68,9 @@ export const MentionSuggestions = ({
                 ?.filter((f) => f.lwwElementSet?.value)
                 .map((f) =>
                     Models.PublicKey.fromProto(
-                        Protocol.PublicKey.decode(f.lwwElementSet!.value),
+                        Protocol.PublicKey.decode(
+                            f.lwwElementSet?.value ?? new Uint8Array(),
+                        ),
                     ),
                 )
                 .filter((system) => {
