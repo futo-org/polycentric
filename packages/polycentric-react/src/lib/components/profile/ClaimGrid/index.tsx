@@ -411,10 +411,10 @@ const ClaimCircle: React.FC<{
                 zIndex: expanded
                     ? 10
                     : position === 'start'
-                    ? 1
-                    : position === 'middle'
-                    ? 2
-                    : 3,
+                      ? 1
+                      : position === 'middle'
+                        ? 2
+                        : 3,
             }}
             onClick={() => expanded && setExpanded(false)}
         >
@@ -425,12 +425,12 @@ const ClaimCircle: React.FC<{
                     position === 'start'
                         ? 'left-0'
                         : position === 'middle'
-                        ? expanded
-                            ? '-translate-x-[5rem]'
+                          ? expanded
+                              ? '-translate-x-[5rem]'
+                              : ''
+                          : expanded
+                            ? '-translate-x-[10rem]'
                             : ''
-                        : expanded
-                        ? '-translate-x-[10rem]'
-                        : ''
                 }`}
                 style={{ backgroundColor: color }}
                 onClick={!expanded ? handleClick : undefined}
@@ -530,8 +530,8 @@ const ClaimCircle: React.FC<{
                                     vouchStatus === 'success'
                                         ? 'bg-green-100 text-green-600 border-green-600 opacity-0'
                                         : vouchStatus === 'error'
-                                        ? 'bg-red-100 text-red-600 border-red-600'
-                                        : 'bg-gray-100 text-blue-600 border-blue-600 hover:bg-blue-50'
+                                          ? 'bg-red-100 text-red-600 border-red-600'
+                                          : 'bg-gray-100 text-blue-600 border-blue-600 hover:bg-blue-50'
                                 }`}
                             >
                                 Vouch
@@ -654,8 +654,8 @@ export const ClaimGrid: React.FC<{
                                         index === 0
                                             ? 'start'
                                             : index === 1
-                                            ? 'middle'
-                                            : 'end'
+                                              ? 'middle'
+                                              : 'end'
                                     }
                                     system={system}
                                     isMyProfile={isMyProfile}
