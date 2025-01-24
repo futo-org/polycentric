@@ -87,6 +87,6 @@ async fn handler_inner(
             ::warp::http::StatusCode::OK,
         ),
         "Cache-Control",
-        "public, max-age=30",
+        "public, s-maxage=30, max-age=5",
     )))
 }
