@@ -45,7 +45,7 @@ start-gdbserver:
 
 devcert:
 	mkdir -p ./devcert/
-	mkcert -cert-file ./devcert/local-cert.pem -key-file ./devcert/local-key.pem localhost 127.0.0.1 ::1 $$(ifconfig | grep -oE "\binet\b [0-9.]+ " | grep -oE "[0-9.]+")
+	mkcert -cert-file ./devcert/local-cert.pem -key-file ./devcert/local-key.pem *.localhost localhost 127.0.0.1 ::1 $$(ifconfig | grep -oE "\binet\b [0-9.]+ " | grep -oE "[0-9.]+")
 
 proto: proto/protocol.proto
 	npm install
@@ -88,12 +88,12 @@ build-production: proto
 	cd server && \
 		cargo build
 
-build-server-image:
+build-server-image-gl:
 	DOCKER_BUILDKIT=1 docker build \
 		-f server.dockerfile \
 		-t gitlab.futo.org:5050/polycentric/polycentric:stg .
 
-push-server-image:
+push-server-image-gl:
 	docker push gitlab.futo.org:5050/polycentric/polycentric:stg
 
 clean:
@@ -129,7 +129,7 @@ build-ci-deps:
 		-t gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest .
 	docker push gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest
 
-push-server-image:
+push-server-image-do:
 	DOCKER_BUILDKIT=1 docker build \
 		-f server.dockerfile \
 		-t registry.digitalocean.com/polycentric/polycentric:latest .
