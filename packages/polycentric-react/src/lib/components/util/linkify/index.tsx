@@ -171,22 +171,23 @@ const MentionLink = React.memo(
         value: string;
         stopPropagation?: boolean;
     }) => {
-        const publicKey = useMemo(() => {
-            try {
-                return Models.PublicKey.fromString(
-                    value as Models.PublicKey.PublicKeyString,
-                );
-            } catch {
-                return null;
-            }
-        }, [value]);
+        const publicKey = useMemo(
+            () => {
+                try {
+                    return Models.PublicKey.fromString(
+                        value as Models.PublicKey.PublicKeyString,
+                    );
+                } catch {
+                    return null;
+                }
+            },
+            [value],
+        );
+        
+        const profileLink = useSystemLink(publicKey || {} as Models.PublicKey.PublicKey);
+        const username = useUsernameCRDTQuery(publicKey || {} as Models.PublicKey.PublicKey);
 
-        if (!publicKey) return <span>{value}</span>;
-
-        const profileLink = useSystemLink(publicKey);
-        const username = useUsernameCRDTQuery(publicKey);
-
-        if (!profileLink) return <span>{value}</span>;
+        if (!publicKey || !profileLink) return <span>{value}</span>;
 
         return (
             <span className="pointer-events-auto relative z-50">
