@@ -120,7 +120,7 @@ build-protocol:
   needs: ["check"]
   artifacts:
       name: "artifacts"
-      expire_in: 20 mins
+      expire_in: 60 mins
       paths:
         - ./polycentric-protocol/target/release/polycentric-protocol
 
@@ -145,7 +145,7 @@ build-server:
   needs: ["check"]
   artifacts:
       name: "artifacts"
-      expire_in: 20 mins
+      expire_in: 60 mins
       paths:
         - ./build-artifacts
 
@@ -162,7 +162,7 @@ build-server-release:
   needs: ["build-server"]
   artifacts:
       name: "artifacts"
-      expire_in: 20 mins
+      expire_in: 60 mins
       paths:
         - ./server/target/release/server
 
@@ -179,7 +179,7 @@ build-core:
     - npm run build
   artifacts:
       name: "artifacts"
-      expire_in: 20 mins
+      expire_in: 60 mins
       paths:
         - ./packages/polycentric-core/dist/
 
@@ -190,7 +190,7 @@ build-react:
   needs: ["build-core"]
   artifacts:
       name: "artifacts"
-      expire_in: 20 mins
+      expire_in: 60 mins
       paths:
         - ./packages/polycentric-react/dist/
 
@@ -201,7 +201,7 @@ build-leveldb:
   needs: ["build-core"]
   artifacts:
       name: "artifacts"
-      expire_in: 20 mins
+      expire_in: 60 mins
       paths:
         - ./packages/polycentric-leveldb/dist/
 
@@ -218,7 +218,7 @@ build-web:
   needs: ["build-react", "build-core"]
   artifacts:
       name: "artifacts"
-      expire_in: 20 mins
+      expire_in: 60 mins
       paths:
         - ./packages/polycentric-web/dist/
 
