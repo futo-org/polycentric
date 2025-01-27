@@ -176,18 +176,15 @@ const MentionLink = React.memo(
         value: string;
         stopPropagation?: boolean;
     }) => {
-        const publicKey = useMemo(
-            () => {
-                try {
-                    return Models.PublicKey.fromString(
-                        value as Models.PublicKey.PublicKeyString,
-                    );
-                } catch {
-                    return null;
-                }
-            },
-            [value],
-        );
+        const publicKey = useMemo(() => {
+            try {
+                return Models.PublicKey.fromString(
+                    value as Models.PublicKey.PublicKeyString,
+                );
+            } catch {
+                return null;
+            }
+        }, [value]);
 
         const profileLink = useSystemLink(publicKey!);
         const username = useUsernameCRDTQuery(publicKey!);
