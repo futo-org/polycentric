@@ -1,6 +1,7 @@
 import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { useCallback, useRef, useState } from 'react';
 import { useBlobDisplayURL } from '../../../hooks/imageHooks';
+import { MentionSuggestions } from '../../util/linkify';
 import { TopicSuggestionBox } from '../TopicSuggestionBox';
 
 // const startsWithSlash = /^\/.*/
@@ -119,6 +120,12 @@ export const Compose = ({
     const [content, setContent] = useState('');
     const [topic, setTopic] = useState(preSetTopic ?? '');
     const [upload, setUpload] = useState<File | undefined>();
+    const [mentionState, setMentionState] = useState<{
+        active: boolean;
+        position: { top: number; left: number };
+        query: string;
+        startIndex: number;
+    } | null>(null);
     const textRef = useRef<HTMLTextAreaElement | null>(null);
     const uploadRef = useRef<HTMLInputElement | null>(null);
 
@@ -133,10 +140,132 @@ export const Compose = ({
         });
     }, [onPost, content, upload, minTextboxHeightPx, topic]);
 
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+            if (
+                (e.ctrlKey || e.metaKey) &&
+                (e.key === 'Enter' || e.key === 'NumpadEnter')
+            ) {
+                post();
+            }
+        },
+        [post],
+    );
+
+    const handleInput = useCallback(
+        (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+            const newContent = e.target.value;
+            const cursorPosition = e.target.selectionStart;
+            setContent(newContent);
+
+            // Handle textarea height
+            if (flexGrow === false) {
+                e.target.style.height = '0';
+                let height = Math.max(
+                    minTextboxHeightPx,
+                    e.target.scrollHeight,
+                );
+                if (maxTextboxHeightPx !== 0) {
+                    height = Math.min(height, maxTextboxHeightPx);
+                }
+                e.target.style.height = `${height}px`;
+            }
+
+            // Check if we just typed @ or are in an active mention
+            const textBeforeCursor = newContent.slice(0, cursorPosition);
+            const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
+
+            if (lastAtSymbol >= 0) {
+                // Check if this @ is at a word boundary
+                const charBeforeAt = textBeforeCursor[lastAtSymbol - 1];
+                const isAtWordBoundary =
+                    !charBeforeAt ||
+                    charBeforeAt === ' ' ||
+                    charBeforeAt === '\n';
+
+                if (isAtWordBoundary) {
+                    const query = textBeforeCursor.slice(lastAtSymbol + 1);
+                    const isQueryValid =
+                        !query.includes(' ') && !query.includes('\n');
+
+                    if (isQueryValid) {
+                        // Save current selection
+                        const currentStart = e.target.selectionStart;
+                        const currentEnd = e.target.selectionEnd;
+
+                        // Move cursor to @ position
+                        e.target.setSelectionRange(lastAtSymbol, lastAtSymbol);
+
+                        // Get caret position
+                        const rect = e.target.getBoundingClientRect();
+                        const caretPos = getCaretPosition(e.target);
+
+                        // Restore original selection
+                        e.target.setSelectionRange(currentStart, currentEnd);
+
+                        setMentionState({
+                            active: true,
+                            position: {
+                                top: rect.top + caretPos.top,
+                                left: rect.left + caretPos.left,
+                            },
+                            query,
+                            startIndex: lastAtSymbol,
+                        });
+                    } else {
+                        setMentionState(null);
+                    }
+                } else {
+                    setMentionState(null);
+                }
+            } else {
+                setMentionState(null);
+            }
+        },
+        [flexGrow, minTextboxHeightPx, maxTextboxHeightPx],
+    );
+
+    // Add this helper function
+    const getCaretPosition = (textarea: HTMLTextAreaElement) => {
+        const style = window.getComputedStyle(textarea);
+        const paddingLeft = parseFloat(style.paddingLeft);
+        const paddingTop = parseFloat(style.paddingTop);
+        const lineHeight = parseFloat(style.lineHeight);
+
+        // Get text up to caret position
+        const textBeforeCaret = textarea.value.substring(
+            0,
+            textarea.selectionStart,
+        );
+
+        // Split into lines and get current line
+        const lines = textBeforeCaret.split('\n');
+        const currentLineNumber = lines.length - 1;
+        const currentLine = lines[currentLineNumber];
+
+        // Create a temporary element to measure text width
+        const measureElement = document.createElement('span');
+        measureElement.style.font = style.font;
+        measureElement.style.fontSize = style.fontSize;
+        measureElement.style.whiteSpace = 'pre';
+        measureElement.textContent = currentLine;
+        measureElement.style.visibility = 'hidden';
+        document.body.appendChild(measureElement);
+
+        const textWidth = measureElement.offsetWidth;
+        document.body.removeChild(measureElement);
+
+        return {
+            top: paddingTop + currentLineNumber * lineHeight,
+            left: paddingLeft + textWidth,
+        };
+    };
+
     return (
         <div
-            className={`flex flex-col 
-            ${flexGrow ? 'flex-grow' : ''} ${hfull ? 'h-full' : ''}`}
+            className={`flex flex-col ${flexGrow ? 'flex-grow' : ''} ${
+                hfull ? 'h-full' : ''
+            }`}
         >
             {hideTopic ? null : (
                 <div className="flex-shrink-0">
@@ -148,39 +277,69 @@ export const Compose = ({
                 </div>
             )}
             <div
-                className={`flex flex-col mt-1.5 w-full border rounded-md focus-within:border-gray-300 overflow-y-auto ${
+                className={`flex flex-col mt-1.5 w-full border rounded-md focus-within:border-gray-300 overflow-visible relative ${
                     flexGrow ? 'flex-grow' : ''
                 }`}
             >
-                <textarea
-                    className={`w-full resize-none leading-normal whitespace-pre-line text-lg placeholder:text-gray-300 text-gray-900 font-normal rounded-lg p-3.5 focus:outline-none flex-grow bg-transparent`}
-                    style={{ minHeight: minTextboxHeightPx + 'px' }}
-                    value={content}
-                    ref={textRef}
-                    onChange={(e) => {
-                        if (flexGrow === false) {
-                            e.target.style.height = '0';
-                            let height = Math.max(
-                                minTextboxHeightPx,
-                                e.target.scrollHeight,
-                            );
-                            if (maxTextboxHeightPx !== 0) {
-                                height = Math.min(height, maxTextboxHeightPx);
-                            }
-                            e.target.style.height = `${height}px`;
-                        }
-                        setContent(e.target.value);
-                    }}
-                    onKeyDown={(e) => {
-                        if (
-                            (e.ctrlKey || e.metaKey) &&
-                            (e.key === 'Enter' || e.key === 'NumpadEnter')
-                        ) {
-                            post();
-                        }
-                    }}
-                    placeholder="What's going on?"
-                />
+                <div className="relative">
+                    <textarea
+                        className={`w-full resize-none leading-normal whitespace-pre-line text-lg placeholder:text-gray-300 text-gray-900 font-normal rounded-lg p-3.5 focus:outline-none flex-grow bg-transparent`}
+                        style={{ minHeight: minTextboxHeightPx + 'px' }}
+                        value={content}
+                        ref={textRef}
+                        onChange={handleInput}
+                        onKeyDown={handleKeyDown}
+                        placeholder="What's going on?"
+                    />
+                    {mentionState && (
+                        <div
+                            className="absolute z-[9999]"
+                            style={{
+                                top:
+                                    mentionState.position.top -
+                                    (textRef.current?.getBoundingClientRect()
+                                        .top ?? 0),
+                                left:
+                                    mentionState.position.left -
+                                    (textRef.current?.getBoundingClientRect()
+                                        .left ?? 0),
+                            }}
+                        >
+                            <MentionSuggestions
+                                query={mentionState.query}
+                                onSelect={(username: string) => {
+                                    if (textRef.current) {
+                                        const beforeMention = content.slice(
+                                            0,
+                                            mentionState.startIndex,
+                                        );
+                                        const afterMention = content.slice(
+                                            textRef.current.selectionStart,
+                                        );
+                                        const newContent = `${beforeMention}@${username} ${afterMention}`;
+                                        setContent(newContent);
+
+                                        // Calculate new cursor position
+                                        const newCursorPosition =
+                                            mentionState.startIndex +
+                                            username.length +
+                                            2; // +2 for @ and space
+                                        setTimeout(() => {
+                                            if (textRef.current) {
+                                                textRef.current.focus();
+                                                textRef.current.setSelectionRange(
+                                                    newCursorPosition,
+                                                    newCursorPosition,
+                                                );
+                                            }
+                                        }, 0);
+                                    }
+                                    setMentionState(null);
+                                }}
+                            />
+                        </div>
+                    )}
+                </div>
                 {upload && (
                     <div>
                         <div className="p-4 inline-block relative">
