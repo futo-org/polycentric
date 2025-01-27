@@ -189,32 +189,26 @@ export const Compose = ({
                         !query.includes(' ') && !query.includes('\n');
 
                     if (isQueryValid) {
+                        // Save current selection
+                        const currentStart = e.target.selectionStart;
+                        const currentEnd = e.target.selectionEnd;
+
+                        // Move cursor to @ position
+                        e.target.setSelectionRange(lastAtSymbol, lastAtSymbol);
+                        
+                        // Get caret position
                         const rect = e.target.getBoundingClientRect();
-                        const textareaStyle = window.getComputedStyle(e.target);
-                        const lineHeight = parseInt(
-                            textareaStyle.lineHeight || '20',
-                        );
-                        const paddingLeft = parseInt(
-                            textareaStyle.paddingLeft || '0',
-                        );
-
-                        // Get the current line's text
-                        const lines = textBeforeCursor.split('\n');
-                        const currentLineNumber = lines.length - 1;
-
-                        // Calculate position based on @ symbol location
-                        const position = {
-                            top:
-                                rect.top +
-                                currentLineNumber * lineHeight +
-                                lineHeight +
-                                window.scrollY,
-                            left: rect.left + paddingLeft + lastAtSymbol * 8, // Approximate character width
-                        };
+                        const caretPos = getCaretPosition(e.target);
+                        
+                        // Restore original selection
+                        e.target.setSelectionRange(currentStart, currentEnd);
 
                         setMentionState({
                             active: true,
-                            position,
+                            position: {
+                                top: rect.top + caretPos.top,
+                                left: rect.left + caretPos.left,
+                            },
                             query,
                             startIndex: lastAtSymbol,
                         });
@@ -230,6 +224,39 @@ export const Compose = ({
         },
         [flexGrow, minTextboxHeightPx, maxTextboxHeightPx],
     );
+
+    // Add this helper function
+    const getCaretPosition = (textarea: HTMLTextAreaElement) => {
+        const style = window.getComputedStyle(textarea);
+        const paddingLeft = parseFloat(style.paddingLeft);
+        const paddingTop = parseFloat(style.paddingTop);
+        const lineHeight = parseFloat(style.lineHeight);
+        
+        // Get text up to caret position
+        const textBeforeCaret = textarea.value.substring(0, textarea.selectionStart);
+        
+        // Split into lines and get current line
+        const lines = textBeforeCaret.split('\n');
+        const currentLineNumber = lines.length - 1;
+        const currentLine = lines[currentLineNumber];
+        
+        // Create a temporary element to measure text width
+        const measureElement = document.createElement('span');
+        measureElement.style.font = style.font;
+        measureElement.style.fontSize = style.fontSize;
+        measureElement.style.whiteSpace = 'pre';
+        measureElement.textContent = currentLine;
+        measureElement.style.visibility = 'hidden';
+        document.body.appendChild(measureElement);
+        
+        const textWidth = measureElement.offsetWidth;
+        document.body.removeChild(measureElement);
+        
+        return {
+            top: paddingTop + (currentLineNumber * lineHeight),
+            left: paddingLeft + textWidth
+        };
+    };
 
     return (
         <div
@@ -251,50 +278,60 @@ export const Compose = ({
                     flexGrow ? 'flex-grow' : ''
                 }`}
             >
-                <textarea
-                    className={`w-full resize-none leading-normal whitespace-pre-line text-lg placeholder:text-gray-300 text-gray-900 font-normal rounded-lg p-3.5 focus:outline-none flex-grow bg-transparent`}
-                    style={{ minHeight: minTextboxHeightPx + 'px' }}
-                    value={content}
-                    ref={textRef}
-                    onChange={handleInput}
-                    onKeyDown={handleKeyDown}
-                    placeholder="What's going on?"
-                />
-                {mentionState && (
-                    <MentionSuggestions
-                        query={mentionState.query}
-                        position={mentionState.position}
-                        onSelect={(username: string) => {
-                            if (textRef.current) {
-                                const beforeMention = content.slice(
-                                    0,
-                                    mentionState.startIndex,
-                                );
-                                const afterMention = content.slice(
-                                    textRef.current.selectionStart,
-                                );
-                                const newContent = `${beforeMention}@${username} ${afterMention}`;
-                                setContent(newContent);
-
-                                // Calculate new cursor position
-                                const newCursorPosition =
-                                    mentionState.startIndex +
-                                    username.length +
-                                    2; // +2 for @ and space
-                                setTimeout(() => {
-                                    if (textRef.current) {
-                                        textRef.current.focus();
-                                        textRef.current.setSelectionRange(
-                                            newCursorPosition,
-                                            newCursorPosition,
-                                        );
-                                    }
-                                }, 0);
-                            }
-                            setMentionState(null);
-                        }}
+                <div className="relative">
+                    <textarea
+                        className={`w-full resize-none leading-normal whitespace-pre-line text-lg placeholder:text-gray-300 text-gray-900 font-normal rounded-lg p-3.5 focus:outline-none flex-grow bg-transparent`}
+                        style={{ minHeight: minTextboxHeightPx + 'px' }}
+                        value={content}
+                        ref={textRef}
+                        onChange={handleInput}
+                        onKeyDown={handleKeyDown}
+                        placeholder="What's going on?"
                     />
-                )}
+                    {mentionState && (
+                        <div 
+                            className="absolute z-[9999]"
+                            style={{
+                                top: mentionState.position.top - (textRef.current?.getBoundingClientRect().top ?? 0),
+                                left: mentionState.position.left - (textRef.current?.getBoundingClientRect().left ?? 0),
+                            }}
+                        >
+                            <MentionSuggestions
+                                query={mentionState.query}
+                                position={mentionState.position}
+                                onSelect={(username: string) => {
+                                    if (textRef.current) {
+                                        const beforeMention = content.slice(
+                                            0,
+                                            mentionState.startIndex,
+                                        );
+                                        const afterMention = content.slice(
+                                            textRef.current.selectionStart,
+                                        );
+                                        const newContent = `${beforeMention}@${username} ${afterMention}`;
+                                        setContent(newContent);
+
+                                        // Calculate new cursor position
+                                        const newCursorPosition =
+                                            mentionState.startIndex +
+                                            username.length +
+                                            2; // +2 for @ and space
+                                        setTimeout(() => {
+                                            if (textRef.current) {
+                                                textRef.current.focus();
+                                                textRef.current.setSelectionRange(
+                                                    newCursorPosition,
+                                                    newCursorPosition,
+                                                );
+                                            }
+                                        }, 0);
+                                    }
+                                    setMentionState(null);
+                                }}
+                            />
+                        </div>
+                    )}
+                </div>
                 {upload && (
                     <div>
                         <div className="p-4 inline-block relative">

@@ -13,7 +13,7 @@ import { Link } from '../link';
 const urlRegex =
     /(?:^|[^\/])(?<url>(?:http|ftp|https):\/\/(?:[\w_-]+(?:(?:\.[\w_-]+)+))(?:[\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-]))/gi;
 const topicRegex = /(?:^|\s)(?<topic>\/\S+)/gi;
-const mentionRegex = /@(?<mention>CAESI[A-Za-z0-9]+)/g;
+const mentionRegex = /@(?<mention>CAESI[A-Za-z0-9/+]+)/g;
 
 type LinkifyType = 'url' | 'topic' | 'mention';
 interface LinkifyItem {
@@ -51,6 +51,7 @@ export const MentionSuggestions = ({
     onSelect,
 }: SuggestionPopup) => {
     const { processHandle } = useProcessHandleManager();
+    const [selectedIndex, setSelectedIndex] = React.useState(0);
 
     const [follows, advance] = useQueryCRDTSet(
         processHandle?.system(),
@@ -61,7 +62,7 @@ export const MentionSuggestions = ({
         advance();
     }, [advance]);
 
-    // Transform follows into systems
+    // Transform follows into systems without filtering
     const systems = useMemo(
         () =>
             follows
@@ -72,36 +73,64 @@ export const MentionSuggestions = ({
                             f.lwwElementSet?.value ?? new Uint8Array(),
                         ),
                     ),
-                )
-                .filter((system) => {
-                    const systemId = Models.PublicKey.toString(system);
-                    const lowerQuery = query.toLowerCase();
-                    return (
-                        !query || systemId.toLowerCase().includes(lowerQuery)
-                    );
-                })
-                .slice(0, 5) ?? [],
-        [follows, query],
+                ) ?? [],
+        [follows],
     );
+
+    // Reset selected index when query changes
+    useEffect(() => {
+        setSelectedIndex(0);
+    }, [query]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!systems.length) return;
+
+            switch (e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    setSelectedIndex((prev) => 
+                        prev < systems.length - 1 ? prev + 1 : prev
+                    );
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    setSelectedIndex((prev) => 
+                        prev > 0 ? prev - 1 : prev
+                    );
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    const selectedSystem = systems[selectedIndex];
+                    if (selectedSystem) {
+                        onSelect(Models.PublicKey.toString(selectedSystem));
+                    }
+                    break;
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [systems, selectedIndex, onSelect]);
 
     if (!systems.length) return null;
 
     return (
         <div
-            className="fixed z-50 bg-white shadow-lg rounded-md p-2 min-w-[200px]"
+            className="bg-white shadow-lg rounded-md p-2 min-w-[200px]"
             style={{
-                top: position.top,
-                left: position.left,
+                position: 'relative',
                 maxHeight: '200px',
                 overflowY: 'auto',
             }}
         >
-            {systems.map((system) => (
+            {systems.map((system, index) => (
                 <MentionSuggestionItem
                     key={Models.PublicKey.toString(system)}
                     system={system}
                     onSelect={onSelect}
                     query={query}
+                    isSelected={index === selectedIndex}
                 />
             ))}
         </div>
@@ -112,30 +141,31 @@ const MentionSuggestionItem = ({
     system,
     onSelect,
     query,
+    isSelected,
 }: {
     system: Models.PublicKey.PublicKey;
     onSelect: (username: string) => void;
     query: string;
+    isSelected: boolean;
 }) => {
     const username = useUsernameCRDTQuery(system);
     const systemId = Models.PublicKey.toString(system);
 
     const shouldShow =
         !query ||
-        username?.toLowerCase().includes(query.toLowerCase()) ||
+        (username?.toLowerCase().includes(query.toLowerCase())) ||
         systemId.toLowerCase().includes(query.toLowerCase());
 
     if (!shouldShow) return null;
 
     return (
         <div
-            className="cursor-pointer hover:bg-gray-100 p-2 rounded flex flex-col"
+            className={`cursor-pointer p-2 rounded ${
+                isSelected ? 'bg-gray-100' : 'hover:bg-gray-100'
+            }`}
             onClick={() => onSelect(systemId)}
         >
             <span className="font-medium">{username || systemId}</span>
-            {username && username !== systemId && (
-                <span className="text-sm text-gray-500">{systemId}</span>
-            )}
         </div>
     );
 };
@@ -149,13 +179,22 @@ const MentionLink = React.memo(
         stopPropagation?: boolean;
     }) => {
         const publicKey = useMemo(
-            () =>
-                Models.PublicKey.fromString(
-                    value as Models.PublicKey.PublicKeyString,
-                ),
+            () => {
+                try {
+                    return Models.PublicKey.fromString(
+                        value as Models.PublicKey.PublicKeyString,
+                    );
+                } catch {
+                    return null;
+                }
+            },
             [value],
         );
+
+        if (!publicKey) return <span>{value}</span>;
+        
         const profileLink = useSystemLink(publicKey);
+        const username = useUsernameCRDTQuery(publicKey);
 
         if (!profileLink) return <span>{value}</span>;
 
@@ -168,7 +207,7 @@ const MentionLink = React.memo(
                     }}
                     className="!text-blue-600 !hover:underline !cursor-pointer"
                 >
-                    {value}
+                    {username || value}
                 </Link>
             </span>
         );
