@@ -307,7 +307,6 @@ export const Compose = ({
                         >
                             <MentionSuggestions
                                 query={mentionState.query}
-                                position={mentionState.position}
                                 onSelect={(username: string) => {
                                     if (textRef.current) {
                                         const beforeMention = content.slice(
