@@ -55,7 +55,7 @@ export const PureMobileFeedProfile = ({
                         {profile.name}
                     </div>
                     <div className="text-sm text-gray-500 font-mono">
-                        {Models.PublicKey.toString(profile.system).slice(-6)}
+                        {Models.PublicKey.toString(profile.system).slice(0, 10)}
                     </div>
                 </div>
                 <div className="w-1/2 flex items-end ml-auto">
