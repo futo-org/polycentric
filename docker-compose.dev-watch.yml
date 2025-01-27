@@ -29,169 +29,143 @@ services:
                 - action: sync+restart
                   path: ./dev-web.Dockerfile
                   target: /tmp/dev-web.Dockerfile
-        # labels:
-        #     - 'traefik.enable=true'
-        #     - 'traefik.http.routers.polycentric-web.rule=Host(`web.localhost`)'
-        #     - 'traefik.http.routers.polycentric-web.entrypoints=websecure'
-        #     - 'traefik.http.services.polycentric-web.loadbalancer.server.port=3000'
-
-    # traefik:
-    #     image: traefik:v2.5
-    #     command:
-    #         - '--api.insecure=true'
-    #         - '--providers.docker=true'
-    #         - '--providers.docker.exposedbydefault=false'
-    #         - '--entrypoints.web.address=:80'
-    #         - '--entrypoints.websecure.address=:443'
-    #         - '--api.dashboard=true'
-    #     ports:
-    #         - '443:443'
-    #     volumes:
-    #         - /var/run/docker.sock:/var/run/docker.sock:ro
-    #         - ./devcert/local-cert.pem:/etc/traefik/certs/local-cert.pem:ro
-    #         - ./devcert/local-key.pem:/etc/traefik/certs/local-key.pem:ro
-    #     labels:
-    #         - 'traefik.enable=true'
-    #         - 'traefik.http.routers.traefik.entrypoints=web,websecure'
-    #         - 'traefik.http.routers.traefik.rule=Host(`traefik.localhost`)'
-    #         - 'traefik.http.routers.traefik.tls.options=default'
-    #         - 'traefik.http.routers.traefik.service=api@internal'
-
-    # polycentric-server:
-    #     build:
-    #         context: .
-    #         dockerfile: dev-server.Dockerfile
+    polycentric-server:
+        build:
+            context: .
+            dockerfile: dev-server.Dockerfile
+        depends_on:
+            postgres:
+                condition: service_healthy
+            opensearch-node1:
+                condition: service_healthy
+        environment:
+            HOME: '/tmp/home'
+            RUST_LOG: 'server=debug'
+            DATABASE_URL: 'postgres://postgres:testing@postgres'
+            ADMIN_TOKEN: '123'
+            CHALLENGE_KEY: '456'
+            OPENSEARCH_STRING: 'http://opensearch-node1:9200'
+            STATSD_ADDRESS: 'influxdb'
+            STATSD_PORT: '8125'
+        ports:
+            - '8081:8081'
+        develop:
+            watch:
+                - action: sync
+                  path: ./proto
+                  target: /proto
+                - action: sync
+                  path: ./polycentric-protocol
+                  target: /polycentric-protocol
+                - action: sync
+                  path: ./server
+                  target: /server
+    opensearch-node1:
+        image: opensearchproject/opensearch:2.1.0
+        ports:
+            - '9200:9200'
+            - '9300:9300'
+            - '9600:9600' # perf analyizer
+            - '9650:9650'
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+            nofile:
+                soft: 65536 # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
+                hard: 65536
+        environment:
+            - cluster.name=opensearch-cluster
+            - node.name=opensearch-node1
+            - bootstrap.memory_lock=true
+            - 'OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m'
+            - 'DISABLE_INSTALL_DEMO_CONFIG=true'
+            - 'DISABLE_SECURITY_PLUGIN=true'
+            - 'discovery.type=single-node'
+            - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD-admin} # Sets the demo admin user password when using demo configuration, required for OpenSearch 2.12 and later
+        healthcheck:
+            test:
+                [
+                    'CMD-SHELL',
+                    'curl --silent --fail localhost:9200/_cluster/health || exit 1',
+                ]
+            interval: 5s
+            timeout: 5s
+            retries: 20
+    # opensearch-dashboards: # TODO
+    #     image: opensearchproject/opensearch-dashboards:2.1.0
     #     depends_on:
-    #         postgres:
+    #         opensearch-node1:
     #             condition: service_healthy
-    #         # opensearch:
-    #             # condition: service_healthy
-    #     read_only: true
-    #     environment:
-    #         - RUST_LOG=server=info
-    #         - ADMIN_TOKEN=123
-    #         - CHALLENGE_KEY=456
-    #         - DATABASE_URL=postgres://postgres:testing@postgres
-    #         - OPENSEARCH_STRING=127.0.0.1:9200
     #     ports:
-    #         - '8081:8081'
-    #     develop:
-    #         watch:
-    #             - action: sync
-    #               path: ./proto
-    #               target: /proto
-    #             - action: sync
-    #               path: ./polycentric-protocol
-    #               target: /polycentric-protocol
-    #     labels:
-    #         - 'traefik.enable=true'
-    #         - 'traefik.http.routers.polycentric-server.rule=Host(`server.localhost`)'
-    #         - 'traefik.http.routers.polycentric-server.entrypoints=websecure'
-    #         - 'traefik.http.services.polycentric-server.loadbalancer.server.port=8081'
-    # postgres:
-    #     image: postgres:17
+    #         - '5601:5601'
     #     environment:
-    #         POSTGRES_PASSWORD: testing
-    #     volumes:
-    #         - ./state/postgres/data:/var/lib/postgresql/data
-    #     healthcheck:
-    #         test: ['CMD-SHELL', 'pg_isready -U postgres || exit 1']
-    #         interval: 10s
-    #         timeout: 5s
+    #         OPENSEARCH_HOSTS: '["https://opensearch-node1:9200"]'
+    #         DISABLE_SECURITY_DASHBOARDS_PLUGIN: true
+    #         OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD-admin} # Sets the demo admin user password when using demo configuration, required for OpenSearch 2.12 and later
 
-    #         retries: 5
-    # opensearch:
-    #     image: opensearchproject/opensearch:2.1.0
-    #     container_name: opensearch
-    #     environment:
-    #         - discovery.type=single-node
-    #         - OPENSEARCH_USER=admin
-    #         - OPENSEARCH_PASSWORD=password
-    #         - OPENSEARCH_HOST=localhost
-    #         - OPENSEARCH_PORT=9200
-    #         - OPENSEARCH_DB=my_database
-    #         - cluster.name=opensearch
-    #         - node.name=opensearch
-    #         - bootstrap.memory_lock=true
-    #         - 'OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m'
-    #         - 'DISABLE_INSTALL_DEMO_CONFIG=true'
-    #         - 'DISABLE_SECURITY_PLUGIN=true'
-    #     ports:
-    #         - '9200:9200'
-    #         - '9600:9600'
-    #     healthcheck:
-    #         test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:9200/
-    #         interval: 30s
-    #         timeout: 10s
-    #         retries: 3
-    #     labels:
-    #         - 'traefik.enable=true'
-    #         - 'traefik.http.routers.opensearch.entrypoints=web,websecure'
-    #         - 'traefik.http.routers.opensearch.rule=Host(`opensearch.localhost`)'
-    #         - 'traefik.http.routers.opensearch.tls.options=default'
-    #         - 'traefik.http.services.opensearch.loadbalancer.server.port=9200'
+    postgres:
+        image: postgres:17
+        environment:
+            POSTGRES_PASSWORD: testing
+        volumes:
+            - ./state/postgres/data:/var/lib/postgresql/data
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U postgres || exit 1']
+            interval: 10s
+            timeout: 5s
+            retries: 5
 
-    # opensearch-dashboards:
-    #   image: opensearchproject/opensearch-dashboards:2.1.0
-    #   ports:
-    #     - '127.0.0.1:5601:5601'
-    #   environment:
-    #     - "OPENSEARCH_HOSTS=['http://opensearch-node1:9200']"
-    #     - 'DISABLE_SECURITY_DASHBOARDS_PLUGIN=true'
-#   grafana:
-#     image: grafana/grafana:9.5.2
-#     restart: always
-#     depends_on:
-#       - influxdb
-#     environment:
-#       - GF_SECURITY_ADMIN_USER=admin
-#       - GF_SECURITY_ADMIN_PASSWORD=admin
-#     links:
-#       - influxdb
-#     ports:
-#       - '127.0.0.1:8090:3000'
-#     volumes:
-#       - grafana_data:/var/lib/grafana
-#       - ./monitoring/grafana-dashboards:/var/lib/grafana/dashboards
-#       - ./monitoring/provisioning:/etc/grafana/provisioning
-#     develop:
-#       watch:
-#         - action: sync
-#           path: ./monitoring/provisioning
-#           target: /etc/grafana/provisioning
-#         - action: sync
-#           path: ./monitoring/grafana-dashboards
-#           target: /var/lib/grafana/dashboards
-#   influxdb:
-#     image: influxdb:2.7-alpine
-#     restart: always
-#     environment:
-#       - DOCKER_INFLUXDB_INIT_MODE=setup
-#       - DOCKER_INFLUXDB_INIT_USERNAME=admin
-#       - DOCKER_INFLUXDB_INIT_PASSWORD=adminadminadminadmin
-#       - DOCKER_INFLUXDB_INIT_ORG=polycentric
-#       - DOCKER_INFLUXDB_INIT_BUCKET=polycentric
-#       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=admin
-#     ports:
-#       - '127.0.0.1:8086:8086'
-#     volumes:
-#       - influxdb_data:/var/lib/influxdb2
-#   telegraf:
-#     image: telegraf:1.26.2-alpine
-#     restart: always
-#     user: 'telegraf:${DOCKER_GID}'
-#     volumes:
-#       - ./monitoring/telegraf.conf:/etc/telegraf/telegraf.conf:ro
-#       - /var/run/docker.sock:/var/run/docker.sock
-#     depends_on:
-#       - influxdb
-#     links:
-#       - influxdb
-#     ports:
-#       - '127.0.0.1:8125:8125'
-#       - '127.0.0.1:8092:8092'
-#       - '127.0.0.1:8094:8094'
-
-# volumes:
-#   grafana_data: {}
-#   influxdb_data: {}
+    grafana:
+        image: grafana/grafana:9.5.2
+        restart: always
+        depends_on:
+            - influxdb
+        environment:
+            - GF_SECURITY_ADMIN_USER=admin
+            - GF_SECURITY_ADMIN_PASSWORD=admin
+        links:
+            - influxdb
+        ports:
+            - '8090:3000'
+        volumes:
+            - grafana_data:/var/lib/grafana
+            - ./monitoring/grafana-dashboards:/var/lib/grafana/dashboards
+            - ./monitoring/provisioning:/etc/grafana/provisioning
+    influxdb:
+        image: influxdb:2.7-alpine
+        restart: always
+        environment:
+            - DOCKER_INFLUXDB_INIT_MODE=setup
+            - DOCKER_INFLUXDB_INIT_USERNAME=admin
+            - DOCKER_INFLUXDB_INIT_PASSWORD=adminadminadminadmin
+            - DOCKER_INFLUXDB_INIT_ORG=polycentric
+            - DOCKER_INFLUXDB_INIT_BUCKET=polycentric
+            - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=admin
+        ports:
+            - '8086:8086'
+        volumes:
+            - influxdb_data:/var/lib/influxdb2
+        healthcheck:
+            test: 'curl -f http://localhost:8086/ping' # close enough
+            interval: 5s
+            timeout: 10s
+            retries: 5
+    telegraf:
+        image: telegraf:1.31
+        restart: always
+        user: '${UID:-1000}:${GID:-987}' # GID for docker socket# GID: ls -ln /var/run/docker.sock | awk '{print $4}' # `id` use userid
+        volumes:
+            - ./monitoring/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+            - /var/run/docker.sock:/var/run/docker.sock
+        depends_on:
+            - influxdb
+        links:
+            - influxdb
+        ports:
+            - '8125:8125'
+            - '8092:8092'
+            - '8094:8094'
+volumes:
+    grafana_data: {}
+    influxdb_data: {}
