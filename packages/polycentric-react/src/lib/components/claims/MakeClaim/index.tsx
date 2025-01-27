@@ -82,9 +82,7 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
             >
                 {step === 'type' ? (
                     <ClaimTypePopup
-                        onClose={onClose}
                         onSelect={handleSelect}
-                        system={system}
                     />
                 ) : (
                     renderInput()
@@ -95,13 +93,9 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
 };
 
 export const ClaimTypePopup = ({
-    onClose,
     onSelect,
-    system,
 }: {
-    onClose: () => void;
     onSelect: (type: ClaimData['type'], platform?: SocialPlatform) => void;
-    system: Models.PublicKey.PublicKey;
 }) => {
     const [showSocialPlatforms, setShowSocialPlatforms] = useState(false);
 
@@ -176,11 +170,9 @@ export const ClaimTypePopup = ({
 };
 
 export const SocialMediaInput = ({
-    system,
     platform,
     onCancel,
 }: {
-    system: Models.PublicKey.PublicKey;
     platform: SocialPlatform;
     onCancel: () => void;
 }) => {
@@ -280,10 +272,8 @@ export const SocialMediaInput = ({
 };
 
 export const OccupationInput = ({
-    system,
     onCancel,
 }: {
-    system: Models.PublicKey.PublicKey;
     onCancel: () => void;
 }) => {
     const [organization, setOrganization] = useState('');
@@ -350,11 +340,9 @@ export const OccupationInput = ({
 };
 
 export const TextInput = ({
-    system,
     type,
     onCancel,
 }: {
-    system: Models.PublicKey.PublicKey;
     type: 'skill' | 'freeform';
     onCancel: () => void;
 }) => {

@@ -1,9 +1,6 @@
 import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline';
-import TagIcon from '@heroicons/react/24/solid/TagIcon';
-import { Models } from '@polycentric/polycentric-core';
 import { useCallback, useRef, useState } from 'react';
 import { useBlobDisplayURL } from '../../../hooks/imageHooks';
-import { MakeClaim } from '../../claims/MakeClaim';
 import { TopicSuggestionBox } from '../TopicSuggestionBox';
 
 // const startsWithSlash = /^\/.*/
