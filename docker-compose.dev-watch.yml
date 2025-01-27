@@ -116,9 +116,8 @@ services:
             timeout: 5s
             retries: 5
 
-    grafana:
+    grafana: # http://localhost:8090/d/bb874d58-6f7b-4686-9718-6a1f4dbaf942/main-dashboard?orgId=1&refresh=5s
         image: grafana/grafana:9.5.2
-        restart: always
         depends_on:
             - influxdb
         environment:
@@ -134,7 +133,6 @@ services:
             - ./monitoring/provisioning:/etc/grafana/provisioning
     influxdb:
         image: influxdb:2.7-alpine
-        restart: always
         environment:
             - DOCKER_INFLUXDB_INIT_MODE=setup
             - DOCKER_INFLUXDB_INIT_USERNAME=admin
@@ -153,11 +151,17 @@ services:
             retries: 5
     telegraf:
         image: telegraf:1.31
-        restart: always
-        user: '${UID:-1000}:${GID:-987}' # GID for docker socket# GID: ls -ln /var/run/docker.sock | awk '{print $4}' # `id` use userid
+        user: '${UID:-1000}:${GID:-987}' # GID for docker socket # GID: ls -ln /var/run/docker.sock | awk '{print $4}' # `id` use userid
+        environment:
+            - HOST_PROC=/host/proc
+            - HOST_SYS=/host/sys
+            - HOST_ETC=/host/etc
         volumes:
             - ./monitoring/telegraf.conf:/etc/telegraf/telegraf.conf:ro
             - /var/run/docker.sock:/var/run/docker.sock
+            - /proc:/host/proc:ro
+            - /sys:/host/sys:ro
+            - /etc:/host/etc:ro
         depends_on:
             - influxdb
         links:
