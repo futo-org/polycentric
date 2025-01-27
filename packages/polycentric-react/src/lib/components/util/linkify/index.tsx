@@ -44,10 +44,7 @@ interface SuggestionPopup {
     onSelect: (username: string) => void;
 }
 
-export const MentionSuggestions = ({
-    query,
-    onSelect,
-}: SuggestionPopup) => {
+export const MentionSuggestions = ({ query, onSelect }: SuggestionPopup) => {
     const { processHandle } = useProcessHandleManager();
     const [selectedIndex, setSelectedIndex] = React.useState(0);
 
@@ -185,7 +182,7 @@ const MentionLink = React.memo(
         }, [value]);
 
         if (!publicKey) return <span>{value}</span>;
-        
+
         const profileLink = useSystemLink(publicKey);
         const username = useUsernameCRDTQuery(publicKey);
 
