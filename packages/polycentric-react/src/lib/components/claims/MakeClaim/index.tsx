@@ -81,9 +81,7 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
                 onClick={(e) => e.stopPropagation()}
             >
                 {step === 'type' ? (
-                    <ClaimTypePopup
-                        onSelect={handleSelect}
-                    />
+                    <ClaimTypePopup onSelect={handleSelect} />
                 ) : (
                     renderInput()
                 )}
@@ -271,11 +269,7 @@ export const SocialMediaInput = ({
     );
 };
 
-export const OccupationInput = ({
-    onCancel,
-}: {
-    onCancel: () => void;
-}) => {
+export const OccupationInput = ({ onCancel }: { onCancel: () => void }) => {
     const [organization, setOrganization] = useState('');
     const [role, setRole] = useState('');
     const [location, setLocation] = useState('');
