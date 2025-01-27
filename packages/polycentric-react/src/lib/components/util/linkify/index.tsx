@@ -89,15 +89,13 @@ export const MentionSuggestions = ({
             switch (e.key) {
                 case 'ArrowDown':
                     e.preventDefault();
-                    setSelectedIndex((prev) => 
-                        prev < systems.length - 1 ? prev + 1 : prev
+                    setSelectedIndex((prev) =>
+                        prev < systems.length - 1 ? prev + 1 : prev,
                     );
                     break;
                 case 'ArrowUp':
                     e.preventDefault();
-                    setSelectedIndex((prev) => 
-                        prev > 0 ? prev - 1 : prev
-                    );
+                    setSelectedIndex((prev) => (prev > 0 ? prev - 1 : prev));
                     break;
                 case 'Enter':
                     e.preventDefault();
@@ -153,7 +151,7 @@ const MentionSuggestionItem = ({
 
     const shouldShow =
         !query ||
-        (username?.toLowerCase().includes(query.toLowerCase())) ||
+        username?.toLowerCase().includes(query.toLowerCase()) ||
         systemId.toLowerCase().includes(query.toLowerCase());
 
     if (!shouldShow) return null;
@@ -178,21 +176,18 @@ const MentionLink = React.memo(
         value: string;
         stopPropagation?: boolean;
     }) => {
-        const publicKey = useMemo(
-            () => {
-                try {
-                    return Models.PublicKey.fromString(
-                        value as Models.PublicKey.PublicKeyString,
-                    );
-                } catch {
-                    return null;
-                }
-            },
-            [value],
-        );
+        const publicKey = useMemo(() => {
+            try {
+                return Models.PublicKey.fromString(
+                    value as Models.PublicKey.PublicKeyString,
+                );
+            } catch {
+                return null;
+            }
+        }, [value]);
 
         if (!publicKey) return <span>{value}</span>;
-        
+
         const profileLink = useSystemLink(publicKey);
         const username = useUsernameCRDTQuery(publicKey);
 

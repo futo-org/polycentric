@@ -195,11 +195,11 @@ export const Compose = ({
 
                         // Move cursor to @ position
                         e.target.setSelectionRange(lastAtSymbol, lastAtSymbol);
-                        
+
                         // Get caret position
                         const rect = e.target.getBoundingClientRect();
                         const caretPos = getCaretPosition(e.target);
-                        
+
                         // Restore original selection
                         e.target.setSelectionRange(currentStart, currentEnd);
 
@@ -231,15 +231,18 @@ export const Compose = ({
         const paddingLeft = parseFloat(style.paddingLeft);
         const paddingTop = parseFloat(style.paddingTop);
         const lineHeight = parseFloat(style.lineHeight);
-        
+
         // Get text up to caret position
-        const textBeforeCaret = textarea.value.substring(0, textarea.selectionStart);
-        
+        const textBeforeCaret = textarea.value.substring(
+            0,
+            textarea.selectionStart,
+        );
+
         // Split into lines and get current line
         const lines = textBeforeCaret.split('\n');
         const currentLineNumber = lines.length - 1;
         const currentLine = lines[currentLineNumber];
-        
+
         // Create a temporary element to measure text width
         const measureElement = document.createElement('span');
         measureElement.style.font = style.font;
@@ -248,13 +251,13 @@ export const Compose = ({
         measureElement.textContent = currentLine;
         measureElement.style.visibility = 'hidden';
         document.body.appendChild(measureElement);
-        
+
         const textWidth = measureElement.offsetWidth;
         document.body.removeChild(measureElement);
-        
+
         return {
-            top: paddingTop + (currentLineNumber * lineHeight),
-            left: paddingLeft + textWidth
+            top: paddingTop + currentLineNumber * lineHeight,
+            left: paddingLeft + textWidth,
         };
     };
 
@@ -289,11 +292,17 @@ export const Compose = ({
                         placeholder="What's going on?"
                     />
                     {mentionState && (
-                        <div 
+                        <div
                             className="absolute z-[9999]"
                             style={{
-                                top: mentionState.position.top - (textRef.current?.getBoundingClientRect().top ?? 0),
-                                left: mentionState.position.left - (textRef.current?.getBoundingClientRect().left ?? 0),
+                                top:
+                                    mentionState.position.top -
+                                    (textRef.current?.getBoundingClientRect()
+                                        .top ?? 0),
+                                left:
+                                    mentionState.position.left -
+                                    (textRef.current?.getBoundingClientRect()
+                                        .left ?? 0),
                             }}
                         >
                             <MentionSuggestions
