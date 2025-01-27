@@ -414,6 +414,14 @@ export const SwipeHomeFeed = () => {
                 <PopupComposeFullscreen
                     open={composeModalOpen}
                     setOpen={setComposeModalOpen}
+                    preSetTopic={
+                        swipeTopics[feedSwiper?.activeIndex ?? 0] !==
+                            'Explore' &&
+                        swipeTopics[feedSwiper?.activeIndex ?? 0] !==
+                            'Following'
+                            ? swipeTopics[feedSwiper?.activeIndex ?? 0]
+                            : undefined
+                    }
                 />
             </IonContent>
         </>
