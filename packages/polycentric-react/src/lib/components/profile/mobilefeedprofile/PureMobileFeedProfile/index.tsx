@@ -102,7 +102,8 @@ export const PureMobileFeedProfile = ({
                 <ClaimGrid
                     claims={claims}
                     system={profile.system}
-                    isMyProfile={profile.isMyProfile}/>
+                    isMyProfile={profile.isMyProfile}
+                />
             </div>
         </div>
     );
