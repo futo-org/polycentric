@@ -1,6 +1,6 @@
 import * as AbstractLevel from 'abstract-level';
-import * as MemoryLevel from 'memory-level';
 import * as LevelTranscoder from 'level-transcoder';
+import * as MemoryLevel from 'memory-level';
 
 export type BinaryAbstractLevel = AbstractLevel.AbstractLevel<
     Uint8Array,
@@ -69,11 +69,31 @@ export interface IPersistenceDriver {
 
     openStore: (path: string) => Promise<BinaryAbstractLevel>;
 
-    estimateStorage: () => Promise<StorageEstimate>;
+    estimateStorage: (store: BinaryAbstractLevel) => Promise<StorageEstimate>;
 
     persisted: () => Promise<boolean>;
 
     destroyStore: (path: string) => Promise<void>;
+
+    getStoreSize: (store: BinaryAbstractLevel) => Promise<number>;
+}
+
+// Add this helper function to calculate size of a single entry
+function getEntrySize(key: Uint8Array, value: Uint8Array): number {
+    return key.byteLength + value.byteLength;
+}
+
+// Add this function to calculate total store size
+export async function calculateStoreSize(
+    store: BinaryAbstractLevel,
+): Promise<number> {
+    let totalSize = 0;
+
+    for await (const [key, value] of store.iterator()) {
+        totalSize += getEntrySize(key, value);
+    }
+
+    return totalSize;
 }
 
 export function createPersistenceDriverMemory(): IPersistenceDriver {
@@ -90,10 +110,12 @@ export function createPersistenceDriverMemory(): IPersistenceDriver {
     };
 
     /* eslint @typescript-eslint/require-await: 0 */
-    const estimateStorage = async () => {
+    const estimateStorage = async (store: BinaryAbstractLevel) => {
+        const bytesUsed = await calculateStoreSize(store);
+
         return {
-            bytesAvailable: undefined,
-            bytesUsed: undefined,
+            bytesAvailable: undefined, // Memory storage doesn't have a fixed limit
+            bytesUsed: bytesUsed,
         };
     };
 
@@ -111,5 +133,6 @@ export function createPersistenceDriverMemory(): IPersistenceDriver {
         estimateStorage: estimateStorage,
         persisted: persisted,
         destroyStore: destroyStore,
+        getStoreSize: calculateStoreSize,
     };
 }

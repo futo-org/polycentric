@@ -1,20 +1,20 @@
-import * as Util from '../util';
 import * as Models from '../models';
-import * as Protocol from '../protocol';
 import * as PersistenceDriver from '../persistence-driver';
+import * as Protocol from '../protocol';
+import * as Util from '../util';
 
+import { HasIngest } from './has-ingest';
+import { IndexCRDTElementSet } from './index-crdt-element-set';
 import { IndexEvents } from './index-events';
+import { IndexEventsForSystemByTime } from './index-events-for-system-by-time';
 import { IndexFeed } from './index-feed';
 import { IndexOpinion } from './index-opinion';
-import { IndexCRDTElementSet } from './index-crdt-element-set';
-import { IndexEventsForSystemByTime } from './index-events-for-system-by-time';
 import { IndexProcessState } from './index-process-state';
-import { IndexSystemState } from './index-system-state';
 import { IndexSystemProcessContentTypeClock } from './index-system-process-content-type-clock';
-import { HasIngest } from './has-ingest';
+import { IndexSystemState } from './index-system-state';
 
-export * as IndexFeed from './index-feed';
 export * as IndexEvents from './index-events';
+export * as IndexFeed from './index-feed';
 
 const PROCESS_SECRET_KEY: Uint8Array = Util.encodeText('PROCESS_SECRET');
 
@@ -127,5 +127,12 @@ export class Store {
                 await this.level.get(PROCESS_SECRET_KEY),
             ),
         );
+    }
+
+    public async estimateStorage(): Promise<PersistenceDriver.StorageEstimate> {
+        return {
+            bytesUsed: await PersistenceDriver.calculateStoreSize(this.level),
+            bytesAvailable: undefined,
+        };
     }
 }
