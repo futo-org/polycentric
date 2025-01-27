@@ -99,7 +99,10 @@ export const PureMobileFeedProfile = ({
                 <div className="w-full text text-gray-500 min-w-0 break-words">
                     {profile.description}
                 </div>
-                <ClaimGrid claims={claims} system={profile.system} />
+                <ClaimGrid
+                    claims={claims}
+                    system={profile.system}
+                    isMyProfile={profile.isMyProfile}/>
             </div>
         </div>
     );
