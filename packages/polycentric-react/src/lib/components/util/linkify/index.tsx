@@ -41,13 +41,11 @@ const linkify = (
 
 interface SuggestionPopup {
     query: string;
-    position: { top: number; left: number };
     onSelect: (username: string) => void;
 }
 
 export const MentionSuggestions = ({
     query,
-    position,
     onSelect,
 }: SuggestionPopup) => {
     const { processHandle } = useProcessHandleManager();
@@ -186,10 +184,12 @@ const MentionLink = React.memo(
             }
         }, [value]);
 
-        const profileLink = useSystemLink(publicKey!);
-        const username = useUsernameCRDTQuery(publicKey!);
+        if (!publicKey) return <span>{value}</span>;
+        
+        const profileLink = useSystemLink(publicKey);
+        const username = useUsernameCRDTQuery(publicKey);
 
-        if (!publicKey || !profileLink) return <span>{value}</span>;
+        if (!profileLink) return <span>{value}</span>;
 
         return (
             <span className="pointer-events-auto relative z-50">
