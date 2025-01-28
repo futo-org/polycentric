@@ -128,7 +128,6 @@ export const Compose = ({
     } | null>(null);
     const textRef = useRef<HTMLTextAreaElement | null>(null);
     const uploadRef = useRef<HTMLInputElement | null>(null);
-
     const imageUrl = useBlobDisplayURL(upload);
 
     const post = useCallback(() => {
