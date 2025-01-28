@@ -29,6 +29,13 @@ export default defineConfig(({ command }) => ({
             key: '../../devcert/local-key.pem',
             cert: '../../devcert/local-cert.pem',
         },
+        proxy: {
+            '/api/verifiers': {
+              target: 'https://verifiers.polycentric.io',
+              changeOrigin: true,
+              rewrite: (path) => path.replace(/^\/api\/verifiers/, ''),
+            },
+        },
     },
     plugins: [
         react(),

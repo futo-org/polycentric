@@ -1,7 +1,8 @@
+import * as Core from '@polycentric/polycentric-core';
 import { Models, Protocol } from '@polycentric/polycentric-core';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
-
+import { getOAuthURL } from '../../../util/oauth';
 export type SocialPlatform =
     | 'hackerNews'
     | 'youtube'
@@ -35,6 +36,14 @@ interface MakeClaimProps {
     onClose: () => void;
     system: Models.PublicKey.PublicKey;
 }
+
+export const isOAuthVerifiable = (claimType: Core.Models.ClaimType.ClaimType): boolean => {
+    return (
+        claimType.equals(Core.Models.ClaimType.ClaimTypeDiscord) ||
+        claimType.equals(Core.Models.ClaimType.ClaimTypeTwitter) ||
+        claimType.equals(Core.Models.ClaimType.ClaimTypeInstagram)
+    );
+};
 
 export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
     const [step, setStep] = useState<'type' | 'input'>('type');
@@ -178,51 +187,102 @@ export const SocialMediaInput = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { processHandle } = useProcessHandleManager();
 
+    // Check for OAuth verification immediately when component mounts
+    useEffect(() => {
+        const checkOAuth = async () => {
+            const claimType = getClaimTypeFromPlatform(platform);
+            if (isOAuthVerifiable(claimType)) {
+                try {
+                    const oauthUrl = await getOAuthURL(claimType);
+                    window.location.href = oauthUrl;
+                } catch (error) {
+                    console.error('OAuth URL fetch failed:', error);
+                }
+            }
+        };
+        checkOAuth();
+    }, [platform]);
+
+    // Helper function to get claim type from platform
+    const getClaimTypeFromPlatform = (platform: SocialPlatform): Core.Models.ClaimType.ClaimType => {
+        switch (platform) {
+            case 'twitter':
+                return Core.Models.ClaimType.ClaimTypeTwitter;
+            case 'discord':
+                return Core.Models.ClaimType.ClaimTypeDiscord;
+            case 'instagram':
+                return Core.Models.ClaimType.ClaimTypeInstagram;
+            default:
+                return Core.Models.ClaimType.ClaimTypeURL;
+        }
+    };
+
     const addClaim = useCallback(async () => {
-        if (!url || !processHandle) return;
+        console.log('addClaim called - before checks', { url, platform, processHandle });
+        if (!url || !processHandle) {
+            console.log('Early return due to:', { hasUrl: !!url, hasProcessHandle: !!processHandle });
+            return;
+        }
         try {
             setIsSubmitting(true);
             let claim: Protocol.Claim;
+            let claimType: Core.Models.ClaimType.ClaimType = Core.Models.ClaimType.ClaimTypeURL;
+
+            console.log('Processing platform:', platform);
 
             switch (platform) {
                 case 'hackerNews':
                     claim = Models.claimHackerNews(url);
+                    claimType = Core.Models.ClaimType.ClaimTypeHackerNews;
                     break;
                 case 'youtube':
                     claim = Models.claimYouTube(url);
+                    claimType = Core.Models.ClaimType.ClaimTypeYouTube;
                     break;
                 case 'odysee':
                     claim = Models.claimOdysee(url);
+                    claimType = Core.Models.ClaimType.ClaimTypeOdysee;
                     break;
                 case 'rumble':
                     claim = Models.claimRumble(url);
+                    claimType = Core.Models.ClaimType.ClaimTypeRumble;
                     break;
                 case 'twitter':
                     claim = Models.claimTwitter(url);
+                    claimType = Core.Models.ClaimType.ClaimTypeTwitter;
+                    console.log('Twitter claim type:', claimType);
                     break;
                 case 'discord':
                     claim = Models.claimDiscord(url);
+                    claimType = Core.Models.ClaimType.ClaimTypeDiscord;
                     break;
                 case 'instagram':
                     claim = Models.claimInstagram(url);
+                    claimType = Core.Models.ClaimType.ClaimTypeInstagram;
                     break;
                 case 'github':
                     claim = Models.claimGitHub(url);
+                    claimType = Core.Models.ClaimType.ClaimTypeGitHub;
                     break;
                 case 'minds':
                     claim = Models.claimMinds(url);
+                    claimType = Core.Models.ClaimType.ClaimTypeMinds;
                     break;
                 case 'patreon':
                     claim = Models.claimPatreon(url);
+                    claimType = Core.Models.ClaimType.ClaimTypePatreon;
                     break;
                 case 'substack':
                     claim = Models.claimSubstack(url);
+                    claimType = Core.Models.ClaimType.ClaimTypeSubstack;
                     break;
                 case 'twitch':
                     claim = Models.claimTwitch(url);
+                    claimType = Core.Models.ClaimType.ClaimTypeTwitch;
                     break;
                 case 'website':
                     claim = Models.claimWebsite(url);
+                    claimType = Core.Models.ClaimType.ClaimTypeWebsite;
                     break;
                 default:
                     claim = Models.claimURL(url);
@@ -230,9 +290,18 @@ export const SocialMediaInput = ({
             }
 
             await processHandle.claim(claim);
-            onCancel();
+            
+            console.log('Checking OAuth:', claimType);
+            if (isOAuthVerifiable(claimType)) {
+                console.log('Is OAuth verifiable');
+                const oauthUrl = await getOAuthURL(claimType);
+                window.location.href = oauthUrl;
+            } else {
+                onCancel();
+            }
         } catch (error) {
             console.error('Failed to submit claim:', error);
+            onCancel();
         } finally {
             setIsSubmitting(false);
         }
@@ -248,7 +317,10 @@ export const SocialMediaInput = ({
                 placeholder={`Paste your ${platform} profile URL`}
                 className="border p-2 rounded-lg"
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                onChange={(e) => {
+                    console.log('URL changed:', e.target.value);
+                    setUrl(e.target.value);
+                }}
             />
             <div className="flex justify-end gap-2">
                 <button
@@ -258,9 +330,15 @@ export const SocialMediaInput = ({
                     Cancel
                 </button>
                 <button
-                    onClick={addClaim}
-                    disabled={isSubmitting}
+                    onClick={function() {
+                        console.log('Button clicked');
+                        addClaim();
+                    }}
+                    onMouseDown={() => console.log('Button mouse down')}
+                    onMouseUp={() => console.log('Button mouse up')}
+                    onMouseEnter={() => console.log('Button mouse enter')}
                     className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-blue-300"
+                    disabled={isSubmitting}
                 >
                     {isSubmitting ? 'Adding...' : 'Add'}
                 </button>
