@@ -55,7 +55,7 @@ export const PureMobileFeedProfile = ({
                         {profile.name}
                     </div>
                     <div className="text-sm text-gray-500 font-mono">
-                        {Models.PublicKey.toString(profile.system).slice(0, 6)}
+                        {Models.PublicKey.toString(profile.system).slice(0, 10)}
                     </div>
                 </div>
                 <div className="w-1/2 flex items-end ml-auto">
@@ -99,7 +99,11 @@ export const PureMobileFeedProfile = ({
                 <div className="w-full text text-gray-500 min-w-0 break-words">
                     {profile.description}
                 </div>
-                <ClaimGrid claims={claims} system={profile.system} />
+                <ClaimGrid
+                    claims={claims}
+                    system={profile.system}
+                    isMyProfile={profile.isMyProfile}
+                />
             </div>
         </div>
     );
