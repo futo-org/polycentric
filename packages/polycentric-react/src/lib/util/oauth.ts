@@ -12,7 +12,8 @@ export class AuthorityException extends Error {
 }
 
 export const getOAuthURL = async (claimType: Core.Models.ClaimType.ClaimType): Promise<string> => {
-    const url = `${AUTHORITY_SERVER}/platforms/${claimType.toString()}/oauth/url`;
+    const redirectUri = encodeURIComponent(window.location.href);
+    const url = `${AUTHORITY_SERVER}/platforms/${claimType.toString()}/oauth/url?redirect_uri=${redirectUri}`;
     const response = await fetch(url);
 
     if (!response.ok) {
@@ -77,5 +78,16 @@ export const requestVerification = async (
             throw new AuthorityException('Failed to connect to authority');
         }
         throw err;
+    }
+};
+
+export const handleOAuthCallback = async (
+    token: string,
+    claimType: Core.Models.ClaimType.ClaimType,
+    pointer: Core.Protocol.Pointer
+): Promise<void> => {
+    const response = await getOAuthUsername(token, claimType);
+    if (response.username) {
+        await requestVerification(pointer, claimType, response.token);
     }
 };

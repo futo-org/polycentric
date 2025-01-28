@@ -1,4 +1,5 @@
 import { Onboarding } from '../components';
+import { OAuthCallback } from '../components/OAuthCallback';
 import { FollowingFeed } from '../pages/following';
 import { HomeFeedPage } from '../pages/homefeed';
 import { PostFeedPage } from '../pages/postfeed';
@@ -19,4 +20,5 @@ export const routeData: RouteData = {
     '/settings': { component: SettingsPage },
     '/add-account': { component: Onboarding },
     '/following': { component: FollowingFeed },
+    '/oauth/callback': { component: OAuthCallback },
 };
