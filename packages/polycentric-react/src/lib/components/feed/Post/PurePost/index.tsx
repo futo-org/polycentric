@@ -91,23 +91,6 @@ export const PostActionButton = ({
     );
 };
 
-const DownvoteButton = ({ className }: { className?: string }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        strokeWidth={1.5}
-        stroke="currentColor"
-        className={className}
-    >
-        <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3"
-        />
-    </svg>
-);
-
 const LikeIconOutline = ({ className }: { className?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -683,6 +666,22 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                     />
                                 )} */}
                             </div>
+                            {contentCropped && !expanded && (
+                                // Both columns so it's centered
+                                <div className="col-span-2 flex w-full justify-center mt-4">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setExpanded(true);
+                                        }}
+                                        className="bg-gray-200 rounded-full font-bold px-10 z-10 py-3 text-black"
+                                        onMouseEnter={() => setSubHover(true)}
+                                        onMouseLeave={() => setSubHover(false)}
+                                    >
+                                        Read more
+                                    </button>
+                                </div>
+                            )}
                         </article>
                     </PostLinkContainer>
                 )}
