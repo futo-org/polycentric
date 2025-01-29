@@ -1,4 +1,5 @@
 import { Models, Protocol } from '@polycentric/polycentric-core';
+import Long from 'long';
 import React, { useMemo, useState } from 'react';
 
 import BitcoinIcon from '../../../../graphics/icons/rendered/bitcoin.svg.png';
@@ -344,6 +345,8 @@ const ClaimCircle: React.FC<{
         field: { value: string };
         type: Long;
         pointer: Protocol.Reference;
+        process: Models.Process.Process;
+        logicalClock: Long;
     };
     position: 'start' | 'middle' | 'end';
     system: Models.PublicKey.PublicKey;
@@ -377,17 +380,16 @@ const ClaimCircle: React.FC<{
         }
     };
 
-    // const handleDelete = async () => {
-    //     if (!processHandle) return;
-    //     try {
-    //         const decodedReference = Protocol.Reference.decode(claim.pointer.reference);
-    //         await processHandle.delete(decodedReference.process, decodedReference.logicalClock);
-    //         setShowDeleteConfirm(false);
-    //         setExpanded(false);
-    //     } catch (error) {
-    //         console.error('Failed to delete claim:', error);
-    //     }
-    // };
+    const handleDelete = async () => {
+        if (!processHandle) return;
+        try {
+            await processHandle.delete(claim.process, claim.logicalClock);
+            setShowDeleteConfirm(false);
+            setExpanded(false);
+        } catch (error) {
+            console.error('Failed to delete claim:', error);
+        }
+    };
 
     const handleClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -469,7 +471,7 @@ const ClaimCircle: React.FC<{
                     <div className="absolute -bottom-20 w-full flex justify-center">
                         {isMyProfile ? (
                             <>
-                                {/* <button
+                                {<button
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setShowDeleteConfirm(true);
@@ -477,7 +479,7 @@ const ClaimCircle: React.FC<{
                                     className="px-4 py-1 text-sm text-red-600 hover:text-red-700 border border-red-600 rounded-md hover:bg-red-50 transition-colors bg-gray-100"
                                 >
                                     Remove
-                                </button> */}
+                                </button>}
 
                                 {showDeleteConfirm && (
                                     <div
@@ -509,12 +511,12 @@ const ClaimCircle: React.FC<{
                                                 >
                                                     Cancel
                                                 </button>
-                                                {/* <button
+                                                {<button
                                                     onClick={handleDelete}
                                                     className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
                                                 >
                                                     Delete
-                                                </button> */}
+                                                </button>}
                                             </div>
                                         </div>
                                     </div>
@@ -592,17 +594,19 @@ const getAccountUrl = (type: Long, value: string): string | undefined => {
 
 export const ClaimGrid: React.FC<{
     system: Models.PublicKey.PublicKey;
-    claims: { value: Protocol.Claim; pointer: Protocol.Reference }[];
+    claims: { value: Protocol.Claim; pointer: Protocol.Reference; process: Models.Process.Process; logicalClock: Long }[];
     isMyProfile?: boolean;
 }> = ({ system, claims, isMyProfile }) => {
     const [showClaimModal, setShowClaimModal] = useState(false);
 
     const claimsUnwrapped = useMemo(() => {
-        return claims.flatMap(({ value, pointer }) =>
+        return claims.flatMap(({ value, pointer, process, logicalClock }) =>
             value.claimFields.map((field) => ({
                 field,
                 type: value.claimType,
-                pointer, // Pass the stable pointer
+                pointer,
+                process,
+                logicalClock,
             })),
         );
     }, [claims]);
