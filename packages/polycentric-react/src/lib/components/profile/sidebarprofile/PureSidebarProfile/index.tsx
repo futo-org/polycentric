@@ -37,8 +37,8 @@ export const PureSidebarProfile = ({
     block: () => void;
     unblock: () => void;
     editProfileActions: EditProfileActions;
-    claims: { 
-        value: Protocol.Claim; 
+    claims: {
+        value: Protocol.Claim;
         pointer: Protocol.Reference;
         process: Models.Process.Process;
         logicalClock: Long;

@@ -471,15 +471,17 @@ const ClaimCircle: React.FC<{
                     <div className="absolute -bottom-20 w-full flex justify-center">
                         {isMyProfile ? (
                             <>
-                                {<button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setShowDeleteConfirm(true);
-                                    }}
-                                    className="px-4 py-1 text-sm text-red-600 hover:text-red-700 border border-red-600 rounded-md hover:bg-red-50 transition-colors bg-gray-100"
-                                >
-                                    Remove
-                                </button>}
+                                {
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowDeleteConfirm(true);
+                                        }}
+                                        className="px-4  py-1 text-sm text-red-600 hover:text-red-700 border border-red-600 rounded-md hover:bg-red-50 transition-colors bg-gray-100"
+                                    >
+                                        Remove
+                                    </button>
+                                }
 
                                 {showDeleteConfirm && (
                                     <div
@@ -511,12 +513,14 @@ const ClaimCircle: React.FC<{
                                                 >
                                                     Cancel
                                                 </button>
-                                                {<button
-                                                    onClick={handleDelete}
-                                                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                                                >
-                                                    Delete
-                                                </button>}
+                                                {
+                                                    <button
+                                                        onClick={handleDelete}
+                                                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                }
                                             </div>
                                         </div>
                                     </div>

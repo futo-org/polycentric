@@ -24,8 +24,8 @@ export const PureMobileFeedProfile = ({
     unfollow: () => void;
     share: () => void;
     editProfileActions: EditProfileActions;
-    claims: { 
-        value: Protocol.Claim; 
+    claims: {
+        value: Protocol.Claim;
         pointer: Protocol.Reference;
         process: Models.Process.Process;
         logicalClock: Long;
