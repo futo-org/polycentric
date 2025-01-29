@@ -143,14 +143,17 @@ UnloadedPost.displayName = 'UnloadedPost';
 export const Post = forwardRef<HTMLDivElement, PostProps>(
     ({ data, doesLink, autoExpand }, ref) => {
         const { processHandle } = useProcessHandleManager();
-        
+
         if (!data) {
             return <UnloadedPost ref={ref} />;
         }
 
-        const isMyPost = processHandle && Models.PublicKey.equal(processHandle.system(), data.event.system);
-        const isRecent = Date.now() - Number(data.event.unixMilliseconds) < 2000; // 2 seconds
-        
+        const isMyPost =
+            processHandle &&
+            Models.PublicKey.equal(processHandle.system(), data.event.system);
+        const isRecent =
+            Date.now() - Number(data.event.unixMilliseconds) < 2000; // 2 seconds
+
         let status;
         if (!navigator.onLine) {
             status = { state: 'offline' as const, acknowledgedServers: 0 };
