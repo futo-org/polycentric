@@ -4,6 +4,7 @@ import {
     useAvatar,
     useImageManifestDisplayURL,
 } from '../../../hooks/imageHooks';
+import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import {
     ParsedEvent,
     useDateFromUnixMS,
@@ -25,10 +26,15 @@ interface LoadedPostProps {
     data: ParsedEvent<Protocol.Post>;
     doesLink?: boolean;
     autoExpand?: boolean;
+    syncStatus?: {
+        state: 'offline' | 'syncing' | 'acknowledged';
+        acknowledgedServers: number;
+    };
+    isMyProfile: boolean;
 }
 
 const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
-    ({ data, doesLink, autoExpand }, ref) => {
+    ({ data, doesLink, autoExpand, syncStatus, isMyProfile }, ref) => {
         const { value, event, signedEvent } = data;
         const { content, image } = value;
 
@@ -121,6 +127,8 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
                 actions={actions}
                 doesLink={doesLink}
                 autoExpand={autoExpand}
+                syncStatus={syncStatus}
+                isMyProfile={isMyProfile}
             />
         );
     },
@@ -134,15 +142,33 @@ UnloadedPost.displayName = 'UnloadedPost';
 
 export const Post = forwardRef<HTMLDivElement, PostProps>(
     ({ data, doesLink, autoExpand }, ref) => {
-        return data ? (
+        const { processHandle } = useProcessHandleManager();
+        
+        if (!data) {
+            return <UnloadedPost ref={ref} />;
+        }
+
+        const isMyPost = processHandle && Models.PublicKey.equal(processHandle.system(), data.event.system);
+        const isRecent = Date.now() - Number(data.event.unixMilliseconds) < 2000; // 2 seconds
+        
+        let status;
+        if (!navigator.onLine) {
+            status = { state: 'offline' as const, acknowledgedServers: 0 };
+        } else if (isMyPost && isRecent) {
+            status = { state: 'syncing' as const, acknowledgedServers: 0 };
+        } else {
+            status = { state: 'acknowledged' as const, acknowledgedServers: 1 };
+        }
+
+        return (
             <LoadedPost
                 ref={ref}
                 data={data}
                 doesLink={doesLink}
                 autoExpand={autoExpand}
+                syncStatus={isMyPost ? status : undefined}
+                isMyProfile={isMyPost}
             />
-        ) : (
-            <UnloadedPost ref={ref} />
         );
     },
 );

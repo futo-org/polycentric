@@ -1,4 +1,4 @@
-import { TrashIcon } from '@heroicons/react/24/outline';
+import { CloudArrowUpIcon, CloudIcon, ExclamationTriangleIcon, TrashIcon } from '@heroicons/react/24/outline';
 import React, {
     forwardRef,
     useLayoutEffect,
@@ -308,6 +308,11 @@ export interface PurePostProps {
     };
     doesLink?: boolean;
     autoExpand?: boolean;
+    syncStatus?: {
+        state: 'offline' | 'syncing' | 'acknowledged';
+        acknowledgedServers: number;
+    };
+    isMyProfile?: boolean;
 }
 
 const PostLinkContainer = ({
@@ -353,6 +358,8 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
             actions,
             doesLink = true,
             autoExpand = false,
+            syncStatus,
+            isMyProfile,
         }: PurePostProps,
         infiniteScrollRef,
     ) => {
@@ -435,6 +442,19 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                             />
                                         </Link>
                                     </div>
+                                    {syncStatus && isMyProfile && (
+                                        <div className="mt-2 flex justify-center">
+                                            {syncStatus.state === 'offline' && (
+                                                <ExclamationTriangleIcon className="h-6 w-6 text-yellow-500" />
+                                            )}
+                                            {syncStatus.state === 'syncing' && (
+                                                <CloudArrowUpIcon className="h-6 w-6 text-blue-500 animate-pulse" />
+                                            )}
+                                            {syncStatus.state === 'acknowledged' && (
+                                                <CloudIcon className="h-6 w-6 text-green-500" />
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 {/* Right column */}
                                 <div className="flex-grow w-full min-w-0 lg:max-w-[600px]">
@@ -596,16 +616,11 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                 </div>
                                 {/* Action buttons - equally spaced */}
                                 <div className="col-start-2 flex justify-between px-12 pt-6">
-                                    <LikeButton
-                                        onClick={() =>
-                                            stats?.opinion === 'liked'
-                                                ? actions?.neutralopinion()
-                                                : actions?.like()
-                                        }
-                                        count={stats?.likes}
-                                        clicked={
-                                            stats?.opinion === 'liked' ?? false
-                                        }
+                                    <CommentButton
+                                        onClick={() => {
+                                            setCommentPanelOpen(true);
+                                        }}
+                                        count={stats?.comments}
                                     />
                                     <DislikeButton
                                         onClick={() =>
@@ -619,11 +634,16 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                             false
                                         }
                                     />
-                                    <CommentButton
-                                        onClick={() => {
-                                            setCommentPanelOpen(true);
-                                        }}
-                                        count={stats?.comments}
+                                    <LikeButton
+                                        onClick={() =>
+                                            stats?.opinion === 'liked'
+                                                ? actions?.neutralopinion()
+                                                : actions?.like()
+                                        }
+                                        count={stats?.likes}
+                                        clicked={
+                                            stats?.opinion === 'liked' ?? false
+                                        }
                                     />
                                     {navigator.share && (
                                         <SharePostButton
