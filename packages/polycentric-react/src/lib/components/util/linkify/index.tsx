@@ -14,7 +14,7 @@ const urlRegex =
     /(?:^|[^\/])(?<url>(?:http|ftp|https):\/\/(?:[\w_-]+(?:(?:\.[\w_-]+)+))(?:[\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-]))/gi;
 const topicRegex = /(?:^|\s)(?<topic>\/\S+)/gi;
 const mentionRegex = /@(?<mention>CAESI[A-Za-z0-9/+]+)/g;
-const quoteRegex = /^>.*$/gm;  // Matches lines starting with >
+const quoteRegex = /^>.*$/gm; // Matches lines starting with >
 
 type LinkifyType = 'url' | 'topic' | 'mention' | 'quote';
 interface LinkifyItem {
@@ -31,14 +31,14 @@ const linkify = (
     const matches = [...content.matchAll(regex)];
     return matches.map((match) => ({
         type: key,
-        value: key === 'quote' ? match[0] : (match.groups?.[key] ?? ''),
+        value: key === 'quote' ? match[0] : match.groups?.[key] ?? '',
         start:
             (match.index ?? 0) +
             (key === 'mention'
                 ? 1
                 : key === 'quote'
-                    ? 0
-                    : match[0].indexOf(match.groups?.[key] ?? '')),
+                ? 0
+                : match[0].indexOf(match.groups?.[key] ?? '')),
     }));
 };
 
@@ -248,7 +248,9 @@ export const Linkify = React.memo(
                                 className="text-blue-500 hover:underline"
                                 target="_blank"
                                 rel="noreferrer"
-                                onClick={(e) => stopPropagation && e.stopPropagation()}
+                                onClick={(e) =>
+                                    stopPropagation && e.stopPropagation()
+                                }
                                 key={`${item.start}-${item.value}`}
                             >
                                 {item.value}
