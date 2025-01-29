@@ -31,14 +31,14 @@ const linkify = (
     const matches = [...content.matchAll(regex)];
     return matches.map((match) => ({
         type: key,
-        value: key === 'quote' ? match[0] : match.groups?.[key] ?? '',
+        value: key === 'quote' ? match[0] : (match.groups?.[key] ?? ''),
         start:
             (match.index ?? 0) +
             (key === 'mention'
                 ? 1
                 : key === 'quote'
-                ? 0
-                : match[0].indexOf(match.groups?.[key] ?? '')),
+                  ? 0
+                  : match[0].indexOf(match.groups?.[key] ?? '')),
     }));
 };
 
