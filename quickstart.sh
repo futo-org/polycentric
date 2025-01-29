@@ -12,15 +12,6 @@
 # Make a copy of the production yaml that we can make changes to
 cp docker-compose.production.yml docker-compose.live.yml
 
-read -p "What type of proxy would you like to use?(caddy,none): " POLYCENTRIC_PROXY_TYPE
-if [[ "$POLYCENTRIC_PROXY_TYPE" == "" ]] || [[ "$POLYCENTRIC_PROXY_TYPE" == "caddy" ]]
-then
-    read -p "Enter the publicly accessable domain name for this server: " POLYCENTRIC_DOMAIN_NAME
-    sed -i "s/srv1.polycentric.io/$POLYCENTRIC_DOMAIN_NAME/" ./Caddyfile
-else
-    sed -i '/proxy:/,$d' docker-compose.live.yml
-    sed -i 's!polycentric/polycentric!polycentric/polycentric\n        ports:\n              - "8081:8081"\n              - "80:80"\n              - "443:443"!' docker-compose.live.yml
-fi
 
 mkdir -p state/opensearch/data
 sudo chown 1000:1000 -R state/opensearch/data
@@ -32,6 +23,23 @@ else
     set -o allexport # enable all variable definitions to be exported
     source <(sed -e "s/\r//" -e '/^#/d;/^\s*$/d' -e "s/'/'\\\''/g" -e "s/=\(.*\)/=\"\1\"/g" ".env")
     set +o allexport
+fi
+
+if [[ "$POLYCENTRIC_PROXY_TYPE" == "" ]]
+then
+    read -p "What type of proxy would you like to use?(caddy,none): " POLYCENTRIC_PROXY_TYPE_TEMP
+    echo "POLYCENTRIC_PROXY_TYPE=$POLYCENTRIC_PROXY_TYPE_TEMP" >> .env
+    export POLYCENTRIC_PROXY_TYPE=$POLYCENTRIC_PROXY_TYPE_TEMP
+fi
+
+if [[ "$POLYCENTRIC_PROXY_TYPE" == "" ]] || [[ "$POLYCENTRIC_PROXY_TYPE" == "caddy" ]] && [[ "$POLYCENTRIC_DOMAIN_NAME" == "" ]]
+then
+    read -p "Enter the publicly accessable domain name for this server: " POLYCENTRIC_DOMAIN_NAME_TEMP
+    sed -i "s/srv1.polycentric.io/$POLYCENTRIC_DOMAIN_NAME_TEMP/" ./Caddyfile
+    echo "POLYCENTRIC_DOMAIN_NAME=$POLYCENTRIC_DOMAIN_NAME_TEMP" >> .env
+else
+    sed -i '/proxy:/,$d' docker-compose.live.yml
+    sed -i 's!polycentric/polycentric!polycentric/polycentric\n        ports:\n              - "8081:8081"\n              - "80:80"\n              - "443:443"!' docker-compose.live.yml
 fi
 
 # Generate a postgress password if it's not set
@@ -149,4 +157,4 @@ sed -i '/ADMIN_TOKEN=123/d' docker-compose.live.yml
 #docker compose up -d docker-compose.livedev.yml down
 docker compose -f docker-compose.live.yml down
 docker compose -f docker-compose.live.yml pull
-docker compose -f docker-compose.live.yml up --watch
+docker compose -f docker-compose.live.yml up -d
