@@ -54,7 +54,7 @@ then
     read -p "Enter polycentric postgres user password for postgres database: " POLYCENTRIC_POSTGRES_PASS
     if [[ "$POLYCENTRIC_POSTGRES_PASS" == "" ]]
     then
-        export POLYCENTRIC_POSTGRES_PASS="$(openssl rand -base64 22 | tr -- '+/=' '-_-' | tr -d '\n')-2"
+        export POLYCENTRIC_POSTGRES_PASS="$(openssl rand -base64 18 | tr -- '+/=' 'ooo' | tr -d '\n')o2"
     fi
     sed -i "/POSTGRES_PASSWORD=.*/d" .env
     echo "POSTGRES_PASSWORD=$POLYCENTRIC_POSTGRES_PASS" >> .env
@@ -81,8 +81,28 @@ else
 fi
 
 
+# Select moderation provider
+if [[ "$TAG_INTERFACE" == "" ]]
+then
+    read -p "Please select moderation provider (none/azure): " MODERATION_PROVIDER_SELECT
+    if [[ "$MODERATION_PROVIDER_SELECT" == "" ]]
+    then
+        export MODERATION_PROVIDER_SELECT="none"
+    fi
+    sed -i "/TAG_INTERFACE=.*/d" .env
+    echo "TAG_INTERFACE=$MODERATION_PROVIDER_SELECT" >> .env
+    export TAG_INTERFACE=$MODERATION_PROVIDER_SELECT
+fi
+
+if  [[ "$TAG_INTERFACE" == "none" ]]
+then
+    export MODERATION_MODE="OFF"
+    sed -i "/MODERATION_MODE=.*/d" .env
+    echo "MODERATION_MODE=OFF" >> .env
+fi
+
 # Select moderation mode
-if [[ "$MODERATION_MODE" == "" ]]
+if [[ "$TAG_INTERFACE" != "none" ]] && [[ "$MODERATION_MODE" == "" ]]
 then
     read -p "Please select moderation mode (OFF/LAZY/STRONG): " MODERATION_MODE_SELECT
     if [[ "$MODERATION_MODE_SELECT" == "" ]]
@@ -101,19 +121,6 @@ then
     echo "MODERATION_MODE=$MODERATION_MODE_SELECT" >> .env
 fi
 
-# Select moderation provider
-if [[ "$TAG_INTERFACE" == "" ]]
-then
-    read -p "Please select moderation provider (none/azure): " MODERATION_PROVIDER_SELECT
-    if [[ "$MODERATION_PROVIDER_SELECT" == "" ]]
-    then
-        export MODERATION_PROVIDER_SELECT="none"
-    fi
-    sed -i "/TAG_INTERFACE=.*/d" .env
-    echo "TAG_INTERFACE=$MODERATION_PROVIDER_SELECT" >> .env
-    export TAG_INTERFACE=$MODERATION_PROVIDER_SELECT
-fi
-
 # Set up azure tagging if selected
 if [[ "$TAG_INTERFACE" == "azure" ]]
 then
@@ -128,12 +135,12 @@ fi
 
 
 
-sed -i "s/POSTGRES_STRING=.*//" .env
-export POSTGRES_STRING="postgres://postgres:$POLYCENTRIC_POSTGRES_PASS@postgres"
-echo "POSTGRES_STRING=postgres://postgres:$POLYCENTRIC_POSTGRES_PASS@postgres" >> .env
+sed -i "/DATABASE_URL=/d" .env
+export DATABASE_URL="postgres://postgres:$POLYCENTRIC_POSTGRES_PASS@postgres"
+echo "DATABASE_URL=postgres://postgres:$POLYCENTRIC_POSTGRES_PASS@postgres" >> .env
 
 # Set up the postgres password in the docker compose file
-sed -i "s/POSTGRES_PASSWORD: testing/POSTGRES_PASSWORD: $POLYCENTRIC_POSTGRES_PASS/g" docker-compose.live.yml
+sed -i "s!POSTGRES_PASSWORD: testing!POSTGRES_PASSWORD: '$POLYCENTRIC_POSTGRES_PASS'\n        ports:\n          - 127.0.0.1:5432:5432!g" docker-compose.live.yml
 sed -i '/CHALLENGE_KEY=/d' docker-compose.live.yml
 sed -i 's!        read_only: true!        read_only: true\n        env_file: ".env"!' docker-compose.live.yml
 sed -i '/ADMIN_TOKEN=123/d' docker-compose.live.yml
