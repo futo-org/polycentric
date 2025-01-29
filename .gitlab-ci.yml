@@ -39,6 +39,7 @@ default:
     - ${CI_PROJECT_DIR}/.sccache/
     - ${CI_PROJECT_DIR}/.cargo/
   policy: pull-push
+  expire_in: "1 week"
 
 .rust-cache-build-config: &rust-cache-build-config
   key: ${CI_COMMIT_REF_SLUG}
@@ -46,6 +47,7 @@ default:
     - ${CI_PROJECT_DIR}/server/target
     - ${CI_PROJECT_DIR}/polycentric-protocol/target
   policy: pull-push
+  expire_in: "1 week"
 
 stages:
   - check
