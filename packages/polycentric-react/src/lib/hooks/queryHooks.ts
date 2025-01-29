@@ -836,7 +836,8 @@ export function useQueryTopStringReferences(
             options &&
             options.query !== undefined &&
             options.minQueryChars !== undefined &&
-            options.query.length < options.minQueryChars
+            options.query.length < options.minQueryChars &&
+            options.query.length !== 0
         ) {
             return;
         }
