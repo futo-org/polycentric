@@ -598,7 +598,12 @@ const getAccountUrl = (type: Long, value: string): string | undefined => {
 
 export const ClaimGrid: React.FC<{
     system: Models.PublicKey.PublicKey;
-    claims: { value: Protocol.Claim; pointer: Protocol.Reference; process: Models.Process.Process; logicalClock: Long }[];
+    claims: {
+        value: Protocol.Claim;
+        pointer: Protocol.Reference;
+        process: Models.Process.Process;
+        logicalClock: Long;
+    }[];
     isMyProfile?: boolean;
 }> = ({ system, claims, isMyProfile }) => {
     const [showClaimModal, setShowClaimModal] = useState(false);
