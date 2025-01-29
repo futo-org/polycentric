@@ -65,7 +65,7 @@ export const DesktopTopicSearch = ({
     const topicSearchOptions: QueryTopStringReferencesOptions = useMemo(
         () => ({
             query: topicSearchQuery,
-            minQueryChars: 3,
+            minQueryChars: 0,
         }),
         [topicSearchQuery],
     );
