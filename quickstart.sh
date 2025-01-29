@@ -28,13 +28,18 @@ fi
 if [[ "$POLYCENTRIC_PROXY_TYPE" == "" ]]
 then
     read -p "What type of proxy would you like to use?(caddy,none): " POLYCENTRIC_PROXY_TYPE_TEMP
-    echo "POLYCENTRIC_PROXY_TYPE=$POLYCENTRIC_PROXY_TYPE_TEMP" >> .env
+    if [[ "$POLYCENTRIC_PROXY_TYPE_TEMP" == "" ]]
+    then
+        echo "POLYCENTRIC_PROXY_TYPE=caddy" >> .env
+    else
+        echo "POLYCENTRIC_PROXY_TYPE=$POLYCENTRIC_PROXY_TYPE_TEMP" >> .env
+    fi
     export POLYCENTRIC_PROXY_TYPE=$POLYCENTRIC_PROXY_TYPE_TEMP
 fi
 
 if [[ "$POLYCENTRIC_PROXY_TYPE" == "" ]] || [[ "$POLYCENTRIC_PROXY_TYPE" == "caddy" ]] && [[ "$POLYCENTRIC_DOMAIN_NAME" == "" ]]
 then
-    read -p "Enter the publicly accessable domain name for this server: " POLYCENTRIC_DOMAIN_NAME_TEMP
+    read -p "Enter the publicly accessible domain name for this server: " POLYCENTRIC_DOMAIN_NAME_TEMP
     sed -i "s/srv1.polycentric.io/$POLYCENTRIC_DOMAIN_NAME_TEMP/" ./Caddyfile
     echo "POLYCENTRIC_DOMAIN_NAME=$POLYCENTRIC_DOMAIN_NAME_TEMP" >> .env
 else
