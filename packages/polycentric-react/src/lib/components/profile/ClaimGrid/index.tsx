@@ -373,12 +373,18 @@ const ClaimCircle: React.FC<{
     const handleVouch = async () => {
         if (!processHandle) return;
         try {
-            await processHandle.vouchByReference(claim.pointer);
-            
-            // Create post about the vouch
             const systemString = Models.PublicKey.toString(system);
-            const platformName = Models.ClaimType.toString(claim.type as Models.ClaimType.ClaimType);
-            const postContent = `I vouch for @${systemString} claim to ${platformName} account ${claim.field.value}`;
+            let postContent: string;
+
+            if (claim.type.equals(Models.ClaimType.ClaimTypeOccupation)) {
+                const [company, position, location] = claim.field.value.split('\n');
+                postContent = `I vouch for @${systemString} that they work at ${company} as a ${position} located at ${location}.`;
+            } else if (claim.type.equals(Models.ClaimType.ClaimTypeSkill) || claim.type.equals(Models.ClaimType.ClaimTypeGeneric)) {
+                postContent = `I vouch for @${systemString} regarding ${claim.field.value}.`;
+            } else {
+                const platformName = Models.ClaimType.toString(claim.type as Models.ClaimType.ClaimType);
+                postContent = `I vouch for @${systemString} claim to ${platformName} account ${claim.field.value}`;
+            }
             
             await processHandle.post(
                 postContent, 
