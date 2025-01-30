@@ -187,12 +187,27 @@ export const SocialMediaInput = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { processHandle } = useProcessHandleManager();
 
-    // Check for OAuth verification immediately when component mounts
+    // Check for OAuth verification immediately
     useEffect(() => {
         const checkOAuth = async () => {
-            const claimType = getClaimTypeFromPlatform(platform);
+            let claimType: Core.Models.ClaimType.ClaimType;
+            switch (platform) {
+                case 'twitter':
+                    claimType = Core.Models.ClaimType.ClaimTypeTwitter;
+                    break;
+                case 'discord':
+                    claimType = Core.Models.ClaimType.ClaimTypeDiscord;
+                    break;
+                case 'instagram':
+                    claimType = Core.Models.ClaimType.ClaimTypeInstagram;
+                    break;
+                default:
+                    return;
+            }
+
             if (isOAuthVerifiable(claimType)) {
                 try {
+                    // Don't create claim yet, just get the OAuth URL
                     const oauthUrl = await getOAuthURL(claimType);
                     window.location.href = oauthUrl;
                 } catch (error) {
@@ -203,32 +218,13 @@ export const SocialMediaInput = ({
         checkOAuth();
     }, [platform]);
 
-    // Helper function to get claim type from platform
-    const getClaimTypeFromPlatform = (platform: SocialPlatform): Core.Models.ClaimType.ClaimType => {
-        switch (platform) {
-            case 'twitter':
-                return Core.Models.ClaimType.ClaimTypeTwitter;
-            case 'discord':
-                return Core.Models.ClaimType.ClaimTypeDiscord;
-            case 'instagram':
-                return Core.Models.ClaimType.ClaimTypeInstagram;
-            default:
-                return Core.Models.ClaimType.ClaimTypeURL;
-        }
-    };
-
+    // Keep the existing addClaim for non-OAuth claims
     const addClaim = useCallback(async () => {
-        console.log('addClaim called - before checks', { url, platform, processHandle });
-        if (!url || !processHandle) {
-            console.log('Early return due to:', { hasUrl: !!url, hasProcessHandle: !!processHandle });
-            return;
-        }
+        if (!url || !processHandle) return;
         try {
             setIsSubmitting(true);
             let claim: Protocol.Claim;
             let claimType: Core.Models.ClaimType.ClaimType = Core.Models.ClaimType.ClaimTypeURL;
-
-            console.log('Processing platform:', platform);
 
             switch (platform) {
                 case 'hackerNews':
@@ -246,19 +242,6 @@ export const SocialMediaInput = ({
                 case 'rumble':
                     claim = Models.claimRumble(url);
                     claimType = Core.Models.ClaimType.ClaimTypeRumble;
-                    break;
-                case 'twitter':
-                    claim = Models.claimTwitter(url);
-                    claimType = Core.Models.ClaimType.ClaimTypeTwitter;
-                    console.log('Twitter claim type:', claimType);
-                    break;
-                case 'discord':
-                    claim = Models.claimDiscord(url);
-                    claimType = Core.Models.ClaimType.ClaimTypeDiscord;
-                    break;
-                case 'instagram':
-                    claim = Models.claimInstagram(url);
-                    claimType = Core.Models.ClaimType.ClaimTypeInstagram;
                     break;
                 case 'github':
                     claim = Models.claimGitHub(url);
@@ -289,11 +272,11 @@ export const SocialMediaInput = ({
                     break;
             }
 
-            await processHandle.claim(claim);
+            // Create the claim first
+            const pointer = await processHandle.claim(claim);
             
-            console.log('Checking OAuth:', claimType);
+            // Check if OAuth verifiable
             if (isOAuthVerifiable(claimType)) {
-                console.log('Is OAuth verifiable');
                 const oauthUrl = await getOAuthURL(claimType);
                 window.location.href = oauthUrl;
             } else {
@@ -330,10 +313,7 @@ export const SocialMediaInput = ({
                     Cancel
                 </button>
                 <button
-                    onClick={function() {
-                        console.log('Button clicked');
-                        addClaim();
-                    }}
+                    onClick={addClaim}
                     onMouseDown={() => console.log('Button mouse down')}
                     onMouseUp={() => console.log('Button mouse up')}
                     onMouseEnter={() => console.log('Button mouse enter')}

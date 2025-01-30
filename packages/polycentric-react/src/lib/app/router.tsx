@@ -1,5 +1,5 @@
 import { Onboarding } from '../components';
-import { OAuthCallback } from '../components/OAuthCallback';
+import { OAuthCallback } from '../components/oauth/callback';
 import { FollowingFeed } from '../pages/following';
 import { HomeFeedPage } from '../pages/homefeed';
 import { PostFeedPage } from '../pages/postfeed';

@@ -11,15 +11,12 @@ export class AuthorityException extends Error {
     }
 }
 
-export const getOAuthURL = async (claimType: Core.Models.ClaimType.ClaimType): Promise<string> => {
-    const redirectUri = encodeURIComponent(window.location.href);
-    const url = `${AUTHORITY_SERVER}/platforms/${claimType.toString()}/oauth/url?redirect_uri=${redirectUri}`;
+export const getOAuthURL = async (
+    claimType: Core.Models.ClaimType.ClaimType,
+): Promise<string> => {
+    const callbackUrl = `${window.location.origin}/oauth/callback`;
+    const url = `${AUTHORITY_SERVER}/platforms/${claimType}/oauth/url?redirect_uri=${encodeURIComponent(callbackUrl)}`;
     const response = await fetch(url);
-
-    if (!response.ok) {
-        throw new AuthorityException('Failed to get OAuth URL');
-    }
-
     const data = await response.json();
     return data;
 };
