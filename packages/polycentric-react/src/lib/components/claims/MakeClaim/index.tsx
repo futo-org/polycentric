@@ -1,6 +1,7 @@
-import { Models, Protocol } from '@polycentric/polycentric-core';
+import { Models, Protocol, Util } from '@polycentric/polycentric-core';
 import { useCallback, useState } from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
+import { getAccountUrl } from '../../util/linkify';
 
 export type SocialPlatform =
     | 'hackerNews'
@@ -169,9 +170,11 @@ export const ClaimTypePopup = ({
 
 export const SocialMediaInput = ({
     platform,
+    system,
     onCancel,
 }: {
     platform: SocialPlatform;
+    system: Models.PublicKey.PublicKey;
     onCancel: () => void;
 }) => {
     const [url, setUrl] = useState('');
@@ -230,6 +233,13 @@ export const SocialMediaInput = ({
             }
 
             await processHandle.claim(claim);
+
+            // Get the standardized URL for the platform
+            const username = url.split('/').pop() || url;
+            const platformUrl = getAccountUrl(claim.claimType, username);
+            const postContent = `I claimed my ${platform} profile: ${username}`;
+            await processHandle.post(postContent, undefined, Models.bufferToReference(Util.encodeText(platformUrl || url)));
+            
             onCancel();
         } catch (error) {
             console.error('Failed to submit claim:', error);
@@ -245,7 +255,7 @@ export const SocialMediaInput = ({
             </h2>
             <input
                 type="url"
-                placeholder={`Paste your ${platform} profile URL`}
+                placeholder={`Enter your ${platform} username`}
                 className="border p-2 rounded-lg"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
