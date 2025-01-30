@@ -170,11 +170,9 @@ export const ClaimTypePopup = ({
 
 export const SocialMediaInput = ({
     platform,
-    system,
     onCancel,
 }: {
     platform: SocialPlatform;
-    system: Models.PublicKey.PublicKey;
     onCancel: () => void;
 }) => {
     const [url, setUrl] = useState('');

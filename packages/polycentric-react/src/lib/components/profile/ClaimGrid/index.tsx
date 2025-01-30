@@ -2,6 +2,7 @@ import { Models, Protocol } from '@polycentric/polycentric-core';
 import Long from 'long';
 import React, { useMemo, useState } from 'react';
 
+import { Util } from '@polycentric/polycentric-core';
 import BitcoinIcon from '../../../../graphics/icons/rendered/bitcoin.svg.png';
 import DailyMotionIcon from '../../../../graphics/icons/rendered/dailymotion.svg.png';
 import DiscordIcon from '../../../../graphics/icons/rendered/discord.svg.png';
@@ -373,11 +374,23 @@ const ClaimCircle: React.FC<{
         if (!processHandle) return;
         try {
             await processHandle.vouchByReference(claim.pointer);
+            
+            // Create post about the vouch
+            const systemString = Models.PublicKey.toString(system);
+            const platformName = Models.ClaimType.toString(claim.type as Models.ClaimType.ClaimType);
+            const postContent = `I vouch for @${systemString} claim to ${platformName} account ${claim.field.value}`;
+            
+            await processHandle.post(
+                postContent, 
+                undefined,
+                Models.bufferToReference(Util.encodeText(url || ''))
+            );
+            
             setVouchStatus('success');
         } catch (error) {
             setVouchStatus('error');
             console.error('Failed to vouch:', error);
-            setTimeout(() => setVouchStatus('none'), 2000); // Reset after 2 seconds
+            setTimeout(() => setVouchStatus('none'), 2000);
         }
     };
 
@@ -560,8 +573,6 @@ const ClaimCircle: React.FC<{
         </div>
     );
 };
-
-
 
 export const ClaimGrid: React.FC<{
     system: Models.PublicKey.PublicKey;
