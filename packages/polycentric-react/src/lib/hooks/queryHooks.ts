@@ -875,12 +875,15 @@ export const useClaims = (system: Models.PublicKey.PublicKey) => {
     }, [advance, allSourcesAttempted]);
 
     const claimValues = useMemo(() => {
-        return claims.map((claim) => ({
-            value: claim.value,
-            pointer: Models.pointerToReference(
-                Models.signedEventToPointer(claim.signedEvent),
-            ),
-        }));
+        return claims.map((claim) => {
+            const pointer = Models.signedEventToPointer(claim.signedEvent);
+            return {
+                value: claim.value,
+                pointer: Models.pointerToReference(pointer),
+                process: pointer.process,
+                logicalClock: pointer.logicalClock,
+            };
+        });
     }, [claims]);
 
     return claimValues;

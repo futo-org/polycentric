@@ -1,4 +1,5 @@
 import { Models, Protocol } from '@polycentric/polycentric-core';
+import Long from 'long';
 import { useState } from 'react';
 import { BlockedList } from '../../BlockedList';
 import { ClaimGrid } from '../../ClaimGrid';
@@ -36,7 +37,12 @@ export const PureSidebarProfile = ({
     block: () => void;
     unblock: () => void;
     editProfileActions: EditProfileActions;
-    claims: { value: Protocol.Claim; pointer: Protocol.Reference }[];
+    claims: {
+        value: Protocol.Claim;
+        pointer: Protocol.Reference;
+        process: Models.Process.Process;
+        logicalClock: Long;
+    }[];
 }) => {
     const [editProfileOpen, setEditProfileOpen] = useState(false);
     const [followingPanelOpen, setFollowingPanelOpen] = useState(false);
