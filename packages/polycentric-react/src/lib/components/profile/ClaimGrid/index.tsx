@@ -377,19 +377,25 @@ const ClaimCircle: React.FC<{
             let postContent: string;
 
             if (claim.type.equals(Models.ClaimType.ClaimTypeOccupation)) {
-                const [company, position, location] = claim.field.value.split('\n');
+                const [company, position, location] =
+                    claim.field.value.split('\n');
                 postContent = `I vouch for @${systemString} that they work at ${company} as a ${position} located at ${location}.`;
-            } else if (claim.type.equals(Models.ClaimType.ClaimTypeSkill) || claim.type.equals(Models.ClaimType.ClaimTypeGeneric)) {
+            } else if (
+                claim.type.equals(Models.ClaimType.ClaimTypeSkill) ||
+                claim.type.equals(Models.ClaimType.ClaimTypeGeneric)
+            ) {
                 postContent = `I vouch for @${systemString} regarding ${claim.field.value}.`;
             } else {
-                const platformName = Models.ClaimType.toString(claim.type as Models.ClaimType.ClaimType);
+                const platformName = Models.ClaimType.toString(
+                    claim.type as Models.ClaimType.ClaimType,
+                );
                 postContent = `I vouch for @${systemString} claim to ${platformName} account ${claim.field.value}`;
             }
             
             await processHandle.post(
-                postContent, 
+                postContent,
                 undefined,
-                Models.bufferToReference(Util.encodeText(url || ''))
+                Models.bufferToReference(Util.encodeText(url || '')),
             );
             
             setVouchStatus('success');

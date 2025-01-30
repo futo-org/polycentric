@@ -236,8 +236,12 @@ export const SocialMediaInput = ({
             const username = url.split('/').pop() || url;
             const platformUrl = getAccountUrl(claim.claimType, username);
             const postContent = `I claimed my ${platform} profile: ${username}`;
-            await processHandle.post(postContent, undefined, Models.bufferToReference(Util.encodeText(platformUrl || url)));
-            
+            await processHandle.post(
+                postContent,
+                undefined,
+                Models.bufferToReference(Util.encodeText(platformUrl || url)),
+            );
+
             onCancel();
         } catch (error) {
             console.error('Failed to submit claim:', error);
