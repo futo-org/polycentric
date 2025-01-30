@@ -14,8 +14,9 @@ const urlRegex =
     /(?:^|[^\/])(?<url>(?:http|ftp|https):\/\/(?:[\w_-]+(?:(?:\.[\w_-]+)+))(?:[\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-]))/gi;
 const topicRegex = /(?:^|\s)(?<topic>\/\S+)/gi;
 const mentionRegex = /@(?<mention>CAESI[A-Za-z0-9/+]+)/g;
+const quoteRegex = /^>.*$/gm; // Matches lines starting with >
 
-type LinkifyType = 'url' | 'topic' | 'mention';
+type LinkifyType = 'url' | 'topic' | 'mention' | 'quote';
 interface LinkifyItem {
     type: LinkifyType;
     value: string;
@@ -30,12 +31,14 @@ const linkify = (
     const matches = [...content.matchAll(regex)];
     return matches.map((match) => ({
         type: key,
-        value: match.groups?.[key] ?? '',
+        value: key === 'quote' ? match[0] : (match.groups?.[key] ?? ''),
         start:
             (match.index ?? 0) +
             (key === 'mention'
                 ? 1
-                : match[0].indexOf(match.groups?.[key] ?? '')),
+                : key === 'quote'
+                  ? 0
+                  : match[0].indexOf(match.groups?.[key] ?? '')),
     }));
 };
 
@@ -224,11 +227,13 @@ export const Linkify = React.memo(
                 const foundUrls = linkify(content, urlRegex, 'url');
                 const foundTopics = linkify(content, topicRegex, 'topic');
                 const foundMentions = linkify(content, mentionRegex, 'mention');
+                const foundQuotes = linkify(content, quoteRegex, 'quote');
 
                 const items = [
                     ...foundUrls,
                     ...foundTopics,
                     ...foundMentions,
+                    ...foundQuotes,
                 ].sort((a, b) => a.start - b.start);
 
                 const out = [];
@@ -270,6 +275,15 @@ export const Linkify = React.memo(
                                 value={item.value}
                                 stopPropagation={stopPropagation}
                             />,
+                        );
+                    } else if (item.type === 'quote') {
+                        out.push(
+                            <span
+                                className="text-green-600 block"
+                                key={`${item.start}-${item.value}`}
+                            >
+                                {item.value}
+                            </span>,
                         );
                     }
                     i = item.start + item.value.length;
