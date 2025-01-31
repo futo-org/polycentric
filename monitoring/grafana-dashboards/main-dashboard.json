@@ -1,2262 +1,2192 @@
 {
-  "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
-        },
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "type": "dashboard"
-      }
-    ]
-  },
-  "description": "Test dashboard",
-  "editable": true,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
-  "links": [],
-  "liveNow": false,
-  "panels": [
-    {
-      "collapsed": true,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "id": 30,
-      "panels": [],
-      "title": "Host Metrics",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "Memory Utilization",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "decgbytes"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 1,
-        "y": 1
-      },
-      "id": 33,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "right",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"mem\")\n  |> filter(fn: (r) =>\n    contains(value: r[\"_field\"], set: [\n      \"active\", \"available\", \"available_percent\", \"commit_limit\", \"cached\",\n      \"buffered\", \"free\", \"committed_as\", \"dirty\", \"high_free\",\n      \"write_back_tmp\", \"write_back\", \"vmalloc_used\", \"vmalloc_total\", \n      \"vmalloc_chunk\", \"total\", \"used_percent\", \"used\", \"swap_total\", \n      \"swap_free\", \"swap_cached\", \"sunreclaim\", \"inactive\", \"low_total\", \n      \"low_free\", \"mapped\", \"page_tables\", \"shared\", \"slab\", \"sreclaimable\", \n      \"huge_pages_total\", \"huge_page_size\", \"high_total\", \"huge_pages_free\"\n    ])\n  )\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")\n",
-          "refId": "A"
-        }
-      ],
-      "title": "Host Memory Utilization",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "description": "Lists host disks and partition metrics",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "decgbytes"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 10,
-        "x": 13,
-        "y": 1
-      },
-      "id": 31,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"disk\")\n  |> filter(fn: (r) => r[\"_field\"] == \"total\" or r[\"_field\"] == \"used\" or r[\"_field\"] == \"free\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
-          "refId": "A"
-        }
-      ],
-      "title": "Host Disk Utilization",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "axisSoftMax": 100,
-            "axisSoftMin": 0,
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 1,
-        "y": 8
-      },
-      "id": 34,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n    |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"cpu\")\n    |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n    |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n    |> yield(name: \"mean\")\n",
-          "refId": "A"
-        }
-      ],
-      "title": "Host CPU Utilization",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "binbps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 10,
-        "x": 13,
-        "y": 8
-      },
-      "id": 35,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"net\")\n  |> filter(fn: (r) => r[\"_field\"] == \"bytes_recv\" or r[\"_field\"] == \"bytes_sent\" or r[\"_field\"] == \"drop_in\" or r[\"_field\"] == \"drop_out\" or r[\"_field\"] == \"err_out\" or r[\"_field\"] == \"err_in\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"interface\"] == \"eth0\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
-          "refId": "A"
-        }
-      ],
-      "title": "Network Utilization",
-      "type": "timeseries"
-    },
-    {
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 16
-      },
-      "id": 19,
-      "title": "Polycentric",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "description": "",
-      "gridPos": {
-        "h": 9,
-        "w": 10,
-        "x": 1,
-        "y": 17
-      },
-      "id": 29,
-      "options": {
-        "dedupStrategy": "none",
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showLabels": false,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": false
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_log\")\n  |> filter(fn: (r) => r[\"container_name\"] == \"polycentric-polycentric-server-1\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"_field\"] == \"message\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> drop(columns:[\"_measurement\", \"_field\"])\n  ",
-          "refId": "A"
-        }
-      ],
-      "title": "Logs (Placeholder)",
-      "type": "logs"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "PCC52D03280B7034C"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 5,
-        "x": 11,
-        "y": 17
-      },
-      "id": 27,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "9.5.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "PCC52D03280B7034C"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT COUNT(DISTINCT (system_key, system_key_type, process)) FROM events;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
                 },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Total Devices",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
             }
-          },
-          "mappings": [],
-          "noValue": "No events in time period",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 5,
-        "x": 11,
-        "y": 21
-      },
-      "id": 28,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"polycentric-server_events\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
-          "refId": "A"
-        }
-      ],
-      "title": "Events",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 2,
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "usage_percent(.*)"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "usage_percent"
-              }
-            ]
-          }
         ]
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 5,
-        "x": 1,
-        "y": 26
-      },
-      "id": 22,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.5.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_cpu\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"cpu\"] == \"cpu-total\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
-          "refId": "A"
-        }
-      ],
-      "title": "Polycentric CPU Utilization",
-      "type": "timeseries"
     },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 2,
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "usage_percent(.*)"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "usage_percent"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 5,
-        "x": 6,
-        "y": 26
-      },
-      "id": 23,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.5.2",
-      "targets": [
+    "description": "Polycentric Metrics Dashboard",
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "links": [],
+    "liveNow": false,
+    "panels": [
         {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_mem\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
-          "refId": "A"
-        }
-      ],
-      "title": "Polycentric Memory Utilization",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "PCC52D03280B7034C"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
+            "collapsed": true,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 0
+            },
+            "id": 30,
+            "panels": [],
+            "title": "Host Metrics",
+            "type": "row"
         },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 5,
-        "x": 1,
-        "y": 31
-      },
-      "id": 24,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "9.5.2",
-      "targets": [
         {
-          "datasource": {
-            "type": "postgres",
-            "uid": "PCC52D03280B7034C"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) FROM events;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "Memory Utilization",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "decbits"
                 },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Total Events",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "PCC52D03280B7034C"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 5,
-        "x": 6,
-        "y": 31
-      },
-      "id": 25,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "9.5.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "PCC52D03280B7034C"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT COUNT(DISTINCT (system_key, system_key_type)) FROM events;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 7,
+                "w": 12,
+                "x": 1,
+                "y": 1
+            },
+            "id": 33,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "right",
+                    "showLegend": true
                 },
-                "type": "groupBy"
-              }
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"mem\")\n  |> filter(fn: (r) =>\n    contains(value: r[\"_field\"], set: [\n      \"total\", \"used\", \n    ])\n  )\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")\n",
+                    "refId": "A"
+                }
             ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Total Identities",
-      "type": "stat"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 35
-      },
-      "id": 18,
-      "panels": [],
-      "title": "OpenSearch",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 2,
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
+            "title": "Host Memory Utilization",
+            "type": "timeseries"
         },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "usage_percent(.*)"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "usage_percent"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 5,
-        "x": 1,
-        "y": 36
-      },
-      "id": 20,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.5.2",
-      "targets": [
         {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_cpu\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"cpu\"] == \"cpu-total\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"opensearch-node1\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
-          "refId": "A"
-        }
-      ],
-      "title": "OpenSearch CPU Utilization",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
             },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 2,
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "usage_percent(.*)"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "usage_percent"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 5,
-        "x": 6,
-        "y": 36
-      },
-      "id": 21,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.5.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_mem\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"opensearch-node1\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
-          "refId": "A"
-        }
-      ],
-      "title": "OpenSearch Memory Utilization",
-      "type": "timeseries"
-    },
-    {
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 41
-      },
-      "id": 14,
-      "title": "Influxdb",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 10,
-        "x": 1,
-        "y": 42
-      },
-      "id": 26,
-      "options": {
-        "dedupStrategy": "none",
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showLabels": false,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": false
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_log\")\n  |> filter(fn: (r) => r[\"container_image\"] == \"influxdb\")\n  |> filter(fn: (r) => r[\"_field\"] == \"message\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> drop(columns:[\"_measurement\", \"_field\"])",
-          "refId": "A"
-        }
-      ],
-      "title": "Logs",
-      "type": "logs"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 2,
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "usage_percent(.*)"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "usage_percent"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 5,
-        "x": 1,
-        "y": 47
-      },
-      "id": 16,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.5.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_cpu\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"cpu\"] == \"cpu-total\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"influxdb\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
-          "refId": "A"
-        }
-      ],
-      "title": "InfluxDB CPU Utilization",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 2,
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "usage_percent(.*)"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "usage_percent"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 5,
-        "x": 6,
-        "y": 47
-      },
-      "id": 17,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.5.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_mem\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"influxdb\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
-          "refId": "A"
-        }
-      ],
-      "title": "InfluxDB Memory Utilization",
-      "type": "timeseries"
-    },
-    {
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 52
-      },
-      "id": 13,
-      "title": "Telegraf",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 2,
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "usage_percent(.*)"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "usage_percent"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 5,
-        "x": 1,
-        "y": 53
-      },
-      "id": 10,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.5.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_cpu\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"cpu\"] == \"cpu-total\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"telegraf\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
-          "refId": "A"
-        }
-      ],
-      "title": "Telegraf CPU Utilization",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 2,
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "usage_percent(.*)"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "usage_percent"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 5,
-        "x": 6,
-        "y": 53
-      },
-      "id": 9,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.5.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_mem\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"telegraf\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
-          "refId": "A"
-        }
-      ],
-      "title": "Telegraf Memory Utilization",
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 58
-      },
-      "id": 12,
-      "panels": [],
-      "title": "Postgres",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "PCC52D03280B7034C"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "max": 20,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 1,
-        "y": 59
-      },
-      "id": 2,
-      "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
-      "pluginVersion": "9.5.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "postgres",
-            "uid": "PCC52D03280B7034C"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active' OR state = 'idle';",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
+            "description": "Lists host disks and partition metrics",
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "decbits"
                 },
-                "type": "groupBy"
-              }
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 7,
+                "w": 10,
+                "x": 13,
+                "y": 1
+            },
+            "id": 31,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"disk\")\n  |> filter(fn: (r) => r[\"_field\"] == \"total\" or r[\"_field\"] == \"used\" or r[\"_field\"] == \"free\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+                    "refId": "A"
+                }
             ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Postgres Connections",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 2,
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
+            "title": "Host Disk Utilization",
+            "type": "timeseries"
         },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "usage_percent(.*)"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "usage_percent"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 5,
-        "x": 4,
-        "y": 59
-      },
-      "id": 4,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.5.2",
-      "targets": [
         {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_cpu\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"cpu\"] == \"cpu-total\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"postgres\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
-          "refId": "A"
-        }
-      ],
-      "title": "Postgres CPU Utilization",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "P7BBDCCC34984BAD9"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
             },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "axisSoftMax": 100,
+                        "axisSoftMin": 0,
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "max": 100,
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": [
+                    {
+                        "__systemRef": "hideSeriesFrom",
+                        "matcher": {
+                            "id": "byNames",
+                            "options": {
+                                "mode": "exclude",
+                                "names": [
+                                    "usage_idle {cpu=\"cpu2\", host=\"telegraf\"}"
+                                ],
+                                "prefix": "All except:",
+                                "readOnly": true
+                            }
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.hideFrom",
+                                "value": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": true
+                                }
+                            }
+                        ]
+                    }
+                ]
             },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 1,
+                "y": 8
             },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 2,
-          "mappings": [],
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
+            "id": 34,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
                 }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "usage_percent(.*)"
             },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "usage_percent"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 5,
-        "x": 9,
-        "y": 59
-      },
-      "id": 11,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n    |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n    |> filter(fn: (r) => r[\"_measurement\"] == \"cpu\")\n    |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n    |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n    |> yield(name: \"mean\")\n",
+                    "refId": "A"
+                }
+            ],
+            "title": "Host CPU Utilization",
+            "type": "timeseries"
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.5.2",
-      "targets": [
         {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "P7BBDCCC34984BAD9"
-          },
-          "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_mem\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"postgres\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
-          "refId": "A"
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "binbps"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 10,
+                "x": 13,
+                "y": 8
+            },
+            "id": 35,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"net\")\n  |> filter(fn: (r) => r[\"_field\"] == \"bytes_recv\" or r[\"_field\"] == \"bytes_sent\" or r[\"_field\"] == \"drop_in\" or r[\"_field\"] == \"drop_out\" or r[\"_field\"] == \"err_out\" or r[\"_field\"] == \"err_in\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"interface\"] == \"eth0\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> yield(name: \"mean\")",
+                    "refId": "A"
+                }
+            ],
+            "title": "Network Utilization",
+            "type": "timeseries"
+        },
+        {
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 16
+            },
+            "id": 19,
+            "title": "Polycentric",
+            "type": "row"
+        },
+        {
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "decimals": 2,
+                    "mappings": [],
+                    "max": 100,
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byRegexp",
+                            "options": "usage_percent(.*)"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "usage_percent"
+                            }
+                        ]
+                    },
+                    {
+                        "__systemRef": "hideSeriesFrom",
+                        "matcher": {
+                            "id": "byNames",
+                            "options": {
+                                "mode": "exclude",
+                                "names": ["usage_percent"],
+                                "prefix": "All except:",
+                                "readOnly": true
+                            }
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.hideFrom",
+                                "value": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": true
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 9,
+                "w": 10,
+                "x": 1,
+                "y": 17
+            },
+            "id": 23,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "9.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_mem\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
+                    "refId": "A"
+                }
+            ],
+            "title": "Polycentric Memory Utilization",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "decimals": 2,
+                    "mappings": [],
+                    "max": 100,
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": [
+                    {
+                        "__systemRef": "hideSeriesFrom",
+                        "matcher": {
+                            "id": "byNames",
+                            "options": {
+                                "mode": "exclude",
+                                "names": [
+                                    "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
+                                ],
+                                "prefix": "All except:",
+                                "readOnly": true
+                            }
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.hideFrom",
+                                "value": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": false
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byRegexp",
+                            "options": "usage_percent(.*)"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "usage_percent"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 10,
+                "x": 11,
+                "y": 17
+            },
+            "id": 22,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "9.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_cpu\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"cpu\"] == \"cpu-total\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
+                    "refId": "A"
+                }
+            ],
+            "title": "Polycentric CPU Utilization",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
+            },
+            "description": "",
+            "gridPos": {
+                "h": 9,
+                "w": 10,
+                "x": 11,
+                "y": 25
+            },
+            "id": 29,
+            "options": {
+                "dedupStrategy": "none",
+                "enableLogDetails": true,
+                "prettifyLogMessage": false,
+                "showCommonLabels": false,
+                "showLabels": false,
+                "showTime": true,
+                "sortOrder": "Descending",
+                "wrapLogMessage": false
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_log\")\n  |> filter(fn: (r) => r[\"container_name\"] == \"polycentric-polycentric-server-1\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"_field\"] == \"message\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> drop(columns:[\"_measurement\", \"_field\"])\n  ",
+                    "refId": "A"
+                }
+            ],
+            "title": "Logs (Placeholder)",
+            "type": "logs"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PCC52D03280B7034C"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 5,
+                "x": 1,
+                "y": 26
+            },
+            "id": 24,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto"
+            },
+            "pluginVersion": "9.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PCC52D03280B7034C"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT COUNT(*) FROM events;",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    }
+                }
+            ],
+            "title": "Total Events",
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PCC52D03280B7034C"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 5,
+                "x": 6,
+                "y": 26
+            },
+            "id": 25,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto"
+            },
+            "pluginVersion": "9.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PCC52D03280B7034C"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT COUNT(DISTINCT (system_key, system_key_type)) FROM events;",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    }
+                }
+            ],
+            "title": "Total Identities",
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PCC52D03280B7034C"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 4,
+                "w": 5,
+                "x": 1,
+                "y": 30
+            },
+            "id": 27,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "textMode": "auto"
+            },
+            "pluginVersion": "9.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PCC52D03280B7034C"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT COUNT(DISTINCT (system_key, system_key_type, process)) FROM events;",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    }
+                }
+            ],
+            "title": "Total Devices",
+            "type": "stat"
+        },
+        {
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 34
+            },
+            "id": 18,
+            "panels": [],
+            "title": "OpenSearch",
+            "type": "row"
+        },
+        {
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "decimals": 2,
+                    "mappings": [],
+                    "max": 100,
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": [
+                    {
+                        "__systemRef": "hideSeriesFrom",
+                        "matcher": {
+                            "id": "byNames",
+                            "options": {
+                                "mode": "exclude",
+                                "names": [
+                                    "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
+                                ],
+                                "prefix": "All except:",
+                                "readOnly": true
+                            }
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.hideFrom",
+                                "value": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": false
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byRegexp",
+                            "options": "usage_percent(.*)"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "usage_percent"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 5,
+                "x": 1,
+                "y": 35
+            },
+            "id": 20,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "9.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_cpu\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"cpu\"] == \"cpu-total\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"opensearch-node1\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
+                    "refId": "A"
+                }
+            ],
+            "title": "OpenSearch CPU Utilization",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "decimals": 2,
+                    "mappings": [],
+                    "max": 100,
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": [
+                    {
+                        "__systemRef": "hideSeriesFrom",
+                        "matcher": {
+                            "id": "byNames",
+                            "options": {
+                                "mode": "exclude",
+                                "names": [
+                                    "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
+                                ],
+                                "prefix": "All except:",
+                                "readOnly": true
+                            }
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.hideFrom",
+                                "value": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": false
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byRegexp",
+                            "options": "usage_percent(.*)"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "usage_percent"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 5,
+                "x": 6,
+                "y": 35
+            },
+            "id": 21,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "9.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_mem\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"opensearch-node1\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
+                    "refId": "A"
+                }
+            ],
+            "title": "OpenSearch Memory Utilization",
+            "type": "timeseries"
+        },
+        {
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 40
+            },
+            "id": 14,
+            "title": "Influxdb",
+            "type": "row"
+        },
+        {
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "decimals": 2,
+                    "mappings": [],
+                    "max": 100,
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": [
+                    {
+                        "__systemRef": "hideSeriesFrom",
+                        "matcher": {
+                            "id": "byNames",
+                            "options": {
+                                "mode": "exclude",
+                                "names": [
+                                    "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
+                                ],
+                                "prefix": "All except:",
+                                "readOnly": true
+                            }
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.hideFrom",
+                                "value": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": false
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byRegexp",
+                            "options": "usage_percent(.*)"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "usage_percent"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 5,
+                "x": 1,
+                "y": 41
+            },
+            "id": 16,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "9.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_cpu\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"cpu\"] == \"cpu-total\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"influxdb\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
+                    "refId": "A"
+                }
+            ],
+            "title": "InfluxDB CPU Utilization",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "decimals": 2,
+                    "mappings": [],
+                    "max": 100,
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": [
+                    {
+                        "__systemRef": "hideSeriesFrom",
+                        "matcher": {
+                            "id": "byNames",
+                            "options": {
+                                "mode": "exclude",
+                                "names": [
+                                    "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
+                                ],
+                                "prefix": "All except:",
+                                "readOnly": true
+                            }
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.hideFrom",
+                                "value": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": false
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byRegexp",
+                            "options": "usage_percent(.*)"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "usage_percent"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 5,
+                "x": 6,
+                "y": 41
+            },
+            "id": 17,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "9.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_mem\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"influxdb\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
+                    "refId": "A"
+                }
+            ],
+            "title": "InfluxDB Memory Utilization",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 10,
+                "x": 11,
+                "y": 41
+            },
+            "id": 26,
+            "options": {
+                "dedupStrategy": "none",
+                "enableLogDetails": true,
+                "prettifyLogMessage": false,
+                "showCommonLabels": false,
+                "showLabels": false,
+                "showTime": true,
+                "sortOrder": "Descending",
+                "wrapLogMessage": false
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_log\")\n  |> filter(fn: (r) => r[\"container_image\"] == \"influxdb\")\n  |> filter(fn: (r) => r[\"_field\"] == \"message\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> drop(columns:[\"_measurement\", \"_field\"])",
+                    "refId": "A"
+                }
+            ],
+            "title": "Logs",
+            "type": "logs"
+        },
+        {
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 46
+            },
+            "id": 13,
+            "title": "Telegraf",
+            "type": "row"
+        },
+        {
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "decimals": 2,
+                    "mappings": [],
+                    "max": 100,
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": [
+                    {
+                        "__systemRef": "hideSeriesFrom",
+                        "matcher": {
+                            "id": "byNames",
+                            "options": {
+                                "mode": "exclude",
+                                "names": [
+                                    "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
+                                ],
+                                "prefix": "All except:",
+                                "readOnly": true
+                            }
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.hideFrom",
+                                "value": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": false
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byRegexp",
+                            "options": "usage_percent(.*)"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "usage_percent"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 5,
+                "x": 1,
+                "y": 47
+            },
+            "id": 10,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "9.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_cpu\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"cpu\"] == \"cpu-total\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"telegraf\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
+                    "refId": "A"
+                }
+            ],
+            "title": "Telegraf CPU Utilization",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "decimals": 2,
+                    "mappings": [],
+                    "max": 100,
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": [
+                    {
+                        "__systemRef": "hideSeriesFrom",
+                        "matcher": {
+                            "id": "byNames",
+                            "options": {
+                                "mode": "exclude",
+                                "names": [
+                                    "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
+                                ],
+                                "prefix": "All except:",
+                                "readOnly": true
+                            }
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.hideFrom",
+                                "value": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": false
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byRegexp",
+                            "options": "usage_percent(.*)"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "usage_percent"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 5,
+                "x": 6,
+                "y": 47
+            },
+            "id": 9,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "9.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_mem\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"telegraf\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
+                    "refId": "A"
+                }
+            ],
+            "title": "Telegraf Memory Utilization",
+            "type": "timeseries"
+        },
+        {
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 52
+            },
+            "id": 12,
+            "panels": [],
+            "title": "Postgres",
+            "type": "row"
+        },
+        {
+            "datasource": {
+                "type": "postgres",
+                "uid": "PCC52D03280B7034C"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "max": 20,
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 3,
+                "x": 1,
+                "y": 53
+            },
+            "id": 2,
+            "options": {
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true
+            },
+            "pluginVersion": "9.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "postgres",
+                        "uid": "PCC52D03280B7034C"
+                    },
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawQuery": true,
+                    "rawSql": "SELECT COUNT(*) FROM pg_stat_activity WHERE state = 'active' OR state = 'idle';",
+                    "refId": "A",
+                    "sql": {
+                        "columns": [
+                            {
+                                "parameters": [],
+                                "type": "function"
+                            }
+                        ],
+                        "groupBy": [
+                            {
+                                "property": {
+                                    "type": "string"
+                                },
+                                "type": "groupBy"
+                            }
+                        ],
+                        "limit": 50
+                    }
+                }
+            ],
+            "title": "Postgres Connections",
+            "type": "gauge"
+        },
+        {
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "decimals": 2,
+                    "mappings": [],
+                    "max": 100,
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": [
+                    {
+                        "__systemRef": "hideSeriesFrom",
+                        "matcher": {
+                            "id": "byNames",
+                            "options": {
+                                "mode": "exclude",
+                                "names": [
+                                    "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
+                                ],
+                                "prefix": "All except:",
+                                "readOnly": true
+                            }
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.hideFrom",
+                                "value": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": false
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byRegexp",
+                            "options": "usage_percent(.*)"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "usage_percent"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 5,
+                "x": 4,
+                "y": 53
+            },
+            "id": 4,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "9.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_cpu\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"cpu\"] == \"cpu-total\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"postgres\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
+                    "refId": "A"
+                }
+            ],
+            "title": "Postgres CPU Utilization",
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "influxdb",
+                "uid": "P7BBDCCC34984BAD9"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "decimals": 2,
+                    "mappings": [],
+                    "max": 100,
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": [
+                    {
+                        "__systemRef": "hideSeriesFrom",
+                        "matcher": {
+                            "id": "byNames",
+                            "options": {
+                                "mode": "exclude",
+                                "names": [
+                                    "usage_percent {com.docker.compose.config-hash=\"a9ccf4ef8adc756546a7c748efc76633fa15ffa4cb21636a7d2c87a5bcff8e9c\", com.docker.compose.container-number=\"1\", com.docker.compose.image=\"sha256:664303401962108cfd7ed440651bfeb3f35e5d14a44f1b428d64b72a4be9460c\", com.docker.compose.oneoff=\"False\", com.docker.compose.project=\"polycentric\", com.docker.compose.project.config_files=\"/home/nickorlow/programming/futo/polycentric/docker-compose.development.yml\", com.docker.compose.project.working_dir=\"/home/nickorlow/programming/futo/polycentric\", com.docker.compose.service=\"postgres\", com.docker.compose.version=\"2.18.0\", container_image=\"postgres\", container_name=\"polycentric-postgres-1\", container_status=\"running\", container_version=\"14\", cpu=\"cpu-total\", engine_host=\"manayunk-norristown\", host=\"telegraf\", server_version=\"23.0.6\"}"
+                                ],
+                                "prefix": "All except:",
+                                "readOnly": true
+                            }
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.hideFrom",
+                                "value": {
+                                    "legend": false,
+                                    "tooltip": false,
+                                    "viz": false
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byRegexp",
+                            "options": "usage_percent(.*)"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "usage_percent"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 5,
+                "x": 9,
+                "y": 53
+            },
+            "id": 11,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "9.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "influxdb",
+                        "uid": "P7BBDCCC34984BAD9"
+                    },
+                    "query": "from(bucket: \"polycentric\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"_measurement\"] == \"docker_container_mem\")\n  |> filter(fn: (r) => r[\"host\"] == \"telegraf\")\n  |> filter(fn: (r) => r[\"_field\"] == \"usage_percent\")\n  |> filter(fn: (r) => r[\"com.docker.compose.service\"] == \"postgres\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> yield(name: \"last\")",
+                    "refId": "A"
+                }
+            ],
+            "title": "Postgres Memory  Utilization",
+            "type": "timeseries"
         }
-      ],
-      "title": "Postgres Memory  Utilization",
-      "type": "timeseries"
-    }
-  ],
-  "refresh": "5s",
-  "schemaVersion": 38,
-  "style": "dark",
-  "tags": [],
-  "templating": {
-    "list": []
-  },
-  "time": {
-    "from": "now-5m",
-    "to": "now"
-  },
-  "timepicker": {},
-  "timezone": "",
-  "title": "Main Dashboard",
-  "uid": "bb874d58-6f7b-4686-9718-6a1f4dbaf942",
-  "version": 4,
-  "weekStart": ""
+    ],
+    "refresh": "5s",
+    "schemaVersion": 38,
+    "style": "dark",
+    "tags": [],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-5m",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "Polycentric Single Node Dashboard",
+    "uid": "bb874d58-6f7b-4686-9718-6a1f4dbaf942",
+    "version": 5,
+    "weekStart": ""
 }

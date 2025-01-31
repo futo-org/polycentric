@@ -47,6 +47,10 @@ devcert:
 	mkdir -p ./devcert/
 	mkcert -cert-file ./devcert/local-cert.pem -key-file ./devcert/local-key.pem *.localhost localhost 127.0.0.1 ::1 $$(ifconfig | grep -oE "\binet\b [0-9.]+ " | grep -oE "[0-9.]+")
 
+tscert:
+	mkdir -p ./devcert/
+	sudo tailscale cert --cert-file ./devcert/local-cert.pem --key-file ./devcert/local-key.pem "$$(tailscale status --json | jq -r '.Self.DNSName | rtrimstr(".")')"
+
 proto: proto/protocol.proto
 	npm install
 	protoc \

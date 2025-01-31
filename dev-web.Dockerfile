@@ -1,4 +1,4 @@
-FROM node:22.13.1-bookworm AS deps
+FROM node:23.6.1-bookworm AS deps
 
 ENV NPM_CONFIG_LOGLEVEL=warn
 WORKDIR /app
@@ -12,7 +12,7 @@ COPY packages/polycentric-react/package.json packages/polycentric-react/
 COPY packages/polycentric-web/package.json packages/polycentric-web/
 
 # Install workspace dependencies
-RUN npm install --loglevel=warn 2>&1 | tee /var/log/npm-warnings.log
+RUN npm install
 
 # Generate ts from protobuf
 COPY ./proto ./proto

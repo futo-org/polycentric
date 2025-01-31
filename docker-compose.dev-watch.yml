@@ -1,6 +1,10 @@
 # start with `docker compose -f docker-compose.dev-watch.yml up --watch`
 # hot reloading for active development and testing
 # requires local dev certs or tailscale certs
+# GID for docker socket
+## GID: ls -ln /var/run/docker.sock | awk '{print $4}'
+# UID for user id
+## `id` returns current user's ID
 services:
     polycentric-web:
         build:
@@ -29,6 +33,37 @@ services:
                 - action: sync+restart
                   path: ./dev-web.Dockerfile
                   target: /tmp/dev-web.Dockerfile
+        labels:
+            - 'traefik.enable=true'
+            - 'traefik.http.routers.web.rule=Host(`localhost`)'
+            - 'traefik.http.services.web.loadbalancer.server.port=3000'
+
+    polycentric-desktop:
+        build:
+            context: .
+            dockerfile: dev-desktop.Dockerfile
+        command: ["npm", "run", "watch"]
+        develop:
+            watch:
+                - action: sync
+                  path: ./proto
+                  target: /proto
+                - action: sync
+                  path: ./packages/polycentric-core
+                  target: /app/packages/polycentric-core
+                - action: sync
+                  path: ./packages/polycentric-react
+                  target: /app/packages/polycentric-react
+                - action: sync
+                  path: ./packages/polycentric-leveldb
+                  target: /app/packages/polycentric-leveldb
+                - action: sync
+                  path: ./packages/polycentric-desktop
+                  target: /app/packages/polycentric-desktop
+                - action: sync+restart
+                  path: ./dev-native.Dockerfile
+                  target: /tmp/dev-native.Dockerfile
+
     polycentric-server:
         build:
             context: .
@@ -49,6 +84,10 @@ services:
             STATSD_PORT: '8125'
         ports:
             - '8081:8081'
+        labels:
+            - 'traefik.enable=true'
+            - 'traefik.http.routers.api.rule=Host(`localhost`)'
+            - 'traefik.http.services.api.loadbalancer.server.port=8081'
         develop:
             watch:
                 - action: sync
@@ -57,7 +96,7 @@ services:
                 - action: sync
                   path: ./polycentric-protocol
                   target: /polycentric-protocol
-                - action: sync
+                - action: sync+restart
                   path: ./server
                   target: /server
     opensearch-node1:
@@ -131,8 +170,13 @@ services:
             - grafana_data:/var/lib/grafana
             - ./monitoring/grafana-dashboards:/var/lib/grafana/dashboards
             - ./monitoring/provisioning:/etc/grafana/provisioning
+        develop:
+            watch:
+                - action: sync
+                  path: ./monitoring
+                  target: /monitoring
     influxdb:
-        image: influxdb:2.7-alpine
+        image: influxdb:2.7.11-alpine
         environment:
             - DOCKER_INFLUXDB_INIT_MODE=setup
             - DOCKER_INFLUXDB_INIT_USERNAME=admin
@@ -150,18 +194,11 @@ services:
             timeout: 10s
             retries: 5
     telegraf:
-        image: telegraf:1.31
+        image: telegraf:1.33-alpine
         user: '${UID:-1000}:${GID:-987}' # GID for docker socket # GID: ls -ln /var/run/docker.sock | awk '{print $4}' # `id` use userid
-        environment:
-            - HOST_PROC=/host/proc
-            - HOST_SYS=/host/sys
-            - HOST_ETC=/host/etc
         volumes:
             - ./monitoring/telegraf.conf:/etc/telegraf/telegraf.conf:ro
             - /var/run/docker.sock:/var/run/docker.sock
-            - /proc:/host/proc:ro
-            - /sys:/host/sys:ro
-            - /etc:/host/etc:ro
         depends_on:
             - influxdb
         links:
