@@ -758,8 +758,9 @@ export class ProcessHandle {
                     const signedServerEvents = serverCellList
                         .map((cell) => cell.signedEvent)
                         .filter(
-                            (e) => e !== undefined,
-                        ) as Models.SignedEvent.SignedEvent[];
+                            (e): e is Models.SignedEvent.SignedEvent =>
+                                e !== undefined,
+                        );
 
                     setTimeout(() => {
                         handle.unregister();
