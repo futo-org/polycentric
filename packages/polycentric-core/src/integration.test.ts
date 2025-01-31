@@ -26,9 +26,15 @@ async function setAvatarImage(
     };
 
     for (const resolution of resolutions) {
-        const image = await Sharp(path).resize(resolution).jpeg().toBuffer();
+        const imageBuffer = await Sharp(path)
+            .resize(resolution)
+            .jpeg()
+            .toBuffer();
 
-        const imageRanges = await handle.publishBlob(image);
+        const image = new Uint8Array(imageBuffer);
+
+        const imageRanges = await handle.publishBlob(image)
+
 
         imageBundle.imageManifests.push({
             mime: 'image/jpeg',
