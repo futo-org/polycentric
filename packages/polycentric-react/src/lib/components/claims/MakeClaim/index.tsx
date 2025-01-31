@@ -184,6 +184,7 @@ export const SocialMediaInput = ({
         try {
             setIsSubmitting(true);
             let claim: Protocol.Claim;
+            let is_url_claim = false;
 
             switch (platform) {
                 case 'hackerNews':
@@ -224,22 +225,28 @@ export const SocialMediaInput = ({
                     break;
                 case 'website':
                     claim = Models.claimWebsite(url);
+                    is_url_claim = true;
                     break;
                 default:
                     claim = Models.claimURL(url);
+                    is_url_claim = true;
                     break;
             }
 
             await processHandle.claim(claim);
 
-            // Get the standardized URL for the platform
             const username = url.split('/').pop() || url;
             const platformUrl = getAccountUrl(claim.claimType, username);
-            const postContent = `I claimed my ${platform} profile: ${username}`;
+            const postContent = is_url_claim
+                ? `I claimed a url: ${url}`
+                : `I claimed my ${platform} profile: ${username}`;
+
             await processHandle.post(
                 postContent,
                 undefined,
-                Models.bufferToReference(Util.encodeText(platformUrl || url)),
+                Models.bufferToReference(
+                    Util.encodeText(is_url_claim ? url : platformUrl || url),
+                ),
             );
 
             onCancel();
