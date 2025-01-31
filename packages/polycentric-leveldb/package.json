@@ -9,8 +9,7 @@
   ],
   "dependencies": {
     "@polycentric/polycentric-core": "*",
-    "abstract-level": "^1.0.3",
-    "classic-level": "^1.2.0"
+    "level": "^9.0.0"
   },
   "scripts": {
     "build": "tsc",
@@ -20,6 +19,6 @@
   "devDependencies": {
     "ts-loader": "^9.4.2",
     "webpack": "^5.74.0",
-    "webpack-cli": "^4.10.0"
+    "webpack-cli": "^5.1.1"
   }
 }
