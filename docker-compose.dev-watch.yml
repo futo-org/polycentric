@@ -42,7 +42,7 @@ services:
         build:
             context: .
             dockerfile: dev-desktop.Dockerfile
-        command: ["npm", "run", "watch"]
+        command: ["npm", "run", "dev:local"]
         develop:
             watch:
                 - action: sync
@@ -194,7 +194,7 @@ services:
             timeout: 10s
             retries: 5
     telegraf:
-        image: telegraf:1.33-alpine
+        image: telegraf:1.33
         user: '${UID:-1000}:${GID:-987}' # GID for docker socket # GID: ls -ln /var/run/docker.sock | awk '{print $4}' # `id` use userid
         volumes:
             - ./monitoring/telegraf.conf:/etc/telegraf/telegraf.conf:ro
