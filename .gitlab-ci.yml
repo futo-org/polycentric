@@ -1,12 +1,12 @@
 ---
 
-variables: 
-  DOCKERFILE_MD5: c8420899f90a361bc5189c4c738eb8db
-  POSTGRES_IMAGE: "postgres:14"
-  SEARCH_IMAGE: "opensearchproject/opensearch:2.1.0"
-  FF_USE_FASTZIP: "true"
-  ARTIFACT_COMPRESSION_LEVEL: "fast"
-  CACHE_COMPRESSION_LEVEL: "fast"
+variables:
+  DOCKERFILE_MD5: 04a07d77667c147b9b6a1c690705f43d
+  POSTGRES_IMAGE: 'postgres:17'
+  SEARCH_IMAGE: 'opensearchproject/opensearch:2.1.0'
+  FF_USE_FASTZIP: 'true'
+  ARTIFACT_COMPRESSION_LEVEL: 'fast'
+  CACHE_COMPRESSION_LEVEL: 'fast'
   CARGO_HOME: ${CI_PROJECT_DIR}/.cargo
   GIT_DEPTH: 1
   SCCACHE_DIR: ${CI_PROJECT_DIR}/.sccache

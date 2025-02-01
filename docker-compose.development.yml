@@ -1,7 +1,6 @@
-version: "2"
 services:
     postgres:
-        image: postgres:14
+        image: postgres:17
         environment:
             POSTGRES_PASSWORD: testing
         ports:

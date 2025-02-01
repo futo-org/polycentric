@@ -1,7 +1,6 @@
-version: '2'
 services:
     postgres:
-        image: postgres:14
+        image: postgres:17
         environment:
             POSTGRES_PASSWORD: testing
         volumes:
@@ -12,18 +11,18 @@ services:
             - cluster.name=opensearch-cluster
             - node.name=opensearch-node1
             - bootstrap.memory_lock=true
-            - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
-            - "DISABLE_INSTALL_DEMO_CONFIG=true"
-            - "DISABLE_SECURITY_PLUGIN=true"
-            - "discovery.type=single-node"
+            - 'OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m'
+            - 'DISABLE_INSTALL_DEMO_CONFIG=true'
+            - 'DISABLE_SECURITY_PLUGIN=true'
+            - 'discovery.type=single-node'
         volumes:
             - ./state/opensearch/data:/usr/share/opensearch/data
     server:
         image: gitlab.futo.org:5050/polycentric/polycentric
         read_only: true
         environment:
-            - "RUST_LOG=server=info"
-            - "ADMIN_TOKEN=123"
+            - 'RUST_LOG=server=info'
+            - 'ADMIN_TOKEN=123'
     proxy:
         image: caddy
         volumes:
@@ -31,6 +30,5 @@ services:
             - ./state/caddy/data:/data
             - ./state/caddy/config:/config
         ports:
-            - "0.0.0.0:80:80"
-            - "0.0.0.0:443:443"
-
+            - '0.0.0.0:80:80'
+            - '0.0.0.0:443:443'
