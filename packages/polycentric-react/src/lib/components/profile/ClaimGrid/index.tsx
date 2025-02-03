@@ -36,7 +36,7 @@ import {
     useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
 import { MakeClaim } from '../../claims/MakeClaim';
-import { getAccountUrl } from '../../util/linkify';
+import { getAccountUrl } from '../../../util/protocol-utils';
 
 const getIconFromClaimType = (
     type: Long,

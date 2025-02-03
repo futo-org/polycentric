@@ -13,8 +13,8 @@ import {
     useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
 import { usePostStatsWithLocalActions } from '../../../hooks/statsHooks';
+import { getAccountUrl } from '../../../util/protocol-utils';
 import { PurePost, PurePostProps } from './PurePost';
-import { getAccountUrl } from '../../util/linkify';
 
 interface PostProps {
     data: FeedItem | undefined;
@@ -156,6 +156,7 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
                 topic,
                 replyingToName,
                 replyingToURL,
+                value,
             ],
         );
 
