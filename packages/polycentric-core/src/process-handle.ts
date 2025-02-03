@@ -735,8 +735,16 @@ export class ProcessHandle {
     }
 
     private getEventKey(event: Protocol.Event): string {
-        if (!event.system || !event.process || !event.logicalClock) return '';
-        return `${event.system.key}-${event.process.process}-${event.logicalClock}`;
+        const system =
+            event.system && event.system.key
+                ? Buffer.from(event.system.key).toString('hex')
+                : '';
+        const process =
+            event.process && event.process.process
+                ? Buffer.from(event.process.process).toString('hex')
+                : '';
+        const clock = event.logicalClock ? event.logicalClock.toString() : '';
+        return [system, process, clock].join('-');
     }
 
     public getEventAckCount(event: Protocol.Event): number {
@@ -861,18 +869,22 @@ export class ProcessHandle {
         serverId: string,
     ): void {
         const decodedEvent = Protocol.Event.decode(
-            event.event ?? new Uint8Array(),
+            event.event || new Uint8Array(),
         );
         if (
             !decodedEvent.system ||
             !decodedEvent.process ||
             !decodedEvent.logicalClock
-        )
+        ) {
             return;
+        }
 
         const eventKey = this.getEventKey(decodedEvent);
-        const acks = this._eventAcks.get(eventKey) ?? new Set<string>();
-        this._eventAcks.set(eventKey, acks);
+        let acks = this._eventAcks.get(eventKey);
+        if (!acks) {
+            acks = new Set<string>();
+            this._eventAcks.set(eventKey, acks);
+        }
 
         if (!acks.has(serverId)) {
             acks.add(serverId);
@@ -884,7 +896,7 @@ export class ProcessHandle {
             );
 
             const subscribers = this._eventAckSubscriptions.get(eventKey);
-            if (subscribers?.size) {
+            if (subscribers && subscribers.size > 0) {
                 for (const callback of subscribers) {
                     callback(serverId);
                 }
