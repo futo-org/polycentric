@@ -29,7 +29,11 @@ export const PostCompose = ({ preSetTopic }: { preSetTopic?: string }) => {
                     topicReference = Models.bufferToReference(topicBuffer);
                 }
 
-                const event = await processHandle.post(content, imageBundle, topicReference);
+                const event = await processHandle.post(
+                    content,
+                    imageBundle,
+                    topicReference,
+                );
                 setPostingProgress(1);
                 setTimeout(() => {
                     setPostingProgress(0);
