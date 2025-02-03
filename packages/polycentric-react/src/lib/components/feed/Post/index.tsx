@@ -13,7 +13,7 @@ import {
     useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
 import { usePostStatsWithLocalActions } from '../../../hooks/statsHooks';
-import { getAccountUrl } from '../../../util/protocol-utils';
+import { getAccountUrl } from '../../util/linkify/utils';
 import { PurePost, PurePostProps } from './PurePost';
 
 interface PostProps {

@@ -8,39 +8,13 @@ import {
     useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
 import { Link } from '../link';
-
-// match URLs that don't start with a slash
-export const urlRegex =
-    /(?:^|[^\/])(?<url>(?:http|ftp|https):\/\/(?:[\w_-]+(?:(?:\.[\w_-]+)+))(?:[\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-]))/gi;
-export const topicRegex = /(?:^|\s)(?<topic>\/\S+)/gi;
-export const mentionRegex = /@(?<mention>CAESI[A-Za-z0-9/+]+)/g;
-export const quoteRegex = /^>.*$/gm; // Matches lines starting with >
-
-type LinkifyType = 'url' | 'topic' | 'mention' | 'quote';
-interface LinkifyItem {
-    type: LinkifyType;
-    value: string;
-    start: number;
-}
-
-export const linkify = (
-    content: string,
-    regex: RegExp,
-    key: LinkifyType,
-): LinkifyItem[] => {
-    const matches = [...content.matchAll(regex)];
-    return matches.map((match) => ({
-        type: key,
-        value: key === 'quote' ? match[0] : (match.groups?.[key] ?? ''),
-        start:
-            (match.index ?? 0) +
-            (key === 'mention'
-                ? 1
-                : key === 'quote'
-                  ? 0
-                  : match[0].indexOf(match.groups?.[key] ?? '')),
-    }));
-};
+import {
+    linkify,
+    mentionRegex,
+    quoteRegex,
+    topicRegex,
+    urlRegex,
+} from './utils';
 
 interface SuggestionPopup {
     query: string;
