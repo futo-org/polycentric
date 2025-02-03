@@ -33,37 +33,37 @@ services:
                 - action: sync+restart
                   path: ./dev-web.Dockerfile
                   target: /tmp/dev-web.Dockerfile
-    # polycentric-server: # neds fix
-    #     build:
-    #         context: .
-    #         dockerfile: dev-server.Dockerfile
-    #     depends_on:
-    #         postgres:
-    #             condition: service_healthy
-    #         opensearch-node1:
-    #             condition: service_healthy
-    #     environment:
-    #         HOME: '/tmp/home'
-    #         RUST_LOG: 'server=debug'
-    #         DATABASE_URL: 'postgres://postgres:testing@postgres'
-    #         ADMIN_TOKEN: '123'
-    #         CHALLENGE_KEY: '456'
-    #         OPENSEARCH_STRING: 'http://opensearch-node1:9200'
-    #         STATSD_ADDRESS: 'influxdb'
-    #         STATSD_PORT: '8125'
-    #     ports:
-    #         - '8081:8081'
-    #     develop:
-    #         watch:
-    #             - action: sync
-    #               path: ./proto
-    #               target: /proto
-    #             - action: sync
-    #               path: ./polycentric-protocol
-    #               target: /polycentric-protocol
-    #             - action: sync+restart
-    #               path: ./server
-    #               target: /server
+    polycentric-server:
+        build:
+            context: .
+            dockerfile: dev-server.Dockerfile
+        depends_on:
+            postgres:
+                condition: service_healthy
+            opensearch-node1:
+                condition: service_healthy
+        environment:
+            HOME: '/tmp/home'
+            RUST_LOG: 'server=debug'
+            DATABASE_URL: 'postgres://postgres:testing@postgres'
+            ADMIN_TOKEN: '123'
+            CHALLENGE_KEY: '456'
+            OPENSEARCH_STRING: 'http://opensearch-node1:9200'
+            STATSD_ADDRESS: 'influxdb'
+            STATSD_PORT: '8125'
+        ports:
+            - '8081:8081'
+        develop:
+            watch:
+                - action: sync
+                  path: ./proto
+                  target: /proto
+                - action: sync
+                  path: ./polycentric-protocol
+                  target: /polycentric-protocol
+                - action: sync+restart
+                  path: ./server
+                  target: /server
     opensearch-node1:
         image: opensearchproject/opensearch:2.1.0
         ports:
