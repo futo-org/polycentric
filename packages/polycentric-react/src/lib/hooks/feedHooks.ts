@@ -19,9 +19,12 @@ import {
     useQueryReferenceEventFeed,
 } from './queryHooks';
 
-export type FeedHookData = ReadonlyArray<
-    ParsedEvent<Protocol.Post> | undefined
->;
+export type FeedItem = 
+    | ParsedEvent<Protocol.Post>
+    | ParsedEvent<Protocol.Claim>
+    | ParsedEvent<Protocol.Vouch>;
+
+export type FeedHookData = ReadonlyArray<FeedItem | undefined>;
 export type FeedHookAdvanceFn = () => void;
 
 export type FeedHook = (
@@ -30,23 +33,53 @@ export type FeedHook = (
 ) => [FeedHookData, FeedHookAdvanceFn, boolean?];
 
 const decodePost = (e: Models.Event.Event) => Protocol.Post.decode(e.content);
+const decodeClaim = (e: Models.Event.Event) => Protocol.Claim.decode(e.content);
+const decodeVouch = (e: Models.Event.Event) => Protocol.Vouch.decode(e.content);
 
 export const useAuthorFeed: FeedHook = (system: Models.PublicKey.PublicKey) => {
-    return useIndex(
+    // Keep separate hooks for each content type
+    const [posts, advancePosts] = useIndex(
         system,
         Models.ContentType.ContentTypePost,
         Protocol.Post.decode,
     );
+
+    const [claims, advanceClaims] = useIndex(
+        system,
+        Models.ContentType.ContentTypeClaim,
+        Protocol.Claim.decode,
+    );
+
+    const [vouches, advanceVouches] = useIndex(
+        system,
+        Models.ContentType.ContentTypeVouch,
+        Protocol.Vouch.decode,
+    );
+
+    // Combine for display only after each type has been properly synchronized
+    const allItems = useMemo(() => {
+        const items = [...posts, ...claims, ...vouches].filter(item => item !== undefined);
+        items.sort((a, b) => {
+            if (!a?.event?.unixMilliseconds || !b?.event?.unixMilliseconds) return 0;
+            return b.event.unixMilliseconds.toNumber() - a.event.unixMilliseconds.toNumber();
+        });
+        return items;
+    }, [posts, claims, vouches]);
+
+    // Advance all content types independently
+    const advance = useCallback(() => {
+        advancePosts();
+        advanceClaims();
+        advanceVouches();
+    }, [advancePosts, advanceClaims, advanceVouches]);
+
+    return [allItems, advance, false];
 };
 
 export const useExploreFeed: FeedHook = () => {
     const queryManager = useQueryManager();
-
     const loadCallback = useMemo(
-        () =>
-            Queries.QueryCursor.makeGetExploreCallback(
-                queryManager.processHandle,
-            ),
+        () => Queries.QueryCursor.makeGetExploreCallback(queryManager.processHandle),
         [queryManager.processHandle],
     );
 
