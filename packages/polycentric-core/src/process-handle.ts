@@ -65,6 +65,8 @@ export class ProcessHandle {
         Set<string>
     >;
     private readonly _ingestLock: AsyncLock;
+    private readonly _eventAcks: Map<string, Set<string>> = new Map();
+    private readonly _eventAckSubscriptions: Map<string, Set<(serverId: string) => void>> = new Map();
 
     public readonly queryManager: Queries.QueryManager.QueryManager;
     public readonly synchronizer: Synchronization.Synchronizer;
@@ -720,11 +722,79 @@ export class ProcessHandle {
         );
     }
 
+    private getEventKey(event: Protocol.Event): string {
+        if (!event.system) {
+            throw new Error('Event system is undefined');
+        }
+        if (!event.process) {
+            throw new Error('Event process is undefined');
+        }
+        return `${Models.PublicKey.toString(Models.PublicKey.fromProto(event.system))}_${Models.Process.toString(Models.Process.fromProto(event.process))}_${event.logicalClock}`;
+    }
+
+    public subscribeToEventAcks(
+        event: Protocol.Event,
+        callback: (serverId: string) => void
+    ): () => void {
+        const eventKey = this.getEventKey(event);
+        
+        if (!this._eventAckSubscriptions.has(eventKey)) {
+            this._eventAckSubscriptions.set(eventKey, new Set());
+        }
+        
+        const subscriptions = this._eventAckSubscriptions.get(eventKey)!;
+        subscriptions.add(callback);
+
+        const existingAcks = this._eventAcks.get(eventKey);
+        if (existingAcks) {
+            for (const serverId of existingAcks) {
+                callback(serverId);
+            }
+        }
+
+        return () => {
+            const subs = this._eventAckSubscriptions.get(eventKey);
+            if (subs) {
+                subs.delete(callback);
+                if (subs.size === 0) {
+                    this._eventAckSubscriptions.delete(eventKey);
+                    this._eventAcks.delete(eventKey);
+                }
+            }
+        };
+    }
+
+    public getEventAckCount(event: Protocol.Event): number {
+        const eventKey = this.getEventKey(event);
+        const acks = this._eventAcks.get(eventKey);
+        return acks ? acks.size : 0;
+    }
+
     private async ingestWithoutLock(
         signedEvent: Models.SignedEvent.SignedEvent,
         skipUpdateQueries = false,
     ): Promise<Models.Pointer.Pointer> {
         await this._store.ingest(signedEvent);
+
+        const event = Models.Event.fromBuffer(signedEvent.event);
+        const eventKey = this.getEventKey(event);
+
+        if (!this._eventAcks.has(eventKey)) {
+            this._eventAcks.set(eventKey, new Set());
+        }
+
+        const serverId = "local";
+        const acks = this._eventAcks.get(eventKey)!;
+        if (!acks.has(serverId)) {
+            acks.add(serverId);
+            
+            const subscribers = this._eventAckSubscriptions.get(eventKey);
+            if (subscribers) {
+                for (const callback of subscribers) {
+                    callback(serverId);
+                }
+            }
+        }
 
         if (this._listener !== undefined) {
             this._listener(signedEvent);
@@ -733,8 +803,6 @@ export class ProcessHandle {
         if (!skipUpdateQueries) {
             this.queryManager.update(signedEvent);
         }
-
-        const event = Models.Event.fromBuffer(signedEvent.event);
 
         if (Models.PublicKey.equal(event.system, this.system())) {
             void this.synchronizer.synchronizationHint();
@@ -758,8 +826,9 @@ export class ProcessHandle {
                     const signedServerEvents = serverCellList
                         .map((cell) => cell.signedEvent)
                         .filter(
-                            (e) => e !== undefined,
-                        ) as Models.SignedEvent.SignedEvent[];
+                            (e): e is Models.SignedEvent.SignedEvent =>
+                                e !== undefined,
+                        );
 
                     setTimeout(() => {
                         handle.unregister();

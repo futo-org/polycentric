@@ -1,5 +1,5 @@
 import { Models, Protocol, Util } from '@polycentric/polycentric-core';
-import { forwardRef, useMemo } from 'react';
+import { forwardRef, useEffect, useMemo, useState } from 'react';
 import {
     useAvatar,
     useImageManifestDisplayURL,
@@ -20,6 +20,7 @@ interface PostProps {
     data: ParsedEvent<Protocol.Post> | undefined;
     doesLink?: boolean;
     autoExpand?: boolean;
+    isNewPost?: boolean;
 }
 
 interface LoadedPostProps {
@@ -143,6 +144,28 @@ UnloadedPost.displayName = 'UnloadedPost';
 export const Post = forwardRef<HTMLDivElement, PostProps>(
     ({ data, doesLink, autoExpand }, ref) => {
         const { processHandle } = useProcessHandleManager();
+        const [ackCount, setAckCount] = useState(0);
+
+        useEffect(() => {
+            if (!data || !processHandle || !Models.PublicKey.equal(processHandle.system(), data.event.system)) {
+                return;
+            }
+
+            const isRecent = Date.now() - Number(data.event.unixMilliseconds) < 10000; // 10 seconds
+            if (!isRecent) {
+                return;
+            }
+
+            // Get initial count
+            setAckCount(processHandle.getEventAckCount(data.event));
+
+            // Subscribe to updates
+            const unsubscribe = processHandle.subscribeToEventAcks(data.event, () => {
+                setAckCount(processHandle.getEventAckCount(data.event));
+            });
+
+            return unsubscribe;
+        }, [data, processHandle]);
 
         if (!data) {
             return <UnloadedPost ref={ref} />;
@@ -151,16 +174,21 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
         const isMyPost =
             processHandle &&
             Models.PublicKey.equal(processHandle.system(), data.event.system);
-        const isRecent =
-            Date.now() - Number(data.event.unixMilliseconds) < 2000; // 2 seconds
+
+        const isRecent = Date.now() - Number(data.event.unixMilliseconds) < 30000;
 
         let status;
         if (!navigator.onLine) {
             status = { state: 'offline' as const, acknowledgedServers: 0 };
-        } else if (isMyPost && isRecent) {
-            status = { state: 'syncing' as const, acknowledgedServers: 0 };
-        } else {
-            status = { state: 'acknowledged' as const, acknowledgedServers: 1 };
+        } else if (isMyPost) {
+            if (ackCount === 0 && isRecent) {
+                status = { state: 'syncing' as const, acknowledgedServers: 0 };
+            } else {
+                status = { 
+                    state: 'acknowledged' as const, 
+                    acknowledgedServers: ackCount 
+                };
+            }
         }
 
         return (

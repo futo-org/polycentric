@@ -6,7 +6,6 @@ import { publishImageBlob } from '../../../../util/imageProcessing';
 
 export const PostCompose = ({ preSetTopic }: { preSetTopic?: string }) => {
     const { processHandle } = useProcessHandleManager();
-
     const [postingProgress, setPostingProgress] = useState(0);
 
     const onPost = useCallback(
@@ -30,8 +29,7 @@ export const PostCompose = ({ preSetTopic }: { preSetTopic?: string }) => {
                     topicReference = Models.bufferToReference(topicBuffer);
                 }
 
-                await processHandle.post(content, imageBundle, topicReference);
-
+                const event = await processHandle.post(content, imageBundle, topicReference);
                 setPostingProgress(1);
                 setTimeout(() => {
                     setPostingProgress(0);
