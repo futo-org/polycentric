@@ -735,16 +735,18 @@ export class ProcessHandle {
     }
 
     private getEventKey(event: Protocol.Event): string {
-        const system =
-            event.system && event.system.key
-                ? Buffer.from(event.system.key).toString('hex')
-                : '';
-        const process =
-            event.process && event.process.process
-                ? Buffer.from(event.process.process).toString('hex')
-                : '';
-        const clock = event.logicalClock ? event.logicalClock.toString() : '';
-        return [system, process, clock].join('-');
+        if (
+            !event.system?.key ||
+            !event.process?.process ||
+            !event.logicalClock
+        ) {
+            return '--';
+        }
+
+        const system = Buffer.from(event.system.key).toString('hex');
+        const process = Buffer.from(event.process.process).toString('hex');
+        const clock = event.logicalClock.toString();
+        return `${system}-${process}-${clock}`;
     }
 
     public getEventAckCount(event: Protocol.Event): number {
@@ -868,12 +870,11 @@ export class ProcessHandle {
         event: Protocol.SignedEvent,
         serverId: string,
     ): void {
-        const decodedEvent = Protocol.Event.decode(
-            event.event || new Uint8Array(),
-        );
+        if (!event.event) return;
+        const decodedEvent = Protocol.Event.decode(event.event);
         if (
-            !decodedEvent.system ||
-            !decodedEvent.process ||
+            !decodedEvent.system?.key ||
+            !decodedEvent.process?.process ||
             !decodedEvent.logicalClock
         ) {
             return;
@@ -896,10 +897,8 @@ export class ProcessHandle {
             );
 
             const subscribers = this._eventAckSubscriptions.get(eventKey);
-            if (subscribers && subscribers.size > 0) {
-                for (const callback of subscribers) {
-                    callback(serverId);
-                }
+            if (subscribers?.size > 0) {
+                subscribers.forEach((callback) => callback(serverId));
             }
         }
     }
