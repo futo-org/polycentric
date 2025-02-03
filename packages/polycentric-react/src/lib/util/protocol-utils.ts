@@ -1,4 +1,4 @@
-import { Models } from "@polycentric/polycentric-core";
+import { Models } from '@polycentric/polycentric-core';
 
 export const getAccountUrl = (
     type: Long,
