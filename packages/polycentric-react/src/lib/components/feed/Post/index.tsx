@@ -164,11 +164,10 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
             }
 
             setupRef.current = true;
-            const initialCount = processHandle.getEventAckCount(data.event);
 
             const unsubscribe = processHandle.subscribeToEventAcks(
                 data.event,
-                (serverId) => {
+                () => {
                     const newCount = processHandle.getEventAckCount(data.event);
                     setAckCount(newCount);
                 },
@@ -187,9 +186,6 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
         const isMyPost =
             processHandle &&
             Models.PublicKey.equal(processHandle.system(), data.event.system);
-
-        const isRecent =
-            Date.now() - Number(data.event.unixMilliseconds) < 30000;
 
         let status;
         if (!navigator.onLine) {

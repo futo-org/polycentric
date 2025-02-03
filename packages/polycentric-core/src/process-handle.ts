@@ -65,11 +65,11 @@ export class ProcessHandle {
         Set<string>
     >;
     private readonly _ingestLock: AsyncLock;
-    private readonly _eventAcks: Map<string, Set<string>> = new Map();
-    private readonly _eventAckSubscriptions: Map<
+    private readonly _eventAcks = new Map<string, Set<string>>();
+    private readonly _eventAckSubscriptions = new Map<
         string,
         Set<(serverId: string) => void>
-    > = new Map();
+    >();
 
     public readonly queryManager: Queries.QueryManager.QueryManager;
     public readonly synchronizer: Synchronization.Synchronizer;
@@ -764,14 +764,17 @@ export class ProcessHandle {
     ): () => void {
         const eventKey = this.getEventKey(event);
 
-        if (!this._eventAckSubscriptions.has(eventKey)) {
-            this._eventAckSubscriptions.set(eventKey, new Set());
-        }
+        const subscriptions =
+            this._eventAckSubscriptions.get(eventKey) ?? new Set();
+        this._eventAckSubscriptions.set(eventKey, subscriptions);
 
-        this._eventAckSubscriptions.get(eventKey)!.add(callback);
+        subscriptions.add(callback);
 
         return () => {
-            this._eventAckSubscriptions.get(eventKey)?.delete(callback);
+            const subs = this._eventAckSubscriptions.get(eventKey);
+            if (subs?.size) {
+                subs.delete(callback);
+            }
         };
     }
 
@@ -866,8 +869,9 @@ export class ProcessHandle {
         event: Protocol.SignedEvent,
         serverId: string,
     ): void {
-        if (!event.event) return;
-        const decodedEvent = Protocol.Event.decode(event.event);
+        const decodedEvent = Protocol.Event.decode(
+            event.event ?? new Uint8Array(),
+        );
         if (
             !decodedEvent.system ||
             !decodedEvent.process ||
@@ -877,11 +881,9 @@ export class ProcessHandle {
 
         const eventKey = this.getEventKey(decodedEvent);
 
-        if (!this._eventAcks.has(eventKey)) {
-            this._eventAcks.set(eventKey, new Set());
-        }
+        const acks = this._eventAcks.get(eventKey) ?? new Set<string>();
+        this._eventAcks.set(eventKey, acks);
 
-        const acks = this._eventAcks.get(eventKey)!;
         if (!acks.has(serverId)) {
             acks.add(serverId);
             void this._store.indexEvents.saveEventAcks(
@@ -892,7 +894,7 @@ export class ProcessHandle {
             );
 
             const subscribers = this._eventAckSubscriptions.get(eventKey);
-            if (subscribers) {
+            if (subscribers?.size) {
                 for (const callback of subscribers) {
                     callback(serverId);
                 }
