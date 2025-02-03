@@ -19,7 +19,7 @@ import {
     useQueryReferenceEventFeed,
 } from './queryHooks';
 
-export type FeedItem = 
+export type FeedItem =
     | ParsedEvent<Protocol.Post>
     | ParsedEvent<Protocol.Claim>
     | ParsedEvent<Protocol.Vouch>;
@@ -58,10 +58,16 @@ export const useAuthorFeed: FeedHook = (system: Models.PublicKey.PublicKey) => {
 
     // Combine for display only after each type has been properly synchronized
     const allItems = useMemo(() => {
-        const items = [...posts, ...claims, ...vouches].filter(item => item !== undefined);
+        const items = [...posts, ...claims, ...vouches].filter(
+            (item) => item !== undefined,
+        );
         items.sort((a, b) => {
-            if (!a?.event?.unixMilliseconds || !b?.event?.unixMilliseconds) return 0;
-            return b.event.unixMilliseconds.toNumber() - a.event.unixMilliseconds.toNumber();
+            if (!a?.event?.unixMilliseconds || !b?.event?.unixMilliseconds)
+                return 0;
+            return (
+                b.event.unixMilliseconds.toNumber() -
+                a.event.unixMilliseconds.toNumber()
+            );
         });
         return items;
     }, [posts, claims, vouches]);
@@ -79,7 +85,10 @@ export const useAuthorFeed: FeedHook = (system: Models.PublicKey.PublicKey) => {
 export const useExploreFeed: FeedHook = () => {
     const queryManager = useQueryManager();
     const loadCallback = useMemo(
-        () => Queries.QueryCursor.makeGetExploreCallback(queryManager.processHandle),
+        () =>
+            Queries.QueryCursor.makeGetExploreCallback(
+                queryManager.processHandle,
+            ),
         [queryManager.processHandle],
     );
 
@@ -299,37 +308,56 @@ export function useFollowingFeed(
 
                     cursor = result.cursor;
 
-                    const parsedEvents = result.items.map((signedEvent) => {
-                        const event = Models.Event.fromBuffer(
-                            signedEvent.event,
-                        );
-                        
-                        try {
-                            if (event.contentType.eq(Models.ContentType.ContentTypePost)) {
-                                return new ParsedEvent<Protocol.Post>(
-                                    signedEvent,
-                                    event,
-                                    Protocol.Post.decode(event.content),
-                                );
-                            } else if (event.contentType.eq(Models.ContentType.ContentTypeClaim)) {
-                                return new ParsedEvent<Protocol.Claim>(
-                                    signedEvent,
-                                    event,
-                                    Protocol.Claim.decode(event.content),
-                                );
+                    const parsedEvents = result.items
+                        .map((signedEvent) => {
+                            const event = Models.Event.fromBuffer(
+                                signedEvent.event,
+                            );
+
+                            try {
+                                if (
+                                    event.contentType.eq(
+                                        Models.ContentType.ContentTypePost,
+                                    )
+                                ) {
+                                    return new ParsedEvent<Protocol.Post>(
+                                        signedEvent,
+                                        event,
+                                        Protocol.Post.decode(event.content),
+                                    );
+                                } else if (
+                                    event.contentType.eq(
+                                        Models.ContentType.ContentTypeClaim,
+                                    )
+                                ) {
+                                    return new ParsedEvent<Protocol.Claim>(
+                                        signedEvent,
+                                        event,
+                                        Protocol.Claim.decode(event.content),
+                                    );
+                                }
+                            } catch (error) {
+                                console.error('Failed to decode event:', error);
                             }
-                        } catch (error) {
-                            console.error('Failed to decode event:', error);
-                        }
-                        return undefined;
-                    }).filter((event): event is FeedItem => event !== undefined);
+                            return undefined;
+                        })
+                        .filter(
+                            (event): event is FeedItem => event !== undefined,
+                        );
 
                     received += parsedEvents.length;
                     setState((state) => {
                         const newState = state.concat(parsedEvents);
                         return newState.sort((a, b) => {
-                            if (!a?.event?.unixMilliseconds || !b?.event?.unixMilliseconds) return 0;
-                            return b.event.unixMilliseconds.toNumber() - a.event.unixMilliseconds.toNumber();
+                            if (
+                                !a?.event?.unixMilliseconds ||
+                                !b?.event?.unixMilliseconds
+                            )
+                                return 0;
+                            return (
+                                b.event.unixMilliseconds.toNumber() -
+                                a.event.unixMilliseconds.toNumber()
+                            );
                         });
                     });
                 } while (

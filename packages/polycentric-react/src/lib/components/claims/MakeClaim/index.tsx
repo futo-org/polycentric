@@ -235,20 +235,6 @@ export const SocialMediaInput = ({
 
             await processHandle.claim(claim);
 
-            // const username = url.split('/').pop() || url;
-            // const platformUrl = getAccountUrl(claim.claimType, username);
-            // const postContent = is_url_claim
-            //     ? `I claimed a url: ${url}`
-            //     : `I claimed my ${platform} profile: ${username}`;
-
-            // await processHandle.post(
-            //     postContent,
-            //     undefined,
-            //     Models.bufferToReference(
-            //         Util.encodeText(is_url_claim ? url : platformUrl || url),
-            //     ),
-            // );
-
             onCancel();
         } catch (error) {
             console.error('Failed to submit claim:', error);

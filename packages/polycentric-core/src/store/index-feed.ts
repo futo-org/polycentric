@@ -91,7 +91,9 @@ export class IndexFeed implements HasIngest {
 
             if (
                 deleteBody.unixMilliseconds === undefined ||
-                !deleteBody.contentType.equals(Models.ContentType.ContentTypePost)
+                !deleteBody.contentType.equals(
+                    Models.ContentType.ContentTypePost,
+                )
             ) {
                 return [];
             }
