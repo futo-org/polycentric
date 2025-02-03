@@ -65,11 +65,11 @@ export class ProcessHandle {
         Set<string>
     >;
     private readonly _ingestLock: AsyncLock;
-    private readonly _eventAcks = new Map<string, Set<string>>();
-    private readonly _eventAckSubscriptions = new Map<
+    private readonly _eventAcks: Map<string, Set<string>> = new Map();
+    private readonly _eventAckSubscriptions: Map<
         string,
         Set<(serverId: string) => void>
-    >();
+    > = new Map();
 
     public readonly queryManager: Queries.QueryManager.QueryManager;
     public readonly synchronizer: Synchronization.Synchronizer;
@@ -735,18 +735,17 @@ export class ProcessHandle {
     }
 
     private getEventKey(event: Protocol.Event): string {
-        if (
-            !event.system?.key ||
-            !event.process?.process ||
-            !event.logicalClock
-        ) {
-            return '--';
+        if (!event.system) {
+            throw new Error('Event system is undefined');
         }
-
-        const system = Buffer.from(event.system.key).toString('hex');
-        const process = Buffer.from(event.process.process).toString('hex');
-        const clock = event.logicalClock.toString();
-        return `${system}-${process}-${clock}`;
+        if (!event.process) {
+            throw new Error('Event process is undefined');
+        }
+        return `${Models.PublicKey.toString(
+            Models.PublicKey.fromProto(event.system),
+        )}_${Models.Process.toString(
+            Models.Process.fromProto(event.process),
+        )}_${event.logicalClock}`;
     }
 
     public getEventAckCount(event: Protocol.Event): number {
@@ -765,17 +764,14 @@ export class ProcessHandle {
     ): () => void {
         const eventKey = this.getEventKey(event);
 
-        const subscriptions =
-            this._eventAckSubscriptions.get(eventKey) ?? new Set();
-        this._eventAckSubscriptions.set(eventKey, subscriptions);
+        if (!this._eventAckSubscriptions.has(eventKey)) {
+            this._eventAckSubscriptions.set(eventKey, new Set());
+        }
 
-        subscriptions.add(callback);
+        this._eventAckSubscriptions.get(eventKey)!.add(callback);
 
         return () => {
-            const subs = this._eventAckSubscriptions.get(eventKey);
-            if (subs?.size) {
-                subs.delete(callback);
-            }
+            this._eventAckSubscriptions.get(eventKey)?.delete(callback);
         };
     }
 
@@ -873,20 +869,19 @@ export class ProcessHandle {
         if (!event.event) return;
         const decodedEvent = Protocol.Event.decode(event.event);
         if (
-            !decodedEvent.system?.key ||
-            !decodedEvent.process?.process ||
+            !decodedEvent.system ||
+            !decodedEvent.process ||
             !decodedEvent.logicalClock
-        ) {
+        )
             return;
-        }
 
         const eventKey = this.getEventKey(decodedEvent);
-        let acks = this._eventAcks.get(eventKey);
-        if (!acks) {
-            acks = new Set<string>();
-            this._eventAcks.set(eventKey, acks);
+
+        if (!this._eventAcks.has(eventKey)) {
+            this._eventAcks.set(eventKey, new Set());
         }
 
+        const acks = this._eventAcks.get(eventKey)!;
         if (!acks.has(serverId)) {
             acks.add(serverId);
             void this._store.indexEvents.saveEventAcks(
@@ -897,8 +892,10 @@ export class ProcessHandle {
             );
 
             const subscribers = this._eventAckSubscriptions.get(eventKey);
-            if (subscribers?.size > 0) {
-                subscribers.forEach((callback) => callback(serverId));
+            if (subscribers) {
+                for (const callback of subscribers) {
+                    callback(serverId);
+                }
             }
         }
     }
