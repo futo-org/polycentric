@@ -2,7 +2,6 @@ import { Models, Protocol } from '@polycentric/polycentric-core';
 import Long from 'long';
 import React, { useMemo, useState } from 'react';
 
-import { Util } from '@polycentric/polycentric-core';
 import BitcoinIcon from '../../../../graphics/icons/rendered/bitcoin.svg.png';
 import DailyMotionIcon from '../../../../graphics/icons/rendered/dailymotion.svg.png';
 import DiscordIcon from '../../../../graphics/icons/rendered/discord.svg.png';

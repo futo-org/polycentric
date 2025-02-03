@@ -33,8 +33,6 @@ export type FeedHook = (
 ) => [FeedHookData, FeedHookAdvanceFn, boolean?];
 
 const decodePost = (e: Models.Event.Event) => Protocol.Post.decode(e.content);
-const decodeClaim = (e: Models.Event.Event) => Protocol.Claim.decode(e.content);
-const decodeVouch = (e: Models.Event.Event) => Protocol.Vouch.decode(e.content);
 
 export const useAuthorFeed: FeedHook = (system: Models.PublicKey.PublicKey) => {
     // Keep separate hooks for each content type

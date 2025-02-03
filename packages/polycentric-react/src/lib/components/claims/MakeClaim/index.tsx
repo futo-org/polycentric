@@ -1,7 +1,6 @@
-import { Models, Protocol, Util } from '@polycentric/polycentric-core';
+import { Models, Protocol } from '@polycentric/polycentric-core';
 import { useCallback, useState } from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
-import { getAccountUrl } from '../../util/linkify';
 
 export type SocialPlatform =
     | 'hackerNews'
@@ -184,7 +183,6 @@ export const SocialMediaInput = ({
         try {
             setIsSubmitting(true);
             let claim: Protocol.Claim;
-            let is_url_claim = false;
 
             switch (platform) {
                 case 'hackerNews':
@@ -225,11 +223,9 @@ export const SocialMediaInput = ({
                     break;
                 case 'website':
                     claim = Models.claimWebsite(url);
-                    is_url_claim = true;
                     break;
                 default:
                     claim = Models.claimURL(url);
-                    is_url_claim = true;
                     break;
             }
 
