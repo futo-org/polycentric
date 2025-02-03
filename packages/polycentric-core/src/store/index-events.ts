@@ -35,7 +35,9 @@ export class IndexEvents implements HasIngest {
         try {
             const value = await this.acksLevel.get(this.ACKS_KEY);
             const decoded = value ? new TextDecoder().decode(value) : '';
-            return decoded ? (JSON.parse(decoded) as Record<string, string[]>) : {};
+            return decoded
+                ? (JSON.parse(decoded) as Record<string, string[]>)
+                : {};
         } catch {
             return {};
         }

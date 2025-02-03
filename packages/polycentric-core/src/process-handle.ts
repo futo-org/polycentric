@@ -735,7 +735,9 @@ export class ProcessHandle {
     }
 
     private getEventKey(event: Protocol.Event): string {
-        return `${event.system?.key.toString() ?? ''}-${event.process?.process.toString() ?? ''}-${event.logicalClock?.toString() ?? ''}`;
+        return `${event.system?.key.toString() ?? ''}-${
+            event.process?.process.toString() ?? ''
+        }-${event.logicalClock?.toString() ?? ''}`;
     }
 
     public getEventAckCount(event: Protocol.Event): number {
@@ -855,23 +857,33 @@ export class ProcessHandle {
         };
     }
 
-    public recordServerAck(event: Protocol.SignedEvent, serverId: string): void {
-        const decodedEvent = Protocol.Event.decode(event.event ?? new Uint8Array());
-        if (!decodedEvent.system || !decodedEvent.process || !decodedEvent.logicalClock) return;
-        
+    public recordServerAck(
+        event: Protocol.SignedEvent,
+        serverId: string,
+    ): void {
+        const decodedEvent = Protocol.Event.decode(
+            event.event ?? new Uint8Array(),
+        );
+        if (
+            !decodedEvent.system ||
+            !decodedEvent.process ||
+            !decodedEvent.logicalClock
+        )
+            return;
+
         const eventKey = this.getEventKey(decodedEvent);
         const acks = this._eventAcks.get(eventKey) ?? new Set<string>();
         this._eventAcks.set(eventKey, acks);
-        
+
         if (!acks.has(serverId)) {
             acks.add(serverId);
             void this._store.indexEvents.saveEventAcks(
                 Models.PublicKey.fromProto(decodedEvent.system),
                 Models.Process.fromProto(decodedEvent.process),
                 decodedEvent.logicalClock,
-                Array.from(acks)
+                Array.from(acks),
             );
-            
+
             const subscribers = this._eventAckSubscriptions.get(eventKey);
             if (subscribers) {
                 for (const callback of subscribers) {
