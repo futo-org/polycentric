@@ -34,7 +34,7 @@ export class IndexEvents implements HasIngest {
     public async getEventAcks(): Promise<Record<string, string[]>> {
         try {
             const value = await this.acksLevel.get(this.ACKS_KEY);
-            const decoded = value ? new TextDecoder().decode(value) : '';
+            const decoded = new TextDecoder().decode(value ?? new Uint8Array());
             return decoded
                 ? (JSON.parse(decoded) as Record<string, string[]>)
                 : {};

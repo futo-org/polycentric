@@ -735,9 +735,8 @@ export class ProcessHandle {
     }
 
     private getEventKey(event: Protocol.Event): string {
-        return `${event.system?.key.toString() ?? ''}-${
-            event.process?.process.toString() ?? ''
-        }-${event.logicalClock?.toString() ?? ''}`;
+        if (!event.system || !event.process || !event.logicalClock) return '';
+        return `${event.system.key}-${event.process.process}-${event.logicalClock}`;
     }
 
     public getEventAckCount(event: Protocol.Event): number {
@@ -885,7 +884,7 @@ export class ProcessHandle {
             );
 
             const subscribers = this._eventAckSubscriptions.get(eventKey);
-            if (subscribers) {
+            if (subscribers?.size) {
                 for (const callback of subscribers) {
                     callback(serverId);
                 }
