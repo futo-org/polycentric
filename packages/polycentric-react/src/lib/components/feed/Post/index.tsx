@@ -1,5 +1,5 @@
 import { Models, Protocol, Util } from '@polycentric/polycentric-core';
-import { forwardRef, useEffect, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import {
     useAvatar,
     useImageManifestDisplayURL,
@@ -144,27 +144,40 @@ UnloadedPost.displayName = 'UnloadedPost';
 export const Post = forwardRef<HTMLDivElement, PostProps>(
     ({ data, doesLink, autoExpand }, ref) => {
         const { processHandle } = useProcessHandleManager();
-        const [ackCount, setAckCount] = useState(0);
+        const [ackCount, setAckCount] = useState<number | null>(null);
+        const setupRef = useRef(false);
 
         useEffect(() => {
-            if (!data || !processHandle || !Models.PublicKey.equal(processHandle.system(), data.event.system)) {
+            if (
+                !data ||
+                !processHandle ||
+                !Models.PublicKey.equal(
+                    processHandle.system(),
+                    data.event.system,
+                )
+            ) {
                 return;
             }
 
-            const isRecent = Date.now() - Number(data.event.unixMilliseconds) < 10000; // 10 seconds
-            if (!isRecent) {
+            if (setupRef.current) {
                 return;
             }
 
-            // Get initial count
-            setAckCount(processHandle.getEventAckCount(data.event));
+            setupRef.current = true;
+            const initialCount = processHandle.getEventAckCount(data.event);
 
-            // Subscribe to updates
-            const unsubscribe = processHandle.subscribeToEventAcks(data.event, () => {
-                setAckCount(processHandle.getEventAckCount(data.event));
-            });
+            const unsubscribe = processHandle.subscribeToEventAcks(
+                data.event,
+                (serverId) => {
+                    const newCount = processHandle.getEventAckCount(data.event);
+                    setAckCount(newCount);
+                },
+            );
 
-            return unsubscribe;
+            return () => {
+                setupRef.current = false;
+                unsubscribe();
+            };
         }, [data, processHandle]);
 
         if (!data) {
@@ -175,18 +188,21 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
             processHandle &&
             Models.PublicKey.equal(processHandle.system(), data.event.system);
 
-        const isRecent = Date.now() - Number(data.event.unixMilliseconds) < 30000;
+        const isRecent =
+            Date.now() - Number(data.event.unixMilliseconds) < 30000;
 
         let status;
         if (!navigator.onLine) {
             status = { state: 'offline' as const, acknowledgedServers: 0 };
         } else if (isMyPost) {
-            if (ackCount === 0 && isRecent) {
+            if (ackCount === null) {
+                status = { state: 'syncing' as const, acknowledgedServers: 0 };
+            } else if (ackCount === 0) {
                 status = { state: 'syncing' as const, acknowledgedServers: 0 };
             } else {
-                status = { 
-                    state: 'acknowledged' as const, 
-                    acknowledgedServers: ackCount 
+                status = {
+                    state: 'acknowledged' as const,
+                    acknowledgedServers: ackCount,
                 };
             }
         }

@@ -66,7 +66,10 @@ export class ProcessHandle {
     >;
     private readonly _ingestLock: AsyncLock;
     private readonly _eventAcks: Map<string, Set<string>> = new Map();
-    private readonly _eventAckSubscriptions: Map<string, Set<(serverId: string) => void>> = new Map();
+    private readonly _eventAckSubscriptions: Map<
+        string,
+        Set<(serverId: string) => void>
+    > = new Map();
 
     public readonly queryManager: Queries.QueryManager.QueryManager;
     public readonly synchronizer: Synchronization.Synchronizer;
@@ -138,14 +141,23 @@ export class ProcessHandle {
         this._listener = listener;
     }
 
+    private async loadEventAcks(): Promise<void> {
+        const acks = await this._store.getEventAcks();
+        for (const [eventKey, servers] of Object.entries(acks)) {
+            this._eventAcks.set(eventKey, new Set(servers));
+        }
+    }
+
     public static async load(store: Store.Store): Promise<ProcessHandle> {
         const processSecret = await store.getProcessSecret();
 
-        return new ProcessHandle(
+        const handle = new ProcessHandle(
             store,
             processSecret,
             await Models.PrivateKey.derivePublicKey(processSecret.system),
         );
+        await handle.loadEventAcks();
+        return handle;
     }
 
     public async post(
@@ -729,45 +741,38 @@ export class ProcessHandle {
         if (!event.process) {
             throw new Error('Event process is undefined');
         }
-        return `${Models.PublicKey.toString(Models.PublicKey.fromProto(event.system))}_${Models.Process.toString(Models.Process.fromProto(event.process))}_${event.logicalClock}`;
-    }
-
-    public subscribeToEventAcks(
-        event: Protocol.Event,
-        callback: (serverId: string) => void
-    ): () => void {
-        const eventKey = this.getEventKey(event);
-        
-        if (!this._eventAckSubscriptions.has(eventKey)) {
-            this._eventAckSubscriptions.set(eventKey, new Set());
-        }
-        
-        const subscriptions = this._eventAckSubscriptions.get(eventKey)!;
-        subscriptions.add(callback);
-
-        const existingAcks = this._eventAcks.get(eventKey);
-        if (existingAcks) {
-            for (const serverId of existingAcks) {
-                callback(serverId);
-            }
-        }
-
-        return () => {
-            const subs = this._eventAckSubscriptions.get(eventKey);
-            if (subs) {
-                subs.delete(callback);
-                if (subs.size === 0) {
-                    this._eventAckSubscriptions.delete(eventKey);
-                    this._eventAcks.delete(eventKey);
-                }
-            }
-        };
+        return `${Models.PublicKey.toString(
+            Models.PublicKey.fromProto(event.system),
+        )}_${Models.Process.toString(
+            Models.Process.fromProto(event.process),
+        )}_${event.logicalClock}`;
     }
 
     public getEventAckCount(event: Protocol.Event): number {
         const eventKey = this.getEventKey(event);
-        const acks = this._eventAcks.get(eventKey);
-        return acks ? acks.size : 0;
+        return this._eventAcks.get(eventKey)?.size ?? 0;
+    }
+
+    public getEventAcks(event: Protocol.Event): Set<string> {
+        const eventKey = this.getEventKey(event);
+        return new Set(this._eventAcks.get(eventKey) ?? []);
+    }
+
+    public subscribeToEventAcks(
+        event: Protocol.Event,
+        callback: (serverId: string) => void,
+    ): () => void {
+        const eventKey = this.getEventKey(event);
+
+        if (!this._eventAckSubscriptions.has(eventKey)) {
+            this._eventAckSubscriptions.set(eventKey, new Set());
+        }
+
+        this._eventAckSubscriptions.get(eventKey)!.add(callback);
+
+        return () => {
+            this._eventAckSubscriptions.get(eventKey)?.delete(callback);
+        };
     }
 
     private async ingestWithoutLock(
@@ -783,11 +788,11 @@ export class ProcessHandle {
             this._eventAcks.set(eventKey, new Set());
         }
 
-        const serverId = "local";
+        const serverId = 'local';
         const acks = this._eventAcks.get(eventKey)!;
         if (!acks.has(serverId)) {
             acks.add(serverId);
-            
+
             const subscribers = this._eventAckSubscriptions.get(eventKey);
             if (subscribers) {
                 for (const callback of subscribers) {
@@ -855,6 +860,44 @@ export class ProcessHandle {
                 events: [...signedServerEvents],
             },
         };
+    }
+
+    public recordServerAck(
+        event: Protocol.SignedEvent,
+        serverId: string,
+    ): void {
+        if (!event.event) return;
+        const decodedEvent = Protocol.Event.decode(event.event);
+        if (
+            !decodedEvent.system ||
+            !decodedEvent.process ||
+            !decodedEvent.logicalClock
+        )
+            return;
+
+        const eventKey = this.getEventKey(decodedEvent);
+
+        if (!this._eventAcks.has(eventKey)) {
+            this._eventAcks.set(eventKey, new Set());
+        }
+
+        const acks = this._eventAcks.get(eventKey)!;
+        if (!acks.has(serverId)) {
+            acks.add(serverId);
+            void this._store.indexEvents.saveEventAcks(
+                Models.PublicKey.fromProto(decodedEvent.system),
+                Models.Process.fromProto(decodedEvent.process),
+                decodedEvent.logicalClock,
+                Array.from(acks),
+            );
+
+            const subscribers = this._eventAckSubscriptions.get(eventKey);
+            if (subscribers) {
+                for (const callback of subscribers) {
+                    callback(serverId);
+                }
+            }
+        }
     }
 }
 
