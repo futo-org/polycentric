@@ -1,18 +1,17 @@
 ---
-
-variables: 
-  DOCKERFILE_MD5: c8420899f90a361bc5189c4c738eb8db
-  POSTGRES_IMAGE: "postgres:14"
-  SEARCH_IMAGE: "opensearchproject/opensearch:2.1.0"
-  FF_USE_FASTZIP: "true"
-  ARTIFACT_COMPRESSION_LEVEL: "fast"
-  CACHE_COMPRESSION_LEVEL: "fast"
+variables:
+  DOCKERFILE_MD5: e909df835a490d474c56ec4789358dd6
+  POSTGRES_IMAGE: 'postgres:17'
+  SEARCH_IMAGE: 'opensearchproject/opensearch:2.1.0'
+  FF_USE_FASTZIP: 'true'
+  ARTIFACT_COMPRESSION_LEVEL: 'fast'
+  CACHE_COMPRESSION_LEVEL: 'fast'
   CARGO_HOME: ${CI_PROJECT_DIR}/.cargo
   GIT_DEPTH: 1
   SCCACHE_DIR: ${CI_PROJECT_DIR}/.sccache
   RUSTC_WRAPPER: /opt/sccache/sccache
 
-image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}"
+image: 'gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_MD5}'
 
 default:
   tags:
@@ -21,7 +20,7 @@ default:
 .node-cache-config: &node-cache-config
   key:
     files:
-      - package-lock.json  
+      - package-lock.json
   paths:
     - ${CI_PROJECT_DIR}/node_modules/
     - ${CI_PROJECT_DIR}/packages/polycentric-react/node_modules/
@@ -59,16 +58,16 @@ check:
   stage: check
   script: ./gitlab-ci/check-images.sh
 
-format-server: 
+format-server:
   stage: format
-  script: 
+  script:
     - ./version.sh
     - cd server
     - cargo-fmt --check
 
-format-protocol: 
+format-protocol:
   stage: format
-  script: 
+  script:
     - ./version.sh
     - cd polycentric-protocol
     - cargo-fmt --check
@@ -104,12 +103,12 @@ format-harbor:
     - ./version.sh
     - ./gitlab-ci/prettier-diff.sh ./packages/harbor-web/src
 
-build-protocol: 
+build-protocol:
   stage: build
-  cache: 
-   - <<: *rust-cache-config
-   - <<: *rust-cache-build-config
-     key: ${CI_COMMIT_REF_SLUG}-rs-build
+  cache:
+    - <<: *rust-cache-config
+    - <<: *rust-cache-build-config
+      key: ${CI_COMMIT_REF_SLUG}-rs-build
   script:
     - ./version.sh
     - cd polycentric-protocol
@@ -117,19 +116,19 @@ build-protocol:
     - cargo build
     - echo "Running protocol tests"
     - cargo test
-  needs: ["check"]
+  needs: ['check']
   artifacts:
-      name: "artifacts"
-      expire_in: 60 mins
-      paths:
-        - ./polycentric-protocol/target/release/polycentric-protocol
+    name: 'artifacts'
+    expire_in: 10 mins
+    paths:
+      - ./polycentric-protocol/target/release/polycentric-protocol
 
-build-server: 
+build-server:
   stage: build
-  cache: 
-   - <<: *rust-cache-config
-   - <<: *rust-cache-build-config
-     key: ${CI_COMMIT_REF_SLUG}-rs-build
+  cache:
+    - <<: *rust-cache-config
+    - <<: *rust-cache-build-config
+      key: ${CI_COMMIT_REF_SLUG}-rs-build
   script:
     - ./version.sh
     - mkdir build-artifacts
@@ -138,33 +137,33 @@ build-server:
     - cargo build --locked
     - echo "Building test binary"
     - cargo test --no-run --frozen --locked &> out.txt
-    - TEST_BIN=`cat out.txt | grep target/debug/deps/server | grep -oP '(?<=\()[^\)]+'` 
+    - TEST_BIN=`cat out.txt | grep target/debug/deps/server | grep -oP '(?<=\()[^\)]+'`
     - echo "Test binary built at $TEST_BIN"
     - mv ./$TEST_BIN ../build-artifacts/server-test
     - mv ./target/debug/server ../build-artifacts/server
-  needs: ["check"]
+  needs: ['check']
   artifacts:
-      name: "artifacts"
-      expire_in: 60 mins
-      paths:
-        - ./build-artifacts
+    name: 'artifacts'
+    expire_in: 10 mins
+    paths:
+      - ./build-artifacts
 
-build-server-release: 
+build-server-release:
   stage: build
-  cache: 
+  cache:
     - <<: *rust-cache-config
     - <<: *rust-cache-build-config
       key: ${CI_COMMIT_REF_SLUG}-rs-build-release
-  script: 
+  script:
     - ./version.sh
     - cd server
     - cargo build --release
-  needs: ["build-server"]
+  needs: ['build-server']
   artifacts:
-      name: "artifacts"
-      expire_in: 60 mins
-      paths:
-        - ./server/target/release/server
+    name: 'artifacts'
+    expire_in: 10 mins
+    paths:
+      - ./server/target/release/server
 
 build-core:
   stage: build
@@ -178,85 +177,85 @@ build-core:
     - cd packages/polycentric-core
     - npm run build
   artifacts:
-      name: "artifacts"
-      expire_in: 60 mins
-      paths:
-        - ./packages/polycentric-core/dist/
+    name: 'artifacts'
+    expire_in: 10 mins
+    paths:
+      - ./packages/polycentric-core/dist/
 
-build-react: 
+build-react:
   stage: build
   cache: *node-cache-config
   script: cd packages/polycentric-react && npm run build
-  needs: ["build-core"]
+  needs: ['build-core']
   artifacts:
-      name: "artifacts"
-      expire_in: 60 mins
-      paths:
-        - ./packages/polycentric-react/dist/
+    name: 'artifacts'
+    expire_in: 10 mins
+    paths:
+      - ./packages/polycentric-react/dist/
 
-build-leveldb: 
+build-leveldb:
   stage: build
   cache: *node-cache-config
   script: cd packages/polycentric-leveldb && npm run build
-  needs: ["build-core"]
+  needs: ['build-core']
   artifacts:
-      name: "artifacts"
-      expire_in: 60 mins
-      paths:
-        - ./packages/polycentric-leveldb/dist/
+    name: 'artifacts'
+    expire_in: 10 mins
+    paths:
+      - ./packages/polycentric-leveldb/dist/
 
-build-desktop: 
+build-desktop:
   stage: build
   cache: *node-cache-config
   script: cd packages/polycentric-desktop && npm run build
-  needs: ["build-core", "build-react", "build-leveldb"]
+  needs: ['build-core', 'build-react', 'build-leveldb']
 
-build-web: 
+build-web:
   stage: build
   cache: *node-cache-config
   script: cd packages/polycentric-web && npm run build
-  needs: ["build-react", "build-core"]
+  needs: ['build-react', 'build-core']
   artifacts:
-      name: "artifacts"
-      expire_in: 60 mins
-      paths:
-        - ./packages/polycentric-web/dist/
+    name: 'artifacts'
+    expire_in: 10 mins
+    paths:
+      - ./packages/polycentric-web/dist/
 
-build-capacitor: 
+build-capacitor:
   stage: build
   cache: *node-cache-config
   script: cd packages/polycentric-capacitor && npm run build
-  needs: ["build-core", "build-react"]
+  needs: ['build-core', 'build-react']
 
-build-harbor: 
+build-harbor:
   stage: build
   cache: *node-cache-config
   script: cd packages/harbor-web && npm run build
-  needs: ["build-core"]
+  needs: ['build-core']
 
-lint-protocol: 
+lint-protocol:
   stage: lint
-  cache: 
+  cache:
     - <<: *rust-cache-config
     - <<: *rust-cache-build-config
       key: ${CI_COMMIT_REF_SLUG}-rs-lint
-  script: 
+  script:
     - ./version.sh
     - cd polycentric-protocol
     - cargo-clippy --no-deps -- -D warnings
-  needs: ["build-protocol"]
+  needs: ['build-protocol']
 
-lint-server: 
+lint-server:
   stage: lint
-  cache: 
+  cache:
     - <<: *rust-cache-config
     - <<: *rust-cache-build-config
       key: ${CI_COMMIT_REF_SLUG}-rs-lint
-  script: 
+  script:
     - ./version.sh
     - cd server
     - cargo-clippy --no-deps --locked -- -D warnings
-  needs: ["build-server"]
+  needs: ['build-server']
 
 lint-core:
   stage: lint
@@ -266,7 +265,7 @@ lint-core:
     - ./version.sh
     - cd packages/polycentric-core
     - npx eslint ./src --max-warnings=0
-  needs: ["build-core"]
+  needs: ['build-core']
 
 lint-harbor:
   stage: lint
@@ -275,7 +274,7 @@ lint-harbor:
     - ./version.sh
     - cd packages/harbor-web
     - npx eslint ./src --max-warnings=0
-  needs: ["build-harbor"]
+  needs: ['build-harbor']
 
 lint-react:
   stage: lint
@@ -284,7 +283,7 @@ lint-react:
     - ./version.sh
     - cd packages/polycentric-react
     - npx eslint ./src --max-warnings=0
-  needs: ["build-react"]
+  needs: ['build-react']
 
 lint-web:
   stage: lint
@@ -293,24 +292,29 @@ lint-web:
     - ./version.sh
     - cd packages/polycentric-web
     - npx eslint ./src --max-warnings=0
-  needs: ["build-web"]
+  needs: ['build-web']
 
-test: 
+test:
   stage: test
-  services: 
+  services:
     - name: $POSTGRES_IMAGE
       alias: postgres
     - name: $SEARCH_IMAGE
       alias: opensearch-node1
-      command: ["bash", "-c", "env 'discovery.type=single-node' 'cluster.name=opensearch-cluster' 'node.name=opensearch-node1' 'bootstrap.memory_lock=true' 'DISABLE_INSTALL_DEMO_CONFIG=true' 'DISABLE_SECURITY_PLUGIN=true' 'OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m' ./opensearch-docker-entrypoint.sh"]
+      command:
+        [
+          'bash',
+          '-c',
+          "env 'discovery.type=single-node' 'cluster.name=opensearch-cluster' 'node.name=opensearch-node1' 'bootstrap.memory_lock=true' 'DISABLE_INSTALL_DEMO_CONFIG=true' 'DISABLE_SECURITY_PLUGIN=true' 'OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m' ./opensearch-docker-entrypoint.sh",
+        ]
     - name: statsd/statsd:v0.10.1
       alias: telegraf
-  variables: 
-      POSTGRES_PASSWORD: "testing"
-      DATABASE_URL: "postgres://postgres:testing@postgres"
-      ADMIN_TOKEN: "123"
-      RUSTC_BOOTSTRAP: "1"
-      CHALLENGE_KEY: "456"
+  variables:
+    POSTGRES_PASSWORD: 'testing'
+    DATABASE_URL: 'postgres://postgres:testing@postgres'
+    ADMIN_TOKEN: '123'
+    RUSTC_BOOTSTRAP: '1'
+    CHALLENGE_KEY: '456'
   cache:
     - <<: *node-cache-config
       policy: pull
@@ -320,8 +324,8 @@ test:
     - RUSTC_BOOTSTRAP=1 ./build-artifacts/server-test -Z unstable-options --format junit > junit-server.xml
     - ./build-artifacts/server &
     - cd ./packages/polycentric-core && npm run test:ci
-  needs: ["check", "build-server", "build-core"]
-  dependencies: 
+  needs: ['check', 'build-server', 'build-core']
+  dependencies:
     - build-server
     - build-core
   artifacts:
@@ -330,30 +334,30 @@ test:
       - packages/polycentric-core/junit.xml
       - junit-server.xml
     reports:
-      junit: 
+      junit:
         - packages/polycentric-core/junit.xml
         - junit-server.xml
 
 deploy-polycentric-web-staging:
   stage: deploy
   script: make deploy-polycentric-web-staging
-  needs: ["check", "test", "build-web"]
+  needs: ['check', 'test', 'build-web']
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
 
 deploy-polycentric-web-production:
   stage: deploy
   script: make deploy-polycentric-web-production
-  needs: ["check", "test", "build-web"]
+  needs: ['check', 'test', 'build-web']
   rules:
     - if: $CI_COMMIT_BRANCH == "production"
 
 push-server-image-staging:
   stage: deploy
-  needs: ["check", "test", "build-server-release"]
+  needs: ['check', 'test', 'build-server-release']
   image:
     name: gcr.io/kaniko-project/executor:v1.14.0-debug
-    entrypoint: [""]
+    entrypoint: ['']
   script:
     - /kaniko/executor
       --context "${CI_PROJECT_DIR}"
@@ -362,16 +366,12 @@ push-server-image-staging:
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
 
-    # - ./version.sh
-    # - echo "{\"auths\":{\"$DO_OCI_REGISTRY\":{\"username\":\"doadmin\",\"password\":\"$CI_DO_OCI_TOKEN\"}}}" > /kaniko/.docker/config.json
-    # - /kaniko/executor --context "${CI_PROJECT_DIR}" --dockerfile ${CI_PROJECT_DIR}/server.dockerfile --destination $DO_OCI_REGISTRY/$CI_PROJECT_DIR:stg
-
 push-server-image-production:
   stage: deploy
-  needs: ["check", "test", "build-server-release"]
+  needs: ['check', 'test', 'build-server-release']
   image:
     name: gcr.io/kaniko-project/executor:v1.14.0-debug
-    entrypoint: [""]
+    entrypoint: ['']
   script:
     - /kaniko/executor
       --context "${CI_PROJECT_DIR}"
@@ -379,8 +379,3 @@ push-server-image-production:
       --destination "${CI_REGISTRY_IMAGE}"
   rules:
     - if: $CI_COMMIT_BRANCH == "production"
-
-    # - ./version.sh
-    # - echo "{\"auths\":{\"$DO_OCI_REGISTRY\":{\"username\":\"doadmin\",\"password\":\"$CI_DO_OCI_TOKEN\"}}}" > /kaniko/.docker/config.json
-    # - /kaniko/executor --context "${CI_PROJECT_DIR}" --dockerfile "${CI_PROJECT_DIR}/server.dockerfile" --destination $DO_OCI_REGISTRY/$CI_PROJECT_DIR:$VERSION
-
