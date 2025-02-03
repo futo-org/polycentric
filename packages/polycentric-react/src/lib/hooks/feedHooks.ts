@@ -272,9 +272,9 @@ export const useCommentFeed = (
 
 export function useFollowingFeed(
     batchSize = 10,
-): [ParsedEvent<Protocol.Post>[], () => void, boolean] {
+): [FeedItem[], () => void, boolean] {
     const { processHandle } = useProcessHandleManager();
-    const [state, setState] = useState<ParsedEvent<Protocol.Post>[]>([]);
+    const [state, setState] = useState<FeedItem[]>([]);
     const [advance, setAdvance] = useState<() => void>(() => () => {});
     const [nothingFound, setNothingFound] = useState(false);
 
@@ -289,7 +289,7 @@ export function useFollowingFeed(
             await lock.acquire('', async (): Promise<void> => {
                 if (finished === true || cancelContext.cancelled()) return;
 
-                let recieved = 0;
+                let received = 0;
                 do {
                     const result = await indexFeed.query(batchSize, cursor);
 
@@ -303,27 +303,44 @@ export function useFollowingFeed(
                         const event = Models.Event.fromBuffer(
                             signedEvent.event,
                         );
-                        const parsed = Protocol.Post.decode(event.content);
+                        
+                        try {
+                            if (event.contentType.eq(Models.ContentType.ContentTypePost)) {
+                                return new ParsedEvent<Protocol.Post>(
+                                    signedEvent,
+                                    event,
+                                    Protocol.Post.decode(event.content),
+                                );
+                            } else if (event.contentType.eq(Models.ContentType.ContentTypeClaim)) {
+                                return new ParsedEvent<Protocol.Claim>(
+                                    signedEvent,
+                                    event,
+                                    Protocol.Claim.decode(event.content),
+                                );
+                            }
+                        } catch (error) {
+                            console.error('Failed to decode event:', error);
+                        }
+                        return undefined;
+                    }).filter((event): event is FeedItem => event !== undefined);
 
-                        return new ParsedEvent<Protocol.Post>(
-                            signedEvent,
-                            event,
-                            parsed,
-                        );
-                    });
-                    recieved += parsedEvents.length;
+                    received += parsedEvents.length;
                     setState((state) => {
-                        return state.concat(parsedEvents);
+                        const newState = state.concat(parsedEvents);
+                        return newState.sort((a, b) => {
+                            if (!a?.event?.unixMilliseconds || !b?.event?.unixMilliseconds) return 0;
+                            return b.event.unixMilliseconds.toNumber() - a.event.unixMilliseconds.toNumber();
+                        });
                     });
                 } while (
                     cursor !== undefined &&
-                    recieved < batchSize &&
+                    received < batchSize &&
                     !cancelContext.cancelled()
                 );
 
                 finished = cursor === undefined;
 
-                if (finished && recieved === 0) {
+                if (finished && received === 0) {
                     setNothingFound(true);
                 }
 
