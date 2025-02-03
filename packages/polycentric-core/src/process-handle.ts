@@ -735,17 +735,7 @@ export class ProcessHandle {
     }
 
     private getEventKey(event: Protocol.Event): string {
-        if (!event.system) {
-            throw new Error('Event system is undefined');
-        }
-        if (!event.process) {
-            throw new Error('Event process is undefined');
-        }
-        return `${Models.PublicKey.toString(
-            Models.PublicKey.fromProto(event.system),
-        )}_${Models.Process.toString(
-            Models.Process.fromProto(event.process),
-        )}_${event.logicalClock}`;
+        return `${event.system?.key.toString() ?? ''}-${event.process?.process.toString() ?? ''}-${event.logicalClock?.toString() ?? ''}`;
     }
 
     public getEventAckCount(event: Protocol.Event): number {
@@ -865,36 +855,25 @@ export class ProcessHandle {
         };
     }
 
-    public recordServerAck(
-        event: Protocol.SignedEvent,
-        serverId: string,
-    ): void {
-        const decodedEvent = Protocol.Event.decode(
-            event.event ?? new Uint8Array(),
-        );
-        if (
-            !decodedEvent.system ||
-            !decodedEvent.process ||
-            !decodedEvent.logicalClock
-        )
-            return;
-
+    public recordServerAck(event: Protocol.SignedEvent, serverId: string): void {
+        const decodedEvent = Protocol.Event.decode(event.event ?? new Uint8Array());
+        if (!decodedEvent.system || !decodedEvent.process || !decodedEvent.logicalClock) return;
+        
         const eventKey = this.getEventKey(decodedEvent);
-
         const acks = this._eventAcks.get(eventKey) ?? new Set<string>();
         this._eventAcks.set(eventKey, acks);
-
+        
         if (!acks.has(serverId)) {
             acks.add(serverId);
             void this._store.indexEvents.saveEventAcks(
                 Models.PublicKey.fromProto(decodedEvent.system),
                 Models.Process.fromProto(decodedEvent.process),
                 decodedEvent.logicalClock,
-                Array.from(acks),
+                Array.from(acks)
             );
-
+            
             const subscribers = this._eventAckSubscriptions.get(eventKey);
-            if (subscribers?.size) {
+            if (subscribers) {
                 for (const callback of subscribers) {
                     callback(serverId);
                 }
