@@ -60,15 +60,21 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
         const topic = useMemo(() => {
             if ('content' in value) {
                 const { references } = event;
-                const topicRef = references.find((ref) => ref.referenceType.eq(3));
-                return topicRef ? Util.decodeText(topicRef.reference) : undefined;
+                const topicRef = references.find((ref) =>
+                    ref.referenceType.eq(3),
+                );
+                return topicRef
+                    ? Util.decodeText(topicRef.reference)
+                    : undefined;
             } else if ('claimType' in value) {
                 const claimType = value.claimType as Models.ClaimType.ClaimType;
                 const claimValue = value.claimFields[0]?.value || '';
-                
-                if (!claimType.equals(Models.ClaimType.ClaimTypeOccupation) && 
-                    !claimType.equals(Models.ClaimType.ClaimTypeSkill) && 
-                    !claimType.equals(Models.ClaimType.ClaimTypeGeneric)) {
+
+                if (
+                    !claimType.equals(Models.ClaimType.ClaimTypeOccupation) &&
+                    !claimType.equals(Models.ClaimType.ClaimTypeSkill) &&
+                    !claimType.equals(Models.ClaimType.ClaimTypeGeneric)
+                ) {
                     return getAccountUrl(claimType, claimValue);
                 }
             }
@@ -135,8 +141,8 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
                     'content' in value
                         ? 'post'
                         : 'claimType' in value
-                        ? 'claim'
-                        : 'vouch',
+                          ? 'claim'
+                          : 'vouch',
             }),
             [
                 mainUsername,

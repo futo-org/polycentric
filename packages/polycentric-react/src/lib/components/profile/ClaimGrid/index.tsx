@@ -378,7 +378,7 @@ const ClaimCircle: React.FC<{
         } catch (error) {
             setVouchStatus('error');
             console.error('Failed to vouch:', error);
-            setTimeout(() => setVouchStatus('none'), 2000); 
+            setTimeout(() => setVouchStatus('none'), 2000);
         }
     };
 
