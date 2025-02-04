@@ -37,7 +37,9 @@ export class IndexEvents implements HasIngest {
             if (!value) {
                 return {};
             }
-            const parsed = JSON.parse(new TextDecoder().decode(value)) as Record<string, string[]>;
+            const parsed = JSON.parse(
+                new TextDecoder().decode(value),
+            ) as Record<string, string[]>;
             return parsed;
         } catch {
             return {};
