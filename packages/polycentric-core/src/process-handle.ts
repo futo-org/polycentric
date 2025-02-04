@@ -881,7 +881,11 @@ export class ProcessHandle {
             this._eventAcks.set(eventKey, new Set());
         }
 
-        const acks = this._eventAcks.get(eventKey)!;
+        let acks = this._eventAcks.get(eventKey);
+        if (!acks) {
+            acks = new Set<string>();
+            this._eventAcks.set(eventKey, acks);
+        }
         if (!acks.has(serverId)) {
             acks.add(serverId);
             void this._store.indexEvents.saveEventAcks(
