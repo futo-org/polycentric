@@ -40,7 +40,7 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
                 const claimValue = value.claimFields[0]?.value || '';
 
                 if (claimType.equals(Models.ClaimType.ClaimTypeOccupation)) {
-                    return `Claims they work at ${value.claimFields[0].value} as ${value.claimFields[1].value} in ${value.claimFields[2].value}.`;
+                    return `Claimed they work at ${value.claimFields[0].value} as ${value.claimFields[1].value} in ${value.claimFields[2].value}.`;
                 } else if (claimType.equals(Models.ClaimType.ClaimTypeSkill)) {
                     return `Claimed skill: ${claimValue}`;
                 } else if (
