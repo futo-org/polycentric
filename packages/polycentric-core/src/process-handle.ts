@@ -874,6 +874,7 @@ export class ProcessHandle {
     ): void {
         const eventData = event.event;
         if (typeof eventData === 'undefined') return;
+
         
         const decodedEvent = Protocol.Event.decode(eventData);
         if (
