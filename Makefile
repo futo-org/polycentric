@@ -59,6 +59,12 @@ proto: proto/protocol.proto
 	cp proto/protocol.ts packages/polycentric-core/src/protocol.ts
 
 pretty:
+	./version.sh
+	# Format Rust code
+	cd server && cargo fmt
+	cd polycentric-protocol && cargo fmt
+
+	# Format TypeScript/JavaScript code
 	npx prettier@3.1.1 --write \
 		packages/polycentric-core/src/ \
 		packages/polycentric-react/src/ \

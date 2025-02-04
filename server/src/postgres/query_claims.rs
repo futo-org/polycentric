@@ -245,6 +245,8 @@ pub mod tests {
 
         crate::ingest::ingest_event_postgres(&mut transaction, &s2p1e1).await?;
 
+        let start = ::std::time::Instant::now();
+
         let result =
             crate::postgres::query_claims::query_claims_match_any_field(
                 &mut transaction,
@@ -255,6 +257,9 @@ pub mod tests {
                 &"hello".to_string(),
             )
             .await?;
+
+        let duration = start.elapsed();
+        println!("Query took: {:?}", duration);
 
         let expected = vec![crate::postgres::query_claims::Match {
             claim: s1p1e1.clone(),

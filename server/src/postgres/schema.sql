@@ -59,6 +59,7 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
+
 CREATE TABLE IF NOT EXISTS events (
     id BIGSERIAL PRIMARY KEY,
     system_key_type INT8 NOT NULL,
@@ -85,8 +86,14 @@ CREATE TABLE IF NOT EXISTS events (
     UNIQUE (system_key_type, system_key, process, logical_clock)
 );
 
+CREATE INDEX IF NOT EXISTS idx_events_moderation_status_content_type 
+ON events (moderation_status, content_type) INCLUDE (id);
+
 CREATE INDEX IF NOT EXISTS idx_events_system_key_type_system_key_content_type
 ON events (system_key_type, system_key, content_type);
+
+CREATE INDEX IF NOT EXISTS idx_vouch_events_filter 
+ON events (content_type, system_key_type, system_key, unix_milliseconds DESC);
 
 DO $$ BEGIN
     CREATE TYPE moderation_filter_type AS (
@@ -161,6 +168,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE INDEX IF NOT EXISTS idx_moderation_queue_filter
+ON events (moderation_status, content_type, id)
+WHERE moderation_status IN ('unprocessed', 'error')
+  AND content_type IN (3, 6, 9);
 
 CREATE INDEX IF NOT EXISTS
 events_content_type_idx
@@ -174,6 +185,13 @@ CREATE TABLE IF NOT EXISTS event_processing_status (
     last_failure_at TIMESTAMP WITH TIME ZONE,
     last_error_message TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_eps_failure_metrics
+ON event_processing_status (event_id, failure_count)
+INCLUDE (last_failure_at);
+
+CREATE INDEX IF NOT EXISTS idx_event_processing_status_event_id
+ON event_processing_status (event_id) INCLUDE (failure_count, last_failure_at);
 
 CREATE INDEX IF NOT EXISTS event_processing_status_failure_count_idx
 ON event_processing_status (failure_count);
@@ -341,6 +359,7 @@ CREATE TABLE IF NOT EXISTS claims (
 
 CREATE INDEX IF NOT EXISTS idx_claims_event_id ON claims (event_id);
 CREATE INDEX IF NOT EXISTS idx_claims_type_fields ON claims (claim_type, fields);
+CREATE INDEX IF NOT EXISTS idx_claims_fields_gin ON claims USING GIN (fields jsonb_path_ops);
 
 CREATE TABLE IF NOT EXISTS lww_elements (
     id BIGSERIAL PRIMARY KEY,
