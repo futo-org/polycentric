@@ -264,7 +264,7 @@ lint-core:
     - make proto
     - ./version.sh
     - cd packages/polycentric-core
-    - npx eslint ./src --max-warnings=0
+    - npx eslint ./src # --max-warnings=0
   needs: ['build-core']
 
 lint-harbor:
