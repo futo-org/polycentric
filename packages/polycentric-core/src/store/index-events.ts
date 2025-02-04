@@ -19,6 +19,8 @@ export function makeEventKey(
 
 export class IndexEvents implements HasIngest {
     private readonly level: PersistenceDriver.BinaryAbstractSubLevel;
+    private readonly acksLevel: PersistenceDriver.BinaryAbstractSubLevel;
+    private readonly ACKS_KEY = new Uint8Array([0]);
 
     constructor(
         registerSublevel: (
@@ -26,6 +28,31 @@ export class IndexEvents implements HasIngest {
         ) => PersistenceDriver.BinaryAbstractSubLevel,
     ) {
         this.level = registerSublevel('events');
+        this.acksLevel = registerSublevel('event_acks');
+    }
+
+    public async getEventAcks(): Promise<Record<string, string[]>> {
+        try {
+            const value = await this.acksLevel.get(this.ACKS_KEY);
+            return value ? JSON.parse(new TextDecoder().decode(value)) : {};
+        } catch {
+            return {};
+        }
+    }
+
+    public async saveEventAcks(
+        system: Models.PublicKey.PublicKey,
+        process: Models.Process.Process,
+        logicalClock: Long,
+        servers: string[],
+    ): Promise<void> {
+        const eventKey = makeEventKey(system, process, logicalClock).toString();
+        const acks = await this.getEventAcks();
+        acks[eventKey] = servers;
+        await this.acksLevel.put(
+            this.ACKS_KEY,
+            new TextEncoder().encode(JSON.stringify(acks)),
+        );
     }
 
     /* eslint @typescript-eslint/require-await: 0 */

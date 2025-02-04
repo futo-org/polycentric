@@ -1,9 +1,10 @@
 import { Models, Protocol, Util } from '@polycentric/polycentric-core';
-import { forwardRef, useMemo } from 'react';
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import {
     useAvatar,
     useImageManifestDisplayURL,
 } from '../../../hooks/imageHooks';
+import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import {
     ParsedEvent,
     useDateFromUnixMS,
@@ -19,16 +20,22 @@ interface PostProps {
     data: ParsedEvent<Protocol.Post> | undefined;
     doesLink?: boolean;
     autoExpand?: boolean;
+    isNewPost?: boolean;
 }
 
 interface LoadedPostProps {
     data: ParsedEvent<Protocol.Post>;
     doesLink?: boolean;
     autoExpand?: boolean;
+    syncStatus?: {
+        state: 'offline' | 'syncing' | 'acknowledged';
+        acknowledgedServers: number;
+    };
+    isMyProfile: boolean;
 }
 
 const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
-    ({ data, doesLink, autoExpand }, ref) => {
+    ({ data, doesLink, autoExpand, syncStatus, isMyProfile }, ref) => {
         const { value, event, signedEvent } = data;
         const { content, image } = value;
 
@@ -121,6 +128,8 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
                 actions={actions}
                 doesLink={doesLink}
                 autoExpand={autoExpand}
+                syncStatus={syncStatus}
+                isMyProfile={isMyProfile}
             />
         );
     },
@@ -134,15 +143,75 @@ UnloadedPost.displayName = 'UnloadedPost';
 
 export const Post = forwardRef<HTMLDivElement, PostProps>(
     ({ data, doesLink, autoExpand }, ref) => {
-        return data ? (
+        const { processHandle } = useProcessHandleManager();
+        const [ackCount, setAckCount] = useState<number | null>(null);
+        const setupRef = useRef(false);
+
+        useEffect(() => {
+            if (
+                !data ||
+                !processHandle ||
+                !Models.PublicKey.equal(
+                    processHandle.system(),
+                    data.event.system,
+                )
+            ) {
+                return;
+            }
+
+            if (setupRef.current) {
+                return;
+            }
+
+            setupRef.current = true;
+
+            const unsubscribe = processHandle.subscribeToEventAcks(
+                data.event,
+                () => {
+                    const newCount = processHandle.getEventAckCount(data.event);
+                    setAckCount(newCount);
+                },
+            );
+
+            return () => {
+                setupRef.current = false;
+                unsubscribe();
+            };
+        }, [data, processHandle]);
+
+        if (!data) {
+            return <UnloadedPost ref={ref} />;
+        }
+
+        const isMyPost =
+            processHandle &&
+            Models.PublicKey.equal(processHandle.system(), data.event.system);
+
+        let status;
+        if (!navigator.onLine) {
+            status = { state: 'offline' as const, acknowledgedServers: 0 };
+        } else if (isMyPost) {
+            if (ackCount === null) {
+                status = { state: 'syncing' as const, acknowledgedServers: 0 };
+            } else if (ackCount === 0) {
+                status = { state: 'syncing' as const, acknowledgedServers: 0 };
+            } else {
+                status = {
+                    state: 'acknowledged' as const,
+                    acknowledgedServers: ackCount,
+                };
+            }
+        }
+
+        return (
             <LoadedPost
                 ref={ref}
                 data={data}
                 doesLink={doesLink}
                 autoExpand={autoExpand}
+                syncStatus={isMyPost ? status : undefined}
+                isMyProfile={isMyPost}
             />
-        ) : (
-            <UnloadedPost ref={ref} />
         );
     },
 );
