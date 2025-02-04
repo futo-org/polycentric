@@ -5,7 +5,6 @@ use protobuf::Message;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tokio::time::{self, Duration};
-use sqlx::Row;
 
 use super::providers::csam::interface::ModerationCSAMResult;
 use super::providers::tags::interface::ModerationTaggingResult;
@@ -132,7 +131,6 @@ async fn pull_queue_events(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
 ) -> ::anyhow::Result<Vec<ModerationQueueItem>> {
     debug!("Pulling queue events");
-    const BATCH_SIZE: i64 = 20;
 
     let query = "
     SELECT 
