@@ -150,7 +150,14 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
         const setupRef = useRef(false);
 
         useEffect(() => {
-            if (!data || !processHandle || !Models.PublicKey.equal(processHandle.system(), data.event.system)) {
+            if (
+                !data ||
+                !processHandle ||
+                !Models.PublicKey.equal(
+                    processHandle.system(),
+                    data.event.system,
+                )
+            ) {
                 return;
             }
 
@@ -162,12 +169,17 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
             setAckCount(initialCount);
             setServers(initialServers);
 
-            const unsubscribe = processHandle.subscribeToEventAcks(data.event, (serverId) => {
-                const newCount = processHandle.getEventAckCount(data.event);
-                const newServers = processHandle.getEventAckServers(data.event);
-                setAckCount(newCount);
-                setServers(newServers);
-            });
+            const unsubscribe = processHandle.subscribeToEventAcks(
+                data.event,
+                () => {
+                    const newCount = processHandle.getEventAckCount(data.event);
+                    const newServers = processHandle.getEventAckServers(
+                        data.event,
+                    );
+                    setAckCount(newCount);
+                    setServers(newServers);
+                },
+            );
 
             return () => {
                 setupRef.current = false;
@@ -195,7 +207,7 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
                 status = {
                     state: 'acknowledged' as const,
                     acknowledgedServers: ackCount,
-                    servers
+                    servers,
                 };
             }
         }

@@ -402,7 +402,9 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                 case 'syncing':
                     return 'Syncing...';
                 case 'acknowledged':
-                    return `Synced to servers:\n${status.servers?.join('\n') || 'local only'}`;
+                    return `Synced to servers:\n${
+                        status.servers?.join('\n') || 'local only'
+                    }`;
             }
         };
 
@@ -444,12 +446,22 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                     </div>
                                     {syncStatus && isMyProfile && (
                                         <div className="mt-2 flex justify-center">
-                                            <Tooltip title={syncStatus ? getSyncTooltip(syncStatus) : undefined}>
+                                            <Tooltip
+                                                title={
+                                                    syncStatus
+                                                        ? getSyncTooltip(
+                                                              syncStatus,
+                                                          )
+                                                        : undefined
+                                                }
+                                            >
                                                 <div>
-                                                    {syncStatus.state === 'offline' && (
+                                                    {syncStatus.state ===
+                                                        'offline' && (
                                                         <ExclamationTriangleIcon className="h-6 w-6 text-yellow-500" />
                                                     )}
-                                                    {syncStatus.state === 'syncing' && (
+                                                    {syncStatus.state ===
+                                                        'syncing' && (
                                                         <CloudArrowUpIcon className="h-6 w-6 text-blue-500 animate-pulse" />
                                                     )}
                                                     {syncStatus.state ===
