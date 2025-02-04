@@ -28,8 +28,8 @@ export const linkify = (
             (key === 'mention'
                 ? 1
                 : key === 'quote'
-                ? 0
-                : match[0].indexOf(match.groups?.[key] ?? '')),
+                  ? 0
+                  : match[0].indexOf(match.groups?.[key] ?? '')),
     }));
 };
 
