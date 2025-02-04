@@ -789,12 +789,13 @@ export class ProcessHandle {
         const event = Models.Event.fromBuffer(signedEvent.event);
         const eventKey = this.getEventKey(event);
 
-        if (!this._eventAcks.has(eventKey)) {
-            this._eventAcks.set(eventKey, new Set());
+        let acks = this._eventAcks.get(eventKey);
+        if (!acks) {
+            acks = new Set<string>();
+            this._eventAcks.set(eventKey, acks);
         }
 
         const serverId = 'local';
-        const acks = this._eventAcks.get(eventKey)!;
         if (!acks.has(serverId)) {
             acks.add(serverId);
 
@@ -806,7 +807,7 @@ export class ProcessHandle {
             }
         }
 
-        if (this._listener !== undefined) {
+        if (this._listener) {
             this._listener(signedEvent);
         }
 
@@ -871,14 +872,17 @@ export class ProcessHandle {
         event: Protocol.SignedEvent,
         serverId: string,
     ): void {
-        if (!event.event) return;
-        const decodedEvent = Protocol.Event.decode(event.event);
+        const eventData = event.event;
+        if (typeof eventData === 'undefined') return;
+        
+        const decodedEvent = Protocol.Event.decode(eventData);
         if (
-            !decodedEvent.system ||
-            !decodedEvent.process ||
-            !decodedEvent.logicalClock
-        )
+            typeof decodedEvent.system === 'undefined' ||
+            typeof decodedEvent.process === 'undefined' ||
+            typeof decodedEvent.logicalClock === 'undefined'
+        ) {
             return;
+        }
 
         const eventKey = this.getEventKey(decodedEvent);
 
