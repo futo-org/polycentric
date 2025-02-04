@@ -70,6 +70,26 @@ pretty:
 		packages/polycentric-desktop/electron/ \
 		packages/test-data-generator/src/
 
+lint: proto
+	./version.sh
+	cd polycentric-protocol && \
+		cargo clippy --no-deps -- -D warnings
+
+	cd server && \
+		cargo clippy --no-deps --locked -- -D warnings
+
+	cd packages/polycentric-core && \
+		npx eslint ./src --max-warnings=0
+
+	cd packages/harbor-web && \
+		npx eslint ./src --max-warnings=0
+
+	cd packages/polycentric-react && \
+		npx eslint ./src --max-warnings=0
+
+	cd packages/polycentric-web && \
+		npx eslint ./src --max-warnings=0
+
 build-production: proto
 	./version.sh
 
