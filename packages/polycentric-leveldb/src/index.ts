@@ -1,8 +1,6 @@
-import * as Path from 'path';
-import * as AbstractLevel from 'abstract-level';
-import * as ClassicLevel from 'classic-level';
-
 import * as Core from '@polycentric/polycentric-core';
+import { Level } from 'level';
+import * as Path from 'path';
 
 export function createPersistenceDriverLevelDB(
     directory: string,
@@ -12,7 +10,7 @@ export function createPersistenceDriverLevelDB(
     };
 
     const openStore = async (path: string) => {
-        const level = new ClassicLevel.ClassicLevel<Uint8Array, Uint8Array>(
+        const level = new Level<Uint8Array, Uint8Array>(
             Path.join(directory, path),
             {
                 keyEncoding: Core.PersistenceDriver.deepCopyTranscoder(),
@@ -20,12 +18,14 @@ export function createPersistenceDriverLevelDB(
             },
         ) as any as Core.PersistenceDriver.BinaryAbstractLevel;
 
-        await level.open((e) => {
-            if (e != null) {
-                console.error(e);
-                console.error("cause " + e.cause)
+        try {
+            await level.open();
+        } catch (e: any) {
+            console.error(e);
+            if (e.cause) {
+                console.error('cause: ' + e.cause);
             }
-        });
+        }
 
         return level;
     };
@@ -41,15 +41,13 @@ export function createPersistenceDriverLevelDB(
         return true;
     };
 
-    const destroyStore = async (path: string) => { };
+    const destroyStore = async (path: string) => {}; // todo ?
 
     return {
-        getImplementationName: getImplementationName,
-        openStore: openStore,
-        estimateStorage: estimateStorage,
-        persisted: persisted,
-        destroyStore: destroyStore,
+        getImplementationName,
+        openStore,
+        estimateStorage,
+        persisted,
+        destroyStore,
     };
 }
-
-

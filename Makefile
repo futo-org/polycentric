@@ -59,7 +59,7 @@ proto: proto/protocol.proto
 	cp proto/protocol.ts packages/polycentric-core/src/protocol.ts
 
 pretty:
-	npx prettier --write \
+	npx prettier@3.1.1 --write \
 		packages/polycentric-core/src/ \
 		packages/polycentric-react/src/ \
 		packages/polycentric-web/src/ \
@@ -129,7 +129,7 @@ build-ci-deps:
 		-t gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest .
 	docker push gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest
 
-push-server-image:
+push-server-image-do:
 	DOCKER_BUILDKIT=1 docker build \
 		-f server.dockerfile \
 		-t registry.digitalocean.com/polycentric/polycentric:latest .

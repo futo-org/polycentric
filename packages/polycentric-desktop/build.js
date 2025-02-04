@@ -1,4 +1,3 @@
-const Parcel = require("parcel");
 const path = require("path");
 
 // const isBuild = true;
