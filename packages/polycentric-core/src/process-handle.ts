@@ -758,6 +758,12 @@ export class ProcessHandle {
         return new Set(this._eventAcks.get(eventKey) ?? []);
     }
 
+    public getEventAckServers(event: Protocol.Event): string[] {
+        const eventKey = this.getEventKey(event);
+        const acks = this._eventAcks.get(eventKey);
+        return acks ? Array.from(acks) : [];
+    }
+
     public subscribeToEventAcks(
         event: Protocol.Event,
         callback: (serverId: string) => void,

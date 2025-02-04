@@ -30,6 +30,7 @@ interface LoadedPostProps {
     syncStatus?: {
         state: 'offline' | 'syncing' | 'acknowledged';
         acknowledgedServers: number;
+        servers?: string[];
     };
     isMyProfile: boolean;
 }
@@ -145,33 +146,28 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
     ({ data, doesLink, autoExpand }, ref) => {
         const { processHandle } = useProcessHandleManager();
         const [ackCount, setAckCount] = useState<number | null>(null);
+        const [servers, setServers] = useState<string[]>([]);
         const setupRef = useRef(false);
 
         useEffect(() => {
-            if (
-                !data ||
-                !processHandle ||
-                !Models.PublicKey.equal(
-                    processHandle.system(),
-                    data.event.system,
-                )
-            ) {
+            if (!data || !processHandle || !Models.PublicKey.equal(processHandle.system(), data.event.system)) {
                 return;
             }
 
-            if (setupRef.current) {
-                return;
-            }
-
+            if (setupRef.current) return;
             setupRef.current = true;
 
-            const unsubscribe = processHandle.subscribeToEventAcks(
-                data.event,
-                () => {
-                    const newCount = processHandle.getEventAckCount(data.event);
-                    setAckCount(newCount);
-                },
-            );
+            const initialCount = processHandle.getEventAckCount(data.event);
+            const initialServers = processHandle.getEventAckServers(data.event);
+            setAckCount(initialCount);
+            setServers(initialServers);
+
+            const unsubscribe = processHandle.subscribeToEventAcks(data.event, (serverId) => {
+                const newCount = processHandle.getEventAckCount(data.event);
+                const newServers = processHandle.getEventAckServers(data.event);
+                setAckCount(newCount);
+                setServers(newServers);
+            });
 
             return () => {
                 setupRef.current = false;
@@ -199,6 +195,7 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
                 status = {
                     state: 'acknowledged' as const,
                     acknowledgedServers: ackCount,
+                    servers
                 };
             }
         }

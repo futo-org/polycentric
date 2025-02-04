@@ -20,6 +20,7 @@ import { ProfilePicture } from '../../../profile/ProfilePicture';
 import { Link } from '../../../util/link';
 import { Linkify } from '../../../util/linkify';
 // Styling for image viewer
+import { Tooltip } from '@mui/material';
 import { useTopicLink } from '../../../../hooks/utilHooks';
 import './style.css';
 
@@ -255,6 +256,13 @@ const SharePostButton = ({ onClick }: { onClick: () => void }) => {
     );
 };
 
+interface SyncStatus {
+    state: 'offline' | 'syncing' | 'acknowledged';
+    acknowledgedServers: number;
+    // Add servers information
+    servers?: string[];
+}
+
 export interface PurePostProps {
     main?: {
         content: string;
@@ -292,10 +300,7 @@ export interface PurePostProps {
     };
     doesLink?: boolean;
     autoExpand?: boolean;
-    syncStatus?: {
-        state: 'offline' | 'syncing' | 'acknowledged';
-        acknowledgedServers: number;
-    };
+    syncStatus?: SyncStatus;
     isMyProfile?: boolean;
 }
 
@@ -390,6 +395,17 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
 
         const topicLink = useTopicLink(main?.topic);
 
+        const getSyncTooltip = (status: SyncStatus) => {
+            switch (status.state) {
+                case 'offline':
+                    return 'Offline - Cannot sync';
+                case 'syncing':
+                    return 'Syncing...';
+                case 'acknowledged':
+                    return `Synced to servers:\n${status.servers?.join('\n') || 'local only'}`;
+            }
+        };
+
         return (
             <div ref={infiniteScrollRef}>
                 {main == null ? (
@@ -428,16 +444,20 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                     </div>
                                     {syncStatus && isMyProfile && (
                                         <div className="mt-2 flex justify-center">
-                                            {syncStatus.state === 'offline' && (
-                                                <ExclamationTriangleIcon className="h-6 w-6 text-yellow-500" />
-                                            )}
-                                            {syncStatus.state === 'syncing' && (
-                                                <CloudArrowUpIcon className="h-6 w-6 text-blue-500 animate-pulse" />
-                                            )}
-                                            {syncStatus.state ===
-                                                'acknowledged' && (
-                                                <CloudIcon className="h-6 w-6 text-green-500" />
-                                            )}
+                                            <Tooltip title={syncStatus ? getSyncTooltip(syncStatus) : undefined}>
+                                                <div>
+                                                    {syncStatus.state === 'offline' && (
+                                                        <ExclamationTriangleIcon className="h-6 w-6 text-yellow-500" />
+                                                    )}
+                                                    {syncStatus.state === 'syncing' && (
+                                                        <CloudArrowUpIcon className="h-6 w-6 text-blue-500 animate-pulse" />
+                                                    )}
+                                                    {syncStatus.state ===
+                                                        'acknowledged' && (
+                                                        <CloudIcon className="h-6 w-6 text-green-500" />
+                                                    )}
+                                                </div>
+                                            </Tooltip>
                                         </div>
                                     )}
                                 </div>
