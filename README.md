@@ -19,6 +19,8 @@ Development requires `docker`, and `docker-compose`.
 
 ```bash
 # open a shell
+# run the version script
+./version.sh
 # setup the Docker development sandbox
 make build-sandbox
 # start the Docker development sandbox
