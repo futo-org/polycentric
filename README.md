@@ -61,5 +61,5 @@ make stop-sandbox
 ## Hot Reloading Environment without sandbox/devcontainer
 
 ``` sh
-make hotreload-start
+make hotreload
 ```

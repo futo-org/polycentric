@@ -14,7 +14,7 @@ export CURRENT_UID
 export CURRENT_GID
 export DOCKER_GID
 
-hotreload-start: devcert
+hotreload: devcert
 	./version.sh
 	docker compose -f docker-compose.development.yml up --build --watch
 
@@ -49,7 +49,15 @@ start-gdbserver:
 
 devcert:
 	mkdir -p ./devcert/
-	mkcert -cert-file ./devcert/local-cert.pem -key-file ./devcert/local-key.pem localhost 127.0.0.1 ::1 $$(ifconfig | grep -oE "\binet\b [0-9.]+ " | grep -oE "[0-9.]+")
+	@if command -v ip > /dev/null; then \
+		IPS=$$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}'); \
+	elif command -v ifconfig > /dev/null; then \
+		IPS=$$(ifconfig | grep -oE "\binet\b [0-9.]+ " | grep -oE "[0-9.]+"); \
+	else \
+		echo "Error: Neither 'ifconfig' nor 'ip' found"; exit 1; \
+	fi; \
+	mkcert -cert-file ./devcert/local-cert.pem -key-file ./devcert/local-key.pem \
+		localhost 127.0.0.1 ::1 $$IPS
 
 proto: proto/protocol.proto
 	npm install
