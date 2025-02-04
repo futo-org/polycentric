@@ -13,6 +13,27 @@ Polycentric is split into a variety of Typescript packages, and a Rust backend. 
 - Core logic `./packages/polycentric-core`
 - Server implementation `./server`
 
+## Hot Reloading Environment without sandbox/devcontainer
+
+requires docker, docker compose, mkcert
+
+``` sh
+make hotreload
+```
+
+or without make
+
+``` sh
+./version.sh
+mkcert -cert-file ./devcert/local-cert.pem -key-file ./devcert/local-key.pem localhost 127.0.0.1 ::1 
+docker compose -f docker-compose.development.yml up --watch
+```
+
+add your localhost server to polycentric
+
+`https://localhost:3000/settings`
+add http://localhost:8081 to "My Servers"
+
 ## Development quickstart
 
 Development requires `docker`, and `docker-compose`.
@@ -55,11 +76,4 @@ cargo run
 
 # When done destroy the sandbox environment
 make stop-sandbox
-```
-
-
-## Hot Reloading Environment without sandbox/devcontainer
-
-``` sh
-make hotreload
 ```
