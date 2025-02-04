@@ -14,6 +14,10 @@ export CURRENT_UID
 export CURRENT_GID
 export DOCKER_GID
 
+hotreload: devcert
+	./version.sh
+	docker compose -f docker-compose.development.yml up --build --watch
+
 build-sandbox:
 	docker compose -f docker-compose.development.yml pull
 	docker compose -f docker-compose.development.yml build
@@ -45,7 +49,15 @@ start-gdbserver:
 
 devcert:
 	mkdir -p ./devcert/
-	mkcert -cert-file ./devcert/local-cert.pem -key-file ./devcert/local-key.pem localhost 127.0.0.1 ::1 $$(ifconfig | grep -oE "\binet\b [0-9.]+ " | grep -oE "[0-9.]+")
+	@if command -v ip > /dev/null; then \
+		IPS=$$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}'); \
+	elif command -v ifconfig > /dev/null; then \
+		IPS=$$(ifconfig | grep -oE "\binet\b [0-9.]+ " | grep -oE "[0-9.]+"); \
+	else \
+		echo "Error: Neither 'ifconfig' nor 'ip' found"; exit 1; \
+	fi; \
+	mkcert -cert-file ./devcert/local-cert.pem -key-file ./devcert/local-key.pem \
+		localhost 127.0.0.1 ::1 $$IPS
 
 proto: proto/protocol.proto
 	npm install
@@ -59,6 +71,12 @@ proto: proto/protocol.proto
 	cp proto/protocol.ts packages/polycentric-core/src/protocol.ts
 
 pretty:
+	./version.sh
+	# Format Rust code
+	cd server && cargo fmt
+	cd polycentric-protocol && cargo fmt
+
+	# Format TypeScript/JavaScript code
 	npx prettier@3.1.1 --write \
 		packages/polycentric-core/src/ \
 		packages/polycentric-react/src/ \
@@ -69,6 +87,26 @@ pretty:
 		packages/polycentric-desktop/src/ \
 		packages/polycentric-desktop/electron/ \
 		packages/test-data-generator/src/
+
+lint: proto
+	./version.sh
+	cd polycentric-protocol && \
+		cargo clippy --no-deps -- -D warnings
+
+	cd server && \
+		cargo clippy --no-deps --locked -- -D warnings
+
+	cd packages/polycentric-core && \
+		npx eslint ./src --max-warnings=0
+
+	cd packages/harbor-web && \
+		npx eslint ./src --max-warnings=0
+
+	cd packages/polycentric-react && \
+		npx eslint ./src --max-warnings=0
+
+	cd packages/polycentric-web && \
+		npx eslint ./src --max-warnings=0
 
 build-production: proto
 	./version.sh

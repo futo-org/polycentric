@@ -131,35 +131,30 @@ async fn pull_queue_events(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
 ) -> ::anyhow::Result<Vec<ModerationQueueItem>> {
     debug!("Pulling queue events");
-    const BATCH_SIZE: i64 = 20;
 
-    let candidate_query = "
-    SELECT e.id, e.raw_event,
-           COALESCE(eps.failure_count, 0) AS failure_count,
-           EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(eps.last_failure_at, '1970-01-01'::timestamp))) AS time_since_last_failure
+    let query = "
+    SELECT 
+        e.id,
+        e.raw_event,
+        COALESCE(eps.failure_count, 0) as failure_count,
+        EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(eps.last_failure_at, '1970-01-01'::timestamp))) as time_since_last_failure
     FROM events e
-    LEFT JOIN event_processing_status eps ON e.id = eps.event_id
-    WHERE (e.moderation_status = 'unprocessed'
-       OR (e.moderation_status = 'error' AND COALESCE(eps.failure_count, 0) < 3))
-       AND e.content_type IN (3, 6, 9)
+    LEFT JOIN LATERAL (
+        SELECT event_id, failure_count, last_failure_at
+        FROM event_processing_status
+        WHERE event_id = e.id
+        AND failure_count < 3
+    ) eps ON true
+    WHERE e.content_type IN (3, 6, 9)
+    AND e.moderation_status IN ('unprocessed'::moderation_status_enum, 'error'::moderation_status_enum)
     ORDER BY 
-        CASE 
-            WHEN e.moderation_status = 'unprocessed' THEN 0
-            ELSE 1
-        END,
-        CASE 
-            WHEN e.moderation_status = 'error' THEN 
-                LEAST(COALESCE(eps.failure_count, 0) * COALESCE(eps.failure_count, 0) * 3600, EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(eps.last_failure_at, '1970-01-01'::timestamp))))
-            ELSE 0
-        END DESC
-    LIMIT $1
+        CASE WHEN e.moderation_status = 'unprocessed'::moderation_status_enum THEN 0 ELSE 1 END,
+        COALESCE(eps.failure_count, 0) DESC
+    LIMIT 20
     ";
 
     let candidate_rows: Vec<ModerationQueueRawRow> =
-        sqlx::query_as(candidate_query)
-            .bind(BATCH_SIZE)
-            .fetch_all(&mut **transaction)
-            .await?;
+        sqlx::query_as(query).fetch_all(&mut **transaction).await?;
 
     let candidate_ids: Vec<i64> =
         candidate_rows.iter().map(|row| row.id).collect();
@@ -546,6 +541,7 @@ mod tests {
         postgres::prepare_database,
     };
     use sqlx::PgPool;
+    use std::time::Instant;
 
     #[sqlx::test]
     async fn test_pull_queue_events(pool: PgPool) -> anyhow::Result<()> {
@@ -1100,6 +1096,149 @@ mod tests {
         .await?;
 
         assert_eq!(loaded_events_strong.events.len(), 0);
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_explain_pull_queue_events(
+        pool: PgPool,
+    ) -> anyhow::Result<()> {
+        let mut transaction = pool.begin().await?;
+
+        // First create some test data
+        crate::postgres::prepare_database(&mut transaction).await?;
+
+        // Add our performance improvements
+        println!("\nAdding performance improvements...");
+
+        // Add efficient index for events
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_events_moderation_efficient ON events 
+             (moderation_status, content_type) 
+             INCLUDE (id, raw_event)
+             WHERE content_type IN (3, 6, 9)"
+        )
+        .execute(&mut *transaction)
+        .await?;
+
+        // Add enhanced index for event_processing_status
+        sqlx::query(
+            "CREATE INDEX IF NOT EXISTS idx_event_processing_enhanced ON event_processing_status 
+             (failure_count) 
+             INCLUDE (event_id, last_failure_at)
+             WHERE failure_count < 3"
+        )
+        .execute(&mut *transaction)
+        .await?;
+
+        transaction.commit().await?;
+        transaction = pool.begin().await?;
+
+        // Test with different data sizes
+        let data_sizes = vec![1000, 10000, 50000];
+
+        for size in data_sizes {
+            println!("\nTesting with {} records:", size);
+
+            // Insert test data
+            let start = Instant::now();
+            for i in 0..size {
+                let status = if i % 5 == 0 { "error" } else { "unprocessed" };
+                let content_type = match i % 3 {
+                    0 => 3,
+                    1 => 6,
+                    _ => 9,
+                };
+
+                // Insert event
+                sqlx::query(
+                    "INSERT INTO events (
+                        system_key_type, system_key, process, logical_clock, 
+                        content_type, content, vector_clock, indices,
+                        signature, raw_event, server_time, unix_milliseconds,
+                        moderation_status
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::moderation_status_enum)"
+                )
+                .bind(1i64)
+                .bind(&[0u8; 32])
+                .bind(&[i as u8; 16])
+                .bind(i64::try_from(i)?)
+                .bind(content_type)
+                .bind(&[0u8; 32])
+                .bind(&[0u8; 32])
+                .bind(&[0u8; 32])
+                .bind(&[0u8; 32])
+                .bind(&[0u8; 32])
+                .bind(1000i64 + i64::try_from(i)?)
+                .bind(1000i64 + i64::try_from(i)?)
+                .bind(status)
+                .execute(&mut *transaction)
+                .await?;
+
+                // Insert processing status for error events
+                if status == "error" {
+                    sqlx::query(
+                        "INSERT INTO event_processing_status (
+                            event_id, failure_count, last_failure_at
+                        ) VALUES (
+                            currval('events_id_seq'),
+                            $1,
+                            CURRENT_TIMESTAMP - interval '1 hour' * $2
+                        )",
+                    )
+                    .bind(i % 4)
+                    .bind(i % 12)
+                    .execute(&mut *transaction)
+                    .await?;
+                }
+
+                // Commit in batches to avoid transaction size issues
+                if i > 0 && i % 1000 == 0 {
+                    transaction.commit().await?;
+                    transaction = pool.begin().await?;
+                }
+            }
+            println!("Data insertion took: {:?}", start.elapsed());
+
+            // Test the optimized query
+            let query = "
+                SELECT 
+                    e.id,
+                    e.raw_event,
+                    COALESCE(eps.failure_count, 0) as failure_count,
+                    EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(eps.last_failure_at, '1970-01-01'::timestamp))) as time_since_last_failure
+                FROM events e
+                LEFT JOIN LATERAL (
+                    SELECT event_id, failure_count, last_failure_at
+                    FROM event_processing_status
+                    WHERE event_id = e.id
+                    AND failure_count < 3
+                ) eps ON true
+                WHERE e.content_type IN (3, 6, 9)
+                AND e.moderation_status IN ('unprocessed'::moderation_status_enum, 'error'::moderation_status_enum)
+                ORDER BY 
+                    CASE WHEN e.moderation_status = 'unprocessed'::moderation_status_enum THEN 0 ELSE 1 END,
+                    COALESCE(eps.failure_count, 0) DESC
+                LIMIT 20
+            ";
+
+            let start = Instant::now();
+            let results =
+                sqlx::query(query).fetch_all(&mut *transaction).await?;
+            println!("Query execution took: {:?}", start.elapsed());
+            assert_eq!(results.len(), 20);
+
+            // Clean up for next iteration
+            sqlx::query("DELETE FROM event_processing_status")
+                .execute(&mut *transaction)
+                .await?;
+            sqlx::query("DELETE FROM events")
+                .execute(&mut *transaction)
+                .await?;
+            transaction.commit().await?;
+            transaction = pool.begin().await?;
+        }
 
         Ok(())
     }
