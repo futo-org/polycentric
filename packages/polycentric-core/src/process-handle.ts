@@ -764,11 +764,13 @@ export class ProcessHandle {
     ): () => void {
         const eventKey = this.getEventKey(event);
 
-        if (!this._eventAckSubscriptions.has(eventKey)) {
-            this._eventAckSubscriptions.set(eventKey, new Set());
+        let subscriptionSet = this._eventAckSubscriptions.get(eventKey);
+        if (!subscriptionSet) {
+            subscriptionSet = new Set<(serverId: string) => void>();
+            this._eventAckSubscriptions.set(eventKey, subscriptionSet);
         }
 
-        this._eventAckSubscriptions.get(eventKey)?.add(callback);
+        subscriptionSet.add(callback);
 
         return () => {
             this._eventAckSubscriptions.get(eventKey)?.delete(callback);
@@ -781,18 +783,21 @@ export class ProcessHandle {
     ): Promise<Models.Pointer.Pointer> {
         await this._store.ingest(signedEvent);
 
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
         const event = Models.Event.fromBuffer(signedEvent.event);
         const eventKey = this.getEventKey(event);
 
-        if (!this._eventAcks.has(eventKey)) {
-            this._eventAcks.set(eventKey, new Set());
+        let acks = this._eventAcks.get(eventKey);
+        if (!acks) {
+            acks = new Set();
+            this._eventAcks.set(eventKey, acks);
         }
 
         const serverId = 'local';
-        const acks = this._eventAcks.get(eventKey)!;
         if (!acks.has(serverId)) {
             acks.add(serverId);
 
+            // Notify subscribers
             const subscribers = this._eventAckSubscriptions.get(eventKey);
             if (subscribers) {
                 for (const callback of subscribers) {
@@ -871,12 +876,11 @@ export class ProcessHandle {
 
         const eventKey = this.getEventKey(decodedEvent);
 
-        let acks = this._eventAcks.get(eventKey);
-        if (!acks) {
-            acks = new Set();
-            this._eventAcks.set(eventKey, acks);
+        if (!this._eventAcks.has(eventKey)) {
+            this._eventAcks.set(eventKey, new Set());
         }
 
+        const acks = this._eventAcks.get(eventKey);
         if (!acks.has(serverId)) {
             acks.add(serverId);
             void this._store.indexEvents.saveEventAcks(
