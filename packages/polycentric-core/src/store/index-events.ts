@@ -34,12 +34,12 @@ export class IndexEvents implements HasIngest {
     public async getEventAcks(): Promise<Record<string, string[]>> {
         try {
             const value = await this.acksLevel.get(this.ACKS_KEY);
-            return value ? JSON.parse(new TextDecoder().decode(value)) : {};
+            return JSON.parse(new TextDecoder().decode(value)) as Record<string, string[]>;
         } catch {
             return {};
         }
     }
-
+    
     public async saveEventAcks(
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,
