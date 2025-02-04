@@ -27,3 +27,8 @@ yarn-error.log*
 
 proto/protocol.ts
 dist
+
+# Generated files
+docker-compose.live*
+.env
+state

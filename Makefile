@@ -59,7 +59,7 @@ proto: proto/protocol.proto
 	cp proto/protocol.ts packages/polycentric-core/src/protocol.ts
 
 pretty:
-	npx prettier --write \
+	npx prettier@3.1.1 --write \
 		packages/polycentric-core/src/ \
 		packages/polycentric-react/src/ \
 		packages/polycentric-web/src/ \
@@ -69,6 +69,26 @@ pretty:
 		packages/polycentric-desktop/src/ \
 		packages/polycentric-desktop/electron/ \
 		packages/test-data-generator/src/
+
+lint: proto
+	./version.sh
+	cd polycentric-protocol && \
+		cargo clippy --no-deps -- -D warnings
+
+	cd server && \
+		cargo clippy --no-deps --locked -- -D warnings
+
+	cd packages/polycentric-core && \
+		npx eslint ./src --max-warnings=0
+
+	cd packages/harbor-web && \
+		npx eslint ./src --max-warnings=0
+
+	cd packages/polycentric-react && \
+		npx eslint ./src --max-warnings=0
+
+	cd packages/polycentric-web && \
+		npx eslint ./src --max-warnings=0
 
 build-production: proto
 	./version.sh
@@ -129,7 +149,7 @@ build-ci-deps:
 		-t gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest .
 	docker push gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest
 
-push-server-image:
+push-server-image-do:
 	DOCKER_BUILDKIT=1 docker build \
 		-f server.dockerfile \
 		-t registry.digitalocean.com/polycentric/polycentric:latest .
