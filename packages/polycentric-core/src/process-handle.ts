@@ -66,7 +66,10 @@ export class ProcessHandle {
     >;
     private readonly _ingestLock: AsyncLock;
     private readonly _eventAcks = new Map<string, Set<string>>();
-    private readonly _eventAckSubscriptions = new Map<string, Set<(serverId: string) => void>>();
+    private readonly _eventAckSubscriptions = new Map<
+        string,
+        Set<(serverId: string) => void>
+    >();
 
     public readonly queryManager: Queries.QueryManager.QueryManager;
     public readonly synchronizer: Synchronization.Synchronizer;
@@ -760,13 +763,13 @@ export class ProcessHandle {
         callback: (serverId: string) => void,
     ): () => void {
         const eventKey = this.getEventKey(event);
-        
+
         let subscribers = this._eventAckSubscriptions.get(eventKey);
         if (!subscribers) {
             subscribers = new Set();
             this._eventAckSubscriptions.set(eventKey, subscribers);
         }
-        
+
         subscribers.add(callback);
 
         return () => {
