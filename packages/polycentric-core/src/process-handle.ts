@@ -868,12 +868,7 @@ export class ProcessHandle {
     ): void {
         if (!event.event) return;
         const decodedEvent = Protocol.Event.decode(event.event);
-        if (
-            !decodedEvent.system ||
-            !decodedEvent.process ||
-            !decodedEvent.logicalClock
-        )
-            return;
+        if (!decodedEvent.system || !decodedEvent.process) return;
 
         const eventKey = this.getEventKey(decodedEvent);
 
