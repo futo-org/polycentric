@@ -40,7 +40,7 @@ export class IndexEvents implements HasIngest {
             return {};
         }
     }
-    
+
     public async saveEventAcks(
         system: Models.PublicKey.PublicKey,
         process: Models.Process.Process,

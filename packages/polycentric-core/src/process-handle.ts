@@ -866,17 +866,17 @@ export class ProcessHandle {
         event: Protocol.SignedEvent,
         serverId: string,
     ): void {
-        if (!event.event) return;
         const decodedEvent = Protocol.Event.decode(event.event);
         if (!decodedEvent.system || !decodedEvent.process) return;
-
+    
         const eventKey = this.getEventKey(decodedEvent);
-
-        if (!this._eventAcks.has(eventKey)) {
-            this._eventAcks.set(eventKey, new Set());
+    
+        let acks = this._eventAcks.get(eventKey);
+        if (!acks) {
+            acks = new Set();
+            this._eventAcks.set(eventKey, acks);
         }
-
-        const acks = this._eventAcks.get(eventKey)!;
+    
         if (!acks.has(serverId)) {
             acks.add(serverId);
             void this._store.indexEvents.saveEventAcks(
@@ -885,7 +885,7 @@ export class ProcessHandle {
                 decodedEvent.logicalClock,
                 Array.from(acks),
             );
-
+    
             const subscribers = this._eventAckSubscriptions.get(eventKey);
             if (subscribers) {
                 for (const callback of subscribers) {
@@ -893,7 +893,7 @@ export class ProcessHandle {
                 }
             }
         }
-    }
+    }    
 }
 
 export async function solveChallenge(
