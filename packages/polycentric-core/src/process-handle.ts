@@ -768,7 +768,7 @@ export class ProcessHandle {
             this._eventAckSubscriptions.set(eventKey, new Set());
         }
 
-        this._eventAckSubscriptions.get(eventKey)!.add(callback);
+        this._eventAckSubscriptions.get(eventKey)?.add(callback);
 
         return () => {
             this._eventAckSubscriptions.get(eventKey)?.delete(callback);
@@ -868,15 +868,15 @@ export class ProcessHandle {
     ): void {
         const decodedEvent = Protocol.Event.decode(event.event);
         if (!decodedEvent.system || !decodedEvent.process) return;
-    
+
         const eventKey = this.getEventKey(decodedEvent);
-    
+
         let acks = this._eventAcks.get(eventKey);
         if (!acks) {
             acks = new Set();
             this._eventAcks.set(eventKey, acks);
         }
-    
+
         if (!acks.has(serverId)) {
             acks.add(serverId);
             void this._store.indexEvents.saveEventAcks(
@@ -885,7 +885,7 @@ export class ProcessHandle {
                 decodedEvent.logicalClock,
                 Array.from(acks),
             );
-    
+
             const subscribers = this._eventAckSubscriptions.get(eventKey);
             if (subscribers) {
                 for (const callback of subscribers) {
@@ -893,7 +893,7 @@ export class ProcessHandle {
                 }
             }
         }
-    }    
+    }
 }
 
 export async function solveChallenge(
