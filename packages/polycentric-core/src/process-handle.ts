@@ -65,11 +65,8 @@ export class ProcessHandle {
         Set<string>
     >;
     private readonly _ingestLock: AsyncLock;
-    private readonly _eventAcks: Map<string, Set<string>> = new Map();
-    private readonly _eventAckSubscriptions: Map<
-        string,
-        Set<(serverId: string) => void>
-    > = new Map();
+    private readonly _eventAcks = new Map<string, Set<string>>();
+    private readonly _eventAckSubscriptions = new Map<string, Set<(serverId: string) => void>>();
 
     public readonly queryManager: Queries.QueryManager.QueryManager;
     public readonly synchronizer: Synchronization.Synchronizer;
@@ -745,7 +742,7 @@ export class ProcessHandle {
             Models.PublicKey.fromProto(event.system),
         )}_${Models.Process.toString(
             Models.Process.fromProto(event.process),
-        )}_${event.logicalClock}`;
+        )}_${event.logicalClock.toString()}`;
     }
 
     public getEventAckCount(event: Protocol.Event): number {
@@ -763,15 +760,20 @@ export class ProcessHandle {
         callback: (serverId: string) => void,
     ): () => void {
         const eventKey = this.getEventKey(event);
-
-        if (!this._eventAckSubscriptions.has(eventKey)) {
-            this._eventAckSubscriptions.set(eventKey, new Set());
+        
+        let subscribers = this._eventAckSubscriptions.get(eventKey);
+        if (!subscribers) {
+            subscribers = new Set();
+            this._eventAckSubscriptions.set(eventKey, subscribers);
         }
-
-        this._eventAckSubscriptions.get(eventKey)!.add(callback);
+        
+        subscribers.add(callback);
 
         return () => {
-            this._eventAckSubscriptions.get(eventKey)?.delete(callback);
+            const subs = this._eventAckSubscriptions.get(eventKey);
+            if (subs) {
+                subs.delete(callback);
+            }
         };
     }
 
@@ -877,15 +879,12 @@ export class ProcessHandle {
 
         const eventKey = this.getEventKey(decodedEvent);
 
-        if (!this._eventAcks.has(eventKey)) {
-            this._eventAcks.set(eventKey, new Set());
-        }
-
         let acks = this._eventAcks.get(eventKey);
         if (!acks) {
             acks = new Set<string>();
             this._eventAcks.set(eventKey, acks);
         }
+
         if (!acks.has(serverId)) {
             acks.add(serverId);
             void this._store.indexEvents.saveEventAcks(
