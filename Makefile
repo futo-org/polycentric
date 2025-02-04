@@ -14,6 +14,10 @@ export CURRENT_UID
 export CURRENT_GID
 export DOCKER_GID
 
+hotreload-start: devcert
+	./version.sh
+	docker compose -f docker-compose.development.yml up --build --watch
+
 build-sandbox:
 	docker compose -f docker-compose.development.yml pull
 	docker compose -f docker-compose.development.yml build
