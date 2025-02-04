@@ -154,9 +154,7 @@ async fn pull_queue_events(
     ";
 
     let candidate_rows: Vec<ModerationQueueRawRow> =
-        sqlx::query_as(query)
-            .fetch_all(&mut **transaction)
-            .await?;
+        sqlx::query_as(query).fetch_all(&mut **transaction).await?;
 
     let candidate_ids: Vec<i64> =
         candidate_rows.iter().map(|row| row.id).collect();
@@ -1103,15 +1101,17 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn test_explain_pull_queue_events(pool: PgPool) -> anyhow::Result<()> {
+    async fn test_explain_pull_queue_events(
+        pool: PgPool,
+    ) -> anyhow::Result<()> {
         let mut transaction = pool.begin().await?;
-        
+
         // First create some test data
         crate::postgres::prepare_database(&mut transaction).await?;
-        
+
         // Add our performance improvements
         println!("\nAdding performance improvements...");
-        
+
         // Add efficient index for events
         sqlx::query(
             "CREATE INDEX IF NOT EXISTS idx_events_moderation_efficient ON events 
@@ -1137,10 +1137,10 @@ mod tests {
 
         // Test with different data sizes
         let data_sizes = vec![1000, 10000, 50000];
-        
+
         for size in data_sizes {
             println!("\nTesting with {} records:", size);
-            
+
             // Insert test data
             let start = Instant::now();
             for i in 0..size {
@@ -1185,7 +1185,7 @@ mod tests {
                             currval('events_id_seq'),
                             $1,
                             CURRENT_TIMESTAMP - interval '1 hour' * $2
-                        )"
+                        )",
                     )
                     .bind(i % 4)
                     .bind(i % 12)
@@ -1224,15 +1224,18 @@ mod tests {
             ";
 
             let start = Instant::now();
-            let results = sqlx::query(query)
-                .fetch_all(&mut *transaction)
-                .await?;
+            let results =
+                sqlx::query(query).fetch_all(&mut *transaction).await?;
             println!("Query execution took: {:?}", start.elapsed());
             assert_eq!(results.len(), 20);
 
             // Clean up for next iteration
-            sqlx::query("DELETE FROM event_processing_status").execute(&mut *transaction).await?;
-            sqlx::query("DELETE FROM events").execute(&mut *transaction).await?;
+            sqlx::query("DELETE FROM event_processing_status")
+                .execute(&mut *transaction)
+                .await?;
+            sqlx::query("DELETE FROM events")
+                .execute(&mut *transaction)
+                .await?;
             transaction.commit().await?;
             transaction = pool.begin().await?;
         }
