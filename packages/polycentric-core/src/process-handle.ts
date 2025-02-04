@@ -65,11 +65,11 @@ export class ProcessHandle {
         Set<string>
     >;
     private readonly _ingestLock: AsyncLock;
-    private readonly _eventAcks: Map<string, Set<string>> = new Map();
-    private readonly _eventAckSubscriptions: Map<
+    private readonly _eventAcks = new Map<string, Set<string>>();
+    private readonly _eventAckSubscriptions = new Map<
         string,
         Set<(serverId: string) => void>
-    > = new Map();
+    >();
 
     public readonly queryManager: Queries.QueryManager.QueryManager;
     public readonly synchronizer: Synchronization.Synchronizer;
@@ -745,7 +745,7 @@ export class ProcessHandle {
             Models.PublicKey.fromProto(event.system),
         )}_${Models.Process.toString(
             Models.Process.fromProto(event.process),
-        )}_${event.logicalClock}`;
+        )}_${event.logicalClock.toString()}`;
     }
 
     public getEventAckCount(event: Protocol.Event): number {
