@@ -16,7 +16,6 @@ pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
-
     // log moderation filters
     println!("moderation filters: {:?}", query.moderation_filters);
 

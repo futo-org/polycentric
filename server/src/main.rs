@@ -368,8 +368,13 @@ async fn run_moderation_queue(
     };
 
     if tag_provider.is_none() {
-        error!("No moderation interface provided and moderation mode is not off");
-        return Err("No moderation interface provided and moderation mode is not off".into());
+        error!(
+            "No moderation interface provided and moderation mode is not off"
+        );
+        return Err(
+            "No moderation interface provided and moderation mode is not off"
+                .into(),
+        );
     }
 
     let pool_clone = pool.clone();
