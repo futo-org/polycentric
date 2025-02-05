@@ -698,6 +698,26 @@ export function claimURL(url: string): Protocol.Claim {
     return claimIdentifier(ClaimType.ClaimTypeURL, url);
 }
 
+export function claimVimeo(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.ClaimTypeVimeo, username);
+}
+
+export function claimNebula(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.ClaimTypeNebula, username);
+}
+
+export function claimSpotify(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.ClaimTypeSpotify, username);
+}
+
+export function claimSpreadshop(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.ClaimTypeSpreadshop, username);
+}
+
+export function claimDailyMotion(username: string): Protocol.Claim {
+    return claimIdentifier(ClaimType.ClaimTypeDailymotion, username);
+}
+
 export class Blob {
     private _mime: string;
     private _content: Uint8Array;

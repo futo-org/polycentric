@@ -2,7 +2,9 @@ import * as Core from '@polycentric/polycentric-core';
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import { useCallback, useEffect, useState } from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
+import { useClaims } from '../../../hooks/queryHooks';
 import { getOAuthURL } from '../../../util/oauth';
+
 export type SocialPlatform =
     | 'hackerNews'
     | 'youtube'
@@ -217,18 +219,21 @@ const isVerifiablePlatform = (platform: SocialPlatform): boolean => {
 
 export const SocialMediaInput = ({
     platform,
+    system,
     onCancel,
 }: {
     platform: SocialPlatform;
+    system: Models.PublicKey.PublicKey;
     onCancel: () => void;
 }) => {
     const [url, setUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [verificationStep, setVerificationStep] = useState<
-        'input' | 'token' | 'verifying'
+        'input' | 'token' | 'verifying' | 'duplicate'
     >('input');
     const [claimPointer, setClaimPointer] = useState<string | null>(null);
     const { processHandle } = useProcessHandleManager();
+    const claims = useClaims(system);
 
     // Check for OAuth verification immediately
     useEffect(() => {
@@ -262,9 +267,94 @@ export const SocialMediaInput = ({
     }, [platform]);
 
     const addClaim = useCallback(async () => {
-        if (!url || !processHandle) return;
+        if (!url || !processHandle || !claims) return;
         try {
             setIsSubmitting(true);
+
+            // Check for existing claims first
+            const existingClaim = claims.find((claim) => {
+                switch (platform) {
+                    case 'youtube':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeYouTube,
+                        );
+                    case 'twitter':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeTwitter,
+                        );
+                    case 'discord':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeDiscord,
+                        );
+                    case 'instagram':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeInstagram,
+                        );
+                    case 'github':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeGitHub,
+                        );
+                    case 'minds':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeMinds,
+                        );
+                    case 'odysee':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeOdysee,
+                        );
+                    case 'rumble':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeRumble,
+                        );
+                    case 'vimeo':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeVimeo,
+                        );
+                    case 'nebula':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeNebula,
+                        );
+                    case 'spotify':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeSpotify,
+                        );
+                    case 'spreadshop':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeSpreadshop,
+                        );
+                    case 'website':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeWebsite,
+                        );
+                    case 'patreon':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypePatreon,
+                        );
+                    case 'substack':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeSubstack,
+                        );
+                    case 'twitch':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeTwitch,
+                        );
+                    case 'dailymotion':
+                        return claim.value.claimType.equals(
+                            Core.Models.ClaimType.ClaimTypeDailyMotion,
+                        );
+
+                    default:
+                        return false;
+                }
+            });
+
+            if (existingClaim) {
+                setVerificationStep('duplicate');
+                setIsSubmitting(false);
+                return;
+            }
+
+            // Create the claim
             let claim: Protocol.Claim;
             let claimType: Core.Models.ClaimType.ClaimType;
 
@@ -275,59 +365,74 @@ export const SocialMediaInput = ({
 
             switch (platform) {
                 case 'hackerNews':
-                    claim = Models.claimHackerNews(processedUrl);
                     claimType = Core.Models.ClaimType.ClaimTypeHackerNews;
+                    claim = Models.claimHackerNews(processedUrl);
                     break;
                 case 'youtube':
-                    claim = Models.claimYouTube(processedUrl);
                     claimType = Core.Models.ClaimType.ClaimTypeYouTube;
+                    claim = Models.claimYouTube(processedUrl);
                     break;
                 case 'odysee':
-                    claim = Models.claimOdysee(processedUrl);
                     claimType = Core.Models.ClaimType.ClaimTypeOdysee;
+                    claim = Models.claimOdysee(processedUrl);
                     break;
                 case 'rumble':
-                    claim = Models.claimRumble(processedUrl);
                     claimType = Core.Models.ClaimType.ClaimTypeRumble;
+                    claim = Models.claimRumble(processedUrl);
                     break;
                 case 'github':
-                    claim = Models.claimGitHub(processedUrl);
                     claimType = Core.Models.ClaimType.ClaimTypeGitHub;
+                    claim = Models.claimGitHub(processedUrl);
                     break;
                 case 'minds':
-                    claim = Models.claimMinds(processedUrl);
                     claimType = Core.Models.ClaimType.ClaimTypeMinds;
+                    claim = Models.claimMinds(processedUrl);
                     break;
                 case 'patreon':
-                    claim = Models.claimPatreon(processedUrl);
                     claimType = Core.Models.ClaimType.ClaimTypePatreon;
+                    claim = Models.claimPatreon(processedUrl);
                     break;
                 case 'substack':
-                    claim = Models.claimSubstack(processedUrl);
                     claimType = Core.Models.ClaimType.ClaimTypeSubstack;
+                    claim = Models.claimSubstack(processedUrl);
                     break;
                 case 'twitch':
-                    claim = Models.claimTwitch(processedUrl);
                     claimType = Core.Models.ClaimType.ClaimTypeTwitch;
+                    claim = Models.claimTwitch(processedUrl);
                     break;
                 case 'website':
-                    claim = Models.claimWebsite(processedUrl);
                     claimType = Core.Models.ClaimType.ClaimTypeWebsite;
+                    claim = Models.claimWebsite(processedUrl);
+                    break;
+                case 'vimeo':
+                    claimType = Core.Models.ClaimType.ClaimTypeVimeo;
+                    claim = Models.claimVimeo(processedUrl);
+                    break;
+                case 'nebula':
+                    claimType = Core.Models.ClaimType.ClaimTypeNebula;
+                    claim = Models.claimNebula(processedUrl);
+                    break;
+                case 'spotify':
+                    claimType = Core.Models.ClaimType.ClaimTypeSpotify;
+                    claim = Models.claimSpotify(processedUrl);
+                    break;
+                case 'spreadshop':
+                    claimType = Core.Models.ClaimType.ClaimTypeSpreadshop;
+                    claim = Models.claimSpreadshop(processedUrl);
                     break;
                 default:
-                    claim = Models.claimURL(processedUrl);
                     claimType = Core.Models.ClaimType.ClaimTypeURL;
+                    claim = Models.claimURL(processedUrl);
                     break;
             }
 
-            // Create the claim first
+            // Create the claim if we get here
             const pointer = await processHandle.claim(claim);
 
             if (isOAuthVerifiable(claimType)) {
                 const oauthUrl = await getOAuthURL(claimType);
                 window.location.href = oauthUrl;
             } else if (isVerifiablePlatform(platform)) {
-                // Convert PublicKey key to base64 token
                 const bytes = Array.from(pointer.system.key);
                 const token = btoa(String.fromCharCode.apply(null, bytes));
                 setClaimPointer(token);
@@ -341,7 +446,7 @@ export const SocialMediaInput = ({
         } finally {
             setIsSubmitting(false);
         }
-    }, [url, platform, processHandle, onCancel]);
+    }, [url, platform, processHandle, claims, onCancel]);
 
     const startVerification = useCallback(async () => {
         setVerificationStep('verifying');
@@ -396,6 +501,24 @@ export const SocialMediaInput = ({
             <div className="flex flex-col items-center gap-4 p-4">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                 <p>Verifying your claim...</p>
+            </div>
+        );
+    }
+
+    if (verificationStep === 'duplicate') {
+        return (
+            <div className="flex flex-col gap-4">
+                <h2 className="text-xl font-semibold text-center">
+                    You&apos;ve already claimed this profile
+                </h2>
+                <div className="flex justify-center mt-4">
+                    <button
+                        onClick={onCancel}
+                        className="px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                    >
+                        OK
+                    </button>
+                </div>
             </div>
         );
     }
