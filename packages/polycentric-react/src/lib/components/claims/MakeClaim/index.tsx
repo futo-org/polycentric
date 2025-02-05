@@ -7,7 +7,7 @@ export type SocialPlatform =
     | 'youtube'
     | 'odysee'
     | 'rumble'
-    | 'twitter'
+    | 'twitter/X'
     | 'discord'
     | 'instagram'
     | 'github'
@@ -99,7 +99,7 @@ export const ClaimTypePopup = ({
 
     const socialPlatforms: SocialPlatform[] = [
         'youtube',
-        'twitter',
+        'twitter/X',
         'github',
         'discord',
         'instagram',
@@ -178,59 +178,80 @@ export const SocialMediaInput = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { processHandle } = useProcessHandleManager();
 
+    const getPlaceholder = (platform: SocialPlatform) => {
+        switch (platform) {
+            case 'youtube':
+                return 'https://www.youtube.com/@example';
+            case 'odysee':
+                return 'https://odysee.com/@example';
+            case 'rumble':
+                return 'https://rumble.com/c/example';
+            case 'twitch':
+                return 'https://twitch.tv/example';
+            case 'instagram':
+                return 'https://www.instagram.com/example';
+            case 'minds':
+                return 'https://www.minds.com/example';
+            case 'patreon':
+                return 'https://www.patreon.com/example';
+            case 'substack':
+                return 'https://example.substack.com';
+            default:
+                return `Enter your ${platform} URL`;
+        }
+    };
+
     const addClaim = useCallback(async () => {
         if (!url || !processHandle) return;
         try {
             setIsSubmitting(true);
             let claim: Protocol.Claim;
 
+            // Ensure URL has proper protocol
+            const processedUrl = url.startsWith('http')
+                ? url
+                : `https://${url}`;
+
             switch (platform) {
-                case 'hackerNews':
-                    claim = Models.claimHackerNews(url);
-                    break;
                 case 'youtube':
-                    claim = Models.claimYouTube(url);
+                    claim = Models.claimYouTube(processedUrl);
                     break;
                 case 'odysee':
-                    claim = Models.claimOdysee(url);
+                    claim = Models.claimOdysee(processedUrl);
                     break;
                 case 'rumble':
-                    claim = Models.claimRumble(url);
+                    claim = Models.claimRumble(processedUrl);
                     break;
-                case 'twitter':
-                    claim = Models.claimTwitter(url);
+                case 'twitter/X':
+                    claim = Models.claimTwitter(processedUrl);
                     break;
                 case 'discord':
-                    claim = Models.claimDiscord(url);
+                    claim = Models.claimDiscord(processedUrl);
                     break;
                 case 'instagram':
-                    claim = Models.claimInstagram(url);
+                    claim = Models.claimInstagram(processedUrl);
                     break;
                 case 'github':
-                    claim = Models.claimGitHub(url);
+                    claim = Models.claimGitHub(processedUrl);
                     break;
                 case 'minds':
-                    claim = Models.claimMinds(url);
+                    claim = Models.claimMinds(processedUrl);
                     break;
                 case 'patreon':
-                    claim = Models.claimPatreon(url);
+                    claim = Models.claimPatreon(processedUrl);
                     break;
                 case 'substack':
-                    claim = Models.claimSubstack(url);
+                    claim = Models.claimSubstack(processedUrl);
                     break;
                 case 'twitch':
-                    claim = Models.claimTwitch(url);
-                    break;
-                case 'website':
-                    claim = Models.claimWebsite(url);
+                    claim = Models.claimTwitch(processedUrl);
                     break;
                 default:
-                    claim = Models.claimURL(url);
+                    claim = Models.claimURL(processedUrl);
                     break;
             }
 
             await processHandle.claim(claim);
-
             onCancel();
         } catch (error) {
             console.error('Failed to submit claim:', error);
@@ -246,7 +267,7 @@ export const SocialMediaInput = ({
             </h2>
             <input
                 type="url"
-                placeholder={`Enter your ${platform} username`}
+                placeholder={getPlaceholder(platform)}
                 className="border p-2 rounded-lg"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}

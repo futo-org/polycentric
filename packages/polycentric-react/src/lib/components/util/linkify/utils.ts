@@ -41,13 +41,13 @@ export const getAccountUrl = (
         case type.equals(Models.ClaimType.ClaimTypeTwitter):
             return `https://x.com/${value}`;
         case type.equals(Models.ClaimType.ClaimTypeYouTube):
-            return `https://www.youtube.com/@${value}`;
+            return `${value}`;
         case type.equals(Models.ClaimType.ClaimTypeDiscord):
             return `https://discord.com/users/${value}`;
         case type.equals(Models.ClaimType.ClaimTypeInstagram):
             return `https://instagram.com/${value}`;
         case type.equals(Models.ClaimType.ClaimTypeGitHub):
-            return `https://github.com/${value}`;
+            return `${value}`;
         case type.equals(Models.ClaimType.ClaimTypePatreon):
             return `https://www.patreon.com/${value}`;
         case type.equals(Models.ClaimType.ClaimTypeSubstack):

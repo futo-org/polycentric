@@ -541,7 +541,7 @@ const ClaimCircle: React.FC<{
                                           : 'bg-gray-100 text-blue-600 border-blue-600 hover:bg-blue-50'
                                 }`}
                             >
-                                Vouch
+                                Verify
                             </button>
                         )}
                     </div>
