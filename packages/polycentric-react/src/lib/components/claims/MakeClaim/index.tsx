@@ -557,17 +557,45 @@ export const SocialMediaInput = ({
     );
 };
 
-export const OccupationInput = ({ onCancel }: { onCancel: () => void }) => {
+export const OccupationInput = ({
+    onCancel,
+    system,
+}: {
+    onCancel: () => void;
+    system: Models.PublicKey.PublicKey;
+}) => {
     const [organization, setOrganization] = useState('');
     const [role, setRole] = useState('');
     const [location, setLocation] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [verificationStep, setVerificationStep] = useState<
+        'input' | 'duplicate'
+    >('input');
     const { processHandle } = useProcessHandleManager();
+    const claims = useClaims(system);
 
     const addClaim = useCallback(async () => {
-        if (!processHandle) return;
+        if (!processHandle || !claims) return;
         try {
             setIsSubmitting(true);
+
+            // Check for existing claims
+            const existingClaim = claims.find(
+                (claim) =>
+                    claim.value.claimType.equals(
+                        Core.Models.ClaimType.ClaimTypeOccupation,
+                    ) &&
+                    claim.value.claimFields[0]?.value === organization &&
+                    claim.value.claimFields[1]?.value === role &&
+                    claim.value.claimFields[2]?.value === location,
+            );
+
+            if (existingClaim) {
+                setVerificationStep('duplicate');
+                setIsSubmitting(false);
+                return;
+            }
+
             const claim = Models.claimOccupation(organization, role, location);
             await processHandle.claim(claim);
             onCancel();
@@ -576,8 +604,27 @@ export const OccupationInput = ({ onCancel }: { onCancel: () => void }) => {
         } finally {
             setIsSubmitting(false);
         }
-    }, [organization, role, location, processHandle, onCancel]);
+    }, [organization, role, location, processHandle, claims, onCancel]);
 
+    if (verificationStep === 'duplicate') {
+        return (
+            <div className="flex flex-col gap-4">
+                <h2 className="text-xl font-semibold text-center">
+                    You&apos;ve already made this claim
+                </h2>
+                <div className="flex justify-center mt-4">
+                    <button
+                        onClick={onCancel}
+                        className="px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                    >
+                        OK
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // Rest of existing render code...
     return (
         <div className="flex flex-col gap-4">
             <h2 className="text-xl font-semibold">Add Occupation</h2>
@@ -624,18 +671,49 @@ export const OccupationInput = ({ onCancel }: { onCancel: () => void }) => {
 export const TextInput = ({
     type,
     onCancel,
+    system,
 }: {
     type: 'skill' | 'freeform';
     onCancel: () => void;
+    system: Models.PublicKey.PublicKey;
 }) => {
     const [text, setText] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [verificationStep, setVerificationStep] = useState<
+        'input' | 'duplicate'
+    >('input');
     const { processHandle } = useProcessHandleManager();
+    const claims = useClaims(system);
 
     const addClaim = useCallback(async () => {
-        if (!processHandle) return;
+        if (!processHandle || !claims) return;
         try {
             setIsSubmitting(true);
+
+            // Check for existing claims
+            const existingClaim = claims.find((claim) => {
+                const isSkill =
+                    type === 'skill' &&
+                    claim.value.claimType.equals(
+                        Core.Models.ClaimType.ClaimTypeSkill,
+                    );
+                const isGeneric =
+                    type === 'freeform' &&
+                    claim.value.claimType.equals(
+                        Core.Models.ClaimType.ClaimTypeGeneric,
+                    );
+                return (
+                    (isSkill || isGeneric) &&
+                    claim.value.claimFields[0]?.value === text
+                );
+            });
+
+            if (existingClaim) {
+                setVerificationStep('duplicate');
+                setIsSubmitting(false);
+                return;
+            }
+
             const claim =
                 type === 'skill'
                     ? Models.claimSkill(text)
@@ -647,8 +725,27 @@ export const TextInput = ({
         } finally {
             setIsSubmitting(false);
         }
-    }, [text, type, processHandle, onCancel]);
+    }, [text, type, processHandle, claims, onCancel]);
 
+    if (verificationStep === 'duplicate') {
+        return (
+            <div className="flex flex-col gap-4">
+                <h2 className="text-xl font-semibold text-center">
+                    You&apos;ve already made this claim
+                </h2>
+                <div className="flex justify-center mt-4">
+                    <button
+                        onClick={onCancel}
+                        className="px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                    >
+                        OK
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // Original input UI
     return (
         <div className="flex flex-col gap-4">
             <h2 className="text-xl font-semibold capitalize">Add {type}</h2>
