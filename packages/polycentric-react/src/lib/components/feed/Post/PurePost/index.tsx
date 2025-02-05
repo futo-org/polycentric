@@ -426,8 +426,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                         : stats?.likes
                                                 }
                                                 clicked={
-                                                    stats?.opinion ===
-                                                        'liked' ?? false
+                                                    stats?.opinion === 'liked'
                                                 }
                                             />
                                             <DislikeButton
@@ -444,7 +443,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                 }
                                                 clicked={
                                                     stats?.opinion ===
-                                                        'disliked' ?? false
+                                                    'disliked'
                                                 }
                                             />
                                             {isMobile === false && (
@@ -659,10 +658,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                 : actions?.dislike()
                                         }
                                         count={stats?.dislikes}
-                                        clicked={
-                                            stats?.opinion === 'disliked' ??
-                                            false
-                                        }
+                                        clicked={stats?.opinion === 'disliked'}
                                     />
                                     <LikeButton
                                         onClick={() =>
@@ -671,9 +667,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                 : actions?.like()
                                         }
                                         count={stats?.likes}
-                                        clicked={
-                                            stats?.opinion === 'liked' ?? false
-                                        }
+                                        clicked={stats?.opinion === 'liked'}
                                     />
                                     {navigator.share && (
                                         <SharePostButton
