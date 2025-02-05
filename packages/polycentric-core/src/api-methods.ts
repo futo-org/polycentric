@@ -12,6 +12,18 @@ async function checkResponse(name: string, response: Response): Promise<void> {
     }
 }
 
+function encodeModerationLevels(
+    moderationLevels: Record<string, number>,
+): string {
+    return JSON.stringify(
+        Object.entries(moderationLevels).map(([key, value]) => ({
+            name: key,
+            max_level: value,
+            strict_mode: false,
+        })),
+    );
+}
+
 const userAgent = 'polycentric-core-' + Version.SHA.substring(0, 8);
 
 export async function postEvents(
@@ -80,12 +92,14 @@ export type GetEventsType = (
     server: string,
     system: Models.PublicKey.PublicKey,
     ranges: Models.Ranges.RangesForSystem,
+    moderationLevels?: Record<string, number>,
 ) => Promise<Models.Events.Type>;
 
 export const getEvents: GetEventsType = async (
     server: string,
     system: Models.PublicKey.PublicKey,
     ranges: Models.Ranges.RangesForSystem,
+    moderationLevels?: Record<string, number>,
 ): Promise<Models.Events.Type> => {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
@@ -95,7 +109,12 @@ export const getEvents: GetEventsType = async (
         Protocol.RangesForSystem.encode(ranges).finish(),
     );
 
-    const path = `/events?system=${systemQuery}&ranges=${rangesQuery}`;
+    let path = `/events?system=${systemQuery}&ranges=${rangesQuery}`;
+
+    if (moderationLevels !== undefined) {
+        const moderationLevelsQuery = encodeModerationLevels(moderationLevels);
+        path += `&moderation_filters=${moderationLevelsQuery}`;
+    }
 
     const response = await fetch(server + path, {
         method: 'GET',
@@ -237,7 +256,9 @@ export async function getQueryReferences(
     let path = `/query_references?query=${encodedQuery}`;
 
     if (moderationLevels !== undefined) {
-        path += `&moderation_filters=${JSON.stringify(moderationLevels)}`;
+        path += `&moderation_filters=${encodeModerationLevels(
+            moderationLevels,
+        )}`;
     }
 
     const response = await fetch(server + path, {
@@ -282,7 +303,9 @@ export async function getSearch(
     }
 
     if (moderationLevels !== undefined) {
-        path += `&moderation_filters=${JSON.stringify(moderationLevels)}`;
+        path += `&moderation_filters=${encodeModerationLevels(
+            moderationLevels,
+        )}`;
     }
 
     const response = await fetch(server + path, {
@@ -386,14 +409,7 @@ export async function getExplore(
     if (moderationLevels !== undefined) {
         params.append(
             'moderation_filters',
-            // not base64 encoded
-            JSON.stringify(
-                Object.entries(moderationLevels).map(([key, value]) => ({
-                    name: key,
-                    max_level: value,
-                    strict_mode: false,
-                })),
-            ),
+            encodeModerationLevels(moderationLevels),
         );
     }
 
