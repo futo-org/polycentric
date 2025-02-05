@@ -24,21 +24,34 @@ export function OAuthCallback() {
             try {
                 // Create claim after OAuth success
                 let claim: Core.Protocol.Claim;
-                const claimTypeNum = new Long(parseInt(claimType), 0, true) as Core.Models.ClaimType.ClaimType;
-                
+                const claimTypeNum = new Long(
+                    parseInt(claimType),
+                    0,
+                    true,
+                ) as Core.Models.ClaimType.ClaimType;
+
                 // Get username from OAuth response
-                const oauthResponse = await getOAuthUsername(token, claimTypeNum);
-                
+                const oauthResponse = await getOAuthUsername(
+                    token,
+                    claimTypeNum,
+                );
+
                 // Create appropriate claim based on type
                 switch (claimTypeNum.toString()) {
                     case Core.Models.ClaimType.ClaimTypeTwitter.toString():
-                        claim = Core.Models.claimTwitter(oauthResponse.username);
+                        claim = Core.Models.claimTwitter(
+                            oauthResponse.username,
+                        );
                         break;
                     case Core.Models.ClaimType.ClaimTypeDiscord.toString():
-                        claim = Core.Models.claimDiscord(oauthResponse.username);
+                        claim = Core.Models.claimDiscord(
+                            oauthResponse.username,
+                        );
                         break;
                     case Core.Models.ClaimType.ClaimTypeInstagram.toString():
-                        claim = Core.Models.claimInstagram(oauthResponse.username);
+                        claim = Core.Models.claimInstagram(
+                            oauthResponse.username,
+                        );
                         break;
                     default:
                         throw new Error('Unsupported claim type');
@@ -46,10 +59,10 @@ export function OAuthCallback() {
 
                 // Create the claim
                 const pointer = await processHandle.claim(claim);
-                
+
                 // Request verification with OAuth token
                 await handleOAuthCallback(token, claimTypeNum, pointer);
-                
+
                 window.location.href = '/';
             } catch (error) {
                 console.error('OAuth callback failed:', error);
@@ -61,4 +74,4 @@ export function OAuthCallback() {
     }, [processHandle]);
 
     return <div>Processing OAuth callback...</div>;
-} 
+}

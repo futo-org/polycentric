@@ -37,7 +37,9 @@ interface MakeClaimProps {
     system: Models.PublicKey.PublicKey;
 }
 
-export const isOAuthVerifiable = (claimType: Core.Models.ClaimType.ClaimType): boolean => {
+const isOAuthVerifiable = (
+    claimType: Core.Models.ClaimType.ClaimType,
+): boolean => {
     return (
         claimType.equals(Core.Models.ClaimType.ClaimTypeDiscord) ||
         claimType.equals(Core.Models.ClaimType.ClaimTypeTwitter) ||
@@ -179,30 +181,37 @@ export const ClaimTypePopup = ({
 const getPlatformHelpText = (platform: SocialPlatform): string => {
     switch (platform) {
         case 'youtube':
-            return "Add this token anywhere to your YouTube channel description.";
+            return 'Add this token anywhere to your YouTube channel description.';
         case 'odysee':
-            return "Add this token anywhere to your Odysee channel description.";
+            return 'Add this token anywhere to your Odysee channel description.';
         case 'rumble':
-            return "Add this token anywhere to the description of your latest video.";
+            return 'Add this token anywhere to the description of your latest video.';
         case 'twitch':
-            return "Add this token anywhere to your Twitch bio.";
+            return 'Add this token anywhere to your Twitch bio.';
         case 'instagram':
-            return "Add this token anywhere to your Instagram bio.";
+            return 'Add this token anywhere to your Instagram bio.';
         case 'minds':
-            return "Add this token anywhere to your Minds bio.";
+            return 'Add this token anywhere to your Minds bio.';
         case 'patreon':
-            return "Add this token anywhere to your Patreon bio.";
+            return 'Add this token anywhere to your Patreon bio.';
         case 'substack':
-            return "Add this token anywhere to your Substack about page.";
+            return 'Add this token anywhere to your Substack about page.';
         default:
-            return "";
+            return '';
     }
 };
 
 const isVerifiablePlatform = (platform: SocialPlatform): boolean => {
-    console.log('Checking if platform is verifiable:', platform);
-    const result = ['youtube', 'odysee', 'rumble', 'twitch', 'instagram', 'minds', 'patreon', 'substack'].includes(platform);
-    console.log('Is verifiable:', result);
+    const result = [
+        'youtube',
+        'odysee',
+        'rumble',
+        'twitch',
+        'instagram',
+        'minds',
+        'patreon',
+        'substack',
+    ].includes(platform);
     return result;
 };
 
@@ -215,7 +224,9 @@ export const SocialMediaInput = ({
 }) => {
     const [url, setUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [verificationStep, setVerificationStep] = useState<'input' | 'token' | 'verifying'>('input');
+    const [verificationStep, setVerificationStep] = useState<
+        'input' | 'token' | 'verifying'
+    >('input');
     const [claimPointer, setClaimPointer] = useState<string | null>(null);
     const { processHandle } = useProcessHandleManager();
 
@@ -258,7 +269,9 @@ export const SocialMediaInput = ({
             let claimType: Core.Models.ClaimType.ClaimType;
 
             // Ensure URL has proper protocol
-            const processedUrl = url.startsWith('http') ? url : `https://${url}`;
+            const processedUrl = url.startsWith('http')
+                ? url
+                : `https://${url}`;
 
             switch (platform) {
                 case 'hackerNews':
@@ -309,7 +322,7 @@ export const SocialMediaInput = ({
 
             // Create the claim first
             const pointer = await processHandle.claim(claim);
-            
+
             if (isOAuthVerifiable(claimType)) {
                 const oauthUrl = await getOAuthURL(claimType);
                 window.location.href = oauthUrl;
@@ -332,28 +345,23 @@ export const SocialMediaInput = ({
 
     const startVerification = useCallback(async () => {
         setVerificationStep('verifying');
-        // Here you would implement the verification check
-        // Similar to your AutomatedVerificationPage
-        // For now, we'll just show a loading state
         setTimeout(() => {
             onCancel();
         }, 2000);
     }, [onCancel]);
-
-    // Add some debug logging to verify the flow
-    useEffect(() => {
-        console.log('Current verification step:', verificationStep);
-        console.log('Current claim pointer:', claimPointer);
-    }, [verificationStep, claimPointer]);
 
     if (verificationStep === 'token' && claimPointer) {
         return (
             <div className="flex flex-col gap-4">
                 <h2 className="text-xl font-semibold">Add Token</h2>
                 <div className="bg-gray-800 p-4 rounded-lg">
-                    <p className="text-white font-mono break-all">{claimPointer}</p>
-                    <button 
-                        onClick={() => navigator.clipboard.writeText(claimPointer)}
+                    <p className="text-white font-mono break-all">
+                        {claimPointer}
+                    </p>
+                    <button
+                        onClick={() =>
+                            navigator.clipboard.writeText(claimPointer)
+                        }
                         className="text-gray-400 text-sm mt-2 hover:text-gray-300"
                     >
                         Tap to copy
@@ -361,8 +369,9 @@ export const SocialMediaInput = ({
                 </div>
                 <p className="text-sm text-gray-600">
                     {getPlatformHelpText(platform)}
-                    You may remove it after verification is complete. 
-                    It may take a few minutes after updating for verification to succeed.
+                    You may remove it after verification is complete. It may
+                    take a few minutes after updating for verification to
+                    succeed.
                 </p>
                 <div className="flex justify-end gap-2 mt-4">
                     <button
@@ -403,7 +412,6 @@ export const SocialMediaInput = ({
                 className="border p-2 rounded-lg"
                 value={url}
                 onChange={(e) => {
-                    console.log('URL changed:', e.target.value);
                     setUrl(e.target.value);
                 }}
             />
@@ -416,9 +424,6 @@ export const SocialMediaInput = ({
                 </button>
                 <button
                     onClick={addClaim}
-                    onMouseDown={() => console.log('Button mouse down')}
-                    onMouseUp={() => console.log('Button mouse up')}
-                    onMouseEnter={() => console.log('Button mouse enter')}
                     className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-blue-300"
                     disabled={isSubmitting}
                 >

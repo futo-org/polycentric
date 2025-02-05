@@ -1,8 +1,9 @@
 import * as Core from '@polycentric/polycentric-core';
 
-const AUTHORITY_SERVER = process.env.NODE_ENV === 'production' 
-    ? 'https://verifiers.polycentric.io'
-    : '/api/verifiers';
+const AUTHORITY_SERVER =
+    process.env.NODE_ENV === 'production'
+        ? 'https://verifiers.polycentric.io'
+        : '/api/verifiers';
 
 export class AuthorityException extends Error {
     constructor(message: string) {
@@ -15,7 +16,9 @@ export const getOAuthURL = async (
     claimType: Core.Models.ClaimType.ClaimType,
 ): Promise<string> => {
     const callbackUrl = `${window.location.origin}/oauth/callback`;
-    const url = `${AUTHORITY_SERVER}/platforms/${claimType}/oauth/url?redirect_uri=${encodeURIComponent(callbackUrl)}`;
+    const url = `${AUTHORITY_SERVER}/platforms/${claimType}/oauth/url?redirect_uri=${encodeURIComponent(
+        callbackUrl,
+    )}`;
     const response = await fetch(url);
     const data = await response.json();
     return data;
@@ -81,7 +84,7 @@ export const requestVerification = async (
 export const handleOAuthCallback = async (
     token: string,
     claimType: Core.Models.ClaimType.ClaimType,
-    pointer: Core.Protocol.Pointer
+    pointer: Core.Protocol.Pointer,
 ): Promise<void> => {
     const response = await getOAuthUsername(token, claimType);
     if (response.username) {
