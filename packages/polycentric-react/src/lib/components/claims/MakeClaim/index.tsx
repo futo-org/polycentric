@@ -340,7 +340,7 @@ export const SocialMediaInput = ({
                         );
                     case 'dailymotion':
                         return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeDailyMotion,
+                            Core.Models.ClaimType.ClaimTypeDailymotion,
                         );
 
                     default:
