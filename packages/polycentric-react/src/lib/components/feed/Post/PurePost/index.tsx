@@ -249,6 +249,7 @@ export interface PurePostProps {
         url?: string;
         replyingToName?: string;
         replyingToURL?: string;
+        type: 'post' | 'claim' | 'vouch';
     };
     sub?: {
         content: string;
