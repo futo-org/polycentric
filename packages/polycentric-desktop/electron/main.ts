@@ -27,9 +27,9 @@ const createMainWindow = () => {
         // mainWindow = null;
     });
 
-    mainWindow.webContents.on('new-window', (event, url) => {
-        event.preventDefault();
-        mainWindow.loadURL(url);
+    mainWindow.webContents.setWindowOpenHandler((details) => {
+        mainWindow.loadURL(details.url);
+        return { action: 'deny' }; // Deny opening a new window
     });
 };
 
