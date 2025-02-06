@@ -444,7 +444,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                 }
                                                 clicked={
                                                     stats?.opinion ===
-                                                        'disliked' 
+                                                    'disliked'
                                                 }
                                             />
                                             {isMobile === false && (
@@ -659,9 +659,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                 : actions?.dislike()
                                         }
                                         count={stats?.dislikes}
-                                        clicked={
-                                            stats?.opinion === 'disliked'
-                                        }
+                                        clicked={stats?.opinion === 'disliked'}
                                     />
                                     <LikeButton
                                         onClick={() =>
@@ -670,9 +668,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                                                 : actions?.like()
                                         }
                                         count={stats?.likes}
-                                        clicked={
-                                            stats?.opinion === 'liked'
-                                        }
+                                        clicked={stats?.opinion === 'liked'}
                                     />
                                     {navigator.share && (
                                         <SharePostButton
