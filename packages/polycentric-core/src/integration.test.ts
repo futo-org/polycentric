@@ -34,7 +34,6 @@ async function setAvatarImage(
         // Uint8Array in process-handle publishBlob
         const image = new Uint8Array(imageBuffer);
 
-
         const imageRanges = await handle.publishBlob(image);
 
         imageBundle.imageManifests.push({
