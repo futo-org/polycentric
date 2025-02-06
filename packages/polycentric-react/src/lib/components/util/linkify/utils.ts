@@ -22,7 +22,7 @@ export const linkify = (
     const matches = [...content.matchAll(regex)];
     return matches.map((match) => ({
         type: key,
-        value: key === 'quote' ? match[0] : (match.groups?.[key] ?? ''),
+        value: key === 'quote' ? match[0] : match.groups?.[key] ?? '',
         start:
             (match.index ?? 0) +
             (key === 'mention'
