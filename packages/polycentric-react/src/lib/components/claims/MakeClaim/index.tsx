@@ -10,7 +10,7 @@ export type SocialPlatform =
     | 'youtube'
     | 'odysee'
     | 'rumble'
-    | 'twitter'
+    | 'twitter/X'
     | 'discord'
     | 'instagram'
     | 'github'
@@ -112,7 +112,7 @@ export const ClaimTypePopup = ({
 
     const socialPlatforms: SocialPlatform[] = [
         'youtube',
-        'twitter',
+        'twitter/X',
         'github',
         'discord',
         'instagram',
@@ -240,7 +240,7 @@ export const SocialMediaInput = ({
         const checkOAuth = async () => {
             let claimType: Core.Models.ClaimType.ClaimType;
             switch (platform) {
-                case 'twitter':
+                case 'twitter/X':
                     claimType = Core.Models.ClaimType.ClaimTypeTwitter;
                     break;
                 case 'discord':
@@ -278,7 +278,7 @@ export const SocialMediaInput = ({
                         return claim.value.claimType.equals(
                             Core.Models.ClaimType.ClaimTypeYouTube,
                         );
-                    case 'twitter':
+                    case 'twitter/X':
                         return claim.value.claimType.equals(
                             Core.Models.ClaimType.ClaimTypeTwitter,
                         );

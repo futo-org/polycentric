@@ -111,11 +111,11 @@ export class IndexFeed implements HasIngest {
                 },
             ];
         } else if (
-            event.contentType.equals(Models.ContentType.ContentTypePost)
+            event.contentType.equals(Models.ContentType.ContentTypePost) ||
+            event.contentType.equals(Models.ContentType.ContentTypeClaim)
         ) {
             if (event.unixMilliseconds === undefined) {
                 console.warn('IndexFeed expected event.unixMilliseconds');
-
                 return [];
             }
 

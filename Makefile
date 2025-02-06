@@ -14,10 +14,6 @@ export CURRENT_UID
 export CURRENT_GID
 export DOCKER_GID
 
-hotreload: devcert
-	./version.sh
-	docker compose -f docker-compose.development.yml up --build --watch
-
 build-sandbox:
 	docker compose -f docker-compose.development.yml pull
 	docker compose -f docker-compose.development.yml build
@@ -167,7 +163,7 @@ build-ci-deps:
 		-t gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest .
 	docker push gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest
 
-push-server-image-do:
+push-server-image:
 	DOCKER_BUILDKIT=1 docker build \
 		-f server.dockerfile \
 		-t registry.digitalocean.com/polycentric/polycentric:latest .
