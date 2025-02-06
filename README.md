@@ -56,10 +56,3 @@ cargo run
 # When done destroy the sandbox environment
 make stop-sandbox
 ```
-
-
-## Hot Reloading Environment without sandbox/devcontainer
-
-``` sh
-make hotreload
-```
