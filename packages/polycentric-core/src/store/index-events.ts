@@ -49,9 +49,10 @@ export class IndexEvents implements HasIngest {
         logicalClock: Long,
         servers: string[],
     ): Promise<void> {
-        const eventKey = Buffer.from(
-            makeEventKey(system, process, logicalClock),
-        ).toString('hex');
+        const eventKey = Array.from(makeEventKey(system, process, logicalClock))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+        
         const acks = await this.getEventAcks();
         acks[eventKey] = servers;
         await this.acksLevel.put(
