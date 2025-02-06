@@ -27,10 +27,9 @@ const createMainWindow = () => {
         // mainWindow = null;
     });
 
-    // Replace old "new-window" handling with setWindowOpenHandler
-    mainWindow.webContents.setWindowOpenHandler((details) => {
-        mainWindow.loadURL(details.url);
-        return { action: 'deny' }; // Deny opening a new window
+    mainWindow.webContents.on('new-window', (event, url) => {
+        event.preventDefault();
+        mainWindow.loadURL(url);
     });
 };
 

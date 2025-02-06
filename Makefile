@@ -167,7 +167,7 @@ build-ci-deps:
 		-t gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest .
 	docker push gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest
 
-push-server-image-do:
+push-server-image:
 	DOCKER_BUILDKIT=1 docker build \
 		-f server.dockerfile \
 		-t registry.digitalocean.com/polycentric/polycentric:latest .

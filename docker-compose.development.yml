@@ -1,115 +1,65 @@
-# start with `docker compose -f docker-compose.development.yml up --watch`
-# hot reloading for active development and testing
-# requires local dev certs or tailscale certs
-# GID for docker socket
-## GID: ls -ln /var/run/docker.sock | awk '{print $4}'
-# UID for user id
-## `id` returns current user's ID
+version: "2"
 services:
-    polycentric-web:
-        build:
-            context: .
-            dockerfile: dev-web.Dockerfile
-        volumes:
-            - ./devcert/local-cert.pem:/app/devcert/local-cert.pem
-            - ./devcert/local-key.pem:/app/devcert/local-key.pem
-        ports:
-            - '3000:3000'
-        command: ['npm', 'run', 'dev', '--', '--host', '0.0.0.0']
-        develop:
-            watch:
-                - action: sync
-                  path: ./proto
-                  target: /proto
-                - action: sync
-                  path: ./packages/polycentric-core
-                  target: /app/packages/polycentric-core
-                - action: sync
-                  path: ./packages/polycentric-react
-                  target: /app/packages/polycentric-react
-                - action: sync
-                  path: ./packages/polycentric-web
-                  target: /app/packages/polycentric-web
-                - action: sync+restart
-                  path: ./dev-web.Dockerfile
-                  target: /tmp/dev-web.Dockerfile
-    # polycentric-server: # neds fix
-    #     build:
-    #         context: .
-    #         dockerfile: dev-server.Dockerfile
-    #     depends_on:
-    #         postgres:
-    #             condition: service_healthy
-    #         opensearch-node1:
-    #             condition: service_healthy
-    #     environment:
-    #         HOME: '/tmp/home'
-    #         RUST_LOG: 'server=debug'
-    #         DATABASE_URL: 'postgres://postgres:testing@postgres'
-    #         ADMIN_TOKEN: '123'
-    #         CHALLENGE_KEY: '456'
-    #         OPENSEARCH_STRING: 'http://opensearch-node1:9200'
-    #         STATSD_ADDRESS: 'influxdb'
-    #         STATSD_PORT: '8125'
-    #     ports:
-    #         - '8081:8081'
-    #     develop:
-    #         watch:
-    #             - action: sync
-    #               path: ./proto
-    #               target: /proto
-    #             - action: sync
-    #               path: ./polycentric-protocol
-    #               target: /polycentric-protocol
-    #             - action: sync+restart
-    #               path: ./server
-    #               target: /server
-    opensearch-node1:
-        image: opensearchproject/opensearch:2.1.0
-        ports:
-            - '9200:9200'
-            - '9300:9300'
-            - '9600:9600' # perf analyizer
-            - '9650:9650'
-        ulimits:
-            memlock:
-                soft: -1
-                hard: -1
-            nofile:
-                soft: 65536 # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
-                hard: 65536
-        environment:
-            - cluster.name=opensearch-cluster
-            - node.name=opensearch-node1
-            - bootstrap.memory_lock=true
-            - 'OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m'
-            - 'DISABLE_INSTALL_DEMO_CONFIG=true'
-            - 'DISABLE_SECURITY_PLUGIN=true'
-            - 'discovery.type=single-node'
-            - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD-admin} # Sets the demo admin user password when using demo configuration, required for OpenSearch 2.12 and later
-        healthcheck:
-            test:
-                [
-                    'CMD-SHELL',
-                    'curl --silent --fail localhost:9200/_cluster/health || exit 1',
-                ]
-            interval: 5s
-            timeout: 5s
-            retries: 20
     postgres:
         image: postgres:14
         environment:
             POSTGRES_PASSWORD: testing
+        ports:
+          - "127.0.0.1:5432:5432"
+    opensearch-node1:
+        image: opensearchproject/opensearch:2.1.0
+        ports:
+          - "127.0.0.1:9200:9200"
+          - "127.0.0.1:9300:9300"
+          - "127.0.0.1:9600:9600"
+          - "127.0.0.1:9650:9650"
+        environment:
+            - cluster.name=opensearch-cluster
+            - node.name=opensearch-node1
+            - bootstrap.memory_lock=true
+            - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+            - "DISABLE_INSTALL_DEMO_CONFIG=true"
+            - "DISABLE_SECURITY_PLUGIN=true"
+            - "discovery.type=single-node"
+    opensearch-dashboards:
+        image: opensearchproject/opensearch-dashboards:2.1.0
+        ports:
+            - "127.0.0.1:5601:5601"
+        environment:
+            - "OPENSEARCH_HOSTS=['http://opensearch-node1:9200']"
+            - "DISABLE_SECURITY_DASHBOARDS_PLUGIN=true"
+    development:
+        build:
+            context: ./
+            dockerfile: Dockerfile
+        read_only: true
+        working_dir: /app
+        environment:
+            HOME: "/tmp/home"
+            RUST_LOG: "server=debug"
+            DATABASE_URL: "postgres://postgres:testing@postgres"
+            ADMIN_TOKEN: "123"
+            CHALLENGE_KEY: "456"
+        user: "${CURRENT_UID}:${CURRENT_GID}"
         volumes:
-            - ./state/postgres/data:/var/lib/postgresql/data
-        healthcheck:
-            test: ['CMD-SHELL', 'pg_isready -U postgres || exit 1']
-            interval: 10s
-            timeout: 5s
-            retries: 5
-
-    grafana: # http://localhost:8090/d/bb874d58-6f7b-4686-9718-6a1f4dbaf942/main-dashboard?orgId=1&refresh=5s
+            - ./:/app
+        tmpfs:
+            - /tmp:exec
+        ports:
+            # gdbserver
+            - "127.0.0.1:3345:3345"
+            # polycentric web
+            - "127.0.0.1:3000:3000"
+            # harbor social
+            - "127.0.0.1:3001:3001"
+            # wrangler port
+            - "127.0.0.1:8976:8976"
+            - "127.0.0.1:8081:8081"
+            - "127.0.0.1:8082:8082"
+        command: tail -F wait_forever
+    grafana:
         image: grafana/grafana:9.5.2
+        restart: always
         depends_on:
             - influxdb
         environment:
@@ -118,18 +68,14 @@ services:
         links:
             - influxdb
         ports:
-            - '8090:3000'
+            - "127.0.0.1:8090:3000"
         volumes:
             - grafana_data:/var/lib/grafana
             - ./monitoring/grafana-dashboards:/var/lib/grafana/dashboards
             - ./monitoring/provisioning:/etc/grafana/provisioning
-        develop:
-            watch:
-                - action: sync
-                  path: ./monitoring
-                  target: /monitoring
     influxdb:
-        image: influxdb:2.7.11-alpine
+        image: influxdb:2.7-alpine
+        restart: always
         environment:
             - DOCKER_INFLUXDB_INIT_MODE=setup
             - DOCKER_INFLUXDB_INIT_USERNAME=admin
@@ -138,17 +84,13 @@ services:
             - DOCKER_INFLUXDB_INIT_BUCKET=polycentric
             - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=admin
         ports:
-            - '8086:8086'
+            - "127.0.0.1:8086:8086"
         volumes:
             - influxdb_data:/var/lib/influxdb2
-        healthcheck:
-            test: 'curl -f http://localhost:8086/ping' # close enough
-            interval: 5s
-            timeout: 10s
-            retries: 5
     telegraf:
-        image: telegraf:1.33
-        user: '${UID:-1000}:${GID:-987}' # GID for docker socket # GID: ls -ln /var/run/docker.sock | awk '{print $4}' # `id` use userid
+        image: telegraf:1.26.2-alpine
+        restart: always
+        user: "telegraf:${DOCKER_GID}"
         volumes:
             - ./monitoring/telegraf.conf:/etc/telegraf/telegraf.conf:ro
             - /var/run/docker.sock:/var/run/docker.sock
@@ -157,9 +99,10 @@ services:
         links:
             - influxdb
         ports:
-            - '8125:8125'
-            - '8092:8092'
-            - '8094:8094'
+            - "127.0.0.1:8125:8125"
+            - "127.0.0.1:8092:8092"
+            - "127.0.0.1:8094:8094"
 volumes:
-    grafana_data: {}
-    influxdb_data: {}
+    grafana_data: { }
+    influxdb_data: { }
+
