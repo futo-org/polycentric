@@ -197,10 +197,10 @@ const AddToHomeScreenBarrier = ({
             {showBarrier && (
                 <div className="z-50 fixed w-full h-full bg-gray-600 bg-opacity-60 flex flex-col items-center lg:just p-10 pt-[33%] lg:pt-10">
                     <div className="w-full lg:max-w-[28rem] p-10 aspect-square rounded-full bg-white overflow-hidden flex flex-col justify-center items-center space-y-2.5">
-                        <h1 className="text-2xl text- font-medium break-words">
+                        <h1 className="text-xl text- font-medium break-words">
                             {isDesktopSafari
                                 ? 'In order for Safari to persist your information, please add this page to your dock, or use a different browser to continue'
-                                : 'Add Polycentric to your home screen to continue'}
+                                : 'Tap the browser menu button to add Polycentric to your home screen to continue. It looks like this:'}
                         </h1>
 
                         {isAndroid ? (
