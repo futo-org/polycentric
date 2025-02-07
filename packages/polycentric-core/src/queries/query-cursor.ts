@@ -1,18 +1,24 @@
 import * as APIMethods from '../api-methods';
 import * as Models from '../models';
-import * as Protocol from '../protocol';
 import * as ProcessHandle from '../process-handle';
+import * as Protocol from '../protocol';
 
 export function makeGetExploreCallback(
     processHandle: ProcessHandle.ProcessHandle,
 ): LoadCallback {
     return async (server, limit, cursor) => {
         const batch = await APIMethods.getExplore(server, limit, cursor);
-
+        const currentSystem = processHandle.system();
+        
         const filteredResultEvents = [];
 
         for (const signedEvent of batch.resultEvents.events) {
             const event = Models.Event.fromBuffer(signedEvent.event);
+
+            // Skip events from current system
+            if (Models.PublicKey.equal(event.system, currentSystem)) {
+                continue;
+            }
 
             const blocked = await processHandle
                 .store()
@@ -26,6 +32,12 @@ export function makeGetExploreCallback(
                 filteredResultEvents.push(signedEvent);
             }
         }
+
+        filteredResultEvents.sort((a, b) => {
+            const eventA = Models.Event.fromBuffer(a.event);
+            const eventB = Models.Event.fromBuffer(b.event);
+            return (eventB.unixMilliseconds?.toNumber() ?? 0) - (eventA.unixMilliseconds?.toNumber() ?? 0);
+        });
 
         return Models.ResultEventsAndRelatedEventsAndCursor.fromProto({
             resultEvents: {
