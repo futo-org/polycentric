@@ -19,9 +19,12 @@ import {
     useQueryReferenceEventFeed,
 } from './queryHooks';
 
-export type FeedHookData = ReadonlyArray<
-    ParsedEvent<Protocol.Post> | undefined
->;
+export type FeedItem =
+    | ParsedEvent<Protocol.Post>
+    | ParsedEvent<Protocol.Claim>
+    | ParsedEvent<Protocol.Vouch>;
+
+export type FeedHookData = ReadonlyArray<FeedItem | undefined>;
 export type FeedHookAdvanceFn = () => void;
 
 export type FeedHook = (
@@ -32,16 +35,53 @@ export type FeedHook = (
 const decodePost = (e: Models.Event.Event) => Protocol.Post.decode(e.content);
 
 export const useAuthorFeed: FeedHook = (system: Models.PublicKey.PublicKey) => {
-    return useIndex(
+    // Keep separate hooks for each content type
+    const [posts, advancePosts] = useIndex(
         system,
         Models.ContentType.ContentTypePost,
         Protocol.Post.decode,
     );
+
+    const [claims, advanceClaims] = useIndex(
+        system,
+        Models.ContentType.ContentTypeClaim,
+        Protocol.Claim.decode,
+    );
+
+    const [vouches, advanceVouches] = useIndex(
+        system,
+        Models.ContentType.ContentTypeVouch,
+        Protocol.Vouch.decode,
+    );
+
+    // Combine for display only after each type has been properly synchronized
+    const allItems = useMemo(() => {
+        const items = [...posts, ...claims, ...vouches].filter(
+            (item) => item !== undefined,
+        );
+        items.sort((a, b) => {
+            if (!a?.event?.unixMilliseconds || !b?.event?.unixMilliseconds)
+                return 0;
+            return (
+                b.event.unixMilliseconds.toNumber() -
+                a.event.unixMilliseconds.toNumber()
+            );
+        });
+        return items;
+    }, [posts, claims, vouches]);
+
+    // Advance all content types independently
+    const advance = useCallback(() => {
+        advancePosts();
+        advanceClaims();
+        advanceVouches();
+    }, [advancePosts, advanceClaims, advanceVouches]);
+
+    return [allItems, advance, false];
 };
 
 export const useExploreFeed: FeedHook = () => {
     const queryManager = useQueryManager();
-
     const loadCallback = useMemo(
         () =>
             Queries.QueryCursor.makeGetExploreCallback(
@@ -239,9 +279,9 @@ export const useCommentFeed = (
 
 export function useFollowingFeed(
     batchSize = 10,
-): [ParsedEvent<Protocol.Post>[], () => void, boolean] {
+): [FeedItem[], () => void, boolean] {
     const { processHandle } = useProcessHandleManager();
-    const [state, setState] = useState<ParsedEvent<Protocol.Post>[]>([]);
+    const [state, setState] = useState<FeedItem[]>([]);
     const [advance, setAdvance] = useState<() => void>(() => () => {});
     const [nothingFound, setNothingFound] = useState(false);
 
@@ -256,7 +296,7 @@ export function useFollowingFeed(
             await lock.acquire('', async (): Promise<void> => {
                 if (finished === true || cancelContext.cancelled()) return;
 
-                let recieved = 0;
+                let received = 0;
                 do {
                     const result = await indexFeed.query(batchSize, cursor);
 
@@ -266,31 +306,67 @@ export function useFollowingFeed(
 
                     cursor = result.cursor;
 
-                    const parsedEvents = result.items.map((signedEvent) => {
-                        const event = Models.Event.fromBuffer(
-                            signedEvent.event,
-                        );
-                        const parsed = Protocol.Post.decode(event.content);
+                    const parsedEvents = result.items
+                        .map((signedEvent) => {
+                            const event = Models.Event.fromBuffer(
+                                signedEvent.event,
+                            );
 
-                        return new ParsedEvent<Protocol.Post>(
-                            signedEvent,
-                            event,
-                            parsed,
+                            try {
+                                if (
+                                    event.contentType.eq(
+                                        Models.ContentType.ContentTypePost,
+                                    )
+                                ) {
+                                    return new ParsedEvent<Protocol.Post>(
+                                        signedEvent,
+                                        event,
+                                        Protocol.Post.decode(event.content),
+                                    );
+                                } else if (
+                                    event.contentType.eq(
+                                        Models.ContentType.ContentTypeClaim,
+                                    )
+                                ) {
+                                    return new ParsedEvent<Protocol.Claim>(
+                                        signedEvent,
+                                        event,
+                                        Protocol.Claim.decode(event.content),
+                                    );
+                                }
+                            } catch (error) {
+                                console.error('Failed to decode event:', error);
+                            }
+                            return undefined;
+                        })
+                        .filter(
+                            (event): event is FeedItem => event !== undefined,
                         );
-                    });
-                    recieved += parsedEvents.length;
+
+                    received += parsedEvents.length;
                     setState((state) => {
-                        return state.concat(parsedEvents);
+                        const newState = state.concat(parsedEvents);
+                        return newState.sort((a, b) => {
+                            if (
+                                !a?.event?.unixMilliseconds ||
+                                !b?.event?.unixMilliseconds
+                            )
+                                return 0;
+                            return (
+                                b.event.unixMilliseconds.toNumber() -
+                                a.event.unixMilliseconds.toNumber()
+                            );
+                        });
                     });
                 } while (
                     cursor !== undefined &&
-                    recieved < batchSize &&
+                    received < batchSize &&
                     !cancelContext.cancelled()
                 );
 
                 finished = cursor === undefined;
 
-                if (finished && recieved === 0) {
+                if (finished && received === 0) {
                     setNothingFound(true);
                 }
 

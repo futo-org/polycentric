@@ -1,12 +1,12 @@
 import { Models, Protocol, Util } from '@polycentric/polycentric-core';
-import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useMemo } from 'react';
+import { FeedItem } from '../../../hooks/feedHooks';
 import {
     useAvatar,
     useImageManifestDisplayURL,
 } from '../../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import {
-    ParsedEvent,
     useDateFromUnixMS,
     useEventLink,
     useSystemLink,
@@ -14,17 +14,18 @@ import {
     useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
 import { usePostStatsWithLocalActions } from '../../../hooks/statsHooks';
+import { getAccountUrl } from '../../util/linkify/utils';
 import { PurePost, PurePostProps } from './PurePost';
 
 interface PostProps {
-    data: ParsedEvent<Protocol.Post> | undefined;
+    data: FeedItem | undefined;
     doesLink?: boolean;
     autoExpand?: boolean;
     isNewPost?: boolean;
 }
 
 interface LoadedPostProps {
-    data: ParsedEvent<Protocol.Post>;
+    data: FeedItem;
     doesLink?: boolean;
     autoExpand?: boolean;
     syncStatus?: {
@@ -38,17 +39,55 @@ interface LoadedPostProps {
 const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
     ({ data, doesLink, autoExpand, syncStatus, isMyProfile }, ref) => {
         const { value, event, signedEvent } = data;
-        const { content, image } = value;
+
+        const content = useMemo(() => {
+            if ('content' in value) {
+                return value.content;
+            } else if ('claimType' in value) {
+                const claimType = value.claimType as Models.ClaimType.ClaimType;
+                const claimValue = value.claimFields[0]?.value || '';
+
+                if (claimType.equals(Models.ClaimType.ClaimTypeOccupation)) {
+                    return `Claimed they work at ${value.claimFields[0].value} as ${value.claimFields[1].value} in ${value.claimFields[2].value}.`;
+                } else if (claimType.equals(Models.ClaimType.ClaimTypeSkill)) {
+                    return `Claimed skill: ${claimValue}`;
+                } else if (
+                    claimType.equals(Models.ClaimType.ClaimTypeGeneric)
+                ) {
+                    return `Claimed: ${claimValue}`;
+                } else {
+                    const platformName = Models.ClaimType.toString(claimType);
+                    return `Claimed ${platformName} account: ${claimValue}`;
+                }
+            } else if ('vouchType' in value) {
+                return 'Vouched for claim';
+            }
+            return '';
+        }, [value]);
 
         const topic = useMemo(() => {
-            const { references } = event;
-            const topicRef = references.find((ref) => ref.referenceType.eq(3));
+            if ('content' in value) {
+                const { references } = event;
+                const topicRef = references.find((ref) =>
+                    ref.referenceType.eq(3),
+                );
+                return topicRef
+                    ? Util.decodeText(topicRef.reference)
+                    : undefined;
+            } else if ('claimType' in value) {
+                const claimType = value.claimType as Models.ClaimType.ClaimType;
+                const claimValue = value.claimFields[0]?.value || '';
 
-            if (topicRef) {
-                return Util.decodeText(topicRef.reference);
+                if (
+                    !claimType.equals(Models.ClaimType.ClaimTypeOccupation) &&
+                    !claimType.equals(Models.ClaimType.ClaimTypeSkill) &&
+                    !claimType.equals(Models.ClaimType.ClaimTypeGeneric)
+                ) {
+                    return getAccountUrl(claimType, claimValue);
+                }
             }
             return undefined;
-        }, [event]);
+        }, [event, value]);
 
         const replyingToPointer = useMemo(() => {
             const { references } = event;
@@ -71,7 +110,10 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
             replyingToPointer,
         );
 
-        const imageUrl = useImageManifestDisplayURL(event.system, image);
+        const imageUrl = useImageManifestDisplayURL(
+            event.system,
+            'content' in value ? value.image : undefined,
+        );
 
         const pointer = useMemo(
             () => Models.signedEventToPointer(signedEvent),
@@ -98,11 +140,17 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
                 },
                 replyingToName,
                 replyingToURL,
-                content: content ?? '',
+                content: content || '',
                 image: imageUrl,
                 topic,
                 publishedAt: mainDate,
                 url: mainURL,
+                type:
+                    'content' in value
+                        ? 'post'
+                        : 'claimType' in value
+                          ? 'claim'
+                          : 'vouch',
             }),
             [
                 mainUsername,
@@ -116,6 +164,7 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
                 topic,
                 replyingToName,
                 replyingToURL,
+                value,
             ],
         );
 
