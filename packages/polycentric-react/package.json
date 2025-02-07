@@ -46,7 +46,9 @@
     "react-virtuoso": "^4.6.2",
     "swiper": "^10.3.1",
     "ua-parser-js": "^1.0.37",
-    "unplugin-fonts": "^1.0.3"
+    "unplugin-fonts": "^1.0.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.6"
   },
   "peerDependencies": {
     "@polycentric/polycentric-core": "*",

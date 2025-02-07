@@ -1,14 +1,14 @@
 import Long from 'long';
 
 import * as APIMethods from './api-methods';
-import * as ProcessHandle from './process-handle';
+import { CancelContext } from './cancel-context';
 import * as Models from './models';
-import * as Store from './store';
-import * as Ranges from './ranges';
+import * as ProcessHandle from './process-handle';
 import * as Protocol from './protocol';
 import * as Queries from './queries';
+import * as Ranges from './ranges';
+import * as Store from './store';
 import * as Util from './util';
-import { CancelContext } from './cancel-context';
 
 async function loadRanges(
     store: Store.Store,
@@ -509,7 +509,17 @@ async function syncToServerSingleBatch(
             return progress;
         }
 
-        await APIMethods.postEvents(server, events);
+        try {
+            await APIMethods.postEvents(server, events);
+
+            // After successful post, record server acknowledgment for each event
+            for (const event of events) {
+                processHandle.recordServerAck(event, server);
+            }
+        } catch (err) {
+            console.warn('Failed to post events to server:', err);
+            return progress;
+        }
 
         if (cancelContext.cancelled()) {
             return progress;
@@ -521,7 +531,6 @@ async function syncToServerSingleBatch(
         );
 
         progress = true;
-
         break;
     }
 
