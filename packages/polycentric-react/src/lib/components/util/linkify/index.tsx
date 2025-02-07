@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import React, { forwardRef, useEffect, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import {
     useQueryCRDTSet,
@@ -11,9 +12,8 @@ import { Link } from '../link';
 import {
     linkify,
     mentionRegex,
-    quoteRegex,
     topicRegex,
-    urlRegex,
+    urlRegex
 } from './utils';
 
 interface SuggestionPopup {
@@ -198,23 +198,28 @@ export const Linkify = React.memo(
     forwardRef<HTMLDivElement, LinkifyProps>(
         ({ as, className, content, stopPropagation }, ref) => {
             const jsx = useMemo(() => {
-                const foundUrls = linkify(content, urlRegex, 'url');
-                const foundTopics = linkify(content, topicRegex, 'topic');
-                const foundMentions = linkify(content, mentionRegex, 'mention');
-                const foundQuotes = linkify(content, quoteRegex, 'quote');
-
-                const items = [
-                    ...foundUrls,
-                    ...foundTopics,
-                    ...foundMentions,
-                    ...foundQuotes,
-                ].sort((a, b) => a.start - b.start);
+                const items = linkify(content, urlRegex, 'url')
+                    .concat(linkify(content, topicRegex, 'topic'))
+                    .concat(linkify(content, mentionRegex, 'mention'))
+                    .sort((a, b) => a.start - b.start);
 
                 const out = [];
-                let i = 0;
-                for (const item of items) {
-                    if (i < item.start)
-                        out.push(content.substring(i, item.start));
+                let lastIndex = 0;
+
+                items.forEach(item => {
+                    if (lastIndex < item.start) {
+                        out.push(
+                            <ReactMarkdown 
+                                key={`md-${lastIndex}`}
+                                components={{
+                                    p: ({children}) => <span>{children}</span>
+                                }}
+                            >
+                                {content.substring(lastIndex, item.start)}
+                            </ReactMarkdown>
+                        );
+                    }
+
                     if (item.type === 'url') {
                         out.push(
                             <a
@@ -222,13 +227,11 @@ export const Linkify = React.memo(
                                 className="text-blue-500 hover:underline"
                                 target="_blank"
                                 rel="noreferrer"
-                                onClick={(e) =>
-                                    stopPropagation && e.stopPropagation()
-                                }
+                                onClick={(e) => stopPropagation && e.stopPropagation()}
                                 key={`${item.start}-${item.value}`}
                             >
                                 {item.value}
-                            </a>,
+                            </a>
                         );
                     } else if (item.type === 'topic') {
                         out.push(
@@ -240,7 +243,7 @@ export const Linkify = React.memo(
                                 key={`${item.start}-${item.value}`}
                             >
                                 {item.value}
-                            </Link>,
+                            </Link>
                         );
                     } else if (item.type === 'mention') {
                         out.push(
@@ -248,7 +251,7 @@ export const Linkify = React.memo(
                                 key={`${item.start}-${item.value}`}
                                 value={item.value}
                                 stopPropagation={stopPropagation}
-                            />,
+                            />
                         );
                     } else if (item.type === 'quote') {
                         out.push(
@@ -257,12 +260,26 @@ export const Linkify = React.memo(
                                 key={`${item.start}-${item.value}`}
                             >
                                 {item.value}
-                            </span>,
+                            </span>
                         );
                     }
-                    i = item.start + item.value.length;
+
+                    lastIndex = item.start + item.value.length;
+                });
+
+                if (lastIndex < content.length) {
+                    out.push(
+                        <ReactMarkdown 
+                            key={`md-${lastIndex}`}
+                            components={{
+                                p: ({children}) => <span>{children}</span>
+                            }}
+                        >
+                            {content.substring(lastIndex)}
+                        </ReactMarkdown>
+                    );
                 }
-                out.push(content.substring(i));
+
                 return out;
             }, [content, stopPropagation]);
 
@@ -273,8 +290,8 @@ export const Linkify = React.memo(
                     {jsx}
                 </Component>
             );
-        },
-    ),
+        }
+    )
 );
 
 Linkify.displayName = 'Linkify';
