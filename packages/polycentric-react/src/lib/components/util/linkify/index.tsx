@@ -9,7 +9,13 @@ import {
     useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
 import { Link } from '../link';
-import { linkify, mentionRegex, quoteRegex, topicRegex, urlRegex } from './utils';
+import {
+    linkify,
+    mentionRegex,
+    quoteRegex,
+    topicRegex,
+    urlRegex,
+} from './utils';
 
 interface SuggestionPopup {
     query: string;
