@@ -9,12 +9,7 @@ import {
     useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
 import { Link } from '../link';
-import {
-    linkify,
-    mentionRegex,
-    topicRegex,
-    urlRegex
-} from './utils';
+import { linkify, mentionRegex, topicRegex, urlRegex } from './utils';
 
 interface SuggestionPopup {
     query: string;
@@ -206,17 +201,19 @@ export const Linkify = React.memo(
                 const out = [];
                 let lastIndex = 0;
 
-                items.forEach(item => {
+                items.forEach((item) => {
                     if (lastIndex < item.start) {
                         out.push(
-                            <ReactMarkdown 
+                            <ReactMarkdown
                                 key={`md-${lastIndex}`}
                                 components={{
-                                    p: ({children}) => <span>{children}</span>
+                                    p: ({ children }) => (
+                                        <span>{children}</span>
+                                    ),
                                 }}
                             >
                                 {content.substring(lastIndex, item.start)}
-                            </ReactMarkdown>
+                            </ReactMarkdown>,
                         );
                     }
 
@@ -227,11 +224,13 @@ export const Linkify = React.memo(
                                 className="text-blue-500 hover:underline"
                                 target="_blank"
                                 rel="noreferrer"
-                                onClick={(e) => stopPropagation && e.stopPropagation()}
+                                onClick={(e) =>
+                                    stopPropagation && e.stopPropagation()
+                                }
                                 key={`${item.start}-${item.value}`}
                             >
                                 {item.value}
-                            </a>
+                            </a>,
                         );
                     } else if (item.type === 'topic') {
                         out.push(
@@ -243,7 +242,7 @@ export const Linkify = React.memo(
                                 key={`${item.start}-${item.value}`}
                             >
                                 {item.value}
-                            </Link>
+                            </Link>,
                         );
                     } else if (item.type === 'mention') {
                         out.push(
@@ -251,7 +250,7 @@ export const Linkify = React.memo(
                                 key={`${item.start}-${item.value}`}
                                 value={item.value}
                                 stopPropagation={stopPropagation}
-                            />
+                            />,
                         );
                     } else if (item.type === 'quote') {
                         out.push(
@@ -260,7 +259,7 @@ export const Linkify = React.memo(
                                 key={`${item.start}-${item.value}`}
                             >
                                 {item.value}
-                            </span>
+                            </span>,
                         );
                     }
 
@@ -269,14 +268,14 @@ export const Linkify = React.memo(
 
                 if (lastIndex < content.length) {
                     out.push(
-                        <ReactMarkdown 
+                        <ReactMarkdown
                             key={`md-${lastIndex}`}
                             components={{
-                                p: ({children}) => <span>{children}</span>
+                                p: ({ children }) => <span>{children}</span>,
                             }}
                         >
                             {content.substring(lastIndex)}
-                        </ReactMarkdown>
+                        </ReactMarkdown>,
                     );
                 }
 
@@ -290,8 +289,8 @@ export const Linkify = React.memo(
                     {jsx}
                 </Component>
             );
-        }
-    )
+        },
+    ),
 );
 
 Linkify.displayName = 'Linkify';
