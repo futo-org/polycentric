@@ -9,7 +9,7 @@ import {
     useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
 import { Link } from '../link';
-import { linkify, mentionRegex, topicRegex, urlRegex } from './utils';
+import { linkify, mentionRegex, quoteRegex, topicRegex, urlRegex } from './utils';
 
 interface SuggestionPopup {
     query: string;
@@ -196,6 +196,7 @@ export const Linkify = React.memo(
                 const items = linkify(content, urlRegex, 'url')
                     .concat(linkify(content, topicRegex, 'topic'))
                     .concat(linkify(content, mentionRegex, 'mention'))
+                    .concat(linkify(content, quoteRegex, 'quote'))
                     .sort((a, b) => a.start - b.start);
 
                 const out = [];
