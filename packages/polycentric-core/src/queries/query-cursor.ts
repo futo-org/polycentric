@@ -9,7 +9,7 @@ export function makeGetExploreCallback(
     return async (server, limit, cursor) => {
         const batch = await APIMethods.getExplore(server, limit, cursor);
         const currentSystem = processHandle.system();
-        
+
         const filteredResultEvents = [];
 
         for (const signedEvent of batch.resultEvents.events) {
@@ -36,7 +36,10 @@ export function makeGetExploreCallback(
         filteredResultEvents.sort((a, b) => {
             const eventA = Models.Event.fromBuffer(a.event);
             const eventB = Models.Event.fromBuffer(b.event);
-            return (eventB.unixMilliseconds?.toNumber() ?? 0) - (eventA.unixMilliseconds?.toNumber() ?? 0);
+            return (
+                (eventB.unixMilliseconds?.toNumber() ?? 0) -
+                (eventA.unixMilliseconds?.toNumber() ?? 0)
+            );
         });
 
         return Models.ResultEventsAndRelatedEventsAndCursor.fromProto({
