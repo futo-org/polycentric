@@ -130,10 +130,10 @@ const SignedinApp = ({
                                     Save Your Backup Key
                                 </h2>
                                 <p className="text-gray-600">
-                                    This is your account backup key. You&apos;ll need
-                                    this to sign in again. Please save it
-                                    somewhere safe - without it, you won&apos;t be
-                                    able to recover your account.
+                                    This is your account backup key. You&apos;ll
+                                    need this to sign in again. Please save it
+                                    somewhere safe - without it, you won&apos;t
+                                    be able to recover your account.
                                 </p>
                                 <ExportKey />
                                 <div className="flex justify-end space-x-3 mt-4">
