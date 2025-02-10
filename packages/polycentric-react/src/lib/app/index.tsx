@@ -17,8 +17,9 @@ import {
     useState,
 } from 'react';
 import * as UAParserJS from 'ua-parser-js';
+import { ExportKey } from '../components/settings/ExportKey';
 import { SidebarLayout } from '../components/layout/sidebarlayout';
-import { Onboarding } from '../components/onboarding';
+import { Onboarding } from '../components/onboarding/onboarding';
 import { setupDarkMode } from '../components/settings/DarkModeSelector/setupDarkMode';
 import { MemoryRoutedComponent } from '../components/util/link';
 import { PersistenceDriverContext } from '../hooks/persistenceDriverHooks';
@@ -36,11 +37,12 @@ setupIonicReact({});
 setupDarkMode();
 
 // Currently, Polycentric can only be used while signed in
-export const SignedinApp = ({
+const SignedinApp = ({
     processHandle,
 }: {
     processHandle: ProcessHandle.ProcessHandle;
 }) => {
+    const [showFirstLoginModal, setShowFirstLoginModal] = useState(true);
     const queryManager = useMemo(
         () => processHandle.queryManager,
         [processHandle],
@@ -110,9 +112,34 @@ export const SignedinApp = ({
     return (
         <QueryManagerContext.Provider value={queryManager}>
             <StackRouterContext.Provider value={stackRouter}>
-                <MobileSwipeTopicContext.Provider
-                    value={mobileSwipeTopicContextContainer}
-                >
+                <MobileSwipeTopicContext.Provider value={mobileSwipeTopicContextContainer}>
+                    {showFirstLoginModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                            <div className="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4">
+                                <h2 className="text-2xl font-bold">Save Your Backup Key</h2>
+                                <p className="text-gray-600">
+                                    This is your account backup key. You'll need this to sign in again.
+                                    Please save it somewhere safe - without it, you won't be able to
+                                    recover your account.
+                                </p>
+                                <ExportKey />
+                                <div className="flex justify-end space-x-3 mt-4">
+                                    <button
+                                        className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                                        onClick={() => setShowFirstLoginModal(false)}
+                                    >
+                                        I'll do this later
+                                    </button>
+                                    <button
+                                        className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+                                        onClick={() => setShowFirstLoginModal(false)}
+                                    >
+                                        I've saved it
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                     <SidebarLayout>
                         <IonNav
                             id="main-drawer"
