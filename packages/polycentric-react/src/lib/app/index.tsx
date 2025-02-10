@@ -44,7 +44,8 @@ const SignedinApp = ({
     processHandle: ProcessHandle.ProcessHandle;
 }) => {
     const { isNewAccount, setIsNewAccount } = useProcessHandleManager();
-    const [showFirstLoginModal, setShowFirstLoginModal] = useState(isNewAccount);
+    const [showFirstLoginModal, setShowFirstLoginModal] =
+        useState(isNewAccount);
     const queryManager = useMemo(
         () => processHandle.queryManager,
         [processHandle],
@@ -113,21 +114,26 @@ const SignedinApp = ({
 
     const handleModalClose = useCallback(() => {
         setShowFirstLoginModal(false);
-        setIsNewAccount(false);  // Reset the new account flag when modal is closed
+        setIsNewAccount(false); // Reset the new account flag when modal is closed
     }, [setIsNewAccount]);
 
     return (
         <QueryManagerContext.Provider value={queryManager}>
             <StackRouterContext.Provider value={stackRouter}>
-                <MobileSwipeTopicContext.Provider value={mobileSwipeTopicContextContainer}>
+                <MobileSwipeTopicContext.Provider
+                    value={mobileSwipeTopicContextContainer}
+                >
                     {showFirstLoginModal && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                             <div className="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4">
-                                <h2 className="text-2xl font-bold">Save Your Backup Key</h2>
+                                <h2 className="text-2xl font-bold">
+                                    Save Your Backup Key
+                                </h2>
                                 <p className="text-gray-600">
-                                    This is your account backup key. You'll need this to sign in again.
-                                    Please save it somewhere safe - without it, you won't be able to
-                                    recover your account.
+                                    This is your account backup key. You&apos;ll need
+                                    this to sign in again. Please save it
+                                    somewhere safe - without it, you won&apos;t be
+                                    able to recover your account.
                                 </p>
                                 <ExportKey />
                                 <div className="flex justify-end space-x-3 mt-4">
@@ -135,13 +141,13 @@ const SignedinApp = ({
                                         className="px-4 py-2 text-gray-600 hover:text-gray-800"
                                         onClick={handleModalClose}
                                     >
-                                        I'll do this later
+                                        I&apos;ll do this later
                                     </button>
                                     <button
                                         className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
                                         onClick={handleModalClose}
                                     >
-                                        I've saved it
+                                        I&apos;ve saved it
                                     </button>
                                 </div>
                             </div>

@@ -329,7 +329,8 @@ const CredsPanelSignUp = () => {
     const [avatar, setAvatar] = useState<Blob>();
     const [privateKey] = useState(Models.PrivateKey.random());
     const [username, setUsername] = useState('');
-    const { createHandle, setIsNewAccount } = useOnboardingProcessHandleManager();
+    const { createHandle, setIsNewAccount } =
+        useOnboardingProcessHandleManager();
 
     const stackRouterContext = useContext(StackRouterContext);
 
@@ -401,21 +402,22 @@ const CredsPanelSignUp = () => {
 };
 
 const CredsPanelSignIn = () => {
-    const { createHandleFromExportBundle } = useOnboardingProcessHandleManager();
+    const { createHandleFromExportBundle } =
+        useOnboardingProcessHandleManager();
     const [backupKey, setBackupKey] = useState<string>('');
     const [backupKeyError, setBackupKeyError] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);  // Add loading state
+    const [isLoading, setIsLoading] = useState(false); // Add loading state
     const stackRouterContext = useContext(StackRouterContext);
 
     const handleSignIn = useCallback(async () => {
-        if (isLoading) return;  // Prevent multiple clicks
-        
+        if (isLoading) return; // Prevent multiple clicks
+
         try {
             setIsLoading(true);
             setBackupKeyError(null);
-            
+
             await createHandleFromExportBundle(backupKey);
-            
+
             // Wait a brief moment before navigation to ensure store is ready
             setTimeout(() => {
                 if (stackRouterContext?.history) {
@@ -433,7 +435,12 @@ const CredsPanelSignIn = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [backupKey, createHandleFromExportBundle, stackRouterContext, isLoading]);
+    }, [
+        backupKey,
+        createHandleFromExportBundle,
+        stackRouterContext,
+        isLoading,
+    ]);
 
     return (
         <div className="contents">
