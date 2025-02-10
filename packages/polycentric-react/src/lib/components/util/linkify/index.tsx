@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import React, { forwardRef, useEffect, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import {
     useQueryCRDTSet,
@@ -198,23 +199,31 @@ export const Linkify = React.memo(
     forwardRef<HTMLDivElement, LinkifyProps>(
         ({ as, className, content, stopPropagation }, ref) => {
             const jsx = useMemo(() => {
-                const foundUrls = linkify(content, urlRegex, 'url');
-                const foundTopics = linkify(content, topicRegex, 'topic');
-                const foundMentions = linkify(content, mentionRegex, 'mention');
-                const foundQuotes = linkify(content, quoteRegex, 'quote');
-
-                const items = [
-                    ...foundUrls,
-                    ...foundTopics,
-                    ...foundMentions,
-                    ...foundQuotes,
-                ].sort((a, b) => a.start - b.start);
+                const items = linkify(content, urlRegex, 'url')
+                    .concat(linkify(content, topicRegex, 'topic'))
+                    .concat(linkify(content, mentionRegex, 'mention'))
+                    .concat(linkify(content, quoteRegex, 'quote'))
+                    .sort((a, b) => a.start - b.start);
 
                 const out = [];
-                let i = 0;
-                for (const item of items) {
-                    if (i < item.start)
-                        out.push(content.substring(i, item.start));
+                let lastIndex = 0;
+
+                items.forEach((item) => {
+                    if (lastIndex < item.start) {
+                        out.push(
+                            <ReactMarkdown
+                                key={`md-${lastIndex}`}
+                                components={{
+                                    p: ({ children }) => (
+                                        <span>{children}</span>
+                                    ),
+                                }}
+                            >
+                                {content.substring(lastIndex, item.start)}
+                            </ReactMarkdown>,
+                        );
+                    }
+
                     if (item.type === 'url') {
                         out.push(
                             <a
@@ -260,9 +269,23 @@ export const Linkify = React.memo(
                             </span>,
                         );
                     }
-                    i = item.start + item.value.length;
+
+                    lastIndex = item.start + item.value.length;
+                });
+
+                if (lastIndex < content.length) {
+                    out.push(
+                        <ReactMarkdown
+                            key={`md-${lastIndex}`}
+                            components={{
+                                p: ({ children }) => <span>{children}</span>,
+                            }}
+                        >
+                            {content.substring(lastIndex)}
+                        </ReactMarkdown>,
+                    );
                 }
-                out.push(content.substring(i));
+
                 return out;
             }, [content, stopPropagation]);
 
