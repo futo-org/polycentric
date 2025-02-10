@@ -7,11 +7,12 @@ import {
     InputHTMLAttributes,
     ReactNode,
     SetStateAction,
+    useCallback,
     useContext,
     useEffect,
     useMemo,
-    useState,
     useRef,
+    useState,
 } from 'react';
 import starterURL from '../../../../graphics/onboarding/starter.svg';
 import { StackRouterContext } from '../../../app/contexts';
@@ -328,7 +329,7 @@ const CredsPanelSignUp = () => {
     const [avatar, setAvatar] = useState<Blob>();
     const [privateKey] = useState(Models.PrivateKey.random());
     const [username, setUsername] = useState('');
-    const { createHandle } = useOnboardingProcessHandleManager();
+    const { createHandle, setIsNewAccount } = useOnboardingProcessHandleManager();
 
     const stackRouterContext = useContext(StackRouterContext);
 
@@ -346,12 +347,15 @@ const CredsPanelSignUp = () => {
                     username,
                 );
 
+                // Set the new account flag
+                setIsNewAccount(true);
+
+                if (avatar) await publishBlobToAvatar(avatar, processHandle);
+
                 if (stackRouterContext?.history) {
                     // if we're here, we're already signed in to another account. go to feed
                     stackRouterContext.setRoot('/', 'forwards');
                 }
-
-                if (avatar) await publishBlobToAvatar(avatar, processHandle);
 
                 // if supported, save private key to credential manager api
                 // @ts-ignore
@@ -397,12 +401,39 @@ const CredsPanelSignUp = () => {
 };
 
 const CredsPanelSignIn = () => {
-    const { createHandleFromExportBundle } =
-        useOnboardingProcessHandleManager();
-
+    const { createHandleFromExportBundle } = useOnboardingProcessHandleManager();
     const [backupKey, setBackupKey] = useState<string>('');
     const [backupKeyError, setBackupKeyError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);  // Add loading state
     const stackRouterContext = useContext(StackRouterContext);
+
+    const handleSignIn = useCallback(async () => {
+        if (isLoading) return;  // Prevent multiple clicks
+        
+        try {
+            setIsLoading(true);
+            setBackupKeyError(null);
+            
+            await createHandleFromExportBundle(backupKey);
+            
+            // Wait a brief moment before navigation to ensure store is ready
+            setTimeout(() => {
+                if (stackRouterContext?.history) {
+                    stackRouterContext.setRoot('/', 'forwards');
+                }
+            }, 100);
+        } catch (e) {
+            if (e instanceof Error) {
+                // Don't show "store was already ready" error to user
+                if (!e.message.includes('store was already ready')) {
+                    setBackupKeyError(e.message);
+                }
+            }
+            console.error(e);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [backupKey, createHandleFromExportBundle, stackRouterContext, isLoading]);
 
     return (
         <div className="contents">
@@ -420,28 +451,17 @@ const CredsPanelSignIn = () => {
                     type="submit"
                     className="bg-blue-500 disabled:bg-blue-200 text-white disabled:text-gray-50 border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
                     disabled={
+                        isLoading ||
                         backupKeyError != null ||
                         backupKey.length === 0 ||
                         backupKey.startsWith('polycentric://') === false
                     }
-                    onClick={() => {
-                        createHandleFromExportBundle(backupKey)
-                            .then(() => {
-                                if (stackRouterContext?.history) {
-                                    stackRouterContext.setRoot('/', 'forwards');
-                                }
-                            })
-                            .catch((e) => {
-                                setBackupKeyError(e.message);
-                                console.error(e);
-                            });
-                    }}
+                    onClick={handleSignIn}
                 >
-                    Sign in
+                    {isLoading ? 'Signing in...' : 'Sign in'}
                 </button>
                 {backupKeyError && (
                     <div className="relative">
-                        {/* Only do absolute so we don't move the centered content on error */}
                         <p className="mt-5 absolute text-red-900 text-sm">
                             {backupKeyError}
                         </p>

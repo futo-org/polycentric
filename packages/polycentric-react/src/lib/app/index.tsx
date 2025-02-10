@@ -17,14 +17,15 @@ import {
     useState,
 } from 'react';
 import * as UAParserJS from 'ua-parser-js';
-import { ExportKey } from '../components/settings/ExportKey';
 import { SidebarLayout } from '../components/layout/sidebarlayout';
 import { Onboarding } from '../components/onboarding/onboarding';
 import { setupDarkMode } from '../components/settings/DarkModeSelector/setupDarkMode';
+import { ExportKey } from '../components/settings/ExportKey';
 import { MemoryRoutedComponent } from '../components/util/link';
 import { PersistenceDriverContext } from '../hooks/persistenceDriverHooks';
 import {
     BaseProcessHandleManagerContext,
+    useProcessHandleManager,
     useProcessHandleManagerBaseComponentHook,
 } from '../hooks/processHandleManagerHooks';
 import { QueryManagerContext } from '../hooks/queryHooks';
@@ -42,7 +43,8 @@ const SignedinApp = ({
 }: {
     processHandle: ProcessHandle.ProcessHandle;
 }) => {
-    const [showFirstLoginModal, setShowFirstLoginModal] = useState(true);
+    const { isNewAccount, setIsNewAccount } = useProcessHandleManager();
+    const [showFirstLoginModal, setShowFirstLoginModal] = useState(isNewAccount);
     const queryManager = useMemo(
         () => processHandle.queryManager,
         [processHandle],
@@ -109,6 +111,11 @@ const SignedinApp = ({
         };
     }, [mobileSwipeTopic, setMobileSwipeTopic]);
 
+    const handleModalClose = useCallback(() => {
+        setShowFirstLoginModal(false);
+        setIsNewAccount(false);  // Reset the new account flag when modal is closed
+    }, [setIsNewAccount]);
+
     return (
         <QueryManagerContext.Provider value={queryManager}>
             <StackRouterContext.Provider value={stackRouter}>
@@ -126,13 +133,13 @@ const SignedinApp = ({
                                 <div className="flex justify-end space-x-3 mt-4">
                                     <button
                                         className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                                        onClick={() => setShowFirstLoginModal(false)}
+                                        onClick={handleModalClose}
                                     >
                                         I'll do this later
                                     </button>
                                     <button
                                         className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-                                        onClick={() => setShowFirstLoginModal(false)}
+                                        onClick={handleModalClose}
                                     >
                                         I've saved it
                                     </button>
