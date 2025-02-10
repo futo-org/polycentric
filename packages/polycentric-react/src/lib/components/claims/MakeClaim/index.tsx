@@ -217,6 +217,8 @@ const isVerifiablePlatform = (platform: SocialPlatform): boolean => {
     return result;
 };
 
+const AUTHORITY_SERVER = 'https://verifiers.polycentric.io';
+
 export const SocialMediaInput = ({
     platform,
     system,
@@ -229,37 +231,26 @@ export const SocialMediaInput = ({
     const [url, setUrl] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [verificationStep, setVerificationStep] = useState<
-        'input' | 'token' | 'verifying' | 'duplicate'
+        'input' | 'token' | 'verifying' | 'success' | 'error' | 'duplicate'
     >('input');
-    const [claimPointer, setClaimPointer] = useState<string | null>(null);
+    const [claimPointer, setClaimPointer] = useState<Protocol.Pointer | null>(null);
     const { processHandle } = useProcessHandleManager();
     const claims = useClaims(system);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     // Check for OAuth verification immediately
     useEffect(() => {
         const checkOAuth = async () => {
-            let claimType: Core.Models.ClaimType.ClaimType;
-            switch (platform) {
-                case 'twitter/X':
-                    claimType = Core.Models.ClaimType.ClaimTypeTwitter;
-                    break;
-                case 'discord':
-                    claimType = Core.Models.ClaimType.ClaimTypeDiscord;
-                    break;
-                case 'instagram':
-                    claimType = Core.Models.ClaimType.ClaimTypeInstagram;
-                    break;
-                default:
-                    return;
-            }
-
+            const claimType = getClaimTypeForPlatform(platform);
+            
             if (isOAuthVerifiable(claimType)) {
                 try {
-                    // Don't create claim yet, just get the OAuth URL
                     const oauthUrl = await getOAuthURL(claimType);
                     window.location.href = oauthUrl;
                 } catch (error) {
                     console.error('OAuth URL fetch failed:', error);
+                    setErrorMessage('Failed to start OAuth verification');
+                    setVerificationStep('error');
                 }
             }
         };
@@ -426,16 +417,17 @@ export const SocialMediaInput = ({
                     break;
             }
 
-            // Create the claim if we get here
+            // Create the claim and store the full pointer
             const pointer = await processHandle.claim(claim);
+            setClaimPointer(pointer);
 
             if (isOAuthVerifiable(claimType)) {
                 const oauthUrl = await getOAuthURL(claimType);
                 window.location.href = oauthUrl;
             } else if (isVerifiablePlatform(platform)) {
+                // For display purposes, convert the system key to base64
                 const bytes = Array.from(pointer.system.key);
                 const token = btoa(String.fromCharCode.apply(null, bytes));
-                setClaimPointer(token);
                 setVerificationStep('token');
             } else {
                 onCancel();
@@ -449,11 +441,63 @@ export const SocialMediaInput = ({
     }, [url, platform, processHandle, claims, onCancel]);
 
     const startVerification = useCallback(async () => {
+        if (!processHandle || !claimPointer) return;
+        
         setVerificationStep('verifying');
-        setTimeout(() => {
-            onCancel();
-        }, 2000);
-    }, [onCancel]);
+        
+        try {
+            await Core.ProcessHandle.fullSync(processHandle);
+            
+            await Core.APIMethods.requestVerification(
+                AUTHORITY_SERVER,
+                claimPointer,
+                getClaimTypeForPlatform(platform)
+            );
+
+            setVerificationStep('success');
+            setTimeout(() => {
+                onCancel();
+            }, 2000);
+        } catch (error) {
+            setVerificationStep('error');
+            setErrorMessage(
+                error instanceof Error 
+                    ? error.message 
+                    : "An unknown error occurred with the verification server."
+            );
+        }
+    }, [processHandle, claimPointer, platform, onCancel]);
+
+    // Helper function to convert platform to claim type
+    const getClaimTypeForPlatform = (platform: SocialPlatform): Models.ClaimType.ClaimType => {
+        switch (platform) {
+            case 'youtube':
+                return Models.ClaimType.ClaimTypeYouTube;
+            case 'twitter/X':
+                return Models.ClaimType.ClaimTypeTwitter;
+            case 'discord':
+                return Models.ClaimType.ClaimTypeDiscord;
+            case 'instagram':
+                return Models.ClaimType.ClaimTypeInstagram;
+            case 'github':
+                return Models.ClaimType.ClaimTypeGitHub;
+            case 'minds':
+                return Models.ClaimType.ClaimTypeMinds;
+            case 'odysee':
+                return Models.ClaimType.ClaimTypeOdysee;
+            case 'rumble':
+                return Models.ClaimType.ClaimTypeRumble;
+            case 'patreon':
+                return Models.ClaimType.ClaimTypePatreon;
+            case 'substack':
+                return Models.ClaimType.ClaimTypeSubstack;
+            case 'twitch':
+                return Models.ClaimType.ClaimTypeTwitch;
+            // Add other platform mappings as needed
+            default:
+                return Models.ClaimType.ClaimTypeURL;
+        }
+    };
 
     if (verificationStep === 'token' && claimPointer) {
         return (
@@ -461,11 +505,11 @@ export const SocialMediaInput = ({
                 <h2 className="text-xl font-semibold">Add Token</h2>
                 <div className="bg-gray-800 p-4 rounded-lg">
                     <p className="text-white font-mono break-all">
-                        {claimPointer}
+                        {btoa(String.fromCharCode.apply(null, Array.from(claimPointer!.system!.key)))}
                     </p>
                     <button
                         onClick={() =>
-                            navigator.clipboard.writeText(claimPointer)
+                            navigator.clipboard.writeText(btoa(String.fromCharCode.apply(null, Array.from(claimPointer!.system!.key))))
                         }
                         className="text-gray-400 text-sm mt-2 hover:text-gray-300"
                     >
@@ -501,6 +545,34 @@ export const SocialMediaInput = ({
             <div className="flex flex-col items-center gap-4 p-4">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                 <p>Verifying your claim...</p>
+            </div>
+        );
+    }
+
+    if (verificationStep === 'success') {
+        return (
+            <div className="flex flex-col items-center gap-4 p-4">
+                <div className="text-green-500">✓</div>
+                <p>Verification successful!</p>
+            </div>
+        );
+    }
+
+    if (verificationStep === 'error') {
+        return (
+            <div className="flex flex-col gap-4">
+                <h2 className="text-xl font-semibold text-center text-red-500">
+                    Verification Failed
+                </h2>
+                <p className="text-center text-gray-600">{errorMessage}</p>
+                <div className="flex justify-center mt-4">
+                    <button
+                        onClick={onCancel}
+                        className="px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                    >
+                        Close
+                    </button>
+                </div>
             </div>
         );
     }

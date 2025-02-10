@@ -492,3 +492,29 @@ export async function getResolveHandle(
 
     return Models.PublicKey.fromProto(Protocol.PublicKey.decode(rawBody));
 }
+
+export async function requestVerification(
+    server: string,
+    pointer: Protocol.Pointer,
+    claimType: Models.ClaimType.ClaimType,
+    challengeResponse?: string,
+): Promise<void> {
+    const verifierType = challengeResponse ? 'oauth' : 'text';
+    
+    let url = `${server}/platforms/${claimType.toString()}/${verifierType}/vouch`;
+    
+    if (challengeResponse) {
+        url += `?challengeResponse=${encodeURIComponent(challengeResponse)}`;
+    }
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: new Headers({
+            'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
+        }),
+        body: Protocol.Pointer.encode(pointer).finish(),
+    });
+
+    await checkResponse('requestVerification', response);
+}
