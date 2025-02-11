@@ -30,9 +30,9 @@ async fn handler_inner(
                 crate::cache::util::signed_event_to_cache_tags(event)
             })
             .collect::<Vec<String>>();
-        // Intentionally not awaiting this
-        // Should be done in the background
-        let _ = provider.purge_tags(&tags);
+
+        // TODO: Run in background
+        let _ = provider.purge_tags(&tags).await;
     }
 
     crate::ingest::ingest_event_batch(&state, &user_agent, signed_events)
