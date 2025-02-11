@@ -21,7 +21,7 @@ impl interface::CacheProvider for VarnishProvider {
         if tags.is_empty() {
             return Ok(());
         }
-        let x_key_header = tags.join(",");
+        let x_key_header = tags.join(" ");
 
         // Create a PURGE request. Using reqwest::Method::from_bytes to support PURGE.
         let purge_method = Method::from_bytes(b"PURGE")?;
