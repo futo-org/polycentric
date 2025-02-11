@@ -7,6 +7,7 @@ pub(crate) struct Query {
     cursor: ::std::option::Option<String>,
     limit: ::std::option::Option<u64>,
     #[serde(
+        default,
         deserialize_with = "crate::handlers::util::deserialize_json_string"
     )]
     moderation_filters: ::std::option::Option<ModerationFilters>,

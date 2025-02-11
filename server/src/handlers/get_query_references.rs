@@ -6,6 +6,7 @@ pub(crate) struct Query {
     #[serde(deserialize_with = "deserialize_query")]
     query: polycentric_protocol::protocol::QueryReferencesRequest,
     #[serde(
+        default,
         deserialize_with = "crate::handlers::util::deserialize_json_string"
     )]
     moderation_filters: ::std::option::Option<ModerationFilters>,

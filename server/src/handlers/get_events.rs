@@ -28,6 +28,7 @@ pub(crate) struct Query {
     #[serde(deserialize_with = "serde_url_deserialize_ranges_for_system")]
     ranges: polycentric_protocol::protocol::RangesForSystem,
     #[serde(
+        default,
         deserialize_with = "crate::handlers::util::deserialize_json_string"
     )]
     moderation_filters:
