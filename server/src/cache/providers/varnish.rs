@@ -1,6 +1,6 @@
+use crate::cache::providers::interface;
 use anyhow::Result;
 use reqwest::{Client, Method};
-use crate::cache::providers::interface;
 pub(crate) struct VarnishProvider {
     client: Client,
     base_url: String,
