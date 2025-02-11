@@ -22,6 +22,7 @@ rand = "0.8"
 envconfig = "0.10.0"
 futures = "0.3.25"
 http = "0.2.8"
+lru = "0.12.3"
 anyhow = { version = "1.0", features = ["backtrace"] }
 url = "2.3.1"
 cadence = "0.29.0"

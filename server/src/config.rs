@@ -111,10 +111,7 @@ pub(crate) struct Config {
 
     #[envconfig(from = "CACHE_INTERFACE")]
     pub cache_interface: Option<String>,
-
-    #[envconfig(from = "CLOUDFLARE_ZONE_ID")]
-    pub cloudflare_zone_id: Option<String>,
-
-    #[envconfig(from = "CLOUDFLARE_AUTH_TOKEN")]
-    pub cloudflare_auth_token: Option<String>,
+    
+    #[envconfig(from = "VARNISH_BASE_URL")]
+    pub varnish_base_url: Option<String>,
 }

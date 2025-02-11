@@ -62,7 +62,7 @@ struct State {
         ::lru::LruCache<polycentric_protocol::model::InsecurePointer, ()>,
     >,
     moderation_mode: ModerationMode,
-    cache_provider: Option<Box<dyn cache::CacheProvider>>,
+    cache_provider: Option<Box<dyn cache::providers::interface::CacheProvider>>,
 }
 
 async fn handler_404(path: ::warp::path::FullPath) -> ::warp::reply::Response {

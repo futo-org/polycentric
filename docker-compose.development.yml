@@ -57,6 +57,14 @@ services:
             - "127.0.0.1:8081:8081"
             - "127.0.0.1:8082:8082"
         command: tail -F wait_forever
+    xkey:
+        image: varnish:7
+        depends_on:
+          - development
+        volumes:
+          - ./varnish/default.vcl:/etc/varnish/default.vcl:ro
+        environment:
+          - VARNISH_SIZE=256m
     grafana:
         image: grafana/grafana:9.5.2
         restart: always
