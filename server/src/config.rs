@@ -82,7 +82,7 @@ pub(crate) struct Config {
     #[envconfig(from = "BACKFILL_REMOTE_SERVER_POSITION")]
     pub backfill_remote_server_position: Option<u64>,
 
-    #[envconfig(from = "MODERATION_MODE", default = "LAZY")]
+    #[envconfig(from = "MODERATION_MODE", default = "OFF")]
     pub moderation_mode: ModerationMode,
 
     #[envconfig(from = "CSAM_INTERFACE")]

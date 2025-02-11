@@ -18,6 +18,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { useModeration } from './moderationHooks';
 import { useProcessHandleManager } from './processHandleManagerHooks';
 
 // Since we create query managers based on the driver passed in, we set the query managers value at the root of the app.
@@ -586,6 +587,9 @@ export function useQueryCursor<T>(
         return () => {};
     });
 
+    // Only include moderation levels so we can clear data when moderation levels change.
+    const { moderationLevels } = useModeration();
+
     useEffect(() => {
         const cancelContext = new CancelContext.CancelContext();
 
@@ -650,7 +654,7 @@ export function useQueryCursor<T>(
         };
         // NOTE: Currently we don't care about dynamic batch sizes.
         // If we do, the current implementation of this hook will result in clearing the whole feed when the batch size changes.
-    }, [processHandle, loadCallback, batchSize, parse]);
+    }, [processHandle, loadCallback, batchSize, parse, moderationLevels]);
 
     return [state, advance, nothingFound];
 }
@@ -726,6 +730,9 @@ export const useQueryReferenceEventFeed = <T>(
     countReferences?: Protocol.QueryReferencesRequestCountReferences[],
     extraByteReferences?: Uint8Array[],
 ) => {
+    // Query cursor doesn't hit disk, so we don't need to modify the internal query manager.
+    const { moderationLevels } = useModeration();
+
     const loadCallback: Queries.QueryCursor.LoadCallback = useMemo(() => {
         return async (server, limit, cursor) => {
             if (reference === undefined) {
@@ -741,6 +748,7 @@ export const useQueryReferenceEventFeed = <T>(
                 countLwwElementReferences,
                 countReferences,
                 extraByteReferences,
+                moderationLevels,
             );
 
             return Models.ResultEventsAndRelatedEventsAndCursor.fromQueryReferencesResponse(
@@ -753,6 +761,7 @@ export const useQueryReferenceEventFeed = <T>(
         reference,
         requestEvents,
         extraByteReferences,
+        moderationLevels,
     ]);
 
     const decodeMemo = useCallback(
@@ -836,7 +845,8 @@ export function useQueryTopStringReferences(
             options &&
             options.query !== undefined &&
             options.minQueryChars !== undefined &&
-            options.query.length < options.minQueryChars
+            options.query.length < options.minQueryChars &&
+            options.query.length !== 0
         ) {
             return;
         }

@@ -12,6 +12,18 @@ async function checkResponse(name: string, response: Response): Promise<void> {
     }
 }
 
+function encodeModerationLevels(
+    moderationLevels: Record<string, number>,
+): string {
+    return JSON.stringify(
+        Object.entries(moderationLevels).map(([key, value]) => ({
+            name: key,
+            max_level: value,
+            strict_mode: false,
+        })),
+    );
+}
+
 const userAgent = 'polycentric-core-' + Version.SHA.substring(0, 8);
 
 export async function postEvents(
@@ -80,12 +92,14 @@ export type GetEventsType = (
     server: string,
     system: Models.PublicKey.PublicKey,
     ranges: Models.Ranges.RangesForSystem,
+    moderationLevels?: Record<string, number>,
 ) => Promise<Models.Events.Type>;
 
 export const getEvents: GetEventsType = async (
     server: string,
     system: Models.PublicKey.PublicKey,
     ranges: Models.Ranges.RangesForSystem,
+    moderationLevels?: Record<string, number>,
 ): Promise<Models.Events.Type> => {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
@@ -95,7 +109,12 @@ export const getEvents: GetEventsType = async (
         Protocol.RangesForSystem.encode(ranges).finish(),
     );
 
-    const path = `/events?system=${systemQuery}&ranges=${rangesQuery}`;
+    let path = `/events?system=${systemQuery}&ranges=${rangesQuery}`;
+
+    if (moderationLevels !== undefined) {
+        const moderationLevelsQuery = encodeModerationLevels(moderationLevels);
+        path += `&moderation_filters=${moderationLevelsQuery}`;
+    }
 
     const response = await fetch(server + path, {
         method: 'GET',
@@ -219,6 +238,7 @@ export async function getQueryReferences(
     countLwwElementReferences?: Protocol.QueryReferencesRequestCountLWWElementReferences[],
     countReferences?: Protocol.QueryReferencesRequestCountReferences[],
     extraByteReferences?: Uint8Array[],
+    moderationLevels?: Record<string, number>,
 ): Promise<Protocol.QueryReferencesResponse> {
     const query: Protocol.QueryReferencesRequest = {
         reference: reference,
@@ -233,7 +253,13 @@ export async function getQueryReferences(
         Protocol.QueryReferencesRequest.encode(query).finish(),
     );
 
-    const path = `/query_references?query=${encodedQuery}`;
+    let path = `/query_references?query=${encodedQuery}`;
+
+    if (moderationLevels !== undefined) {
+        path += `&moderation_filters=${encodeModerationLevels(
+            moderationLevels,
+        )}`;
+    }
 
     const response = await fetch(server + path, {
         method: 'GET',
@@ -260,6 +286,7 @@ export async function getSearch(
     limit?: number,
     cursor?: Uint8Array,
     searchType?: SearchType,
+    moderationLevels?: Record<string, number>,
 ): Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type> {
     let path = `/search?search=${encodeURIComponent(searchQuery)}`;
 
@@ -273,6 +300,12 @@ export async function getSearch(
 
     if (searchType !== undefined) {
         path += `&search_type=${searchType}`;
+    }
+
+    if (moderationLevels !== undefined) {
+        path += `&moderation_filters=${encodeModerationLevels(
+            moderationLevels,
+        )}`;
     }
 
     const response = await fetch(server + path, {
@@ -359,6 +392,7 @@ export async function getExplore(
     server: string,
     limit?: number,
     cursor?: Uint8Array,
+    moderationLevels?: Record<string, number>,
 ): Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type> {
     let path = '/explore?';
 
@@ -370,6 +404,13 @@ export async function getExplore(
 
     if (limit !== undefined) {
         params.append('limit', limit.toString());
+    }
+
+    if (moderationLevels !== undefined) {
+        params.append(
+            'moderation_filters',
+            encodeModerationLevels(moderationLevels),
+        );
     }
 
     path += params.toString();

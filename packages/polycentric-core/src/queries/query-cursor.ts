@@ -1,13 +1,19 @@
 import * as APIMethods from '../api-methods';
 import * as Models from '../models';
-import * as Protocol from '../protocol';
 import * as ProcessHandle from '../process-handle';
+import * as Protocol from '../protocol';
 
 export function makeGetExploreCallback(
     processHandle: ProcessHandle.ProcessHandle,
+    moderationLevels?: Record<string, number>,
 ): LoadCallback {
     return async (server, limit, cursor) => {
-        const batch = await APIMethods.getExplore(server, limit, cursor);
+        const batch = await APIMethods.getExplore(
+            server,
+            limit,
+            cursor,
+            moderationLevels,
+        );
 
         const filteredResultEvents = [];
 
@@ -22,7 +28,20 @@ export function makeGetExploreCallback(
                     Protocol.PublicKey.encode(event.system).finish(),
                 );
 
-            if (!blocked) {
+            // Todo: Strict mode
+            const failsModerationSettings = moderationLevels
+                ? Object.entries(moderationLevels).some(
+                      ([settingName, settingLevel]) => {
+                          return signedEvent.moderationTags.some(
+                              (tag) =>
+                                  tag.name === settingName &&
+                                  tag.level > settingLevel,
+                          );
+                      },
+                  )
+                : false;
+
+            if (!blocked && !failsModerationSettings) {
                 filteredResultEvents.push(signedEvent);
             }
         }
@@ -40,14 +59,17 @@ export function makeGetExploreCallback(
 export function makeGetSearchCallback(
     searchQuery: string,
     searchType: APIMethods.SearchType,
+    moderationLevels?: Record<string, number>,
 ): LoadCallback {
     return async (server, limit, cursor) => {
-        return await APIMethods.getSearch(
+        // Since moderation levels are part of the search query, we don't need to filter here.
+        return APIMethods.getSearch(
             server,
             searchQuery,
             limit,
             cursor,
             searchType,
+            moderationLevels,
         );
     };
 }

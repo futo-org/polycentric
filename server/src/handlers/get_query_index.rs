@@ -9,8 +9,11 @@ pub(crate) struct Query {
     content_type: u64,
     after: ::core::option::Option<u64>,
     limit: ::core::option::Option<u64>,
-    moderation_filters:
-        ::core::option::Option<crate::moderation::ModerationFilters>,
+    #[serde(
+        default,
+        deserialize_with = "crate::handlers::util::deserialize_json_string"
+    )]
+    moderation_filters: Option<crate::moderation::ModerationFilters>,
 }
 
 pub(crate) async fn handler(

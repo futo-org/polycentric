@@ -58,11 +58,6 @@ impl Default for ModerationFilters {
                 strict_mode: true,
             },
             ModerationFilter {
-                name: ModerationTagName::new(String::from("self_harm")),
-                max_level: 1,
-                strict_mode: true,
-            },
-            ModerationFilter {
                 name: ModerationTagName::new(String::from("sexual")),
                 max_level: 1,
                 strict_mode: true,

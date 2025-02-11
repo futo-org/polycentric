@@ -32,7 +32,11 @@ import { QueryManagerContext } from '../hooks/queryHooks';
 import { useStackRouter } from '../hooks/stackRouterHooks';
 import { getFullPath } from '../util/etc';
 import { createSwipeBackGesture } from '../util/ionicfullpageswipebackgesture';
-import { MobileSwipeTopicContext, StackRouterContext } from './contexts';
+import {
+    MobileSwipeTopicContext,
+    ModerationContext,
+    StackRouterContext,
+} from './contexts';
 
 setupIonicReact({});
 setupDarkMode();
@@ -117,51 +121,71 @@ const SignedinApp = ({
         setIsNewAccount(false); // Reset the new account flag when modal is closed
     }, [setIsNewAccount]);
 
+    const [moderationLevels, setModerationLevels] = useState<
+        Record<string, number>
+    >(
+        JSON.parse(
+            localStorage.getItem('polycentric-moderation-levels') ?? '{}',
+        ),
+    );
+
+    const moderationContextContainer = useMemo(() => {
+        return {
+            moderationLevels,
+            setModerationLevels,
+        };
+    }, [moderationLevels, setModerationLevels]);
+
     return (
         <QueryManagerContext.Provider value={queryManager}>
             <StackRouterContext.Provider value={stackRouter}>
                 <MobileSwipeTopicContext.Provider
                     value={mobileSwipeTopicContextContainer}
                 >
-                    {showFirstLoginModal && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                            <div className="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4">
-                                <h2 className="text-2xl font-bold">
-                                    Save Your Backup Key
-                                </h2>
-                                <p className="text-gray-600">
-                                    This is your account backup key. You&apos;ll
-                                    need this to sign in again. Please save it
-                                    somewhere safe - without it, you won&apos;t
-                                    be able to recover your account. You can
-                                    find it again in the settings menu.
-                                </p>
-                                <ExportKey />
-                                <div className="flex justify-end space-x-3 mt-4">
-                                    <button
-                                        className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                                        onClick={handleModalClose}
-                                    >
-                                        I&apos;ll do this later
-                                    </button>
-                                    <button
-                                        className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-                                        onClick={handleModalClose}
-                                    >
-                                        I&apos;ve saved it
-                                    </button>
+                    <ModerationContext.Provider
+                        value={moderationContextContainer}
+                    >
+                        {showFirstLoginModal && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                                <div className="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4">
+                                    <h2 className="text-2xl font-bold">
+                                        Save Your Backup Key
+                                    </h2>
+                                    <p className="text-gray-600">
+                                        This is your account backup key.
+                                        You&apos;ll need this to sign in again.
+                                        Please save it somewhere safe - without
+                                        it, you won&apos;t be able to recover
+                                        your account. You can find it again in
+                                        the settings menu.
+                                    </p>
+                                    <ExportKey />
+                                    <div className="flex justify-end space-x-3 mt-4">
+                                        <button
+                                            className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                                            onClick={handleModalClose}
+                                        >
+                                            I&apos;ll do this later
+                                        </button>
+                                        <button
+                                            className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
+                                            onClick={handleModalClose}
+                                        >
+                                            I&apos;ve saved it
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
-                    <SidebarLayout>
-                        <IonNav
-                            id="main-drawer"
-                            root={root}
-                            ref={ionNavRef}
-                            animated={!isFirefox}
-                        />
-                    </SidebarLayout>
+                        )}
+                        <SidebarLayout>
+                            <IonNav
+                                id="main-drawer"
+                                root={root}
+                                ref={ionNavRef}
+                                animated={!isFirefox}
+                            />
+                        </SidebarLayout>
+                    </ModerationContext.Provider>
                 </MobileSwipeTopicContext.Provider>
             </StackRouterContext.Provider>
         </QueryManagerContext.Provider>
