@@ -190,7 +190,7 @@ pub(crate) async fn handler(
     let response = ::warp::reply::with_header(
         response,
         "Cache-Control",
-        "public, s-maxage=30, max-age=5",
+        "public, s-maxage=3600, max-age=5",
     );
 
     if !cache_tags.is_empty() {

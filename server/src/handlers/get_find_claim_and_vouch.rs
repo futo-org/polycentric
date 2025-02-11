@@ -93,7 +93,7 @@ pub(crate) async fn handler(
                     ::warp::http::StatusCode::OK,
                 ),
                 "Cache-Control",
-                "public, s-maxage=30, max-age=5",
+                "public, s-maxage=3600, max-age=5",
             )))
         }
         None => Ok(Box::new(::warp::reply::with_status(
