@@ -59,12 +59,6 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
-CREATE INDEX IF NOT EXISTS idx_events_moderation_status_content_type 
-ON events (moderation_status, content_type) INCLUDE (id);
-
-CREATE INDEX IF NOT EXISTS idx_event_processing_status_event_id
-ON event_processing_status (event_id) INCLUDE (failure_count, last_failure_at);
-
 
 CREATE TABLE IF NOT EXISTS events (
     id BIGSERIAL PRIMARY KEY,
@@ -91,6 +85,12 @@ CREATE TABLE IF NOT EXISTS events (
 
     UNIQUE (system_key_type, system_key, process, logical_clock)
 );
+
+CREATE INDEX IF NOT EXISTS idx_events_moderation_status_content_type 
+ON events (moderation_status, content_type) INCLUDE (id);
+
+CREATE INDEX IF NOT EXISTS idx_event_processing_status_event_id
+ON event_processing_status (event_id) INCLUDE (failure_count, last_failure_at);
 
 CREATE INDEX IF NOT EXISTS idx_events_moderation_status_content_type 
 ON events (moderation_status, content_type) INCLUDE (id);
