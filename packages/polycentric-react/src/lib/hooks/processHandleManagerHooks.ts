@@ -32,6 +32,8 @@ type BaseProcessHandleManagerHookReturn = {
     ) => Promise<ProcessHandle.ProcessHandle>;
     signOut: (account?: MetaStore.StoreInfo) => Promise<void>;
     metaStore: MetaStore.IMetaStore;
+    setIsNewAccount: (value: boolean) => void;
+    isNewAccount: boolean;
 };
 
 interface UseProcessHandleManagerState {
@@ -50,6 +52,7 @@ export function useProcessHandleManagerBaseComponentHook(
         });
 
     const [stores, setStores] = useState<MetaStore.StoreInfo[]>([]);
+    const [isNewAccount, setIsNewAccount] = useState(false);
 
     const changeHandle = useCallback(
         async (account?: MetaStore.StoreInfo) => {
@@ -164,6 +167,7 @@ export function useProcessHandleManagerBaseComponentHook(
                     privateKeyModel,
                 );
 
+            // Ensure all events are ingested before proceeding
             if (exportBundle.events) {
                 for (const event of exportBundle.events.events) {
                     const eventModel = Models.SignedEvent.fromProto(event);
@@ -257,6 +261,8 @@ export function useProcessHandleManagerBaseComponentHook(
         createHandleFromExportBundle,
         signOut,
         metaStore,
+        isNewAccount,
+        setIsNewAccount,
     };
 }
 
