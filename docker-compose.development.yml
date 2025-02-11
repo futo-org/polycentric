@@ -40,6 +40,7 @@ services:
             DATABASE_URL: "postgres://postgres:testing@postgres"
             ADMIN_TOKEN: "123"
             CHALLENGE_KEY: "456"
+            CARGO_HOME: "/tmp/cargo"
         user: "${CURRENT_UID}:${CURRENT_GID}"
         volumes:
             - ./:/app
@@ -60,11 +61,14 @@ services:
     xkey:
         image: varnish:7
         depends_on:
-          - development
+            - development
         volumes:
-          - ./varnish/default.vcl:/etc/varnish/default.vcl:ro
+            - ./default.vcl:/etc/varnish/default.vcl:ro
         environment:
-          - VARNISH_SIZE=256m
+            - VARNISH_SIZE=256m
+        command: ["varnishd", "-F", "-a", ":8080", "-f", "/etc/varnish/default.vcl"]
+        ports:
+            - "127.0.0.1:8080:8080"
     grafana:
         image: grafana/grafana:9.5.2
         restart: always

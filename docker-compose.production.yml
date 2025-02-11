@@ -36,11 +36,12 @@ services:
     xkey:
         image: varnish:7
         depends_on:
-          - server
+            - server
         volumes:
-          - ./varnish/default.vcl:/etc/varnish/default.vcl:ro
+            - ./default.vcl:/etc/varnish/default.vcl:ro
         environment:
-          - VARNISH_SIZE=256m
+            - VARNISH_SIZE=256m
+        command: ["varnishd", "-F", "-a", ":8080", "-f", "/etc/varnish/default.vcl"]
     proxy:
         image: caddy
         volumes:

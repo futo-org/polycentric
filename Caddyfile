@@ -1,4 +1,4 @@
 srv1.polycentric.io {
-    reverse_proxy http://server:8081
+    reverse_proxy http://xkey:8080
 }
 
