@@ -367,6 +367,16 @@ async fn run_moderation_queue(
         Some(moderation::providers::tags::make_provider(config).await?)
     };
 
+    if tag_provider.is_none() {
+        error!(
+            "No moderation interface provided and moderation mode is not off"
+        );
+        return Err(
+            "No moderation interface provided and moderation mode is not off"
+                .into(),
+        );
+    }
+
     let pool_clone = pool.clone();
     let tagging_request_rate_limit = config.tagging_request_rate_limit;
     let csam_request_rate_limiter = config.csam_request_rate_limit;
@@ -419,21 +429,19 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
                 info!("No moderation interface provided, skipping moderation queue");
             }
 
-            let skip_moderation = match config.moderation_mode {
-                ModerationMode::Off => true,
-                _ => no_interface,
-            };
-
             // Exit if either the moderation queue or the API server fails
-            if skip_moderation {
-                serve_api(&config, &pool).await?;
-            } else {
-                tokio::select! {
-                    moderation_end_result = run_moderation_queue(&config, &pool) => {
-                        moderation_end_result?;
-                    }
-                    api_end_result = serve_api(&config, &pool) => {
-                        api_end_result?;
+            match config.moderation_mode {
+                ModerationMode::Off => {
+                    serve_api(&config, &pool).await?;
+                }
+                _ => {
+                    tokio::select! {
+                        moderation_end_result = run_moderation_queue(&config, &pool) => {
+                            moderation_end_result?;
+                        }
+                        api_end_result = serve_api(&config, &pool) => {
+                            api_end_result?;
+                        }
                     }
                 }
             }

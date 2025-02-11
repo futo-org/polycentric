@@ -6,8 +6,11 @@ pub(crate) struct Query {
         deserialize_with = "polycentric_protocol::model::public_key::serde_url_deserialize"
     )]
     system: polycentric_protocol::model::public_key::PublicKey,
-    moderation_filters:
-        ::core::option::Option<crate::moderation::ModerationFilters>,
+    #[serde(
+        default,
+        deserialize_with = "crate::handlers::util::deserialize_json_string"
+    )]
+    moderation_filters: Option<crate::moderation::ModerationFilters>,
 }
 
 pub(crate) async fn handler(
