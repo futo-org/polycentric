@@ -89,9 +89,6 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS idx_events_moderation_status_content_type 
 ON events (moderation_status, content_type) INCLUDE (id);
 
-CREATE INDEX IF NOT EXISTS idx_event_processing_status_event_id
-ON event_processing_status (event_id) INCLUDE (failure_count, last_failure_at);
-
 CREATE INDEX IF NOT EXISTS idx_events_moderation_status_content_type 
 ON events (moderation_status, content_type) INCLUDE (id);
 
@@ -191,6 +188,9 @@ CREATE TABLE IF NOT EXISTS event_processing_status (
     last_failure_at TIMESTAMP WITH TIME ZONE,
     last_error_message TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_event_processing_status_event_id
+ON event_processing_status (event_id) INCLUDE (failure_count, last_failure_at);
 
 CREATE INDEX IF NOT EXISTS idx_eps_failure_metrics
 ON event_processing_status (event_id, failure_count)
