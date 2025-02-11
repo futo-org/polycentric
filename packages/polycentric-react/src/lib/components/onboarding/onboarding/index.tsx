@@ -406,7 +406,7 @@ const CredsPanelSignIn = () => {
         useOnboardingProcessHandleManager();
     const [backupKey, setBackupKey] = useState<string>('');
     const [backupKeyError, setBackupKeyError] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false); // Add loading state
+    const [isLoading, setIsLoading] = useState(false);
     const stackRouterContext = useContext(StackRouterContext);
 
     const handleSignIn = useCallback(async () => {
