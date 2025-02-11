@@ -13,8 +13,7 @@ pub(crate) struct Query {
         default,
         deserialize_with = "crate::handlers::util::deserialize_json_string"
     )]
-    moderation_filters:
-        Option<crate::moderation::ModerationFilters>,
+    moderation_filters: Option<crate::moderation::ModerationFilters>,
 }
 
 pub(crate) async fn handler(
