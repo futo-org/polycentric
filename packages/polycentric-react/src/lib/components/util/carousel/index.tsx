@@ -120,7 +120,7 @@ export const Carousel = ({
                 )}
                 {currentSlide < maxVisitedSlide ? (
                     <button
-                        className={`swiper-button-next justify-self-end hidden md:flex w-20 h-20 rounded-full bg-white border justify-center items-center`}
+                        className={`swiper-button-next justify-self-end hidden md:flex w-20 h-20 rounded-full bg-white border justify-center items-center pointer-events-auto`}
                         onClick={() => {
                             if (currentSlide < childComponents.length - 1) {
                                 setCurrentSlide(currentSlide + 1);

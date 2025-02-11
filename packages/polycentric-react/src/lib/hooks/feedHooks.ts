@@ -10,6 +10,7 @@ import {
 import AsyncLock from 'async-lock';
 import Long from 'long';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useModeration } from './moderationHooks';
 import { useProcessHandleManager } from './processHandleManagerHooks';
 import {
     ParsedEvent,
@@ -82,12 +83,15 @@ export const useAuthorFeed: FeedHook = (system: Models.PublicKey.PublicKey) => {
 
 export const useExploreFeed: FeedHook = () => {
     const queryManager = useQueryManager();
+    const { moderationLevels } = useModeration();
+
     const loadCallback = useMemo(
         () =>
             Queries.QueryCursor.makeGetExploreCallback(
                 queryManager.processHandle,
+                moderationLevels,
             ),
-        [queryManager.processHandle],
+        [queryManager.processHandle, moderationLevels],
     );
 
     return useQueryCursor(loadCallback, decodePost);
