@@ -83,7 +83,8 @@ impl ModerationOptions {
             Some(mut filters) => {
                 // Add in missing filters from default
                 for default_filter in ModerationFilters::default().0 {
-                    if !filters.0.iter().any(|f| f.name == default_filter.name) {
+                    if !filters.0.iter().any(|f| f.name == default_filter.name)
+                    {
                         filters.0.push(default_filter);
                     }
                 }
