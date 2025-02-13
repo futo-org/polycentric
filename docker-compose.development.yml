@@ -114,11 +114,14 @@ services:
             - X_CLIENT_SECRET=${X_CLIENT_SECRET}
             - X_API_KEY=${X_API_KEY}
             - X_API_SECRET=${X_API_SECRET}
+            - NODE_ENV=development
         ports:
             - "127.0.0.1:3002:3002"
         volumes:
-            - ./packages/verifiers:/app
+            - ./packages/verifiers:/usr/src/app/packages/verifiers
             - ./packages/verifiers/state:/usr/src/app/state
+            - ./packages/verifiers/certs:/usr/src/app/packages/verifiers/certs
+        user: "node"
         depends_on:
             - development
 volumes:

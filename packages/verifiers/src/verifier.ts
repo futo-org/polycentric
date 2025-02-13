@@ -1,8 +1,12 @@
+import { IncomingHttpHeaders } from 'http';
 import { ClaimField, TokenResponse } from './models';
 import { Result } from './result';
-import { IncomingHttpHeaders } from 'http';
 
 import * as Core from '@polycentric/polycentric-core';
+
+const SERVER_URL = process.env.NODE_ENV === 'development' 
+    ? 'http://development:8081'
+    : 'https://srv1-stg.polycentric.io';
 
 export enum VerifierType {
     OAuth = 'oauth',
@@ -51,7 +55,7 @@ export abstract class Verifier {
 
         //TODO: Maybe instead of pointer use something that contains a server?
         const events = await Core.APIMethods.getEvents(
-            'https://srv1-stg.polycentric.io',
+            SERVER_URL,  // Use the configured server URL
             pointer.system,
             Core.Models.Ranges.rangesForSystemFromProto({
                 rangesForProcesses: [

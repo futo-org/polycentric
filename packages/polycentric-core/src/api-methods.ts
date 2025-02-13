@@ -538,7 +538,7 @@ const VERIFIER_SERVER =
     // Check if we're in a browser environment
     typeof window !== 'undefined' 
         ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://localhost:3002'  // Local development
+            ? 'https://localhost:3002'  // Local development
             : 'https://verifiers.polycentric.io')  // Production
         : (process.env.NEXT_PUBLIC_VERIFIER_SERVER || 'https://verifiers.polycentric.io');
 
@@ -555,14 +555,48 @@ export async function requestVerification(
         url += `?challengeResponse=${encodeURIComponent(challengeResponse)}`;
     }
 
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-            'x-polycentric-user-agent': userAgent,
-        }),
-        body: Protocol.Pointer.encode(pointer).finish(),
+    console.log('requestVerification:', {
+        url,
+        claimType: claimType.toString(),
+        verifierType,
+        pointer: Protocol.Pointer.toJSON(pointer)
     });
 
-    await checkResponse('requestVerification', response);
+    try {
+        const encodedPointer = Protocol.Pointer.encode(pointer).finish();
+        console.log('Encoded pointer type:', encodedPointer.constructor.name);
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/octet-stream',
+                'x-polycentric-user-agent': userAgent,
+                'Origin': window.location.origin,
+                'Access-Control-Request-Method': 'POST',
+                'Access-Control-Request-Headers': 'content-type,x-polycentric-user-agent',
+            },
+            body: encodedPointer,
+            credentials: 'include',
+            mode: 'cors'
+        });
+
+        console.log('Response received:', response.status);
+
+        if (!response.ok) {
+            const text = await response.text();
+            console.error('Error response body:', text);
+            throw new Error(`Verification failed: ${text}`);
+        }
+
+        await checkResponse('requestVerification', response);
+    } catch (error) {
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+            console.error('CORS or network error:', {
+                error,
+                url,
+                origin: window.location.origin
+            });
+        }
+        throw error;
+    }
 }

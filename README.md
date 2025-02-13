@@ -29,6 +29,11 @@ make start-sandbox
 make join-sandbox
 # make the dev certs
 make devcert
+# make verifiers certs
+cd packages/verifiers
+mkdir certs
+cd certs
+openssl req -x509 -newkey rsa:4096 -nodes -keyout localhost-key.pem -out localhost.pem -days 365 -subj "/CN=localhost"
 
 # create a production build of each package
 make build-production

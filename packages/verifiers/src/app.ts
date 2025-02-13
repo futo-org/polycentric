@@ -1,12 +1,16 @@
 import * as dotenv from 'dotenv';
 dotenv.config({ path: './.env' });
 
-import { handleBinaryOrJson, writeResult, decodeObject } from './utility';
-import express from 'express';
-import { OAuthVerifier, TextVerifier } from './verifier';
-import { StatusCodes } from 'http-status-codes';
-import { platforms } from './platforms/platforms';
 import { ObjectId } from 'bson';
+import cors from 'cors';
+import express from 'express';
+import * as fs from 'fs';
+import { StatusCodes } from 'http-status-codes';
+import * as https from 'https';
+import * as path from 'path';
+import { platforms } from './platforms/platforms';
+import { decodeObject, handleBinaryOrJson, writeResult } from './utility';
+import { OAuthVerifier, TextVerifier } from './verifier';
 
 import * as Core from '@polycentric/polycentric-core';
 import * as LevelDB from '@polycentric/polycentric-leveldb';
@@ -37,6 +41,25 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
 
     const app = express();
     app.use(express.json());
+    
+    app.use(cors({
+        origin: 'https://localhost:3000',
+        credentials: true,
+        methods: ['GET', 'POST', 'OPTIONS'],
+        allowedHeaders: ['content-type', 'x-polycentric-user-agent', 'origin']
+    }));
+
+    app.options('*', cors());
+
+    // Log all requests
+    app.use((req, res, next) => {
+        console.log('Incoming request:', {
+            method: req.method,
+            url: req.url,
+            headers: req.headers
+        });
+        next();
+    });
 
     const port = 3002;
     app.get('/platforms', (req, res) => {
@@ -201,7 +224,14 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
         }
     }
 
-    app.listen(port, () => {
-        console.log(`Verifiers server listening on port ${port}`);
+    // HTTPS configuration
+    const httpsOptions = {
+        key: fs.readFileSync(path.join(__dirname, '../certs/localhost-key.pem')),
+        cert: fs.readFileSync(path.join(__dirname, '../certs/localhost.pem'))
+    };
+
+    // Create HTTPS server
+    https.createServer(httpsOptions, app).listen(3002, () => {
+        console.log('Verifiers server listening on HTTPS port 3002');
     });
 })();
