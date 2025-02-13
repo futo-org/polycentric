@@ -6,7 +6,7 @@ import * as Core from '@polycentric/polycentric-core';
 
 class YoutubeTextVerifier extends TextVerifier {
     private internalIdRegex = /https:\/\/(?:www\.)?youtube\.com\/channel\/([^/]+)\/?/;
-    private handleRegex = /https:\/\/(?:www\.)?youtube\.com\/([^/]+)\/?/;
+    private handleRegex = /https:\/\/(?:www\.)?youtube\.com\/@([^/]+)\/?/;
 
     protected testDataVerification: TextVerifierVerificationTestData[] = [
         {
@@ -41,11 +41,20 @@ class YoutubeTextVerifier extends TextVerifier {
     protected async getText(claimField: ClaimField): Promise<Result<string>> {
         let url: string;
         switch (claimField.key) {
-            case 0:
-                url = `https://www.youtube.com/${claimField.value}/about`;
+            case 0: {
+                // Extract handle from URL if it's a full URL
+                const handleMatch = this.handleRegex.exec(claimField.value);
+                const handle = handleMatch ? handleMatch[1] : claimField.value;
+                // Remove any @ prefix if present
+                const cleanHandle = handle.startsWith('@') ? handle : `@${handle}`;
+                url = `https://www.youtube.com/${cleanHandle}/about`;
                 break;
+            }
             case 1:
-                url = `https://www.youtube.com/channel/${claimField.value}/about`;
+                // Extract channel ID from URL if it's a full URL
+                const channelMatch = this.internalIdRegex.exec(claimField.value);
+                const channelId = channelMatch ? channelMatch[1] : claimField.value;
+                url = `https://www.youtube.com/channel/${channelId}/about`;
                 break;
             default: {
                 const msg = `Invalid claim field type ${claimField.key}.`;
@@ -53,14 +62,35 @@ class YoutubeTextVerifier extends TextVerifier {
             }
         }
 
-        const response = await fetch(url);
-        const data = await response.text();
+        console.log('YouTube verifier attempting to fetch:', {
+            claimField,
+            url,
+            key: claimField.key
+        });
 
+        const response = await fetch(url);
+        console.log('YouTube response:', {
+            status: response.status,
+            url: response.url
+        });
+
+        if (!response.ok) {
+            return Result.err({
+                message: `Failed to fetch YouTube profile (${response.status})`,
+                extendedMessage: `Failed to fetch ${url} - Status: ${response.status}`
+            });
+        }
+
+        const data = await response.text();
+        console.log('YouTube page content length:', data.length);
+        
         const match = /<meta property="og:description" content="([^"]+)">/.exec(data);
         if (!match) {
+            // Log the first 500 characters of the response to debug
+            console.log('YouTube page content preview:', data.substring(0, 500));
             return Result.err({
-                message: 'Verifier encountered an error attempting to check your profile description',
-                extendedMessage: 'Failed to find description meta tag.',
+                message: 'Could not find YouTube channel description',
+                extendedMessage: 'Failed to find description meta tag in YouTube page.'
             });
         }
 
