@@ -102,6 +102,25 @@ services:
             - "127.0.0.1:8125:8125"
             - "127.0.0.1:8092:8092"
             - "127.0.0.1:8094:8094"
+    verifiers:
+        build:
+            context: .
+            dockerfile: packages/verifiers/Dockerfile
+        environment:
+            - OAUTH_CALLBACK_DOMAIN=http://localhost:3000
+            - INSTAGRAM_CLIENT_SECRET=${INSTAGRAM_CLIENT_SECRET}
+            - INSTAGRAM_CLIENT_ID=${INSTAGRAM_CLIENT_ID}
+            - X_CLIENT_ID=${X_CLIENT_ID}
+            - X_CLIENT_SECRET=${X_CLIENT_SECRET}
+            - X_API_KEY=${X_API_KEY}
+            - X_API_SECRET=${X_API_SECRET}
+        ports:
+            - "127.0.0.1:3002:3002"
+        volumes:
+            - ./packages/verifiers:/app
+            - ./packages/verifiers/state:/usr/src/app/state
+        depends_on:
+            - development
 volumes:
     grafana_data: { }
     influxdb_data: { }

@@ -217,8 +217,6 @@ const isVerifiablePlatform = (platform: SocialPlatform): boolean => {
     return result;
 };
 
-const AUTHORITY_SERVER = 'https://verifiers.polycentric.io';
-
 export const SocialMediaInput = ({
     platform,
     system,
@@ -449,7 +447,6 @@ export const SocialMediaInput = ({
             await Core.ProcessHandle.fullSync(processHandle);
             
             await Core.APIMethods.requestVerification(
-                AUTHORITY_SERVER,
                 claimPointer,
                 getClaimTypeForPlatform(platform)
             );

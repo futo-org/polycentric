@@ -1,0 +1,36 @@
+
+input: .
+output: .retype
+url: https://docs.harbor.social
+favicon: static/favicon.ico
+branding:
+  title: Harbor Verifiers 
+  label: Docs
+  logo: static/logo.png
+links:
+- text: Harbor
+  link: https://harbor.social
+- text: Chat 
+  link: https://chat.futo.org
+- text: Gitlab
+  link: https://gitlab.futo.org/videostreaming/verifiers/
+- text: Grayjay
+  link: https://grayjay.app/
+edit:
+  repo: https://gitlab.futo.org/videostreaming/verifiers/
+  base: /docs
+editor:
+  enabled: false
+footer:
+  copyright: "&copy; Copyright {{ year }}. All rights reserved."
+  links:
+    - text: Harbor
+      link: https://harbor.social
+    - text: Chat 
+      link: https://chat.futo.org
+    - text: Gitlab
+      link: https://gitlab.futo.org/videostreaming/verifiers/
+    - text: Grayjay
+      link: https://grayjay.app/
+serve:
+  host: 0.0.0.0:8083

@@ -5,6 +5,7 @@ import { RightCol } from '../../components/layout/rightcol';
 import { AppInfoTable } from '../../components/settings/AppInfoTable';
 import { DarkModeSelector } from '../../components/settings/DarkModeSelector';
 import { ExportKey } from '../../components/settings/ExportKey';
+import { ModerationTable } from '../../components/settings/ModerationTable';
 import { ServerListTable } from '../../components/settings/ServerTable';
 
 export const SettingsPage: Page = () => {
@@ -32,6 +33,10 @@ export const SettingsPage: Page = () => {
                         <div className="flex flex-col space-y-3">
                             <h2 className="font-medium">Dark Mode</h2>
                             <DarkModeSelector />
+                        </div>
+                        <div className="flex flex-col space-y-3">
+                            <h2 className="font-medium">Moderation</h2>
+                            <ModerationTable />
                         </div>
                     </div>
                 </RightCol>

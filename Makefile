@@ -1,4 +1,4 @@
-.PHONY: proto pretty clean sandbox build-sandbox join-sandbox stop-sandbox join-postgres devcert deploy-polycentric-spa-staging build-ci-deps deploy-charts push-server-image
+.PHONY: proto pretty clean sandbox build-sandbox join-sandbox stop-sandbox join-postgres devcert deploy-polycentric-spa-staging build-ci-deps deploy-charts push-server-image start-verifiers stop-verifiers deploy-verifiers
 
 CURRENT_UID := $(shell id -u)
 CURRENT_GID := $(shell id -g)
@@ -168,3 +168,14 @@ push-server-image:
 		-f server.dockerfile \
 		-t registry.digitalocean.com/polycentric/polycentric:latest .
 	docker push registry.digitalocean.com/polycentric/polycentric:latest
+
+start-verifiers:
+	mkdir -p packages/verifiers/state
+	docker compose -f docker-compose.development.yml -f packages/verifiers/docker-compose.verifiers.yml up -d
+
+stop-verifiers:
+	docker compose -f docker-compose.development.yml -f packages/verifiers/docker-compose.verifiers.yml down
+
+# Production commands
+deploy-verifiers:
+	docker compose -f docker-compose.production.yml -f packages/verifiers/docker-compose.verifiers.yml up -d

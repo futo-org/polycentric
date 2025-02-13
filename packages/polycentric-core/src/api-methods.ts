@@ -534,15 +534,22 @@ export async function getResolveHandle(
     return Models.PublicKey.fromProto(Protocol.PublicKey.decode(rawBody));
 }
 
+const VERIFIER_SERVER = 
+    // Check if we're in a browser environment
+    typeof window !== 'undefined' 
+        ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3002'  // Local development
+            : 'https://verifiers.polycentric.io')  // Production
+        : (process.env.NEXT_PUBLIC_VERIFIER_SERVER || 'https://verifiers.polycentric.io');
+
 export async function requestVerification(
-    server: string,
     pointer: Protocol.Pointer,
     claimType: Models.ClaimType.ClaimType,
     challengeResponse?: string,
 ): Promise<void> {
     const verifierType = challengeResponse ? 'oauth' : 'text';
     
-    let url = `${server}/platforms/${claimType.toString()}/${verifierType}/vouch`;
+    let url = `${VERIFIER_SERVER}/platforms/${claimType.toString()}/${verifierType}/vouch`;
     
     if (challengeResponse) {
         url += `?challengeResponse=${encodeURIComponent(challengeResponse)}`;

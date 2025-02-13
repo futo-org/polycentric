@@ -42,4 +42,16 @@ services:
         ports:
             - "0.0.0.0:80:80"
             - "0.0.0.0:443:443"
+    verifiers:
+        build:
+            context: .
+            dockerfile: packages/verifiers/Dockerfile
+        environment:
+            - OAUTH_CALLBACK_DOMAIN=${OAUTH_CALLBACK_DOMAIN}
+            - INSTAGRAM_CLIENT_SECRET=${INSTAGRAM_CLIENT_SECRET}
+            - INSTAGRAM_CLIENT_ID=${INSTAGRAM_CLIENT_ID}
+            - X_CLIENT_ID=${X_CLIENT_ID}
+            - X_CLIENT_SECRET=${X_CLIENT_SECRET}
+            - X_API_KEY=${X_API_KEY}
+            - X_API_SECRET=${X_API_SECRET}
 
