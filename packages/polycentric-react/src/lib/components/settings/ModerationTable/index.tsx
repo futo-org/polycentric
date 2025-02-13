@@ -59,6 +59,7 @@ const categories = [
             'Mildly sensitive, factual.',
             'Potentially offensive content',
         ],
+        default: 2,
     },
     {
         name: 'Explicit Content',
@@ -68,6 +69,7 @@ const categories = [
             'Mildly suggestive, factual or educational',
             'Moderate sexual content, non-graphic',
         ],
+        default: 1,
     },
     {
         name: 'Violence',
@@ -77,15 +79,18 @@ const categories = [
             'Mild violence, factual or contextual',
             'Moderate violence, some graphic content.',
         ],
+        default: 1,
     },
 ];
 
 export const ModerationTable = () => {
-    const [levels, setLevels] = useState<Record<string, number>>(
-        JSON.parse(
-            localStorage.getItem('polycentric-moderation-levels') ?? '{}',
-        ),
-    );
+    const [levels, setLevels] = useState<Record<string, number> | null>(() => {
+        const item = localStorage.getItem('polycentric-moderation-levels');
+        if (!item) {
+            return null;
+        }
+        return JSON.parse(item);
+    });
     const { setModerationLevels } = useModeration();
 
     const setLevelFunctions = useMemo(() => {
@@ -116,7 +121,7 @@ export const ModerationTable = () => {
                     <div key={category.tagName} className="contents">
                         <h3>{category.name}</h3>
                         <FancySlider
-                            value={levels[category.tagName] ?? 0}
+                            value={levels?.[category.tagName] ?? category.default}
                             setValue={setLevelFunctions[index]}
                             max={2}
                             descriptions={category.description}

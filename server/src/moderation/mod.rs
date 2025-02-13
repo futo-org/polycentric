@@ -76,3 +76,20 @@ pub(crate) struct ModerationOptions {
     pub(crate) filters: Option<ModerationFilters>,
     pub(crate) mode: ModerationMode,
 }
+
+impl ModerationOptions {
+    pub fn get_filters_with_defaults(&self) -> ModerationFilters {
+        match self.filters.clone() {
+            Some(mut filters) => {
+                // Add in missing filters from default
+                for default_filter in ModerationFilters::default().0 {
+                    if !filters.0.iter().any(|f| f.name == default_filter.name) {
+                        filters.0.push(default_filter);
+                    }
+                }
+                filters
+            }
+            None => ModerationFilters::default(),
+        }
+    }
+}
