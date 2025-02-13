@@ -231,7 +231,9 @@ export const SocialMediaInput = ({
     const [verificationStep, setVerificationStep] = useState<
         'input' | 'token' | 'verifying' | 'success' | 'error' | 'duplicate'
     >('input');
-    const [claimPointer, setClaimPointer] = useState<Protocol.Pointer | null>(null);
+    const [claimPointer, setClaimPointer] = useState<Protocol.Pointer | null>(
+        null,
+    );
     const { processHandle } = useProcessHandleManager();
     const claims = useClaims(system);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -240,7 +242,7 @@ export const SocialMediaInput = ({
     useEffect(() => {
         const checkOAuth = async () => {
             const claimType = getClaimTypeForPlatform(platform);
-            
+
             if (isOAuthVerifiable(claimType)) {
                 try {
                     const oauthUrl = await getOAuthURL(claimType);
@@ -440,15 +442,15 @@ export const SocialMediaInput = ({
 
     const startVerification = useCallback(async () => {
         if (!processHandle || !claimPointer) return;
-        
+
         setVerificationStep('verifying');
-        
+
         try {
             await Core.ProcessHandle.fullSync(processHandle);
-            
+
             await Core.APIMethods.requestVerification(
                 claimPointer,
-                getClaimTypeForPlatform(platform)
+                getClaimTypeForPlatform(platform),
             );
 
             setVerificationStep('success');
@@ -458,15 +460,17 @@ export const SocialMediaInput = ({
         } catch (error) {
             setVerificationStep('error');
             setErrorMessage(
-                error instanceof Error 
-                    ? error.message 
-                    : "An unknown error occurred with the verification server."
+                error instanceof Error
+                    ? error.message
+                    : 'An unknown error occurred with the verification server.',
             );
         }
     }, [processHandle, claimPointer, platform, onCancel]);
 
     // Helper function to convert platform to claim type
-    const getClaimTypeForPlatform = (platform: SocialPlatform): Models.ClaimType.ClaimType => {
+    const getClaimTypeForPlatform = (
+        platform: SocialPlatform,
+    ): Models.ClaimType.ClaimType => {
         switch (platform) {
             case 'youtube':
                 return Models.ClaimType.ClaimTypeYouTube;
@@ -502,11 +506,23 @@ export const SocialMediaInput = ({
                 <h2 className="text-xl font-semibold">Add Token</h2>
                 <div className="bg-gray-800 p-4 rounded-lg">
                     <p className="text-white font-mono break-all">
-                        {btoa(String.fromCharCode.apply(null, Array.from(claimPointer!.system!.key)))}
+                        {btoa(
+                            String.fromCharCode.apply(
+                                null,
+                                Array.from(claimPointer!.system!.key),
+                            ),
+                        )}
                     </p>
                     <button
                         onClick={() =>
-                            navigator.clipboard.writeText(btoa(String.fromCharCode.apply(null, Array.from(claimPointer!.system!.key))))
+                            navigator.clipboard.writeText(
+                                btoa(
+                                    String.fromCharCode.apply(
+                                        null,
+                                        Array.from(claimPointer!.system!.key),
+                                    ),
+                                ),
+                            )
                         }
                         className="text-gray-400 text-sm mt-2 hover:text-gray-300"
                     >

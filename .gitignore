@@ -28,6 +28,8 @@ yarn-error.log*
 proto/protocol.ts
 dist
 
+packages/verifiers/certs
+
 # Generated files
 docker-compose.live*
 .env
