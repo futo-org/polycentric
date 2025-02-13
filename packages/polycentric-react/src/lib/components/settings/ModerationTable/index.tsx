@@ -121,7 +121,9 @@ export const ModerationTable = () => {
                     <div key={category.tagName} className="contents">
                         <h3>{category.name}</h3>
                         <FancySlider
-                            value={levels?.[category.tagName] ?? category.default}
+                            value={
+                                levels?.[category.tagName] ?? category.default
+                            }
                             setValue={setLevelFunctions[index]}
                             max={2}
                             descriptions={category.description}

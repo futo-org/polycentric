@@ -1,7 +1,5 @@
 use ::anyhow::Context;
 
-use crate::moderation::ModerationFilters;
-
 #[derive(PartialEq)]
 pub(crate) struct Result {
     pub(crate) events:
@@ -169,10 +167,7 @@ pub(crate) async fn load_event_later_than(
             .bind(process.bytes())
             .bind(i64::try_from(content_type)?)
             .bind(i64::try_from(later_than_unix_milliseconds)?)
-            .bind(
-                moderation_options
-                    .get_filters_with_defaults()
-            )
+            .bind(moderation_options.get_filters_with_defaults())
             .bind(moderation_options.mode)
             .fetch_optional(&mut **transaction)
             .await?;
@@ -263,10 +258,7 @@ pub(crate) async fn load_event_earlier_than(
             .bind(process.bytes())
             .bind(i64::try_from(content_type)?)
             .bind(i64::try_from(earlier_than_unix_milliseconds)?)
-            .bind(
-                moderation_options
-                    .get_filters_with_defaults()
-            )
+            .bind(moderation_options.get_filters_with_defaults())
             .bind(moderation_options.mode)
             .fetch_optional(&mut **transaction)
             .await?;
