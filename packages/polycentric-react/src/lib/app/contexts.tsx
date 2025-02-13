@@ -34,6 +34,8 @@ export const MobileSwipeTopicContext = createContext<{
 }>({ topic: 'Explore', setTopic: () => {} });
 
 export const ModerationContext = createContext<{
-  moderationLevels: Record<string, number>;
-  setModerationLevels: (moderationLevels: Record<string, number>) => void;
-}>({ moderationLevels: {}, setModerationLevels: () => {} });
+    moderationLevels: Record<string, number> | null;
+    setModerationLevels: (
+        moderationLevels: Record<string, number> | null,
+    ) => void;
+}>({ moderationLevels: null, setModerationLevels: () => {} });

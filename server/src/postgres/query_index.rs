@@ -171,9 +171,7 @@ pub(crate) async fn load_event_later_than(
             .bind(i64::try_from(later_than_unix_milliseconds)?)
             .bind(
                 moderation_options
-                    .filters
-                    .as_ref()
-                    .unwrap_or(&ModerationFilters::default()),
+                    .get_filters_with_defaults()
             )
             .bind(moderation_options.mode)
             .fetch_optional(&mut **transaction)
@@ -267,9 +265,7 @@ pub(crate) async fn load_event_earlier_than(
             .bind(i64::try_from(earlier_than_unix_milliseconds)?)
             .bind(
                 moderation_options
-                    .filters
-                    .as_ref()
-                    .unwrap_or(&ModerationFilters::default()),
+                    .get_filters_with_defaults()
             )
             .bind(moderation_options.mode)
             .fetch_optional(&mut **transaction)
@@ -361,9 +357,7 @@ pub(crate) async fn load_events_by_time(
         .bind(i64::try_from(limit)?)
         .bind(
             moderation_options
-                .filters
-                .as_ref()
-                .unwrap_or(&ModerationFilters::default()),
+                .get_filters_with_defaults()
         )
         .bind(
             moderation_options
