@@ -1,7 +1,7 @@
-import { Result } from '../result';
-import { ClaimField, Platform, TokenResponse } from '../models';
 import TwitterApi, { ApiResponseError } from 'twitter-api-v2';
-import { httpResponseToError, encodeObject, decodeObject, getCallbackForPlatform } from '../utility';
+import { ClaimField, Platform, TokenResponse } from '../models';
+import { Result } from '../result';
+import { decodeObject, encodeObject, getCallbackForPlatform, httpResponseToError } from '../utility';
 import { OAuthVerifier } from '../verifier';
 
 import * as Core from '@polycentric/polycentric-core';
@@ -31,13 +31,19 @@ class XOAuthVerifier extends OAuthVerifier<XTokenRequest> {
             return Result.errMsg('Verifier not configured');
         }
 
-        const client = new TwitterApi({
-            appKey: process.env.X_API_KEY,
-            appSecret: process.env.X_API_SECRET,
-        });
+        try {
+            const client = new TwitterApi({
+                appKey: process.env.X_API_KEY,
+                appSecret: process.env.X_API_SECRET,
+            });
 
-        const oauthRequest = await client.generateAuthLink(getCallbackForPlatform(this.claimType));
-        return Result.ok(`${oauthRequest.url}&harborSecret=${oauthRequest.oauth_token_secret}`);
+            console.log('Attempting to generate auth link with callback:', getCallbackForPlatform(this.claimType));
+            const oauthRequest = await client.generateAuthLink(getCallbackForPlatform(this.claimType));
+            return Result.ok(`${oauthRequest.url}&harborSecret=${oauthRequest.oauth_token_secret}`);
+        } catch (error: any) {
+            console.error('Twitter API error:', error);
+            return Result.errMsg(`Twitter API error: ${error.message}`);
+        }
     }
 
     public async getToken(data: XTokenRequest): Promise<Result<TokenResponse>> {

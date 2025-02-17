@@ -8,9 +8,9 @@ export GROUP_ID
 
 start:
 	mkdir -p ./state
-	docker compose up
+	docker compose --env-file ../../.env.development up
 
 stop:
-	docker compose down
+	docker compose --env-file ../../.env.development down
 
 

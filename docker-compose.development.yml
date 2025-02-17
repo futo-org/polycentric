@@ -1,4 +1,3 @@
-version: "2"
 services:
     postgres:
         image: postgres:14
@@ -106,8 +105,11 @@ services:
         build:
             context: .
             dockerfile: packages/verifiers/Dockerfile
+        env_file: .env.development
         environment:
-            - OAUTH_CALLBACK_DOMAIN=http://localhost:3000
+            - OAUTH_CALLBACK_DOMAIN=https://localhost:3000
+            - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+            - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
             - INSTAGRAM_CLIENT_SECRET=${INSTAGRAM_CLIENT_SECRET}
             - INSTAGRAM_CLIENT_ID=${INSTAGRAM_CLIENT_ID}
             - X_CLIENT_ID=${X_CLIENT_ID}

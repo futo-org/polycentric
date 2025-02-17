@@ -3,7 +3,7 @@ import { Models, Protocol } from '@polycentric/polycentric-core';
 import { useCallback, useEffect, useState } from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import { useClaims } from '../../../hooks/queryHooks';
-import { getOAuthURL } from '../../../util/oauth';
+import { initiateOAuthFlow } from '../../../util/oauth';
 
 export type SocialPlatform =
     | 'hackerNews'
@@ -238,17 +238,17 @@ export const SocialMediaInput = ({
     const claims = useClaims(system);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    // Check for OAuth verification immediately
     useEffect(() => {
         const checkOAuth = async () => {
+            if (!platform) return;
+
             const claimType = getClaimTypeForPlatform(platform);
 
             if (isOAuthVerifiable(claimType)) {
                 try {
-                    const oauthUrl = await getOAuthURL(claimType);
-                    window.location.href = oauthUrl;
+                    await initiateOAuthFlow(claimType);
                 } catch (error) {
-                    console.error('OAuth URL fetch failed:', error);
+                    console.error('OAuth initialization failed:', error);
                     setErrorMessage('Failed to start OAuth verification');
                     setVerificationStep('error');
                 }
@@ -422,12 +422,8 @@ export const SocialMediaInput = ({
             setClaimPointer(pointer);
 
             if (isOAuthVerifiable(claimType)) {
-                const oauthUrl = await getOAuthURL(claimType);
-                window.location.href = oauthUrl;
+                await initiateOAuthFlow(claimType);
             } else if (isVerifiablePlatform(platform)) {
-                // For display purposes, convert the system key to base64
-                const bytes = Array.from(pointer.system.key);
-                const token = btoa(String.fromCharCode.apply(null, bytes));
                 setVerificationStep('token');
             } else {
                 onCancel();
@@ -470,33 +466,33 @@ export const SocialMediaInput = ({
     // Helper function to convert platform to claim type
     const getClaimTypeForPlatform = (
         platform: SocialPlatform,
-    ): Models.ClaimType.ClaimType => {
+    ): Core.Models.ClaimType.ClaimType => {
         switch (platform) {
             case 'youtube':
                 return Models.ClaimType.ClaimTypeYouTube;
             case 'twitter/X':
-                return Models.ClaimType.ClaimTypeTwitter;
+                return Core.Models.ClaimType.ClaimTypeTwitter;
             case 'discord':
-                return Models.ClaimType.ClaimTypeDiscord;
+                return Core.Models.ClaimType.ClaimTypeDiscord;
             case 'instagram':
-                return Models.ClaimType.ClaimTypeInstagram;
+                return Core.Models.ClaimType.ClaimTypeInstagram;
             case 'github':
-                return Models.ClaimType.ClaimTypeGitHub;
+                return Core.Models.ClaimType.ClaimTypeGitHub;
             case 'minds':
-                return Models.ClaimType.ClaimTypeMinds;
+                return Core.Models.ClaimType.ClaimTypeMinds;
             case 'odysee':
-                return Models.ClaimType.ClaimTypeOdysee;
+                return Core.Models.ClaimType.ClaimTypeOdysee;
             case 'rumble':
-                return Models.ClaimType.ClaimTypeRumble;
+                return Core.Models.ClaimType.ClaimTypeRumble;
             case 'patreon':
-                return Models.ClaimType.ClaimTypePatreon;
+                return Core.Models.ClaimType.ClaimTypePatreon;
             case 'substack':
-                return Models.ClaimType.ClaimTypeSubstack;
+                return Core.Models.ClaimType.ClaimTypeSubstack;
             case 'twitch':
-                return Models.ClaimType.ClaimTypeTwitch;
+                return Core.Models.ClaimType.ClaimTypeTwitch;
             // Add other platform mappings as needed
             default:
-                return Models.ClaimType.ClaimTypeURL;
+                throw new Error(`Unsupported platform: ${platform}`);
         }
     };
 

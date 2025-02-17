@@ -43,10 +43,10 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
     app.use(express.json());
     
     app.use(cors({
-        origin: 'https://localhost:3000',
+        origin: ['https://localhost:3000', 'https://app.polycentric.io'],
         credentials: true,
         methods: ['GET', 'POST', 'OPTIONS'],
-        allowedHeaders: ['content-type', 'x-polycentric-user-agent', 'origin']
+        allowedHeaders: ['Content-Type', 'x-polycentric-user-agent', 'Origin', 'Accept']
     }));
 
     app.options('*', cors());

@@ -15,28 +15,28 @@ export CURRENT_GID
 export DOCKER_GID
 
 build-sandbox:
-	docker compose -f docker-compose.development.yml pull
-	docker compose -f docker-compose.development.yml build
+	docker compose --env-file .env.development -f docker-compose.development.yml pull
+	docker compose --env-file .env.development -f docker-compose.development.yml build
 
 start-sandbox:
 ifndef DOCKER_GID
 	$(error It seems that no groups on your system have permisison to use docker (do you have docker installed?))
 endif
-	docker compose -f docker-compose.development.yml up -d
+	docker compose --env-file .env.development -f docker-compose.development.yml up -d
 
 stop-sandbox:
 ifndef DOCKER_GID
 	$(error It seems that no groups on your system have permisison to use docker (do you have docker installed?))
 endif
-	docker compose -f docker-compose.development.yml down
-	docker compose -f docker-compose.development.yml rm
+	docker compose --env-file .env.development -f docker-compose.development.yml down
+	docker compose --env-file .env.development -f docker-compose.development.yml rm
 
 join-sandbox:
-	docker compose -f docker-compose.development.yml \
+	docker compose --env-file .env.development -f docker-compose.development.yml \
 		exec development /bin/bash --rcfile /app/.docker-bashrc
 
 join-postgres:
-	docker compose -f docker-compose.development.yml \
+	docker compose --env-file .env.development -f docker-compose.development.yml \
 		exec postgres psql -U postgres 
 
 start-gdbserver:
@@ -171,10 +171,11 @@ push-server-image:
 
 start-verifiers:
 	mkdir -p packages/verifiers/state
-	docker compose -f docker-compose.development.yml -f packages/verifiers/docker-compose.verifiers.yml up -d
+	CURRENT_UID=$(CURRENT_UID) CURRENT_GID=$(CURRENT_GID) DOCKER_GID=$(DOCKER_GID) \
+	docker compose --env-file .env.development -f docker-compose.development.yml up -d verifiers
 
 stop-verifiers:
-	docker compose -f docker-compose.development.yml -f packages/verifiers/docker-compose.verifiers.yml down
+	docker compose --env-file .env.development -f docker-compose.development.yml -f packages/verifiers/docker-compose.verifiers.yml down
 
 # Production commands
 deploy-verifiers:

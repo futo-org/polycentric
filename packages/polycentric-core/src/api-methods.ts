@@ -541,7 +541,7 @@ const VERIFIER_SERVER =
           window.location.hostname === '127.0.0.1'
             ? 'https://localhost:3002' // Local development
             : 'https://verifiers.polycentric.io' // Production
-        : process.env.NEXT_PUBLIC_VERIFIER_SERVER ||
+        : process.env.NEXT_PUBLIC_VERIFIER_SERVER ??
           'https://verifiers.polycentric.io';
 
 export async function requestVerification(

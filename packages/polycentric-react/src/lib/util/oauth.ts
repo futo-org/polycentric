@@ -1,9 +1,14 @@
 import * as Core from '@polycentric/polycentric-core';
 
 const AUTHORITY_SERVER =
-    process.env.NODE_ENV === 'production'
-        ? 'https://verifiers.polycentric.io'
-        : '/api/verifiers';
+    process.env.NODE_ENV === 'development'
+        ? 'https://localhost:3002' // Local verifier
+        : 'https://verifiers.polycentric.io';
+
+const REDIRECT_URL =
+    process.env.NODE_ENV === 'development'
+        ? 'https://localhost:3000/oauth/callback'
+        : 'https://app.polycentric.io/oauth/callback';
 
 export class AuthorityException extends Error {
     constructor(message: string) {
@@ -12,16 +17,39 @@ export class AuthorityException extends Error {
     }
 }
 
-export const getOAuthURL = async (
+export const initiateOAuthFlow = async (
     claimType: Core.Models.ClaimType.ClaimType,
-): Promise<string> => {
-    const callbackUrl = `${window.location.origin}/oauth/callback`;
+): Promise<void> => {
     const url = `${AUTHORITY_SERVER}/platforms/${claimType}/oauth/url?redirect_uri=${encodeURIComponent(
-        callbackUrl,
+        REDIRECT_URL,
     )}`;
-    const response = await fetch(url);
-    const data = await response.json();
-    return data;
+
+    try {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new AuthorityException(
+                `Failed to get OAuth URL: ${response.status} ${errorText}`,
+            );
+        }
+
+        const data = await response.json();
+
+        if (typeof data !== 'string' && !data.url) {
+            throw new AuthorityException('Invalid OAuth URL response');
+        }
+
+        const oauthUrl = typeof data === 'string' ? data : data.url;
+        window.location.href = oauthUrl;
+    } catch (error) {
+        console.error('Fetch error:', error);
+        throw new AuthorityException(
+            `Failed to get OAuth URL: ${
+                error instanceof Error ? error.message : 'Unknown error'
+            }`,
+        );
+    }
 };
 
 interface OAuthUsernameResponse {
