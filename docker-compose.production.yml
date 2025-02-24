@@ -33,12 +33,15 @@ services:
             - "RUST_LOG=server=info"
             - "STATSD_ADDRESS=127.0.0.1"
             - "ADMIN_TOKEN=123"
+            - "CACHE_INTERFACE=caddy"
+            - "CACHE_BASE_URL=http://proxy:80"
     proxy:
         image: caddy
         volumes:
             - ./Caddyfile:/etc/caddy/Caddyfile:ro
             - ./state/caddy/data:/data
             - ./state/caddy/config:/config
+            - ./state/caddy/cache:/data/cache
         ports:
             - "0.0.0.0:80:80"
             - "0.0.0.0:443:443"

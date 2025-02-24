@@ -40,6 +40,8 @@ services:
             DATABASE_URL: "postgres://postgres:testing@postgres"
             ADMIN_TOKEN: "123"
             CHALLENGE_KEY: "456"
+            CACHE_INTERFACE: "caddy"
+            CACHE_BASE_URL: "http://caddy:80"
         user: "${CURRENT_UID}:${CURRENT_GID}"
         volumes:
             - ./:/app
@@ -57,6 +59,16 @@ services:
             - "127.0.0.1:8081:8081"
             - "127.0.0.1:8082:8082"
         command: tail -F wait_forever
+    caddy:
+        image: caddy
+        volumes:
+            - ./Caddyfile.development:/etc/caddy/Caddyfile:ro
+            - /tmp/caddy/data:/data
+            - /tmp/caddy/config:/config
+            - /tmp/caddy/cache:/data/cache
+        ports:
+            - "127.0.0.1:3000:3000"
+            - "127.0.0.1:3001:3001"
     grafana:
         image: grafana/grafana:9.5.2
         restart: always

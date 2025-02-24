@@ -111,4 +111,7 @@ pub(crate) struct Config {
 
     #[envconfig(from = "CACHE_INTERFACE")]
     pub cache_interface: Option<String>,
+
+    #[envconfig(from = "CACHE_BASE_URL")]
+    pub cache_base_url: Option<String>,
 }
