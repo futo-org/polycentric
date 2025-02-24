@@ -3,7 +3,6 @@ import { Models, Protocol } from '@polycentric/polycentric-core';
 import { useCallback, useEffect, useState } from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import { useClaims } from '../../../hooks/queryHooks';
-import { initiateOAuthFlow } from '../../../util/oauth';
 
 export type SocialPlatform =
     | 'hackerNews'
@@ -53,6 +52,7 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
     const [step, setStep] = useState<'type' | 'input'>('type');
     const [claimType, setClaimType] = useState<ClaimData['type'] | null>(null);
     const [platform, setPlatform] = useState<SocialPlatform | undefined>();
+    const [futoIDSecret, setFutoIDSecret] = useState('');
 
     const handleSelect = (
         type: ClaimData['type'],
@@ -217,6 +217,30 @@ const isVerifiablePlatform = (platform: SocialPlatform): boolean => {
     return result;
 };
 
+const handleOAuthLogin = async (claimType: Core.Models.ClaimType.ClaimType) => {
+    try {
+        const redirectUri = `${window.location.origin}/oauth/callback`;
+        const oauthUrl = await Core.APIMethods.getOAuthURL(
+            Core.APIMethods.VERIFIER_SERVER,
+            claimType,
+            redirectUri
+        );
+
+        // Store debug info in localStorage
+        localStorage.setItem('oauth_debug_url', oauthUrl);
+        
+        const url = new URL(oauthUrl);
+        const secret = url.searchParams.get('harborSecret') || '';
+        localStorage.setItem('oauth_debug_secret', secret);
+        localStorage.setItem('futoIDSecret', secret);
+
+        // Navigate to OAuth URL
+        window.location.href = oauthUrl;
+    } catch (error) {
+        console.error('OAuth initialization failed:', error);
+    }
+};
+
 export const SocialMediaInput = ({
     platform,
     system,
@@ -239,22 +263,17 @@ export const SocialMediaInput = ({
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     useEffect(() => {
-        const checkOAuth = async () => {
+        const initializeOAuth = async () => {
             if (!platform) return;
 
             const claimType = getClaimTypeForPlatform(platform);
 
             if (isOAuthVerifiable(claimType)) {
-                try {
-                    await initiateOAuthFlow(claimType);
-                } catch (error) {
-                    console.error('OAuth initialization failed:', error);
-                    setErrorMessage('Failed to start OAuth verification');
-                    setVerificationStep('error');
-                }
+                await handleOAuthLogin(claimType);
             }
         };
-        checkOAuth();
+
+        initializeOAuth();
     }, [platform]);
 
     const addClaim = useCallback(async () => {
@@ -421,9 +440,7 @@ export const SocialMediaInput = ({
             const pointer = await processHandle.claim(claim);
             setClaimPointer(pointer);
 
-            if (isOAuthVerifiable(claimType)) {
-                await initiateOAuthFlow(claimType);
-            } else if (isVerifiablePlatform(platform)) {
+            if (isVerifiablePlatform(platform)) {
                 setVerificationStep('token');
             } else {
                 onCancel();

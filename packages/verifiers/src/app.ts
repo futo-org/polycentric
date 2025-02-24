@@ -61,7 +61,6 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
         next();
     });
 
-    const port = 3002;
     app.get('/platforms', (req, res) => {
         try {
             res.json(
@@ -81,19 +80,26 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
 
     app.get('/platforms/:platformName/oauth/callback', (req, res) => {
         try {
-            const { redirectUri: _, ...queryWithoutRedirect } = req.query;
-            const queryObject = JSON.stringify(queryWithoutRedirect);
-            const encodedData = encodeURIComponent(Buffer.from(queryObject).toString('base64'));
-            const redirectUri = (req.query.redirectUri as string) || `harborsocial://${req.params.platformName}`;
-
-            res.redirect(`${redirectUri}?oauthData=${encodedData}`);
-        } catch (e: unknown) {
-            const requestId: string = new ObjectId().toString();
-            console.error(`[500 ERROR] (${requestId}) GET /platforms/${req.params.platformName}/oauth/callback \n${String(e)}`);
-            res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-                message: `An unknown error has occurred (Request Id: ${requestId})`,
-                extendedMessage: 'Internal server error while processing OAuth callback',
+            const { oauth_token, oauth_verifier } = req.query;
+            const queryObject = JSON.stringify({
+                oauth_token,
+                oauth_verifier,
             });
+            const encodedData = Buffer.from(queryObject).toString('base64');
+            const claimType = req.params.platformName;
+
+            console.log('OAuth callback data:', { encodedData, claimType });
+            
+            // Use state parameters
+            const webAppUrl = 'https://localhost:3000/oauth/callback';
+            const redirectUrl = `${webAppUrl}?state=${encodeURIComponent(JSON.stringify({
+                data: encodedData,
+                claimType: claimType
+            }))}`;
+            res.redirect(redirectUrl);
+        } catch (e: unknown) {
+            console.error('OAuth callback error:', e);
+            res.status(500).send('OAuth callback failed');
         }
     });
 
@@ -168,16 +174,15 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
                 app.get(`/platforms/${name}/${verifier.verifierType}/token`, async (req, res) => {
                     try {
                         const challenge = req.query.oauthData as string;
+                        console.log('Received oauthData:', challenge);
+                        
                         const challengeResponse = decodeObject<any>(challenge);
-
-                        if (req.query.harborSecret !== undefined && req.query.harborSecret !== '') {
-                            challengeResponse.harborSecret = req.query.harborSecret;
-                        }
+                        console.log('Decoded challenge:', challengeResponse);
 
                         writeResult(res, await verifier.getToken(challengeResponse));
                     } catch (e: unknown) {
+                        console.error('Token endpoint error:', e);
                         const requestId: string = new ObjectId().toString();
-                        console.error(`[500 ERROR] (${requestId}) GET /platforms/${name}/${verifier.verifierType}/token \n${String(e)}`);
                         res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
                             message: `An unknown error has occurred (Request Id: ${requestId})`,
                             extendedMessage: 'Internal server error while processing OAuth token',

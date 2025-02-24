@@ -534,7 +534,7 @@ export async function getResolveHandle(
     return Models.PublicKey.fromProto(Protocol.PublicKey.decode(rawBody));
 }
 
-const VERIFIER_SERVER =
+export const VERIFIER_SERVER =
     // Check if we're in a browser environment
     typeof window !== 'undefined'
         ? window.location.hostname === 'localhost' ||
@@ -557,16 +557,8 @@ export async function requestVerification(
         url += `?challengeResponse=${encodeURIComponent(challengeResponse)}`;
     }
 
-    console.log('requestVerification:', {
-        url,
-        claimType: claimType.toString(),
-        verifierType,
-        pointer: Protocol.Pointer.toJSON(pointer),
-    });
-
     try {
         const encodedPointer = Protocol.Pointer.encode(pointer).finish();
-        console.log('Encoded pointer type:', encodedPointer.constructor.name);
 
         const response = await fetch(url, {
             method: 'POST',
@@ -582,8 +574,6 @@ export async function requestVerification(
             credentials: 'include',
             mode: 'cors',
         });
-
-        console.log('Response received:', response.status);
 
         if (!response.ok) {
             const text = await response.text();
@@ -602,4 +592,80 @@ export async function requestVerification(
         }
         throw error;
     }
+}
+
+export interface OAuthUsernameResponse {
+    username: string;
+    token: string;
+}
+
+export async function getOAuthURL(
+    server: string,
+    claimType: Models.ClaimType.ClaimType,
+    redirectUri?: string,
+): Promise<string> {
+    let url = `${server}/platforms/${claimType}/oauth/url`;
+    
+    // Add redirectUri if provided
+    if (redirectUri) {
+        url += `?redirectUri=${encodeURIComponent(redirectUri)}`;
+    }
+
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
+        credentials: 'include',
+        mode: 'cors',
+    });
+
+    await checkResponse('getOAuthURL', response);
+    const data = await response.json();
+    
+    // Handle both string and object responses
+    return typeof data === 'string' ? data : data.url;
+}
+
+export async function getOAuthUsername(
+    server: string,
+    token: string,
+    claimType: Models.ClaimType.ClaimType,
+): Promise<OAuthUsernameResponse> {
+    const url = `${server}/platforms/${claimType.toString()}/oauth/token${token.startsWith('?') ? token : `?${token}`}`;
+
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
+    });
+
+    await checkResponse('getOAuthUsername', response);
+    return await response.json();
+}
+
+export async function getClaimFieldsByUrl(
+    server: string,
+    claimType: Models.ClaimType.ClaimType,
+    subject: string,
+): Promise<Protocol.ClaimFieldEntry[]> {
+    const url = `${server}/platforms/${claimType}/text/getClaimFieldsByUrl`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: new Headers({
+            'Content-Type': 'application/json',
+            'x-polycentric-user-agent': userAgent,
+        }),
+        body: JSON.stringify({ url: subject }),
+    });
+
+    await checkResponse('getClaimFieldsByUrl', response);
+    
+    const decoded = await response.json();
+    return decoded.map((item: { key: number; value: string }) => ({
+        key: Long.fromNumber(item.key),
+        value: item.value,
+    }));
 }

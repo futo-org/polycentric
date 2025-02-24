@@ -107,7 +107,7 @@ services:
             dockerfile: packages/verifiers/Dockerfile
         env_file: .env.development
         environment:
-            - OAUTH_CALLBACK_DOMAIN=https://localhost:3000
+            - OAUTH_CALLBACK_DOMAIN=${OAUTH_CALLBACK_DOMAIN}
             - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
             - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET}
             - INSTAGRAM_CLIENT_SECRET=${INSTAGRAM_CLIENT_SECRET}
