@@ -108,4 +108,7 @@ pub(crate) struct Config {
 
     #[envconfig(from = "CSAM_REQUEST_RATE_LIMIT", default = "4")]
     pub csam_request_rate_limit: u16,
+
+    #[envconfig(from = "CACHE_INTERFACE")]
+    pub cache_interface: Option<String>,
 }

@@ -8,6 +8,7 @@ use config::ModerationMode;
 use envconfig::Envconfig;
 use polycentric_protocol::model;
 
+mod cache;
 mod config;
 mod handlers;
 mod ingest;
@@ -61,6 +62,7 @@ struct State {
         ::lru::LruCache<polycentric_protocol::model::InsecurePointer, ()>,
     >,
     moderation_mode: ModerationMode,
+    cache_provider: Option<Box<dyn cache::providers::interface::CacheProvider>>,
 }
 
 async fn handler_404(path: ::warp::path::FullPath) -> ::warp::reply::Response {
@@ -131,6 +133,8 @@ async fn serve_api(
         core::num::NonZeroUsize::new(1000).context("expected NonZeroUSize")?,
     ));
 
+    let cache_provider = cache::providers::make_provider(config)?;
+
     let state = ::std::sync::Arc::new(State {
         pool: pool.clone(),
         pool_read_only,
@@ -140,6 +144,7 @@ async fn serve_api(
         statsd_client,
         ingest_cache,
         moderation_mode: config.moderation_mode,
+        cache_provider,
     });
 
     let cors = ::warp::cors()
