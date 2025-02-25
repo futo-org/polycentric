@@ -5,23 +5,23 @@ import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescro
 import { useFollowingFeed } from '../../hooks/feedHooks';
 
 export const FollowingFeed = () => {
-    const [data, advanceFeed, nothingFound] = useFollowingFeed();
-    const composeComponent = useMemo(
-        () => <PostCompose key="topfeedcompose" />,
-        [],
-    );
+  const [data, advanceFeed, nothingFound] = useFollowingFeed();
+  const composeComponent = useMemo(
+    () => <PostCompose key="topfeedcompose" />,
+    [],
+  );
 
-    return (
-        <IonContent>
-            <InfiniteScrollWithRightCol
-                data={data}
-                advanceFeed={advanceFeed}
-                nothingFound={nothingFound}
-                nothingFoundMessage="No posts found, try following more people!"
-                rightCol={undefined}
-                topFeedComponent={composeComponent}
-                bottomPadding={false}
-            />
-        </IonContent>
-    );
+  return (
+    <IonContent>
+      <InfiniteScrollWithRightCol
+        data={data}
+        advanceFeed={advanceFeed}
+        nothingFound={nothingFound}
+        nothingFoundMessage="No posts found, try following more people!"
+        rightCol={undefined}
+        topFeedComponent={composeComponent}
+        bottomPadding={false}
+      />
+    </IonContent>
+  );
 };
