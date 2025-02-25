@@ -1,27 +1,27 @@
 export class CancelContext {
-    private _cancelled: boolean;
-    private _callbacks: (() => void)[];
+  private _cancelled: boolean;
+  private _callbacks: (() => void)[];
 
-    public constructor() {
-        this._cancelled = false;
-        this._callbacks = [];
+  public constructor() {
+    this._cancelled = false;
+    this._callbacks = [];
+  }
+
+  public cancelled(): boolean {
+    return this._cancelled;
+  }
+
+  public cancel(): void {
+    if (!this._cancelled) {
+      this._callbacks.map((cb) => {
+        cb();
+      });
     }
 
-    public cancelled(): boolean {
-        return this._cancelled;
-    }
+    this._cancelled = true;
+  }
 
-    public cancel(): void {
-        if (!this._cancelled) {
-            this._callbacks.map((cb) => {
-                cb();
-            });
-        }
-
-        this._cancelled = true;
-    }
-
-    public addCallback(cb: () => void): void {
-        this._callbacks.push(cb);
-    }
+  public addCallback(cb: () => void): void {
+    this._callbacks.push(cb);
+  }
 }

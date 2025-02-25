@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "es6",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "alwaysStrict": true,
     "skipLibCheck": true,
@@ -23,8 +19,5 @@
     "outDir": "build",
     "declaration": true
   },
-  "include": [
-    "electron",
-    "src"
-  ]
+  "include": ["electron", "src"]
 }

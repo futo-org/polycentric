@@ -2,45 +2,45 @@ import * as Protocol from '../protocol';
 import * as Models from '.';
 
 interface MatchTypeI {
-    claim: Models.SignedEvent.SignedEvent;
-    proofChain: Models.SignedEvent.SignedEvent[];
+  claim: Models.SignedEvent.SignedEvent;
+  proofChain: Models.SignedEvent.SignedEvent[];
 }
 
 export type MatchType = Readonly<MatchTypeI> & {
-    readonly __tag: unique symbol;
+  readonly __tag: unique symbol;
 };
 
 export function matchTypeFromProto(
-    proto: Protocol.QueryClaimToSystemResponseMatch,
+  proto: Protocol.QueryClaimToSystemResponseMatch,
 ): MatchType {
-    if (proto.claim === undefined) {
-        throw Error('expected proto.claim');
-    }
+  if (proto.claim === undefined) {
+    throw Error('expected proto.claim');
+  }
 
-    Models.SignedEvent.fromProto(proto.claim);
-    proto.proofChain.forEach(Models.SignedEvent.fromProto);
+  Models.SignedEvent.fromProto(proto.claim);
+  proto.proofChain.forEach(Models.SignedEvent.fromProto);
 
-    return proto as MatchType;
+  return proto as MatchType;
 }
 
 interface ResponseTypeI {
-    matches: MatchType[];
+  matches: MatchType[];
 }
 
 export type ResponseType = Readonly<ResponseTypeI> & {
-    readonly __tag: unique symbol;
+  readonly __tag: unique symbol;
 };
 
 export function responseTypeFromProto(
-    proto: Protocol.QueryClaimToSystemResponse,
+  proto: Protocol.QueryClaimToSystemResponse,
 ): ResponseType {
-    proto.matches.forEach(matchTypeFromProto);
+  proto.matches.forEach(matchTypeFromProto);
 
-    return proto as ResponseType;
+  return proto as ResponseType;
 }
 
 export function responseTypeFromBuffer(buffer: Uint8Array): ResponseType {
-    return responseTypeFromProto(
-        Protocol.QueryClaimToSystemResponse.decode(buffer),
-    );
+  return responseTypeFromProto(
+    Protocol.QueryClaimToSystemResponse.decode(buffer),
+  );
 }

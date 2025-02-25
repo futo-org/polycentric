@@ -27,123 +27,123 @@ export const MIN_32BYTE_KEY = new Uint8Array(32).fill(0);
 export const MAX_32BYTE_KEY = new Uint8Array(32).fill(255);
 
 export function makeSystemStateKey(
-    system: Models.PublicKey.PublicKey,
+  system: Models.PublicKey.PublicKey,
 ): Uint8Array {
-    return Util.concatBuffers([
-        new Uint8Array(system.keyType.toBytesBE()),
-        system.key,
-    ]);
+  return Util.concatBuffers([
+    new Uint8Array(system.keyType.toBytesBE()),
+    system.key,
+  ]);
 }
 
 export class Store {
-    private readonly level: PersistenceDriver.BinaryAbstractLevel;
-    readonly indexEvents: IndexEvents;
-    readonly indexSystemStates: IndexSystemState;
-    readonly indexProcessStates: IndexProcessState;
-    readonly indexEventsForSystemByTime: IndexEventsForSystemByTime;
-    readonly indexOpinion: IndexOpinion;
-    readonly indexCRDTElementSet: IndexCRDTElementSet;
-    readonly indexFeed: IndexFeed;
-    readonly indexSystemProcessContentTypeLogicalClock: IndexSystemProcessContentTypeClock;
+  private readonly level: PersistenceDriver.BinaryAbstractLevel;
+  readonly indexEvents: IndexEvents;
+  readonly indexSystemStates: IndexSystemState;
+  readonly indexProcessStates: IndexProcessState;
+  readonly indexEventsForSystemByTime: IndexEventsForSystemByTime;
+  readonly indexOpinion: IndexOpinion;
+  readonly indexCRDTElementSet: IndexCRDTElementSet;
+  readonly indexFeed: IndexFeed;
+  readonly indexSystemProcessContentTypeLogicalClock: IndexSystemProcessContentTypeClock;
 
-    private readonly stages: readonly HasIngest[];
+  private readonly stages: readonly HasIngest[];
 
-    system: Models.PublicKey.PublicKey | undefined;
+  system: Models.PublicKey.PublicKey | undefined;
 
-    constructor(level: PersistenceDriver.BinaryAbstractLevel) {
-        this.level = level;
+  constructor(level: PersistenceDriver.BinaryAbstractLevel) {
+    this.level = level;
 
-        const sublevels = new Set<string>();
+    const sublevels = new Set<string>();
 
-        const registerSublevel = (prefix: string) => {
-            if (sublevels.has(prefix)) {
-                throw Error('conflicting sublevel prefix');
-            }
+    const registerSublevel = (prefix: string) => {
+      if (sublevels.has(prefix)) {
+        throw Error('conflicting sublevel prefix');
+      }
 
-            const sublevel = this.level.sublevel(prefix, {
-                keyEncoding: PersistenceDriver.deepCopyTranscoder(),
-                valueEncoding: PersistenceDriver.deepCopyTranscoder(),
-            }) as PersistenceDriver.BinaryAbstractSubLevel;
+      const sublevel = this.level.sublevel(prefix, {
+        keyEncoding: PersistenceDriver.deepCopyTranscoder(),
+        valueEncoding: PersistenceDriver.deepCopyTranscoder(),
+      }) as PersistenceDriver.BinaryAbstractSubLevel;
 
-            sublevels.add(prefix);
+      sublevels.add(prefix);
 
-            return sublevel;
-        };
+      return sublevel;
+    };
 
-        this.indexEvents = new IndexEvents(registerSublevel);
-        this.indexSystemStates = new IndexSystemState(registerSublevel);
-        this.indexProcessStates = new IndexProcessState(registerSublevel);
-        this.indexEventsForSystemByTime = new IndexEventsForSystemByTime(
-            registerSublevel,
-            this.indexEvents,
-        );
-        this.indexOpinion = new IndexOpinion(registerSublevel);
-        this.indexCRDTElementSet = new IndexCRDTElementSet(registerSublevel);
-        this.indexFeed = new IndexFeed(this, registerSublevel);
-        this.indexSystemProcessContentTypeLogicalClock =
-            new IndexSystemProcessContentTypeClock(
-                registerSublevel,
-                this.indexEvents,
-            );
+    this.indexEvents = new IndexEvents(registerSublevel);
+    this.indexSystemStates = new IndexSystemState(registerSublevel);
+    this.indexProcessStates = new IndexProcessState(registerSublevel);
+    this.indexEventsForSystemByTime = new IndexEventsForSystemByTime(
+      registerSublevel,
+      this.indexEvents,
+    );
+    this.indexOpinion = new IndexOpinion(registerSublevel);
+    this.indexCRDTElementSet = new IndexCRDTElementSet(registerSublevel);
+    this.indexFeed = new IndexFeed(this, registerSublevel);
+    this.indexSystemProcessContentTypeLogicalClock =
+      new IndexSystemProcessContentTypeClock(
+        registerSublevel,
+        this.indexEvents,
+      );
 
-        this.system = undefined;
+    this.system = undefined;
 
-        this.stages = [
-            this.indexEvents,
-            this.indexSystemStates,
-            this.indexProcessStates,
-            this.indexEventsForSystemByTime,
-            this.indexOpinion,
-            this.indexCRDTElementSet,
-            this.indexFeed,
-            this.indexSystemProcessContentTypeLogicalClock,
-        ];
+    this.stages = [
+      this.indexEvents,
+      this.indexSystemStates,
+      this.indexProcessStates,
+      this.indexEventsForSystemByTime,
+      this.indexOpinion,
+      this.indexCRDTElementSet,
+      this.indexFeed,
+      this.indexSystemProcessContentTypeLogicalClock,
+    ];
+  }
+
+  public async ingest(
+    signedEvent: Models.SignedEvent.SignedEvent,
+  ): Promise<void> {
+    const actions: PersistenceDriver.BinaryUpdateLevel[] = [];
+
+    for (const stage of this.stages) {
+      actions.push(...(await stage.ingest(signedEvent)));
     }
 
-    public async ingest(
-        signedEvent: Models.SignedEvent.SignedEvent,
-    ): Promise<void> {
-        const actions: PersistenceDriver.BinaryUpdateLevel[] = [];
+    await this.level.batch(actions);
+  }
 
-        for (const stage of this.stages) {
-            actions.push(...(await stage.ingest(signedEvent)));
-        }
+  public async setProcessSecret(
+    processSecret: Models.ProcessSecret.ProcessSecret,
+  ): Promise<void> {
+    await this.level.put(
+      PROCESS_SECRET_KEY,
+      Protocol.StorageTypeProcessSecret.encode(processSecret).finish(),
+    );
+  }
 
-        await this.level.batch(actions);
-    }
+  public async getProcessSecret(): Promise<Models.ProcessSecret.ProcessSecret> {
+    return Models.ProcessSecret.fromProto(
+      Protocol.StorageTypeProcessSecret.decode(
+        await this.level.get(PROCESS_SECRET_KEY),
+      ),
+    );
+  }
 
-    public async setProcessSecret(
-        processSecret: Models.ProcessSecret.ProcessSecret,
-    ): Promise<void> {
-        await this.level.put(
-            PROCESS_SECRET_KEY,
-            Protocol.StorageTypeProcessSecret.encode(processSecret).finish(),
-        );
-    }
+  public async getEventAcks(): Promise<Record<string, string[]>> {
+    return this.indexEvents.getEventAcks();
+  }
 
-    public async getProcessSecret(): Promise<Models.ProcessSecret.ProcessSecret> {
-        return Models.ProcessSecret.fromProto(
-            Protocol.StorageTypeProcessSecret.decode(
-                await this.level.get(PROCESS_SECRET_KEY),
-            ),
-        );
-    }
-
-    public async getEventAcks(): Promise<Record<string, string[]>> {
-        return this.indexEvents.getEventAcks();
-    }
-
-    public async saveEventAcks(
-        system: Models.PublicKey.PublicKey,
-        process: Models.Process.Process,
-        logicalClock: Long,
-        servers: string[],
-    ): Promise<void> {
-        await this.indexEvents.saveEventAcks(
-            system,
-            process,
-            logicalClock,
-            servers,
-        );
-    }
+  public async saveEventAcks(
+    system: Models.PublicKey.PublicKey,
+    process: Models.Process.Process,
+    logicalClock: Long,
+    servers: string[],
+  ): Promise<void> {
+    await this.indexEvents.saveEventAcks(
+      system,
+      process,
+      logicalClock,
+      servers,
+    );
+  }
 }

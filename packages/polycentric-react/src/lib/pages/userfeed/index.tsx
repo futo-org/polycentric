@@ -15,60 +15,59 @@ import { useParams } from '../../hooks/stackRouterHooks';
 import { useIsMobile } from '../../hooks/styleHooks';
 
 export const UserFeedPage: Page = () => {
-    const { urlInfoString } = useParams<{ urlInfoString: string }>();
-    const { processHandle } = useProcessHandleManager();
+  const { urlInfoString } = useParams<{ urlInfoString: string }>();
+  const { processHandle } = useProcessHandleManager();
 
-    const { system } = useMemo(() => {
-        const urlInfoBuffer = decode(urlInfoString);
-        const urlInfo = Protocol.URLInfo.decode(urlInfoBuffer);
-        const { system, servers } = Models.URLInfo.getSystemLink(urlInfo);
-        servers.forEach((server) => {
-            processHandle.addAddressHint(system, server);
-        });
+  const { system } = useMemo(() => {
+    const urlInfoBuffer = decode(urlInfoString);
+    const urlInfo = Protocol.URLInfo.decode(urlInfoBuffer);
+    const { system, servers } = Models.URLInfo.getSystemLink(urlInfo);
+    servers.forEach((server) => {
+      processHandle.addAddressHint(system, server);
+    });
 
-        return { system, servers };
-    }, [urlInfoString, processHandle]);
+    return { system, servers };
+  }, [urlInfoString, processHandle]);
 
-    const [data, advanceFeed, allSourcesAttempted] = useAuthorFeed(system);
+  const [data, advanceFeed, allSourcesAttempted] = useAuthorFeed(system);
 
-    const column = useMemo(
-        () => <UserColumn system={system} key="usercol" />,
-        [system],
-    );
+  const column = useMemo(
+    () => <UserColumn system={system} key="usercol" />,
+    [system],
+  );
 
-    const isMobile = useIsMobile();
-    const isMyProfile = useMemo(
-        () => Models.PublicKey.equal(system, processHandle.system()),
-        [system, processHandle],
-    );
+  const isMobile = useIsMobile();
+  const isMyProfile = useMemo(
+    () => Models.PublicKey.equal(system, processHandle.system()),
+    [system, processHandle],
+  );
 
-    const username = useUsernameCRDTQuery(system);
-    const headerText = useMemo(() => {
-        if (!username) return 'Profile';
-        return `${username}'s Profile`;
-    }, [username]);
+  const username = useUsernameCRDTQuery(system);
+  const headerText = useMemo(() => {
+    if (!username) return 'Profile';
+    return `${username}'s Profile`;
+  }, [username]);
 
-    const stringKey = useTextPublicKey(system);
+  const stringKey = useTextPublicKey(system);
 
-    const topComponent = useMemo(() => {
-        if (isMobile)
-            return <MobileProfileFeed system={system} key={stringKey} />;
-        return isMyProfile ? <PostCompose key="topfeedcompose" /> : undefined;
-    }, [isMobile, isMyProfile, system, stringKey]);
+  const topComponent = useMemo(() => {
+    if (isMobile) return <MobileProfileFeed system={system} key={stringKey} />;
+    return isMyProfile ? <PostCompose key="topfeedcompose" /> : undefined;
+  }, [isMobile, isMyProfile, system, stringKey]);
 
-    return (
-        <>
-            <Header>{headerText}</Header>
-            <IonContent>
-                <InfiniteScrollWithRightCol
-                    data={data}
-                    advanceFeed={advanceFeed}
-                    nothingFound={allSourcesAttempted && data.length === 0}
-                    nothingFoundMessage="Nothing has been posted yet"
-                    rightCol={column}
-                    topFeedComponent={topComponent}
-                />
-            </IonContent>
-        </>
-    );
+  return (
+    <>
+      <Header>{headerText}</Header>
+      <IonContent>
+        <InfiniteScrollWithRightCol
+          data={data}
+          advanceFeed={advanceFeed}
+          nothingFound={allSourcesAttempted && data.length === 0}
+          nothingFoundMessage="Nothing has been posted yet"
+          rightCol={column}
+          topFeedComponent={topComponent}
+        />
+      </IonContent>
+    </>
+  );
 };

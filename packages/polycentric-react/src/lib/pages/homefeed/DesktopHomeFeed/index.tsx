@@ -4,19 +4,19 @@ import { InfiniteScrollWithRightCol } from '../../../components/layout/infinites
 import { useExploreFeed } from '../../../hooks/feedHooks';
 
 export const DesktopHomeFeed = () => {
-    const [data, advanceFeed, nothingFound] = useExploreFeed();
-    const composeComponent = useMemo(
-        () => <PostCompose key="topfeedcompose" />,
-        [],
-    );
-    return (
-        <InfiniteScrollWithRightCol
-            data={data}
-            advanceFeed={advanceFeed}
-            nothingFound={nothingFound}
-            nothingFoundMessage="No posts found"
-            rightCol={<div />}
-            topFeedComponent={composeComponent}
-        />
-    );
+  const [data, advanceFeed, nothingFound] = useExploreFeed();
+  const composeComponent = useMemo(
+    () => <PostCompose key="topfeedcompose" />,
+    [],
+  );
+  return (
+    <InfiniteScrollWithRightCol
+      data={data}
+      advanceFeed={advanceFeed}
+      nothingFound={nothingFound}
+      nothingFoundMessage="No posts found"
+      rightCol={<div />}
+      topFeedComponent={composeComponent}
+    />
+  );
 };
