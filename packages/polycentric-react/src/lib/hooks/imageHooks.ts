@@ -168,3 +168,67 @@ export const useAvatar = (
 
   return useObservableWithCache(useAvatarCache, cacheKey, 100, observable);
 };
+
+const observableBackground = (
+  queryManager: Queries.QueryManager.QueryManager,
+  system: Readonly<Models.PublicKey.PublicKey>,
+): RXJS.Observable<string> => {
+  return Queries.QueryCRDT.queryCRDTObservable(
+    queryManager.queryCRDT,
+    system,
+    Models.ContentType.ContentTypeBanner,
+  )
+    .pipe(
+      RXJS.switchMap((crdtState) => {
+        if (crdtState.value) {
+          const imageBundle = Protocol.ImageBundle.decode(crdtState.value);
+          const manifest = imageBundle.imageManifests[0];
+
+          if (manifest === undefined || manifest.process === undefined) {
+            console.warn('manifest or manifest.process missing');
+            return observableSystemToBlob(system);
+          }
+
+          return Queries.QueryBlob.queryBlobObservable(
+            queryManager.queryBlob,
+            system,
+            Models.Process.fromProto(manifest.process),
+            manifest.sections,
+          ).pipe(
+            RXJS.switchMap((buffer) => {
+              if (buffer) {
+                return RXJS.of(
+                  new Blob([buffer], {
+                    type: manifest.mime,
+                  }),
+                );
+              } else {
+                return observableSystemToBlob(system);
+              }
+            }),
+          );
+        } else {
+          return observableSystemToBlob(system);
+        }
+      }),
+    )
+    .pipe(RXJS.switchMap((blob) => observableBlobToURL(blob)));
+};
+
+const useBackgroundCache: Map<string, ObservableCacheItem<string>> = new Map();
+
+export const useBackground = (
+  system: Readonly<Models.PublicKey.PublicKey>,
+): string | undefined => {
+  const queryManager = useQueryManager();
+
+  const cacheKey = useMemo(() => {
+    return Models.PublicKey.toString(system) + 'background';
+  }, [system]);
+
+  const observable = useMemo(() => {
+    return observableBackground(queryManager, system);
+  }, [queryManager, system]);
+
+  return useObservableWithCache(useBackgroundCache, cacheKey, 100, observable);
+};

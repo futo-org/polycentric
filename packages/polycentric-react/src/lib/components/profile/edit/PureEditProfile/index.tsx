@@ -3,12 +3,14 @@ import { useBlobDisplayURL } from '../../../../hooks/imageHooks';
 import { Profile } from '../../../../types/profile';
 import { Modal } from '../../../util/modal';
 import { ProfileAvatarInput } from '../inputs/ProfileAvatarInput';
+import { ProfileBackgroundInput } from '../inputs/ProfileBackgroundInput';
 import { ProfileTextArea, ProfileTextInput } from '../inputs/ProfileTextInput';
 
 export interface EditProfileActions {
   changeUsername: (username: string) => Promise<unknown>;
   changeDescription: (description: string) => Promise<unknown>;
   changeAvatar: (blob: Blob) => Promise<unknown>;
+  changeBackground: (blob: Blob) => Promise<unknown>;
 }
 
 const InnerPureEditProfile = ({
@@ -27,6 +29,10 @@ const InnerPureEditProfile = ({
   const [description, setDescription] = useState<string | undefined>();
   const [avatar, setAvatarState] = useState<Blob | undefined>(undefined);
   const [avatarChanged, setAvatarChanged] = useState(false);
+  const [background, setBackgroundState] = useState<Blob | undefined>(
+    undefined,
+  );
+  const [backgroundChanged, setBackgroundChanged] = useState(false);
 
   const displayUsername = useMemo(
     () => username ?? profile.name,
@@ -37,15 +43,21 @@ const InnerPureEditProfile = ({
     [description, profile.description],
   );
   const blobUrl = useBlobDisplayURL(avatar);
+  const backgroundBlobUrl = useBlobDisplayURL(background);
   const currentAvatarURL = useMemo(
     () => blobUrl ?? profile.avatarURL,
     [blobUrl, profile.avatarURL],
+  );
+  const currentBackgroundURL = useMemo(
+    () => backgroundBlobUrl ?? profile.backgroundURL,
+    [backgroundBlobUrl, profile.backgroundURL],
   );
 
   const {
     avatarValidAndChanged,
     descriptionValidAndChanged,
     usernameValidAndChanged,
+    backgroundValidAndChanged,
     validAndChanged,
   } = useMemo(() => {
     // We check to make sure profile.name is defined because it's possible that the profile hasn't loaded yet and that would count as a difference
@@ -60,21 +72,38 @@ const InnerPureEditProfile = ({
       description.length <= 256 &&
       (description.match(/\n/g)?.length ?? 0) <= 2;
     const avatarValidAndChanged = avatar !== undefined && avatarChanged;
+    const backgroundValidAndChanged =
+      background !== undefined && backgroundChanged;
 
     return {
       validAndChanged:
         usernameValidAndChanged ||
         descriptionValidAndChanged ||
-        avatarValidAndChanged,
+        avatarValidAndChanged ||
+        backgroundValidAndChanged,
       usernameValidAndChanged,
       descriptionValidAndChanged,
       avatarValidAndChanged,
+      backgroundValidAndChanged,
     };
-  }, [username, description, avatar, profile, avatarChanged]);
+  }, [
+    username,
+    description,
+    avatar,
+    background,
+    profile,
+    avatarChanged,
+    backgroundChanged,
+  ]);
 
   const setAvatar = useCallback((blob?: Blob) => {
     setAvatarState(blob);
     setAvatarChanged(true);
+  }, []);
+
+  const setBackground = useCallback((blob?: Blob) => {
+    setBackgroundState(blob);
+    setBackgroundChanged(true);
   }, []);
 
   const onSave = useCallback(async () => {
@@ -91,6 +120,9 @@ const InnerPureEditProfile = ({
       if (avatarValidAndChanged && avatar) {
         await actions.changeAvatar(avatar);
       }
+      if (backgroundValidAndChanged && background) {
+        await actions.changeBackground(background);
+      }
     };
     update();
 
@@ -104,6 +136,8 @@ const InnerPureEditProfile = ({
     description,
     avatarValidAndChanged,
     avatar,
+    backgroundValidAndChanged,
+    background,
     setOpen,
   ]);
 
@@ -123,6 +157,11 @@ const InnerPureEditProfile = ({
 
   return (
     <div className="w-full md:w-[35rem] space-y-2">
+      <ProfileBackgroundInput
+        title="Background Image"
+        setCroppedImage={setBackground}
+        originalImageURL={currentBackgroundURL}
+      />
       <ProfileAvatarInput
         title="Avatar"
         setCroppedImage={setAvatar}

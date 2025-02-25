@@ -14,6 +14,7 @@ import {
 export interface PureSidebarProfileData {
   name?: string;
   avatarURL?: string;
+  backgroundURL?: string;
   description?: string;
   followerCount?: number;
   followingCount?: number;
@@ -48,6 +49,7 @@ export const PureSidebarProfile = ({
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [followingPanelOpen, setFollowingPanelOpen] = useState(false);
   const [blockedPanelOpen, setBlockedPanelOpen] = useState(false);
+
   return (
     <div className="w-full h-full">
       <PureEditProfile
@@ -66,65 +68,89 @@ export const PureSidebarProfile = ({
         open={blockedPanelOpen}
         setOpen={setBlockedPanelOpen}
       />
-      <div className="flex flex-col items-center justify-center space-y-3">
-        <ProfilePicture className="h-24 w-24" src={profile.avatarURL} />
-        <div className="flex flex-col items-center">
-          <div className="text-2xl font-medium px-8 break-words max-w-full text-center">
-            {profile.name}
-          </div>
-          <div className="text-sm text-gray-500 font-mono text-center">
-            {Models.PublicKey.toString(profile.system).slice(0, 10)}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4 text-center">
-          {profile.isMyProfile == false ? (
-            <>
-              <button
-                onClick={profile.iAmFollowing ? unfollow : follow}
-                className="bg-blue-500 text-white px-4 py-2 rounded-full"
-              >
-                {profile.iAmFollowing ? 'Unfollow' : 'Follow'}
-              </button>
-              <button
-                onClick={profile.iBlocked ? unblock : block}
-                className="bg-blue-500 text-white px-4 py-2 rounded-full"
-              >
-                {profile.iBlocked ? 'Unblock' : 'Block'}
-              </button>
-            </>
-          ) : (
-            <button
-              className="border font-medium  px-4 py-2 rounded-full col-span-2"
-              onClick={() => setEditProfileOpen(true)}
-            >
-              Edit profile
-            </button>
-          )}
-          <div className="">
-            <button
-              onClick={() => setFollowingPanelOpen(true)}
-              className="text-gray-400"
-            >
-              See Following
-            </button>
-          </div>
-          <div className="">
-            <button
-              onClick={() => setBlockedPanelOpen(true)}
-              className="text-gray-400"
-            >
-              See Blocked
-            </button>
-          </div>
-        </div>
-        <div className="text-gray-500 text-pretty px-8 break-words max-w-full prose prose-sm dark:prose-invert">
-          <ReactMarkdown>{profile.description || ''}</ReactMarkdown>
-        </div>
-        <ClaimGrid
-          claims={claims}
-          system={profile.system}
-          isMyProfile={profile.isMyProfile}
+
+      {/* Background Image Section */}
+      <div className="relative">
+        <div
+          className="w-full h-48"
+          style={{
+            backgroundImage: profile.backgroundURL
+              ? `url(${profile.backgroundURL})`
+              : 'none',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
         />
+
+        {/* Profile Content Section */}
+        <div className="relative px-4 -mt-12">
+          {/* Avatar overlapping the background */}
+          <div className="mx-auto h-24 w-24 rounded-full border-4 border-white overflow-clip bg-white">
+            <ProfilePicture className="h-full w-full" src={profile.avatarURL} />
+          </div>
+
+          {/* Profile Info */}
+          <div className="mt-3 flex flex-col items-center">
+            <div className="text-2xl font-medium px-8 break-words max-w-full text-center">
+              {profile.name}
+            </div>
+            <div className="text-sm text-gray-500 font-mono text-center">
+              {Models.PublicKey.toString(profile.system).slice(0, 10)}
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-4 text-center w-full">
+              {profile.isMyProfile == false ? (
+                <>
+                  <button
+                    onClick={profile.iAmFollowing ? unfollow : follow}
+                    className="bg-blue-500 text-white px-4 py-2 rounded-full"
+                  >
+                    {profile.iAmFollowing ? 'Unfollow' : 'Follow'}
+                  </button>
+                  <button
+                    onClick={profile.iBlocked ? unblock : block}
+                    className="bg-blue-500 text-white px-4 py-2 rounded-full"
+                  >
+                    {profile.iBlocked ? 'Unblock' : 'Block'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="border font-medium px-4 py-2 rounded-full col-span-2"
+                  onClick={() => setEditProfileOpen(true)}
+                >
+                  Edit profile
+                </button>
+              )}
+              <div>
+                <button
+                  onClick={() => setFollowingPanelOpen(true)}
+                  className="text-gray-400"
+                >
+                  See Following
+                </button>
+              </div>
+              <div>
+                <button
+                  onClick={() => setBlockedPanelOpen(true)}
+                  className="text-gray-400"
+                >
+                  See Blocked
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 text-gray-500 text-pretty px-8 break-words max-w-full prose prose-sm dark:prose-invert">
+              <ReactMarkdown>{profile.description || ''}</ReactMarkdown>
+            </div>
+
+            <ClaimGrid
+              claims={claims}
+              system={profile.system}
+              isMyProfile={profile.isMyProfile}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

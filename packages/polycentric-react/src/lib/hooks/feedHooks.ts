@@ -160,11 +160,9 @@ export const useTopicFeed = (
 
 export const useCommentFeed = (
   post?: Models.SignedEvent.SignedEvent,
-): [ParsedEvent<Protocol.Post>[], () => void, boolean, number] => {
+): [FeedItem[], () => void, boolean, number] => {
   const queryManager = useQueryManager();
-  const [backwardsChain, setBackwardsChain] = useState<
-    ParsedEvent<Protocol.Post>[]
-  >([]);
+  const [backwardsChain, setBackwardsChain] = useState<FeedItem[]>([]);
 
   const pointer = useMemo(() => {
     if (!post) {
@@ -179,7 +177,9 @@ export const useCommentFeed = (
       process: Models.Process.Process,
       logicalClock: Long,
       cancelContext: CancelContext.CancelContext,
-      callback?: (signedEvent: ParsedEvent<Protocol.Post>) => void,
+      callback?: (
+        signedEvent: ParsedEvent<Protocol.Post | Protocol.Claim>,
+      ) => void,
     ) => {
       queryManager.queryEvent.query(
         system,
@@ -191,7 +191,15 @@ export const useCommentFeed = (
           }
 
           const event = Models.Event.fromBuffer(signedEvent.event);
-          const parsed = Protocol.Post.decode(event.content);
+          let parsed;
+          try {
+            parsed = event.contentType.eq(Models.ContentType.ContentTypePost)
+              ? Protocol.Post.decode(event.content)
+              : Protocol.Claim.decode(event.content);
+          } catch (error) {
+            console.error('Failed to decode content:', error);
+            return;
+          }
 
           const parsedEvent = new ParsedEvent(signedEvent, event, parsed);
 
