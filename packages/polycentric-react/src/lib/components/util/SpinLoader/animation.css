@@ -1,0 +1,23 @@
+@keyframes spinloaderrotation {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(359deg);
+    }
+}
+
+@keyframes spinloaderlogo {
+    0% {
+        height: 2rem;
+        width: 2rem;
+    }
+    50% {
+        height: 0.7rem;
+        width: 0.7rem;
+    }
+    100% {
+        height: 2rem;
+        width: 2rem;
+    }
+}

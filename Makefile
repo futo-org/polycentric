@@ -1,4 +1,4 @@
-.PHONY: proto pretty clean sandbox build-sandbox join-sandbox stop-sandbox join-postgres devcert deploy-polycentric-spa-staging
+.PHONY: proto pretty clean sandbox build-sandbox join-sandbox stop-sandbox join-postgres devcert deploy-polycentric-spa-staging build-ci-deps deploy-charts push-server-image
 
 CURRENT_UID := $(shell id -u)
 CURRENT_GID := $(shell id -g)
@@ -15,41 +15,49 @@ export CURRENT_GID
 export DOCKER_GID
 
 build-sandbox:
-	docker-compose -f docker-compose.development.yml pull
-	docker-compose -f docker-compose.development.yml build
+	docker compose -f docker-compose.development.yml pull
+	docker compose -f docker-compose.development.yml build
 
 start-sandbox:
 ifndef DOCKER_GID
 	$(error It seems that no groups on your system have permisison to use docker (do you have docker installed?))
 endif
-	docker-compose -f docker-compose.development.yml up -d
+	docker compose -f docker-compose.development.yml up -d
 
 stop-sandbox:
 ifndef DOCKER_GID
 	$(error It seems that no groups on your system have permisison to use docker (do you have docker installed?))
 endif
-	docker-compose -f docker-compose.development.yml down
-	docker-compose -f docker-compose.development.yml rm
+	docker compose -f docker-compose.development.yml down
+	docker compose -f docker-compose.development.yml rm
 
 join-sandbox:
-	docker-compose -f docker-compose.development.yml \
+	docker compose -f docker-compose.development.yml \
 		exec development /bin/bash --rcfile /app/.docker-bashrc
 
 join-postgres:
-	docker-compose -f docker-compose.development.yml \
+	docker compose -f docker-compose.development.yml \
 		exec postgres psql -U postgres 
 
 start-gdbserver:
-	docker-compose -f docker-compose.development.yml \
+	docker compose -f docker-compose.development.yml \
 		exec development gdbserver 0.0.0.0:3345 ./server/target/debug/server
 
 devcert:
 	mkdir -p ./devcert/
-	mkcert -cert-file ./devcert/local-cert.pem -key-file ./devcert/local-key.pem localhost 127.0.0.1 ::1 $$(ifconfig | grep -oE "\binet\b [0-9.]+ " | grep -oE "[0-9.]+")
+	@if command -v ip > /dev/null; then \
+		IPS=$$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}'); \
+	elif command -v ifconfig > /dev/null; then \
+		IPS=$$(ifconfig | grep -oE "\binet\b [0-9.]+ " | grep -oE "[0-9.]+"); \
+	else \
+		echo "Error: Neither 'ifconfig' nor 'ip' found"; exit 1; \
+	fi; \
+	mkcert -cert-file ./devcert/local-cert.pem -key-file ./devcert/local-key.pem \
+		localhost 127.0.0.1 ::1 $$IPS
 
 proto: proto/protocol.proto
 	npm install
-	npx protoc \
+	protoc \
 		--plugin=./node_modules/.bin/protoc-gen-ts_proto \
 		--ts_proto_opt=esModuleInterop=true \
 		--ts_proto_opt=forceLong=long \
@@ -59,14 +67,42 @@ proto: proto/protocol.proto
 	cp proto/protocol.ts packages/polycentric-core/src/protocol.ts
 
 pretty:
-	npx prettier --write \
+	./version.sh
+	# Format Rust code
+	cd server && cargo fmt
+	cd polycentric-protocol && cargo fmt
+
+	# Format TypeScript/JavaScript code
+	npx prettier@3.1.1 --write \
 		packages/polycentric-core/src/ \
 		packages/polycentric-react/src/ \
 		packages/polycentric-web/src/ \
 		packages/harbor-web/src/ \
 		packages/polycentric-desktop/src/ \
 		packages/polycentric-bot/src/ \
+		packages/polycentric-desktop/src/ \
+		packages/polycentric-desktop/electron/ \
 		packages/test-data-generator/src/
+
+lint: proto
+	./version.sh
+	cd polycentric-protocol && \
+		cargo clippy --no-deps -- -D warnings
+
+	cd server && \
+		cargo clippy --no-deps --locked -- -D warnings
+
+	cd packages/polycentric-core && \
+		npx eslint ./src --max-warnings=0
+
+	cd packages/harbor-web && \
+		npx eslint ./src --max-warnings=0
+
+	cd packages/polycentric-react && \
+		npx eslint ./src --max-warnings=0
+
+	cd packages/polycentric-web && \
+		npx eslint ./src --max-warnings=0
 
 build-production: proto
 	./version.sh
@@ -75,13 +111,13 @@ build-production: proto
 	npm install
 
 	cd packages/polycentric-core && \
-		npm run build:production
+		npm run build
 
 	cd packages/polycentric-react && \
-		npm run build:production
+		npm run build
 
 	cd packages/polycentric-web && \
-		npm run build:production
+		npm run build
 
 	cd server && \
 		cargo build
@@ -105,9 +141,9 @@ clean:
 		packages/polycentric-web-legacy/build \
 		server/target
 
-deploy-spa:
-	wrangler pages publish --project-name polycentric-spa \
-		./packages/polycentric-web/dist/
+deploy-polycentric-web-production:
+	wrangler pages deploy --project-name polycentric-spa-production \
+		./packages/polycentric-web/dist/ --branch master
 
 deploy-polycentric-web-staging:
 	wrangler pages deploy --project-name polycentric-spa-staging \
@@ -116,3 +152,19 @@ deploy-polycentric-web-staging:
 deploy-harbor-spa:
 	wrangler pages deploy --project-name harbor-social \
 		./packages/harbor-web/dist/ --branch main
+
+build-ci-deps:
+	DOCKER_BUILDKIT=1 docker build \
+        -f infra/ci-infra/dockerfiles/terraform/Dockerfile \
+		-t gitlab.futo.org:5050/polycentric/polycentric/terraform:latest .
+	docker push gitlab.futo.org:5050/polycentric/polycentric/terraform:latest
+	DOCKER_BUILDKIT=1 docker build \
+        -f infra/ci-infra/dockerfiles/kaniko/Dockerfile \
+		-t gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest .
+	docker push gitlab.futo.org:5050/polycentric/polycentric/kaniko:latest
+
+push-server-image:
+	DOCKER_BUILDKIT=1 docker build \
+		-f server.dockerfile \
+		-t registry.digitalocean.com/polycentric/polycentric:latest .
+	docker push registry.digitalocean.com/polycentric/polycentric:latest

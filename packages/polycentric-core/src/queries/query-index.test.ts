@@ -11,7 +11,7 @@ function extractGenericClaim(cell: QueryIndex.Cell): string | undefined {
         return undefined;
     }
 
-    const event = Models.Event.fromBuffer(cell.signedEvent!.event);
+    const event = Models.Event.fromBuffer(cell.signedEvent.event);
 
     if (event.contentType.notEquals(Models.ContentType.ContentTypeClaim)) {
         throw Error('expected ContentTypeClaim');
@@ -23,7 +23,11 @@ function extractGenericClaim(cell: QueryIndex.Cell): string | undefined {
         throw Error('expected Generic');
     }
 
-    return claim.claimFields[0]!.value;
+    if (claim.claimFields.length === 0) {
+        throw Error('expected claim field');
+    }
+
+    return claim.claimFields[0].value;
 }
 
 async function copyEventBetweenHandles(
@@ -31,17 +35,19 @@ async function copyEventBetweenHandles(
     from: ProcessHandle.ProcessHandle,
     to: ProcessHandle.ProcessHandle,
 ): Promise<void> {
-    await to.ingest(
-        Models.SignedEvent.fromProto(
-            (await from
-                .store()
-                .getSignedEvent(
-                    pointer.system,
-                    pointer.process,
-                    pointer.logicalClock,
-                ))!,
-        ),
-    );
+    const signedEvent = await from
+        .store()
+        .indexEvents.getSignedEvent(
+            pointer.system,
+            pointer.process,
+            pointer.logicalClock,
+        );
+
+    if (signedEvent === undefined) {
+        throw new Error('expected signedEvent');
+    }
+
+    await to.ingest(signedEvent);
 }
 
 describe('query index', () => {
@@ -52,12 +58,12 @@ describe('query index', () => {
         queryManager.useNetwork(false);
         queryManager.useDisk(false);
 
-        s1p1.setListener((event) => queryManager.update(event));
+        s1p1.setListener(queryManager.update.bind(queryManager));
 
         const handle = queryManager.query(
             s1p1.system(),
             Models.ContentType.ContentTypeClaim,
-            (value) => {
+            () => {
                 throw Error('unexpected');
             },
         );
@@ -72,7 +78,7 @@ describe('query index', () => {
         queryManager.useNetwork(false);
         queryManager.useDisk(false);
 
-        s1p1.setListener((event) => queryManager.update(event));
+        s1p1.setListener(queryManager.update.bind(queryManager));
 
         let stage = 0;
 
@@ -108,7 +114,7 @@ describe('query index', () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         const queryManager = new QueryIndex.QueryManager(s1p1);
         queryManager.useDisk(false);
-        s1p1.setListener((event) => queryManager.update(event));
+        s1p1.setListener(queryManager.update.bind(queryManager));
 
         const s2p1 = await ProcessHandle.createTestProcessHandle();
         await s2p1.addServer(TEST_SERVER);
@@ -166,7 +172,7 @@ describe('query index', () => {
                 cb,
             );
 
-            handle?.advance(10);
+            handle.advance(10);
         });
 
         handle?.unregister();
@@ -224,7 +230,7 @@ describe('query index', () => {
                 cb,
             );
 
-            handle?.advance(2);
+            handle.advance(2);
         });
 
         handle?.unregister();
@@ -280,40 +286,44 @@ describe('query index', () => {
 
     test('live delete', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
+        s1p1.queryManager.skipLoadedBatchUpdate = true;
 
-        const queryManager = new QueryIndex.QueryManager(s1p1);
+        const queryManager = s1p1.queryManager.queryIndex;
         queryManager.useNetwork(false);
         queryManager.useDisk(false);
 
-        s1p1.setListener((event) => queryManager.update(event));
-
         let handle: QueryIndex.QueryHandle | undefined;
-        let state: Array<QueryIndex.Cell> = [];
+        let state: QueryIndex.Cell[] = [];
 
-        await new Promise<void>(async (resolve) => {
-            let stage = 0;
+        await new Promise<void>((resolve) => {
+            void (async () => {
+                let stage = 0;
 
-            const cb = (patch: QueryIndex.CallbackParameters) => {
-                state = QueryIndex.applyPatch(state, patch);
-                stage++;
+                const cb = (patch: QueryIndex.CallbackParameters) => {
+                    state = QueryIndex.applyPatch(state, patch);
+                    stage++;
 
-                if (stage === 4) {
-                    resolve();
-                }
-            };
+                    if (stage === 4) {
+                        resolve();
+                    }
+                };
 
-            handle = queryManager.query(
-                s1p1.system(),
-                Models.ContentType.ContentTypeClaim,
-                cb,
-            );
+                handle = queryManager.query(
+                    s1p1.system(),
+                    Models.ContentType.ContentTypeClaim,
+                    cb,
+                );
 
-            handle.advance(10);
+                handle.advance(10);
 
-            await s1p1.claim(Models.claimGeneric('1'));
-            const secondClaim = await s1p1.claim(Models.claimGeneric('2'));
-            await s1p1.claim(Models.claimGeneric('3'));
-            await s1p1.delete(secondClaim.process, secondClaim.logicalClock);
+                await s1p1.claim(Models.claimGeneric('1'));
+                const secondClaim = await s1p1.claim(Models.claimGeneric('2'));
+                await s1p1.claim(Models.claimGeneric('3'));
+                await s1p1.delete(
+                    secondClaim.process,
+                    secondClaim.logicalClock,
+                );
+            })();
         });
 
         handle?.unregister();

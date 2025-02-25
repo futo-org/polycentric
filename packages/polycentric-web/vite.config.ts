@@ -33,15 +33,15 @@ export default defineConfig(({ command }) => ({
     plugins: [
         react(),
         VitePWA({
-            registerType: 'autoUpdate',
+            registerType: "prompt",
             devOptions: {
                 enabled: true,
             },
             manifest: {
                 name: 'Polycentric',
                 short_name: 'Polycentric',
-                theme_color: '#ffffff',
-                background_color: '#ffffff',
+                theme_color: '#000000',
+                background_color: '#000000',
                 display: 'standalone',
                 orientation: 'portrait',
                 scope: '/',

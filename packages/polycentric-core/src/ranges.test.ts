@@ -11,27 +11,27 @@ function makeRange(low: number, high: number): Ranges.IRange {
 
 describe('insert', () => {
     test('singleton', () => {
-        const ranges: Array<Ranges.IRange> = [];
+        const ranges: Ranges.IRange[] = [];
         Ranges.insert(ranges, new Long(5, 0, true));
         expect(ranges).toStrictEqual([makeRange(5, 5)]);
     });
 
     test('sequential', () => {
-        const ranges: Array<Ranges.IRange> = [];
+        const ranges: Ranges.IRange[] = [];
         Ranges.insert(ranges, new Long(5, 0, true));
         Ranges.insert(ranges, new Long(6, 0, true));
         expect(ranges).toStrictEqual([makeRange(5, 6)]);
     });
 
     test('reverse', () => {
-        const ranges: Array<Ranges.IRange> = [];
+        const ranges: Ranges.IRange[] = [];
         Ranges.insert(ranges, new Long(6, 0, true));
         Ranges.insert(ranges, new Long(5, 0, true));
         expect(ranges).toStrictEqual([makeRange(5, 6)]);
     });
 
     test('merge', () => {
-        const ranges: Array<Ranges.IRange> = [];
+        const ranges: Ranges.IRange[] = [];
         Ranges.insert(ranges, new Long(5, 0, true));
         Ranges.insert(ranges, new Long(7, 0, true));
         Ranges.insert(ranges, new Long(6, 0, true));
@@ -40,7 +40,7 @@ describe('insert', () => {
     });
 
     test('disconnected insert', () => {
-        const ranges: Array<Ranges.IRange> = [];
+        const ranges: Ranges.IRange[] = [];
         Ranges.insert(ranges, new Long(1, 0, true));
         Ranges.insert(ranges, new Long(5, 0, true));
         Ranges.insert(ranges, new Long(3, 0, true));
@@ -49,6 +49,13 @@ describe('insert', () => {
             makeRange(3, 3),
             makeRange(5, 5),
         ]);
+    });
+
+    test('non adjacent less than single item', () => {
+        const ranges: Ranges.IRange[] = [];
+        Ranges.insert(ranges, new Long(10, 0, true));
+        Ranges.insert(ranges, new Long(5, 0, true));
+        expect(ranges).toStrictEqual([makeRange(5, 5), makeRange(10, 10)]);
     });
 });
 
@@ -133,6 +140,19 @@ describe('takeRangeMaxItems', () => {
             makeRange(5, 10),
             makeRange(10, 15),
             makeRange(20, 25),
+        ]);
+    });
+});
+
+describe('misc', () => {
+    test('toArray', () => {
+        expect(
+            Ranges.toArray([makeRange(3, 5), makeRange(7, 7)]),
+        ).toStrictEqual([
+            Long.fromNumber(3, true),
+            Long.fromNumber(4, true),
+            Long.fromNumber(5, true),
+            Long.fromNumber(7, true),
         ]);
     });
 });

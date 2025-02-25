@@ -1,15 +1,21 @@
-import { ReactElement } from 'react'
-import { InfiniteScrollWithRightCol } from '../../../components/layout/infinitescrollwithrightcol'
-import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks'
+import { ReactElement } from 'react';
+import { InfiniteScrollWithRightCol } from '../../../components/layout/infinitescrollwithrightcol';
+import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks';
 
 export const FeedPage = ({
-  data,
-  advanceFeed,
-  leftCol,
+    data,
+    advanceFeed,
+    rightCol,
 }: {
-  data: FeedHookData
-  advanceFeed: FeedHookAdvanceFn
-  leftCol: ReactElement
+    data: FeedHookData;
+    advanceFeed: FeedHookAdvanceFn;
+    rightCol: ReactElement;
 }) => {
-  return <InfiniteScrollWithRightCol data={data} advanceFeed={advanceFeed} leftCol={leftCol} />
-}
+    return (
+        <InfiniteScrollWithRightCol
+            data={data}
+            advanceFeed={advanceFeed}
+            rightCol={rightCol}
+        />
+    );
+};

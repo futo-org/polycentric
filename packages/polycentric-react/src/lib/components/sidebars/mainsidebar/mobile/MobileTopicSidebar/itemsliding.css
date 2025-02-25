@@ -1,0 +1,5 @@
+ion-item::part(native) {
+    --padding-start: 0px;
+    --inner-padding-end: 0px;
+    --inner-border-width: 0px;
+}

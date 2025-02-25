@@ -1,6 +1,7 @@
+/* eslint @typescript-eslint/no-non-null-assertion: 0 */
+
 import Long from 'long';
 
-import * as Base64 from '@borderless/base64';
 import Sharp from 'sharp';
 
 import * as APIMethods from './api-methods';
@@ -10,21 +11,28 @@ import * as Protocol from './protocol';
 import * as Synchronization from './synchronization';
 import * as Util from './util';
 
-const TEST_SERVER = 'http://127.0.0.1:8081';
+const TEST_SERVER_ADDRESS = '127.0.0.1';
+const TEST_SERVER = `http://${TEST_SERVER_ADDRESS}:8081`;
 // const TEST_SERVER = 'https://srv1-stg.polycentric.io';
 
 async function setAvatarImage(
     handle: ProcessHandle.ProcessHandle,
     path: string,
 ) {
-    const resolutions: Array<number> = [256, 128, 32];
+    const resolutions: number[] = [256, 128, 32];
 
     const imageBundle: Protocol.ImageBundle = {
         imageManifests: [],
     };
 
     for (const resolution of resolutions) {
-        const image = await Sharp(path).resize(resolution).jpeg().toBuffer();
+        const imageBuffer = await Sharp(path)
+            .resize(resolution)
+            .jpeg()
+            .toBuffer();
+
+        // Uint8Array in process-handle publishBlob
+        const image = new Uint8Array(imageBuffer);
 
         const imageRanges = await handle.publishBlob(image);
 
@@ -49,65 +57,19 @@ async function createHandleWithName(username: string) {
     return s1p1;
 }
 
-describe('integration', () => {
-    test('sync', async () => {
-        const s1p1 = await ProcessHandle.createTestProcessHandle();
-        await s1p1.addServer(TEST_SERVER);
-        await s1p1.setDescription('hello');
-
-        const claim = Models.claimHackerNews('pg');
-
-        const claimPointer = await s1p1.claim(claim);
-        const vouchPointer = await s1p1.vouch(claimPointer);
-
-        await Synchronization.backFillServers(s1p1, s1p1.system());
-
-        const s2p1 = await ProcessHandle.createTestProcessHandle();
-
-        while (
-            await Synchronization.backfillClient(
-                s2p1,
-                s1p1.system(),
-                TEST_SERVER,
-            )
-        ) {}
-
-        const s1State = await s2p1.loadSystemState(s1p1.system());
-
-        expect(s1State.description()).toStrictEqual('hello');
-
-        const resolved = await APIMethods.getResolveClaim(
-            TEST_SERVER,
-            s1p1.system(),
-            Models.ClaimType.ClaimTypeHackerNews,
-            'pg',
-        );
-
-        expect(resolved.matches.length).toStrictEqual(1);
-
-        expect(
-            Models.Pointer.equal(
-                Models.signedEventToPointer(
-                    Models.SignedEvent.fromProto(resolved.matches[0].claim!),
-                ),
-                claimPointer,
-            ),
-        ).toStrictEqual(true);
-
-        expect(resolved.matches[0]!.proofChain.length).toStrictEqual(1);
-
-        expect(
-            Models.Pointer.equal(
-                Models.signedEventToPointer(
-                    Models.SignedEvent.fromProto(
-                        resolved.matches[0]!.proofChain[0]!,
-                    ),
-                ),
-                vouchPointer,
-            ),
-        ).toStrictEqual(true);
+async function createHandleWithNameAndIdentityHandle(username: string) {
+    const s1p1 = await ProcessHandle.createTestProcessHandle();
+    await s1p1.addServer(TEST_SERVER);
+    await s1p1.setUsername(username + '@' + TEST_SERVER_ADDRESS);
+    await APIMethods.postClaimHandle(TEST_SERVER, {
+        handle: username,
+        system: s1p1.system(),
     });
+    await Synchronization.backFillServers(s1p1, s1p1.system());
+    return s1p1;
+}
 
+describe('integration', () => {
     test('resolveAndQuery', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         await s1p1.addServer(TEST_SERVER);
@@ -134,7 +96,7 @@ describe('integration', () => {
 
         await setAvatarImage(s1p1, './src/rossmann.jpg');
 
-        await Synchronization.backFillServers(s1p1, s1p1.system());
+        await s1p1.synchronizer.debugWaitUntilSynchronizationComplete();
 
         const s2p1 = await ProcessHandle.createTestProcessHandle();
         await s2p1.addServer(TEST_SERVER);
@@ -145,7 +107,7 @@ describe('integration', () => {
 
         await setAvatarImage(s2p1, './src/futo.jpg');
 
-        await Synchronization.backFillServers(s2p1, s2p1.system());
+        await s2p1.synchronizer.debugWaitUntilSynchronizationComplete();
 
         // console.log('futo system:' + systemToBase64(s2p1.system()));
     });
@@ -198,13 +160,13 @@ describe('integration', () => {
             Models.Opinion.equal(
                 await bernstein
                     .store()
-                    .opinionIndex.get(bernstein.system(), subject),
+                    .indexOpinion.get(bernstein.system(), subject),
                 Models.Opinion.OpinionNeutral,
             ),
         ).toStrictEqual(true);
 
         await bernstein.opinion(subject, Models.Opinion.OpinionLike);
-        await ProcessHandle.fullSync(bernstein);
+        await bernstein.synchronizer.debugWaitUntilSynchronizationComplete();
 
         expect(await getLikesAndDislikes()).toStrictEqual({
             likes: 1,
@@ -215,13 +177,13 @@ describe('integration', () => {
             Models.Opinion.equal(
                 await bernstein
                     .store()
-                    .opinionIndex.get(bernstein.system(), subject),
+                    .indexOpinion.get(bernstein.system(), subject),
                 Models.Opinion.OpinionLike,
             ),
         ).toStrictEqual(true);
 
         await shamir.opinion(subject, Models.Opinion.OpinionLike);
-        await ProcessHandle.fullSync(shamir);
+        await shamir.synchronizer.debugWaitUntilSynchronizationComplete();
 
         expect(await getLikesAndDislikes()).toStrictEqual({
             likes: 2,
@@ -229,7 +191,7 @@ describe('integration', () => {
         });
 
         await bernstein.opinion(subject, Models.Opinion.OpinionDislike);
-        await ProcessHandle.fullSync(bernstein);
+        await bernstein.synchronizer.debugWaitUntilSynchronizationComplete();
 
         expect(await getLikesAndDislikes()).toStrictEqual({
             likes: 1,
@@ -240,16 +202,16 @@ describe('integration', () => {
             Models.Opinion.equal(
                 await bernstein
                     .store()
-                    .opinionIndex.get(bernstein.system(), subject),
+                    .indexOpinion.get(bernstein.system(), subject),
                 Models.Opinion.OpinionDislike,
             ),
         ).toStrictEqual(true);
 
         await bernstein.opinion(subject, Models.Opinion.OpinionNeutral);
-        await ProcessHandle.fullSync(bernstein);
+        await bernstein.synchronizer.debugWaitUntilSynchronizationComplete();
 
         await shamir.opinion(subject, Models.Opinion.OpinionNeutral);
-        await ProcessHandle.fullSync(shamir);
+        await shamir.synchronizer.debugWaitUntilSynchronizationComplete();
 
         expect(await getLikesAndDislikes()).toStrictEqual({
             likes: 0,
@@ -260,140 +222,11 @@ describe('integration', () => {
             Models.Opinion.equal(
                 await bernstein
                     .store()
-                    .opinionIndex.get(bernstein.system(), subject),
+                    .indexOpinion.get(bernstein.system(), subject),
                 Models.Opinion.OpinionNeutral,
             ),
         ).toStrictEqual(true);
     });
-
-    test('comment', async () => {
-        const subject = Models.bufferToReference(
-            Util.encodeText('https://fake.com/' + Math.random().toString()),
-        );
-
-        const vonNeumann = await createHandleWithName('Von Neumann');
-        const godel = await createHandleWithName('Godel');
-        const babbage = await createHandleWithName('Babbage');
-        const turing = await createHandleWithName('Turing');
-
-        const rootPosts: Array<Protocol.Reference> = [];
-
-        // von neumann comments 5 times
-        for (let i = 0; i < 5; i++) {
-            rootPosts.push(
-                Models.pointerToReference(
-                    await vonNeumann.post(i.toString(), undefined, subject),
-                ),
-            );
-        }
-
-        // godel comments 10 times
-        for (let i = 0; i < 10; i++) {
-            rootPosts.push(
-                Models.pointerToReference(
-                    await godel.post(i.toString(), undefined, subject),
-                ),
-            );
-        }
-
-        // babbage likes the first three comments
-        for (let i = 0; i < 3; i++) {
-            await babbage.opinion(rootPosts[i], Models.Opinion.OpinionLike);
-        }
-
-        // babbage dislikes the last two comments
-        for (let i = rootPosts.length - 2; i < rootPosts.length; i++) {
-            await babbage.opinion(rootPosts[i], Models.Opinion.OpinionDislike);
-        }
-
-        // godel likes the first two comments
-        for (let i = 0; i < 2; i++) {
-            await godel.opinion(rootPosts[i], Models.Opinion.OpinionLike);
-        }
-
-        // godel dislikes the third comment
-        await godel.opinion(rootPosts[2], Models.Opinion.OpinionDislike);
-
-        // turing replies von neumanns comment three times
-        for (let i = 0; i < 3; i++) {
-            await turing.post(i.toString(), undefined, rootPosts[1]);
-        }
-
-        await ProcessHandle.fullSync(vonNeumann);
-        await ProcessHandle.fullSync(godel);
-        await ProcessHandle.fullSync(babbage);
-        await ProcessHandle.fullSync(turing);
-
-        // query comments from a server
-        const queryReferences = await APIMethods.getQueryReferences(
-            TEST_SERVER,
-            subject,
-            undefined,
-            {
-                fromType: Models.ContentType.ContentTypePost,
-                countLwwElementReferences: [
-                    {
-                        fromType: Models.ContentType.ContentTypeOpinion,
-                        value: Models.Opinion.OpinionLike,
-                    },
-                    {
-                        fromType: Models.ContentType.ContentTypeOpinion,
-                        value: Models.Opinion.OpinionDislike,
-                    },
-                ],
-                countReferences: [
-                    {
-                        fromType: Models.ContentType.ContentTypePost,
-                    },
-                ],
-            },
-        );
-
-        expect(queryReferences.items).toHaveLength(rootPosts.length);
-
-        function referenceToString(reference: Protocol.Reference): string {
-            return Base64.encode(Protocol.Reference.encode(reference).finish());
-        }
-
-        // API result order is not guaranteed so put items in a map
-        const referenceToItem = new Map<
-            string,
-            Protocol.QueryReferencesResponseEventItem
-        >();
-
-        for (const item of queryReferences.items) {
-            if (item.event === undefined) {
-                throw new Error('expected event');
-            }
-            const signedEvent = Models.SignedEvent.fromProto(item.event);
-            const pointer = Models.signedEventToPointer(signedEvent);
-            const reference = Models.pointerToReference(pointer);
-            referenceToItem.set(referenceToString(reference), item);
-        }
-
-        function checkResult(
-            i: number,
-            likes: number,
-            dislikes: number,
-            replies: number,
-        ) {
-            const item = referenceToItem.get(referenceToString(rootPosts[i]));
-            expect(item).toBeDefined();
-            expect(item!.counts[0]).toStrictEqual(new Long(likes, 0, true));
-            expect(item!.counts[1]).toStrictEqual(new Long(dislikes, 0, true));
-            expect(item!.counts[2]).toStrictEqual(new Long(replies, 0, true));
-        }
-
-        // Ensure the API has the expected counts and events
-        checkResult(0, 2, 0, 0);
-        checkResult(1, 2, 0, 3);
-        checkResult(2, 1, 1, 0);
-        for (let i = 3; i < 13; i++) {
-            checkResult(i, 0, 0, 0);
-        }
-        checkResult(13, 0, 1, 0);
-        checkResult(14, 0, 1, 0);
-    }, 10000);
 
     test('censor', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
@@ -461,7 +294,7 @@ describe('integration', () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
         await s1p1.addServer(TEST_SERVER);
 
-        const username = Math.random() * 100000 + '';
+        const username = (Math.random() * 100000).toString();
         const description = 'Alerts for many rail lines';
         const newUsername =
             'South Eastern Pennsylvania Transportation Authority';
@@ -472,7 +305,7 @@ describe('integration', () => {
             'The Manayunk/Norristown line is delayed 15 minutes due to trackwork';
         const post2Content =
             'All trains are on a reduced schedule due to single-tracking at Jefferson station';
-        const post3Content = Math.random() * 100000 + '';
+        const post3Content = (Math.random() * 100000).toString();
         await s1p1.post(post1Content);
         await s1p1.post(post2Content);
 
@@ -480,7 +313,7 @@ describe('integration', () => {
             await s1p1.post(post3Content);
         }
 
-        await Synchronization.backFillServers(s1p1, s1p1.system());
+        await s1p1.synchronizer.debugWaitUntilSynchronizationComplete();
 
         // give opensearch time to index everything
         await new Promise((r) => setTimeout(r, 5000));
@@ -511,7 +344,7 @@ describe('integration', () => {
             getAndCheckFirstEvent(post3SearchResults),
         );
         expect(post3SearchContent).toBe(post3Content);
-        expect(post3SearchResults.resultEvents?.events.length).toBe(10);
+        expect(post3SearchResults.resultEvents.events.length).toBe(10);
 
         if (post3SearchResults.cursor === undefined) {
             throw new Error('post3SearchResults.cursor is undefined');
@@ -523,11 +356,14 @@ describe('integration', () => {
             25,
             post3SearchResults.cursor,
         );
-        expect(post3ReSearchResults.resultEvents?.events.length).toBe(1);
+        expect(post3ReSearchResults.resultEvents.events.length).toBe(1);
 
         const usernameSearchResults = await APIMethods.getSearch(
             TEST_SERVER,
             'Pennsylvania',
+            undefined,
+            undefined,
+            APIMethods.SearchType.Profiles,
         );
         const usernameSearchContent = lwwEventToContent(
             getAndCheckFirstEvent(usernameSearchResults),
@@ -537,12 +373,18 @@ describe('integration', () => {
         const oldUsernameSearchResults = await APIMethods.getSearch(
             TEST_SERVER,
             username,
+            undefined,
+            undefined,
+            APIMethods.SearchType.Profiles,
         );
-        expect(oldUsernameSearchResults.resultEvents?.events.length).toBe(0);
+        expect(oldUsernameSearchResults.resultEvents.events.length).toBe(0);
 
         const descriptionSearchResults = await APIMethods.getSearch(
             TEST_SERVER,
             'Alerts',
+            undefined,
+            undefined,
+            APIMethods.SearchType.Profiles,
         );
         const descriptionSearchContent = lwwEventToContent(
             getAndCheckFirstEvent(descriptionSearchResults),
@@ -562,5 +404,171 @@ describe('integration', () => {
         );
 
         await APIMethods.postPurge(TEST_SERVER, solvedChallenge);
+    });
+
+    test('query multiple references', async () => {
+        const primaryReference = Models.bufferToReference(
+            Util.encodeText('https://fake.com/' + Math.random().toString()),
+        );
+
+        const secondaryReferenceBytes = Util.encodeText(
+            'https://fake.com/' + Math.random().toString(),
+        );
+
+        const secondaryReference = Models.bufferToReference(
+            secondaryReferenceBytes,
+        );
+
+        const s1 = await ProcessHandle.createTestProcessHandle();
+        await s1.addServer(TEST_SERVER);
+        const post1 = await s1.post('a', undefined, primaryReference);
+        await s1.opinion(primaryReference, Models.Opinion.OpinionLike);
+        await s1.synchronizer.debugWaitUntilSynchronizationComplete();
+
+        const s2 = await ProcessHandle.createTestProcessHandle();
+        await s2.addServer(TEST_SERVER);
+        const post2 = await s2.post('b', undefined, secondaryReference);
+        await s2.opinion(secondaryReference, Models.Opinion.OpinionDislike);
+        await s2.synchronizer.debugWaitUntilSynchronizationComplete();
+
+        const result = await APIMethods.getQueryReferences(
+            TEST_SERVER,
+            primaryReference,
+            undefined,
+            {
+                fromType: Models.ContentType.ContentTypePost,
+                countLwwElementReferences: [],
+                countReferences: [],
+            },
+            [
+                {
+                    fromType: Models.ContentType.ContentTypeOpinion,
+                    value: Models.Opinion.OpinionLike,
+                },
+                {
+                    fromType: Models.ContentType.ContentTypeOpinion,
+                    value: Models.Opinion.OpinionDislike,
+                },
+            ],
+            [
+                {
+                    fromType: Models.ContentType.ContentTypePost,
+                },
+            ],
+            [secondaryReferenceBytes],
+        );
+
+        // likes
+        expect(result.counts[0].toNumber()).toStrictEqual(1);
+        // dislikes
+        expect(result.counts[1].toNumber()).toStrictEqual(1);
+        // reply count
+        expect(result.counts[2].toNumber()).toStrictEqual(2);
+
+        expect(result.items).toHaveLength(2);
+
+        expect(
+            Models.Pointer.equal(
+                post2,
+                Models.signedEventToPointer(
+                    Models.SignedEvent.fromProto(result.items[0].event!),
+                ),
+            ),
+        ).toStrictEqual(true);
+
+        expect(
+            Models.Pointer.equal(
+                post1,
+                Models.signedEventToPointer(
+                    Models.SignedEvent.fromProto(result.items[1].event!),
+                ),
+            ),
+        ).toStrictEqual(true);
+    });
+
+    test('claim and search identity handles', async () => {
+        const randomNumberString = () => {
+            return Math.floor(Math.random() * 2 ** 16).toString();
+        };
+
+        const handleContoso1 = 'contoso-1' + randomNumberString();
+        const handleContoso2 = 'contoso-2' + randomNumberString();
+        const handleContoso3 = 'contoso-3' + randomNumberString();
+        const handleOsotnocCorp = 'osotnoc_corp' + randomNumberString();
+
+        // Test regular behavior
+        const contoso =
+            await createHandleWithNameAndIdentityHandle(handleContoso1);
+        const contoso2 =
+            await createHandleWithNameAndIdentityHandle(handleContoso2);
+        const osotnoc =
+            await createHandleWithNameAndIdentityHandle(handleOsotnocCorp);
+
+        await contoso.synchronizer.debugWaitUntilSynchronizationComplete();
+        await osotnoc.synchronizer.debugWaitUntilSynchronizationComplete();
+
+        const result_contoso = await APIMethods.getResolveHandle(
+            TEST_SERVER,
+            handleContoso1,
+        );
+        expect(result_contoso).toStrictEqual(contoso.system());
+
+        const result_contoso2 = await APIMethods.getResolveHandle(
+            TEST_SERVER,
+            handleContoso2,
+        );
+        expect(result_contoso2).toStrictEqual(contoso2.system());
+
+        const result_osotnoc = await APIMethods.getResolveHandle(
+            TEST_SERVER,
+            handleOsotnocCorp,
+        );
+        expect(result_osotnoc).toStrictEqual(osotnoc.system());
+
+        // Duplicate entry for system
+        await APIMethods.postClaimHandle(TEST_SERVER, {
+            handle: handleContoso3,
+            system: contoso2.system(),
+        });
+
+        const result_contoso3 = await APIMethods.getResolveHandle(
+            TEST_SERVER,
+            handleContoso3,
+        );
+        expect(result_contoso3).toStrictEqual(contoso2.system());
+
+        // Name with restricted chars
+        let creation_failed = true;
+        try {
+            await APIMethods.postClaimHandle(TEST_SERVER, {
+                handle: 'This has spaces, dollar $ign$, and an &mpersand. not allowed!!',
+                system: contoso.system(),
+            });
+            creation_failed = false;
+        } catch {}
+        expect(creation_failed).toStrictEqual(true);
+
+        // Name that's too long
+        creation_failed = true;
+        try {
+            await APIMethods.postClaimHandle(TEST_SERVER, {
+                handle: '01234567890123456789012345678901234567890123456789012345678901234',
+                system: contoso.system(),
+            });
+            creation_failed = false;
+        } catch {}
+        expect(creation_failed).toStrictEqual(true);
+
+        // Name that's already taken
+        const contosoCopycat = await createHandleWithName('contoso-1');
+        creation_failed = true;
+        try {
+            await APIMethods.postClaimHandle(TEST_SERVER, {
+                handle: handleContoso1,
+                system: contosoCopycat.system(),
+            });
+            creation_failed = false;
+        } catch {}
+        expect(creation_failed).toStrictEqual(true);
     });
 });

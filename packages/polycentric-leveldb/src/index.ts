@@ -15,8 +15,8 @@ export function createPersistenceDriverLevelDB(
         const level = new ClassicLevel.ClassicLevel<Uint8Array, Uint8Array>(
             Path.join(directory, path),
             {
-                keyEncoding: 'buffer',
-                valueEncoding: 'buffer',
+                keyEncoding: Core.PersistenceDriver.deepCopyTranscoder(),
+                valueEncoding: Core.PersistenceDriver.deepCopyTranscoder(),
             },
         ) as any as Core.PersistenceDriver.BinaryAbstractLevel;
 

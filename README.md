@@ -19,12 +19,16 @@ Development requires `docker`, and `docker-compose`.
 
 ```bash
 # open a shell
+# run the version script
+./version.sh
 # setup the Docker development sandbox
 make build-sandbox
 # start the Docker development sandbox
 make start-sandbox
 # join the sandbox with your current shell
 make join-sandbox
+# make the dev certs
+make devcert
 
 # create a production build of each package
 make build-production
@@ -36,10 +40,18 @@ npm run dev
 # join the existing sandbox with your new shell
 make join-sandbox
 # start the backend
+cd packages/polycentric-react
+npm run dev
+
+# open another shell
+# join the existing sandbox with your new shell
+make join-sandbox
+# start the backend
 cd server
 cargo run
 
 # Connect to the web UI at https://localhost:8081
+# Use Chrome to avoid having to mess with certs
 
 # When done destroy the sandbox environment
 make stop-sandbox

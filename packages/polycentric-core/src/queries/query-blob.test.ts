@@ -1,140 +1,166 @@
-/* eslint jest/no-conditional-expect: 0 */
-import Long from 'long';
+import 'long';
+import * as RXJS from 'rxjs';
 
 import * as ProcessHandle from '../process-handle';
-import * as QueryBlob from './query-blob';
-import * as Shared from './shared';
+import * as Util from '../util';
+import { QueryEvent } from './query-event';
+import { QueryServers } from './query-servers';
+import { QueryBlob, queryBlobObservable } from './query-blob';
+import { CancelContext } from '../cancel-context';
 
-const TEST_SERVER = 'http://127.0.0.1:8081';
+const testBlob = (() => {
+    const blob = new Uint8Array(1024 * 512 * 3);
+    blob[0] = 6;
+    blob[1024 * 512] = 7;
+    blob[1024 * 512 * 2] = 8;
+    return blob;
+})();
 
-describe('query blob', () => {
-    const testBlob = (() => {
-        const blob = new Uint8Array(1024 * 512 * 3);
-        blob[0] = 6;
-        blob[1024 * 512] = 7;
-        blob[1024 * 512 * 2] = 8;
-        return blob;
-    })();
+function expectToBeDefined<T>(value: T): asserts value is NonNullable<T> {
+    expect(value).toBeDefined();
+}
 
-    test('non existant', async () => {
-        const s1p1 = await ProcessHandle.createTestProcessHandle();
+enum SharedTestMode {
+    NetworkOnly,
+    DiskOnly,
+    CacheOnly,
+}
 
-        const queryManager = new QueryBlob.QueryManager(s1p1);
-        queryManager.useNetwork(false);
-        queryManager.useDisk(false);
+async function sharedTestCase(mode: SharedTestMode): Promise<void> {
+    const s1p1 = await ProcessHandle.createTestProcessHandle();
+    s1p1.addAddressHint(s1p1.system(), ProcessHandle.TEST_SERVER);
 
-        s1p1.setListener((event) => queryManager.update(event));
+    const queryServers = new QueryServers(s1p1);
+    const queryEvent = new QueryEvent(s1p1.store().indexEvents, queryServers);
+    queryEvent.shouldUseNetwork(false);
+    queryEvent.shouldUseDisk(false);
+    const queryBlob = new QueryBlob(queryEvent);
 
-        const unregister = queryManager.query(
+    if (mode === SharedTestMode.NetworkOnly) {
+        queryEvent.shouldUseNetwork(true);
+    } else if (mode === SharedTestMode.DiskOnly) {
+        queryEvent.shouldUseDisk(true);
+    }
+
+    const contextHold =
+        mode === SharedTestMode.CacheOnly ? new CancelContext() : undefined;
+
+    if (mode === SharedTestMode.CacheOnly) {
+        s1p1.setListener((event) => {
+            queryEvent.updateWithContextHold(event, contextHold);
+        });
+    }
+
+    const publishedRanges = await s1p1.publishBlob(testBlob);
+
+    if (mode === SharedTestMode.NetworkOnly) {
+        await ProcessHandle.fullSync(s1p1);
+    }
+
+    let wasInstant = false;
+
+    const observable = RXJS.firstValueFrom(
+        queryBlobObservable(
+            queryBlob,
             s1p1.system(),
             s1p1.process(),
-            [],
-            (value) => {
-                throw Error('unexpected');
-            },
+            publishedRanges,
+        ).pipe(
+            RXJS.switchMap((value) => {
+                wasInstant = true;
+                return RXJS.of(value);
+            }),
+        ),
+    );
+
+    expect(wasInstant).toStrictEqual(mode === SharedTestMode.CacheOnly);
+
+    const result = await observable;
+
+    contextHold?.cancel();
+
+    expectToBeDefined(result);
+
+    expect(Util.buffersEqual(result, testBlob)).toStrictEqual(true);
+
+    expect(queryBlob.clean).toStrictEqual(true);
+
+    if (mode !== SharedTestMode.CacheOnly) {
+        const dualQueryResult = await RXJS.firstValueFrom(
+            RXJS.combineLatest(
+                queryBlobObservable(
+                    queryBlob,
+                    s1p1.system(),
+                    s1p1.process(),
+                    publishedRanges,
+                ),
+                queryBlobObservable(
+                    queryBlob,
+                    s1p1.system(),
+                    s1p1.process(),
+                    publishedRanges,
+                ),
+            ),
         );
 
-        unregister();
-    });
+        expect(dualQueryResult[0] === dualQueryResult[1]).toStrictEqual(true);
 
-    test('update during query', async () => {
-        const s1p1 = await ProcessHandle.createTestProcessHandle();
+        expect(queryBlob.clean).toStrictEqual(true);
+    }
+}
 
-        const queryManager = new QueryBlob.QueryManager(s1p1);
-        queryManager.useNetwork(false);
-        queryManager.useDisk(false);
-
-        s1p1.setListener((event) => queryManager.update(event));
-
-        let unregister: Shared.UnregisterCallback | undefined;
-
-        await new Promise<void>(async (resolve) => {
-            unregister = queryManager.query(
-                s1p1.system(),
-                s1p1.process(),
-                [
-                    {
-                        low: Long.fromNumber(1),
-                        high: Long.fromNumber(3),
-                    },
-                ],
-                (value) => {
-                    expect(value).toStrictEqual(testBlob);
-                    resolve();
-                },
-            );
-
-            await s1p1.publishBlob(testBlob);
-        });
-
-        unregister?.();
+describe('query blob2', () => {
+    test('hit disk', async () => {
+        await sharedTestCase(SharedTestMode.DiskOnly);
     });
 
     test('hit network', async () => {
-        const s1p1 = await ProcessHandle.createTestProcessHandle();
-
-        const queryManager = new QueryBlob.QueryManager(s1p1);
-        queryManager.useDisk(false);
-        s1p1.setListener((event) => queryManager.update(event));
-
-        const s2p1 = await ProcessHandle.createTestProcessHandle();
-        await s2p1.addServer(TEST_SERVER);
-        await s2p1.publishBlob(testBlob);
-        await ProcessHandle.fullSync(s2p1);
-
-        s1p1.addAddressHint(s2p1.system(), TEST_SERVER);
-
-        let unregister: Shared.UnregisterCallback | undefined;
-
-        await new Promise<void>(async (resolve) => {
-            unregister = queryManager.query(
-                s2p1.system(),
-                s2p1.process(),
-                [
-                    {
-                        low: Long.fromNumber(2),
-                        high: Long.fromNumber(4),
-                    },
-                ],
-                (value) => {
-                    expect(value).toStrictEqual(testBlob);
-                    resolve();
-                },
-            );
-        });
-
-        unregister?.();
+        await sharedTestCase(SharedTestMode.NetworkOnly);
     });
 
-    test('hit disk', async () => {
+    test('context hold', async () => {
+        await sharedTestCase(SharedTestMode.CacheOnly);
+    });
+
+    test('partially or totally deleted', async () => {
         const s1p1 = await ProcessHandle.createTestProcessHandle();
 
-        const queryManager = new QueryBlob.QueryManager(s1p1);
-        queryManager.useNetwork(false);
+        const queryServers = new QueryServers(s1p1);
+        const queryEvent = new QueryEvent(
+            s1p1.store().indexEvents,
+            queryServers,
+        );
+        queryEvent.shouldUseNetwork(false);
+        queryEvent.shouldUseDisk(false);
+        const queryBlob = new QueryBlob(queryEvent);
 
-        await s1p1.publishBlob(testBlob);
-
-        s1p1.setListener((event) => queryManager.update(event));
-
-        let unregister: Shared.UnregisterCallback | undefined;
-
-        await new Promise<void>(async (resolve) => {
-            unregister = queryManager.query(
-                s1p1.system(),
-                s1p1.process(),
-                [
-                    {
-                        low: Long.fromNumber(1),
-                        high: Long.fromNumber(3),
-                    },
-                ],
-                (value) => {
-                    expect(value).toStrictEqual(testBlob);
-                    resolve();
-                },
-            );
+        const contextHold = new CancelContext();
+        s1p1.setListener((event) => {
+            queryEvent.updateWithContextHold(event, contextHold);
         });
 
-        unregister?.();
+        const publishedRanges = await s1p1.publishBlob(testBlob);
+
+        const observablePromise = RXJS.firstValueFrom(
+            queryBlobObservable(
+                queryBlob,
+                s1p1.system(),
+                s1p1.process(),
+                publishedRanges,
+            ).pipe(RXJS.take(2), RXJS.toArray()),
+        );
+
+        await s1p1.delete(s1p1.process(), publishedRanges[0].low);
+
+        const result = await observablePromise;
+
+        contextHold.cancel();
+
+        expect(result).toHaveLength(2);
+
+        expectToBeDefined(result[0]);
+        expect(Util.buffersEqual(result[0], testBlob)).toStrictEqual(true);
+        expect(result[1]).toStrictEqual(undefined);
+        expect(queryBlob.clean).toStrictEqual(true);
     });
 });

@@ -1,3 +1,3 @@
-export * from '../homefeed'
-export * from '../userfeed'
-export * from './FeedPage'
+export * from '../homefeed';
+export * from '../userfeed';
+export * from './FeedPage';

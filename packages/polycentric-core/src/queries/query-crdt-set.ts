@@ -1,18 +1,20 @@
+import * as RXJS from 'rxjs';
+
 import * as Base64 from '@borderless/base64';
 
 import * as Models from '../models';
 import * as Protocol from '../protocol';
 import * as QueryIndex from './query-index';
 
-type StateForItem = {
-    cell: QueryIndex.Cell;
-    lwwElement: Protocol.LWWElementSet;
-};
+interface StateForItem {
+    readonly cell: QueryIndex.Cell;
+    readonly lwwElement: Protocol.LWWElementSet;
+}
 
-type StateForQuery = {
-    queryIndexCallback: QueryIndex.Callback;
-    items: Map<string, StateForItem>;
-};
+interface StateForQuery {
+    readonly queryIndexCallback: QueryIndex.Callback;
+    readonly items: Map<string, StateForItem>;
+}
 
 export interface QueryHandle {
     advance(additionalCount: number): void;
@@ -20,8 +22,8 @@ export interface QueryHandle {
 }
 
 export class QueryManager {
-    private _queryIndex: QueryIndex.QueryManager;
-    private _state: Map<QueryIndex.Callback, StateForQuery>;
+    private readonly _queryIndex: QueryIndex.QueryManager;
+    private readonly _state: Map<QueryIndex.Callback, StateForQuery>;
 
     constructor(queryIndex: QueryIndex.QueryManager) {
         this._queryIndex = queryIndex;
@@ -37,11 +39,11 @@ export class QueryManager {
             throw new Error('duplicated callback QueryCRDTSet');
         }
 
-        const items = new Map();
+        const items = new Map<string, StateForItem>();
 
         const queryIndexCallback = (params: QueryIndex.CallbackParameters) => {
-            const toAdd: Array<QueryIndex.Cell> = [];
-            const toRemove: Set<string> = new Set();
+            const toAdd: QueryIndex.Cell[] = [];
+            const toRemove = new Set<string>();
 
             for (const cell of params.add) {
                 if (cell.signedEvent === undefined) {
@@ -79,7 +81,7 @@ export class QueryManager {
                     }
 
                     if (existing) {
-                        toRemove.add(existing.key);
+                        toRemove.add(existing.cell.key);
                     }
                 }
             }
@@ -113,7 +115,7 @@ export class QueryManager {
 
         return {
             advance: (additionalCount: number) => {
-                if (unregistered === false) {
+                if (!unregistered) {
                     queryIndexHandle.advance(additionalCount);
                 }
             },
@@ -126,4 +128,51 @@ export class QueryManager {
             },
         };
     }
+}
+
+export function queryCRDTSetCompleteObservable<T>(
+    queryManager: QueryManager,
+    system: Models.PublicKey.PublicKey,
+    contentType: Models.ContentType.ContentType,
+    parse: (value: Uint8Array) => T,
+): RXJS.Observable<ReadonlySet<T>> {
+    const processQueryState = (queryState: QueryIndex.Cell[]) => {
+        const result = new Set<T>();
+
+        for (const cell of queryState) {
+            if (cell.signedEvent === undefined) {
+                continue;
+            }
+
+            const event = Models.Event.fromBuffer(cell.signedEvent.event);
+
+            if (event.contentType.notEquals(contentType)) {
+                throw new Error('impossible');
+            }
+
+            if (event.lwwElementSet === undefined) {
+                throw new Error('impossible');
+            }
+
+            result.add(parse(event.lwwElementSet.value));
+        }
+
+        return result;
+    };
+
+    return new RXJS.Observable((subscriber) => {
+        let queryState: QueryIndex.Cell[] = [];
+
+        const handle = queryManager.query(system, contentType, (patch) => {
+            queryState = QueryIndex.applyPatch(queryState, patch);
+
+            subscriber.next(processQueryState(queryState));
+
+            handle.advance(10);
+        });
+
+        handle.advance(10);
+
+        return handle.unregister.bind(handle);
+    });
 }

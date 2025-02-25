@@ -1,69 +1,54 @@
 {
   "name": "polycentric-desktop",
-  "version": "2.0.0",
-  "description": "Polycentric desktop app",
+  "version": "0.1.0",
   "private": true,
-  "engines": {
-    "node": ">=9.0.0",
-    "npm": ">=5.0.0"
-  },
-  "build": {
-    "appId": "com.polycentric.desktop",
-    "productName": "Polycentric",
-    "mac": {
-      "category": "public.app-category.social-networking"
-    },
-    "files": [
-      "dist/**/*",
-      "node_modules/**/*",
-      "package.json",
-      "main.js"
-    ]
-  },
-  "browserslist": [
-    "last 4 versions"
-  ],
-  "main": "main.js",
-  "scripts": {
-    "prod": "cross-env NODE_ENV=production webpack --mode production --config webpack.build.config.js && electron --noDevServer .",
-    "dev": "cross-env NODE_ENV=development webpack serve --hot --host 0.0.0.0 --config=./webpack.dev.config.js --mode development",
-    "build": "cross-env NODE_ENV=production webpack --config webpack.build.config.js --mode production",
-    "postbuild": "DEBUG='electron-builder' electron-builder",
-    "postinstall": "electron-builder install-app-deps"
-  },
+  "main": "build/main.js",
   "dependencies": {
-    "@electron/remote": "^2.0.10",
-    "@fontsource-variable/public-sans": "^5.0.14",
-    "@fontsource/fragment-mono": "^5.0.15",
+    "@types/express": "^4.17.14",
+    "@types/node": "^16.11.59",
+    "abstract-level": "^1.0.3",
+    "classic-level": "^1.2.0",
+    "electron-is-dev": "^2.0.0",
+    "fs": "^0.0.1-security",
+    "path": "^0.12.7",
     "@polycentric/polycentric-core": "*",
     "@polycentric/polycentric-leveldb": "*",
     "@polycentric/polycentric-react": "*",
-    "postcss": "^8.4.8",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "react": "^18.1.0",
+    "react-dom": "^18.1.0"
+  },
+  "scripts": {
+    "build": "webpack --mode=development",
+    "build:production": "webpack --mode=production",
+    "watch": "webpack --watch --mode=development",
+    "package": "electron-builder build"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "homepage": "./",
+  "build": {
+    "extends": null,
+    "files": [
+      "build"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    }
   },
   "devDependencies": {
-    "@babel/core": "^7.18.2",
-    "@babel/preset-env": "^7.18.2",
-    "@babel/preset-react": "^7.17.12",
-    "babel-loader": "^8.2.5",
-    "cross-env": "^7.0.3",
+    "copy-webpack-plugin": "^11.0.0",
     "css-loader": "^6.7.1",
-    "electron": "26.0.0",
-    "electron-builder": "^24.4.0",
-    "electron-devtools-installer": "^3.2.0",
-    "file-loader": "^6.2.0",
-    "html-webpack-plugin": "^5.5.0",
-    "mini-css-extract-plugin": "^2.6.0",
-    "node-loader": "^2.0.0",
-    "postcss-import": "^14.1.0",
-    "postcss-loader": "^7.0.0",
-    "postcss-nested": "^5.0.6",
-    "postcss-preset-env": "^7.6.0",
-    "postcss-pxtorem": "^6.0.0",
+    "electron": "19.0.10",
+    "electron-builder": "23.1.0",
+    "prettier": "3.1.1",
     "style-loader": "^3.3.1",
-    "webpack": "^5.72.1",
-    "webpack-cli": "^4.9.2",
-    "webpack-dev-server": "^4.15.1"
+    "ts-loader": "^9.3.1",
+    "webpack": "^5.74.0",
+    "webpack-cli": "^4.10.0",
+    "webpack-node-externals": "^3.0.0"
   }
 }

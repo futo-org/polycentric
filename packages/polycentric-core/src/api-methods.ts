@@ -3,6 +3,7 @@ import fetch, { Headers } from 'cross-fetch';
 import Long from 'long';
 import * as Models from './models';
 import * as Protocol from './protocol';
+import * as Version from './version';
 
 async function checkResponse(name: string, response: Response): Promise<void> {
     if (!response.ok) {
@@ -11,14 +12,28 @@ async function checkResponse(name: string, response: Response): Promise<void> {
     }
 }
 
+function encodeModerationLevels(
+    moderationLevels: Record<string, number>,
+): string {
+    return JSON.stringify(
+        Object.entries(moderationLevels).map(([key, value]) => ({
+            name: key,
+            max_level: value,
+            strict_mode: false,
+        })),
+    );
+}
+
+const userAgent = 'polycentric-core-' + Version.SHA.substring(0, 8);
+
 export async function postEvents(
     server: string,
-    events: Array<Models.SignedEvent.SignedEvent>,
+    events: Models.SignedEvent.SignedEvent[],
 ): Promise<void> {
     const response = await fetch(server + '/events', {
         method: 'POST',
         headers: new Headers({
-            'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
         }),
         body: Protocol.Events.encode({
             events: events,
@@ -39,8 +54,8 @@ export async function postCensor(
         {
             method: 'POST',
             headers: new Headers({
-                'content-type': 'application/octet-stream',
                 authorization: authorization,
+                'x-polycentric-user-agent': userAgent,
             }),
             body: urlInfo,
         },
@@ -52,7 +67,7 @@ export async function postCensor(
 export async function getRanges(
     server: string,
     system: Models.PublicKey.PublicKey,
-): Promise<Protocol.RangesForSystem> {
+): Promise<Models.Ranges.RangesForSystem> {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
     );
@@ -62,7 +77,7 @@ export async function getRanges(
     const response = await fetch(server + path, {
         method: 'GET',
         headers: new Headers({
-            'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
         }),
     });
 
@@ -70,14 +85,22 @@ export async function getRanges(
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
-    return Protocol.RangesForSystem.decode(rawBody);
+    return Models.Ranges.rangesForSystemFromBuffer(rawBody);
 }
 
-export async function getEvents(
+export type GetEventsType = (
     server: string,
     system: Models.PublicKey.PublicKey,
-    ranges: Protocol.RangesForSystem,
-): Promise<Models.Events.Type> {
+    ranges: Models.Ranges.RangesForSystem,
+    moderationLevels?: Record<string, number>,
+) => Promise<Models.Events.Type>;
+
+export const getEvents: GetEventsType = async (
+    server: string,
+    system: Models.PublicKey.PublicKey,
+    ranges: Models.Ranges.RangesForSystem,
+    moderationLevels?: Record<string, number>,
+): Promise<Models.Events.Type> => {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
     );
@@ -86,12 +109,17 @@ export async function getEvents(
         Protocol.RangesForSystem.encode(ranges).finish(),
     );
 
-    const path = `/events?system=${systemQuery}&ranges=${rangesQuery}`;
+    let path = `/events?system=${systemQuery}&ranges=${rangesQuery}`;
+
+    if (moderationLevels !== undefined) {
+        const moderationLevelsQuery = encodeModerationLevels(moderationLevels);
+        path += `&moderation_filters=${moderationLevelsQuery}`;
+    }
 
     const response = await fetch(server + path, {
         method: 'GET',
         headers: new Headers({
-            'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
         }),
     });
 
@@ -100,14 +128,14 @@ export async function getEvents(
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
     return Models.Events.fromBuffer(rawBody);
-}
+};
 
 export async function getResolveClaim(
     server: string,
     trustRoot: Models.PublicKey.PublicKey,
     claimType: Models.ClaimType.ClaimType,
     matchAnyField: string,
-): Promise<Protocol.QueryClaimToSystemResponse> {
+): Promise<Models.QueryClaimToSystemResponse.ResponseType> {
     const query = Base64.encodeUrl(
         Protocol.QueryClaimToSystemRequest.encode({
             claimType: claimType,
@@ -121,7 +149,7 @@ export async function getResolveClaim(
     const response = await fetch(server + path, {
         method: 'GET',
         headers: new Headers({
-            'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
         }),
     });
 
@@ -129,14 +157,20 @@ export async function getResolveClaim(
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
-    return Protocol.QueryClaimToSystemResponse.decode(rawBody);
+    return Models.QueryClaimToSystemResponse.responseTypeFromBuffer(rawBody);
 }
 
-export async function getQueryLatest(
+export type GetQueryLatestType = (
     server: string,
     system: Models.PublicKey.PublicKey,
-    eventTypes: Array<Models.ContentType.ContentType>,
-): Promise<Models.Events.Type> {
+    eventTypes: Models.ContentType.ContentType[],
+) => Promise<Models.Events.Type>;
+
+export const getQueryLatest: GetQueryLatestType = async (
+    server: string,
+    system: Models.PublicKey.PublicKey,
+    eventTypes: Models.ContentType.ContentType[],
+): Promise<Models.Events.Type> => {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
     );
@@ -154,7 +188,7 @@ export async function getQueryLatest(
     const response = await fetch(server + path, {
         method: 'GET',
         headers: new Headers({
-            'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
         }),
     });
 
@@ -163,7 +197,7 @@ export async function getQueryLatest(
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
     return Models.Events.fromBuffer(rawBody);
-}
+};
 
 export async function getQueryIndex(
     server: string,
@@ -171,7 +205,7 @@ export async function getQueryIndex(
     contentType: Models.ContentType.ContentType,
     after?: Long,
     limit?: Long,
-): Promise<Protocol.QueryIndexResponse> {
+): Promise<Models.QueryIndexResponse.Type> {
     const systemQuery = Base64.encodeUrl(
         Protocol.PublicKey.encode(system).finish(),
     );
@@ -185,7 +219,7 @@ export async function getQueryIndex(
     const response = await fetch(server + path, {
         method: 'GET',
         headers: new Headers({
-            'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
         }),
     });
 
@@ -193,7 +227,7 @@ export async function getQueryIndex(
 
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
-    return Protocol.QueryIndexResponse.decode(rawBody);
+    return Models.QueryIndexResponse.fromBuffer(rawBody);
 }
 
 export async function getQueryReferences(
@@ -203,6 +237,8 @@ export async function getQueryReferences(
     requestEvents?: Protocol.QueryReferencesRequestEvents,
     countLwwElementReferences?: Protocol.QueryReferencesRequestCountLWWElementReferences[],
     countReferences?: Protocol.QueryReferencesRequestCountReferences[],
+    extraByteReferences?: Uint8Array[],
+    moderationLevels?: Record<string, number>,
 ): Promise<Protocol.QueryReferencesResponse> {
     const query: Protocol.QueryReferencesRequest = {
         reference: reference,
@@ -210,18 +246,25 @@ export async function getQueryReferences(
         requestEvents: requestEvents,
         countLwwElementReferences: countLwwElementReferences ?? [],
         countReferences: countReferences ?? [],
+        extraByteReferences: extraByteReferences ?? [],
     };
 
     const encodedQuery = Base64.encodeUrl(
         Protocol.QueryReferencesRequest.encode(query).finish(),
     );
 
-    const path = `/query_references?query=${encodedQuery}`;
+    let path = `/query_references?query=${encodedQuery}`;
+
+    if (moderationLevels !== undefined) {
+        path += `&moderation_filters=${encodeModerationLevels(
+            moderationLevels,
+        )}`;
+    }
 
     const response = await fetch(server + path, {
         method: 'GET',
         headers: new Headers({
-            'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
         }),
     });
 
@@ -232,11 +275,18 @@ export async function getQueryReferences(
     return Protocol.QueryReferencesResponse.decode(rawBody);
 }
 
+export enum SearchType {
+    Messages = 'messages',
+    Profiles = 'profiles',
+}
+
 export async function getSearch(
     server: string,
     searchQuery: string,
     limit?: number,
     cursor?: Uint8Array,
+    searchType?: SearchType,
+    moderationLevels?: Record<string, number>,
 ): Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type> {
     let path = `/search?search=${encodeURIComponent(searchQuery)}`;
 
@@ -248,10 +298,20 @@ export async function getSearch(
         path += `&limit=${limit.toString()}`;
     }
 
+    if (searchType !== undefined) {
+        path += `&search_type=${searchType}`;
+    }
+
+    if (moderationLevels !== undefined) {
+        path += `&moderation_filters=${encodeModerationLevels(
+            moderationLevels,
+        )}`;
+    }
+
     const response = await fetch(server + path, {
         method: 'GET',
         headers: new Headers({
-            'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
         }),
     });
 
@@ -260,6 +320,48 @@ export async function getSearch(
     const rawBody = new Uint8Array(await response.arrayBuffer());
 
     return Models.ResultEventsAndRelatedEventsAndCursor.fromBuffer(rawBody);
+}
+
+export type TopStringReferenceTimeRange = '12h' | '1d' | '7d' | '30d';
+
+export async function getTopStringReferences(
+    server: string,
+    options: {
+        query?: string;
+        timeRange?: TopStringReferenceTimeRange;
+        limit?: number;
+    },
+): Promise<Models.ResultTopStringReferences.Type> {
+    let path = '/top_string_references?';
+
+    const params = new URLSearchParams();
+
+    if (options.query !== undefined) {
+        params.append('query', options.query);
+    }
+
+    if (options.limit !== undefined) {
+        params.append('limit', options.limit.toString());
+    }
+
+    if (options.timeRange !== undefined) {
+        params.append('time_range', options.timeRange);
+    }
+
+    path += params.toString();
+
+    const response = await fetch(server + path, {
+        method: 'GET',
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
+    });
+
+    await checkResponse('getTopStringReferences', response);
+
+    const rawBody = new Uint8Array(await response.arrayBuffer());
+
+    return Models.ResultTopStringReferences.fromBuffer(rawBody);
 }
 
 export async function getHead(
@@ -275,7 +377,7 @@ export async function getHead(
     const response = await fetch(server + path, {
         method: 'GET',
         headers: new Headers({
-            'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
         }),
     });
 
@@ -290,6 +392,7 @@ export async function getExplore(
     server: string,
     limit?: number,
     cursor?: Uint8Array,
+    moderationLevels?: Record<string, number>,
 ): Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type> {
     let path = '/explore?';
 
@@ -303,12 +406,19 @@ export async function getExplore(
         params.append('limit', limit.toString());
     }
 
+    if (moderationLevels !== undefined) {
+        params.append(
+            'moderation_filters',
+            encodeModerationLevels(moderationLevels),
+        );
+    }
+
     path += params.toString();
 
     const response = await fetch(server + path, {
         method: 'GET',
         headers: new Headers({
-            'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
         }),
     });
 
@@ -323,7 +433,7 @@ export async function getFindClaimAndVouch(
     server: string,
     vouching_system: Models.PublicKey.PublicKey,
     claiming_system: Models.PublicKey.PublicKey,
-    fields: Array<Protocol.ClaimFieldEntry>,
+    fields: Protocol.ClaimFieldEntry[],
     claimType: Models.ClaimType.ClaimType,
 ): Promise<Models.FindClaimAndVouchResponse.Type | undefined> {
     const query: Protocol.FindClaimAndVouchRequest = {
@@ -342,7 +452,7 @@ export async function getFindClaimAndVouch(
     const response = await fetch(server + path, {
         method: 'GET',
         headers: new Headers({
-            'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
         }),
     });
 
@@ -363,7 +473,7 @@ export async function getChallenge(
     const response = await fetch(server + '/challenge', {
         method: 'GET',
         headers: new Headers({
-            'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
         }),
     });
 
@@ -380,11 +490,46 @@ export async function postPurge(
 ): Promise<void> {
     const response = await fetch(server + '/purge', {
         method: 'POST',
-        headers: new Headers({
-            'content-type': 'application/octet-stream',
-        }),
         body: Protocol.HarborValidateRequest.encode(solvedChallenge).finish(),
+        headers: new Headers({
+            'x-polycentric-user-agent': userAgent,
+        }),
     });
 
     await checkResponse('postPurge', response);
+}
+
+export async function postClaimHandle(
+    server: string,
+    claimRequest: Protocol.ClaimHandleRequest,
+): Promise<void> {
+    const response = await fetch(server + '/claim_handle', {
+        method: 'POST',
+        headers: new Headers({
+            'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
+        }),
+        body: Protocol.ClaimHandleRequest.encode(claimRequest).finish(),
+    });
+
+    await checkResponse('postClaimHandle', response);
+}
+
+export async function getResolveHandle(
+    server: string,
+    handle: string,
+): Promise<Models.PublicKey.PublicKey> {
+    const response = await fetch(server + `/resolve_handle?handle=${handle}`, {
+        method: 'GET',
+        headers: new Headers({
+            'content-type': 'application/octet-stream',
+            'x-polycentric-user-agent': userAgent,
+        }),
+    });
+
+    await checkResponse('getResolveHandle', response);
+
+    const rawBody = new Uint8Array(await response.arrayBuffer());
+
+    return Models.PublicKey.fromProto(Protocol.PublicKey.decode(rawBody));
 }

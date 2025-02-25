@@ -1,7 +1,7 @@
-import * as React from 'react';
 import * as Base64 from '@borderless/base64';
-import * as ReactRouterDOM from 'react-router-dom';
 import * as Core from '@polycentric/polycentric-core';
+import * as React from 'react';
+import * as ReactRouterDOM from 'react-router-dom';
 import * as Profile from './Profile';
 
 type MainPageProps = {
@@ -16,7 +16,9 @@ const decodeSystemQuery = (raw: string) => {
 };
 
 export function MainPage(props: MainPageProps) {
-    const { system: systemQuery } = ReactRouterDOM.useParams();
+    const { system: systemQuery } = ReactRouterDOM.useParams<{
+        system: string;
+    }>();
 
     const [system, setSystem] = React.useState<
         Core.Models.URLInfoSystemLink.URLInfoSystemLink | undefined
@@ -66,17 +68,14 @@ type AppProps = {
 
 export function App(props: AppProps) {
     const Routes = () => (
-        <ReactRouterDOM.Routes>
-            <ReactRouterDOM.Route
-                path="/:system"
-                element={
-                    <MainPage
-                        processHandle={props.processHandle}
-                        queryManager={props.queryManager}
-                    />
-                }
-            />
-        </ReactRouterDOM.Routes>
+        <ReactRouterDOM.Switch>
+            <ReactRouterDOM.Route path="/:system">
+                <MainPage
+                    processHandle={props.processHandle}
+                    queryManager={props.queryManager}
+                />
+            </ReactRouterDOM.Route>
+        </ReactRouterDOM.Switch>
     );
 
     return (

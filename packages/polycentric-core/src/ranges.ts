@@ -5,15 +5,15 @@ export interface IRange {
     high: Long;
 }
 
-export function toString(ranges: ReadonlyArray<IRange>): string {
+export function toString(ranges: readonly IRange[]): string {
     const out = ranges
-        .map((r) => r.low.toString() + ',' + r.high.toString())
+        .map((r) => r.low.toString() + '-' + r.high.toString())
         .join(',');
     return out;
 }
 
 export function contains(
-    ranges: ReadonlyArray<IRange>,
+    ranges: readonly IRange[],
     item: Readonly<Long>,
 ): boolean {
     for (const range of ranges) {
@@ -28,14 +28,39 @@ export function contains(
     return false;
 }
 
-export function insert(ranges: Array<IRange>, item: Readonly<Long>): void {
+export function validateInvariants(ranges: readonly IRange[]): boolean {
+    for (let i = 0; i < ranges.length; i++) {
+        if (ranges[i].low.greaterThan(ranges[i].high)) {
+            return false;
+        }
+
+        if (i + 1 < ranges.length) {
+            if (ranges[i].high.greaterThanOrEqual(ranges[i + 1].low)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+export function deepCopy(ranges: readonly IRange[]): IRange[] {
+    return ranges.map((item) => {
+        return {
+            low: new Long(item.low.low, item.low.high, item.low.unsigned),
+            high: new Long(item.high.low, item.high.high, item.high.unsigned),
+        };
+    });
+}
+
+export function insert(ranges: IRange[], item: Readonly<Long>): boolean {
     for (let i = 0; i < ranges.length; i++) {
         // within existing range
         if (
             item.greaterThanOrEqual(ranges[i].low) &&
             item.lessThanOrEqual(ranges[i].high)
         ) {
-            return;
+            return false;
         }
 
         // merging range
@@ -46,46 +71,45 @@ export function insert(ranges: Array<IRange>, item: Readonly<Long>): void {
         ) {
             ranges[i].high = ranges[i + 1].high;
             ranges.splice(i + 1, 1);
-            return;
+            return true;
         }
 
         // low adjacent
         if (item.equals(ranges[i].low.subtract(Long.UONE))) {
             ranges[i].low = item;
-            return;
+            return true;
         }
 
         // high adjacent
         if (item.equals(ranges[i].high.add(Long.UONE))) {
             ranges[i].high = item;
-            return;
+            return true;
         }
 
-        // between ranges
-        if (
-            item.greaterThan(ranges[i].high) &&
-            i < ranges.length - 1 &&
-            item.lessThan(ranges[i + 1].low)
-        ) {
-            ranges.splice(i + 1, 0, {
+        // between ranges and non adjacent
+        if (item.lessThan(ranges[i].low)) {
+            ranges.splice(i, 0, {
                 low: item,
                 high: item,
             });
-            return;
+            return true;
         }
     }
 
+    // greater than everything
     ranges.push({
         low: item,
         high: item,
     });
+
+    return true;
 }
 
 export function subtractRange(
-    left: ReadonlyArray<IRange>,
-    right: ReadonlyArray<IRange>,
-): Array<IRange> {
-    const result: Array<IRange> = [];
+    left: readonly IRange[],
+    right: readonly IRange[],
+): IRange[] {
+    const result: IRange[] = [];
 
     for (const item of left) {
         result.push({
@@ -137,11 +161,11 @@ export function subtractRange(
 }
 
 export function takeRangesMaxItems(
-    ranges: ReadonlyArray<IRange>,
+    ranges: readonly IRange[],
     limit: Readonly<Long>,
-): Array<IRange> {
+): IRange[] {
     let sum = Long.UZERO;
-    const result: Array<IRange> = [];
+    const result: IRange[] = [];
 
     if (limit.equals(Long.UZERO)) {
         return [];
@@ -163,6 +187,22 @@ export function takeRangesMaxItems(
             });
 
             break;
+        }
+    }
+
+    return result;
+}
+
+export function toArray(ranges: readonly IRange[]): Long[] {
+    const result = [];
+
+    for (const range of ranges) {
+        for (
+            let i = range.low;
+            i.lessThanOrEqual(range.high);
+            i = i.add(Long.UONE)
+        ) {
+            result.push(i);
         }
     }
 

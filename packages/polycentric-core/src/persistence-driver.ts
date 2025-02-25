@@ -1,5 +1,6 @@
 import * as AbstractLevel from 'abstract-level';
 import * as MemoryLevel from 'memory-level';
+import * as LevelTranscoder from 'level-transcoder';
 
 export type BinaryAbstractLevel = AbstractLevel.AbstractLevel<
     Uint8Array,
@@ -27,6 +28,26 @@ export type BinaryDelLevel = AbstractLevel.AbstractBatchDelOperation<
 
 export type BinaryUpdateLevel = BinaryPutLevel | BinaryDelLevel;
 
+export function deepCopyTranscoder(): LevelTranscoder.IEncoding<
+    Uint8Array,
+    Uint8Array,
+    Uint8Array
+> {
+    return {
+        name: 'deepCopyTranscoder',
+        format: 'buffer',
+        encode: (input: Uint8Array): Uint8Array => {
+            const outputBuffer = new ArrayBuffer(input.length);
+            const output = new Uint8Array(outputBuffer);
+            output.set(input);
+            return output;
+        },
+        decode: (buffer: Uint8Array): Uint8Array => {
+            return buffer;
+        },
+    };
+}
+
 export async function tryLoadKey(
     table: BinaryAbstractLevel,
     key: Uint8Array,
@@ -38,10 +59,10 @@ export async function tryLoadKey(
     }
 }
 
-export type StorageEstimate = {
+export interface StorageEstimate {
     bytesAvailable: number | undefined;
     bytesUsed: number | undefined;
-};
+}
 
 export interface IPersistenceDriver {
     getImplementationName: () => string;
@@ -60,13 +81,15 @@ export function createPersistenceDriverMemory(): IPersistenceDriver {
         return 'Memory';
     };
 
-    const openStore = async (path: string) => {
+    /* eslint @typescript-eslint/require-await: 0 */
+    const openStore = async () => {
         return new MemoryLevel.MemoryLevel<Uint8Array, Uint8Array>({
-            keyEncoding: 'buffer',
-            valueEncoding: 'buffer',
+            keyEncoding: deepCopyTranscoder(),
+            valueEncoding: deepCopyTranscoder(),
         }) as BinaryAbstractLevel;
     };
 
+    /* eslint @typescript-eslint/require-await: 0 */
     const estimateStorage = async () => {
         return {
             bytesAvailable: undefined,
@@ -74,11 +97,13 @@ export function createPersistenceDriverMemory(): IPersistenceDriver {
         };
     };
 
+    /* eslint @typescript-eslint/require-await: 0 */
     const persisted = async () => {
         return false;
     };
 
-    const destroyStore = async (path: string) => {};
+    /* eslint @typescript-eslint/no-empty-function: 0 */
+    const destroyStore = async () => {};
 
     return {
         getImplementationName: getImplementationName,

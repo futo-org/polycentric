@@ -1,17 +1,38 @@
 import * as Base64 from '@borderless/base64';
 
-import * as Util from './util';
 import * as Models from './models';
 import * as PersistenceDriver from './persistence-driver';
 import * as Protocol from './protocol';
+import * as Util from './util';
 
 const ACTIVE_STORE_KEY = Util.encodeText('ACTIVE_STORE');
 
-export type StoreInfo = {
+export interface StoreInfo {
     system: Models.PublicKey.PublicKey;
     version: number;
     ready: boolean;
-};
+}
+
+export function storeInfoEqual(
+    a: Readonly<StoreInfo>,
+    b: Readonly<StoreInfo>,
+): boolean {
+    if (a.version !== b.version) {
+        return false;
+    }
+
+    if (a.ready !== b.ready) {
+        return false;
+    }
+
+    return Models.PublicKey.equal(a.system, b.system);
+}
+
+interface RawStoreInfo {
+    system: string;
+    version: number;
+    ready: boolean;
+}
 
 export function encodeStoreInfo(storeInfo: StoreInfo): Uint8Array {
     const intermediate = {
@@ -28,7 +49,7 @@ export function encodeStoreInfo(storeInfo: StoreInfo): Uint8Array {
 export function decodeStoreInfo(buffer: Uint8Array): StoreInfo {
     const text = Util.decodeText(buffer);
 
-    const parsed = JSON.parse(text);
+    const parsed: RawStoreInfo = JSON.parse(text) as RawStoreInfo;
 
     return {
         system: Models.PublicKey.fromProto(
@@ -50,7 +71,7 @@ export interface IMetaStore {
         version: number,
     ) => Promise<void>;
 
-    listStores: () => Promise<Array<StoreInfo>>;
+    listStores: () => Promise<StoreInfo[]>;
 
     setStoreReady: (
         system: Models.PublicKey.PublicKey,
@@ -83,11 +104,11 @@ function makeStorePath(
 export async function createMetaStore(
     persistenceDriver: PersistenceDriver.IPersistenceDriver,
 ): Promise<IMetaStore> {
-    const metaStore = await persistenceDriver.openStore('meta');
+    const metaStore = await persistenceDriver.openStore('metav2');
 
     const metaStoreStores = metaStore.sublevel('stores', {
-        keyEncoding: 'buffer',
-        valueEncoding: 'buffer',
+        keyEncoding: metaStore.keyEncoding(),
+        valueEncoding: metaStore.valueEncoding(),
     }) as PersistenceDriver.BinaryAbstractLevel;
 
     const openStore = async (
@@ -109,7 +130,7 @@ export async function createMetaStore(
                 ready: false,
             };
 
-            metaStoreStores.put(pathBinary, encodeStoreInfo(storeInfo));
+            await metaStoreStores.put(pathBinary, encodeStoreInfo(storeInfo));
         }
 
         const store = await persistenceDriver.openStore(pathString);
@@ -147,7 +168,7 @@ export async function createMetaStore(
 
         const storeInfo = decodeStoreInfo(rawStoreInfo);
 
-        if (storeInfo.ready === true) {
+        if (storeInfo.ready) {
             throw new Error('store was already ready');
         }
 
@@ -198,13 +219,13 @@ export async function createMetaStore(
         system: Models.PublicKey.PublicKey,
         version: number,
     ) => {
+        const activeStore = await getActiveStore();
+
         const pathString = makeStorePath(system, version);
         const pathBinary = Util.encodeText(pathString);
 
         await metaStoreStores.del(pathBinary);
         await persistenceDriver.destroyStore(pathString);
-
-        const activeStore = await getActiveStore();
 
         if (activeStore === undefined) {
             return;

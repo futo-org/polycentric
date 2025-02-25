@@ -1,68 +1,43 @@
 import * as Base64 from '@borderless/base64';
-
+import AsyncLock from 'async-lock';
 import Long from 'long';
+import * as RXJS from 'rxjs';
+
 import * as MetaStore from './meta-store';
 import * as Models from './models';
 import * as PersistenceDriver from './persistence-driver';
 import * as Protocol from './protocol';
+import * as Queries from './queries';
 import * as Ranges from './ranges';
 import * as Store from './store';
 import * as Synchronization from './synchronization';
 import * as Util from './util';
 
 export class SystemState {
-    private _servers: Array<string>;
-    private _authorities: Array<string>;
-    private _processes: Array<Models.Process.Process>;
-    private _username: string;
-    private _description: string;
-    private _store: string;
-    private _avatar: Protocol.ImageBundle | undefined;
+    private _servers: string[];
+    private _authorities: string[];
+    private _processes: Models.Process.Process[];
 
     public constructor(
-        servers: Array<string>,
-        authorities: Array<string>,
-        processes: Array<Models.Process.Process>,
-        username: string,
-        description: string,
-        store: string,
-        avatar: Protocol.ImageBundle | undefined,
+        servers: string[],
+        authorities: string[],
+        processes: Models.Process.Process[],
     ) {
         this._servers = servers;
         this._authorities = authorities;
         this._processes = processes;
-        this._username = username;
-        this._description = description;
-        this._store = store;
-        this._avatar = avatar;
     }
 
-    public servers(): Array<string> {
+    public servers(): string[] {
         return this._servers;
     }
 
-    public authorities(): Array<string> {
+    public authorities(): string[] {
         return this._authorities;
     }
 
-    public processes(): Array<Models.Process.Process> {
+    public processes(): Models.Process.Process[] {
         return this._processes;
-    }
-
-    public username(): string {
-        return this._username;
-    }
-
-    public description(): string {
-        return this._description;
-    }
-
-    public store(): string {
-        return this._store;
-    }
-
-    public avatar(): Protocol.ImageBundle | undefined {
-        return this._avatar;
     }
 }
 
@@ -75,59 +50,44 @@ function protoSystemStateToSystemState(
         processes.push(Models.Process.fromProto(process));
     }
 
-    let username = '';
-    let description = '';
-    let store = '';
-    let avatar = undefined;
-
-    for (const item of proto.crdtItems) {
-        if (item.contentType.equals(Models.ContentType.ContentTypeUsername)) {
-            username = Util.decodeText(item.value);
-        } else if (
-            item.contentType.equals(Models.ContentType.ContentTypeDescription)
-        ) {
-            description = Util.decodeText(item.value);
-        } else if (
-            item.contentType.equals(Models.ContentType.ContentTypeStore)
-        ) {
-            store = Util.decodeText(item.value);
-        } else if (
-            item.contentType.equals(Models.ContentType.ContentTypeAvatar)
-        ) {
-            avatar = Protocol.ImageBundle.decode(item.value);
-        }
-    }
-
-    return new SystemState(
-        [],
-        [],
-        processes,
-        username,
-        description,
-        store,
-        avatar,
-    );
+    return new SystemState([], [], processes);
 }
 
 export class ProcessHandle {
-    private _processSecret: Models.ProcessSecret.ProcessSecret;
-    private _store: Store.Store;
-    private _system: Models.PublicKey.PublicKey;
+    private readonly _processSecret: Models.ProcessSecret.ProcessSecret;
+    private readonly _store: Store.Store;
+    private readonly _system: Models.PublicKey.PublicKey;
     private _listener:
         | ((signedEvent: Models.SignedEvent.SignedEvent) => void)
         | undefined;
-    private _addressHints: Map<Models.PublicKey.PublicKeyString, Set<string>>;
+    private readonly _addressHints: Map<
+        Models.PublicKey.PublicKeyString,
+        Set<string>
+    >;
+    private readonly _ingestLock: AsyncLock;
+    private readonly _eventAcks = new Map<string, Set<string>>();
+    private readonly _eventAckSubscriptions = new Map<
+        string,
+        Set<(serverId: string) => void>
+    >();
+
+    public readonly queryManager: Queries.QueryManager.QueryManager;
+    public readonly synchronizer: Synchronization.Synchronizer;
 
     private constructor(
         store: Store.Store,
         processSecret: Models.ProcessSecret.ProcessSecret,
         system: Models.PublicKey.PublicKey,
     ) {
+        store.system = system;
         this._store = store;
         this._processSecret = processSecret;
         this._system = system;
         this._listener = undefined;
         this._addressHints = new Map();
+        this._ingestLock = new AsyncLock();
+        this.queryManager = new Queries.QueryManager.QueryManager(this);
+        this.synchronizer = new Synchronization.Synchronizer(this);
     }
 
     public addAddressHint(
@@ -181,14 +141,23 @@ export class ProcessHandle {
         this._listener = listener;
     }
 
+    private async loadEventAcks(): Promise<void> {
+        const acks = await this._store.getEventAcks();
+        for (const [eventKey, servers] of Object.entries(acks)) {
+            this._eventAcks.set(eventKey, new Set(servers));
+        }
+    }
+
     public static async load(store: Store.Store): Promise<ProcessHandle> {
         const processSecret = await store.getProcessSecret();
 
-        return new ProcessHandle(
+        const handle = new ProcessHandle(
             store,
             processSecret,
             await Models.PrivateKey.derivePublicKey(processSecret.system),
         );
+        await handle.loadEventAcks();
+        return handle;
     }
 
     public async post(
@@ -292,6 +261,15 @@ export class ProcessHandle {
         );
     }
 
+    public async setBanner(
+        banner: Protocol.ImageBundle,
+    ): Promise<Models.Pointer.Pointer> {
+        return await this.setCRDTItem(
+            Models.ContentType.ContentTypeBanner,
+            Protocol.ImageBundle.encode(banner).finish(),
+        );
+    }
+
     public async follow(
         system: Models.PublicKey.PublicKey,
     ): Promise<Models.Pointer.Pointer> {
@@ -307,6 +285,26 @@ export class ProcessHandle {
     ): Promise<Models.Pointer.Pointer> {
         return await this.setCRDTElementSetItem(
             Models.ContentType.ContentTypeFollow,
+            Protocol.PublicKey.encode(system).finish(),
+            Protocol.LWWElementSet_Operation.REMOVE,
+        );
+    }
+
+    public async block(
+        system: Models.PublicKey.PublicKey,
+    ): Promise<Models.Pointer.Pointer> {
+        return await this.setCRDTElementSetItem(
+            Models.ContentType.ContentTypeBlock,
+            Protocol.PublicKey.encode(system).finish(),
+            Protocol.LWWElementSet_Operation.ADD,
+        );
+    }
+
+    public async unblock(
+        system: Models.PublicKey.PublicKey,
+    ): Promise<Models.Pointer.Pointer> {
+        return await this.setCRDTElementSetItem(
+            Models.ContentType.ContentTypeBlock,
             Protocol.PublicKey.encode(system).finish(),
             Protocol.LWWElementSet_Operation.REMOVE,
         );
@@ -346,6 +344,22 @@ export class ProcessHandle {
         );
     }
 
+    public async joinTopic(topic: string): Promise<Models.Pointer.Pointer> {
+        return await this.setCRDTElementSetItem(
+            Models.ContentType.ContentTypeJoinTopic,
+            Util.encodeText(topic),
+            Protocol.LWWElementSet_Operation.ADD,
+        );
+    }
+
+    public async leaveTopic(topic: string): Promise<Models.Pointer.Pointer> {
+        return await this.setCRDTElementSetItem(
+            Models.ContentType.ContentTypeJoinTopic,
+            Util.encodeText(topic),
+            Protocol.LWWElementSet_Operation.REMOVE,
+        );
+    }
+
     public async vouch(
         pointer: Models.Pointer.Pointer,
     ): Promise<Models.Pointer.Pointer> {
@@ -355,6 +369,18 @@ export class ProcessHandle {
             undefined,
             undefined,
             [Models.pointerToReference(pointer)],
+        );
+    }
+
+    public async vouchByReference(
+        reference: Protocol.Reference,
+    ): Promise<Models.Pointer.Pointer> {
+        return await this.publish(
+            Models.ContentType.ContentTypeVouch,
+            new Uint8Array(),
+            undefined,
+            undefined,
+            [reference],
         );
     }
 
@@ -374,7 +400,7 @@ export class ProcessHandle {
         process: Models.Process.Process,
         logicalClock: Long,
     ): Promise<Models.Pointer.Pointer | undefined> {
-        const signedEvent = await this._store.getSignedEvent(
+        const signedEvent = await this._store.indexEvents.getSignedEvent(
             this._system,
             process,
             logicalClock,
@@ -401,10 +427,8 @@ export class ProcessHandle {
         );
     }
 
-    public async publishBlob(
-        content: Uint8Array,
-    ): Promise<Array<Ranges.IRange>> {
-        const ranges: Array<Ranges.IRange> = [];
+    public async publishBlob(content: Uint8Array): Promise<Ranges.IRange[]> {
+        const ranges: Ranges.IRange[] = [];
 
         const maxBytes = 1024 * 512;
 
@@ -426,14 +450,15 @@ export class ProcessHandle {
     public async loadSystemState(
         system: Models.PublicKey.PublicKey,
     ): Promise<SystemState> {
-        const protoSystemState = await this._store.getSystemState(system);
+        const protoSystemState =
+            await this._store.indexSystemStates.getSystemState(system);
 
         const systemState = protoSystemStateToSystemState(protoSystemState);
 
         const loadCRDTElementSetItems = async (
             contentType: Models.ContentType.ContentType,
         ) => {
-            return await this._store.crdtElementSetIndex.query(
+            return await this._store.indexCRDTElementSet.query(
                 system,
                 contentType,
                 undefined,
@@ -473,7 +498,7 @@ export class ProcessHandle {
                 }
             }
 
-            if (found === false) {
+            if (!found) {
                 systemState.servers().push(address1);
             }
         }
@@ -481,151 +506,423 @@ export class ProcessHandle {
         return systemState;
     }
 
+    private async publishComputeVectorClock(): Promise<Protocol.VectorClock> {
+        const head = await RXJS.firstValueFrom(
+            Queries.QueryHead.queryHeadObservable(
+                this.queryManager.queryHead,
+                this._system,
+            ).pipe(
+                RXJS.switchMap((head) => {
+                    if (head.attemptedSources.has('disk')) {
+                        return RXJS.of(head);
+                    } else {
+                        return RXJS.NEVER;
+                    }
+                }),
+            ),
+        );
+
+        const vectorClock: Protocol.VectorClock = {
+            logicalClocks: [],
+        };
+
+        const systemProcessesSignedEvent = head.processLists.get(
+            Models.Process.toString(this._processSecret.process),
+        );
+
+        if (systemProcessesSignedEvent === undefined) {
+            return vectorClock;
+        }
+
+        const systemProcessesEvent = Models.Event.fromBuffer(
+            systemProcessesSignedEvent.event,
+        );
+
+        const systemProcesses = Models.SystemProcesses.fromBuffer(
+            systemProcessesEvent.content,
+        );
+
+        for (const process of systemProcesses.processes) {
+            const otherHeadSignedEvent = head.head.get(
+                Models.Process.toString(process),
+            );
+
+            if (otherHeadSignedEvent === undefined) {
+                vectorClock.logicalClocks.push(Long.UZERO);
+                continue;
+            }
+
+            const otherHeadEvent = Models.Event.fromBuffer(
+                otherHeadSignedEvent.event,
+            );
+
+            vectorClock.logicalClocks.push(otherHeadEvent.logicalClock);
+        }
+
+        return vectorClock;
+    }
+
     async publish(
         contentType: Models.ContentType.ContentType,
         content: Uint8Array,
         lwwElementSet: Protocol.LWWElementSet | undefined,
         lwwElement: Protocol.LWWElement | undefined,
-        references: Array<Protocol.Reference>,
+        references: Protocol.Reference[],
     ): Promise<Models.Pointer.Pointer> {
-        const processState = await this._store.getProcessState(
-            this._system,
-            this._processSecret.process,
+        return await this._ingestLock.acquire(
+            Models.PublicKey.toString(this._system),
+            async () => {
+                const processState =
+                    await this._store.indexProcessStates.getProcessState(
+                        this._system,
+                        this._processSecret.process,
+                    );
+
+                const event = Models.Event.fromProto({
+                    system: this._system,
+                    process: this._processSecret.process,
+                    logicalClock: processState.logicalClock
+                        .add(Long.UONE)
+                        .toUnsigned(),
+                    contentType: contentType,
+                    content: content,
+                    vectorClock: await this.publishComputeVectorClock(),
+                    lwwElementSet: lwwElementSet,
+                    lwwElement: lwwElement,
+                    references: references,
+                    indices: processState.indices,
+                    unixMilliseconds: Long.fromNumber(Date.now(), true),
+                });
+
+                const eventBuffer = Protocol.Event.encode(event).finish();
+
+                const signedEvent = Models.SignedEvent.fromProto({
+                    signature: await Models.PrivateKey.sign(
+                        this._processSecret.system,
+                        eventBuffer,
+                    ),
+                    event: eventBuffer,
+                    moderationTags: [],
+                });
+
+                return await this.ingestWithoutLock(signedEvent);
+            },
         );
-
-        if (processState.indices === undefined) {
-            throw new Error('expected indices');
-        }
-
-        const event = Models.Event.fromProto({
-            system: this._system,
-            process: this._processSecret.process,
-            logicalClock: processState.logicalClock.add(Long.UONE).toUnsigned(),
-            contentType: contentType,
-            content: content,
-            vectorClock: { logicalClocks: [] },
-            lwwElementSet: lwwElementSet,
-            lwwElement: lwwElement,
-            references: references,
-            indices: processState.indices,
-            unixMilliseconds: Long.fromNumber(Date.now(), true),
-        });
-
-        const eventBuffer = Protocol.Event.encode(event).finish();
-
-        const signedEvent = Models.SignedEvent.fromProto({
-            signature: await Models.PrivateKey.sign(
-                this._processSecret.system,
-                eventBuffer,
-            ),
-            event: eventBuffer,
-        });
-
-        return await this.ingest(signedEvent);
     }
 
     public async ingest(
         signedEvent: Models.SignedEvent.SignedEvent,
+        skipUpdateQueries = false,
     ): Promise<Models.Pointer.Pointer> {
-        const event = Models.Event.fromProto(
-            Protocol.Event.decode(signedEvent.event),
-        );
+        const event = Models.Event.fromBuffer(signedEvent.event);
 
-        const systemState = await this._store.getSystemState(event.system);
-
-        const processState = await this._store.getProcessState(
-            event.system,
-            event.process,
-        );
-
-        const actions = [];
-
-        if (event.contentType.equals(Models.ContentType.ContentTypeDelete)) {
-            const deleteProto = Protocol.Delete.decode(event.content);
-
-            if (!deleteProto.process) {
-                throw new Error('delete expected process');
-            }
-
-            const deleteProcess = Models.Process.fromProto(deleteProto.process);
-
-            let deleteProcessState = processState;
-
-            if (!Models.Process.equal(event.process, deleteProcess)) {
-                deleteProcessState = await this._store.getProcessState(
-                    event.system,
-                    deleteProcess,
+        const result = await this._ingestLock.acquire(
+            Models.PublicKey.toString(event.system),
+            async () => {
+                return await this.ingestWithoutLock(
+                    signedEvent,
+                    skipUpdateQueries,
                 );
-            }
-
-            Ranges.insert(deleteProcessState.ranges, deleteProto.logicalClock);
-
-            actions.push(
-                this._store.putTombstone(
-                    event.system,
-                    deleteProcess,
-                    deleteProto.logicalClock,
-                    Models.signedEventToPointer(signedEvent),
-                ),
-            );
-        }
-
-        actions.push(
-            this._store.putIndexSystemContentTypeUnixMillisecondsProcess(event),
+            },
         );
 
-        updateSystemState(systemState, event);
-        updateProcessState(processState, event);
+        await this.updateHeadIfNeeded(signedEvent);
 
-        actions.push(this._store.putSystemState(event.system, systemState));
+        return result;
+    }
 
-        actions.push(
-            this._store.putProcessState(
-                event.system,
-                event.process,
-                processState,
-            ),
-        );
-
-        actions.push(
-            this._store.putEvent(
-                event.system,
-                event.process,
-                event.logicalClock,
-                signedEvent,
-            ),
-        );
+    private async updateHeadIfNeeded(
+        signedEvent: Models.SignedEvent.SignedEvent,
+    ): Promise<void> {
+        const event = Models.Event.fromBuffer(signedEvent.event);
 
         if (
-            event.contentType.equals(Models.ContentType.ContentTypeOpinion) &&
-            event.references.length === 1 &&
-            event.lwwElement
+            !Models.PublicKey.equal(event.system, this.system()) ||
+            Models.Process.equal(event.process, this.process())
         ) {
-            const action = await this._store.opinionIndex.put(
+            return;
+        }
+
+        const head = await RXJS.firstValueFrom(
+            Queries.QueryHead.queryHeadObservable(
+                this.queryManager.queryHead,
                 event.system,
-                event.references[0],
-                event.lwwElement,
+            ).pipe(
+                RXJS.switchMap((head) => {
+                    if (head.attemptedSources.has('disk')) {
+                        return RXJS.of(head);
+                    } else {
+                        return RXJS.NEVER;
+                    }
+                }),
+            ),
+        );
+
+        const locallyKnownSystemProcesses = new Map<
+            Models.Process.ProcessString,
+            Models.Process.Process
+        >();
+
+        const allSystemProcesses = new Map<
+            Models.Process.ProcessString,
+            Models.Process.Process
+        >();
+
+        for (const systemProcessesSignedEvent of head.processLists.values()) {
+            const systemProcessesEvent = Models.Event.fromBuffer(
+                systemProcessesSignedEvent.event,
             );
 
-            if (action) {
-                actions.push(action);
+            const systemProcesses = Models.SystemProcesses.fromBuffer(
+                systemProcessesEvent.content,
+            );
+
+            for (const process of systemProcesses.processes) {
+                allSystemProcesses.set(
+                    Models.Process.toString(process),
+                    process,
+                );
             }
         }
 
-        actions.push(
-            ...(await this._store.crdtElementSetIndex.ingest(
-                signedEvent,
-                event,
-            )),
+        for (const headSignedEvent of head.head.values()) {
+            const headEvent = Models.Event.fromBuffer(headSignedEvent.event);
+
+            allSystemProcesses.set(
+                Models.Process.toString(headEvent.process),
+                headEvent.process,
+            );
+        }
+
+        allSystemProcesses.delete(Models.Process.toString(this.process()));
+
+        {
+            const systemProcessesSignedEvent = head.processLists.get(
+                Models.Process.toString(this.process()),
+            );
+
+            if (systemProcessesSignedEvent) {
+                const systemProcessesEvent = Models.Event.fromBuffer(
+                    systemProcessesSignedEvent.event,
+                );
+
+                const systemProcesses = Models.SystemProcesses.fromBuffer(
+                    systemProcessesEvent.content,
+                );
+
+                for (const process of systemProcesses.processes) {
+                    locallyKnownSystemProcesses.set(
+                        Models.Process.toString(process),
+                        process,
+                    );
+                }
+            }
+        }
+
+        if (
+            allSystemProcesses.size === 0 ||
+            Util.areMapsEqual(
+                locallyKnownSystemProcesses,
+                allSystemProcesses,
+                Models.Process.equal,
+            )
+        ) {
+            return;
+        }
+
+        const updatedSystemProcesses = Models.SystemProcesses.fromProto({
+            processes: Array.from(allSystemProcesses.values()),
+        });
+
+        await this.publish(
+            Models.ContentType.ContentTypeSystemProcesses,
+            Protocol.SystemProcesses.encode(updatedSystemProcesses).finish(),
+            undefined,
+            undefined,
+            [],
         );
+    }
 
-        await this._store.level.batch(actions);
+    private getEventKey(event: Protocol.Event): string {
+        if (!event.system) {
+            throw new Error('Event system is undefined');
+        }
+        if (!event.process) {
+            throw new Error('Event process is undefined');
+        }
+        return `${Models.PublicKey.toString(
+            Models.PublicKey.fromProto(event.system),
+        )}_${Models.Process.toString(
+            Models.Process.fromProto(event.process),
+        )}_${event.logicalClock.toString()}`;
+    }
 
-        if (this._listener !== undefined) {
+    public getEventAckCount(event: Protocol.Event): number {
+        const eventKey = this.getEventKey(event);
+        return this._eventAcks.get(eventKey)?.size ?? 0;
+    }
+
+    public getEventAcks(event: Protocol.Event): Set<string> {
+        const eventKey = this.getEventKey(event);
+        return new Set(this._eventAcks.get(eventKey) ?? []);
+    }
+
+    public getEventAckServers(event: Protocol.Event): string[] {
+        const eventKey = this.getEventKey(event);
+        const acks = this._eventAcks.get(eventKey);
+        return acks ? Array.from(acks) : [];
+    }
+
+    public subscribeToEventAcks(
+        event: Protocol.Event,
+        callback: (serverId: string) => void,
+    ): () => void {
+        const eventKey = this.getEventKey(event);
+
+        let subscribers = this._eventAckSubscriptions.get(eventKey);
+        if (!subscribers) {
+            subscribers = new Set();
+            this._eventAckSubscriptions.set(eventKey, subscribers);
+        }
+
+        subscribers.add(callback);
+
+        return () => {
+            const subs = this._eventAckSubscriptions.get(eventKey);
+            if (subs) {
+                subs.delete(callback);
+            }
+        };
+    }
+
+    private async ingestWithoutLock(
+        signedEvent: Models.SignedEvent.SignedEvent,
+        skipUpdateQueries = false,
+    ): Promise<Models.Pointer.Pointer> {
+        await this._store.ingest(signedEvent);
+
+        const event = Models.Event.fromBuffer(signedEvent.event);
+        const eventKey = this.getEventKey(event);
+
+        let acks = this._eventAcks.get(eventKey);
+        if (!acks) {
+            acks = new Set<string>();
+            this._eventAcks.set(eventKey, acks);
+        }
+
+        const serverId = 'local';
+        if (!acks.has(serverId)) {
+            acks.add(serverId);
+
+            const subscribers = this._eventAckSubscriptions.get(eventKey);
+            if (subscribers) {
+                for (const callback of subscribers) {
+                    callback(serverId);
+                }
+            }
+        }
+
+        if (this._listener) {
             this._listener(signedEvent);
         }
 
+        if (!skipUpdateQueries) {
+            this.queryManager.update(signedEvent);
+        }
+
+        if (Models.PublicKey.equal(event.system, this.system())) {
+            void this.synchronizer.synchronizationHint();
+        }
+
         return Models.signedEventToPointer(signedEvent);
+    }
+
+    private async getCurrentSignedServerEvents(): Promise<
+        Models.SignedEvent.SignedEvent[]
+    > {
+        return new Promise((resolve) => {
+            const handle = this.queryManager.queryCRDTSet.query(
+                this.system(),
+                Models.ContentType.ContentTypeServer,
+                (state) => {
+                    const serverCellList = Queries.QueryIndex.applyPatch(
+                        [],
+                        state,
+                    );
+                    const signedServerEvents = serverCellList
+                        .map((cell) => cell.signedEvent)
+                        .filter(
+                            (e): e is Models.SignedEvent.SignedEvent =>
+                                e !== undefined,
+                        );
+
+                    setTimeout(() => {
+                        handle.unregister();
+                        resolve(signedServerEvents);
+                    }, 0);
+                },
+            );
+            handle.advance(100);
+        });
+    }
+
+    async createExportBundle(): Promise<Protocol.ExportBundle> {
+        const signedServerEvents = await this.getCurrentSignedServerEvents();
+
+        const keyPair = {
+            keyType: this.processSecret().system.keyType,
+            privateKey: this.processSecret().system.key,
+            publicKey: this.system().key,
+        };
+
+        return {
+            keyPair: keyPair,
+            events: {
+                events: [...signedServerEvents],
+            },
+        };
+    }
+
+    public recordServerAck(
+        event: Protocol.SignedEvent,
+        serverId: string,
+    ): void {
+        const eventData = event.event;
+        if (typeof eventData === 'undefined') return;
+
+        const decodedEvent = Protocol.Event.decode(eventData);
+        if (
+            typeof decodedEvent.system === 'undefined' ||
+            typeof decodedEvent.process === 'undefined' ||
+            typeof decodedEvent.logicalClock === 'undefined'
+        ) {
+            return;
+        }
+
+        const eventKey = this.getEventKey(decodedEvent);
+
+        let acks = this._eventAcks.get(eventKey);
+        if (!acks) {
+            acks = new Set<string>();
+            this._eventAcks.set(eventKey, acks);
+        }
+
+        if (!acks.has(serverId)) {
+            acks.add(serverId);
+            void this._store.indexEvents.saveEventAcks(
+                Models.PublicKey.fromProto(decodedEvent.system),
+                Models.Process.fromProto(decodedEvent.process),
+                decodedEvent.logicalClock,
+                Array.from(acks),
+            );
+
+            const subscribers = this._eventAckSubscriptions.get(eventKey);
+            if (subscribers) {
+                for (const callback of subscribers) {
+                    callback(serverId);
+                }
+            }
+        }
     }
 }
 
@@ -689,93 +986,6 @@ export async function createProcessHandleFromKey(
     return ProcessHandle.load(store);
 }
 
-function updateSystemState(
-    state: Protocol.StorageTypeSystemState,
-    event: Models.Event.Event,
-): void {
-    {
-        const lwwElement = event.lwwElement;
-
-        if (lwwElement) {
-            let found: Protocol.StorageTypeCRDTItem | undefined = undefined;
-
-            for (const item of state.crdtItems) {
-                if (item.contentType.equals(event.contentType)) {
-                    found = item;
-                    break;
-                }
-            }
-
-            if (found && found.unixMilliseconds < lwwElement.unixMilliseconds) {
-                found.unixMilliseconds = lwwElement.unixMilliseconds;
-                found.value = lwwElement.value;
-            } else {
-                state.crdtItems.push({
-                    contentType: event.contentType,
-                    value: lwwElement.value,
-                    unixMilliseconds: lwwElement.unixMilliseconds,
-                });
-            }
-        }
-    }
-
-    {
-        let foundProcess = false;
-
-        for (const rawProcess of state.processes) {
-            if (
-                Models.Process.equal(
-                    Models.Process.fromProto(rawProcess),
-                    event.process,
-                )
-            ) {
-                foundProcess = true;
-                break;
-            }
-        }
-
-        if (!foundProcess) {
-            state.processes.push(event.process);
-        }
-    }
-}
-
-function updateProcessState(
-    state: Protocol.StorageTypeProcessState,
-    event: Models.Event.Event,
-): void {
-    if (event.logicalClock.compare(state.logicalClock) === 1) {
-        state.logicalClock = event.logicalClock;
-    }
-
-    if (state.indices === undefined) {
-        throw new Error('expected indices');
-    }
-
-    Ranges.insert(state.ranges, event.logicalClock);
-
-    {
-        let foundIndex = false;
-
-        for (const index of state.indices.indices) {
-            if (index.indexType.equals(event.contentType)) {
-                foundIndex = true;
-
-                if (event.logicalClock.compare(index.logicalClock) === 1) {
-                    index.logicalClock = event.logicalClock;
-                }
-            }
-        }
-
-        if (!foundIndex) {
-            state.indices.indices.push({
-                indexType: event.contentType,
-                logicalClock: event.logicalClock,
-            });
-        }
-    }
-}
-
 export async function makeEventLink(
     handle: ProcessHandle,
     system: Models.PublicKey.PublicKey,
@@ -788,7 +998,7 @@ export async function makeEventLink(
 
 export function makeEventLinkSync(
     event: Models.Pointer.Pointer,
-    servers: Array<string>,
+    servers: string[],
 ): string {
     return Base64.encodeUrl(
         Protocol.URLInfo.encode({
@@ -814,7 +1024,7 @@ export async function makeSystemLink(
 
 export function makeSystemLinkSync(
     system: Models.PublicKey.PublicKey,
-    servers: Array<string>,
+    servers: string[],
 ): string {
     return Base64.encodeUrl(
         Protocol.URLInfo.encode({
@@ -835,6 +1045,39 @@ export async function createTestProcessHandle(): Promise<ProcessHandle> {
     );
 }
 
+export async function testProcessHandleCreateNewProcess(
+    processHandle: ProcessHandle,
+): Promise<ProcessHandle> {
+    return await createProcessHandleFromKey(
+        await MetaStore.createMetaStore(
+            PersistenceDriver.createPersistenceDriverMemory(),
+        ),
+        processHandle.processSecret().system,
+    );
+}
+
 export async function fullSync(handle: ProcessHandle) {
     while (await Synchronization.backFillServers(handle, handle.system())) {}
+}
+
+export const TEST_SERVER = 'http://127.0.0.1:8081';
+
+export async function copyEventBetweenHandles(
+    pointer: Models.Pointer.Pointer,
+    from: ProcessHandle,
+    to: ProcessHandle,
+): Promise<void> {
+    const signedEvent = await from
+        .store()
+        .indexEvents.getSignedEvent(
+            pointer.system,
+            pointer.process,
+            pointer.logicalClock,
+        );
+
+    if (signedEvent === undefined) {
+        throw new Error('expected signedEvent');
+    }
+
+    await to.ingest(signedEvent);
 }

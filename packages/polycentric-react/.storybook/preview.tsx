@@ -4,8 +4,9 @@ import type { Preview } from '@storybook/react'
 import React from 'react'
 
 import 'unfonts.css'
-import '../src/lib/style/tailwind.css'
+import '../src/lib/style/etc.css'
 import '../src/lib/style/ionic.css'
+import '../src/lib/style/tailwind.css'
 
 setupIonicReact({
   mode: 'ios',

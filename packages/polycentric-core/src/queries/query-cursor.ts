@@ -1,14 +1,76 @@
 import * as APIMethods from '../api-methods';
 import * as Models from '../models';
 import * as ProcessHandle from '../process-handle';
+import * as Protocol from '../protocol';
 
-export function makeGetExploreCallback(): LoadCallback {
-    return APIMethods.getExplore;
+export function makeGetExploreCallback(
+    processHandle: ProcessHandle.ProcessHandle,
+    moderationLevels?: Record<string, number>,
+): LoadCallback {
+    return async (server, limit, cursor) => {
+        const batch = await APIMethods.getExplore(
+            server,
+            limit,
+            cursor,
+            moderationLevels,
+        );
+
+        const filteredResultEvents = [];
+
+        for (const signedEvent of batch.resultEvents.events) {
+            const event = Models.Event.fromBuffer(signedEvent.event);
+
+            const blocked = await processHandle
+                .store()
+                .indexCRDTElementSet.queryIfAdded(
+                    processHandle.system(),
+                    Models.ContentType.ContentTypeBlock,
+                    Protocol.PublicKey.encode(event.system).finish(),
+                );
+
+            // Todo: Strict mode
+            const failsModerationSettings = moderationLevels
+                ? Object.entries(moderationLevels).some(
+                      ([settingName, settingLevel]) => {
+                          return signedEvent.moderationTags.some(
+                              (tag) =>
+                                  tag.name === settingName &&
+                                  tag.level > settingLevel,
+                          );
+                      },
+                  )
+                : false;
+
+            if (!blocked && !failsModerationSettings) {
+                filteredResultEvents.push(signedEvent);
+            }
+        }
+
+        return Models.ResultEventsAndRelatedEventsAndCursor.fromProto({
+            resultEvents: {
+                events: filteredResultEvents,
+            },
+            relatedEvents: batch.relatedEvents,
+            cursor: batch.cursor,
+        });
+    };
 }
 
-export function makeGetSearchCallback(searchQuery: string): LoadCallback {
+export function makeGetSearchCallback(
+    searchQuery: string,
+    searchType: APIMethods.SearchType,
+    moderationLevels?: Record<string, number>,
+): LoadCallback {
     return async (server, limit, cursor) => {
-        return await APIMethods.getSearch(server, searchQuery, limit, cursor);
+        // Since moderation levels are part of the search query, we don't need to filter here.
+        return APIMethods.getSearch(
+            server,
+            searchQuery,
+            limit,
+            cursor,
+            searchType,
+            moderationLevels,
+        );
     };
 }
 
@@ -18,33 +80,38 @@ export type LoadCallback = (
     cursor: Uint8Array | undefined,
 ) => Promise<Models.ResultEventsAndRelatedEventsAndCursor.Type>;
 
-export type Cell = {
-    fromServer: string;
-    signedEvent: Models.SignedEvent.SignedEvent;
-};
+type NothingFoundCallback = () => void;
 
-export type ResultCallback = (cells: Array<Cell>) => void;
+export interface Cell {
+    readonly fromServer: string;
+    readonly signedEvent: Models.SignedEvent.SignedEvent;
+}
+
+export type ResultCallback = (cells: readonly Cell[]) => void;
 
 export class Query {
-    private _processHandle: ProcessHandle.ProcessHandle;
-    private _loadCallback: LoadCallback;
-    private _cursors: Map<string, Uint8Array>;
-    private _active: Set<string>;
-    private _loaded: Set<Models.Pointer.PointerString>;
+    private readonly _processHandle: ProcessHandle.ProcessHandle;
+    private readonly _loadCallback: LoadCallback;
+    private readonly _nothingFoundCallback?: NothingFoundCallback;
+    private readonly _cursors: Map<string, Uint8Array>;
+    private readonly _active: Set<string>;
+    private readonly _loaded: Set<Models.Pointer.PointerString>;
     private _expected: number;
     private _cancelled: boolean;
-    private _reserve: Array<Cell>;
-    private _resultCallback: ResultCallback;
-    private _batchSize: number;
+    private readonly _reserve: Cell[];
+    private readonly _resultCallback: ResultCallback;
+    private readonly _batchSize: number;
 
     constructor(
         processHandle: ProcessHandle.ProcessHandle,
         loadCallback: LoadCallback,
         resultCallback: ResultCallback,
         batchSize: number,
+        nothingFoundCallback?: () => void,
     ) {
         this._processHandle = processHandle;
         this._loadCallback = loadCallback;
+        this._nothingFoundCallback = nothingFoundCallback;
         this._cursors = new Map();
         this._active = new Set();
         this._loaded = new Set();
@@ -59,7 +126,7 @@ export class Query {
         }
     }
 
-    private async _drainReserve(): Promise<void> {
+    private _drainReserve(): void {
         const batch = [];
 
         while (batch.length < this._expected) {
@@ -70,7 +137,7 @@ export class Query {
             }
 
             const pointerString = Models.Pointer.toString(
-                await Models.signedEventToPointer(cell.signedEvent),
+                Models.signedEventToPointer(cell.signedEvent),
             );
 
             if (this._loaded.has(pointerString)) {
@@ -134,7 +201,7 @@ export class Query {
                     this._cursors.set(server, result.cursor);
                 }
 
-                await this._drainReserve();
+                this._drainReserve();
 
                 if (result.cursor === undefined) {
                     // This means the number of rows returned was less than the limit,
@@ -162,19 +229,25 @@ export class Query {
             this._batchSize / state.servers().length,
         );
 
-        for (const server of state.servers()) {
-            this._loadFromServer(server, limitPerServer);
-        }
+        await Promise.allSettled(
+            state
+                .servers()
+                .map((server) => this._loadFromServer(server, limitPerServer)),
+        );
     }
 
     private async _advanceInternal(): Promise<void> {
-        await this._drainReserve();
+        this._drainReserve();
         await this._loadFromServers();
+
+        if (this._loaded.size === 0) {
+            this._nothingFoundCallback?.();
+        }
     }
 
     public advance(): void {
         this._expected += this._batchSize;
-        this._advanceInternal();
+        void this._advanceInternal();
     }
 
     public cleanup(): void {

@@ -24,9 +24,15 @@ message VectorClock {
     repeated uint64 logical_clocks = 1;
 }
 
+message ModerationTag {
+    string name  = 1;
+    uint32 level = 2;
+}
+
 message SignedEvent {
     bytes signature = 1;
     bytes event     = 2;
+    repeated ModerationTag moderation_tags = 3;
 }
 
 message LWWElementSet {
@@ -75,6 +81,10 @@ message Event {
     optional uint64        unix_milliseconds = 11;
 }
 
+message SystemProcesses {
+    repeated Process processes = 1;
+}
+
 message Digest {
     uint64 digest_type = 1;
     bytes  digest      = 2;
@@ -97,6 +107,11 @@ message Delete {
 
 message Events {
     repeated SignedEvent events = 1;
+}
+
+message AggregationBucket {
+    bytes key = 1;
+    int64 value = 2;
 }
 
 message PublicKeys {
@@ -134,9 +149,13 @@ message ExportBundle {
 }
 
 message ResultEventsAndRelatedEventsAndCursor {
-    Events          result_events  = 1;
-    Events          related_events = 2;
-    optional bytes  cursor         = 3;
+    Events                  result_events  = 1;
+    Events                  related_events = 2;
+    optional bytes          cursor         = 3;
+}
+
+message ResultTopStringReferences {
+    repeated AggregationBucket buckets = 1;
 }
 
 message Reference {
@@ -209,6 +228,7 @@ message QueryReferencesRequest {
     optional QueryReferencesRequestEvents                    request_events               = 3;
     repeated QueryReferencesRequestCountLWWElementReferences count_lww_element_references = 4;
     repeated QueryReferencesRequestCountReferences           count_references             = 5;
+    repeated bytes                                           extra_byte_references        = 6;
 }
 
 message QueryReferencesRequestEvents {
@@ -330,4 +350,9 @@ message FindClaimAndVouchRequest {
 message FindClaimAndVouchResponse {
     SignedEvent vouch = 1;
     SignedEvent claim = 2;
+}
+
+message ClaimHandleRequest {
+    PublicKey system = 1;
+    string  handle       = 2;
 }

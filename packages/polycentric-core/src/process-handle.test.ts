@@ -1,14 +1,21 @@
+import * as RXJS from 'rxjs';
+
 import Long from 'long';
 import * as ProcessHandle from './process-handle';
 import * as Models from './models';
 import * as Util from './util';
 import * as Protocol from './protocol';
+import * as Queries from './queries';
+
+function expectToBeDefined<T>(value: T): asserts value is NonNullable<T> {
+    expect(value).toBeDefined();
+}
 
 describe('processHandle', () => {
     test('basic post', async () => {
         const processHandle = await ProcessHandle.createTestProcessHandle();
 
-        const events: Array<Models.SignedEvent.SignedEvent> = [];
+        const events: Models.SignedEvent.SignedEvent[] = [];
         processHandle.setListener((event: Models.SignedEvent.SignedEvent) => {
             events.push(event);
         });
@@ -30,16 +37,19 @@ describe('processHandle', () => {
     test('addAndRemoveServer', async () => {
         const processHandle = await ProcessHandle.createTestProcessHandle();
 
-        await processHandle.addServer('127.0.0.1');
-        await processHandle.addServer('127.0.0.2');
-        await processHandle.addServer('127.0.0.3');
-        await processHandle.removeServer('127.0.0.1');
+        await processHandle.addServer('http://127.0.0.1');
+        await processHandle.addServer('http://127.0.0.2');
+        await processHandle.addServer('http://127.0.0.3');
+        await processHandle.removeServer('http://127.0.0.1');
 
         const serverState = await processHandle.loadSystemState(
             processHandle.system(),
         );
 
-        expect(serverState.servers()).toStrictEqual(['127.0.0.2', '127.0.0.3']);
+        expect(serverState.servers()).toStrictEqual([
+            'http://127.0.0.2',
+            'http://127.0.0.3',
+        ]);
     });
 
     test('username', async () => {
@@ -48,23 +58,41 @@ describe('processHandle', () => {
         await processHandle.setUsername('alice');
         await processHandle.setUsername('bob');
 
-        const serverState = await processHandle.loadSystemState(
-            processHandle.system(),
+        const result = await RXJS.firstValueFrom(
+            Queries.QueryCRDT.queryCRDTObservable(
+                processHandle.queryManager.queryCRDT,
+                processHandle.system(),
+                Models.ContentType.ContentTypeUsername,
+            ),
         );
 
-        expect(serverState.username()).toStrictEqual('bob');
+        expect(result.missingData).toStrictEqual(false);
+        expectToBeDefined(result.value);
+        expect(
+            Util.buffersEqual(result.value, Util.encodeText('bob')),
+        ).toStrictEqual(true);
     });
 
     test('description', async () => {
         const processHandle = await ProcessHandle.createTestProcessHandle();
 
-        await processHandle.setDescription('test');
+        const description = 'my description';
 
-        const serverState = await processHandle.loadSystemState(
-            processHandle.system(),
+        await processHandle.setDescription(description);
+
+        const result = await RXJS.firstValueFrom(
+            Queries.QueryCRDT.queryCRDTObservable(
+                processHandle.queryManager.queryCRDT,
+                processHandle.system(),
+                Models.ContentType.ContentTypeDescription,
+            ),
         );
 
-        expect(serverState.description()).toStrictEqual('test');
+        expect(result.missingData).toStrictEqual(false);
+        expectToBeDefined(result.value);
+        expect(
+            Util.buffersEqual(result.value, Util.encodeText(description)),
+        ).toStrictEqual(true);
     });
 
     test('avatar', async () => {
@@ -116,7 +144,7 @@ describe('processHandle', () => {
             expect(
                 await processHandle
                     .store()
-                    .crdtElementSetIndex.queryIfAdded(
+                    .indexCRDTElementSet.queryIfAdded(
                         processHandle.system(),
                         Models.ContentType.ContentTypeFollow,
                         Protocol.PublicKey.encode(

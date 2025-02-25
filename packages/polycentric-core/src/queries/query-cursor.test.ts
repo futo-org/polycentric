@@ -5,7 +5,7 @@ import * as QueryCursor from './query-cursor';
 import * as Models from '../models';
 
 function makeResult(
-    signedEvents: Array<Models.SignedEvent.SignedEvent>,
+    signedEvents: Models.SignedEvent.SignedEvent[],
     cursor: Uint8Array | undefined,
 ) {
     return Models.ResultEventsAndRelatedEventsAndCursor.fromProto({
@@ -27,14 +27,14 @@ describe('query cursor', () => {
 
         await s1p1.addServer(server);
 
-        const signedEvents: Array<Models.SignedEvent.SignedEvent> = [];
+        const signedEvents: Models.SignedEvent.SignedEvent[] = [];
 
         for (let i = 0; i < 25; i++) {
             const pointer = await s1p1.post(i.toString());
 
             const signedEvent = await s1p1
                 .store()
-                .getSignedEvent(
+                .indexEvents.getSignedEvent(
                     pointer.system,
                     pointer.process,
                     pointer.logicalClock,
@@ -49,7 +49,8 @@ describe('query cursor', () => {
 
         let stage = 0;
 
-        await new Promise<void>(async (resolve) => {
+        await new Promise<void>((resolve) => {
+            /* eslint @typescript-eslint/require-await: 0 */
             const loadCallback: QueryCursor.LoadCallback = async (
                 server,
                 limit,
