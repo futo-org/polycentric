@@ -48,11 +48,48 @@ const isOAuthVerifiable = (
     );
 };
 
+// Add these mapping objects near the top of the file
+const PLATFORM_TO_CLAIM_TYPE = {
+    'youtube': Models.ClaimType.ClaimTypeYouTube,
+    'twitter/X': Core.Models.ClaimType.ClaimTypeTwitter,
+    'discord': Core.Models.ClaimType.ClaimTypeDiscord,
+    'instagram': Core.Models.ClaimType.ClaimTypeInstagram,
+    'github': Core.Models.ClaimType.ClaimTypeGitHub,
+    'minds': Core.Models.ClaimType.ClaimTypeMinds,
+    'odysee': Core.Models.ClaimType.ClaimTypeOdysee,
+    'rumble': Core.Models.ClaimType.ClaimTypeRumble,
+    'patreon': Core.Models.ClaimType.ClaimTypePatreon,
+    'substack': Core.Models.ClaimType.ClaimTypeSubstack,
+    'twitch': Core.Models.ClaimType.ClaimTypeTwitch,
+    'dailymotion': Core.Models.ClaimType.ClaimTypeDailymotion,
+    'nebula': Core.Models.ClaimType.ClaimTypeNebula,
+    'spotify': Core.Models.ClaimType.ClaimTypeSpotify,
+    'spreadshop': Core.Models.ClaimType.ClaimTypeSpreadshop,
+    'kick': Core.Models.ClaimType.ClaimTypeKick,
+    'vimeo': Core.Models.ClaimType.ClaimTypeVimeo,
+} as const;
+
+const PLATFORM_TO_CLAIM_FUNCTION = {
+    'hackerNews': Models.claimHackerNews,
+    'youtube': Models.claimYouTube,
+    'odysee': Models.claimOdysee,
+    'rumble': Models.claimRumble,
+    'github': Models.claimGitHub,
+    'minds': Models.claimMinds,
+    'patreon': Models.claimPatreon,
+    'substack': Models.claimSubstack,
+    'twitch': Models.claimTwitch,
+    'website': Models.claimWebsite,
+    'vimeo': Models.claimVimeo,
+    'nebula': Models.claimNebula,
+    'spotify': Models.claimSpotify,
+    'spreadshop': Models.claimSpreadshop,
+} as const;
+
 export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
     const [step, setStep] = useState<'type' | 'input'>('type');
     const [claimType, setClaimType] = useState<ClaimData['type'] | null>(null);
     const [platform, setPlatform] = useState<SocialPlatform | undefined>();
-    const [futoIDSecret, setFutoIDSecret] = useState('');
 
     const handleSelect = (
         type: ClaimData['type'],
@@ -282,81 +319,10 @@ export const SocialMediaInput = ({
             setIsSubmitting(true);
 
             // Check for existing claims first
-            const existingClaim = claims.find((claim) => {
-                switch (platform) {
-                    case 'youtube':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeYouTube,
-                        );
-                    case 'twitter/X':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeTwitter,
-                        );
-                    case 'discord':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeDiscord,
-                        );
-                    case 'instagram':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeInstagram,
-                        );
-                    case 'github':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeGitHub,
-                        );
-                    case 'minds':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeMinds,
-                        );
-                    case 'odysee':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeOdysee,
-                        );
-                    case 'rumble':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeRumble,
-                        );
-                    case 'vimeo':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeVimeo,
-                        );
-                    case 'nebula':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeNebula,
-                        );
-                    case 'spotify':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeSpotify,
-                        );
-                    case 'spreadshop':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeSpreadshop,
-                        );
-                    case 'website':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeWebsite,
-                        );
-                    case 'patreon':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypePatreon,
-                        );
-                    case 'substack':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeSubstack,
-                        );
-                    case 'twitch':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeTwitch,
-                        );
-                    case 'dailymotion':
-                        return claim.value.claimType.equals(
-                            Core.Models.ClaimType.ClaimTypeDailymotion,
-                        );
-
-                    default:
-                        return false;
-                }
-            });
+            const claimType = getClaimTypeForPlatform(platform);
+            const existingClaim = claims.find(claim => 
+                claim.value.claimType.equals(claimType)
+            );
 
             if (existingClaim) {
                 setVerificationStep('duplicate');
@@ -365,78 +331,11 @@ export const SocialMediaInput = ({
             }
 
             // Create the claim
-            let claim: Protocol.Claim;
-            let claimType: Core.Models.ClaimType.ClaimType;
-
-            // Ensure URL has proper protocol
-            const processedUrl = url.startsWith('http')
-                ? url
-                : `https://${url}`;
-
-            switch (platform) {
-                case 'hackerNews':
-                    claimType = Core.Models.ClaimType.ClaimTypeHackerNews;
-                    claim = Models.claimHackerNews(processedUrl);
-                    break;
-                case 'youtube':
-                    claimType = Core.Models.ClaimType.ClaimTypeYouTube;
-                    claim = Models.claimYouTube(processedUrl);
-                    break;
-                case 'odysee':
-                    claimType = Core.Models.ClaimType.ClaimTypeOdysee;
-                    claim = Models.claimOdysee(processedUrl);
-                    break;
-                case 'rumble':
-                    claimType = Core.Models.ClaimType.ClaimTypeRumble;
-                    claim = Models.claimRumble(processedUrl);
-                    break;
-                case 'github':
-                    claimType = Core.Models.ClaimType.ClaimTypeGitHub;
-                    claim = Models.claimGitHub(processedUrl);
-                    break;
-                case 'minds':
-                    claimType = Core.Models.ClaimType.ClaimTypeMinds;
-                    claim = Models.claimMinds(processedUrl);
-                    break;
-                case 'patreon':
-                    claimType = Core.Models.ClaimType.ClaimTypePatreon;
-                    claim = Models.claimPatreon(processedUrl);
-                    break;
-                case 'substack':
-                    claimType = Core.Models.ClaimType.ClaimTypeSubstack;
-                    claim = Models.claimSubstack(processedUrl);
-                    break;
-                case 'twitch':
-                    claimType = Core.Models.ClaimType.ClaimTypeTwitch;
-                    claim = Models.claimTwitch(processedUrl);
-                    break;
-                case 'website':
-                    claimType = Core.Models.ClaimType.ClaimTypeWebsite;
-                    claim = Models.claimWebsite(processedUrl);
-                    break;
-                case 'vimeo':
-                    claimType = Core.Models.ClaimType.ClaimTypeVimeo;
-                    claim = Models.claimVimeo(processedUrl);
-                    break;
-                case 'nebula':
-                    claimType = Core.Models.ClaimType.ClaimTypeNebula;
-                    claim = Models.claimNebula(processedUrl);
-                    break;
-                case 'spotify':
-                    claimType = Core.Models.ClaimType.ClaimTypeSpotify;
-                    claim = Models.claimSpotify(processedUrl);
-                    break;
-                case 'spreadshop':
-                    claimType = Core.Models.ClaimType.ClaimTypeSpreadshop;
-                    claim = Models.claimSpreadshop(processedUrl);
-                    break;
-                default:
-                    claimType = Core.Models.ClaimType.ClaimTypeURL;
-                    claim = Models.claimURL(processedUrl);
-                    break;
-            }
-
-            // Create the claim and store the full pointer
+            const processedUrl = url.startsWith('http') ? url : `https://${url}`;
+            const claimFunction = PLATFORM_TO_CLAIM_FUNCTION[platform as keyof typeof PLATFORM_TO_CLAIM_FUNCTION] 
+                ?? Models.claimURL;
+            
+            const claim = claimFunction(processedUrl);
             const pointer = await processHandle.claim(claim);
             setClaimPointer(pointer);
 
@@ -480,37 +379,13 @@ export const SocialMediaInput = ({
         }
     }, [processHandle, claimPointer, platform, onCancel]);
 
-    // Helper function to convert platform to claim type
-    const getClaimTypeForPlatform = (
-        platform: SocialPlatform,
-    ): Core.Models.ClaimType.ClaimType => {
-        switch (platform) {
-            case 'youtube':
-                return Models.ClaimType.ClaimTypeYouTube;
-            case 'twitter/X':
-                return Core.Models.ClaimType.ClaimTypeTwitter;
-            case 'discord':
-                return Core.Models.ClaimType.ClaimTypeDiscord;
-            case 'instagram':
-                return Core.Models.ClaimType.ClaimTypeInstagram;
-            case 'github':
-                return Core.Models.ClaimType.ClaimTypeGitHub;
-            case 'minds':
-                return Core.Models.ClaimType.ClaimTypeMinds;
-            case 'odysee':
-                return Core.Models.ClaimType.ClaimTypeOdysee;
-            case 'rumble':
-                return Core.Models.ClaimType.ClaimTypeRumble;
-            case 'patreon':
-                return Core.Models.ClaimType.ClaimTypePatreon;
-            case 'substack':
-                return Core.Models.ClaimType.ClaimTypeSubstack;
-            case 'twitch':
-                return Core.Models.ClaimType.ClaimTypeTwitch;
-            // Add other platform mappings as needed
-            default:
-                throw new Error(`Unsupported platform: ${platform}`);
+    // Replace the getClaimTypeForPlatform function with this simplified version
+    const getClaimTypeForPlatform = (platform: SocialPlatform): Core.Models.ClaimType.ClaimType => {
+        const claimType = PLATFORM_TO_CLAIM_TYPE[platform as keyof typeof PLATFORM_TO_CLAIM_TYPE];
+        if (!claimType) {
+            throw new Error(`Unsupported platform: ${platform}`);
         }
+        return claimType;
     };
 
     if (verificationStep === 'token' && claimPointer) {
