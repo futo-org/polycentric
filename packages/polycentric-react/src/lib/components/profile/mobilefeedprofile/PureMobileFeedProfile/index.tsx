@@ -127,7 +127,9 @@ export const PureMobileFeedProfile = ({
                             </p> */}
                         </div>
                         <div className="w-full text text-gray-500 min-w-0 break-words">
-                            <ReactMarkdown>{profile.description || ''}</ReactMarkdown>
+                            <ReactMarkdown>
+                                {profile.description || ''}
+                            </ReactMarkdown>
                         </div>
                         <ClaimGrid
                             claims={claims}
