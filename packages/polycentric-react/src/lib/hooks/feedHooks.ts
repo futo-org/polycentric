@@ -8,6 +8,7 @@ import {
     Util,
 } from '@polycentric/polycentric-core';
 import AsyncLock from 'async-lock';
+import Long from 'long';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useModeration } from './moderationHooks';
 import { useProcessHandleManager } from './processHandleManagerHooks';
@@ -160,44 +161,130 @@ export const useTopicFeed = (
 };
 
 export const useCommentFeed = (
-    signedEvent?: Models.SignedEvent.SignedEvent,
+    post?: Models.SignedEvent.SignedEvent,
 ): [FeedItem[], () => void, boolean, number] => {
+    const queryManager = useQueryManager();
+    const [backwardsChain, setBackwardsChain] = useState<FeedItem[]>([]);
+
     const pointer = useMemo(() => {
-        if (!signedEvent) return undefined;
-        return Models.signedEventToPointer(signedEvent);
-    }, [signedEvent]);
+        if (!post) {
+            return undefined;
+        }
+        return Models.signedEventToPointer(post);
+    }, [post]);
 
-    const event = useMemo(() => {
-        if (!signedEvent) return undefined;
-        return Models.Event.fromBuffer(signedEvent.event);
-    }, [signedEvent]);
+    const fetchPost = useCallback(
+        (
+            system: Models.PublicKey.PublicKey,
+            process: Models.Process.Process,
+            logicalClock: Long,
+            cancelContext: CancelContext.CancelContext,
+            callback?: (signedEvent: ParsedEvent<Protocol.Post | Protocol.Claim>) => void,
+        ) => {
+            queryManager.queryEvent.query(
+                system,
+                process,
+                logicalClock,
+                (signedEvent) => {
+                    if (!signedEvent || cancelContext.cancelled()) {
+                        return;
+                    }
 
-    // Add event to feed if it's a post or claim
-    const initialFeedItem = useMemo(() => {
-        if (!signedEvent || !event) return [];
-        
-        // Create a ParsedEvent for the main post/claim
-        const parsedEvent = new ParsedEvent(
-            signedEvent,
-            event,
-            event.contentType.eq(Models.ContentType.ContentTypePost)
-                ? Protocol.Post.decode(event.content)
-                : Protocol.Claim.decode(event.content)
-        );
-        
-        return [parsedEvent];
-    }, [signedEvent, event]);
+                    const event = Models.Event.fromBuffer(signedEvent.event);
+                    let parsed;
+                    try {
+                        parsed = event.contentType.eq(Models.ContentType.ContentTypePost)
+                            ? Protocol.Post.decode(event.content)
+                            : Protocol.Claim.decode(event.content);
+                    } catch (error) {
+                        console.error('Failed to decode content:', error);
+                        return;
+                    }
 
-    const [comments, advance] = useReferenceFeed(
-        pointer ? Models.pointerToReference(pointer) : undefined,
+                    const parsedEvent = new ParsedEvent(
+                        signedEvent,
+                        event,
+                        parsed,
+                    );
+
+                    setBackwardsChain((backwardsChain) => {
+                        const duplicate = backwardsChain.find(
+                            (backwardsEvent) =>
+                                Models.SignedEvent.equal(
+                                    backwardsEvent.signedEvent,
+                                    signedEvent,
+                                ),
+                        );
+
+                        if (duplicate != null) return backwardsChain;
+
+                        return [parsedEvent, ...backwardsChain];
+                    });
+
+                    callback?.(parsedEvent);
+                },
+            );
+        },
+        [queryManager],
+    );
+
+    useEffect(() => {
+        if (!pointer) {
+            return;
+        }
+
+        const cancelContext = new CancelContext.CancelContext();
+
+        const fetchAndPrepend = (pointer: Models.Pointer.Pointer) => {
+            fetchPost(
+                pointer.system,
+                pointer.process,
+                pointer.logicalClock,
+                cancelContext,
+                (signedEvent) => {
+                    if (cancelContext.cancelled()) return;
+
+                    const postReference = signedEvent.event.references.find(
+                        (ref) => ref.referenceType.eq(2),
+                    );
+                    if (postReference) {
+                        const postPointer = Models.Pointer.fromProto(
+                            Protocol.Pointer.decode(postReference.reference),
+                        );
+                        fetchAndPrepend(postPointer);
+                    }
+                },
+            );
+        };
+
+        fetchAndPrepend(pointer);
+
+        return () => {
+            cancelContext.cancel();
+            setBackwardsChain([]);
+        };
+    }, [pointer, queryManager, fetchPost]);
+
+    const reference = useMemo(() => {
+        if (!pointer) {
+            return undefined;
+        }
+        return Models.pointerToReference(pointer);
+    }, [pointer]);
+
+    const [comments, advance] = useReferenceFeed(reference);
+
+    const prependCount = useMemo(
+        () => (backwardsChain.length > 0 ? backwardsChain.length - 1 : 0),
+        [backwardsChain],
     );
 
     const all = useMemo(
-        () => [...initialFeedItem, ...comments],
-        [initialFeedItem, comments],
+        () => [...backwardsChain, ...comments],
+        [backwardsChain, comments],
     );
 
-    return [all, advance, false, 0];
+    return [all, advance, true, prependCount];
 };
 
 export function useFollowingFeed(
