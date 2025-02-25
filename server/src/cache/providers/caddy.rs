@@ -27,11 +27,7 @@ impl interface::CacheProvider for CaddyProvider {
         let tags_str = tags.join(",");
         let url = format!("{}/cache-api/tags?tags={}", self.base_url, tags_str);
 
-        let response = self
-            .client
-            .delete(&url)
-            .send()
-            .await?;
+        let response = self.client.delete(&url).send().await?;
 
         if !response.status().is_success() {
             return Err(anyhow::anyhow!(
@@ -42,4 +38,12 @@ impl interface::CacheProvider for CaddyProvider {
         }
         Ok(())
     }
-} 
+
+    fn get_header_name(&self) -> &str {
+        "Surrogate-Key"
+    }
+
+    fn get_header_value(&self, tags: &[String]) -> String {
+        tags.join(",")
+    }
+}

@@ -23,16 +23,34 @@ pub(crate) async fn handler(
         .await
     );
 
+    let tags: Vec<String> = crate::cache::util::key_to_cache_tags_account_meta(
+        &query.system,
+    );
+
     crate::warp_try_err_500!(transaction.commit().await);
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
 
-    Ok(Box::new(::warp::reply::with_header(
+    let response = ::warp::reply::with_header(
         ::warp::reply::with_status(
             result_serialized,
             ::warp::http::StatusCode::OK,
         ),
         "Cache-Control",
         "public, s-maxage=3600, max-age=5",
-    )))
+        );
+
+    if !tags.is_empty() {
+        if let Some(cache_provider) = state.cache_provider.as_ref() {
+            Ok(Box::new(::warp::reply::with_header(
+                response,
+                cache_provider.get_header_name(),
+                cache_provider.get_header_value(&tags),
+            )))
+        } else {
+            Ok(Box::new(response))
+        }
+    } else {
+        Ok(Box::new(response))
+    }
 }

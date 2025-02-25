@@ -48,6 +48,12 @@ pub(crate) async fn handler(
         .map(polycentric_protocol::model::signed_event::to_proto)
         .collect();
 
+    let tags: Vec<String> = query_result
+        .events
+        .iter()
+        .flat_map(crate::cache::util::signed_event_to_cache_tags)
+        .collect();
+
     result.proof = query_result
         .proof
         .iter()
@@ -56,12 +62,26 @@ pub(crate) async fn handler(
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
 
-    Ok(Box::new(::warp::reply::with_header(
+    let response = ::warp::reply::with_header(
         ::warp::reply::with_status(
             result_serialized,
             ::warp::http::StatusCode::OK,
         ),
         "Cache-Control",
         "public, s-maxage=3600, max-age=5",
-    )))
+        );
+
+    if !tags.is_empty() {
+        if let Some(cache_provider) = state.cache_provider.as_ref() {
+            Ok(Box::new(::warp::reply::with_header(
+                response,
+                cache_provider.get_header_name(),
+                cache_provider.get_header_value(&tags),
+            )))
+        } else {
+            Ok(Box::new(response))
+        }
+    } else {
+        Ok(Box::new(response))
+    }
 }

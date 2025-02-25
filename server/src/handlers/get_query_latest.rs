@@ -52,11 +52,15 @@ async fn handler_inner(
     );
 
     if !cache_tags.is_empty() {
-        Ok(Box::new(::warp::reply::with_header(
-            response,
-            "Cache-Tag",
-            cache_tags.join(","),
-        )))
+        if let Some(cache_provider) = state.cache_provider.as_ref() {
+            Ok(Box::new(::warp::reply::with_header(
+                response,
+                cache_provider.get_header_name(),
+                cache_provider.get_header_value(&cache_tags),
+            )))
+        } else {
+            Ok(Box::new(response))
+        }
     } else {
         Ok(Box::new(response))
     }

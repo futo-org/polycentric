@@ -144,7 +144,7 @@ async fn serve_api(
         statsd_client,
         ingest_cache,
         moderation_mode: config.moderation_mode,
-        cache_provider,
+        cache_provider: Some(cache_provider),
     });
 
     let cors = ::warp::cors()

@@ -145,6 +145,6 @@ pub(crate) async fn handler_inner(
             ::warp::http::StatusCode::OK,
         ),
         "Cache-Control",
-        "public, s-maxage=3600, max-age=5",
+        "public, s-maxage=60, max-age=60",
     )))
 }

@@ -1012,6 +1012,13 @@ pub mod reference {
             _ => ::anyhow::bail!("unknown_reference_type"),
         }
     }
+
+    pub fn to_base64(reference: &Reference) -> ::anyhow::Result<String> {
+        let proto = to_proto(reference)?;
+        let bytes = proto.write_to_bytes()?;
+        let base64 = ::base64::encode(bytes);
+        Ok(base64)
+    }
 }
 
 pub mod claim {
