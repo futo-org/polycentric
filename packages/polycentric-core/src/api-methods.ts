@@ -530,137 +530,146 @@ export async function getResolveHandle(
 }
 
 export const VERIFIER_SERVER =
-    // Check if we're in a browser environment
-    typeof window !== 'undefined'
-        ? window.location.hostname === 'localhost' ||
-          window.location.hostname === '127.0.0.1'
-            ? 'https://localhost:3002' // Local development
-            : 'https://verifiers.polycentric.io' // Production
-        : process.env.NEXT_PUBLIC_VERIFIER_SERVER ??
-          'https://verifiers.polycentric.io';
+  // Check if we're in a browser environment
+  typeof window !== 'undefined'
+    ? window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1'
+      ? 'https://localhost:3002' // Local development
+      : 'https://verifiers.polycentric.io' // Production
+    : process.env.NEXT_PUBLIC_VERIFIER_SERVER ??
+      'https://verifiers.polycentric.io';
 
 export async function requestVerification(
-    pointer: Protocol.Pointer,
-    claimType: Models.ClaimType.ClaimType,
-    challengeResponse?: string,
+  pointer: Protocol.Pointer,
+  claimType: Models.ClaimType.ClaimType,
+  challengeResponse?: string,
 ): Promise<void> {
-    const verifierType = challengeResponse ? 'oauth' : 'text';
+  const verifierType = challengeResponse ? 'oauth' : 'text';
 
-    let url = `${VERIFIER_SERVER}/platforms/${claimType.toString()}/${verifierType}/vouch`;
+  let url = `${VERIFIER_SERVER}/platforms/${claimType.toString()}/${verifierType}/vouch`;
 
-    if (challengeResponse) {
-        url += `?challengeResponse=${encodeURIComponent(challengeResponse)}`;
+  if (challengeResponse) {
+    url += `?challengeResponse=${encodeURIComponent(challengeResponse)}`;
+  }
+
+  try {
+    const encodedPointer = Protocol.Pointer.encode(pointer).finish();
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/octet-stream',
+        'x-polycentric-user-agent': userAgent,
+        Origin: window.location.origin,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers':
+          'content-type,x-polycentric-user-agent',
+      },
+      body: encodedPointer,
+      credentials: 'include',
+      mode: 'cors',
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('Error response body:', text);
+      throw new Error(`Verification failed: ${text}`);
     }
 
-    try {
-        const encodedPointer = Protocol.Pointer.encode(pointer).finish();
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'content-type': 'application/octet-stream',
-                'x-polycentric-user-agent': userAgent,
-                Origin: window.location.origin,
-                'Access-Control-Request-Method': 'POST',
-                'Access-Control-Request-Headers':
-                    'content-type,x-polycentric-user-agent',
-            },
-            body: encodedPointer,
-            credentials: 'include',
-            mode: 'cors',
-        });
-
-        if (!response.ok) {
-            const text = await response.text();
-            console.error('Error response body:', text);
-            throw new Error(`Verification failed: ${text}`);
-        }
-
-        await checkResponse('requestVerification', response);
-    } catch (error) {
-        if (error instanceof TypeError && error.message === 'Failed to fetch') {
-            console.error('CORS or network error:', {
-                error,
-                url,
-                origin: window.location.origin,
-            });
-        }
-        throw error;
+    await checkResponse('requestVerification', response);
+  } catch (error) {
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      console.error('CORS or network error:', {
+        error,
+        url,
+        origin: window.location.origin,
+      });
     }
+    throw error;
+  }
 }
 
 export interface OAuthUsernameResponse {
-    username: string;
-    token: string;
+  username: string;
+  token: string;
+}
+
+interface OAuthURLResponse {
+  url: string;
 }
 
 export async function getOAuthURL(
-    server: string,
-    claimType: Models.ClaimType.ClaimType,
-    redirectUri?: string,
+  server: string,
+  claimType: Models.ClaimType.ClaimType,
+  redirectUri?: string,
 ): Promise<string> {
-    let url = `${server}/platforms/${claimType}/oauth/url`;
-    
-    // Add redirectUri if provided
-    if (redirectUri) {
-        url += `?redirectUri=${encodeURIComponent(redirectUri)}`;
-    }
+  let url = `${server}/platforms/${claimType.toString()}/oauth/url`;
 
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: new Headers({
-            'x-polycentric-user-agent': userAgent,
-        }),
-        credentials: 'include',
-        mode: 'cors',
-    });
+  if (redirectUri) {
+    url += `?redirectUri=${encodeURIComponent(redirectUri)}`;
+  }
 
-    await checkResponse('getOAuthURL', response);
-    const data = await response.json();
-    
-    // Handle both string and object responses
-    return typeof data === 'string' ? data : data.url;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: new Headers({
+      'x-polycentric-user-agent': userAgent,
+    }),
+    credentials: 'include',
+    mode: 'cors',
+  });
+
+  await checkResponse('getOAuthURL', response);
+  const data = (await response.json()) as string | OAuthURLResponse;
+
+  return typeof data === 'string' ? data : data.url;
 }
 
 export async function getOAuthUsername(
-    server: string,
-    token: string,
-    claimType: Models.ClaimType.ClaimType,
+  server: string,
+  token: string,
+  claimType: Models.ClaimType.ClaimType,
 ): Promise<OAuthUsernameResponse> {
-    const url = `${server}/platforms/${claimType.toString()}/oauth/token${token.startsWith('?') ? token : `?${token}`}`;
+  const url = `${server}/platforms/${claimType.toString()}/oauth/token${
+    token.startsWith('?') ? token : `?${token}`
+  }`;
 
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: new Headers({
-            'x-polycentric-user-agent': userAgent,
-        }),
-    });
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: new Headers({
+      'x-polycentric-user-agent': userAgent,
+    }),
+  });
 
-    await checkResponse('getOAuthUsername', response);
-    return await response.json();
+  await checkResponse('getOAuthUsername', response);
+  return response.json() as Promise<OAuthUsernameResponse>;
 }
 
 export async function getClaimFieldsByUrl(
-    server: string,
-    claimType: Models.ClaimType.ClaimType,
-    subject: string,
+  server: string,
+  claimType: Models.ClaimType.ClaimType,
+  subject: string,
 ): Promise<Protocol.ClaimFieldEntry[]> {
-    const url = `${server}/platforms/${claimType}/text/getClaimFieldsByUrl`;
+  const url = `${server}/platforms/${claimType.toString()}/text/getClaimFieldsByUrl`;
 
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: new Headers({
-            'Content-Type': 'application/json',
-            'x-polycentric-user-agent': userAgent,
-        }),
-        body: JSON.stringify({ url: subject }),
-    });
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: new Headers({
+      'Content-Type': 'application/json',
+      'x-polycentric-user-agent': userAgent,
+    }),
+    body: JSON.stringify({ url: subject }),
+  });
 
-    await checkResponse('getClaimFieldsByUrl', response);
-    
-    const decoded = await response.json();
-    return decoded.map((item: { key: number; value: string }) => ({
-        key: Long.fromNumber(item.key),
-        value: item.value,
-    }));
+  await checkResponse('getClaimFieldsByUrl', response);
+
+  interface ClaimFieldItem {
+    key: number;
+    value: string;
+  }
+
+  const decoded = (await response.json()) as ClaimFieldItem[];
+  return decoded.map((item: ClaimFieldItem) => ({
+    key: Long.fromNumber(item.key),
+    value: item.value,
+  }));
 }

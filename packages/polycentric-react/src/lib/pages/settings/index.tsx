@@ -12,7 +12,6 @@ export const SettingsPage: Page = () => {
   return (
     <>
       <Header canHaveBackButton={false}>Settings</Header>
-
       <IonContent>
         <RightCol rightCol={<div />} desktopTitle="Settings">
           <div className="p-5 md:p-10 flex flex-col space-y-6 text-sm text-black">
@@ -31,6 +30,10 @@ export const SettingsPage: Page = () => {
             <div className="flex flex-col space-y-3">
               <h2 className="font-medium">Dark Mode</h2>
               <DarkModeSelector />
+            </div>
+            <div className="flex flex-col space-y-3">
+              <h2 className="font-medium">Moderation</h2>
+              <ModerationTable />
             </div>
           </div>
         </RightCol>

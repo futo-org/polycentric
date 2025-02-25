@@ -698,23 +698,23 @@ export function claimURL(url: string): Protocol.Claim {
 }
 
 export function claimVimeo(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.ClaimTypeVimeo, username);
+  return claimIdentifier(ClaimType.ClaimTypeVimeo, username);
 }
 
 export function claimNebula(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.ClaimTypeNebula, username);
+  return claimIdentifier(ClaimType.ClaimTypeNebula, username);
 }
 
 export function claimSpotify(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.ClaimTypeSpotify, username);
+  return claimIdentifier(ClaimType.ClaimTypeSpotify, username);
 }
 
 export function claimSpreadshop(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.ClaimTypeSpreadshop, username);
+  return claimIdentifier(ClaimType.ClaimTypeSpreadshop, username);
 }
 
 export function claimDailyMotion(username: string): Protocol.Claim {
-    return claimIdentifier(ClaimType.ClaimTypeDailymotion, username);
+  return claimIdentifier(ClaimType.ClaimTypeDailymotion, username);
 }
 
 export class Blob {

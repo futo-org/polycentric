@@ -2,7 +2,13 @@ import {
   ArrowUpOnSquareIcon,
   EllipsisVerticalIcon,
 } from '@heroicons/react/24/outline';
-import { IonApp, IonNav, IonPage, isPlatform, setupIonicReact } from '@ionic/react';
+import {
+  IonApp,
+  IonNav,
+  IonPage,
+  isPlatform,
+  setupIonicReact,
+} from '@ionic/react';
 import {
   MetaStore,
   PersistenceDriver,
@@ -55,17 +61,17 @@ const SignedinApp = ({
     [processHandle],
   );
 
-    const root = useCallback(() => {
-        const originalPath = getFullPath();
-        if (originalPath.startsWith('/oauth/callback')) {
-            return (
-                <IonPage>
-                    <OAuthCallback />
-                </IonPage>
-            );
-        }
-        return <MemoryRoutedComponent routerLink={originalPath} />;
-    }, []);
+  const root = useCallback(() => {
+    const originalPath = getFullPath();
+    if (originalPath.startsWith('/oauth/callback')) {
+      return (
+        <IonPage>
+          <OAuthCallback />
+        </IonPage>
+      );
+    }
+    return <MemoryRoutedComponent routerLink={originalPath} />;
+  }, []);
 
   const ionNavRef = useRef<HTMLIonNavElement>(null);
 
