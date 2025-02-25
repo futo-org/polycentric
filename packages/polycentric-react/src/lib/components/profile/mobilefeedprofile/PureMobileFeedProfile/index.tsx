@@ -9,6 +9,7 @@ import {
 } from '../../edit/PureEditProfile';
 import { FollowingList } from '../../FollowingList';
 import { PureSidebarProfileData } from '../../sidebarprofile/PureSidebarProfile';
+import ReactMarkdown from 'react-markdown';
 
 export const PureMobileFeedProfile = ({
     profile,
@@ -126,7 +127,7 @@ export const PureMobileFeedProfile = ({
                             </p> */}
                         </div>
                         <div className="w-full text text-gray-500 min-w-0 break-words">
-                            {profile.description}
+                            <ReactMarkdown>{profile.description || ''}</ReactMarkdown>
                         </div>
                         <ClaimGrid
                             claims={claims}
