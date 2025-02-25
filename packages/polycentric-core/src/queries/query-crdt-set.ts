@@ -7,172 +7,172 @@ import * as Protocol from '../protocol';
 import * as QueryIndex from './query-index';
 
 interface StateForItem {
-    readonly cell: QueryIndex.Cell;
-    readonly lwwElement: Protocol.LWWElementSet;
+  readonly cell: QueryIndex.Cell;
+  readonly lwwElement: Protocol.LWWElementSet;
 }
 
 interface StateForQuery {
-    readonly queryIndexCallback: QueryIndex.Callback;
-    readonly items: Map<string, StateForItem>;
+  readonly queryIndexCallback: QueryIndex.Callback;
+  readonly items: Map<string, StateForItem>;
 }
 
 export interface QueryHandle {
-    advance(additionalCount: number): void;
-    unregister(): void;
+  advance(additionalCount: number): void;
+  unregister(): void;
 }
 
 export class QueryManager {
-    private readonly _queryIndex: QueryIndex.QueryManager;
-    private readonly _state: Map<QueryIndex.Callback, StateForQuery>;
+  private readonly _queryIndex: QueryIndex.QueryManager;
+  private readonly _state: Map<QueryIndex.Callback, StateForQuery>;
 
-    constructor(queryIndex: QueryIndex.QueryManager) {
-        this._queryIndex = queryIndex;
-        this._state = new Map();
+  constructor(queryIndex: QueryIndex.QueryManager) {
+    this._queryIndex = queryIndex;
+    this._state = new Map();
+  }
+
+  public query(
+    system: Models.PublicKey.PublicKey,
+    contentType: Models.ContentType.ContentType,
+    callback: QueryIndex.Callback,
+  ): QueryHandle {
+    if (this._state.get(callback)) {
+      throw new Error('duplicated callback QueryCRDTSet');
     }
 
-    public query(
-        system: Models.PublicKey.PublicKey,
-        contentType: Models.ContentType.ContentType,
-        callback: QueryIndex.Callback,
-    ): QueryHandle {
-        if (this._state.get(callback)) {
-            throw new Error('duplicated callback QueryCRDTSet');
+    const items = new Map<string, StateForItem>();
+
+    const queryIndexCallback = (params: QueryIndex.CallbackParameters) => {
+      const toAdd: QueryIndex.Cell[] = [];
+      const toRemove = new Set<string>();
+
+      for (const cell of params.add) {
+        if (cell.signedEvent === undefined) {
+          toAdd.push(cell);
+
+          continue;
         }
 
-        const items = new Map<string, StateForItem>();
+        const event = Models.Event.fromBuffer(cell.signedEvent.event);
 
-        const queryIndexCallback = (params: QueryIndex.CallbackParameters) => {
-            const toAdd: QueryIndex.Cell[] = [];
-            const toRemove = new Set<string>();
+        if (event.lwwElementSet === undefined) {
+          throw new Error('expected lwwElement');
+        }
 
-            for (const cell of params.add) {
-                if (cell.signedEvent === undefined) {
-                    toAdd.push(cell);
+        const key = Base64.encode(event.lwwElementSet.value);
 
-                    continue;
-                }
+        const existing = items.get(key);
 
-                const event = Models.Event.fromBuffer(cell.signedEvent.event);
+        if (
+          existing === undefined ||
+          existing.lwwElement.unixMilliseconds.lessThan(
+            event.lwwElementSet.unixMilliseconds,
+          )
+        ) {
+          items.set(key, {
+            cell: cell,
+            lwwElement: event.lwwElementSet,
+          });
 
-                if (event.lwwElementSet === undefined) {
-                    throw new Error('expected lwwElement');
-                }
+          if (
+            event.lwwElementSet.operation ===
+            Protocol.LWWElementSet_Operation.ADD
+          ) {
+            toAdd.push(cell);
+          }
 
-                const key = Base64.encode(event.lwwElementSet.value);
+          if (existing) {
+            toRemove.add(existing.cell.key);
+          }
+        }
+      }
 
-                const existing = items.get(key);
+      for (const key of params.remove) {
+        toRemove.add(key);
+      }
 
-                if (
-                    existing === undefined ||
-                    existing.lwwElement.unixMilliseconds.lessThan(
-                        event.lwwElementSet.unixMilliseconds,
-                    )
-                ) {
-                    items.set(key, {
-                        cell: cell,
-                        lwwElement: event.lwwElementSet,
-                    });
+      if (toAdd.length > 0 || toRemove.size > 0) {
+        callback({
+          add: toAdd,
+          remove: toRemove,
+        });
+      }
+    };
 
-                    if (
-                        event.lwwElementSet.operation ===
-                        Protocol.LWWElementSet_Operation.ADD
-                    ) {
-                        toAdd.push(cell);
-                    }
+    const stateForQuery = {
+      queryIndexCallback: queryIndexCallback,
+      items: items,
+    };
 
-                    if (existing) {
-                        toRemove.add(existing.cell.key);
-                    }
-                }
-            }
+    this._state.set(callback, stateForQuery);
 
-            for (const key of params.remove) {
-                toRemove.add(key);
-            }
+    const queryIndexHandle = this._queryIndex.query(
+      system,
+      contentType,
+      queryIndexCallback,
+    );
 
-            if (toAdd.length > 0 || toRemove.size > 0) {
-                callback({
-                    add: toAdd,
-                    remove: toRemove,
-                });
-            }
-        };
+    let unregistered = false;
 
-        const stateForQuery = {
-            queryIndexCallback: queryIndexCallback,
-            items: items,
-        };
+    return {
+      advance: (additionalCount: number) => {
+        if (!unregistered) {
+          queryIndexHandle.advance(additionalCount);
+        }
+      },
+      unregister: () => {
+        unregistered = true;
 
-        this._state.set(callback, stateForQuery);
+        queryIndexHandle.unregister();
 
-        const queryIndexHandle = this._queryIndex.query(
-            system,
-            contentType,
-            queryIndexCallback,
-        );
-
-        let unregistered = false;
-
-        return {
-            advance: (additionalCount: number) => {
-                if (!unregistered) {
-                    queryIndexHandle.advance(additionalCount);
-                }
-            },
-            unregister: () => {
-                unregistered = true;
-
-                queryIndexHandle.unregister();
-
-                this._state.delete(callback);
-            },
-        };
-    }
+        this._state.delete(callback);
+      },
+    };
+  }
 }
 
 export function queryCRDTSetCompleteObservable<T>(
-    queryManager: QueryManager,
-    system: Models.PublicKey.PublicKey,
-    contentType: Models.ContentType.ContentType,
-    parse: (value: Uint8Array) => T,
+  queryManager: QueryManager,
+  system: Models.PublicKey.PublicKey,
+  contentType: Models.ContentType.ContentType,
+  parse: (value: Uint8Array) => T,
 ): RXJS.Observable<ReadonlySet<T>> {
-    const processQueryState = (queryState: QueryIndex.Cell[]) => {
-        const result = new Set<T>();
+  const processQueryState = (queryState: QueryIndex.Cell[]) => {
+    const result = new Set<T>();
 
-        for (const cell of queryState) {
-            if (cell.signedEvent === undefined) {
-                continue;
-            }
+    for (const cell of queryState) {
+      if (cell.signedEvent === undefined) {
+        continue;
+      }
 
-            const event = Models.Event.fromBuffer(cell.signedEvent.event);
+      const event = Models.Event.fromBuffer(cell.signedEvent.event);
 
-            if (event.contentType.notEquals(contentType)) {
-                throw new Error('impossible');
-            }
+      if (event.contentType.notEquals(contentType)) {
+        throw new Error('impossible');
+      }
 
-            if (event.lwwElementSet === undefined) {
-                throw new Error('impossible');
-            }
+      if (event.lwwElementSet === undefined) {
+        throw new Error('impossible');
+      }
 
-            result.add(parse(event.lwwElementSet.value));
-        }
+      result.add(parse(event.lwwElementSet.value));
+    }
 
-        return result;
-    };
+    return result;
+  };
 
-    return new RXJS.Observable((subscriber) => {
-        let queryState: QueryIndex.Cell[] = [];
+  return new RXJS.Observable((subscriber) => {
+    let queryState: QueryIndex.Cell[] = [];
 
-        const handle = queryManager.query(system, contentType, (patch) => {
-            queryState = QueryIndex.applyPatch(queryState, patch);
+    const handle = queryManager.query(system, contentType, (patch) => {
+      queryState = QueryIndex.applyPatch(queryState, patch);
 
-            subscriber.next(processQueryState(queryState));
+      subscriber.next(processQueryState(queryState));
 
-            handle.advance(10);
-        });
-
-        handle.advance(10);
-
-        return handle.unregister.bind(handle);
+      handle.advance(10);
     });
+
+    handle.advance(10);
+
+    return handle.unregister.bind(handle);
+  });
 }

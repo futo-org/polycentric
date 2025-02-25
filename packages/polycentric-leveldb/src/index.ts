@@ -5,51 +5,49 @@ import * as ClassicLevel from 'classic-level';
 import * as Core from '@polycentric/polycentric-core';
 
 export function createPersistenceDriverLevelDB(
-    directory: string,
+  directory: string,
 ): Core.PersistenceDriver.IPersistenceDriver {
-    const getImplementationName = () => {
-        return 'LevelDB';
-    };
+  const getImplementationName = () => {
+    return 'LevelDB';
+  };
 
-    const openStore = async (path: string) => {
-        const level = new ClassicLevel.ClassicLevel<Uint8Array, Uint8Array>(
-            Path.join(directory, path),
-            {
-                keyEncoding: Core.PersistenceDriver.deepCopyTranscoder(),
-                valueEncoding: Core.PersistenceDriver.deepCopyTranscoder(),
-            },
-        ) as any as Core.PersistenceDriver.BinaryAbstractLevel;
+  const openStore = async (path: string) => {
+    const level = new ClassicLevel.ClassicLevel<Uint8Array, Uint8Array>(
+      Path.join(directory, path),
+      {
+        keyEncoding: Core.PersistenceDriver.deepCopyTranscoder(),
+        valueEncoding: Core.PersistenceDriver.deepCopyTranscoder(),
+      },
+    ) as any as Core.PersistenceDriver.BinaryAbstractLevel;
 
-        await level.open((e) => {
-            if (e != null) {
-                console.error(e);
-                console.error("cause " + e.cause)
-            }
-        });
+    await level.open((e) => {
+      if (e != null) {
+        console.error(e);
+        console.error('cause ' + e.cause);
+      }
+    });
 
-        return level;
-    };
+    return level;
+  };
 
-    const estimateStorage = async () => {
-        return {
-            bytesAvailable: undefined,
-            bytesUsed: undefined,
-        };
-    };
-
-    const persisted = async () => {
-        return true;
-    };
-
-    const destroyStore = async (path: string) => { };
-
+  const estimateStorage = async () => {
     return {
-        getImplementationName: getImplementationName,
-        openStore: openStore,
-        estimateStorage: estimateStorage,
-        persisted: persisted,
-        destroyStore: destroyStore,
+      bytesAvailable: undefined,
+      bytesUsed: undefined,
     };
+  };
+
+  const persisted = async () => {
+    return true;
+  };
+
+  const destroyStore = async (path: string) => {};
+
+  return {
+    getImplementationName: getImplementationName,
+    openStore: openStore,
+    estimateStorage: estimateStorage,
+    persisted: persisted,
+    destroyStore: destroyStore,
+  };
 }
-
-

@@ -1,16 +1,16 @@
-import { IonApp, setupIonicReact } from '@ionic/react'
-import { IonReactRouter } from '@ionic/react-router'
-import type { Preview } from '@storybook/react'
-import React from 'react'
+import { IonApp, setupIonicReact } from '@ionic/react';
+import { IonReactRouter } from '@ionic/react-router';
+import type { Preview } from '@storybook/react';
+import React from 'react';
 
-import 'unfonts.css'
-import '../src/lib/style/etc.css'
-import '../src/lib/style/ionic.css'
-import '../src/lib/style/tailwind.css'
+import 'unfonts.css';
+import '../src/lib/style/etc.css';
+import '../src/lib/style/ionic.css';
+import '../src/lib/style/tailwind.css';
 
 setupIonicReact({
   mode: 'ios',
-})
+});
 
 const preview: Preview = {
   parameters: {
@@ -32,6 +32,6 @@ const preview: Preview = {
       </IonApp>
     ),
   ],
-}
+};
 
-export default preview
+export default preview;

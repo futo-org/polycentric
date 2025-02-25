@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
--   Initial release of `@polycentric/polycentric-core` to npm
--   Core functionality for the Polycentric protocol
+- Initial release of `@polycentric/polycentric-core` to npm
+- Core functionality for the Polycentric protocol
 
 ### Security
 
--   Initial security features implemented
+- Initial security features implemented

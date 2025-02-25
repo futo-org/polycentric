@@ -1,8 +1,8 @@
-const Parcel = require("parcel");
-const path = require("path");
+const Parcel = require('parcel');
+const path = require('path');
 
 // const isBuild = true;
-const isBuild = process.env.NODE_ENV === "production";
+const isBuild = process.env.NODE_ENV === 'production';
 
 /*
 const runBundleRenderer = async () => {
@@ -33,11 +33,11 @@ const runBundleRenderer = async () => {
 */
 
 const runBundleMain = async () => {
-  const main = path.join(__dirname, "./src/main/index.ts");
-  const preload = path.join(__dirname, "./src/preload.ts");
+  const main = path.join(__dirname, './src/main/index.ts');
+  const preload = path.join(__dirname, './src/preload.ts');
   const options = {
-    outDir: "./dist/",
-    target: "electron",
+    outDir: './dist/',
+    target: 'electron',
     detailedReport: true,
   };
   const bundler = new Bundler([main, preload], options);
@@ -45,16 +45,16 @@ const runBundleMain = async () => {
   if (isBuild) {
     process.exit(0);
   }
-  const electron = require("electron-connect").server.create({
+  const electron = require('electron-connect').server.create({
     path: __dirname,
     stopOnClose: true,
   });
   electron.start();
-  bundler.on("buildEnd", () => {
+  bundler.on('buildEnd', () => {
     electron.restart();
   });
 
-  electron.on("stopped", () => process.exit(0));
+  electron.on('stopped', () => process.exit(0));
 };
 
 const init = async () => {
