@@ -1,10 +1,10 @@
 import { PopupCompose } from '.';
 
 export default {
-    title: 'Popup/PopupCompose',
-    component: PopupCompose,
+  title: 'Popup/PopupCompose',
+  component: PopupCompose,
 };
 
 export const Default = {
-    args: {},
+  args: {},
 };

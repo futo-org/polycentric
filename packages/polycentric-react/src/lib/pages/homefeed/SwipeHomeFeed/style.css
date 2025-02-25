@@ -1,9 +1,9 @@
 .forcezerotopleft {
-    top: 0px !important;
-    left: 0px !important;
+  top: 0px !important;
+  left: 0px !important;
 }
 
 .forcefullscreen {
-    width: 100vw !important;
-    height: 100vh !important;
+  width: 100vw !important;
+  height: 100vh !important;
 }

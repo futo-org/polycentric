@@ -1,12 +1,12 @@
 import { MainSidebar } from '.';
 
 export default {
-    title: 'Sidebars/MainSidebar',
-    component: MainSidebar,
+  title: 'Sidebars/MainSidebar',
+  component: MainSidebar,
 };
 
 export const Default = {
-    args: {
-        topics: ['/tpot', '/tpot/dating'],
-    },
+  args: {
+    topics: ['/tpot', '/tpot/dating'],
+  },
 };

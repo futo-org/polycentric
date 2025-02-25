@@ -1,10 +1,10 @@
 import { SpinLoader } from '.';
 
 export default {
-    title: 'SpinLoader',
-    component: SpinLoader,
+  title: 'SpinLoader',
+  component: SpinLoader,
 };
 
 export const Default = {
-    args: {},
+  args: {},
 };

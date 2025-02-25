@@ -1,9 +1,9 @@
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vitest/config'
-import tailwindcss from 'tailwindcss'
-import { UserConfigExport } from 'vite'
-import unfonts from 'unplugin-fonts/vite'
-import libAssetsPlugin from '@laynezh/vite-plugin-lib-assets'
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vitest/config';
+import tailwindcss from 'tailwindcss';
+import { UserConfigExport } from 'vite';
+import unfonts from 'unplugin-fonts/vite';
+import libAssetsPlugin from '@laynezh/vite-plugin-lib-assets';
 
 const app = defineConfig({
   plugins: [
@@ -11,7 +11,10 @@ const app = defineConfig({
     unfonts({
       fontsource: {
         families: [
-          { name: 'Public Sans', weights: [100, 200, 300, 400, 500, 600, 700, 800, 900] },
+          {
+            name: 'Public Sans',
+            weights: [100, 200, 300, 400, 500, 600, 700, 800, 900],
+          },
           { name: 'Fragment Mono', weights: [400] },
         ],
       },
@@ -22,7 +25,7 @@ const app = defineConfig({
       plugins: [tailwindcss],
     },
   },
-})
+});
 
 // https://vitejs.dev/config/
-export default app
+export default app;

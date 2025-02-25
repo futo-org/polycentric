@@ -7,5 +7,5 @@ import { createPersistenceDriverLevelDB } from '@polycentric/polycentric-leveldb
 const persistenceDriver = createPersistenceDriverLevelDB('./polystate');
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-    <PolycentricReact.App persistenceDriver={persistenceDriver} />,
+  <PolycentricReact.App persistenceDriver={persistenceDriver} />,
 );

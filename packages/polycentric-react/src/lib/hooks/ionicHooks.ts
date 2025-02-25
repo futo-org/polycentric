@@ -6,22 +6,22 @@ import { createGesture } from '@ionic/react';
 import { useLayoutEffect } from 'react';
 
 export const useGestureWall = (enabled = true) => {
-    useLayoutEffect(() => {
-        if (enabled) {
-            const g = createGesture({
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                el: document,
-                gestureName: 'gesture-wall',
-                gesturePriority: 10000,
-                onMove: (e: GestureDetail) => {
-                    e.event.preventDefault();
-                },
-            });
-            g.enable();
+  useLayoutEffect(() => {
+    if (enabled) {
+      const g = createGesture({
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        el: document,
+        gestureName: 'gesture-wall',
+        gesturePriority: 10000,
+        onMove: (e: GestureDetail) => {
+          e.event.preventDefault();
+        },
+      });
+      g.enable();
 
-            return () => {
-                g?.destroy();
-            };
-        }
-    }, [enabled]);
+      return () => {
+        g?.destroy();
+      };
+    }
+  }, [enabled]);
 };

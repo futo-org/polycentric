@@ -1,10 +1,10 @@
-import libAssetsPlugin from '@laynezh/vite-plugin-lib-assets'
-import react from '@vitejs/plugin-react'
-import path from 'node:path'
-import tailwindcss from 'tailwindcss'
-import dts from 'vite-plugin-dts'
-import { defineConfig } from 'vitest/config'
-import { name } from './package.json'
+import libAssetsPlugin from '@laynezh/vite-plugin-lib-assets';
+import react from '@vitejs/plugin-react';
+import path from 'node:path';
+import tailwindcss from 'tailwindcss';
+import dts from 'vite-plugin-dts';
+import { defineConfig } from 'vitest/config';
+import { name } from './package.json';
 
 const app = defineConfig(({ mode }) => ({
   plugins: [
@@ -34,7 +34,13 @@ const app = defineConfig(({ mode }) => ({
       fileName: (format) => `polycentric-react.${format}.js`,
     },
     rollupOptions: {
-      external: ['react', 'react-dom', 'react/jsx-runtime', 'tailwindcss', '@polycentric/polycentric-core'],
+      external: [
+        'react',
+        'react-dom',
+        'react/jsx-runtime',
+        'tailwindcss',
+        '@polycentric/polycentric-core',
+      ],
       output: {
         globals: {
           react: 'React',
@@ -49,7 +55,7 @@ const app = defineConfig(({ mode }) => ({
     globals: true,
     environment: 'jsdom',
   },
-}))
+}));
 
 // https://vitejs.dev/config/
-export default app
+export default app;

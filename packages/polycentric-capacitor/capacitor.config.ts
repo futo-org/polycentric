@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Polycentric',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
   },
   // ios: {
   //   contentInset: 'always'
