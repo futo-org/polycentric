@@ -179,7 +179,9 @@ export const useCommentFeed = (
             process: Models.Process.Process,
             logicalClock: Long,
             cancelContext: CancelContext.CancelContext,
-            callback?: (signedEvent: ParsedEvent<Protocol.Post | Protocol.Claim>) => void,
+            callback?: (
+                signedEvent: ParsedEvent<Protocol.Post | Protocol.Claim>,
+            ) => void,
         ) => {
             queryManager.queryEvent.query(
                 system,
@@ -193,7 +195,9 @@ export const useCommentFeed = (
                     const event = Models.Event.fromBuffer(signedEvent.event);
                     let parsed;
                     try {
-                        parsed = event.contentType.eq(Models.ContentType.ContentTypePost)
+                        parsed = event.contentType.eq(
+                            Models.ContentType.ContentTypePost,
+                        )
                             ? Protocol.Post.decode(event.content)
                             : Protocol.Claim.decode(event.content);
                     } catch (error) {
