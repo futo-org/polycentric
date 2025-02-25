@@ -594,17 +594,14 @@ export interface OAuthUsernameResponse {
   token: string;
 }
 
-interface OAuthURLResponse {
-  url: string;
-}
-
 export async function getOAuthURL(
   server: string,
   claimType: Models.ClaimType.ClaimType,
   redirectUri?: string,
 ): Promise<string> {
-  let url = `${server}/platforms/${claimType.toString()}/oauth/url`;
+  let url = `${server}/platforms/${claimType}/oauth/url`;
 
+  // Add redirectUri if provided
   if (redirectUri) {
     url += `?redirectUri=${encodeURIComponent(redirectUri)}`;
   }
@@ -619,8 +616,9 @@ export async function getOAuthURL(
   });
 
   await checkResponse('getOAuthURL', response);
-  const data = (await response.json()) as string | OAuthURLResponse;
+  const data = await response.json();
 
+  // Handle both string and object responses
   return typeof data === 'string' ? data : data.url;
 }
 
@@ -629,9 +627,9 @@ export async function getOAuthUsername(
   token: string,
   claimType: Models.ClaimType.ClaimType,
 ): Promise<OAuthUsernameResponse> {
-  const url = `${server}/platforms/${claimType.toString()}/oauth/token${
-    token.startsWith('?') ? token : `?${token}`
-  }`;
+  const url = `${server}/platforms/${claimType.toString()}/oauth/token?oauthData=${encodeURIComponent(
+    token,
+  )}`;
 
   const response = await fetch(url, {
     method: 'GET',
@@ -641,7 +639,7 @@ export async function getOAuthUsername(
   });
 
   await checkResponse('getOAuthUsername', response);
-  return response.json() as Promise<OAuthUsernameResponse>;
+  return await response.json();
 }
 
 export async function getClaimFieldsByUrl(
@@ -649,7 +647,7 @@ export async function getClaimFieldsByUrl(
   claimType: Models.ClaimType.ClaimType,
   subject: string,
 ): Promise<Protocol.ClaimFieldEntry[]> {
-  const url = `${server}/platforms/${claimType.toString()}/text/getClaimFieldsByUrl`;
+  const url = `${server}/platforms/${claimType}/text/getClaimFieldsByUrl`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -662,13 +660,8 @@ export async function getClaimFieldsByUrl(
 
   await checkResponse('getClaimFieldsByUrl', response);
 
-  interface ClaimFieldItem {
-    key: number;
-    value: string;
-  }
-
-  const decoded = (await response.json()) as ClaimFieldItem[];
-  return decoded.map((item: ClaimFieldItem) => ({
+  const decoded = await response.json();
+  return decoded.map((item: { key: number; value: string }) => ({
     key: Long.fromNumber(item.key),
     value: item.value,
   }));
