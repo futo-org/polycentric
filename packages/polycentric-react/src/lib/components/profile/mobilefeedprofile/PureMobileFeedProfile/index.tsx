@@ -1,14 +1,14 @@
-import { Protocol } from '@polycentric/polycentric-core';
-import Long from 'long';
 import { ArrowUpOnSquareIcon } from '@heroicons/react/24/outline';
-import { Models } from '@polycentric/polycentric-core';
+import { Models, Protocol } from '@polycentric/polycentric-core';
+import Long from 'long';
 import { useState } from 'react';
-import { FollowingList } from '../../FollowingList';
+import ReactMarkdown from 'react-markdown';
 import { ClaimGrid } from '../../ClaimGrid';
 import {
-  EditProfileActions,
-  PureEditProfile,
+    EditProfileActions,
+    PureEditProfile,
 } from '../../edit/PureEditProfile';
+import { FollowingList } from '../../FollowingList';
 import { PureSidebarProfileData } from '../../sidebarprofile/PureSidebarProfile';
 
 export const PureMobileFeedProfile = ({
@@ -101,16 +101,16 @@ export const PureMobileFeedProfile = ({
                         </span>{' '}
                         followers
                     </p> */}
+                </div>
+                <div className="w-full text text-gray-500 min-w-0 break-words">
+                    <ReactMarkdown>{profile.description || ''}</ReactMarkdown>
+                </div>
+                <ClaimGrid
+                    claims={claims}
+                    system={profile.system}
+                    isMyProfile={profile.isMyProfile}
+                />
+            </div>
         </div>
-        <div className="w-full text text-gray-500 min-w-0 break-words">
-          {profile.description}
-        </div>
-        <ClaimGrid
-          claims={claims}
-          system={profile.system}
-          isMyProfile={profile.isMyProfile}
-        />
-      </div>
-    </div>
-  );
+    );
 };
