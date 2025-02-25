@@ -80,10 +80,6 @@ const PLATFORM_TO_CLAIM_FUNCTION = {
     'substack': Models.claimSubstack,
     'twitch': Models.claimTwitch,
     'website': Models.claimWebsite,
-    'vimeo': Models.claimVimeo,
-    'nebula': Models.claimNebula,
-    'spotify': Models.claimSpotify,
-    'spreadshop': Models.claimSpreadshop,
 } as const;
 
 export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
