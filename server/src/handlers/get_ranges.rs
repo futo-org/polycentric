@@ -23,9 +23,9 @@ pub(crate) async fn handler(
         .await
     );
 
-    let tags: Vec<String> = crate::cache::util::key_to_cache_tags_account_meta(
-        &query.system,
-    );
+    // let tags: Vec<String> = crate::cache::util::key_to_cache_tags_account_meta(
+    //     &query.system,
+    // );
 
     crate::warp_try_err_500!(transaction.commit().await);
 
@@ -37,20 +37,10 @@ pub(crate) async fn handler(
             ::warp::http::StatusCode::OK,
         ),
         "Cache-Control",
-        "public, s-maxage=3600, max-age=5",
+        "no-cache",
         );
 
-    if !tags.is_empty() {
-        if let Some(cache_provider) = state.cache_provider.as_ref() {
-            Ok(Box::new(::warp::reply::with_header(
-                response,
-                cache_provider.get_header_name(),
-                cache_provider.get_header_value(&tags),
-            )))
-        } else {
-            Ok(Box::new(response))
-        }
-    } else {
-        Ok(Box::new(response))
-    }
+    // Caching for ranges is hard because we need nearly strong consistency for caching
+    // It's currently not implemented, but should be able to using key_to_cache_tags_account_meta
+    Ok(Box::new(response))
 }

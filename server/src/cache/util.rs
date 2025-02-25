@@ -29,12 +29,6 @@ pub(crate) fn signed_event_to_cache_tags(
                     ));
                 }
 
-                for reference in event.references() {
-                    if let Ok(base64) = reference::to_base64(reference) {
-                        out.push(format!("ref:{}", base64));
-                    }
-                }
-
                 let pointer = pointer::from_signed_event(signed_event);
                 if let Ok(pointer) = pointer {
                     let base64_pointer = pointer::to_base64(&pointer);
@@ -78,14 +72,39 @@ pub(crate) fn key_to_cache_tags_account_meta(
     out
 }
 
-pub(crate) fn signed_event_to_cache_tags_account_meta(
+pub(crate) fn ingested_signed_event_to_cache_tags_account_meta(
     signed_event: &polycentric_protocol::model::signed_event::SignedEvent,
 ) -> Vec<String> {
     let event =
-    polycentric_protocol::model::event::from_vec(signed_event.event());
+        polycentric_protocol::model::event::from_vec(signed_event.event());
 
     if let Ok(event) = event {
         return key_to_cache_tags_account_meta(&event.system());
     }
     Vec::new()
+}
+
+pub(crate) fn reference_to_cache_tags_reference(
+    reference: &reference::Reference,
+) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Ok(base64) = reference::to_base64(reference) {
+        out.push(format!("ref:{}", base64));
+    }
+    out
+}
+
+pub(crate) fn ingested_signed_event_to_cache_tags_reference(
+    signed_event: &polycentric_protocol::model::signed_event::SignedEvent,
+) -> Vec<String> {
+    let event =
+        polycentric_protocol::model::event::from_vec(signed_event.event());
+
+    let mut out = Vec::new();
+    if let Ok(event) = event {
+        for reference in event.references() {
+            out.extend(reference_to_cache_tags_reference(&reference));
+        }
+    }
+    out
 }

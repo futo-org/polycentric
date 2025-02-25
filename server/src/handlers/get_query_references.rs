@@ -88,6 +88,8 @@ pub(crate) async fn handler(
 
     let mut cache_tags = Vec::new();
 
+    cache_tags.extend(crate::cache::util::reference_to_cache_tags_reference(&reference));
+
     if let Some(request_events) = query.query.request_events.0 {
         let query_result = crate::warp_try_err_500!(
             crate::postgres::query_references::query_references(
@@ -197,12 +199,17 @@ pub(crate) async fn handler(
         "public, s-maxage=3600, max-age=5",
     );
 
+    println!("cache_tags: {:?}", cache_tags);
     if !cache_tags.is_empty() {
-        Ok(Box::new(::warp::reply::with_header(
-            response,
-            "Cache-Tag",
-            cache_tags.join(","),
-        )))
+        if let Some(cache_provider) = state.cache_provider.as_ref() {
+            Ok(Box::new(::warp::reply::with_header(
+                response,
+                cache_provider.get_header_name(),
+                cache_provider.get_header_value(&cache_tags),
+            )))
+        } else {
+            Ok(Box::new(response))
+        }
     } else {
         Ok(Box::new(response))
     }

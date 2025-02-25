@@ -31,10 +31,15 @@ async fn handler_inner(
 
         let meta_tags: Vec<String> = signed_events
             .iter()
-            .flat_map(crate::cache::util::signed_event_to_cache_tags_account_meta)
+            .flat_map(crate::cache::util::ingested_signed_event_to_cache_tags_account_meta)
             .collect();
 
-        let tags = [meta_tags, tags].concat();
+        let reference_tags: Vec<String> = signed_events
+            .iter()
+            .flat_map(crate::cache::util::ingested_signed_event_to_cache_tags_reference)
+            .collect();
+
+        let tags = [meta_tags, tags, reference_tags].concat();
 
         // TODO: Run in background
         let _ = provider.purge_tags(&tags).await;
