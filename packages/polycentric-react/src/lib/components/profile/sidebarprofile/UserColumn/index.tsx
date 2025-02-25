@@ -1,6 +1,6 @@
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import { useCallback, useMemo, useState } from 'react';
-import { useAvatar } from '../../../../hooks/imageHooks';
+import { useAvatar, useBackground } from '../../../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../../../hooks/processHandleManagerHooks';
 import {
   useClaims,
@@ -8,7 +8,10 @@ import {
   useQueryIfAdded,
   useUsernameCRDTQuery,
 } from '../../../../hooks/queryHooks';
-import { publishBlobToAvatar } from '../../../../util/imageProcessing';
+import {
+  publishBlobToAvatar,
+  publishBlobToBackground,
+} from '../../../../util/imageProcessing';
 import { PureSidebarProfile } from '../PureSidebarProfile';
 
 export const UserColumn = ({
@@ -19,6 +22,7 @@ export const UserColumn = ({
   const name = useUsernameCRDTQuery(system);
   const description = useDescriptionCRDTQuery(system);
   const avatarURL = useAvatar(system);
+  const backgroundURL = useBackground(system);
 
   const claims = useClaims(system);
 
@@ -85,6 +89,8 @@ export const UserColumn = ({
         processHandle.setDescription(description),
       changeAvatar: async (blob: Blob) =>
         publishBlobToAvatar(blob, processHandle),
+      changeBackground: async (blob: Blob) =>
+        publishBlobToBackground(blob, processHandle),
     };
   }, [processHandle]);
 
@@ -93,6 +99,7 @@ export const UserColumn = ({
       name,
       description,
       avatarURL,
+      backgroundURL,
       isMyProfile,
       iAmFollowing: iAmFollowing,
       iBlocked: iBlocked,
@@ -104,6 +111,7 @@ export const UserColumn = ({
     name,
     description,
     avatarURL,
+    backgroundURL,
     isMyProfile,
     iAmFollowing,
     iBlocked,

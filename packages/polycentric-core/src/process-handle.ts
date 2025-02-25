@@ -259,6 +259,15 @@ export class ProcessHandle {
     );
   }
 
+  public async setBanner(
+    banner: Protocol.ImageBundle,
+  ): Promise<Models.Pointer.Pointer> {
+    return await this.setCRDTItem(
+      Models.ContentType.ContentTypeBanner,
+      Protocol.ImageBundle.encode(banner).finish(),
+    );
+  }
+
   public async follow(
     system: Models.PublicKey.PublicKey,
   ): Promise<Models.Pointer.Pointer> {

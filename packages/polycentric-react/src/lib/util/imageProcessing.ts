@@ -183,3 +183,18 @@ export const publishBlobToAvatar = async (
 
   return await handle.setAvatar(imageBundle);
 };
+
+export const publishBlobToBackground = async (
+  blob: Blob,
+  handle: ProcessHandle.ProcessHandle,
+) => {
+  const imageBundle: Protocol.ImageBundle = {
+    imageManifests: [],
+  };
+
+  const imageManifest = await publishImageBlob(blob, handle);
+
+  imageBundle.imageManifests.push(imageManifest);
+
+  return await handle.setBanner(imageBundle);
+};
