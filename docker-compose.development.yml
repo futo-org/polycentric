@@ -37,17 +37,20 @@ services:
         environment:
             HOME: "/tmp/home"
             RUST_LOG: "server=debug"
+            CARGO_HOME: "/tmp/cargo"
             DATABASE_URL: "postgres://postgres:testing@postgres"
             ADMIN_TOKEN: "123"
             CHALLENGE_KEY: "456"
             CACHE_INTERFACE: "caddy"
-            CACHE_BASE_URL: "http://caddy:80"
+            CACHE_BASE_URL: "https://caddy:8082"
         user: "${CURRENT_UID}:${CURRENT_GID}"
         volumes:
             - ./:/app
         tmpfs:
             - /tmp:exec
         ports:
+            # polycentric server
+            - "127.0.0.1:8081:8081"
             # gdbserver
             - "127.0.0.1:3345:3345"
             # polycentric web
@@ -56,19 +59,18 @@ services:
             - "127.0.0.1:3001:3001"
             # wrangler port
             - "127.0.0.1:8976:8976"
-            - "127.0.0.1:8081:8081"
-            - "127.0.0.1:8082:8082"
         command: tail -F wait_forever
     caddy:
-        image: caddy
+        build:
+            context: ./caddy
+            dockerfile: Dockerfile
         volumes:
-            - ./Caddyfile.development:/etc/caddy/Caddyfile:ro
+            - ./caddy/Caddyfile.development:/etc/caddy/Caddyfile:ro
             - /tmp/caddy/data:/data
             - /tmp/caddy/config:/config
             - /tmp/caddy/cache:/data/cache
         ports:
-            - "127.0.0.1:3000:3000"
-            - "127.0.0.1:3001:3001"
+            - "127.0.0.1:8082:8082"
     grafana:
         image: grafana/grafana:9.5.2
         restart: always

@@ -36,9 +36,11 @@ services:
             - "CACHE_INTERFACE=caddy"
             - "CACHE_BASE_URL=http://proxy:80"
     proxy:
-        image: caddy
+        build:
+            context: ./caddy
+            dockerfile: Dockerfile
         volumes:
-            - ./Caddyfile:/etc/caddy/Caddyfile:ro
+            - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
             - ./state/caddy/data:/data
             - ./state/caddy/config:/config
             - ./state/caddy/cache:/data/cache

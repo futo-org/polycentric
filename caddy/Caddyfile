@@ -4,8 +4,6 @@
         api {
             basepath /cache-api
             prometheus
-            # Only allow internal access
-            trusted_proxies private_ranges
         }
         badger {
             path /data/cache/badger
