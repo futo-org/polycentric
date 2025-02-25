@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { useBlobDisplayURL } from '../../../../../hooks/imageHooks';
 import { cropImageToWebp } from '../../../../../util/imageProcessing';
 import { CropProfilePicModal } from '../../../CropProfilePic';
-import { ProfilePicture } from '../../../ProfilePicture';
 
-export const ProfileAvatarInput = ({
+export const ProfileBackgroundInput = ({
   title,
   hint,
   setCroppedImage,
@@ -30,11 +29,22 @@ export const ProfileAvatarInput = ({
     <div className="flex flex-col gap-y-1">
       <h3 className="font-medium">{title}</h3>
       <div className="">
-        <label htmlFor="upload-button" className="">
-          <ProfilePicture className="w-16 h-16" src={previewURL} />
+        <label htmlFor="background-upload-button" className="cursor-pointer">
+          <div
+            className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden"
+            style={{
+              backgroundImage: previewURL ? `url(${previewURL})` : 'none',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          >
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30 text-white hover:bg-black/40 transition-colors">
+              <span>Click to upload</span>
+            </div>
+          </div>
         </label>
         <input
-          id="upload-button"
+          id="background-upload-button"
           type="file"
           className="hidden"
           accept="image/png, image/jpeg, image/webp"
@@ -53,7 +63,7 @@ export const ProfileAvatarInput = ({
       {cropping && rawImageURL && (
         <CropProfilePicModal
           src={rawImageURL}
-          aspect={1}
+          aspect={3 / 1}
           open={rawImageURL !== undefined}
           setOpen={(open) => {
             if (!open) {

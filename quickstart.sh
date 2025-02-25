@@ -42,6 +42,9 @@ then
     read -p "Enter the publicly accessible domain name for this server: " POLYCENTRIC_DOMAIN_NAME_TEMP
     sed -i "s/srv1.polycentric.io/$POLYCENTRIC_DOMAIN_NAME_TEMP/" ./Caddyfile
     echo "POLYCENTRIC_DOMAIN_NAME=$POLYCENTRIC_DOMAIN_NAME_TEMP" >> .env
+elif [[ "$POLYCENTRIC_PROXY_TYPE" == "caddy" ]]
+then
+    sed -i "s/srv1.polycentric.io/$POLYCENTRIC_DOMAIN_NAME/" ./Caddyfile
 else
     sed -i '/proxy:/,$d' docker-compose.live.yml
     sed -i 's!polycentric/polycentric!polycentric/polycentric\n        ports:\n              - "8081:8081"\n              - "80:80"\n              - "443:443"!' docker-compose.live.yml

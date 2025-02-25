@@ -6,81 +6,81 @@ import { useEffect, useState } from 'react';
 import './capacitor.css';
 
 class MobileLevelDBPersistenceDriver {
-    levels = new Map<string, MobileLevel>();
+  levels = new Map<string, MobileLevel>();
 
-    getImplementationName = () => {
-        return 'MobileLevelDB';
+  getImplementationName = () => {
+    return 'MobileLevelDB';
+  };
+
+  openStore = async (path: string) => {
+    const level = new MobileLevel(path, {
+      keyEncoding: 'view',
+      valueEncoding: 'view',
+    });
+
+    await level.open().catch((err) => {
+      console.error(err);
+    });
+
+    // assign level to the class level
+    this.levels.set(path, level);
+
+    return level;
+  };
+
+  estimateStorage = async () => {
+    const estimate: PersistenceDriver.StorageEstimate = {
+      bytesAvailable: undefined,
+      bytesUsed: undefined,
     };
 
-    openStore = async (path: string) => {
-        const level = new MobileLevel(path, {
-            keyEncoding: 'view',
-            valueEncoding: 'view',
-        });
+    return estimate;
+  };
 
-        await level.open().catch((err) => {
-            console.error(err);
-        });
+  persisted = async () => {
+    return true;
+  };
 
-        // assign level to the class level
-        this.levels.set(path, level);
+  destroyStore = async (path: string) => {
+    const level = this.levels.get(path);
 
-        return level;
-    };
-
-    estimateStorage = async () => {
-        const estimate: PersistenceDriver.StorageEstimate = {
-            bytesAvailable: undefined,
-            bytesUsed: undefined,
-        };
-
-        return estimate;
-    };
-
-    persisted = async () => {
-        return true;
-    };
-
-    destroyStore = async (path: string) => {
-        const level = this.levels.get(path);
-
-        if (level !== undefined) {
-            await level.destroy();
-        }
-    };
-
-    async close(path: string) {
-        const level = this.levels.get(path);
-
-        if (level !== undefined) {
-            await level.close();
-        }
+    if (level !== undefined) {
+      await level.destroy();
     }
+  };
 
-    async closeAll() {
-        for (const path of this.levels.keys()) {
-            await this.close(path);
-        }
+  async close(path: string) {
+    const level = this.levels.get(path);
+
+    if (level !== undefined) {
+      await level.close();
     }
+  }
+
+  async closeAll() {
+    for (const path of this.levels.keys()) {
+      await this.close(path);
+    }
+  }
 }
 
 export const AppRoot = () => {
-    const [persistenceDriver, setPersistenceDriver] = useState<
-        PersistenceDriver.IPersistenceDriver | undefined
-    >(undefined);
+  const [persistenceDriver, setPersistenceDriver] = useState<
+    PersistenceDriver.IPersistenceDriver | undefined
+  >(undefined);
 
-    useEffect(() => {
-        const persistenceDriver = new MobileLevelDBPersistenceDriver();
-        setPersistenceDriver(persistenceDriver);
+  useEffect(() => {
+    const persistenceDriver = new MobileLevelDBPersistenceDriver();
+    setPersistenceDriver(persistenceDriver);
 
-        return () => {
-            persistenceDriver.closeAll();
-        };
-    }, []);
+    return () => {
+      persistenceDriver.closeAll();
+    };
+  }, []);
 
-    if (persistenceDriver === undefined) {
-        return <></>;
-    }
+  if (persistenceDriver === undefined) {
+    return <></>;
+  }
 
-    return <App persistenceDriver={persistenceDriver} />;
+  return <App persistenceDriver={persistenceDriver} />;
 };

@@ -9,5 +9,5 @@ module.exports = {
       sans: ['Cairo', 'sans-serif'],
       serif: ['Inria Serif', 'serif'],
     },
-  }
+  },
 };

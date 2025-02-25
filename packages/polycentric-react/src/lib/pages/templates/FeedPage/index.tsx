@@ -3,19 +3,19 @@ import { InfiniteScrollWithRightCol } from '../../../components/layout/infinites
 import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks';
 
 export const FeedPage = ({
-    data,
-    advanceFeed,
-    rightCol,
+  data,
+  advanceFeed,
+  rightCol,
 }: {
-    data: FeedHookData;
-    advanceFeed: FeedHookAdvanceFn;
-    rightCol: ReactElement;
+  data: FeedHookData;
+  advanceFeed: FeedHookAdvanceFn;
+  rightCol: ReactElement;
 }) => {
-    return (
-        <InfiniteScrollWithRightCol
-            data={data}
-            advanceFeed={advanceFeed}
-            rightCol={rightCol}
-        />
-    );
+  return (
+    <InfiniteScrollWithRightCol
+      data={data}
+      advanceFeed={advanceFeed}
+      rightCol={rightCol}
+    />
+  );
 };

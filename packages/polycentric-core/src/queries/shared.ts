@@ -7,9 +7,9 @@ export const DuplicatedCallbackError = new Error('duplicated callback');
 export const ImpossibleError = new Error('impossible');
 
 export interface LoadedBatch {
-    readonly signedEvents: readonly Models.SignedEvent.SignedEvent[];
-    readonly origin: HasUpdate;
-    readonly source: string;
+  readonly signedEvents: readonly Models.SignedEvent.SignedEvent[];
+  readonly origin: HasUpdate;
+  readonly source: string;
 }
 
 export type OnLoadedBatch = (loadedBatch: LoadedBatch) => void;

@@ -4,20 +4,20 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 const polycentricDeps = [
-    '@polycentric/polycentric-core',
-    '@polycentric/polycentric-react',
+  '@polycentric/polycentric-core',
+  '@polycentric/polycentric-react',
 ];
 
 if (!fs.existsSync('../../devcert/local-key.pem')) {
-    console.warn(
-        'Warning: ../../devcert/local-key.pem does not exist. Make sure to run `make devcert`',
-    );
+  console.warn(
+    'Warning: ../../devcert/local-key.pem does not exist. Make sure to run `make devcert`',
+  );
 }
 
 if (!fs.existsSync('../../devcert/local-cert.pem')) {
-    console.warn(
-        'Warning: ../../devcert/local-cert.pem does not exist. Make sure to run `make devcert`',
-    );
+  console.warn(
+    'Warning: ../../devcert/local-cert.pem does not exist. Make sure to run `make devcert`',
+  );
 }
 
 // https://vitejs.dev/config/

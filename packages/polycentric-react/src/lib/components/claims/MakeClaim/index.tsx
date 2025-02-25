@@ -5,37 +5,37 @@ import { useProcessHandleManager } from '../../../hooks/processHandleManagerHook
 import { useClaims } from '../../../hooks/queryHooks';
 
 export type SocialPlatform =
-    | 'hackerNews'
-    | 'youtube'
-    | 'odysee'
-    | 'rumble'
-    | 'twitter/X'
-    | 'discord'
-    | 'instagram'
-    | 'github'
-    | 'minds'
-    | 'patreon'
-    | 'substack'
-    | 'twitch'
-    | 'website'
-    | 'kick'
-    | 'soundcloud'
-    | 'vimeo'
-    | 'nebula'
-    | 'spotify'
-    | 'spreadshop'
-    | 'polycentric'
-    | 'gitlab'
-    | 'dailymotion';
+  | 'hackerNews'
+  | 'youtube'
+  | 'odysee'
+  | 'rumble'
+  | 'twitter/X'
+  | 'discord'
+  | 'instagram'
+  | 'github'
+  | 'minds'
+  | 'patreon'
+  | 'substack'
+  | 'twitch'
+  | 'website'
+  | 'kick'
+  | 'soundcloud'
+  | 'vimeo'
+  | 'nebula'
+  | 'spotify'
+  | 'spreadshop'
+  | 'polycentric'
+  | 'gitlab'
+  | 'dailymotion';
 
 export interface ClaimData {
-    type: 'social' | 'occupation' | 'skill' | 'freeform';
-    platform?: SocialPlatform;
+  type: 'social' | 'occupation' | 'skill' | 'freeform';
+  platform?: SocialPlatform;
 }
 
 interface MakeClaimProps {
-    onClose: () => void;
-    system: Models.PublicKey.PublicKey;
+  onClose: () => void;
+  system: Models.PublicKey.PublicKey;
 }
 
 const isOAuthVerifiable = (
@@ -87,134 +87,131 @@ const PLATFORM_TO_CLAIM_FUNCTION = {
 } as const;
 
 export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
-    const [step, setStep] = useState<'type' | 'input'>('type');
-    const [claimType, setClaimType] = useState<ClaimData['type'] | null>(null);
-    const [platform, setPlatform] = useState<SocialPlatform | undefined>();
+  const [step, setStep] = useState<'type' | 'input'>('type');
+  const [claimType, setClaimType] = useState<ClaimData['type'] | null>(null);
+  const [platform, setPlatform] = useState<SocialPlatform | undefined>();
 
-    const handleSelect = (
-        type: ClaimData['type'],
-        platform?: SocialPlatform,
-    ) => {
-        setClaimType(type);
-        setPlatform(platform);
-        setStep('input');
+  const handleSelect = (type: ClaimData['type'], platform?: SocialPlatform) => {
+    setClaimType(type);
+    setPlatform(platform);
+    setStep('input');
+  };
+
+  const renderInput = () => {
+    if (!claimType) return null;
+
+    const props = {
+      system,
+      onCancel: onClose,
     };
 
-    const renderInput = () => {
-        if (!claimType) return null;
+    switch (claimType) {
+      case 'social':
+        return platform ? (
+          <SocialMediaInput {...props} platform={platform} />
+        ) : null;
+      case 'occupation':
+        return <OccupationInput {...props} />;
+      case 'skill':
+      case 'freeform':
+        return <TextInput {...props} type={claimType} />;
+    }
+  };
 
-        const props = {
-            system,
-            onCancel: onClose,
-        };
-
-        switch (claimType) {
-            case 'social':
-                return platform ? (
-                    <SocialMediaInput {...props} platform={platform} />
-                ) : null;
-            case 'occupation':
-                return <OccupationInput {...props} />;
-            case 'skill':
-            case 'freeform':
-                return <TextInput {...props} type={claimType} />;
-        }
-    };
-
-    return (
-        <div
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-[9999]"
-            onClick={onClose}
-        >
-            <div
-                className="bg-white rounded-lg shadow-lg p-4 max-w-md w-full m-4"
-                onClick={(e) => e.stopPropagation()}
-            >
-                {step === 'type' ? (
-                    <ClaimTypePopup onSelect={handleSelect} />
-                ) : (
-                    renderInput()
-                )}
-            </div>
-        </div>
-    );
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-[9999]"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-lg shadow-lg p-4 max-w-md w-full m-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {step === 'type' ? (
+          <ClaimTypePopup onSelect={handleSelect} />
+        ) : (
+          renderInput()
+        )}
+      </div>
+    </div>
+  );
 };
 
 export const ClaimTypePopup = ({
-    onSelect,
+  onSelect,
 }: {
-    onSelect: (type: ClaimData['type'], platform?: SocialPlatform) => void;
+  onSelect: (type: ClaimData['type'], platform?: SocialPlatform) => void;
 }) => {
-    const [showSocialPlatforms, setShowSocialPlatforms] = useState(false);
+  const [showSocialPlatforms, setShowSocialPlatforms] = useState(false);
 
-    const socialPlatforms: SocialPlatform[] = [
-        'youtube',
-        'twitter/X',
-        'github',
-        'discord',
-        'instagram',
-        'minds',
-        'odysee',
-        'patreon',
-        'rumble',
-        'soundcloud',
-        'spotify',
-        'twitch',
-        'vimeo',
-        'dailymotion',
-        'gitlab',
-    ];
+  const socialPlatforms: SocialPlatform[] = [
+    'youtube',
+    'twitter/X',
+    'github',
+    'discord',
+    'instagram',
+    'minds',
+    'odysee',
+    'patreon',
+    'rumble',
+    'soundcloud',
+    'spotify',
+    'twitch',
+    'vimeo',
+    'dailymotion',
+    'gitlab',
+  ];
 
-    if (showSocialPlatforms) {
-        return (
-            <div className="flex flex-col gap-2">
-                <button
-                    onClick={() => setShowSocialPlatforms(false)}
-                    className="text-left px-4 py-2 text-gray-500"
-                >
-                    ← Back
-                </button>
-                {socialPlatforms.map((platform) => (
-                    <button
-                        key={platform}
-                        onClick={() => onSelect('social', platform)}
-                        className="text-left px-4 py-2 hover:bg-gray-100 rounded-md capitalize"
-                    >
-                        {platform}
-                    </button>
-                ))}
-            </div>
-        );
-    }
-
+  if (showSocialPlatforms) {
     return (
-        <div className="flex flex-col gap-2">
-            <button
-                onClick={() => setShowSocialPlatforms(true)}
-                className="text-left px-4 py-2 hover:bg-gray-100 rounded-md"
-            >
-                Social Media
-            </button>
-            <button
-                onClick={() => onSelect('occupation')}
-                className="text-left px-4 py-2 hover:bg-gray-100 rounded-md"
-            >
-                Occupation
-            </button>
-            <button
-                onClick={() => onSelect('skill')}
-                className="text-left px-4 py-2 hover:bg-gray-100 rounded-md"
-            >
-                Skill
-            </button>
-            <button
-                onClick={() => onSelect('freeform')}
-                className="text-left px-4 py-2 hover:bg-gray-100 rounded-md"
-            >
-                Freeform
-            </button>
-        </div>
+      <div className="flex flex-col gap-2">
+        <button
+          onClick={() => setShowSocialPlatforms(false)}
+          className="text-left px-4 py-2 text-gray-500"
+        >
+          ← Back
+        </button>
+        {socialPlatforms.map((platform) => (
+          <button
+            key={platform}
+            onClick={() => onSelect('social', platform)}
+            className="text-left px-4 py-2 hover:bg-gray-100 rounded-md capitalize"
+          >
+            {platform}
+          </button>
+        ))}
+      </div>
     );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <button
+        onClick={() => setShowSocialPlatforms(true)}
+        className="text-left px-4 py-2 hover:bg-gray-100 rounded-md"
+      >
+        Social Media
+      </button>
+      <button
+        onClick={() => onSelect('occupation')}
+        className="text-left px-4 py-2 hover:bg-gray-100 rounded-md"
+      >
+        Occupation
+      </button>
+      <button
+        onClick={() => onSelect('skill')}
+        className="text-left px-4 py-2 hover:bg-gray-100 rounded-md"
+      >
+        Skill
+      </button>
+      <button
+        onClick={() => onSelect('freeform')}
+        className="text-left px-4 py-2 hover:bg-gray-100 rounded-md"
+      >
+        Freeform
+      </button>
+    </div>
+  );
 };
 
 const getPlatformHelpText = (platform: SocialPlatform): string => {
