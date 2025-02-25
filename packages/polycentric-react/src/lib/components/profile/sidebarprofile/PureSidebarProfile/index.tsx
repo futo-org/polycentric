@@ -1,6 +1,7 @@
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import Long from 'long';
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { BlockedList } from '../../BlockedList';
 import { ClaimGrid } from '../../ClaimGrid';
 import { FollowingList } from '../../FollowingList';
@@ -118,8 +119,8 @@ export const PureSidebarProfile = ({
                         </button>
                     </div>
                 </div>
-                <div className="text-gray-500 text-pretty px-8 break-words max-w-full">
-                    {profile.description}
+                <div className="text-gray-500 text-pretty px-8 break-words max-w-full prose prose-sm dark:prose-invert">
+                    <ReactMarkdown>{profile.description || ''}</ReactMarkdown>
                 </div>
                 <ClaimGrid
                     claims={claims}
