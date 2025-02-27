@@ -1,6 +1,6 @@
-pub(crate) mod caddy;
 pub(crate) mod interface;
 pub(crate) mod noop;
+pub(crate) mod varnish;
 
 use crate::config::Config;
 use anyhow::Result;
@@ -10,9 +10,9 @@ pub(crate) fn make_provider(
 ) -> Result<Box<dyn interface::CacheProvider>> {
     match &config.cache_interface {
         Some(interface) => match interface.as_str() {
-            "caddy" => {
+            "varnish" => {
                 if let Some(base_url) = config.cache_base_url.clone() {
-                    Ok(Box::new(caddy::CaddyProvider::new(base_url)))
+                    Ok(Box::new(varnish::VarnishProvider::new(base_url)))
                 } else {
                     Err(anyhow::anyhow!("Missing cache base URL configuration"))
                 }

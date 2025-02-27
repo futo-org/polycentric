@@ -41,8 +41,8 @@ services:
             DATABASE_URL: "postgres://postgres:testing@postgres"
             ADMIN_TOKEN: "123"
             CHALLENGE_KEY: "456"
-            CACHE_INTERFACE: "caddy"
-            CACHE_BASE_URL: "http://caddy:8083"
+            CACHE_INTERFACE: "varnish"
+            CACHE_BASE_URL: "http://varnish:80"
         user: "${CURRENT_UID}:${CURRENT_GID}"
         volumes:
             - ./:/app
@@ -60,18 +60,22 @@ services:
             # wrangler port
             - "127.0.0.1:8976:8976"
         command: tail -F wait_forever
-    caddy:
-        build:
-            context: ./caddy
-            dockerfile: Dockerfile
+    varnish:
+        image: varnish
         volumes:
-            - ./caddy/Caddyfile.development:/etc/caddy/Caddyfile:ro
+            - ./varnish/dev.vcl:/etc/varnish/default.vcl:ro
+        environment:
+            - VARNISH_SIZE=1G
+        ports:
+            - "127.0.0.1:6081:80"
+    caddy:
+        image: caddy
+        volumes:
+            - ./Caddyfile.development:/etc/caddy/Caddyfile:ro
             - /tmp/caddy/data:/data
             - /tmp/caddy/config:/config
-            - /tmp/caddy/cache:/data/cache
         ports:
-            - "127.0.0.1:8082:8082"
-            - "127.0.0.1:8083:8083"
+            - "127.0.0.1:8080:8080"
     grafana:
         image: grafana/grafana:9.5.2
         restart: always

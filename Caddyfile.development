@@ -1,0 +1,7 @@
+{
+    debug
+}
+
+localhost:8080 {
+    reverse_proxy http://varnish:80
+}

@@ -201,7 +201,6 @@ pub(crate) async fn handler(
         "public, s-maxage=3600, max-age=5",
     );
 
-    println!("cache_tags: {:?}", cache_tags);
     if !cache_tags.is_empty() {
         if let Some(cache_provider) = state.cache_provider.as_ref() {
             Ok(Box::new(::warp::reply::with_header(

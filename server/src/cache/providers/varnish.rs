@@ -2,12 +2,12 @@ use crate::cache::providers::interface;
 use anyhow::Result;
 use reqwest::{Client, Method};
 
-pub(crate) struct CaddyProvider {
+pub(crate) struct VarnishProvider {
     client: Client,
     base_url: String,
 }
 
-impl CaddyProvider {
+impl VarnishProvider {
     pub fn new(base_url: String) -> Self {
         Self {
             client: Client::new(),
@@ -17,28 +17,28 @@ impl CaddyProvider {
 }
 
 #[async_trait::async_trait]
-impl interface::CacheProvider for CaddyProvider {
+impl interface::CacheProvider for VarnishProvider {
     async fn purge_tags(&self, tags: &[String]) -> Result<()> {
         if tags.is_empty() {
             return Ok(());
         }
 
-        // The Caddy Souin cache plugin accepts tag purging via:
-        // DELETE /cache-api/tags?tags=tag1,tag2
-        let tags_str = tags.join(",");
-        let url = format!("{}/cache-api", self.base_url);
+        // Varnish with xkey module accepts tag purging via:
+        // PURGE / with Surrogate-Key header
+        let tags_str = self.get_header_value(tags);
+        let url = format!("{}/", self.base_url);
 
         ::log::debug!("Purging tags: {}", tags_str);
         let method = Method::from_bytes(b"PURGE").unwrap();
         let response = self
             .client
             .request(method, &url)
-            .header("Surrogate-Key", tags_str)
+            .header("xkey-purge", tags_str)
             .send()
             .await;
 
         if let Err(e) = response {
-            ::log::error!("Error purging tags: {:?}", e.status());
+            ::log::error!("Error purging tags: {:?}", e);
             ::log::error!("Error purging tags: {}", e.to_string());
             return Ok(());
         }
@@ -47,25 +47,28 @@ impl interface::CacheProvider for CaddyProvider {
         if !response.status().is_success() {
             // Check if we got a 403 Forbidden, which likely means we're not allowed to access the cache API
             if response.status() == reqwest::StatusCode::FORBIDDEN {
-                ::log::error!("Access to Caddy cache API is forbidden. Please check your Caddy configuration to ensure the server has access to the cache API.");
+                ::log::error!("Access to Varnish purge API is forbidden. Please check your Varnish configuration to ensure the server has access to the purge API.");
             }
 
             ::log::error!(
-                "Caddy cache API returned error: {} - {}",
+                "Varnish purge API returned error: {} - {}",
                 response.status(),
                 response.text().await?
             );
         } else {
-            ::log::debug!("Successfully purged tags");
+            ::log::debug!(
+                "Successfully purged tags: {}",
+                response.text().await?
+            );
         }
         Ok(())
     }
 
     fn get_header_name(&self) -> &str {
-        "Surrogate-Key"
+        "xkey"
     }
 
     fn get_header_value(&self, tags: &[String]) -> String {
-        tags.join(",")
+        tags.join(" ")
     }
 }
