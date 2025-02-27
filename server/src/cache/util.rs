@@ -30,7 +30,7 @@ fn signed_event_to_cache_tags(
                         ));
                     }
                 }
-                // pointer-{pointer} for the post itself
+                // pointer-{pointer} for the post itself, and any events it may delete
                 if invalidate_event {
                     if let Ok(pointer) =
                         pointer::from_signed_event(signed_event)
