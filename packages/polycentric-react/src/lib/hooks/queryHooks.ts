@@ -919,7 +919,7 @@ export function useUserOpinions(system: Models.PublicKey.PublicKey) {
     system,
     Models.ContentType.ContentTypeOpinion,
     Protocol.LWWElement.decode,
-    30
+    30,
   );
 
   const queryManager = useQueryManager();
@@ -927,32 +927,35 @@ export function useUserOpinions(system: Models.PublicKey.PublicKey) {
 
   useEffect(() => {
     setReferencedPosts([]);
-    
+
     opinions.forEach((opinion) => {
       const reference = opinion.event.references[0];
       const pointer = Models.Pointer.fromProto(
-        Protocol.Pointer.decode(reference.reference)
+        Protocol.Pointer.decode(reference.reference),
       );
 
       const unsubscribe = queryManager.queryEvent.query(
-        pointer.system,  // Changed from opinion.event.system
+        pointer.system, // Changed from opinion.event.system
         pointer.process,
         pointer.logicalClock,
         (signedEvent) => {
           if (signedEvent) {
             const event = Models.Event.fromBuffer(signedEvent.event);
             const post = Protocol.Post.decode(event.content);
-            
-            setReferencedPosts(prev => {
-              const newPosts = [...prev, {
-                signedEvent,
-                event,
-                value: post
-              }];
+
+            setReferencedPosts((prev) => {
+              const newPosts = [
+                ...prev,
+                {
+                  signedEvent,
+                  event,
+                  value: post,
+                },
+              ];
               return newPosts;
             });
           }
-        }
+        },
       );
 
       // Return cleanup function
@@ -965,33 +968,49 @@ export function useUserOpinions(system: Models.PublicKey.PublicKey) {
   return {
     likes: referencedPosts.filter((post): post is NonNullable<typeof post> => {
       if (!post) return false;
-      
-      const matchingOpinion = opinions.find(op => {
+
+      const matchingOpinion = opinions.find((op) => {
         const pointer = Models.signedEventToPointer(post.signedEvent);
         const reference = Models.pointerToReference(pointer);
-        return Util.buffersEqual(op.event.references[0].reference, reference.reference);
+        return Util.buffersEqual(
+          op.event.references[0].reference,
+          reference.reference,
+        );
       });
-      
-      return Boolean(matchingOpinion && matchingOpinion.event.lwwElement?.value && Models.Opinion.equal(
-        matchingOpinion.event.lwwElement.value as Models.Opinion.Opinion, 
-        Models.Opinion.OpinionLike
-      ));
+
+      return Boolean(
+        matchingOpinion &&
+          matchingOpinion.event.lwwElement?.value &&
+          Models.Opinion.equal(
+            matchingOpinion.event.lwwElement.value as Models.Opinion.Opinion,
+            Models.Opinion.OpinionLike,
+          ),
+      );
     }),
-    dislikes: referencedPosts.filter((post): post is NonNullable<typeof post> => {
-      if (!post) return false;
-      
-      const matchingOpinion = opinions.find(op => {
-        const pointer = Models.signedEventToPointer(post.signedEvent);
-        const reference = Models.pointerToReference(pointer);
-        return Util.buffersEqual(op.event.references[0].reference, reference.reference);
-      });
-      
-      return Boolean(matchingOpinion && matchingOpinion.event.lwwElement?.value && Models.Opinion.equal(
-        matchingOpinion.event.lwwElement.value as Models.Opinion.Opinion, 
-        Models.Opinion.OpinionDislike
-      ));
-    }),
+    dislikes: referencedPosts.filter(
+      (post): post is NonNullable<typeof post> => {
+        if (!post) return false;
+
+        const matchingOpinion = opinions.find((op) => {
+          const pointer = Models.signedEventToPointer(post.signedEvent);
+          const reference = Models.pointerToReference(pointer);
+          return Util.buffersEqual(
+            op.event.references[0].reference,
+            reference.reference,
+          );
+        });
+
+        return Boolean(
+          matchingOpinion &&
+            matchingOpinion.event.lwwElement?.value &&
+            Models.Opinion.equal(
+              matchingOpinion.event.lwwElement.value as Models.Opinion.Opinion,
+              Models.Opinion.OpinionDislike,
+            ),
+        );
+      },
+    ),
     loadMore,
-    allLoaded
+    allLoaded,
   };
 }

@@ -1,4 +1,5 @@
 import { decode } from '@borderless/base64';
+import { IonContent } from '@ionic/react';
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import { useMemo, useState } from 'react';
 import { Page } from '../../app/router';
@@ -9,14 +10,20 @@ import { MobileProfileFeed } from '../../components/profile/mobilefeedprofile';
 import { UserColumn } from '../../components/profile/sidebarprofile/UserColumn';
 import { useAuthorFeed } from '../../hooks/feedHooks';
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks';
-import { useTextPublicKey, useUsernameCRDTQuery, useUserOpinions } from '../../hooks/queryHooks';
+import {
+  useTextPublicKey,
+  useUsernameCRDTQuery,
+  useUserOpinions,
+} from '../../hooks/queryHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
 import { useIsMobile } from '../../hooks/styleHooks';
 
 export const UserFeedPage: Page = () => {
   const { urlInfoString } = useParams<{ urlInfoString: string }>();
   const { processHandle } = useProcessHandleManager();
-  const [currentTab, setCurrentTab] = useState<'posts' | 'likes' | 'dislikes'>('posts');
+  const [currentTab, setCurrentTab] = useState<'posts' | 'likes' | 'dislikes'>(
+    'posts',
+  );
 
   const { system } = useMemo(() => {
     const urlInfoBuffer = decode(urlInfoString);
@@ -29,7 +36,12 @@ export const UserFeedPage: Page = () => {
   }, [urlInfoString, processHandle]);
 
   const [posts, advancePosts, allPostsAttempted] = useAuthorFeed(system);
-  const { likes, dislikes, loadMore: advanceOpinions, allLoaded: allOpinionsLoaded } = useUserOpinions(system);
+  const {
+    likes,
+    dislikes,
+    loadMore: advanceOpinions,
+    allLoaded: allOpinionsLoaded,
+  } = useUserOpinions(system);
 
   const column = useMemo(
     () => <UserColumn system={system} key="usercol" />,
@@ -62,21 +74,21 @@ export const UserFeedPage: Page = () => {
           data: likes,
           advanceFeed: advanceOpinions,
           nothingFound: allOpinionsLoaded && likes.length === 0,
-          nothingFoundMessage: "No liked posts found"
+          nothingFoundMessage: 'No liked posts found',
         };
       case 'dislikes':
         return {
           data: dislikes,
           advanceFeed: advanceOpinions,
           nothingFound: allOpinionsLoaded && dislikes.length === 0,
-          nothingFoundMessage: "No disliked posts found"
+          nothingFoundMessage: 'No disliked posts found',
         };
       default:
         return {
           data: posts,
           advanceFeed: advancePosts,
           nothingFound: allPostsAttempted && posts.length === 0,
-          nothingFoundMessage: "Nothing has been posted yet"
+          nothingFoundMessage: 'Nothing has been posted yet',
         };
     }
   };
@@ -84,37 +96,44 @@ export const UserFeedPage: Page = () => {
   const feedData = getCurrentFeedData();
 
   return (
-    <div>
+    <>
       <Header>{headerText}</Header>
-      <div>
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-            {['posts', 'likes', 'dislikes'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setCurrentTab(tab as 'posts' | 'likes' | 'dislikes')}
-                className={`
-                  whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
-                  ${currentTab === tab
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }
-                `}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </nav>
-        </div>
+      <IonContent>
         <InfiniteScrollWithRightCol
           data={feedData.data}
           advanceFeed={feedData.advanceFeed}
           nothingFound={feedData.nothingFound}
           nothingFoundMessage={feedData.nothingFoundMessage}
           rightCol={column}
-          topFeedComponent={topComponent}
+          topFeedComponent={
+            <>
+              <div className="border-b border-gray-200">
+                <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                  {['posts', 'likes', 'dislikes'].map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() =>
+                        setCurrentTab(tab as 'posts' | 'likes' | 'dislikes')
+                      }
+                      className={`
+                        whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+                        ${
+                          currentTab === tab
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500'
+                        }
+                      `}
+                    >
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+              {topComponent}
+            </>
+          }
         />
-      </div>
-    </div>
+      </IonContent>
+    </>
   );
 };
