@@ -1,18 +1,24 @@
 In the monorepo, so you can just @ it in whatever editor you're using.
 
-If we want to cache precomputed view queries, like getting all comments for a topic
-(grayjay video), we want to be able to invalidate the route any time someone either
-deletes a comment or adds a new one. Cloudflare only gives you 30k requests a day,
-so that's off the table here.
+We want to cache precomputed view queries. For example, when getting all comments for 
+a topic (grayjay video), we want to be able to invalidate the /query_references route 
+for that reference any time someone either deletes a comment or adds a new one. We also 
+want to do this for any other query - like checking vouches, getting a user's process 
+metadata, etc. Cloudflare only gives us 30k requests a day, so that's off the table here
+already with current usage.
 
 Instead, we can roll our own caching solution almost identically to Cloudflare.
 
 There are four scenarios we handle in cache invalidation:
 
 1. Invalidating a property of a user, for example, a user's username. For this case,
-   we store a tag pkey-{content_type}-{pkey} for the user's pkey.
+   we generate a tag pkey-{content_type}-{pkey} for user-related events,
+   and on ingestion of a new event that matches this pattern, we purge the
+   cache for that tag. This way, we can invalidate the user's username without
+   invalidating the entire user.
 2. Invalidating an event in the case of deletion. For this case, we store a tag
-   pointer-{pointer} for the event.
+   pointer-{pointer} for the event. If a deletion event comes in, we purge the
+   cache for any path that includes a reference to that event.
 3. Invalidating a reference. This is very important for making sure comments are
    up to date. Currently, this invalidates all pages of requests for a reference;
    in the future, it can be made more efficient. This is dona as ref-{reference}.
