@@ -10,10 +10,10 @@ To do this, we can attach cache tags to every server response, and when we
 recieve a new event, generate cache tags for the new event and see if it overlaps with
 any existing cache tags in responses. If it does, we purge the response cache for those tags.
 
-For example, for every query references request, we generate a cache tag references-{reference}.
-When we recieve a new event, we auto-generate a tag for it called reference-{reference} since
-it will invalidate any requests that use that reference. If the new event has a reference that matches
-any existing cache tags, we purge the response cache for those tags. 
+For example, for every query-references response, we attach a cache tag references-{reference}.
+When we recieve a new event, we generate all applicable cache tags, including one called 
+reference-{reference}. Invalidating that tag will invalidate any responses that use that reference
+and purge them from the cache.
 
 Another example is when we recieve a delete event for a comment. We generate a cache tag pointer-{pointer}
 for the event, and if a deletion event comes in, we purge the response cache for that tag. For things
