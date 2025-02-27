@@ -1,4 +1,5 @@
 {
+    debug
     cache {
         allowed_http_verbs GET
         api {
@@ -7,8 +8,6 @@
         }
         badger {
             configuration {
-                ValueDir /tmp/badger/first-match
-
                 InMemory true
                 # Set memory table size to ~1GB (in bytes)
                 MemTableSize 1073741824  # 1GB
@@ -18,6 +17,11 @@
 }
 
 localhost:8082 {
+    cache
+    reverse_proxy http://development:8081
+} 
+
+http://localhost:8083 {
     cache
     
     # Protect cache API endpoint
@@ -31,6 +35,4 @@ localhost:8082 {
         }
         respond 403
     }
-
-    reverse_proxy http://development:8081
-} 
+}

@@ -6,21 +6,21 @@
             prometheus
         }
         badger {
-            path /data/cache/badger
+            configuration {
+                InMemory true
+                # Set memory table size to ~1GB (in bytes)
+                MemTableSize 1073741824  # 1GB
+            }
         }
-        # Match Cache-Control from origin
-        ttl {
-            default 0s
-        }
-        # Maximum size for cacheable responses (500KB to be safe)
-        max_cacheable_body_bytes 512000
-        # Ensure detailed cache status headers
-        status_header
-        status_header_detail
     }
 }
 
 srv1.polycentric.io {
+    cache
+    reverse_proxy http://development:8081
+} 
+
+http://localhost:8083 {
     cache
     
     # Protect cache API endpoint
@@ -34,7 +34,4 @@ srv1.polycentric.io {
         }
         respond 403
     }
-
-    reverse_proxy http://server:8081
 }
-

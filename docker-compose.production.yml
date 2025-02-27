@@ -34,7 +34,7 @@ services:
             - "STATSD_ADDRESS=127.0.0.1"
             - "ADMIN_TOKEN=123"
             - "CACHE_INTERFACE=caddy"
-            - "CACHE_BASE_URL=http://proxy:80"
+            - "CACHE_BASE_URL=http://caddy:8083"
     proxy:
         build:
             context: ./caddy
