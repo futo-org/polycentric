@@ -9,7 +9,7 @@ import {
 } from '@polycentric/polycentric-core';
 import AsyncLock from 'async-lock';
 import Long from 'long';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useModeration } from './moderationHooks';
 import { useProcessHandleManager } from './processHandleManagerHooks';
 import {
@@ -241,7 +241,7 @@ export const useCommentFeed = (
           );
           if (postReference) {
             const postPointer = Models.Pointer.fromProto(
-              Protocol.Pointer.decode(postReference.reference),
+              Protocol.Pointer.decode(postReference.reference)
             );
             fetchAndPrepend(postPointer);
           }
@@ -373,4 +373,65 @@ export function useFollowingFeed(
   }, [processHandle, batchSize]);
 
   return [state, advance, nothingFound];
+}
+
+export function useLikesFeed(system: Models.PublicKey.PublicKey): [
+  FeedHookData,
+  () => Promise<void>,
+  boolean
+] {
+  const [opinions, loadMore] = useIndex<Protocol.LWWElement>(
+    system,
+    Models.ContentType.ContentTypeOpinion,
+    Protocol.LWWElement.decode,
+    5
+  );
+
+  const queryManager = useQueryManager();
+  const [posts, setPosts] = useState<FeedHookData>([]);
+  const processedOpinions = useRef(new Set<string>());
+  const [allLoaded, setAllLoaded] = useState(false);
+
+  useEffect(() => {
+    console.log('Debug - Processing opinions:', opinions.length);
+    
+    opinions.forEach((opinion) => {
+      if (!opinion?.event?.references?.[0]) return;
+      
+      const opinionKey = opinion.event.references[0].reference.toString();
+      if (processedOpinions.current.has(opinionKey)) return;
+      
+      processedOpinions.current.add(opinionKey);
+
+      if (!Models.Opinion.equal(
+        opinion.event.lwwElement?.value as Models.Opinion.Opinion,
+        Models.Opinion.OpinionLike
+      )) return;
+
+      const pointer = Models.Pointer.fromProto(
+        Protocol.Pointer.decode(opinion.event.references[0].reference)
+      );
+
+      queryManager.queryEvent.query(
+        pointer.system,
+        pointer.process,
+        pointer.logicalClock,
+        (signedEvent) => {
+          if (!signedEvent) return;
+          
+          const event = Models.Event.fromBuffer(signedEvent.event);
+          const post = Protocol.Post.decode(event.content);
+          setPosts(prev => [...prev, new ParsedEvent(signedEvent, event, post)]);
+        }
+      );
+    });
+  }, [opinions, queryManager]);
+
+  const advancePosts = useCallback(async () => {
+    if (!allLoaded) {
+      await loadMore();
+    }
+  }, [loadMore, allLoaded]);
+
+  return [posts, advancePosts, allLoaded];
 }

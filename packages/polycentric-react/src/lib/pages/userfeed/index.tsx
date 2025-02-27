@@ -8,12 +8,11 @@ import { Header } from '../../components/layout/header';
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol';
 import { MobileProfileFeed } from '../../components/profile/mobilefeedprofile';
 import { UserColumn } from '../../components/profile/sidebarprofile/UserColumn';
-import { useAuthorFeed } from '../../hooks/feedHooks';
+import { useAuthorFeed, useLikesFeed } from '../../hooks/feedHooks';
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks';
 import {
   useTextPublicKey,
-  useUsernameCRDTQuery,
-  useUserOpinions,
+  useUsernameCRDTQuery
 } from '../../hooks/queryHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
 import { useIsMobile } from '../../hooks/styleHooks';
@@ -34,11 +33,7 @@ export const UserFeedPage: Page = () => {
   }, [urlInfoString, processHandle]);
 
   const [posts, advancePosts, allPostsAttempted] = useAuthorFeed(system);
-  const {
-    likes,
-    loadMore: advanceOpinions,
-    allLoaded: allOpinionsLoaded,
-  } = useUserOpinions(system);
+  const [likes, advanceLikes, allLikesLoaded] = useLikesFeed(system);
 
   const column = useMemo(
     () => <UserColumn system={system} key="usercol" />,
@@ -69,8 +64,8 @@ export const UserFeedPage: Page = () => {
       case 'likes':
         return {
           data: likes,
-          advanceFeed: advanceOpinions,
-          nothingFound: allOpinionsLoaded && likes.length === 0,
+          advanceFeed: advanceLikes,
+          nothingFound: allLikesLoaded && likes.length === 0,
           nothingFoundMessage: 'No liked posts found',
         };
       default:
