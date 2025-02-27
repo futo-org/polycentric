@@ -18,7 +18,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { FeedHookData } from '../hooks/feedHooks';
 import { useModeration } from './moderationHooks';
 import { useProcessHandleManager } from './processHandleManagerHooks';
 

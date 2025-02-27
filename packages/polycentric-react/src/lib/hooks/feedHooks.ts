@@ -388,11 +388,9 @@ export function useLikesFeed(
   const queryManager = useQueryManager();
   const [posts, setPosts] = useState<FeedHookData>([]);
   const processedOpinions = useRef(new Set<string>());
-  const [allLoaded, setAllLoaded] = useState(false);
+  const [allLoaded] = useState(false);
 
   useEffect(() => {
-    console.log('Debug - Processing opinions:', opinions.length);
-
     opinions.forEach((opinion) => {
       if (!opinion?.event?.references?.[0]) return;
 
