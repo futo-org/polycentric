@@ -103,8 +103,13 @@ pub(crate) async fn handler(
         false,
     );
 
-    let vouch_events: Vec<polycentric_protocol::model::signed_event::SignedEvent> =
-        matches.iter().flat_map(|m| m.path.iter()).cloned().collect();
+    let vouch_events: Vec<
+        polycentric_protocol::model::signed_event::SignedEvent,
+    > = matches
+        .iter()
+        .flat_map(|m| m.path.iter())
+        .cloned()
+        .collect();
     let vouch_cache_tags = cache::util::signed_events_to_cache_tags(
         &vouch_events,
         false,

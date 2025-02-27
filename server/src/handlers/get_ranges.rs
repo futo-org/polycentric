@@ -38,7 +38,7 @@ pub(crate) async fn handler(
         ),
         "Cache-Control",
         "no-cache",
-        );
+    );
 
     // Caching for ranges is hard because we need nearly strong consistency for caching
     // It's currently not implemented, but should be able to using key_to_cache_tags_account_meta

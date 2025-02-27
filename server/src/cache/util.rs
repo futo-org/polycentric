@@ -64,7 +64,7 @@ fn signed_event_to_cache_tags(
         // Add reference tags if requested
         if invalidate_reference {
             for reference in event.references() {
-                if let Ok(base64) = reference::to_base64(&reference) {
+                if let Ok(base64) = reference::to_base64(reference) {
                     out.push(format!("ref:{}", base64));
                 }
             }

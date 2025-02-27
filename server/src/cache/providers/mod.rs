@@ -1,11 +1,13 @@
-pub(crate) mod interface;
 pub(crate) mod caddy;
+pub(crate) mod interface;
 pub(crate) mod noop;
 
 use crate::config::Config;
 use anyhow::Result;
 
-pub(crate) fn make_provider(config: &Config) -> Result<Box<dyn interface::CacheProvider>> {
+pub(crate) fn make_provider(
+    config: &Config,
+) -> Result<Box<dyn interface::CacheProvider>> {
     match &config.cache_interface {
         Some(interface) => match interface.as_str() {
             "caddy" => {

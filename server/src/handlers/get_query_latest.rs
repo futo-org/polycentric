@@ -34,11 +34,7 @@ async fn handler_inner(
 
     let cache_tags: Vec<String> =
         crate::cache::util::signed_events_to_cache_tags(
-            &events,
-            false,
-            false,
-            false,
-            true,
+            &events, false, false, false, true,
         );
 
     result.events = events
