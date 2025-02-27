@@ -10,10 +10,7 @@ import { MobileProfileFeed } from '../../components/profile/mobilefeedprofile';
 import { UserColumn } from '../../components/profile/sidebarprofile/UserColumn';
 import { useAuthorFeed, useLikesFeed } from '../../hooks/feedHooks';
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks';
-import {
-  useTextPublicKey,
-  useUsernameCRDTQuery
-} from '../../hooks/queryHooks';
+import { useTextPublicKey, useUsernameCRDTQuery } from '../../hooks/queryHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
 import { useIsMobile } from '../../hooks/styleHooks';
 

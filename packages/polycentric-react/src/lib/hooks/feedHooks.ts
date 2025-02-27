@@ -241,7 +241,7 @@ export const useCommentFeed = (
           );
           if (postReference) {
             const postPointer = Models.Pointer.fromProto(
-              Protocol.Pointer.decode(postReference.reference)
+              Protocol.Pointer.decode(postReference.reference),
             );
             fetchAndPrepend(postPointer);
           }
@@ -375,16 +375,14 @@ export function useFollowingFeed(
   return [state, advance, nothingFound];
 }
 
-export function useLikesFeed(system: Models.PublicKey.PublicKey): [
-  FeedHookData,
-  () => Promise<void>,
-  boolean
-] {
+export function useLikesFeed(
+  system: Models.PublicKey.PublicKey,
+): [FeedHookData, () => Promise<void>, boolean] {
   const [opinions, loadMore] = useIndex<Protocol.LWWElement>(
     system,
     Models.ContentType.ContentTypeOpinion,
     Protocol.LWWElement.decode,
-    5
+    5,
   );
 
   const queryManager = useQueryManager();
@@ -394,22 +392,25 @@ export function useLikesFeed(system: Models.PublicKey.PublicKey): [
 
   useEffect(() => {
     console.log('Debug - Processing opinions:', opinions.length);
-    
+
     opinions.forEach((opinion) => {
       if (!opinion?.event?.references?.[0]) return;
-      
+
       const opinionKey = opinion.event.references[0].reference.toString();
       if (processedOpinions.current.has(opinionKey)) return;
-      
+
       processedOpinions.current.add(opinionKey);
 
-      if (!Models.Opinion.equal(
-        opinion.event.lwwElement?.value as Models.Opinion.Opinion,
-        Models.Opinion.OpinionLike
-      )) return;
+      if (
+        !Models.Opinion.equal(
+          opinion.event.lwwElement?.value as Models.Opinion.Opinion,
+          Models.Opinion.OpinionLike,
+        )
+      )
+        return;
 
       const pointer = Models.Pointer.fromProto(
-        Protocol.Pointer.decode(opinion.event.references[0].reference)
+        Protocol.Pointer.decode(opinion.event.references[0].reference),
       );
 
       queryManager.queryEvent.query(
@@ -418,11 +419,14 @@ export function useLikesFeed(system: Models.PublicKey.PublicKey): [
         pointer.logicalClock,
         (signedEvent) => {
           if (!signedEvent) return;
-          
+
           const event = Models.Event.fromBuffer(signedEvent.event);
           const post = Protocol.Post.decode(event.content);
-          setPosts(prev => [...prev, new ParsedEvent(signedEvent, event, post)]);
-        }
+          setPosts((prev) => [
+            ...prev,
+            new ParsedEvent(signedEvent, event, post),
+          ]);
+        },
       );
     });
   }, [opinions, queryManager]);

@@ -202,7 +202,7 @@ export const InfiniteScrollWithRightCol = ({
             customScrollParent={
               isMobile ? undefined : outerRef.current ?? undefined
             }
-            onScroll={isMobile ? onScroll : undefined}
+            onScroll={onScroll}
             itemContent={(index, data) => (
               <Post
                 key={
