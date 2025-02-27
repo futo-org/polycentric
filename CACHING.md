@@ -27,13 +27,11 @@ We cache on the response level instead of the database query level because it ma
 implementation of invalidation much simpler, and thus, more understandable and
 maintainable.
 
-We use Caddy as our Cache - this is mostly because it has a good implementation powered
-by [Souin](https://github.com/darkweak/souin) and is very easy to configure. Souin is
-a Go library that is used to cache responses from servers. It has a 
-[Caddy plugin](https://github.com/caddyserver/cache-handler) that we can use to invalidate 
-cache tags.
+We use Varnish as our Cache - this is mostly because it has a good implementation powered
+by xkey and is very easy to configure. xkey is a Varnish module that is used to cache responses 
+from servers. It's included in the docker image, so no extra steps are needed to enable it.
 
-We use the `Surrogate-Key` header to purge cache tags. It works almost identically to
+Varnish uses the `xkey` header to purge cache tags. It works almost identically to
 Cloudflare's Cache Tagging, just a different name.
 
 The cache invalidation system is extremely configurable and can support different 
