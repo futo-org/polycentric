@@ -42,7 +42,8 @@ fn signed_event_to_cache_tags(
                     }
                     if *event.content_type() == known_message_types::DELETE {
                         for reference in event.references() {
-                            if let Ok(base64) = reference::to_base64(reference) {
+                            if let Ok(base64) = reference::to_base64(reference)
+                            {
                                 out.push(format!("pointer-{}", base64));
                             }
                         }
