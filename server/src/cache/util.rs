@@ -20,24 +20,24 @@ fn signed_event_to_cache_tags(
             | known_message_types::DELETE
             | known_message_types::CLAIM
             | known_message_types::VOUCH => {
-                // pkey:{content_type}:{pkey} for feeds
+                // pkey-{content_type}-{pkey} for feeds
                 if invalidate_user_content_type {
                     if let Ok(key_str) = public_key::to_base64(event.system()) {
                         out.push(format!(
-                            "pkey:{}:{}",
+                            "pkey-{}-{}",
                             event.content_type(),
                             key_str
                         ));
                     }
                 }
-                // pointer:{pointer} for the post itself
+                // pointer-{pointer} for the post itself
                 if invalidate_event {
                     if let Ok(pointer) =
                         pointer::from_signed_event(signed_event)
                     {
                         if let Ok(base64_pointer) = pointer::to_base64(&pointer)
                         {
-                            out.push(format!("pointer:{}", base64_pointer));
+                            out.push(format!("pointer-{}", base64_pointer));
                         }
                     }
                 }
@@ -47,11 +47,11 @@ fn signed_event_to_cache_tags(
             | known_message_types::BANNER
             | known_message_types::DESCRIPTION
             | known_message_types::SERVER => {
-                // pkey:{content_type}:{pkey} for the user
+                // pkey-{content_type}-{pkey} for the user
                 if invalidate_user_content_type {
                     if let Ok(key_str) = public_key::to_base64(event.system()) {
                         out.push(format!(
-                            "pkey:{}:{}",
+                            "pkey-{}-{}",
                             event.content_type(),
                             key_str
                         ));
@@ -65,7 +65,7 @@ fn signed_event_to_cache_tags(
         if invalidate_reference {
             for reference in event.references() {
                 if let Ok(base64) = reference::to_base64(reference) {
-                    out.push(format!("ref:{}", base64));
+                    out.push(format!("ref-{}", base64));
                 }
             }
         }
@@ -73,7 +73,7 @@ fn signed_event_to_cache_tags(
         // Add account meta tag if requested
         if invalidate_user_meta {
             if let Ok(key_str) = public_key::to_base64(event.system()) {
-                out.push(format!("pkey:meta:{}", key_str));
+                out.push(format!("pkey-meta-{}", key_str));
             }
         }
     }
