@@ -21,9 +21,7 @@ import { useIsMobile } from '../../hooks/styleHooks';
 export const UserFeedPage: Page = () => {
   const { urlInfoString } = useParams<{ urlInfoString: string }>();
   const { processHandle } = useProcessHandleManager();
-  const [currentTab, setCurrentTab] = useState<'posts' | 'likes' | 'dislikes'>(
-    'posts',
-  );
+  const [currentTab, setCurrentTab] = useState<'posts' | 'likes'>('posts');
 
   const { system } = useMemo(() => {
     const urlInfoBuffer = decode(urlInfoString);
@@ -38,7 +36,6 @@ export const UserFeedPage: Page = () => {
   const [posts, advancePosts, allPostsAttempted] = useAuthorFeed(system);
   const {
     likes,
-    dislikes,
     loadMore: advanceOpinions,
     allLoaded: allOpinionsLoaded,
   } = useUserOpinions(system);
@@ -76,13 +73,6 @@ export const UserFeedPage: Page = () => {
           nothingFound: allOpinionsLoaded && likes.length === 0,
           nothingFoundMessage: 'No liked posts found',
         };
-      case 'dislikes':
-        return {
-          data: dislikes,
-          advanceFeed: advanceOpinions,
-          nothingFound: allOpinionsLoaded && dislikes.length === 0,
-          nothingFoundMessage: 'No disliked posts found',
-        };
       default:
         return {
           data: posts,
@@ -109,12 +99,10 @@ export const UserFeedPage: Page = () => {
             <>
               <div className="border-b border-gray-200">
                 <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                  {['posts', 'likes', 'dislikes'].map((tab) => (
+                  {['posts', 'likes'].map((tab) => (
                     <button
                       key={tab}
-                      onClick={() =>
-                        setCurrentTab(tab as 'posts' | 'likes' | 'dislikes')
-                      }
+                      onClick={() => setCurrentTab(tab as 'posts' | 'likes')}
                       className={`
                         whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
                         ${

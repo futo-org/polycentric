@@ -987,29 +987,6 @@ export function useUserOpinions(system: Models.PublicKey.PublicKey) {
           ),
       );
     }),
-    dislikes: referencedPosts.filter(
-      (post): post is NonNullable<typeof post> => {
-        if (!post) return false;
-
-        const matchingOpinion = opinions.find((op) => {
-          const pointer = Models.signedEventToPointer(post.signedEvent);
-          const reference = Models.pointerToReference(pointer);
-          return Util.buffersEqual(
-            op.event.references[0].reference,
-            reference.reference,
-          );
-        });
-
-        return Boolean(
-          matchingOpinion &&
-            matchingOpinion.event.lwwElement?.value &&
-            Models.Opinion.equal(
-              matchingOpinion.event.lwwElement.value as Models.Opinion.Opinion,
-              Models.Opinion.OpinionDislike,
-            ),
-        );
-      },
-    ),
     loadMore,
     allLoaded,
   };
