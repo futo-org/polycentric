@@ -30,7 +30,7 @@ fn signed_event_to_cache_tags(
                         ));
                     }
                 }
-                // pointer-{pointer} for the post itself, and any events it may delete
+                // pointer-{pointer} for the post itself, and any event it may delete
                 if invalidate_event {
                     if let Ok(pointer) =
                         pointer::from_signed_event(signed_event)
@@ -40,11 +40,16 @@ fn signed_event_to_cache_tags(
                             out.push(format!("pointer-{}", base64_pointer));
                         }
                     }
+
                     if *event.content_type() == known_message_types::DELETE {
                         for reference in event.references() {
-                            if let Ok(base64) = reference::to_base64(reference)
+                            if let reference::Reference::Pointer(pointer) =
+                                reference
                             {
-                                out.push(format!("pointer-{}", base64));
+                                if let Ok(base64) = pointer::to_base64(pointer)
+                                {
+                                    out.push(format!("pointer-{}", base64));
+                                }
                             }
                         }
                     }
