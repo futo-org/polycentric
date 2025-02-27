@@ -1024,21 +1024,22 @@ mod tests {
             100000,
             1,
             &ModerationOptions {
-                filters: Some(ModerationFilters(vec![ModerationFilter {
-                    name: ModerationTagName::new(String::from("violence")),
-                    max_level: 1,
-                    strict_mode: false,
-                },
-                ModerationFilter {
-                    name: ModerationTagName::new(String::from("hate")),
-                    max_level: 1,
-                    strict_mode: false,
-                },
-                ModerationFilter {
-                    name: ModerationTagName::new(String::from("sexual")),
-                    max_level: 1,
-                    strict_mode: false,
-                },
+                filters: Some(ModerationFilters(vec![
+                    ModerationFilter {
+                        name: ModerationTagName::new(String::from("violence")),
+                        max_level: 1,
+                        strict_mode: false,
+                    },
+                    ModerationFilter {
+                        name: ModerationTagName::new(String::from("hate")),
+                        max_level: 1,
+                        strict_mode: false,
+                    },
+                    ModerationFilter {
+                        name: ModerationTagName::new(String::from("sexual")),
+                        max_level: 1,
+                        strict_mode: false,
+                    },
                 ])),
                 mode: ModerationMode::Strong,
             },
@@ -1052,21 +1053,22 @@ mod tests {
             100000,
             1,
             &ModerationOptions {
-                filters: Some(ModerationFilters(vec![ModerationFilter {
-                    name: ModerationTagName::new(String::from("sexual")),
-                    max_level: 2,
-                    strict_mode: false,
-                },
-                ModerationFilter {
-                    name: ModerationTagName::new(String::from("hate")),
-                    max_level: 1,
-                    strict_mode: false,
-                },
-                ModerationFilter {
-                    name: ModerationTagName::new(String::from("violence")),
-                    max_level: 1,
-                    strict_mode: false,
-                },
+                filters: Some(ModerationFilters(vec![
+                    ModerationFilter {
+                        name: ModerationTagName::new(String::from("sexual")),
+                        max_level: 2,
+                        strict_mode: false,
+                    },
+                    ModerationFilter {
+                        name: ModerationTagName::new(String::from("hate")),
+                        max_level: 1,
+                        strict_mode: false,
+                    },
+                    ModerationFilter {
+                        name: ModerationTagName::new(String::from("violence")),
+                        max_level: 1,
+                        strict_mode: false,
+                    },
                 ])),
                 mode: ModerationMode::Strong,
             },
