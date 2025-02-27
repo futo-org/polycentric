@@ -924,11 +924,23 @@ mod tests {
             100000,
             1,
             &ModerationOptions {
-                filters: Some(ModerationFilters(vec![ModerationFilter {
-                    name: ModerationTagName::new(String::from("sexual")),
-                    max_level: 3,
-                    strict_mode: false,
-                }])),
+                filters: Some(ModerationFilters(vec![
+                    ModerationFilter {
+                        name: ModerationTagName::new(String::from("sexual")),
+                        max_level: 3,
+                        strict_mode: false,
+                    },
+                    ModerationFilter {
+                        name: ModerationTagName::new(String::from("hate")),
+                        max_level: 3,
+                        strict_mode: false,
+                    },
+                    ModerationFilter {
+                        name: ModerationTagName::new(String::from("violence")),
+                        max_level: 3,
+                        strict_mode: false,
+                    },
+                ])),
                 mode: ModerationMode::Strong,
             },
         )
@@ -986,10 +998,20 @@ mod tests {
             event_id: events[0].id,
             has_error: false,
             is_csam: false,
-            tags: vec![crate::model::moderation_tag::ModerationTag::new(
-                "violence".to_string(),
-                2,
-            )],
+            tags: vec![
+                crate::model::moderation_tag::ModerationTag::new(
+                    "violence".to_string(),
+                    2,
+                ),
+                crate::model::moderation_tag::ModerationTag::new(
+                    "hate".to_string(),
+                    0,
+                ),
+                crate::model::moderation_tag::ModerationTag::new(
+                    "sexual".to_string(),
+                    0,
+                ),
+            ],
             blob_db_ids: None,
         }];
 
@@ -1006,7 +1028,18 @@ mod tests {
                     name: ModerationTagName::new(String::from("violence")),
                     max_level: 1,
                     strict_mode: false,
-                }])),
+                },
+                ModerationFilter {
+                    name: ModerationTagName::new(String::from("hate")),
+                    max_level: 1,
+                    strict_mode: false,
+                },
+                ModerationFilter {
+                    name: ModerationTagName::new(String::from("sexual")),
+                    max_level: 1,
+                    strict_mode: false,
+                },
+                ])),
                 mode: ModerationMode::Strong,
             },
         )
@@ -1021,9 +1054,20 @@ mod tests {
             &ModerationOptions {
                 filters: Some(ModerationFilters(vec![ModerationFilter {
                     name: ModerationTagName::new(String::from("sexual")),
+                    max_level: 2,
+                    strict_mode: false,
+                },
+                ModerationFilter {
+                    name: ModerationTagName::new(String::from("hate")),
                     max_level: 1,
                     strict_mode: false,
-                }])),
+                },
+                ModerationFilter {
+                    name: ModerationTagName::new(String::from("violence")),
+                    max_level: 1,
+                    strict_mode: false,
+                },
+                ])),
                 mode: ModerationMode::Strong,
             },
         )
