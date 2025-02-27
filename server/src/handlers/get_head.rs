@@ -82,8 +82,12 @@ async fn handler_inner(
         .map(polycentric_protocol::model::signed_event::to_proto)
         .collect();
 
-    let tags: Vec<String> = crate::cache::util::key_to_cache_tags_account_meta(
-        &query.system,
+    let tags: Vec<String> = crate::cache::util::signed_events_to_cache_tags(
+        &result_signed_events,
+        false,
+        false,
+        false,
+        true,
     );
 
     let result_serialized = result.write_to_bytes()?;

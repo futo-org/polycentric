@@ -1,6 +1,6 @@
 use crate::cache::providers::interface;
 use anyhow::Result;
-use reqwest::Client;
+use reqwest::{Client, Method};
 
 pub(crate) struct CaddyProvider {
     client: Client,
@@ -23,18 +23,40 @@ impl interface::CacheProvider for CaddyProvider {
             return Ok(());
         }
 
-        // Caddy's cache API expects tags in the query parameter
+        // The Caddy Souin cache plugin accepts tag purging via:
+        // DELETE /cache-api/tags?tags=tag1,tag2
         let tags_str = tags.join(",");
-        let url = format!("{}/cache-api/tags?tags={}", self.base_url, tags_str);
+        let url = format!("{}/cache-api", self.base_url);
 
-        let response = self.client.delete(&url).send().await?;
+        ::log::debug!("Purging tags: {}", tags_str);
+        let method = Method::from_bytes(b"PURGE").unwrap();
+        let response = self
+            .client
+            .request(method, &url)
+            .header("Surrogate-Key", tags_str)
+            .send()
+            .await;
 
+        if let Err(e) = response {
+            ::log::error!("Error purging tags: {:?}", e.status());
+            ::log::error!("Error purging tags: {}", e.to_string());
+            return Ok(());
+        }
+
+        let response = response.unwrap();
         if !response.status().is_success() {
-            return Err(anyhow::anyhow!(
+            // Check if we got a 403 Forbidden, which likely means we're not allowed to access the cache API
+            if response.status() == reqwest::StatusCode::FORBIDDEN {
+                ::log::error!("Access to Caddy cache API is forbidden. Please check your Caddy configuration to ensure the server has access to the cache API.");
+            }
+
+            ::log::error!(
                 "Caddy cache API returned error: {} - {}",
                 response.status(),
                 response.text().await?
-            ));
+            );
+        } else {
+            ::log::debug!("Successfully purged tags");
         }
         Ok(())
     }

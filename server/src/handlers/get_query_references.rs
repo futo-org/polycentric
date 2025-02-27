@@ -88,8 +88,6 @@ pub(crate) async fn handler(
 
     let mut cache_tags = Vec::new();
 
-    cache_tags.extend(crate::cache::util::reference_to_cache_tags_reference(&reference));
-
     if let Some(request_events) = query.query.request_events.0 {
         let query_result = crate::warp_try_err_500!(
             crate::postgres::query_references::query_references(
@@ -110,11 +108,15 @@ pub(crate) async fn handler(
             result.cursor = Some(query_result_cursor.to_be_bytes().to_vec());
         }
 
-        for signed_event in query_result.events.iter() {
-            cache_tags.extend(crate::cache::util::signed_event_to_cache_tags(
-                signed_event,
-            ));
+        cache_tags = crate::cache::util::signed_events_to_cache_tags(
+            &query_result.events,
+            false,
+            true,
+            true,
+            false,
+        );
 
+        for signed_event in query_result.events.iter() {
             let event = crate::warp_try_err_500!(
                 polycentric_protocol::model::event::from_vec(
                     signed_event.event()

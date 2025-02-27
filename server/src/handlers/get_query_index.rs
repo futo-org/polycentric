@@ -48,11 +48,13 @@ pub(crate) async fn handler(
         .map(polycentric_protocol::model::signed_event::to_proto)
         .collect();
 
-    let tags: Vec<String> = query_result
-        .events
-        .iter()
-        .flat_map(crate::cache::util::signed_event_to_cache_tags)
-        .collect();
+    let tags: Vec<String> = crate::cache::util::signed_events_to_cache_tags(
+        &query_result.events,
+        true,
+        false,
+        false,
+        false,
+    );
 
     result.proof = query_result
         .proof
@@ -69,7 +71,7 @@ pub(crate) async fn handler(
         ),
         "Cache-Control",
         "public, s-maxage=3600, max-age=5",
-        );
+    );
 
     if !tags.is_empty() {
         if let Some(cache_provider) = state.cache_provider.as_ref() {

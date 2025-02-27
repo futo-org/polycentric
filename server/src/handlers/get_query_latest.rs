@@ -32,10 +32,14 @@ async fn handler_inner(
     .await?;
     transaction.commit().await?;
 
-    let cache_tags: Vec<_> = events
-        .iter()
-        .flat_map(crate::cache::util::signed_event_to_cache_tags)
-        .collect();
+    let cache_tags: Vec<String> =
+        crate::cache::util::signed_events_to_cache_tags(
+            &events,
+            false,
+            false,
+            false,
+            true,
+        );
 
     result.events = events
         .iter()

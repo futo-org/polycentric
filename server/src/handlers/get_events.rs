@@ -55,22 +55,16 @@ async fn handler_inner(
     .await?;
 
     result.events = events
-    .iter()
+        .iter()
         .map(polycentric_protocol::model::signed_event::to_proto)
         .collect();
 
     transaction.commit().await?;
 
     // We want to invalidate the account meta and the events, in case of a new event
-    let meta_tags: Vec<String> = crate::cache::util::key_to_cache_tags_account_meta(
-        &query.system,
+    let tags: Vec<String> = crate::cache::util::signed_events_to_cache_tags(
+        &events, false, true, false, true,
     );
-    let event_tags: Vec<String> = events
-        .iter()
-        .flat_map(crate::cache::util::signed_event_to_cache_tags)
-        .collect();
-
-    let tags = [meta_tags, event_tags].concat();
 
     let response = ::warp::reply::with_header(
         ::warp::reply::with_status(
@@ -79,7 +73,7 @@ async fn handler_inner(
         ),
         "Cache-Control",
         "public, s-maxage=3600, max-age=5",
-        );
+    );
 
     if !tags.is_empty() {
         if let Some(cache_provider) = state.cache_provider.as_ref() {
