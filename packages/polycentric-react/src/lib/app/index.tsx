@@ -1,20 +1,20 @@
 import {
-    ArrowUpOnSquareIcon,
-    EllipsisVerticalIcon,
+  ArrowUpOnSquareIcon,
+  EllipsisVerticalIcon,
 } from '@heroicons/react/24/outline';
 import { IonApp, IonNav, isPlatform, setupIonicReact } from '@ionic/react';
 import {
-    MetaStore,
-    PersistenceDriver,
-    ProcessHandle,
+  MetaStore,
+  PersistenceDriver,
+  ProcessHandle,
 } from '@polycentric/polycentric-core';
 import {
-    useCallback,
-    useEffect,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    useState,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
 } from 'react';
 import * as UAParserJS from 'ua-parser-js';
 import { SidebarLayout } from '../components/layout/sidebarlayout';
@@ -24,18 +24,18 @@ import { ExportKey } from '../components/settings/ExportKey';
 import { MemoryRoutedComponent } from '../components/util/link';
 import { PersistenceDriverContext } from '../hooks/persistenceDriverHooks';
 import {
-    BaseProcessHandleManagerContext,
-    useProcessHandleManager,
-    useProcessHandleManagerBaseComponentHook,
+  BaseProcessHandleManagerContext,
+  useProcessHandleManager,
+  useProcessHandleManagerBaseComponentHook,
 } from '../hooks/processHandleManagerHooks';
 import { QueryManagerContext } from '../hooks/queryHooks';
 import { useStackRouter } from '../hooks/stackRouterHooks';
 import { getFullPath } from '../util/etc';
 import { createSwipeBackGesture } from '../util/ionicfullpageswipebackgesture';
 import {
-    MobileSwipeTopicContext,
-    ModerationContext,
-    StackRouterContext,
+  MobileSwipeTopicContext,
+  ModerationContext,
+  StackRouterContext,
 } from './contexts';
 
 setupIonicReact({});
