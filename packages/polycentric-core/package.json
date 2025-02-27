@@ -2,6 +2,11 @@
   "name": "@polycentric/polycentric-core",
   "version": "0.2.1",
   "private": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE.md"
+  ],
   "main": "./dist/polycentric-core.cjs",
   "module": "./dist/polycentric-core.mjs",
   "types": "./dist/index.d.ts",
@@ -46,9 +51,6 @@
   "homepage": "./",
   "build": {
     "extends": null,
-    "files": [
-      "build"
-    ],
     "directories": {
       "buildResources": "assets"
     }
