@@ -382,7 +382,7 @@ export function useLikesFeed(
     system,
     Models.ContentType.ContentTypeOpinion,
     Protocol.LWWElement.decode,
-    5,
+    30, // Batch size 
   );
 
   const queryManager = useQueryManager();
@@ -429,11 +429,11 @@ export function useLikesFeed(
     });
   }, [opinions, queryManager]);
 
-  const advancePosts = useCallback(async () => {
+  const advanceOpinions = useCallback(async () => {
     if (!allLoaded) {
       await loadMore();
     }
   }, [loadMore, allLoaded]);
 
-  return [posts, advancePosts, allLoaded];
+  return [posts, advanceOpinions, allLoaded];
 }
