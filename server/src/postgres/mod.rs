@@ -136,12 +136,7 @@ pub(crate) async fn load_event(
         ))
         .bind(process.bytes())
         .bind(i64::try_from(logical_clock)?)
-        .bind(
-            moderation_options
-                .filters
-                .as_ref()
-                .unwrap_or(&ModerationFilters::default()),
-        )
+        .bind(moderation_options.get_filters_with_defaults())
         .bind(moderation_options.mode)
         .fetch_optional(&mut **transaction)
         .await?;
@@ -189,12 +184,7 @@ pub(crate) async fn load_events_after_id(
     let rows = ::sqlx::query_as::<_, ExploreRow>(query)
         .bind(start_id_query)
         .bind(i64::try_from(limit)?)
-        .bind(
-            moderation_options
-                .filters
-                .as_ref()
-                .unwrap_or(&ModerationFilters::default()),
-        )
+        .bind(moderation_options.get_filters_with_defaults())
         .bind(moderation_options.mode)
         .fetch_all(&mut **transaction)
         .await?;
@@ -239,12 +229,7 @@ pub(crate) async fn load_posts_before_id(
             polycentric_protocol::model::known_message_types::POST,
         )?)
         .bind(i64::try_from(limit)?)
-        .bind(
-            moderation_options
-                .filters
-                .as_ref()
-                .unwrap_or(&ModerationFilters::default()),
-        )
+        .bind(moderation_options.get_filters_with_defaults())
         .bind(moderation_options.mode)
         .fetch_all(&mut **transaction)
         .await?;
