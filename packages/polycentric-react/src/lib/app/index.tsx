@@ -121,7 +121,7 @@ const SignedinApp = ({
   }, [setIsNewAccount]);
 
   const [moderationLevels, setModerationLevels] = useState<
-    Record<string, number>
+    Record<string, number> | undefined
   >(JSON.parse(localStorage.getItem('polycentric-moderation-levels') ?? '{}'));
 
   const moderationContextContainer = useMemo(() => {
