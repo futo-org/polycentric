@@ -382,7 +382,7 @@ export function useLikesFeed(
     system,
     Models.ContentType.ContentTypeOpinion,
     Protocol.LWWElement.decode,
-    30, // Batch size 
+    30, // Batch size
   );
 
   const queryManager = useQueryManager();
