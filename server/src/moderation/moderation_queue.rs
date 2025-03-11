@@ -1055,7 +1055,7 @@ mod tests {
             &ModerationOptions {
                 filters: Some(ModerationFilters(vec![
                     ModerationFilter {
-                        name: ModerationTagName::new(String::from("sexual")),
+                        name: ModerationTagName::new(String::from("violence")),
                         max_level: 2,
                         strict_mode: false,
                     },
@@ -1065,7 +1065,7 @@ mod tests {
                         strict_mode: false,
                     },
                     ModerationFilter {
-                        name: ModerationTagName::new(String::from("violence")),
+                        name: ModerationTagName::new(String::from("sexual")),
                         max_level: 1,
                         strict_mode: false,
                     },
