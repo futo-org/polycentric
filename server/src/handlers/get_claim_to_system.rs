@@ -1,5 +1,7 @@
 use ::protobuf::Message;
 
+use crate::cache;
+
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
     #[serde(deserialize_with = "serde_url_deserialize")]
@@ -90,6 +92,33 @@ pub(crate) async fn handler(
     let mut result =
         polycentric_protocol::protocol::QueryClaimToSystemResponse::new();
 
+    let claim_events: Vec<
+        polycentric_protocol::model::signed_event::SignedEvent,
+    > = matches.iter().map(|m| m.claim.clone()).collect();
+    let claim_cache_tags = cache::util::signed_events_to_cache_tags(
+        &claim_events,
+        true,
+        false,
+        false,
+        false,
+    );
+
+    let vouch_events: Vec<
+        polycentric_protocol::model::signed_event::SignedEvent,
+    > = matches
+        .iter()
+        .flat_map(|m| m.path.iter())
+        .cloned()
+        .collect();
+    let vouch_cache_tags = cache::util::signed_events_to_cache_tags(
+        &vouch_events,
+        false,
+        false,
+        true,
+        false,
+    );
+    let cache_tags = [claim_cache_tags, vouch_cache_tags].concat();
+
     for match_item in matches.iter() {
         let mut item = polycentric_protocol::protocol::QueryClaimToSystemResponseMatch::new();
 
@@ -110,12 +139,26 @@ pub(crate) async fn handler(
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
 
-    Ok(Box::new(::warp::reply::with_header(
+    let response = ::warp::reply::with_header(
         ::warp::reply::with_status(
             result_serialized,
             ::warp::http::StatusCode::OK,
         ),
         "Cache-Control",
-        "public, max-age=30",
-    )))
+        "public, s-maxage=3600, max-age=5",
+    );
+
+    if !cache_tags.is_empty() {
+        if let Some(cache_provider) = state.cache_provider.as_ref() {
+            Ok(Box::new(::warp::reply::with_header(
+                response,
+                cache_provider.get_header_name(),
+                cache_provider.get_header_value(&cache_tags),
+            )))
+        } else {
+            Ok(Box::new(response))
+        }
+    } else {
+        Ok(Box::new(response))
+    }
 }

@@ -45,7 +45,8 @@ pub(crate) async fn handler(
         polycentric_protocol::model::reference::Reference::Pointer(pointer) => {
             if !query.query.extra_byte_references.is_empty() {
                 return Ok(Box::new(::warp::reply::with_status(
-                    "cannot use extra_byte_references with pointer reference",
+                    "cannot use extra_byte_references with pointer reference"
+                        .to_string(),
                     ::warp::http::StatusCode::BAD_REQUEST,
                 )));
             }
@@ -65,7 +66,7 @@ pub(crate) async fn handler(
         }
         _ => {
             return Ok(Box::new(::warp::reply::with_status(
-                "unsupported reference type",
+                "unsupported reference type".to_string(),
                 ::warp::http::StatusCode::BAD_REQUEST,
             )));
         }
@@ -84,6 +85,8 @@ pub(crate) async fn handler(
 
     let mut result =
         polycentric_protocol::protocol::QueryReferencesResponse::new();
+
+    let mut cache_tags = Vec::new();
 
     if let Some(request_events) = query.query.request_events.0 {
         let query_result = crate::warp_try_err_500!(
@@ -104,6 +107,14 @@ pub(crate) async fn handler(
         if let Some(query_result_cursor) = query_result.cursor {
             result.cursor = Some(query_result_cursor.to_be_bytes().to_vec());
         }
+
+        cache_tags = crate::cache::util::signed_events_to_cache_tags(
+            &query_result.events,
+            false,
+            true,
+            true,
+            false,
+        );
 
         for signed_event in query_result.events.iter() {
             let event = crate::warp_try_err_500!(
@@ -179,12 +190,28 @@ pub(crate) async fn handler(
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
 
-    Ok(Box::new(::warp::reply::with_header(
-        ::warp::reply::with_status(
-            result_serialized,
-            ::warp::http::StatusCode::OK,
-        ),
+    let response = ::warp::reply::with_status(
+        result_serialized,
+        ::warp::http::StatusCode::OK,
+    );
+
+    let response = ::warp::reply::with_header(
+        response,
         "Cache-Control",
-        "public, max-age=30",
-    )))
+        "public, s-maxage=3600, max-age=5",
+    );
+
+    if !cache_tags.is_empty() {
+        if let Some(cache_provider) = state.cache_provider.as_ref() {
+            Ok(Box::new(::warp::reply::with_header(
+                response,
+                cache_provider.get_header_name(),
+                cache_provider.get_header_value(&cache_tags),
+            )))
+        } else {
+            Ok(Box::new(response))
+        }
+    } else {
+        Ok(Box::new(response))
+    }
 }

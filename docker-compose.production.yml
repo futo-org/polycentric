@@ -33,10 +33,21 @@ services:
             - "RUST_LOG=server=info"
             - "STATSD_ADDRESS=127.0.0.1"
             - "ADMIN_TOKEN=123"
-    proxy:
-        image: caddy
+            - "CACHE_INTERFACE=varnish"
+            - "CACHE_BASE_URL=http://varnish:80"
+    varnish:
+        image: varnish
         volumes:
-            - ./Caddyfile:/etc/caddy/Caddyfile:ro
+            - ./varnish/default.vcl:/etc/varnish/default.vcl:ro
+            - ./state/varnish:/var/lib/varnish
+        environment:
+            - VARNISH_SIZE=2G
+    proxy:
+        build:
+            context: ./caddy
+            dockerfile: Dockerfile
+        volumes:
+            - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
             - ./state/caddy/data:/data
             - ./state/caddy/config:/config
         ports:

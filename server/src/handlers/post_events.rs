@@ -23,6 +23,20 @@ async fn handler_inner(
         polycentric_protocol::model::signed_event::SignedEvent,
     >,
 ) -> ::anyhow::Result<Box<dyn ::warp::Reply>> {
+    if let Some(provider) = &state.cache_provider {
+        let tags: Vec<String> = crate::cache::util::signed_events_to_cache_tags(
+            &signed_events,
+            true,
+            true,
+            true,
+            true,
+        );
+
+        // TODO: Run in background
+        let result = provider.purge_tags(&tags).await;
+        ::log::debug!("Purge result: {:?}", result);
+    }
+
     crate::ingest::ingest_event_batch(&state, &user_agent, signed_events)
         .await?;
 

@@ -7,8 +7,11 @@ use ::std::collections::HashMap;
 use ::std::fmt::Error;
 use ::std::ops::Deref;
 use ::std::time::SystemTime;
-use polycentric_protocol::model::{known_message_types, pointer};
+use polycentric_protocol::model::{
+    known_message_types, pointer, signed_event::SignedEvent,
+};
 
+// Start of Selection
 // full ingestion pipeline
 pub(crate) async fn ingest_event_batch(
     state: &::std::sync::Arc<crate::State>,
@@ -16,7 +19,7 @@ pub(crate) async fn ingest_event_batch(
     signed_events: ::std::vec::Vec<
         polycentric_protocol::model::signed_event::SignedEvent,
     >,
-) -> ::anyhow::Result<()> {
+) -> ::anyhow::Result<::std::vec::Vec<SignedEvent>> {
     let mut batch = construct_event_batch(signed_events.clone())?;
 
     filter_subjects_of_deletes(&mut batch);
@@ -69,7 +72,15 @@ pub(crate) async fn ingest_event_batch(
         )
         .try_send()?;
 
-    Ok(())
+    // Collect the newly ingested signed events
+    let filtered_events = batch
+        .values()
+        .map(|layers| layers.signed_event().clone())
+        .collect::<::std::vec::Vec<
+        polycentric_protocol::model::signed_event::SignedEvent,
+    >>();
+
+    Ok(filtered_events)
 }
 
 fn trace_event(
