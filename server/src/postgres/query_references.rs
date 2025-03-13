@@ -1,4 +1,4 @@
-use super::{ModerationFilters, ModerationOptions};
+use super::ModerationOptions;
 
 #[derive(::sqlx::FromRow)]
 struct QueryRow {
@@ -189,12 +189,7 @@ pub(crate) async fn query_bytes(
         .bind(from_type_query)
         .bind(cursor_query)
         .bind(i64::try_from(limit)?)
-        .bind(
-            moderation_options
-                .filters
-                .as_ref()
-                .unwrap_or(&ModerationFilters::default()),
-        )
+        .bind(moderation_options.get_filters_with_defaults())
         .bind(moderation_options.mode)
         .fetch_all(&mut **transaction)
         .await?;

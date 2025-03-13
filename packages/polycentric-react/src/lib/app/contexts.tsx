@@ -1,4 +1,4 @@
-import { createContext } from 'react';
+import { createContext, Dispatch, SetStateAction } from 'react';
 import { StackRouterContextType } from '../hooks/stackRouterHooks';
 
 // separate file for HMR
@@ -34,6 +34,8 @@ export const MobileSwipeTopicContext = createContext<{
 }>({ topic: 'Explore', setTopic: () => {} });
 
 export const ModerationContext = createContext<{
-  moderationLevels: Record<string, number>;
-  setModerationLevels: (moderationLevels: Record<string, number>) => void;
-}>({ moderationLevels: {}, setModerationLevels: () => {} });
+  moderationLevels: Record<string, number> | undefined;
+  setModerationLevels: Dispatch<
+    SetStateAction<Record<string, number> | undefined>
+  >;
+}>({ moderationLevels: undefined, setModerationLevels: () => undefined });

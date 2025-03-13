@@ -23,16 +23,24 @@ pub(crate) async fn handler(
         .await
     );
 
+    // let tags: Vec<String> = crate::cache::util::key_to_cache_tags_account_meta(
+    //     &query.system,
+    // );
+
     crate::warp_try_err_500!(transaction.commit().await);
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());
 
-    Ok(Box::new(::warp::reply::with_header(
+    let response = ::warp::reply::with_header(
         ::warp::reply::with_status(
             result_serialized,
             ::warp::http::StatusCode::OK,
         ),
         "Cache-Control",
-        "public, max-age=30",
-    )))
+        "no-cache",
+    );
+
+    // Caching for ranges is hard because we need nearly strong consistency for caching
+    // It's currently not implemented, but should be able to using key_to_cache_tags_account_meta
+    Ok(Box::new(response))
 }

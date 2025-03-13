@@ -43,7 +43,7 @@ async fn handler_inner(
 
     let mut result = polycentric_protocol::protocol::Events::new();
 
-    result.events = crate::postgres::select_events_by_ranges::select(
+    let events = crate::postgres::select_events_by_ranges::select(
         &mut transaction,
         &query.system,
         &query.ranges,
@@ -52,21 +52,42 @@ async fn handler_inner(
             mode: state.moderation_mode,
         },
     )
-    .await?
-    .iter()
-    .map(polycentric_protocol::model::signed_event::to_proto)
-    .collect();
+    .await?;
+
+    result.events = events
+        .iter()
+        .map(polycentric_protocol::model::signed_event::to_proto)
+        .collect();
 
     transaction.commit().await?;
 
-    Ok(Box::new(::warp::reply::with_header(
+    // We want to invalidate the account meta and the events, in case of a new event
+    let tags: Vec<String> = crate::cache::util::signed_events_to_cache_tags(
+        &events, false, true, false, true,
+    );
+
+    let response = ::warp::reply::with_header(
         ::warp::reply::with_status(
             result.write_to_bytes()?,
             ::warp::http::StatusCode::OK,
         ),
         "Cache-Control",
-        "public, max-age=30",
-    )))
+        "public, s-maxage=3600, max-age=5",
+    );
+
+    if !tags.is_empty() {
+        if let Some(cache_provider) = state.cache_provider.as_ref() {
+            Ok(Box::new(::warp::reply::with_header(
+                response,
+                cache_provider.get_header_name(),
+                cache_provider.get_header_value(&tags),
+            )))
+        } else {
+            Ok(Box::new(response))
+        }
+    } else {
+        Ok(Box::new(response))
+    }
 }
 
 pub(crate) async fn handler(

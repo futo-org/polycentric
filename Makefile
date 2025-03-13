@@ -31,6 +31,13 @@ endif
 	docker compose --env-file .env.development -f docker-compose.development.yml down
 	docker compose --env-file .env.development -f docker-compose.development.yml rm
 
+restart-sandbox:
+ifndef DOCKER_GID
+	$(error It seems that no groups on your system have permisison to use docker (do you have docker installed?))
+endif
+	docker compose -f docker-compose.development.yml down
+	docker compose -f docker-compose.development.yml up -d
+
 join-sandbox:
 	docker compose --env-file .env.development -f docker-compose.development.yml \
 		exec development /bin/bash --rcfile /app/.docker-bashrc
