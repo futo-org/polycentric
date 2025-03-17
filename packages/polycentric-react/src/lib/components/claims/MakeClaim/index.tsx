@@ -1,5 +1,5 @@
 import * as Core from '@polycentric/polycentric-core';
-import { Models, Protocol } from '@polycentric/polycentric-core';
+import { Models } from '@polycentric/polycentric-core';
 import { useCallback, useEffect, useState } from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import { useClaims } from '../../../hooks/queryHooks';
@@ -289,9 +289,8 @@ export const SocialMediaInput = ({
   const [verificationStep, setVerificationStep] = useState<
     'input' | 'token' | 'verifying' | 'success' | 'error' | 'duplicate'
   >('input');
-  const [claimPointer, setClaimPointer] = useState<Protocol.Pointer | null>(
-    null,
-  );
+  const [claimPointer, setClaimPointer] =
+    useState<Models.Pointer.Pointer | null>(null);
   const { processHandle } = useProcessHandleManager();
   const claims = useClaims(system);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -354,6 +353,8 @@ export const SocialMediaInput = ({
         ] ?? Models.claimURL;
 
       const claim = claimFunction(processedUrl);
+
+      // Create the claim normally - we'll delete it later if verification fails
       const pointer = await processHandle.claim(claim);
       setClaimPointer(pointer);
 
@@ -390,6 +391,19 @@ export const SocialMediaInput = ({
         }, 2000);
       } catch (error) {
         console.error('Verification request failed:', error);
+
+        // Delete the claim since verification failed
+        try {
+          await processHandle.delete(
+            claimPointer.process,
+            claimPointer.logicalClock,
+          );
+        } catch (deleteError) {
+          console.error(
+            'Failed to delete claim after verification failure:',
+            deleteError,
+          );
+        }
 
         // Check for specific platform errors
         const errorMessage =
@@ -430,6 +444,21 @@ export const SocialMediaInput = ({
         setVerificationStep('error');
       }
     } catch (error) {
+      // Delete the claim since verification failed
+      if (claimPointer) {
+        try {
+          await processHandle.delete(
+            claimPointer.process,
+            claimPointer.logicalClock,
+          );
+        } catch (deleteError) {
+          console.error(
+            'Failed to delete claim after verification failure:',
+            deleteError,
+          );
+        }
+      }
+
       setVerificationStep('error');
       setErrorMessage(
         error instanceof Error
