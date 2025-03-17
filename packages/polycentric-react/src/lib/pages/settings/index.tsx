@@ -1,5 +1,5 @@
 import { IonContent } from '@ionic/react';
-import { Page } from '../../app/router';
+import { Page } from '../../app/routes';
 import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
 import { AppInfoTable } from '../../components/settings/AppInfoTable';

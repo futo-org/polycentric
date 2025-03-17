@@ -14,6 +14,7 @@ export function OAuthCallback() {
   const [username, setUsername] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { processHandle } = useProcessHandleManager();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const processOAuth = async () => {
@@ -58,13 +59,9 @@ export function OAuthCallback() {
             );
 
             setUsername(oauthResponse.username);
-
-            localStorage.removeItem('oauth_debug_url');
-            localStorage.removeItem('oauth_debug_secret');
             localStorage.removeItem('futoIDSecret');
           } catch (error: unknown) {
             const apiError = error as APIError;
-            console.error('OAuth API error:', apiError);
 
             if (
               apiError?.response?.extendedMessage?.includes(
@@ -83,11 +80,9 @@ export function OAuthCallback() {
             }
           }
         } catch (error) {
-          console.error('OAuth verification failed:', error);
           setError('Failed to process OAuth response');
         }
       } catch (error) {
-        console.error('Failed to process state:', error);
         setError('Failed to process state');
       }
     };
@@ -98,17 +93,23 @@ export function OAuthCallback() {
   const handleConfirm = async () => {
     if (!username || !processHandle) return;
 
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    const parsedClaimType = params.get('claim_type');
-
-    if (!token || !parsedClaimType) return;
-
     try {
-      const claimTypeNum = parseInt(parsedClaimType);
+      setIsSubmitting(true);
+
+      const params = new URLSearchParams(window.location.search);
+      const stateParam = params.get('state');
+
+      if (!stateParam) {
+        setError('Missing state parameter');
+        return;
+      }
+
+      const state = JSON.parse(decodeURIComponent(stateParam));
+      const claimTypeNum = parseInt(state.claimType);
 
       let claim: Core.Protocol.Claim;
       let claimType: Core.Models.ClaimType.ClaimType;
+
       switch (claimTypeNum) {
         case Core.Models.ClaimType.ClaimTypeTwitter.toNumber():
           claim = Core.Models.claimTwitter(username);
@@ -136,12 +137,49 @@ export function OAuthCallback() {
 
       const pointer = await processHandle.claim(claim);
 
-      await Core.APIMethods.requestVerification(pointer, claimType, token);
+      // Get token from state
+      const encodedData = state.data;
+      if (!encodedData) {
+        throw new Error('Missing encoded data in state');
+      }
 
-      window.location.href = '/';
+      // Wait for claim to be processed
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      try {
+        await Core.APIMethods.requestVerification(
+          pointer,
+          claimType,
+          encodedData,
+        );
+
+        // Clear OAuth data from localStorage
+        localStorage.removeItem('futoIDSecret');
+
+        // Redirect to home page
+        window.location.href = '/';
+      } catch (verificationError) {
+        // Retry once after a delay
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+
+        await Core.APIMethods.requestVerification(
+          pointer,
+          claimType,
+          encodedData,
+        );
+
+        localStorage.removeItem('futoIDSecret');
+
+        // Redirect to home page
+        window.location.href = '/';
+      }
     } catch (error) {
-      console.error('Failed to create claim:', error);
-      setError('Failed to create claim');
+      setError(
+        `Failed to create claim: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
+      );
+      setIsSubmitting(false);
     }
   };
 
@@ -173,14 +211,16 @@ export function OAuthCallback() {
         <button
           onClick={() => (window.location.href = '/')}
           className="px-4 py-2 bg-gray-500 text-white rounded"
+          disabled={isSubmitting}
         >
           Cancel
         </button>
         <button
           onClick={handleConfirm}
           className="px-4 py-2 bg-blue-500 text-white rounded"
+          disabled={isSubmitting}
         >
-          Confirm
+          {isSubmitting ? 'Processing...' : 'Confirm'}
         </button>
       </div>
     </div>

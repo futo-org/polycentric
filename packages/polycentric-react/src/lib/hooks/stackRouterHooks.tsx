@@ -1,7 +1,7 @@
 import { isPlatform } from '@ionic/react';
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { matchPath } from 'react-router-dom';
-import { routeData } from '../app/router';
+import { routes } from '../app/routes';
 import { MemoryRoutedComponent } from '../components/util/link';
 import { StackElementPathContext } from '../components/util/link/StackElementPathContext';
 import { getFullPath } from '../util/etc';
@@ -304,7 +304,7 @@ export const useStackRouter = (
 };
 
 function getParams(url: string) {
-  for (const path of Object.keys(routeData)) {
+  for (const path of Object.keys(routes)) {
     const match = matchPath(url, {
       path,
       exact: true,

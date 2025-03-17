@@ -2,7 +2,7 @@ import { decode } from '@borderless/base64';
 import { IonContent } from '@ionic/react';
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import { useMemo, useState } from 'react';
-import { Page } from '../../app/router';
+import { Page } from '../../app/routes';
 import { PostCompose } from '../../components/feed/Compose/PostCompose';
 import { Header } from '../../components/layout/header';
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol';

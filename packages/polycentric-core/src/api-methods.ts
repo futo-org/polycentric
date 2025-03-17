@@ -599,7 +599,7 @@ export async function getOAuthURL(
   claimType: Models.ClaimType.ClaimType,
   redirectUri?: string,
 ): Promise<string> {
-  let url = `${server}/platforms/${claimType}/oauth/url`;
+  let url = `${server}/platforms/${claimType.toString()}/oauth/url`;
 
   // Add redirectUri if provided
   if (redirectUri) {
@@ -616,7 +616,7 @@ export async function getOAuthURL(
   });
 
   await checkResponse('getOAuthURL', response);
-  const data = await response.json();
+  const data = (await response.json()) as string | { url: string };
 
   // Handle both string and object responses
   return typeof data === 'string' ? data : data.url;
@@ -639,7 +639,7 @@ export async function getOAuthUsername(
   });
 
   await checkResponse('getOAuthUsername', response);
-  return await response.json();
+  return (await response.json()) as OAuthUsernameResponse;
 }
 
 export async function getClaimFieldsByUrl(
@@ -647,7 +647,7 @@ export async function getClaimFieldsByUrl(
   claimType: Models.ClaimType.ClaimType,
   subject: string,
 ): Promise<Protocol.ClaimFieldEntry[]> {
-  const url = `${server}/platforms/${claimType}/text/getClaimFieldsByUrl`;
+  const url = `${server}/platforms/${claimType.toString()}/text/getClaimFieldsByUrl`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -660,8 +660,10 @@ export async function getClaimFieldsByUrl(
 
   await checkResponse('getClaimFieldsByUrl', response);
 
-  const decoded = await response.json();
-  return decoded.map((item: { key: number; value: string }) => ({
+  type ClaimFieldEntryResponse = { key: number; value: string }[];
+  const decoded = (await response.json()) as ClaimFieldEntryResponse;
+
+  return decoded.map((item) => ({
     key: Long.fromNumber(item.key),
     value: item.value,
   }));

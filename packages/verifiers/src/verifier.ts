@@ -129,9 +129,18 @@ export abstract class OAuthVerifier<TTokenRequest> extends Verifier {
             return Result.errMsg('Missing challengeResponse');
         }
 
-        const oauthCallback = Buffer.from(challenge, 'base64').toString();
-        const fields: ClaimField[] = claim.claimFields.map((v) => <ClaimField>{ key: v.key.toInt(), value: v.value });
-        return await this.isTokenValid(oauthCallback, fields);
+        try {
+            // Try to decode the challenge as base64
+            const oauthCallback = Buffer.from(challenge, 'base64').toString();
+            
+            const fields: ClaimField[] = claim.claimFields.map((v) => <ClaimField>{ key: v.key.toInt(), value: v.value });
+            return await this.isTokenValid(oauthCallback, fields);
+        } catch (error) {
+            return Result.err({
+                message: 'Invalid challenge response format',
+                extendedMessage: 'Could not decode the challenge response'
+            });
+        }
     }
 }
 

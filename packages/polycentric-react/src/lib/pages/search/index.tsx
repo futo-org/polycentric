@@ -1,5 +1,5 @@
 import { IonContent } from '@ionic/react';
-import { Page } from '../../app/router';
+import { Page } from '../../app/routes';
 import { Header } from '../../components/layout/header';
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol';
 import { useSearchPostsFeed } from '../../hooks/feedHooks';

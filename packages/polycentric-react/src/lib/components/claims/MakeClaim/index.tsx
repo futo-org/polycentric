@@ -48,7 +48,6 @@ const isOAuthVerifiable = (
   );
 };
 
-// Add these mapping objects near the top of the file
 const PLATFORM_TO_CLAIM_TYPE = {
   youtube: Models.ClaimType.ClaimTypeYouTube,
   'twitter/X': Core.Models.ClaimType.ClaimTypeTwitter,
@@ -249,25 +248,30 @@ const isVerifiablePlatform = (platform: SocialPlatform): boolean => {
 
 const handleOAuthLogin = async (claimType: Core.Models.ClaimType.ClaimType) => {
   try {
+    // Make sure we're using the correct origin for the redirect URI
     const redirectUri = `${window.location.origin}/oauth/callback`;
+
+    // Get the OAuth URL
     const oauthUrl = await Core.APIMethods.getOAuthURL(
       Core.APIMethods.VERIFIER_SERVER,
       claimType,
       redirectUri,
     );
 
-    // Store debug info in localStorage
-    localStorage.setItem('oauth_debug_url', oauthUrl);
-
+    // Store the secret in localStorage for the callback
     const url = new URL(oauthUrl);
     const secret = url.searchParams.get('harborSecret') || '';
-    localStorage.setItem('oauth_debug_secret', secret);
     localStorage.setItem('futoIDSecret', secret);
 
     // Navigate to OAuth URL
     window.location.href = oauthUrl;
   } catch (error) {
     console.error('OAuth initialization failed:', error);
+    alert(
+      `OAuth initialization failed: ${
+        error instanceof Error ? error.message : 'Unknown error'
+      }`,
+    );
   }
 };
 
@@ -292,19 +296,38 @@ export const SocialMediaInput = ({
   const claims = useClaims(system);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    const initializeOAuth = async () => {
-      if (!platform) return;
+  // Get the claim type for the platform
+  const getClaimTypeForPlatform = useCallback(
+    (platform: SocialPlatform): Core.Models.ClaimType.ClaimType => {
+      const claimType =
+        PLATFORM_TO_CLAIM_TYPE[platform as keyof typeof PLATFORM_TO_CLAIM_TYPE];
+      if (!claimType) {
+        throw new Error(`Unsupported platform: ${platform}`);
+      }
+      return claimType;
+    },
+    [],
+  );
 
+  // Initialize OAuth on component mount
+  const initializeOAuth = useCallback(async () => {
+    if (!platform) return;
+
+    try {
       const claimType = getClaimTypeForPlatform(platform);
 
+      // Check if this platform is OAuth verifiable
       if (isOAuthVerifiable(claimType)) {
         await handleOAuthLogin(claimType);
       }
-    };
+    } catch (error) {
+      console.error('Failed to initialize OAuth:', error);
+    }
+  }, [platform, getClaimTypeForPlatform]);
 
+  useEffect(() => {
     initializeOAuth();
-  }, [platform]);
+  }, [initializeOAuth]);
 
   const addClaim = useCallback(async () => {
     if (!url || !processHandle || !claims) return;
@@ -345,7 +368,7 @@ export const SocialMediaInput = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [url, platform, processHandle, claims, onCancel]);
+  }, [url, platform, processHandle, claims, onCancel, getClaimTypeForPlatform]);
 
   const startVerification = useCallback(async () => {
     if (!processHandle || !claimPointer) return;
@@ -355,15 +378,57 @@ export const SocialMediaInput = ({
     try {
       await Core.ProcessHandle.fullSync(processHandle);
 
-      await Core.APIMethods.requestVerification(
-        claimPointer,
-        getClaimTypeForPlatform(platform),
-      );
+      try {
+        await Core.APIMethods.requestVerification(
+          claimPointer,
+          getClaimTypeForPlatform(platform),
+        );
 
-      setVerificationStep('success');
-      setTimeout(() => {
-        onCancel();
-      }, 2000);
+        setVerificationStep('success');
+        setTimeout(() => {
+          onCancel();
+        }, 2000);
+      } catch (error) {
+        console.error('Verification request failed:', error);
+
+        // Check for specific platform errors
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+
+        if (
+          platform === 'twitter/X' &&
+          errorMessage.includes('temporarily unavailable')
+        ) {
+          setErrorMessage(
+            'Twitter/X API reports this feature is temporarily unavailable. ' +
+              "This is an issue with Twitter's API, not with your account. " +
+              'Please try again later or try a different platform.',
+          );
+        } else if (
+          platform === 'discord' &&
+          (errorMessage.includes('access_token') ||
+            errorMessage.includes('undefined'))
+        ) {
+          setErrorMessage(
+            'Discord authentication failed. The OAuth token was not properly received. ' +
+              'This may be due to Discord API changes or configuration issues. ' +
+              'Please try a different platform for now.',
+          );
+        } else if (
+          errorMessage.includes('500') ||
+          errorMessage.includes('Internal server error')
+        ) {
+          setErrorMessage(
+            `The verification server encountered an internal error while processing your ${platform} authentication. ` +
+              'This is likely due to API changes or temporary issues with the platform. ' +
+              'Please try again later or try a different platform.',
+          );
+        } else {
+          setErrorMessage(errorMessage);
+        }
+
+        setVerificationStep('error');
+      }
     } catch (error) {
       setVerificationStep('error');
       setErrorMessage(
@@ -372,19 +437,13 @@ export const SocialMediaInput = ({
           : 'An unknown error occurred with the verification server.',
       );
     }
-  }, [processHandle, claimPointer, platform, onCancel]);
-
-  // Replace the getClaimTypeForPlatform function with this simplified version
-  const getClaimTypeForPlatform = (
-    platform: SocialPlatform,
-  ): Core.Models.ClaimType.ClaimType => {
-    const claimType =
-      PLATFORM_TO_CLAIM_TYPE[platform as keyof typeof PLATFORM_TO_CLAIM_TYPE];
-    if (!claimType) {
-      throw new Error(`Unsupported platform: ${platform}`);
-    }
-    return claimType;
-  };
+  }, [
+    processHandle,
+    claimPointer,
+    platform,
+    onCancel,
+    getClaimTypeForPlatform,
+  ]);
 
   if (verificationStep === 'token' && claimPointer) {
     return (

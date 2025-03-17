@@ -27,7 +27,6 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
         const handle = await Core.ProcessHandle.ProcessHandle.load(store);
         return handle;
     } else {
-        console.log('Generating new system');
         const handle = await Core.ProcessHandle.createProcessHandle(metaStore);
         await handle.addServer('https://srv1-stg.polycentric.io');
         await metaStore.setActiveStore(handle.system(), 0);
@@ -80,15 +79,38 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
 
     app.get('/platforms/:platformName/oauth/callback', (req, res) => {
         try {
-            const { oauth_token, oauth_verifier } = req.query;
-            const queryObject = JSON.stringify({
-                oauth_token,
-                oauth_verifier,
-            });
-            const encodedData = Buffer.from(queryObject).toString('base64');
+            // Extract all possible OAuth parameters
+            const { code, oauth_token, oauth_verifier, state } = req.query;
+            let queryObject = {};
+            
+            // Handle different OAuth flows (Twitter uses oauth_token/oauth_verifier, Discord uses code)
+            if (code) {
+                queryObject = { code };
+                console.log('OAuth callback received code parameter:', code);
+            } else if (oauth_token && oauth_verifier) {
+                queryObject = { oauth_token, oauth_verifier };
+                console.log('OAuth callback received token/verifier parameters');
+            }
+            
+            // Extract harborSecret from state if available
+            if (state) {
+                try {
+                    const stateObj = JSON.parse(state as string);
+                    if (stateObj.harborSecret) {
+                        queryObject = { ...queryObject, harborSecret: stateObj.harborSecret };
+                    }
+                } catch (e) {
+                    console.log('Failed to parse state parameter:', e);
+                }
+            }
+
+            const encodedData = Buffer.from(JSON.stringify(queryObject)).toString('base64');
             const claimType = req.params.platformName;
 
-            console.log('OAuth callback data:', { encodedData, claimType });
+            console.log('OAuth callback data:', { 
+                claimType,
+                queryObject
+            });
             
             // Use state parameters
             const webAppUrl = 'https://localhost:3000/oauth/callback';
