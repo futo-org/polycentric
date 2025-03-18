@@ -1,5 +1,5 @@
 {
-  "name": "@polycentric/polycentric-core/react-native",
+  "name": "@polycentric/polycentric-core-react-native",
   "version": "0.2.1",
   "private": false,
   "main": "./dist/polycentric-core.cjs",
