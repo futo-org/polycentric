@@ -376,7 +376,7 @@ push-web-image-staging:
     - /kaniko/executor
       --context "${CI_PROJECT_DIR}"
       --dockerfile "${CI_PROJECT_DIR}/web.dockerfile"
-      --destination "${CI_REGISTRY_IMAGE}-web:stg"
+      --destination "${CI_REGISTRY_IMAGE}/web:stg"
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
 
