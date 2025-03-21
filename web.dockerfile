@@ -30,5 +30,4 @@ RUN npm install -g wrangler
 
 WORKDIR /polycentric/
 
-CMD ["wrangler", "pages", "deploy", "--project-name", "polycentric-spa-staging", \
-"./packages/polycentric-web/dist/", "--branch", "master"]
+CMD ["wrangler", "pages", "deploy", "--project-name", "polycentric-spa-staging", "./packages/polycentric-web/dist/", "--branch", "master"]
