@@ -6,6 +6,7 @@ RUN mkdir -p server/src/
 
 # Copy the entire monorepo
 COPY version.sh version.sh
+COPY proto proto
 COPY packages/polycentric-core packages/polycentric-core
 COPY packages/polycentric-react packages/polycentric-react
 COPY packages/polycentric-web packages/polycentric-web
@@ -16,6 +17,12 @@ RUN ./version.sh
 
 # Install root dependencies
 RUN npm install
+RUN npm install -g protoc
+
+RUN protoc --plugin=./node_modules/.bin/protoc-gen-ts_proto --ts_proto_opt=esModuleInterop=true --ts_proto_opt=forceLong=long --ts_proto_out=. --experimental_allow_proto3_optional proto/protocol.proto
+RUN cp proto/protocol.ts packages/polycentric-core/src/protocol.ts
+
+
 
 # Setup polycentric-core with minimal stubs for the imports
 WORKDIR /polycentric/packages/polycentric-core
@@ -29,5 +36,3 @@ RUN npm run build
 RUN npm install -g wrangler
 
 WORKDIR /polycentric/
-
-CMD ["wrangler", "pages", "deploy", "--project-name", "polycentric-spa-staging", "./packages/polycentric-web/dist/", "--branch", "master"]
