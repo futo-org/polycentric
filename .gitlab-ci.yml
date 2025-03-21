@@ -366,6 +366,20 @@ push-server-image-staging:
     # - echo "{\"auths\":{\"$DO_OCI_REGISTRY\":{\"username\":\"doadmin\",\"password\":\"$CI_DO_OCI_TOKEN\"}}}" > /kaniko/.docker/config.json
     # - /kaniko/executor --context "${CI_PROJECT_DIR}" --dockerfile ${CI_PROJECT_DIR}/server.dockerfile --destination $DO_OCI_REGISTRY/$CI_PROJECT_DIR:stg
 
+push-web-image-staging:
+  stage: deploy
+  needs: ["push-server-image-staging"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/web.dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}-web:stg"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+
 push-server-image-production:
   stage: deploy
   needs: ["check", "test", "build-server-release"]
