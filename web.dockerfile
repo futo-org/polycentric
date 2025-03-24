@@ -1,4 +1,4 @@
-FROM node:18
+FROM node:18 AS polycentric_src
 
 WORKDIR /polycentric
 
@@ -35,4 +35,12 @@ WORKDIR /polycentric/packages/polycentric-web
 RUN npm run build 
 RUN npm install -g wrangler
 
-WORKDIR /polycentric/
+
+# Start from a basic nginx image
+FROM nginx:1.27.4
+
+RUN rm -rf /usr/share/nginx/html
+
+COPY --from=polycentric_src /polycentric/packages/polycentric-web/dist/ /usr/share/nginx/html
+
+
