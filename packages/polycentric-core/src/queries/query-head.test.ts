@@ -1,11 +1,11 @@
 import * as RXJS from 'rxjs';
 
+import { CancelContext } from '../cancel-context';
+import * as Models from '../models';
 import * as ProcessHandle from '../process-handle';
 import * as Util from '../util';
-import * as Models from '../models';
-import { queryHeadObservable, QueryHead } from './query-head';
+import { QueryHead, queryHeadObservable } from './query-head';
 import { QueryServers } from './query-servers';
-import { CancelContext } from '../cancel-context';
 
 enum SharedTestMode {
   NetworkOnly,
@@ -186,6 +186,7 @@ describe('query head', () => {
 
     expect(await waitForEvent(s1p2, s1p1Post)).toBeDefined();
     const s1p2Post = await s1p2.post('s1p2');
+    await s1p2.synchronizer.debugWaitUntilSynchronizationComplete();
 
     const head = await RXJS.firstValueFrom(
       queryHeadObservable(s1p2.queryManager.queryHead, s1p2.system()).pipe(
