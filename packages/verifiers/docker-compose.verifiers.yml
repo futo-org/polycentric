@@ -1,0 +1,54 @@
+version: '3'
+networks:
+    monitoring:
+        driver: bridge
+services:
+    web:
+        build:
+            context: ../../  # Point to root of monorepo
+            dockerfile: packages/verifiers/Dockerfile
+        restart: always
+        user: '${USER_ID}:${GROUP_ID}'
+        ports:
+            - '3000:3000'
+        volumes:
+            - ./state:/usr/src/app/state
+        environment:
+            OAUTH_CALLBACK_DOMAIN: ${OAUTH_CALLBACK_DOMAIN}
+            INSTAGRAM_CLIENT_SECRET: ${INSTAGRAM_CLIENT_SECRET}
+            INSTAGRAM_CLIENT_ID: ${INSTAGRAM_CLIENT_ID}
+            X_CLIENT_ID: ${X_CLIENT_ID}
+            X_CLIENT_SECRET: ${X_CLIENT_SECRET}
+            X_API_KEY: ${X_API_KEY}
+            X_API_SECRET: ${X_API_SECRET}
+    prometheus:
+        image: prom/prometheus
+        container_name: prometheus
+        volumes:
+            - ./prometheus:/etc/prometheus
+            - prometheus_data:/prometheus
+        ports:
+            - 9090:9090
+        expose:
+            - 9090
+        networks:
+            - monitoring
+    grafana:
+        image: grafana/grafana
+        container_name: grafana
+        volumes:
+            - grafana_data:/var/lib/grafana
+            - ./grafana/provisioning:/etc/grafana/provisioning
+        environment:
+            - GF_AUTH_DISABLE_LOGIN_FORM=true
+            - GF_AUTH_ANONYMOUS_ENABLED=true
+            - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+        ports:
+            - 3030:3030
+        expose:
+            - 3030
+        networks:
+            - monitoring
+volumes:
+    prometheus_data: {}
+    grafana_data: {}

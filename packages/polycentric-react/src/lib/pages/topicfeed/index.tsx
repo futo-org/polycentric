@@ -6,7 +6,7 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { IonContent } from '@ionic/react';
 import { Models, Util } from '@polycentric/polycentric-core';
 import { useEffect, useMemo, useState } from 'react';
-import { Page } from '../../app/router';
+import { Page } from '../../app/routes';
 import { PopupComposeFullscreen } from '../../components';
 import { PostCompose } from '../../components/feed/Compose/PostCompose';
 import { Header } from '../../components/layout/header';

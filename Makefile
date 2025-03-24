@@ -1,4 +1,4 @@
-.PHONY: proto pretty clean sandbox build-sandbox join-sandbox stop-sandbox join-postgres devcert deploy-polycentric-spa-staging build-ci-deps deploy-charts push-server-image
+.PHONY: proto pretty clean sandbox build-sandbox join-sandbox stop-sandbox join-postgres devcert deploy-polycentric-spa-staging build-ci-deps deploy-charts push-server-image start-verifiers stop-verifiers deploy-verifiers
 
 CURRENT_UID := $(shell id -u)
 CURRENT_GID := $(shell id -g)
@@ -15,21 +15,21 @@ export CURRENT_GID
 export DOCKER_GID
 
 build-sandbox:
-	docker compose -f docker-compose.development.yml pull
-	docker compose -f docker-compose.development.yml build
+	docker compose --env-file .env.development -f docker-compose.development.yml pull
+	docker compose --env-file .env.development -f docker-compose.development.yml build
 
 start-sandbox:
 ifndef DOCKER_GID
 	$(error It seems that no groups on your system have permisison to use docker (do you have docker installed?))
 endif
-	docker compose -f docker-compose.development.yml up -d
+	docker compose --env-file .env.development -f docker-compose.development.yml up -d
 
 stop-sandbox:
 ifndef DOCKER_GID
 	$(error It seems that no groups on your system have permisison to use docker (do you have docker installed?))
 endif
-	docker compose -f docker-compose.development.yml down
-	docker compose -f docker-compose.development.yml rm
+	docker compose --env-file .env.development -f docker-compose.development.yml down
+	docker compose --env-file .env.development -f docker-compose.development.yml rm
 
 restart-sandbox:
 ifndef DOCKER_GID
@@ -39,11 +39,11 @@ endif
 	docker compose -f docker-compose.development.yml up -d
 
 join-sandbox:
-	docker compose -f docker-compose.development.yml \
+	docker compose --env-file .env.development -f docker-compose.development.yml \
 		exec development /bin/bash --rcfile /app/.docker-bashrc
 
 join-postgres:
-	docker compose -f docker-compose.development.yml \
+	docker compose --env-file .env.development -f docker-compose.development.yml \
 		exec postgres psql -U postgres 
 
 start-gdbserver:
@@ -175,3 +175,15 @@ push-server-image:
 		-f server.dockerfile \
 		-t registry.digitalocean.com/polycentric/polycentric:latest .
 	docker push registry.digitalocean.com/polycentric/polycentric:latest
+
+start-verifiers:
+	mkdir -p packages/verifiers/state
+	CURRENT_UID=$(CURRENT_UID) CURRENT_GID=$(CURRENT_GID) DOCKER_GID=$(DOCKER_GID) \
+	docker compose --env-file .env.development -f docker-compose.development.yml up -d verifiers
+
+stop-verifiers:
+	docker compose --env-file .env.development -f docker-compose.development.yml -f packages/verifiers/docker-compose.verifiers.yml down
+
+# Production commands
+deploy-verifiers:
+	docker compose -f docker-compose.production.yml -f packages/verifiers/docker-compose.verifiers.yml up -d

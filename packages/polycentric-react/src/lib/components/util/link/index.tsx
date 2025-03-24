@@ -3,11 +3,11 @@ import { IonPage } from '@ionic/react';
 import React, { forwardRef, useCallback, useContext, useMemo } from 'react';
 import { matchPath } from 'react-router-dom';
 import { StackRouterContext } from '../../../app/contexts';
-import { routeData } from '../../../app/router';
+import { routes } from '../../../app/routes';
 import { StackElementPathContext } from './StackElementPathContext';
 
 const getUrlComponent = (url: string) => {
-  const path = Object.keys(routeData).find((path) => {
+  const path = Object.keys(routes).find((path) => {
     const match = matchPath(url, {
       path,
       exact: true,
@@ -15,7 +15,7 @@ const getUrlComponent = (url: string) => {
     if (match) return true;
   });
 
-  return path ? routeData[path].component : null;
+  return path ? routes[path].component : null;
 };
 
 export const MemoryRoutedComponent = ({

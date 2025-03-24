@@ -2,7 +2,13 @@ import {
   ArrowUpOnSquareIcon,
   EllipsisVerticalIcon,
 } from '@heroicons/react/24/outline';
-import { IonApp, IonNav, isPlatform, setupIonicReact } from '@ionic/react';
+import {
+  IonApp,
+  IonNav,
+  IonPage,
+  isPlatform,
+  setupIonicReact,
+} from '@ionic/react';
 import {
   MetaStore,
   PersistenceDriver,
@@ -18,6 +24,7 @@ import {
 } from 'react';
 import * as UAParserJS from 'ua-parser-js';
 import { SidebarLayout } from '../components/layout/sidebarlayout';
+import { OAuthCallback } from '../components/oauth/callback';
 import { Onboarding } from '../components/onboarding/onboarding';
 import { setupDarkMode } from '../components/settings/DarkModeSelector/setupDarkMode';
 import { ExportKey } from '../components/settings/ExportKey';
@@ -56,6 +63,13 @@ const SignedinApp = ({
 
   const root = useCallback(() => {
     const originalPath = getFullPath();
+    if (originalPath.startsWith('/oauth/callback')) {
+      return (
+        <IonPage>
+          <OAuthCallback />
+        </IonPage>
+      );
+    }
     return <MemoryRoutedComponent routerLink={originalPath} />;
   }, []);
 

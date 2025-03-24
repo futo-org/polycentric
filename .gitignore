@@ -2,6 +2,9 @@
 
 # dependencies
 /node_modules
+node_modules/
+**/node_modules
+**/node_modules/**
 /.pnp
 .pnp.js
 devcert
@@ -27,6 +30,8 @@ yarn-error.log*
 
 proto/protocol.ts
 dist
+
+packages/verifiers/certs
 
 # Generated files
 docker-compose.live*
