@@ -115,21 +115,13 @@ export function OAuthCallback() {
           claim = Core.Models.claimTwitter(username);
           claimType = Core.Models.ClaimType.ClaimTypeTwitter;
           break;
-        case Core.Models.ClaimType.ClaimTypeGitHub.toNumber():
-          claim = Core.Models.claimGitHub(username);
-          claimType = Core.Models.ClaimType.ClaimTypeGitHub;
-          break;
         case Core.Models.ClaimType.ClaimTypeDiscord.toNumber():
           claim = Core.Models.claimDiscord(username);
           claimType = Core.Models.ClaimType.ClaimTypeDiscord;
           break;
-        case Core.Models.ClaimType.ClaimTypePatreon.toNumber():
-          claim = Core.Models.claimPatreon(username);
-          claimType = Core.Models.ClaimType.ClaimTypePatreon;
-          break;
-        case Core.Models.ClaimType.ClaimTypeTwitch.toNumber():
-          claim = Core.Models.claimTwitch(username);
-          claimType = Core.Models.ClaimType.ClaimTypeTwitch;
+        case Core.Models.ClaimType.ClaimTypeInstagram.toNumber():
+          claim = Core.Models.claimInstagram(username);
+          claimType = Core.Models.ClaimType.ClaimTypeInstagram;
           break;
         default:
           throw new Error(`Unsupported claim type: ${claimTypeNum}`);

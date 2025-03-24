@@ -581,7 +581,6 @@ export const SocialMediaInput = ({
     );
   }
 
-  // Original input UI
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-xl font-semibold capitalize">
@@ -682,7 +681,6 @@ export const OccupationInput = ({
     );
   }
 
-  // Rest of existing render code...
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-xl font-semibold">Add Occupation</h2>
