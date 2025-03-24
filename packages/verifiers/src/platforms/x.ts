@@ -37,7 +37,6 @@ class XOAuthVerifier extends OAuthVerifier<XTokenRequest> {
                 appSecret: process.env.X_API_SECRET,
             });
 
-            console.log('Attempting to generate auth link with callback:', getCallbackForPlatform(this.claimType));
             const oauthRequest = await client.generateAuthLink(getCallbackForPlatform(this.claimType));
             return Result.ok(`${oauthRequest.url}&harborSecret=${oauthRequest.oauth_token_secret}`);
         } catch (error: any) {

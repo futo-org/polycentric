@@ -62,17 +62,7 @@ class YoutubeTextVerifier extends TextVerifier {
             }
         }
 
-        console.log('YouTube verifier attempting to fetch:', {
-            claimField,
-            url,
-            key: claimField.key
-        });
-
         const response = await fetch(url);
-        console.log('YouTube response:', {
-            status: response.status,
-            url: response.url
-        });
 
         if (!response.ok) {
             return Result.err({
@@ -82,12 +72,9 @@ class YoutubeTextVerifier extends TextVerifier {
         }
 
         const data = await response.text();
-        console.log('YouTube page content length:', data.length);
         
         const match = /<meta property="og:description" content="([^"]+)">/.exec(data);
         if (!match) {
-            // Log the first 500 characters of the response to debug
-            console.log('YouTube page content preview:', data.substring(0, 500));
             return Result.err({
                 message: 'Could not find YouTube channel description',
                 extendedMessage: 'Failed to find description meta tag in YouTube page.'

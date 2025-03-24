@@ -27,7 +27,6 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
             return Result.errMsg('Verifier not configured');
         } else {
             const redirectUri = getCallbackForPlatform(this.claimType, true);
-            console.log('Attempting to generate auth link with callback:', redirectUri);
             
             // Generate a random state value to use as harborSecret
             const harborSecret = Math.random().toString(36).substring(2, 15);
@@ -60,15 +59,9 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
             // Check if we already have a cached token for this code
             const cacheKey = `discord_token_${data.code}`;
             const cachedResponse = this.tokenCache.get(cacheKey);
-            if (cachedResponse) {
-                console.log('Using cached Discord token response');
-                return Result.ok(cachedResponse);
-            }
 
             const redirectUri = getCallbackForPlatform(this.claimType);
             const client = createCookieEnabledAxios();
-            
-            console.log('Requesting Discord token with code:', data.code.substring(0, 5) + '...');
             
             try {
                 const resp = await client.post(
@@ -96,8 +89,6 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
                 }
 
                 const token = resp.data.access_token;
-                console.log('Successfully obtained Discord token, fetching user info');
-                
                 const discordResponse = await client.get('https://discord.com/api/users/@me', {
                     headers: {
                         Authorization: 'Bearer ' + token,
@@ -109,19 +100,12 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
                     const hasDiscriminator = user.discriminator !== undefined && user.discriminator !== '0';
                     const expectedUsername = hasDiscriminator ? `${user.username}#${user.discriminator}` : user.username;
                     
-                    console.log('Discord user info retrieved:', { 
-                        username: expectedUsername,
-                        hasDiscriminator
-                    });
-                    
                     // Store username in cache
                     this.usernameCache.set(data.code, expectedUsername);
                     
                     // Create a simple token object and encode it properly
                     const tokenObj: DiscordToken = { token };
                     const encodedToken = encodeObject(tokenObj);
-                    
-                    console.log('Encoded Discord token (first 20 chars):', encodedToken.substring(0, 20));
                     
                     // Create the token response
                     const tokenResponse: TokenResponse = { 
@@ -139,12 +123,9 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
             } catch (apiError: any) {
                 // Check if this is an "invalid_grant" error (code already used)
                 if (apiError.response?.data?.error === 'invalid_grant') {
-                    console.log('Discord code already used, checking if we have a cached username');
-                    
                     // If we have a cached username from a previous successful request, return it
                     const cachedUsername = this.usernameCache.get(data.code);
                     if (cachedUsername) {
-                        console.log('Using cached Discord username:', cachedUsername);
                         const tokenResponse: TokenResponse = {
                             username: cachedUsername,
                             token: encodeObject<DiscordToken>({ token: 'cached_token' })

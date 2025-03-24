@@ -86,10 +86,8 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
             // Handle different OAuth flows (Twitter uses oauth_token/oauth_verifier, Discord uses code)
             if (code) {
                 queryObject = { code };
-                console.log('OAuth callback received code parameter:', code);
             } else if (oauth_token && oauth_verifier) {
                 queryObject = { oauth_token, oauth_verifier };
-                console.log('OAuth callback received token/verifier parameters');
             }
             
             // Extract harborSecret from state if available
@@ -106,11 +104,6 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
 
             const encodedData = Buffer.from(JSON.stringify(queryObject)).toString('base64');
             const claimType = req.params.platformName;
-
-            console.log('OAuth callback data:', { 
-                claimType,
-                queryObject
-            });
             
             // Use state parameters
             const webAppUrl = 'https://localhost:3000/oauth/callback';
@@ -196,10 +189,8 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
                 app.get(`/platforms/${name}/${verifier.verifierType}/token`, async (req, res) => {
                     try {
                         const challenge = req.query.oauthData as string;
-                        console.log('Received oauthData:', challenge);
                         
                         const challengeResponse = decodeObject<any>(challenge);
-                        console.log('Decoded challenge:', challengeResponse);
 
                         writeResult(res, await verifier.getToken(challengeResponse));
                     } catch (e: unknown) {
@@ -242,12 +233,6 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
                     });
                 }
             });
-
-            console.log(
-                `Initialized verifier with type '${verifier.verifierType}' for platform '${name}' (${Core.Models.ClaimType.toString(
-                    verifier.claimType
-                )}).`
-            );
         }
     }
 
