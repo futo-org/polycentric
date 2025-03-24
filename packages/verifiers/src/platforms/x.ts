@@ -95,16 +95,27 @@ class XOAuthVerifier extends OAuthVerifier<XTokenRequest> {
             accessSecret: payload.secret,
         });
 
-        const response = await client.currentUser();
-        const res = response.screen_name;
-        if (res !== id) {
+        try {
+            const response = await client.currentUser();
+            const res = response.screen_name;
+            if (res !== id) {
+                return Result.err({
+                    message: "The username didn't match the account you logged in with",
+                    extendedMessage: `Username did not match (expected: ${id}, got: ${response.screen_name})`,
+                });
+            }
+
+            return Result.ok();
+        } catch (err) {
+            if (err instanceof ApiResponseError) {
+                return httpResponseToError(err.code, JSON.stringify(err.data), 'X API Verification');
+            }
+
             return Result.err({
-                message: "The username didn't match the account you logged in with",
-                extendedMessage: `Username did not match (expected: ${id}, got: ${response.screen_name})`,
+                message: 'Failed to verify X account',
+                extendedMessage: err instanceof Error ? err.message : String(err),
             });
         }
-
-        return Result.ok();
     }
 
     public healthCheck(): Promise<Result<void>> {
