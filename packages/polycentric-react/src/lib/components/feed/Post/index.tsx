@@ -1,4 +1,5 @@
 import { Models, Protocol, Util } from '@polycentric/polycentric-core';
+import Long from 'long';
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { FeedItem } from '../../../hooks/feedHooks';
 import {
@@ -13,7 +14,9 @@ import {
   useTextPublicKey,
   useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
+import { useRepostedPost } from '../../../hooks/repostHooks';
 import { usePostStatsWithLocalActions } from '../../../hooks/statsHooks';
+import { RepostDialog } from '../../popup/PopupComposeRepost';
 import { getAccountUrl } from '../../util/linkify/utils';
 import { PurePost, PurePostProps } from './PurePost';
 
@@ -34,10 +37,18 @@ interface LoadedPostProps {
     servers?: string[];
   };
   isMyProfile: boolean;
+  actions?: {
+    like: () => void;
+    dislike: () => void;
+    neutralopinion: () => void;
+    repost: () => void;
+    comment: (content: string, upload?: File | undefined) => Promise<boolean>;
+    delete?: (() => void) | undefined;
+  };
 }
 
 const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
-  ({ data, doesLink, autoExpand, syncStatus, isMyProfile }, ref) => {
+  ({ data, doesLink, autoExpand, syncStatus, isMyProfile, actions }, ref) => {
     const { value, event, signedEvent } = data;
 
     const content = useMemo(() => {
@@ -122,6 +133,20 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
 
     const mainAuthorURL = useSystemLink(event.system);
 
+    const repostedPointer = useMemo(() => {
+      const { references } = event;
+      const repostRef = references.find((ref) => ref.referenceType.eq(4));
+      
+      if (repostRef) {
+        return Models.Pointer.fromProto(
+          Protocol.Pointer.decode(repostRef.reference)
+        );
+      }
+      return undefined;
+    }, [event]);
+    
+    const repostedPost = useRepostedPost(repostedPointer);
+
     const main: PurePostProps['main'] = useMemo(
       () => ({
         author: {
@@ -143,6 +168,15 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
             : 'claimType' in value
               ? 'claim'
               : 'vouch',
+        repostedContent: repostedPost ? {
+          content: repostedPost.content || '',
+          author: {
+            name: repostedPost.authorName || '',
+            avatarURL: repostedPost.authorAvatar || '',
+            URL: repostedPost.authorURL || '',
+            pubkey: repostedPost.authorPubkey || '',
+          },
+        } : undefined,
       }),
       [
         mainUsername,
@@ -157,10 +191,11 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
         replyingToName,
         replyingToURL,
         value,
+        repostedPost,
       ],
     );
 
-    const { actions, stats } = usePostStatsWithLocalActions(pointer);
+    const { stats } = usePostStatsWithLocalActions(pointer);
 
     return (
       <PurePost
@@ -189,6 +224,7 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
     const [ackCount, setAckCount] = useState<number | null>(null);
     const [servers, setServers] = useState<string[]>([]);
     const setupRef = useRef(false);
+    const [repostDialogOpen, setRepostDialogOpen] = useState(false);
 
     useEffect(() => {
       if (
@@ -245,15 +281,63 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
       }
     }
 
+    const handleRepost = () => {
+      setRepostDialogOpen(true);
+    };
+
+    const pointer = Models.signedEventToPointer(data.signedEvent);
+    const { actions } = usePostStatsWithLocalActions(pointer);
+
+    // Update actions to include repost
+    const enhancedActions = useMemo(() => {
+      if (!actions) return undefined;
+      return {
+        ...actions,
+        repost: handleRepost,
+      };
+    }, [actions, handleRepost]);
+
     return (
-      <LoadedPost
-        ref={ref}
-        data={data}
-        doesLink={doesLink}
-        autoExpand={autoExpand}
-        syncStatus={isMyPost ? status : undefined}
-        isMyProfile={isMyPost}
-      />
+      <>
+        <LoadedPost
+          ref={ref}
+          data={data}
+          doesLink={doesLink}
+          autoExpand={autoExpand}
+          syncStatus={isMyPost ? status : undefined}
+          isMyProfile={isMyPost}
+          actions={enhancedActions}
+        />
+        <RepostDialog
+          open={repostDialogOpen}
+          setOpen={setRepostDialogOpen}
+          originalPost={data}
+          onSubmit={(content, attachment) => {
+            if (processHandle && data) {
+              // First convert signedEvent to a pointer
+              const pointer = Models.signedEventToPointer(data.signedEvent);
+              
+              // Create the reference using the pointer
+              const reference: Protocol.Reference = {
+                referenceType: Long.fromNumber(4),
+                reference: Protocol.Pointer.encode({
+                  system: pointer.system,
+                  process: pointer.process,
+                  logicalClock: pointer.logicalClock,
+                  eventDigest: pointer.eventDigest,
+                }).finish(),
+              };
+              
+              // Call post with correct parameter order
+              processHandle.post(
+                content,
+                attachment ? undefined : undefined,
+                reference
+              );
+            }
+          }}
+        />
+      </>
     );
   },
 );

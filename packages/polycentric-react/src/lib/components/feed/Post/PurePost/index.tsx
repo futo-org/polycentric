@@ -180,6 +180,23 @@ const ShareIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const RepostIcon = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    className={className}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.678 48.678 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3l-3 3"
+    />
+  </svg>
+);
+
 export const LikeButton = ({
   onClick,
   count,
@@ -250,6 +267,16 @@ const SharePostButton = ({ onClick }: { onClick: () => void }) => {
   );
 };
 
+const RepostButton = ({ onClick }: { onClick: () => void }) => {
+  return (
+    <PostActionButton 
+      name="Repost" 
+      DefaultIcon={RepostIcon} 
+      onClick={onClick} 
+    />
+  );
+};
+
 interface SyncStatus {
   state: 'offline' | 'syncing' | 'acknowledged';
   acknowledgedServers: number;
@@ -269,6 +296,15 @@ export interface PurePostProps {
     replyingToName?: string;
     replyingToURL?: string;
     type: 'post' | 'claim' | 'vouch';
+    repostedContent?: {
+      content: string;
+      author: {
+        name?: string;
+        avatarURL?: string;
+        URL?: string;
+        pubkey?: string;
+      };
+    };
   };
   sub?: {
     content: string;
@@ -623,6 +659,9 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                     count={stats?.likes}
                     clicked={stats?.opinion === 'liked'}
                   />
+                  <RepostButton
+                    onClick={() => actions?.repost()}
+                  />
                   {navigator.share && (
                     <SharePostButton
                       onClick={() => {
@@ -671,6 +710,24 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   >
                     Read more
                   </button>
+                </div>
+              )}
+              {main.repostedContent && (
+                <div className="mt-3 border rounded-md p-3 bg-gray-50">
+                  <div className="border-l-4 border-gray-300 pl-3">
+                    <div className="flex items-center mb-2">
+                      <ProfilePicture
+                        src={main.repostedContent.author.avatarURL}
+                        alt={main.repostedContent.author.name || 'User'}
+                        className="w-8 h-8"
+                      />
+                      <div className="ml-2">
+                        <div className="font-medium">{main.repostedContent.author.name}</div>
+                        <div className="text-gray-500 text-xs">{main.repostedContent.author.pubkey}</div>
+                      </div>
+                    </div>
+                    <div className="whitespace-pre-wrap">{main.repostedContent.content}</div>
+                  </div>
                 </div>
               )}
             </article>
