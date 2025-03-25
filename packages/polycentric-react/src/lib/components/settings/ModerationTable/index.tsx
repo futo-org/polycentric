@@ -54,6 +54,7 @@ const categories = [
       'Neutral, general terms, no bias or hate.',
       'Mildly sensitive, factual.',
       'Potentially offensive content',
+      'Offensive content',
     ],
     default: 2,
   },
@@ -64,6 +65,7 @@ const categories = [
       'No explicit content',
       'Mildly suggestive, factual or educational',
       'Moderate sexual content, non-graphic',
+      'Explicit sexual content',
     ],
     default: 1,
   },
@@ -74,6 +76,7 @@ const categories = [
       'Non-violent',
       'Mild violence, factual or contextual',
       'Moderate violence, some graphic content.',
+      'Graphic violence',
     ],
     default: 1,
   },
@@ -117,8 +120,6 @@ export const ModerationTable = () => {
 
   return (
     <div className="flex flex-col space-y-3">
-      <h2 className="font-medium">Moderation Settings</h2>
-
       <div className="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-2 md:gap-10 border rounded-[2rem] p-6">
         {categories.map((category, index) => (
           <div key={category.tagName} className="contents">
@@ -126,7 +127,7 @@ export const ModerationTable = () => {
             <FancySlider
               value={levels?.[category.tagName] ?? category.default}
               setValue={setLevelFunctions[index]}
-              max={2}
+              max={3}
               descriptions={category.description}
             />
           </div>
