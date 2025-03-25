@@ -632,6 +632,39 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                         </Link>
                       )}
                     </div>
+                    {main.repostedContent && (
+                      <div className="mt-3 border rounded-md p-3 bg-gray-50">
+                        <div
+                          className="border-l-4 border-gray-300 pl-3 cursor-pointer hover:bg-gray-100 transition-colors rounded"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (main.repostedContent?.postURL) {
+                              window.location.href =
+                                main.repostedContent.postURL;
+                            }
+                          }}
+                        >
+                          <div className="flex items-center mb-2">
+                            <ProfilePicture
+                              src={main.repostedContent.author.avatarURL}
+                              alt={main.repostedContent.author.name || 'User'}
+                              className="w-8 h-8"
+                            />
+                            <div className="ml-2">
+                              <div className="font-medium">
+                                {main.repostedContent.author.name}
+                              </div>
+                              <div className="text-gray-500 text-xs">
+                                {main.repostedContent.author.pubkey}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="whitespace-pre-wrap">
+                            {main.repostedContent.content}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 {/* Action buttons - equally spaced */}
@@ -709,38 +742,6 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                   >
                     Read more
                   </button>
-                </div>
-              )}
-              {main.repostedContent && (
-                <div className="mt-3 border rounded-md p-3 bg-gray-50">
-                  <div
-                    className="border-l-4 border-gray-300 pl-3 cursor-pointer hover:bg-gray-100 transition-colors rounded"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (main.repostedContent?.postURL) {
-                        window.location.href = main.repostedContent.postURL;
-                      }
-                    }}
-                  >
-                    <div className="flex items-center mb-2">
-                      <ProfilePicture
-                        src={main.repostedContent.author.avatarURL}
-                        alt={main.repostedContent.author.name || 'User'}
-                        className="w-8 h-8"
-                      />
-                      <div className="ml-2">
-                        <div className="font-medium">
-                          {main.repostedContent.author.name}
-                        </div>
-                        <div className="text-gray-500 text-xs">
-                          {main.repostedContent.author.pubkey}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="whitespace-pre-wrap">
-                      {main.repostedContent.content}
-                    </div>
-                  </div>
                 </div>
               )}
             </article>

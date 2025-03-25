@@ -40,8 +40,6 @@ export const RepostDialog = ({
   const originalPubkey = useTextPublicKey(event.system, 10);
 
   const handleSubmit = async () => {
-    if (content.trim() === '') return;
-
     setIsSubmitting(true);
     try {
       onSubmit(content);
@@ -64,7 +62,7 @@ export const RepostDialog = ({
           <Dialog.Panel className="mx-auto max-w-3xl rounded-xl bg-white p-6 w-full">
             <div className="flex justify-between items-center mb-4">
               <Dialog.Title className="text-lg font-medium">
-                Repost with Comment
+                Repost
               </Dialog.Title>
               <button
                 onClick={() => setOpen(false)}
@@ -79,7 +77,7 @@ export const RepostDialog = ({
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Add a comment to your repost..."
+                placeholder="Add a comment to your repost (optional)"
                 className="w-full p-3 border rounded-md"
                 rows={3}
               />
@@ -116,7 +114,7 @@ export const RepostDialog = ({
             <div className="flex justify-end">
               <button
                 onClick={handleSubmit}
-                disabled={isSubmitting || content.trim() === ''}
+                disabled={isSubmitting}
                 className="bg-blue-600 text-white px-4 py-2 rounded-md disabled:bg-gray-300"
               >
                 {isSubmitting ? 'Posting...' : 'Repost'}
