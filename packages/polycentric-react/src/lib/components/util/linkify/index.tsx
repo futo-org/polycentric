@@ -249,11 +249,14 @@ export const Linkify = React.memo(
             );
           } else if (item.type === 'mention') {
             out.push(
-              <MentionLink
-                key={`${item.start}-${item.value}`}
-                value={item.value}
-                stopPropagation={stopPropagation}
-              />,
+              <>
+                <MentionLink
+                  key={`${item.start}-${item.value}`}
+                  value={item.value}
+                  stopPropagation={stopPropagation}
+                />
+                {item.trailingSpace && <span>{item.trailingSpace}</span>}
+              </>,
             );
           } else if (item.type === 'quote') {
             out.push(
@@ -266,7 +269,7 @@ export const Linkify = React.memo(
             );
           }
 
-          lastIndex = item.start + item.value.length;
+          lastIndex = (item.index ?? 0) + item.fullMatchLength;
         });
 
         if (lastIndex < content.length) {
