@@ -256,7 +256,7 @@ export const Linkify = React.memo(
                   stopPropagation={stopPropagation}
                 />
                 {item.trailingSpace && <span>{item.trailingSpace}</span>}
-              </>
+              </>,
             );
           } else if (item.type === 'quote') {
             out.push(

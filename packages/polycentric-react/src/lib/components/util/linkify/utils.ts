@@ -4,7 +4,8 @@ import { Models } from '@polycentric/polycentric-core';
 export const urlRegex =
   /(?:^|[^\/])(?<url>(?:http|ftp|https):\/\/(?:[\w_-]+(?:(?:\.[\w_-]+)+))(?:[\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-]))/gi;
 export const topicRegex = /(?:^|\s)(?<topic>\/\S+)/gi;
-export const mentionRegex = /@(?<mention>CAESI[A-Za-z0-9/+]+)(?<space>[ \t\r\n]*)/g;
+export const mentionRegex =
+  /@(?<mention>CAESI[A-Za-z0-9/+]+)(?<space>[ \t\r\n]*)/g;
 export const quoteRegex = /^>.*$/gm; // Matches lines starting with >
 
 export type LinkifyType = 'url' | 'topic' | 'mention' | 'quote';
@@ -25,21 +26,22 @@ export const linkify = (
   const matches = [...content.matchAll(regex)];
   return matches.map((match) => {
     const value = key === 'quote' ? match[0] : match.groups?.[key] ?? '';
-    const startOffset = key === 'mention'
-      ? 1  // Skip the @ character
-      : key === 'quote'
-        ? 0
-        : match[0].indexOf(value);
-    
+    const startOffset =
+      key === 'mention'
+        ? 1 // Skip the @ character
+        : key === 'quote'
+          ? 0
+          : match[0].indexOf(value);
+
     const trailingSpace = key === 'mention' ? match.groups?.space : undefined;
-    
+
     return {
       type: key,
       value: value,
       start: (match.index ?? 0) + startOffset,
       fullMatchLength: match[0].length,
       index: match.index,
-      trailingSpace
+      trailingSpace,
     };
   });
 };
