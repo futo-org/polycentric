@@ -6,7 +6,7 @@ import { useAvatar } from '../../../hooks/imageHooks';
 import {
   useSystemLink,
   useTextPublicKey,
-  useUsernameCRDTQuery
+  useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
 import { PurePost } from '../../feed/Post/PurePost';
 
@@ -26,11 +26,12 @@ export const RepostDialog = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Extract content safely from the original post
-  const postContent = 'content' in originalPost.value 
-    ? originalPost.value.content
-    : 'claimType' in originalPost.value
-      ? `Claim: ${originalPost.value.claimFields?.[0]?.value || ''}`
-      : 'Vouch';
+  const postContent =
+    'content' in originalPost.value
+      ? originalPost.value.content
+      : 'claimType' in originalPost.value
+        ? `Claim: ${originalPost.value.claimFields?.[0]?.value || ''}`
+        : 'Vouch';
 
   const { event } = originalPost;
   const originalAuthor = useUsernameCRDTQuery(event.system);
@@ -40,7 +41,7 @@ export const RepostDialog = ({
 
   const handleSubmit = async () => {
     if (content.trim() === '') return;
-    
+
     setIsSubmitting(true);
     try {
       onSubmit(content);
@@ -85,7 +86,9 @@ export const RepostDialog = ({
             </div>
 
             <div className="border rounded-xl p-2 mb-4 bg-gray-50">
-              <div className="text-sm text-gray-500 mb-2 font-medium">Reposting:</div>
+              <div className="text-sm text-gray-500 mb-2 font-medium">
+                Reposting:
+              </div>
               <div className="border-l-4 border-gray-300 pl-3">
                 <PurePost
                   main={{
@@ -104,7 +107,7 @@ export const RepostDialog = ({
                     dislike: () => {},
                     neutralopinion: () => {},
                     repost: () => {},
-                    comment: async () => false
+                    comment: async () => false,
                   }}
                 />
               </div>
@@ -124,4 +127,4 @@ export const RepostDialog = ({
       </div>
     </Dialog>
   );
-}; 
+};

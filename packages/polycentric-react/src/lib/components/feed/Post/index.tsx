@@ -1,6 +1,13 @@
 import { Models, Protocol, Util } from '@polycentric/polycentric-core';
 import Long from 'long';
-import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { FeedItem } from '../../../hooks/feedHooks';
 import {
   useAvatar,
@@ -50,6 +57,13 @@ interface LoadedPostProps {
 const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
   ({ data, doesLink, autoExpand, syncStatus, isMyProfile, actions }, ref) => {
     const { value, event, signedEvent } = data;
+
+    const pointer = useMemo(
+      () => Models.signedEventToPointer(signedEvent),
+      [signedEvent],
+    );
+
+    const { stats } = usePostStatsWithLocalActions(pointer);
 
     const content = useMemo(() => {
       if ('content' in value) {
@@ -118,11 +132,6 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
       'content' in value ? value.image : undefined,
     );
 
-    const pointer = useMemo(
-      () => Models.signedEventToPointer(signedEvent),
-      [signedEvent],
-    );
-
     const mainUsername = useUsernameCRDTQuery(event.system);
     const mainAvatar = useAvatar(event.system);
     const mainKey = useTextPublicKey(event.system, 10);
@@ -136,15 +145,15 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
     const repostedPointer = useMemo(() => {
       const { references } = event;
       const repostRef = references.find((ref) => ref.referenceType.eq(4));
-      
+
       if (repostRef) {
         return Models.Pointer.fromProto(
-          Protocol.Pointer.decode(repostRef.reference)
+          Protocol.Pointer.decode(repostRef.reference),
         );
       }
       return undefined;
     }, [event]);
-    
+
     const repostedPost = useRepostedPost(repostedPointer);
 
     const main: PurePostProps['main'] = useMemo(
@@ -168,15 +177,18 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
             : 'claimType' in value
               ? 'claim'
               : 'vouch',
-        repostedContent: repostedPost ? {
-          content: repostedPost.content || '',
-          author: {
-            name: repostedPost.authorName || '',
-            avatarURL: repostedPost.authorAvatar || '',
-            URL: repostedPost.authorURL || '',
-            pubkey: repostedPost.authorPubkey || '',
-          },
-        } : undefined,
+        repostedContent: repostedPost
+          ? {
+              content: repostedPost.content || '',
+              author: {
+                name: repostedPost.authorName || '',
+                avatarURL: repostedPost.authorAvatar || '',
+                URL: repostedPost.authorURL || '',
+                pubkey: repostedPost.authorPubkey || '',
+              },
+              postURL: repostedPost.postURL || '',
+            }
+          : undefined,
       }),
       [
         mainUsername,
@@ -194,8 +206,6 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
         repostedPost,
       ],
     );
-
-    const { stats } = usePostStatsWithLocalActions(pointer);
 
     return (
       <PurePost
@@ -218,6 +228,18 @@ const UnloadedPost = forwardRef<HTMLDivElement>((_, ref) => {
 });
 UnloadedPost.displayName = 'UnloadedPost';
 
+function usePostStatsWithNullable(pointer: Models.Pointer.Pointer | null) {
+  const result = usePostStatsWithLocalActions(
+    pointer as Models.Pointer.Pointer,
+  );
+
+  if (!pointer) {
+    return { actions: undefined, stats: undefined };
+  }
+
+  return result;
+}
+
 export const Post = forwardRef<HTMLDivElement, PostProps>(
   ({ data, doesLink, autoExpand }, ref) => {
     const { processHandle } = useProcessHandleManager();
@@ -225,6 +247,22 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
     const [servers, setServers] = useState<string[]>([]);
     const setupRef = useRef(false);
     const [repostDialogOpen, setRepostDialogOpen] = useState(false);
+
+    const handleRepost = useCallback(() => {
+      setRepostDialogOpen(true);
+    }, []);
+
+    const pointer = data ? Models.signedEventToPointer(data.signedEvent) : null;
+
+    const { actions: baseActions } = usePostStatsWithNullable(pointer);
+
+    const enhancedActions = useMemo(() => {
+      if (!baseActions) return undefined;
+      return {
+        ...baseActions,
+        repost: handleRepost,
+      };
+    }, [baseActions, handleRepost]);
 
     useEffect(() => {
       if (
@@ -281,22 +319,6 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
       }
     }
 
-    const handleRepost = () => {
-      setRepostDialogOpen(true);
-    };
-
-    const pointer = Models.signedEventToPointer(data.signedEvent);
-    const { actions } = usePostStatsWithLocalActions(pointer);
-
-    // Update actions to include repost
-    const enhancedActions = useMemo(() => {
-      if (!actions) return undefined;
-      return {
-        ...actions,
-        repost: handleRepost,
-      };
-    }, [actions, handleRepost]);
-
     return (
       <>
         <LoadedPost
@@ -314,10 +336,8 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
           originalPost={data}
           onSubmit={(content, attachment) => {
             if (processHandle && data) {
-              // First convert signedEvent to a pointer
               const pointer = Models.signedEventToPointer(data.signedEvent);
-              
-              // Create the reference using the pointer
+
               const reference: Protocol.Reference = {
                 referenceType: Long.fromNumber(4),
                 reference: Protocol.Pointer.encode({
@@ -327,12 +347,11 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
                   eventDigest: pointer.eventDigest,
                 }).finish(),
               };
-              
-              // Call post with correct parameter order
+
               processHandle.post(
                 content,
                 attachment ? undefined : undefined,
-                reference
+                reference,
               );
             }
           }}
