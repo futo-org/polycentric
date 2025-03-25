@@ -120,8 +120,6 @@ export const ModerationTable = () => {
 
   return (
     <div className="flex flex-col space-y-3">
-      <h2 className="font-medium">Moderation Settings</h2>
-
       <div className="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-2 md:gap-10 border rounded-[2rem] p-6">
         {categories.map((category, index) => (
           <div key={category.tagName} className="contents">
