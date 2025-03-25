@@ -82,11 +82,16 @@ const categories = [
 export const ModerationTable = () => {
   const [levels, setLevels] = useState<Record<string, number> | undefined>(
     () => {
-      const item = localStorage.getItem('polycentric-moderation-levels');
-      if (!item) {
+      try {
+        const item = localStorage.getItem('polycentric-moderation-levels');
+        if (!item || item === 'undefined') {
+          return undefined;
+        }
+        return JSON.parse(item);
+      } catch (error) {
+        console.error('Error parsing moderation levels:', error);
         return undefined;
       }
-      return JSON.parse(item);
     },
   );
   const { setModerationLevels } = useModeration();
