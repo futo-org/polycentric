@@ -136,7 +136,18 @@ const SignedinApp = ({
 
   const [moderationLevels, setModerationLevels] = useState<
     Record<string, number> | undefined
-  >(JSON.parse(localStorage.getItem('polycentric-moderation-levels') ?? '{}'));
+  >(() => {
+    try {
+      const item = localStorage.getItem('polycentric-moderation-levels');
+      if (!item || item === 'undefined') {
+        return {};
+      }
+      return JSON.parse(item);
+    } catch (error) {
+      console.error('Error parsing moderation levels:', error);
+      return {};
+    }
+  });
 
   const moderationContextContainer = useMemo(() => {
     return {
