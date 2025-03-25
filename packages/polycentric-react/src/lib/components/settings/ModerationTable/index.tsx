@@ -54,6 +54,7 @@ const categories = [
       'Neutral, general terms, no bias or hate.',
       'Mildly sensitive, factual.',
       'Potentially offensive content',
+      'Offensive content',
     ],
     default: 2,
   },
@@ -64,6 +65,7 @@ const categories = [
       'No explicit content',
       'Mildly suggestive, factual or educational',
       'Moderate sexual content, non-graphic',
+      'Explicit sexual content',
     ],
     default: 1,
   },
@@ -74,6 +76,7 @@ const categories = [
       'Non-violent',
       'Mild violence, factual or contextual',
       'Moderate violence, some graphic content.',
+      'Graphic violence',
     ],
     default: 1,
   },
@@ -126,7 +129,7 @@ export const ModerationTable = () => {
             <FancySlider
               value={levels?.[category.tagName] ?? category.default}
               setValue={setLevelFunctions[index]}
-              max={2}
+              max={3}
               descriptions={category.description}
             />
           </div>
