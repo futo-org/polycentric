@@ -115,7 +115,7 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
   };
 
   return createPortal(
-    <div 
+    <div
       className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 z-[9999]"
       style={{ backdropFilter: 'blur(2px)' }}
       onClick={onClose}
@@ -131,7 +131,7 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
         )}
       </div>
     </div>,
-    document.body
+    document.body,
   );
 };
 
