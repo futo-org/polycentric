@@ -1,6 +1,7 @@
 import * as Core from '@polycentric/polycentric-core';
 import { Models } from '@polycentric/polycentric-core';
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import { useClaims } from '../../../hooks/queryHooks';
 
@@ -113,9 +114,10 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
     }
   };
 
-  return (
-    <div
-      className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-[9999]"
+  return createPortal(
+    <div 
+      className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 z-[9999]"
+      style={{ backdropFilter: 'blur(2px)' }}
       onClick={onClose}
     >
       <div
@@ -128,7 +130,8 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
           renderInput()
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
