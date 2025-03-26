@@ -16,7 +16,7 @@ image: "gitlab.futo.org:5050/polycentric/polycentric:dev-container-${DOCKERFILE_
 
 default:
   tags:
-    - s3-cache  # s3-cache is faster if available otherwise use linux
+    - linux  # s3-cache is faster if available otherwise use linux
 
 .node-cache-config: &node-cache-config
   key:
