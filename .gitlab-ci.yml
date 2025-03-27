@@ -408,6 +408,34 @@ push-web-image-tag:
   rules:
     - if: $CI_COMMIT_TAG && $CI_COMMIT_BRANCH == "master"
 
+push-verifiers-image-staging:
+  stage: deploy
+  needs: ["push-server-image-staging"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/packages/verifiers/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}/verifiers:stg"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+
+push-verifiers-image-tag:
+  stage: deploy
+  needs: ["push-server-image-staging"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/packages/verifiers/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}/verifiers:${CI_COMMIT_TAG}"
+  rules:
+    - if: $CI_COMMIT_TAG && $CI_COMMIT_BRANCH == "master"
+
 push-server-image-production:
   stage: deploy
   needs: ["check", "test", "build-server-release"]
