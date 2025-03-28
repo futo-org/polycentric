@@ -150,44 +150,44 @@ export function usePostStatsWithLocalActions(pointer: Models.Pointer.Pointer) {
   const opinionOnMount = useQueryOpinion(processHandle.system(), reference);
 
   const locallyModifiedStats = useMemo(() => {
-    // Start with base stats
+    // Start with base stats from the server
     let likes = stats.likes || 0;
     let dislikes = stats.dislikes || 0;
 
-    // Check if the user's opinion has changed from what's in the backend
+    // Check what's in the backend for this user
     const hasLikeInBackend =
       opinionOnMount &&
       Util.buffersEqual(opinionOnMount, Models.Opinion.OpinionLike);
     const hasDislikeInBackend =
       opinionOnMount &&
       Util.buffersEqual(opinionOnMount, Models.Opinion.OpinionDislike);
-
-    // Apply local modifications based on current opinion and what's in the backend
-    if (opinion === 'liked' && !hasLikeInBackend) {
-      // User now likes, but didn't before
-      likes += 1;
-      // If user was disliking before, also remove that dislike
-      if (hasDislikeInBackend) {
-        dislikes = Math.max(0, dislikes - 1);
-      }
-    } else if (opinion === 'disliked' && !hasDislikeInBackend) {
-      // User now dislikes, but didn't before
-      dislikes += 1;
-      // If user was liking before, also remove that like
-      if (hasLikeInBackend) {
-        likes = Math.max(0, likes - 1);
-      }
-    } else if (opinion === 'neutral') {
-      // If user now has neutral opinion, but had a like before
-      if (hasLikeInBackend) {
-        likes = Math.max(0, likes - 1);
-      }
-      // If user now has neutral opinion, but had a dislike before
-      if (hasDislikeInBackend) {
-        dislikes = Math.max(0, dislikes - 1);
-      }
+    
+    // Get the current opinion state
+    const currentLiked = opinion === 'liked';
+    const currentDisliked = opinion === 'disliked';
+    
+    // Compare and adjust counts
+    
+    // If we liked in backend but no longer like, remove our like
+    if (hasLikeInBackend && !currentLiked) {
+      likes = Math.max(0, likes - 1);
     }
-
+    
+    // If we disliked in backend but no longer dislike, remove our dislike
+    if (hasDislikeInBackend && !currentDisliked) {
+      dislikes = Math.max(0, dislikes - 1);
+    }
+    
+    // If we now like but didn't before, add our like
+    if (currentLiked && !hasLikeInBackend) {
+      likes += 1;
+    }
+    
+    // If we now dislike but didn't before, add our dislike
+    if (currentDisliked && !hasDislikeInBackend) {
+      dislikes += 1;
+    }
+    
     return {
       opinion,
       likes: Math.max(0, likes),
