@@ -161,33 +161,33 @@ export function usePostStatsWithLocalActions(pointer: Models.Pointer.Pointer) {
     const hasDislikeInBackend =
       opinionOnMount &&
       Util.buffersEqual(opinionOnMount, Models.Opinion.OpinionDislike);
-    
+
     // Get the current opinion state
     const currentLiked = opinion === 'liked';
     const currentDisliked = opinion === 'disliked';
-    
+
     // Compare and adjust counts
-    
+
     // If we liked in backend but no longer like, remove our like
     if (hasLikeInBackend && !currentLiked) {
       likes = Math.max(0, likes - 1);
     }
-    
+
     // If we disliked in backend but no longer dislike, remove our dislike
     if (hasDislikeInBackend && !currentDisliked) {
       dislikes = Math.max(0, dislikes - 1);
     }
-    
+
     // If we now like but didn't before, add our like
     if (currentLiked && !hasLikeInBackend) {
       likes += 1;
     }
-    
+
     // If we now dislike but didn't before, add our dislike
     if (currentDisliked && !hasDislikeInBackend) {
       dislikes += 1;
     }
-    
+
     return {
       opinion,
       likes: Math.max(0, likes),
