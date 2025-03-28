@@ -418,12 +418,31 @@ export function useLikesFeed(
         (signedEvent) => {
           if (!signedEvent) return;
 
-          const event = Models.Event.fromBuffer(signedEvent.event);
-          const post = Protocol.Post.decode(event.content);
-          setPosts((prev) => [
-            ...prev,
-            new ParsedEvent(signedEvent, event, post),
-          ]);
+          try {
+            const event = Models.Event.fromBuffer(signedEvent.event);
+
+            // Check if this is a valid post event that hasn't been deleted
+            if (!event.contentType.eq(Models.ContentType.ContentTypePost))
+              return;
+
+            if (!event.content || event.content.length === 0) return;
+
+            try {
+              const post = Protocol.Post.decode(event.content);
+              if (!post || !post.content) return;
+
+              setPosts((prev) => [
+                ...prev,
+                new ParsedEvent(signedEvent, event, post),
+              ]);
+            } catch (decodeError) {
+              console.error('Failed to decode post content:', decodeError);
+              return;
+            }
+          } catch (error) {
+            console.error('Failed to process event:', error);
+            return;
+          }
         },
       );
     });
