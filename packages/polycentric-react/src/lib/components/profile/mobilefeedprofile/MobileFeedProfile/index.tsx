@@ -29,33 +29,35 @@ export const MobileProfileFeed = ({
 
   const { processHandle } = useProcessHandleManager();
 
-  const [localFollowing, setLocalFollowing] = useState<boolean | undefined>();
+  const [forceRefreshCounter, setForceRefreshCounter] = useState(0);
+  const refreshQueries = useCallback(() => {
+    setForceRefreshCounter((count) => count + 1);
+  }, []);
 
   const encodedSystem = useMemo(
     () => Protocol.PublicKey.encode(system).finish(),
     [system],
   );
 
-  const remotelyFollowing = useQueryIfAdded(
+  const iAmFollowing = useQueryIfAdded(
     Models.ContentType.ContentTypeFollow,
     processHandle.system(),
     encodedSystem,
+    forceRefreshCounter,
   );
 
   const follow = useCallback(() => {
-    processHandle.follow(system).then(() => setLocalFollowing(true));
-  }, [processHandle, system]);
+    processHandle.follow(system).then(() => refreshQueries());
+  }, [processHandle, system, refreshQueries]);
 
   const unfollow = useCallback(() => {
-    processHandle.unfollow(system).then(() => setLocalFollowing(false));
-  }, [processHandle, system]);
+    processHandle.unfollow(system).then(() => refreshQueries());
+  }, [processHandle, system, refreshQueries]);
 
   const isMyProfile = Models.PublicKey.equal(system, processHandle.system());
 
   const followers = 0;
   const following = 0;
-
-  const iAmFollowing = localFollowing ? localFollowing : remotelyFollowing;
 
   const editProfileActions = useMemo(() => {
     return {

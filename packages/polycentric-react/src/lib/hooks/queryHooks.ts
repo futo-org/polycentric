@@ -495,35 +495,31 @@ export const usePostStats = (pointer: Models.Pointer.Pointer) => {
 
 export const useQueryIfAdded = (
   contentType: Models.ContentType.ContentType,
-  system?: Models.PublicKey.PublicKey,
-  value?: Uint8Array,
-) => {
+  system: Models.PublicKey.PublicKey,
+  value: Uint8Array,
+  refreshDependency: number | undefined = undefined,
+): boolean => {
   const { processHandle } = useProcessHandleManager();
-  const [state, setState] = useState<boolean | undefined>(undefined);
+  const [added, setAdded] = useState<boolean>(false);
 
   useEffect(() => {
-    if (system === undefined || value === undefined) {
-      return;
-    }
+    let isMounted = true;
 
-    const cancelContext = new CancelContext.CancelContext();
     processHandle
       .store()
       .indexCRDTElementSet.queryIfAdded(system, contentType, value)
       .then((result) => {
-        if (cancelContext.cancelled()) {
-          return;
+        if (isMounted) {
+          setAdded(result);
         }
-        setState(result);
       });
 
     return () => {
-      cancelContext.cancel();
-      setState(undefined);
+      isMounted = false;
     };
-  }, [processHandle, system, contentType, value]);
+  }, [processHandle, contentType, system, value, refreshDependency]);
 
-  return state;
+  return added;
 };
 
 export const useQueryOpinion = (
