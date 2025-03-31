@@ -16,7 +16,7 @@ import {
 } from '../../../hooks/queryHooks';
 import { usePostStatsWithLocalActions } from '../../../hooks/statsHooks';
 import { getAccountUrl } from '../../util/linkify/utils';
-import { PurePost, PurePostProps } from './PurePost';
+import { PurePost } from './PurePost';
 
 interface PostProps {
   data: FeedItem | undefined;
@@ -40,45 +40,89 @@ interface LoadedPostProps {
 const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
   ({ data, doesLink, autoExpand, syncStatus, isMyProfile }, ref) => {
     const { value, event, signedEvent } = data;
-    const [vouchedClaim, setVouchedClaim] = useState<{ 
-      type: Models.ClaimType.ClaimType, 
-      value: string,
-      system: Models.PublicKey.PublicKey 
+
+    // 1. ALL hooks must be called unconditionally at the top level
+    const [vouchedClaim, setVouchedClaim] = useState<{
+      type: Models.ClaimType.ClaimType;
+      value: string;
+      system: Models.PublicKey.PublicKey;
     } | null>(null);
     const queryManager = useQueryManager();
-    
-    // Fetch vouch data
+
+    // Move all hooks up - call them unconditionally
+    const pointer = useMemo(
+      () => Models.signedEventToPointer(signedEvent),
+      [signedEvent],
+    );
+    const mainUsername = useUsernameCRDTQuery(event.system);
+    const mainAvatar = useAvatar(event.system);
+    const mainKey = useTextPublicKey(event.system, 10);
+    const mainDate = useDateFromUnixMS(event.unixMilliseconds);
+    const mainURL = useEventLink(event.system, pointer);
+    const mainAuthorURL = useSystemLink(event.system);
+
+    // Handle reply references
+    const replyingToPointer = useMemo(() => {
+      const { references } = event;
+      const replyingToRef = references.find((ref) => ref.referenceType.eq(2));
+      if (replyingToRef) {
+        return Models.Pointer.fromProto(
+          Protocol.Pointer.decode(replyingToRef.reference),
+        );
+      }
+      return undefined;
+    }, [event]);
+
+    const replyingToName = useUsernameCRDTQuery(replyingToPointer?.system);
+    const replyingToURL = useEventLink(
+      replyingToPointer?.system,
+      replyingToPointer,
+    );
+
+    // Other hooks
+    const imageUrl = useImageManifestDisplayURL(
+      event.system,
+      'content' in value ? value.image : undefined,
+    );
+
+    const { actions, stats } = usePostStatsWithLocalActions(pointer);
+
+    // 2. Keep the useEffect for vouch data
     useEffect(() => {
-      if (event.contentType.eq(Models.ContentType.ContentTypeVouch) && 
-          event.references.length > 0 && 
-          queryManager) {
+      if (
+        event.contentType.eq(Models.ContentType.ContentTypeVouch) &&
+        event.references.length > 0 &&
+        queryManager
+      ) {
         try {
           const vouchedRef = event.references[0];
           const pointer = Models.Pointer.fromProto(
-            Protocol.Pointer.decode(vouchedRef.reference)
+            Protocol.Pointer.decode(vouchedRef.reference),
           );
-          
+
           queryManager.queryEvent.query(
             pointer.system,
             pointer.process,
             pointer.logicalClock,
             (signedEvent) => {
               if (!signedEvent) return;
-              
+
               try {
                 const claimEvent = Models.Event.fromBuffer(signedEvent.event);
-                if (claimEvent.contentType.eq(Models.ContentType.ContentTypeClaim)) {
+                if (
+                  claimEvent.contentType.eq(Models.ContentType.ContentTypeClaim)
+                ) {
                   const claim = Protocol.Claim.decode(claimEvent.content);
                   setVouchedClaim({
                     type: claim.claimType as Models.ClaimType.ClaimType,
                     value: claim.claimFields[0]?.value || '',
-                    system: pointer.system
+                    system: pointer.system,
                   });
                 }
               } catch (error) {
                 console.error('Failed to decode vouched claim:', error);
               }
-            }
+            },
           );
         } catch (error) {
           console.error('Failed to process vouch reference:', error);
@@ -86,33 +130,17 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
       }
     }, [event, queryManager]);
 
-    // Check if this is a deleted post, this exists to prevent rendering deleted posts
+    // 3. Calculate derived values based on hook results
     const isDeleted = useMemo(() => {
-      // Check if this is a vouch post - these are never deleted posts
       if (event.contentType.eq(Models.ContentType.ContentTypeVouch)) {
         return false;
       }
-      
-      // A deleted post would be a claim with type 0 for some reason
       if ('claimType' in value) {
         const claimType = value.claimType as Models.ClaimType.ClaimType;
         return claimType.low === 0 && claimType.high === 0;
       }
-      
       return false;
     }, [value, event]);
-
-    // Display a message for deleted posts
-    if (isDeleted) {
-      return (
-        <div 
-          ref={ref} 
-          className="p-4 border-b border-gray-100 text-gray-500 text-center italic"
-        >
-          Post could not be found
-        </div>
-      );
-    }
 
     const content = useMemo(() => {
       // First check if this is a vouch post by event type, not by structure
@@ -120,7 +148,7 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
         // Always return empty for vouch posts - we'll display the custom UI in PurePost
         return '';
       }
-      
+
       // Handle regular posts and claims as before
       if ('content' in value) {
         return value.content;
@@ -139,7 +167,7 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
           return `Claimed ${platformName} account: ${claimValue}`;
         }
       }
-      
+
       return '';
     }, [value, event]);
 
@@ -159,57 +187,24 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
         ) {
           return getAccountUrl(claimType, claimValue);
         }
-      } else if (event.contentType.eq(Models.ContentType.ContentTypeVouch) && vouchedClaim) {
+      } else if (
+        event.contentType.eq(Models.ContentType.ContentTypeVouch) &&
+        vouchedClaim
+      ) {
         // For vouches, if we have a platform account type claim, use its URL
-        if (!vouchedClaim.type.equals(Models.ClaimType.ClaimTypeOccupation) &&
-            !vouchedClaim.type.equals(Models.ClaimType.ClaimTypeSkill) &&
-            !vouchedClaim.type.equals(Models.ClaimType.ClaimTypeGeneric)) {
+        if (
+          !vouchedClaim.type.equals(Models.ClaimType.ClaimTypeOccupation) &&
+          !vouchedClaim.type.equals(Models.ClaimType.ClaimTypeSkill) &&
+          !vouchedClaim.type.equals(Models.ClaimType.ClaimTypeGeneric)
+        ) {
           return getAccountUrl(vouchedClaim.type, vouchedClaim.value);
         }
       }
       return undefined;
     }, [event, value, vouchedClaim]);
 
-    const replyingToPointer = useMemo(() => {
-      const { references } = event;
-      const replyingToRef = references.find((ref) => ref.referenceType.eq(2));
-
-      if (replyingToRef) {
-        const replyingToPointer = Models.Pointer.fromProto(
-          Protocol.Pointer.decode(replyingToRef.reference),
-        );
-        return replyingToPointer;
-      }
-      return undefined;
-    }, [event]);
-
-    const replyingToName = useUsernameCRDTQuery(replyingToPointer?.system);
-    const replyingToURL = useEventLink(
-      replyingToPointer?.system,
-      replyingToPointer,
-    );
-
-    const imageUrl = useImageManifestDisplayURL(
-      event.system,
-      'content' in value ? value.image : undefined,
-    );
-
-    const pointer = useMemo(
-      () => Models.signedEventToPointer(signedEvent),
-      [signedEvent],
-    );
-
-    const mainUsername = useUsernameCRDTQuery(event.system);
-    const mainAvatar = useAvatar(event.system);
-    const mainKey = useTextPublicKey(event.system, 10);
-
-    const mainDate = useDateFromUnixMS(event.unixMilliseconds);
-
-    const mainURL = useEventLink(event.system, pointer);
-
-    const mainAuthorURL = useSystemLink(event.system);
-
-    const main: PurePostProps['main'] = useMemo(
+    // Prepare the main props
+    const main = useMemo(
       () => ({
         author: {
           name: mainUsername,
@@ -224,9 +219,11 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
         topic,
         publishedAt: mainDate,
         url: mainURL,
-        type: event.contentType.eq(Models.ContentType.ContentTypeVouch) 
-               ? 'vouch' 
-               : ('content' in value ? 'post' : 'claim'),
+        type: (event.contentType.eq(Models.ContentType.ContentTypeVouch)
+          ? 'vouch'
+          : 'content' in value
+            ? 'post'
+            : 'claim') as 'vouch' | 'post' | 'claim',
         vouchedClaim: vouchedClaim || undefined,
       }),
       [
@@ -247,7 +244,17 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
       ],
     );
 
-    const { actions, stats } = usePostStatsWithLocalActions(pointer);
+    // 4. Handle early returns AFTER all hooks are called
+    if (isDeleted) {
+      return (
+        <div
+          ref={ref}
+          className="p-4 border-b border-gray-100 text-gray-500 text-center italic"
+        >
+          Post could not be found
+        </div>
+      );
+    }
 
     return (
       <PurePost

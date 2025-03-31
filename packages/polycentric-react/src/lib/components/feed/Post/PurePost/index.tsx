@@ -21,8 +21,12 @@ import { Link } from '../../../util/link';
 import { Linkify } from '../../../util/linkify';
 // Styling for image viewer
 import { Tooltip } from '@mui/material';
-import { useSystemLink, useUsernameCRDTQuery } from '../../../../hooks/queryHooks';
+import {
+  useSystemLink,
+  useUsernameCRDTQuery,
+} from '../../../../hooks/queryHooks';
 import { useTopicLink } from '../../../../hooks/utilHooks';
+import { Models } from '../../../../types/models';
 import './style.css';
 
 const dateToAgoString = (date: Date | undefined) => {
@@ -270,9 +274,9 @@ export interface PurePostProps {
     replyingToURL?: string;
     type: 'post' | 'claim' | 'vouch';
     vouchedClaim?: {
-      type: any;
+      type: Models.ClaimType.ClaimType;
       value: string;
-      system: any;
+      system: Models.PublicKey.PublicKey;
     };
   };
   sub?: {
@@ -338,10 +342,14 @@ const PostLinkContainer = ({
 
 const basicURLRegex = /^(https?:\/\/)?(www\.)?/;
 
-function ClaimOwnerUsername({ system }: { system: any }) {
+function ClaimOwnerUsername({
+  system,
+}: {
+  system: Models.PublicKey.PublicKey;
+}) {
   const username = useUsernameCRDTQuery(system);
   const userLink = useSystemLink(system);
-  
+
   return (
     <a href={userLink} className="text-blue-600 hover:underline">
       {username || 'User'}
