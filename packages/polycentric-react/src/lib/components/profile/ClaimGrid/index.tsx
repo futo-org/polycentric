@@ -309,8 +309,19 @@ const ClaimCircle: React.FC<{
   );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Check if the current user has already vouched for this claim
+  const hasUserVouched = useMemo(() => {
+    if (!processHandle || !vouches) return false;
+
+    const currentUserSystem = processHandle.system();
+    return vouches.some(
+      (vouch) =>
+        vouch && Models.PublicKey.equal(vouch.system, currentUserSystem),
+    );
+  }, [processHandle, vouches]);
+
   const handleVouch = async () => {
-    if (!processHandle) return;
+    if (!processHandle || hasUserVouched) return;
     try {
       await processHandle.vouchByReference(claim.pointer);
       setVouchStatus('success');
@@ -462,6 +473,10 @@ const ClaimCircle: React.FC<{
                   </div>
                 )}
               </>
+            ) : hasUserVouched ? (
+              <div className="px-4 py-1 text-sm border border-green-600 text-green-600 bg-green-50 rounded-md">
+                Verified
+              </div>
             ) : (
               <button
                 onClick={(e) => {
@@ -475,6 +490,7 @@ const ClaimCircle: React.FC<{
                       ? 'bg-red-100 text-red-600 border-red-600'
                       : 'bg-gray-100 text-blue-600 border-blue-600 hover:bg-blue-50'
                 }`}
+                disabled={hasUserVouched}
               >
                 Verify
               </button>

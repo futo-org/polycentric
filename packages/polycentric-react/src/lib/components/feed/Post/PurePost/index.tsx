@@ -21,7 +21,12 @@ import { Link } from '../../../util/link';
 import { Linkify } from '../../../util/linkify';
 // Styling for image viewer
 import { Tooltip } from '@mui/material';
+import {
+  useSystemLink,
+  useUsernameCRDTQuery,
+} from '../../../../hooks/queryHooks';
 import { useTopicLink } from '../../../../hooks/utilHooks';
+import { Models } from '@polycentric/polycentric-core';
 import './style.css';
 
 const dateToAgoString = (date: Date | undefined) => {
@@ -264,11 +269,15 @@ export interface PurePostProps {
     publishedAt?: Date;
     topic?: string;
     image?: string;
-    // URLs aren't synchronous because we need to get the list of servers
     url?: string;
     replyingToName?: string;
     replyingToURL?: string;
     type: 'post' | 'claim' | 'vouch';
+    vouchedClaim?: {
+      type: Models.ClaimType.ClaimType;
+      value: string;
+      system: Models.PublicKey.PublicKey;
+    };
   };
   sub?: {
     content: string;
@@ -332,6 +341,21 @@ const PostLinkContainer = ({
 };
 
 const basicURLRegex = /^(https?:\/\/)?(www\.)?/;
+
+function ClaimOwnerUsername({
+  system,
+}: {
+  system: Models.PublicKey.PublicKey;
+}) {
+  const username = useUsernameCRDTQuery(system);
+  const userLink = useSystemLink(system);
+
+  return (
+    <a href={userLink} className="text-blue-600 hover:underline">
+      {username || 'User'}
+    </a>
+  );
+}
 
 export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
   (
@@ -545,6 +569,13 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                       content={main.content}
                       stopPropagation={true}
                     />
+                    {main?.type === 'vouch' && main.vouchedClaim && (
+                      <div className="text-gray-600 pt-2">
+                        <span>Verified a claim from </span>
+                        <ClaimOwnerUsername system={main.vouchedClaim.system} />
+                        <span>: {main.vouchedClaim.value}</span>
+                      </div>
+                    )}
                     <div onClick={(e) => e.stopPropagation()} className="w-fit">
                       <Zoom classDialog="custom-post-img-zoom">
                         <img
