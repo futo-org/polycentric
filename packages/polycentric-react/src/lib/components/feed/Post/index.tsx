@@ -9,6 +9,7 @@ import { useProcessHandleManager } from '../../../hooks/processHandleManagerHook
 import {
   useDateFromUnixMS,
   useEventLink,
+  useQueryManager,
   useSystemLink,
   useTextPublicKey,
   useUsernameCRDTQuery,
@@ -39,20 +40,67 @@ interface LoadedPostProps {
 const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
   ({ data, doesLink, autoExpand, syncStatus, isMyProfile }, ref) => {
     const { value, event, signedEvent } = data;
+    const [vouchedClaim, setVouchedClaim] = useState<{ 
+      type: Models.ClaimType.ClaimType, 
+      value: string,
+      system: Models.PublicKey.PublicKey 
+    } | null>(null);
+    const queryManager = useQueryManager();
+    
+    // Fetch vouch data
+    useEffect(() => {
+      if (event.contentType.eq(Models.ContentType.ContentTypeVouch) && 
+          event.references.length > 0 && 
+          queryManager) {
+        try {
+          const vouchedRef = event.references[0];
+          const pointer = Models.Pointer.fromProto(
+            Protocol.Pointer.decode(vouchedRef.reference)
+          );
+          
+          queryManager.queryEvent.query(
+            pointer.system,
+            pointer.process,
+            pointer.logicalClock,
+            (signedEvent) => {
+              if (!signedEvent) return;
+              
+              try {
+                const claimEvent = Models.Event.fromBuffer(signedEvent.event);
+                if (claimEvent.contentType.eq(Models.ContentType.ContentTypeClaim)) {
+                  const claim = Protocol.Claim.decode(claimEvent.content);
+                  setVouchedClaim({
+                    type: claim.claimType as Models.ClaimType.ClaimType,
+                    value: claim.claimFields[0]?.value || '',
+                    system: pointer.system
+                  });
+                }
+              } catch (error) {
+                console.error('Failed to decode vouched claim:', error);
+              }
+            }
+          );
+        } catch (error) {
+          console.error('Failed to process vouch reference:', error);
+        }
+      }
+    }, [event, queryManager]);
 
     // Check if this is a deleted post, this exists to prevent rendering deleted posts
     const isDeleted = useMemo(() => {
+      // Check if this is a vouch post - these are never deleted posts
+      if (event.contentType.eq(Models.ContentType.ContentTypeVouch)) {
+        return false;
+      }
+      
       // A deleted post would be a claim with type 0 for some reason
       if ('claimType' in value) {
         const claimType = value.claimType as Models.ClaimType.ClaimType;
         return claimType.low === 0 && claimType.high === 0;
       }
-      // Or a post with empty content
-      if ('content' in value && value.content === '') {
-        return true;
-      }
+      
       return false;
-    }, [value]);
+    }, [value, event]);
 
     // Display a message for deleted posts
     if (isDeleted) {
@@ -67,12 +115,18 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
     }
 
     const content = useMemo(() => {
+      // First check if this is a vouch post by event type, not by structure
+      if (event.contentType.eq(Models.ContentType.ContentTypeVouch)) {
+        // Always return empty for vouch posts - we'll display the custom UI in PurePost
+        return '';
+      }
+      
+      // Handle regular posts and claims as before
       if ('content' in value) {
         return value.content;
       } else if ('claimType' in value) {
         const claimType = value.claimType as Models.ClaimType.ClaimType;
         const claimValue = value.claimFields[0]?.value || '';
-        console.log('claimType', claimType);
 
         if (claimType.equals(Models.ClaimType.ClaimTypeOccupation)) {
           return `Claimed they work at ${value.claimFields[0].value} as ${value.claimFields[1].value} in ${value.claimFields[2].value}.`;
@@ -84,11 +138,10 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
           const platformName = Models.ClaimType.toString(claimType);
           return `Claimed ${platformName} account: ${claimValue}`;
         }
-      } else if ('vouchType' in value) {
-        return 'Vouched for claim';
       }
+      
       return '';
-    }, [value]);
+    }, [value, event]);
 
     const topic = useMemo(() => {
       if ('content' in value) {
@@ -106,9 +159,16 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
         ) {
           return getAccountUrl(claimType, claimValue);
         }
+      } else if (event.contentType.eq(Models.ContentType.ContentTypeVouch) && vouchedClaim) {
+        // For vouches, if we have a platform account type claim, use its URL
+        if (!vouchedClaim.type.equals(Models.ClaimType.ClaimTypeOccupation) &&
+            !vouchedClaim.type.equals(Models.ClaimType.ClaimTypeSkill) &&
+            !vouchedClaim.type.equals(Models.ClaimType.ClaimTypeGeneric)) {
+          return getAccountUrl(vouchedClaim.type, vouchedClaim.value);
+        }
       }
       return undefined;
-    }, [event, value]);
+    }, [event, value, vouchedClaim]);
 
     const replyingToPointer = useMemo(() => {
       const { references } = event;
@@ -153,9 +213,9 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
       () => ({
         author: {
           name: mainUsername,
-          avatarURL: mainAvatar,
+          avatarURL: mainAvatar || '',
           URL: mainAuthorURL,
-          pubkey: mainKey,
+          pubkey: mainKey || '',
         },
         replyingToName,
         replyingToURL,
@@ -164,12 +224,10 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
         topic,
         publishedAt: mainDate,
         url: mainURL,
-        type:
-          'content' in value
-            ? 'post'
-            : 'claimType' in value
-              ? 'claim'
-              : 'vouch',
+        type: event.contentType.eq(Models.ContentType.ContentTypeVouch) 
+               ? 'vouch' 
+               : ('content' in value ? 'post' : 'claim'),
+        vouchedClaim: vouchedClaim || undefined,
       }),
       [
         mainUsername,
@@ -184,6 +242,8 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
         replyingToName,
         replyingToURL,
         value,
+        event,
+        vouchedClaim,
       ],
     );
 
