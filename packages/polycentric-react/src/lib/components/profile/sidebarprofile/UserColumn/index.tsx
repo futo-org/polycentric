@@ -31,7 +31,7 @@ export const UserColumn = ({
   // Add useState at the top level instead of inside useMemo
   const [forceRefreshCounter, setForceRefreshCounter] = useState(0);
   const refreshQueries = useCallback(() => {
-    setForceRefreshCounter(count => count + 1);
+    setForceRefreshCounter((count) => count + 1);
   }, []);
 
   const encodedSystem = useMemo(
@@ -44,14 +44,14 @@ export const UserColumn = ({
     Models.ContentType.ContentTypeFollow,
     processHandle.system(),
     encodedSystem,
-    forceRefreshCounter
+    forceRefreshCounter,
   );
 
   const iBlocked = useQueryIfAdded(
     Models.ContentType.ContentTypeBlock,
     processHandle.system(),
     encodedSystem,
-    forceRefreshCounter
+    forceRefreshCounter,
   );
 
   const follow = useCallback(() => {

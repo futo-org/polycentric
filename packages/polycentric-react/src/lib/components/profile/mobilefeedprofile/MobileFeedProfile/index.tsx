@@ -31,7 +31,7 @@ export const MobileProfileFeed = ({
 
   const [forceRefreshCounter, setForceRefreshCounter] = useState(0);
   const refreshQueries = useCallback(() => {
-    setForceRefreshCounter(count => count + 1);
+    setForceRefreshCounter((count) => count + 1);
   }, []);
 
   const encodedSystem = useMemo(
@@ -43,7 +43,7 @@ export const MobileProfileFeed = ({
     Models.ContentType.ContentTypeFollow,
     processHandle.system(),
     encodedSystem,
-    forceRefreshCounter
+    forceRefreshCounter,
   );
 
   const follow = useCallback(() => {

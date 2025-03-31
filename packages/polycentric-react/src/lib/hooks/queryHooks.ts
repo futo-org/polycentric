@@ -497,7 +497,7 @@ export const useQueryIfAdded = (
   contentType: Models.ContentType.ContentType,
   system: Models.PublicKey.PublicKey,
   value: Uint8Array,
-  refreshDependency: any = undefined
+  refreshDependency: number | undefined = undefined,
 ): boolean => {
   const { processHandle } = useProcessHandleManager();
   const [added, setAdded] = useState<boolean>(false);
