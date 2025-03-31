@@ -28,41 +28,47 @@ export const UserColumn = ({
 
   const { processHandle } = useProcessHandleManager();
 
-  const [localFollowing, setLocalFollowing] = useState<boolean | undefined>();
-  const [localBlocked, setLocalBlocked] = useState<boolean | undefined>();
+  // Add useState at the top level instead of inside useMemo
+  const [forceRefreshCounter, setForceRefreshCounter] = useState(0);
+  const refreshQueries = useCallback(() => {
+    setForceRefreshCounter(count => count + 1);
+  }, []);
 
   const encodedSystem = useMemo(
     () => Protocol.PublicKey.encode(system).finish(),
     [system],
   );
 
-  const remotelyFollowing = useQueryIfAdded(
+  // Add the refreshCounter to the dependency array to force re-fetch
+  const iAmFollowing = useQueryIfAdded(
     Models.ContentType.ContentTypeFollow,
     processHandle.system(),
     encodedSystem,
+    forceRefreshCounter
   );
 
-  const remotelyBlocked = useQueryIfAdded(
+  const iBlocked = useQueryIfAdded(
     Models.ContentType.ContentTypeBlock,
     processHandle.system(),
     encodedSystem,
+    forceRefreshCounter
   );
 
   const follow = useCallback(() => {
-    processHandle.follow(system).then(() => setLocalFollowing(true));
-  }, [processHandle, system]);
+    processHandle.follow(system).then(() => refreshQueries());
+  }, [processHandle, system, refreshQueries]);
 
   const unfollow = useCallback(() => {
-    processHandle.unfollow(system).then(() => setLocalFollowing(false));
-  }, [processHandle, system]);
+    processHandle.unfollow(system).then(() => refreshQueries());
+  }, [processHandle, system, refreshQueries]);
 
   const block = useCallback(() => {
-    processHandle.block(system).then(() => setLocalBlocked(true));
-  }, [processHandle, system]);
+    processHandle.block(system).then(() => refreshQueries());
+  }, [processHandle, system, refreshQueries]);
 
   const unblock = useCallback(() => {
-    processHandle.unblock(system).then(() => setLocalBlocked(false));
-  }, [processHandle, system]);
+    processHandle.unblock(system).then(() => refreshQueries());
+  }, [processHandle, system, refreshQueries]);
 
   const isMyProfile = useMemo(
     () => Models.PublicKey.equal(system, processHandle.system()),
@@ -71,16 +77,6 @@ export const UserColumn = ({
 
   const followers = 0;
   const following = 0;
-
-  const iAmFollowing = useMemo(
-    () => (localFollowing ? localFollowing : remotelyFollowing),
-    [localFollowing, remotelyFollowing],
-  );
-
-  const iBlocked = useMemo(
-    () => (localBlocked ? localBlocked : remotelyBlocked),
-    [localBlocked, remotelyBlocked],
-  );
 
   const editProfileActions = useMemo(() => {
     return {
@@ -101,8 +97,8 @@ export const UserColumn = ({
       avatarURL,
       backgroundURL,
       isMyProfile,
-      iAmFollowing: iAmFollowing,
-      iBlocked: iBlocked,
+      iAmFollowing,
+      iBlocked,
       followerCount: followers,
       followingCount: following,
       system,
