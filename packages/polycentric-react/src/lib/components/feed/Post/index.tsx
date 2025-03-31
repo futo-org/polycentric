@@ -40,12 +40,39 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
   ({ data, doesLink, autoExpand, syncStatus, isMyProfile }, ref) => {
     const { value, event, signedEvent } = data;
 
+    // Check if this is a deleted post, this exists to prevent rendering deleted posts
+    const isDeleted = useMemo(() => {
+      // A deleted post would be a claim with type 0 for some reason
+      if ('claimType' in value) {
+        const claimType = value.claimType as Models.ClaimType.ClaimType;
+        return claimType.low === 0 && claimType.high === 0;
+      }
+      // Or a post with empty content
+      if ('content' in value && value.content === '') {
+        return true;
+      }
+      return false;
+    }, [value]);
+
+    // Display a message for deleted posts
+    if (isDeleted) {
+      return (
+        <div 
+          ref={ref} 
+          className="p-4 border-b border-gray-100 text-gray-500 text-center italic"
+        >
+          Post could not be found
+        </div>
+      );
+    }
+
     const content = useMemo(() => {
       if ('content' in value) {
         return value.content;
       } else if ('claimType' in value) {
         const claimType = value.claimType as Models.ClaimType.ClaimType;
         const claimValue = value.claimFields[0]?.value || '';
+        console.log('claimType', claimType);
 
         if (claimType.equals(Models.ClaimType.ClaimTypeOccupation)) {
           return `Claimed they work at ${value.claimFields[0].value} as ${value.claimFields[1].value} in ${value.claimFields[2].value}.`;
