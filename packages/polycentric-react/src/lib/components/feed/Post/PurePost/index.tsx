@@ -26,7 +26,7 @@ import {
   useUsernameCRDTQuery,
 } from '../../../../hooks/queryHooks';
 import { useTopicLink } from '../../../../hooks/utilHooks';
-import { Models } from '../../../../types/models';
+import { Models } from '@polycentric/polycentric-core';
 import './style.css';
 
 const dateToAgoString = (date: Date | undefined) => {
