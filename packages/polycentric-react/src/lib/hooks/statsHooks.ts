@@ -64,9 +64,7 @@ export const usePostStats = (pointer: Models.Pointer.Pointer) => {
   return counts;
 };
 
-export const usePostStatsWithLocalActions = (
-  pointer: Models.Pointer.Pointer,
-) => {
+export function usePostStatsWithLocalActions(pointer: Models.Pointer.Pointer) {
   const { processHandle } = useProcessHandleManager();
 
   const reference = useMemo(() => {
@@ -76,7 +74,6 @@ export const usePostStatsWithLocalActions = (
   const [opinion, setOpinion] = useState<'liked' | 'neutral' | 'disliked'>(
     'neutral',
   );
-  const [locallyNeutral, setLocallyNeutral] = useState<boolean>(false);
 
   const refreshOpinion = useCallback(
     (cancelContext?: CancelContext.CancelContext) => {
@@ -109,23 +106,28 @@ export const usePostStatsWithLocalActions = (
   }, [refreshOpinion]);
 
   const like = useCallback(() => {
+    // Update opinion
+    setOpinion('liked');
+
+    // Call API to save the like
     processHandle.opinion(reference, Models.Opinion.OpinionLike).then(() => {
       refreshOpinion();
-      setLocallyNeutral(false);
     });
   }, [reference, processHandle, refreshOpinion]);
 
   const neutralopinion = useCallback(() => {
     processHandle.opinion(reference, Models.Opinion.OpinionNeutral).then(() => {
       refreshOpinion();
-      setLocallyNeutral(true);
     });
   }, [reference, processHandle, refreshOpinion]);
 
   const dislike = useCallback(() => {
+    // Update opinion
+    setOpinion('disliked');
+
+    // Call API to save the dislike
     processHandle.opinion(reference, Models.Opinion.OpinionDislike).then(() => {
       refreshOpinion();
-      setLocallyNeutral(false);
     });
   }, [reference, processHandle, refreshOpinion]);
 
@@ -146,42 +148,53 @@ export const usePostStatsWithLocalActions = (
 
   const stats = usePostStats(pointer);
   const opinionOnMount = useQueryOpinion(processHandle.system(), reference);
-  const likedOnMount = useMemo(() => {
-    if (opinionOnMount === undefined) {
-      return undefined;
-    }
-    return Util.buffersEqual(opinionOnMount, Models.Opinion.OpinionLike);
-  }, [opinionOnMount]);
 
-  const locallyModifiedLikes = useMemo(() => {
-    let likes = stats.likes;
-    if (stats.likes === 0 && opinion === 'liked') {
-      likes = stats.likes + 1;
-    } else if (opinion === 'liked' && likedOnMount === false && stats.likes) {
-      likes = stats.likes + 1;
-    } else if (locallyNeutral && stats.likes && stats.likes > 0) {
-      likes = stats.likes - 1;
-    }
+  const locallyModifiedStats = useMemo(() => {
+    // Start with base stats from the server
+    let likes = stats.likes || 0;
+    let dislikes = stats.dislikes || 0;
 
-    return likes;
-  }, [stats, opinion, likedOnMount, locallyNeutral]);
+    // Check what's in the backend for this user
+    const hasLikeInBackend =
+      opinionOnMount &&
+      Util.buffersEqual(opinionOnMount, Models.Opinion.OpinionLike);
+    const hasDislikeInBackend =
+      opinionOnMount &&
+      Util.buffersEqual(opinionOnMount, Models.Opinion.OpinionDislike);
 
-  const locallyModifiedDislikes = useMemo(() => {
-    let dislikes = stats.dislikes;
-    if (stats.dislikes === 0 && opinion === 'disliked') {
-      dislikes = stats.dislikes + 1;
-    } else if (
-      opinion === 'disliked' &&
-      likedOnMount === false &&
-      stats.dislikes
-    ) {
-      dislikes = stats.dislikes + 1;
-    } else if (locallyNeutral && stats.dislikes && stats.dislikes > 0) {
-      dislikes = stats.dislikes - 1;
+    // Get the current opinion state
+    const currentLiked = opinion === 'liked';
+    const currentDisliked = opinion === 'disliked';
+
+    // Compare and adjust counts
+
+    // If we liked in backend but no longer like, remove our like
+    if (hasLikeInBackend && !currentLiked) {
+      likes = Math.max(0, likes - 1);
     }
 
-    return dislikes;
-  }, [stats, opinion, likedOnMount, locallyNeutral]);
+    // If we disliked in backend but no longer dislike, remove our dislike
+    if (hasDislikeInBackend && !currentDisliked) {
+      dislikes = Math.max(0, dislikes - 1);
+    }
+
+    // If we now like but didn't before, add our like
+    if (currentLiked && !hasLikeInBackend) {
+      likes += 1;
+    }
+
+    // If we now dislike but didn't before, add our dislike
+    if (currentDisliked && !hasDislikeInBackend) {
+      dislikes += 1;
+    }
+
+    return {
+      opinion,
+      likes: Math.max(0, likes),
+      dislikes: Math.max(0, dislikes),
+      comments: stats.comments,
+    };
+  }, [opinion, stats, opinionOnMount]);
 
   const comment = useCallback(
     async (text: string) => {
@@ -203,17 +216,8 @@ export const usePostStatsWithLocalActions = (
     };
   }, [like, dislike, comment, neutralopinion, deletePost]);
 
-  const locallyModifiedStats = useMemo(() => {
-    return {
-      opinion,
-      likes: locallyModifiedLikes,
-      dislikes: locallyModifiedDislikes,
-      comments: stats.comments,
-    };
-  }, [opinion, locallyModifiedLikes, locallyModifiedDislikes, stats.comments]);
-
   return {
-    stats: locallyModifiedStats,
     actions,
+    stats: locallyModifiedStats,
   };
-};
+}
