@@ -31,43 +31,28 @@ export class IndexEvents implements HasIngest {
     this.acksLevel = registerSublevel('event_acks');
   }
 
-  private makeAckKey(
-    system: Models.PublicKey.PublicKey,
-    process: Models.Process.Process,
-    logicalClock: Long,
-  ): Uint8Array {
-    return Util.concatBuffers([
-      new Uint8Array([1]),
-      system.key,
-      process.process,
-      new Uint8Array(logicalClock.toBytesBE()),
-    ]);
-  }
-
   public async getEventAcks(): Promise<Record<string, string[]>> {
     const result: Record<string, string[]> = {};
-    
+
     try {
       const iterator = this.acksLevel.iterator();
-      
+
       for await (const [key, value] of iterator) {
         try {
           if (key.length === 1 && key[0] === 0) continue;
-          
-          const servers = JSON.parse(new TextDecoder().decode(value)) as string[];
-          
+
+          const servers = JSON.parse(
+            new TextDecoder().decode(value),
+          ) as string[];
+
           if (key.length > 1 && key[0] === 1) {
-            const keyString = Array.from(key.slice(1))
-              .map(b => b.toString(16).padStart(2, '0'))
-              .join('');
-            
-            if (servers && servers.length > 0) {
+            if (servers.length > 0) {
               const lastByte = key[key.length - 1];
-              const simpleKey = `event_${lastByte}_${Date.now()}`;
+              const simpleKey = `event_${lastByte.toString()}_${Date.now().toString()}`;
               result[simpleKey] = servers;
             }
           }
-          
+
           const keyStr = new TextDecoder().decode(key);
           if (keyStr.startsWith('event_') && keyStr.includes('_fixed')) {
             const logicalClockStr = keyStr.split('_')[1];
@@ -82,7 +67,7 @@ export class IndexEvents implements HasIngest {
     } catch (e) {
       console.error('Error reading acks:', e);
     }
-    
+
     return result;
   }
 
@@ -100,22 +85,22 @@ export class IndexEvents implements HasIngest {
       1,
       ...Array.from(system.key.slice(0, 8)),
       ...Array.from(process.process.slice(0, 8)),
-      ...new Uint8Array(logicalClock.toBytesBE().slice(0, 8))
+      ...new Uint8Array(logicalClock.toBytesBE().slice(0, 8)),
     ]);
-    
+
     await this.acksLevel.put(
       ackKey,
-      new TextEncoder().encode(JSON.stringify(servers))
+      new TextEncoder().encode(JSON.stringify(servers)),
     );
-    
-    const systemStr = Models.PublicKey.toString(system).substring(0, 12);
-    const processStr = Models.Process.toString(process).substring(0, 12);
+
     const logicalClockStr = logicalClock.toString();
-    const stringKey = new TextEncoder().encode(`event_${logicalClockStr}_fixed`);
-    
+    const stringKey = new TextEncoder().encode(
+      `event_${logicalClockStr}_fixed`,
+    );
+
     await this.acksLevel.put(
       stringKey,
-      new TextEncoder().encode(JSON.stringify(servers))
+      new TextEncoder().encode(JSON.stringify(servers)),
     );
   }
 

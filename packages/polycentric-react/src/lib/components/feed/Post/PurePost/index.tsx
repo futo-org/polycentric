@@ -426,12 +426,14 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
           } else {
             // Filter out duplicates and ensure just one 'local' entry
             const uniqueServers = [...new Set(status.servers)];
-            
+
             // Don't show 'local' if we have other servers
-            const externalServers = uniqueServers.filter(s => s !== 'local');
-            
+            const externalServers = uniqueServers.filter((s) => s !== 'local');
+
             if (externalServers.length > 0) {
-              return `Synced to ${externalServers.length} server(s):\n${externalServers.join('\n')}`;
+              return `Synced to ${
+                externalServers.length
+              } server(s):\n${externalServers.join('\n')}`;
             } else {
               return 'Stored locally, waiting for server acknowledgments';
             }

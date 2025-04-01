@@ -282,7 +282,7 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
     const { processHandle } = useProcessHandleManager();
     const [ackCount, setAckCount] = useState<number | null>(null);
     const [servers, setServers] = useState<string[]>([]);
-    
+
     // Add this flag to track if we've seen external servers
     const hasSeenExternalServersRef = useRef(false);
 
@@ -294,78 +294,91 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
       ) {
         return;
       }
-      
+
       // Initial values
       const initialCount = processHandle.getEventAckCount(data.event);
       const initialServers = processHandle.getEventAckServers(data.event);
-      
+
       // Check if we already have external servers
-      const hasExternalServers = initialServers.some(s => s !== 'local');
+      const hasExternalServers = initialServers.some((s) => s !== 'local');
       if (hasExternalServers) {
         hasSeenExternalServersRef.current = true;
       }
-      
+
       setAckCount(initialCount);
       setServers(initialServers);
-      
+
       // Check the stored raw acks to make sure we're not missing any servers
-      processHandle.store().indexEvents.getEventAcks().then(rawAcks => {
-        // Look for our stable keys first
-        const logicalClockStr = data.event.logicalClock.toString();
-        const stableKey = `event_${logicalClockStr}_stable`;
-        
-        if (rawAcks[stableKey]) {
-          const stableServers = rawAcks[stableKey];
-          if (stableServers.includes('http://localhost:8081')) {
-            hasSeenExternalServersRef.current = true;
-            setServers(['local', 'http://localhost:8081']);
-            setAckCount(2);
+      processHandle
+        .store()
+        .indexEvents.getEventAcks()
+        .then((rawAcks) => {
+          // Look for our stable keys first
+          const logicalClockStr = data.event.logicalClock.toString();
+          const stableKey = `event_${logicalClockStr}_stable`;
+
+          if (rawAcks[stableKey]) {
+            const stableServers = rawAcks[stableKey];
+            if (stableServers.includes('http://localhost:8081')) {
+              hasSeenExternalServersRef.current = true;
+              setServers(['local', 'http://localhost:8081']);
+              setAckCount(2);
+              return;
+            }
+          }
+
+          // Fall back to checking by logical clock
+          let additionalServers: string[] = [];
+
+          for (const [key, serverList] of Object.entries(rawAcks)) {
+            if (key.includes(logicalClockStr)) {
+              additionalServers = [...additionalServers, ...serverList];
+            }
+          }
+
+          if (additionalServers.length > 0) {
+            // Add any servers that might be in storage but not in memory
+            const allServers = [
+              ...new Set([...initialServers, ...additionalServers]),
+            ];
+            if (allServers.length > initialServers.length) {
+              if (allServers.some((s) => s !== 'local')) {
+                hasSeenExternalServersRef.current = true;
+              }
+              setServers(allServers);
+              setAckCount(allServers.length);
+            }
+          }
+        });
+
+      // Set up subscription to be notified of changes
+      const unsubscribe = processHandle.subscribeToEventAcks(
+        data.event,
+        (serverId) => {
+          // If we've seen external servers and this is just a local ack, ignore it
+          if (serverId === 'local' && hasSeenExternalServersRef.current) {
             return;
           }
-        }
-        
-        // Fall back to checking by logical clock
-        let additionalServers: string[] = [];
-        
-        for (const [key, serverList] of Object.entries(rawAcks)) {
-          if (key.includes(logicalClockStr)) {
-            additionalServers = [...additionalServers, ...serverList];
+
+          // Track if this is an external server
+          if (serverId !== 'local') {
+            hasSeenExternalServersRef.current = true;
           }
-        }
-        
-        if (additionalServers.length > 0) {
-          // Add any servers that might be in storage but not in memory
-          const allServers = [...new Set([...initialServers, ...additionalServers])];
-          if (allServers.length > initialServers.length) {
-            if (allServers.some(s => s !== 'local')) {
-              hasSeenExternalServersRef.current = true;
-            }
-            setServers(allServers);
-            setAckCount(allServers.length);
-          }
-        }
-      });
-      
-      // Set up subscription to be notified of changes
-      const unsubscribe = processHandle.subscribeToEventAcks(data.event, (serverId) => {
-        // If we've seen external servers and this is just a local ack, ignore it
-        if (serverId === 'local' && hasSeenExternalServersRef.current) {
-          return;
-        }
-        
-        // Track if this is an external server
-        if (serverId !== 'local') {
-          hasSeenExternalServersRef.current = true;
-        }
-        
-        // Get fresh server list and preserve any existing servers
-        const newServers = processHandle.getEventAckServers(data.event);
-        const combinedServers = [...new Set([...servers, ...newServers])];
-        
-        setAckCount(combinedServers.length);
-        setServers(combinedServers);
-      });
-      
+
+          // Get fresh server list and preserve any existing servers
+          const newServers = processHandle.getEventAckServers(data.event);
+
+          // Use function form of setState to avoid dependency on servers
+          setServers((prevServers) => {
+            const combinedServers = [
+              ...new Set([...prevServers, ...newServers]),
+            ];
+            setAckCount(combinedServers.length);
+            return combinedServers;
+          });
+        },
+      );
+
       return () => {
         unsubscribe();
       };

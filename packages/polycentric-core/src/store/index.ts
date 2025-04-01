@@ -17,7 +17,6 @@ import Long from 'long';
 export * as IndexEvents from './index-events';
 export * as IndexFeed from './index-feed';
 
-
 const PROCESS_SECRET_KEY: Uint8Array = Util.encodeText('PROCESS_SECRET');
 
 export const MIN_8BYTE_KEY = new Uint8Array(8).fill(0);
