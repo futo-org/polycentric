@@ -529,15 +529,15 @@ export async function getResolveHandle(
   return Models.PublicKey.fromProto(Protocol.PublicKey.decode(rawBody));
 }
 
-export const VERIFIER_SERVER =
-  // Check if we're in a browser environment
-  typeof window !== 'undefined'
-    ? window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1'
-      ? 'https://localhost:3002' // Local development
-      : 'https://verifiers.polycentric.io' // Production
-    : process.env.NEXT_PUBLIC_VERIFIER_SERVER ??
-      'https://verifiers.polycentric.io';
+export const VERIFIER_SERVER = 
+  // First check for environment variable in any environment
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_VERIFIER_SERVER) ||
+  // Then fall back to hostname-based logic
+  (typeof window !== 'undefined' 
+    ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'https://localhost:3002' 
+      : 'https://verifiers.polycentric.io'
+    : 'https://verifiers.polycentric.io');
 
 export async function requestVerification(
   pointer: Protocol.Pointer,
