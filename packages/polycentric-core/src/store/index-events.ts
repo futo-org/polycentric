@@ -1,9 +1,9 @@
+import Long from 'long';
 import * as Models from '../models';
 import * as PersistenceDriver from '../persistence-driver';
 import * as Protocol from '../protocol';
 import * as Util from '../util';
 import { HasIngest } from './has-ingest';
-
 export function makeEventKey(
   system: Models.PublicKey.PublicKey,
   process: Models.Process.Process,
@@ -32,16 +32,43 @@ export class IndexEvents implements HasIngest {
   }
 
   public async getEventAcks(): Promise<Record<string, string[]>> {
+    const result: Record<string, string[]> = {};
+
     try {
-      const value = await this.acksLevel.get(this.ACKS_KEY);
-      const parsed = JSON.parse(new TextDecoder().decode(value)) as Record<
-        string,
-        string[]
-      >;
-      return parsed;
-    } catch {
-      return {};
+      const iterator = this.acksLevel.iterator();
+
+      for await (const [key, value] of iterator) {
+        try {
+          if (key.length === 1 && key[0] === 0) continue;
+
+          const servers = JSON.parse(
+            new TextDecoder().decode(value),
+          ) as string[];
+
+          if (key.length > 1 && key[0] === 1) {
+            if (servers.length > 0) {
+              const lastByte = key[key.length - 1];
+              const simpleKey = `event_${lastByte.toString()}_${Date.now().toString()}`;
+              result[simpleKey] = servers;
+            }
+          }
+
+          const keyStr = new TextDecoder().decode(key);
+          if (keyStr.startsWith('event_') && keyStr.includes('_fixed')) {
+            const logicalClockStr = keyStr.split('_')[1];
+            if (logicalClockStr) {
+              result[`event_${logicalClockStr}_stable`] = servers;
+            }
+          }
+        } catch (e) {
+          console.error('Error processing ack key-value:', e);
+        }
+      }
+    } catch (e) {
+      console.error('Error reading acks:', e);
     }
+
+    return result;
   }
 
   public async saveEventAcks(
@@ -50,15 +77,30 @@ export class IndexEvents implements HasIngest {
     logicalClock: Long,
     servers: string[],
   ): Promise<void> {
-    const eventKey = Array.from(makeEventKey(system, process, logicalClock))
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('');
+    if (servers.length === 0) {
+      return;
+    }
 
-    const acks = await this.getEventAcks();
-    acks[eventKey] = servers;
+    const ackKey = new Uint8Array([
+      1,
+      ...Array.from(system.key.slice(0, 8)),
+      ...Array.from(process.process.slice(0, 8)),
+      ...new Uint8Array(logicalClock.toBytesBE().slice(0, 8)),
+    ]);
+
     await this.acksLevel.put(
-      this.ACKS_KEY,
-      new TextEncoder().encode(JSON.stringify(acks)),
+      ackKey,
+      new TextEncoder().encode(JSON.stringify(servers)),
+    );
+
+    const logicalClockStr = logicalClock.toString();
+    const stringKey = new TextEncoder().encode(
+      `event_${logicalClockStr}_fixed`,
+    );
+
+    await this.acksLevel.put(
+      stringKey,
+      new TextEncoder().encode(JSON.stringify(servers)),
     );
   }
 
