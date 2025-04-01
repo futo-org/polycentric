@@ -879,6 +879,7 @@ export class ProcessHandle {
     }
 
     const eventKey = this.getEventKey(decodedEvent);
+    console.log('Recording server ack for event:', eventKey, 'server:', serverId);
 
     let acks = this._eventAcks.get(eventKey);
     if (!acks) {
@@ -888,6 +889,9 @@ export class ProcessHandle {
 
     if (!acks.has(serverId)) {
       acks.add(serverId);
+      
+      console.log('Saving event acks:', Array.from(acks));
+      
       void this._store.indexEvents.saveEventAcks(
         Models.PublicKey.fromProto(decodedEvent.system),
         Models.Process.fromProto(decodedEvent.process),
@@ -902,6 +906,14 @@ export class ProcessHandle {
         }
       }
     }
+  }
+
+  public getAllEventAcks(): Record<string, string[]> {
+    const result: Record<string, string[]> = {};
+    for (const [key, servers] of this._eventAcks.entries()) {
+      result[key] = Array.from(servers);
+    }
+    return result;
   }
 }
 

@@ -1,5 +1,5 @@
 import { Models, Protocol, Util } from '@polycentric/polycentric-core';
-import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useMemo, useState } from 'react';
 import { FeedItem } from '../../../hooks/feedHooks';
 import {
   useAvatar,
@@ -282,8 +282,7 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
     const { processHandle } = useProcessHandleManager();
     const [ackCount, setAckCount] = useState<number | null>(null);
     const [servers, setServers] = useState<string[]>([]);
-    const setupRef = useRef(false);
-
+    
     useEffect(() => {
       if (
         !data ||
@@ -293,23 +292,61 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
         return;
       }
 
-      if (setupRef.current) return;
-      setupRef.current = true;
-
+      // Add inspection utility for the store
+      const inspectStore = () => {
+        try {
+          // Safely access internal properties
+          const store = processHandle.store();
+          console.log('[Sync Debug] Store methods:', Object.keys(store));
+          
+          // Try to access indexEvents
+          if (store.indexEvents) {
+            console.log('[Sync Debug] indexEvents methods:', Object.keys(store.indexEvents));
+          }
+          
+          // Try to check if the expected methods exist
+          const hasSaveEventAcks = store.indexEvents && 
+            typeof store.indexEvents.saveEventAcks === 'function';
+          const hasGetEventAcks = store && 
+            typeof store.getEventAcks === 'function';
+          
+          console.log('[Sync Debug] Store capabilities:', {
+            hasSaveEventAcks,
+            hasGetEventAcks
+          });
+        } catch (e) {
+          console.error('[Sync Debug] Error inspecting store:', e);
+        }
+      };
+      
+      inspectStore();
+      
+      // Original code
       const initialCount = processHandle.getEventAckCount(data.event);
       const initialServers = processHandle.getEventAckServers(data.event);
+      
+      console.log('[Sync Debug] Initial ack count:', initialCount);
+      console.log('[Sync Debug] Initial servers:', initialServers);
+      
+      // Create an event key for debugging purposes
+      const eventKey = `${Models.PublicKey.toString(data.event.system)}_${Models.Process.toString(data.event.process)}_${data.event.logicalClock.toString()}`;
+      console.log('[Sync Debug] Event key:', eventKey);
+      
       setAckCount(initialCount);
       setServers(initialServers);
 
-      const unsubscribe = processHandle.subscribeToEventAcks(data.event, () => {
+      // Set up subscription to be notified of changes
+      const unsubscribe = processHandle.subscribeToEventAcks(data.event, (serverId) => {
         const newCount = processHandle.getEventAckCount(data.event);
         const newServers = processHandle.getEventAckServers(data.event);
+        console.log('[Sync Debug] Updated ack count:', newCount);
+        console.log('[Sync Debug] Updated servers:', newServers);
+        console.log('[Sync Debug] New server acknowledgment:', serverId);
         setAckCount(newCount);
         setServers(newServers);
       });
 
       return () => {
-        setupRef.current = false;
         unsubscribe();
       };
     }, [data, processHandle]);
