@@ -77,7 +77,6 @@ type InfiniteScrollWithRightColProps = {
 export const InfiniteScrollWithRightCol = ({
   data,
   advanceFeed,
-  nothingFound,
   nothingFoundMessage = 'Sorry, nothing found',
   rightCol,
   topFeedComponent,
@@ -92,6 +91,15 @@ export const InfiniteScrollWithRightCol = ({
   const isMobile = useIsMobile();
 
   const [windowHeight] = useState(window.innerHeight);
+  const [initialLoadCompleted, setInitialLoadCompleted] = useState(false);
+
+  useEffect(() => {
+    const initialLoadTimer = setTimeout(() => {
+      setInitialLoadCompleted(true);
+    }, 2000); // Give sufficient time for data to load before showing "nothing found"
+
+    return () => clearTimeout(initialLoadTimer);
+  }, []);
 
   useEffect(() => {
     advanceFeed();
@@ -144,8 +152,11 @@ export const InfiniteScrollWithRightCol = ({
   }, []);
 
   const Header = useCallback(() => {
+    const shouldShowNothingFound = initialLoadCompleted && data.length === 0;
     const showLoadingIndicator =
-      loadingIndicatorTimeoutReached && data.length === 0 && !nothingFound;
+      loadingIndicatorTimeoutReached &&
+      data.length === 0 &&
+      !shouldShowNothingFound;
 
     return (
       <>
@@ -163,8 +174,8 @@ export const InfiniteScrollWithRightCol = ({
         )}
 
         {
-          // Show nothing found message if there are no posts and no loading indicator
-          nothingFound && data.length === 0 && (
+          // Show nothing found message if there are no posts after initial load
+          shouldShowNothingFound && (
             <div className="w-full flex justify-center">
               <div className="p-20 text-center font-light text-gray-500">
                 {nothingFoundMessage}
@@ -175,9 +186,9 @@ export const InfiniteScrollWithRightCol = ({
       </>
     );
   }, [
+    initialLoadCompleted,
     loadingIndicatorTimeoutReached,
     data,
-    nothingFound,
     topFeedComponent,
     topFeedComponentSticky,
     loadingSpinnerN,
