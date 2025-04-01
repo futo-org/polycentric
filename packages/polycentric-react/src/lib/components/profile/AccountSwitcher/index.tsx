@@ -46,13 +46,13 @@ const AccountSwitcherItem = ({
 
   return (
     <div className="flex justify-between w-full p-2">
-      <div className="flex space-x-2">
-        <div className="h-[3rem] rounded-full w-auto aspect-square border overflow-clip">
+      <div className="flex space-x-2 min-w-0 flex-grow overflow-hidden">
+        <div className="h-[3rem] rounded-full w-auto aspect-square border overflow-clip flex-shrink-0">
           <img className="" src={avatarURL} />
         </div>
-        <div className="flex flex-col">
-          <p className="bold text-normal">{username}</p>
-          <p className="font-light text-gray-400">{displayKey}</p>
+        <div className="flex flex-col min-w-0 overflow-hidden">
+          <p className="bold text-normal truncate">{username}</p>
+          <p className="font-light text-gray-400 truncate">{displayKey}</p>
         </div>
       </div>
       <CircleExpandMenuReverse
@@ -88,6 +88,27 @@ export const AccountSwitcher = () => {
     (storeInfo) =>
       !Models.PublicKey.equal(storeInfo.system, processHandle.system()),
   );
+
+  // Determine menu items based on account count
+  const mainMenuItems = [
+    {
+      label: 'Add Account',
+      routerLink: '/add-account',
+    },
+    {
+      label: 'Settings',
+      routerLink: '/settings',
+    },
+    {
+      label: 'Sign Out',
+      action: () =>
+        signOut(
+          stores.find((store) =>
+            Models.PublicKey.equal(store.system, processHandle.system()),
+          ),
+        ),
+    },
+  ];
 
   return (
     <Menu as="div" className="relative">
@@ -150,20 +171,7 @@ export const AccountSwitcher = () => {
             )}
             <div className="min-w-[3rem] min-h-[3rem] flex flex-col justify-end items-end">
               <CircleExpandMenuReverse
-                menuItems={[
-                  // {
-                  //     label: 'Add Account',
-                  //     routerLink: '/add-account',
-                  // },
-                  {
-                    label: 'Settings',
-                    routerLink: '/settings',
-                  },
-                  {
-                    label: 'Sign Out',
-                    action: () => signOut(),
-                  },
-                ]}
+                menuItems={mainMenuItems}
                 title={username}
                 onIsOpenChange={(isOpen) => setSubMenuExpanded(isOpen)}
               />
