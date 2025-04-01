@@ -311,9 +311,27 @@ const CredsPanelSignUp = () => {
   const [avatar, setAvatar] = useState<Blob>();
   const [privateKey] = useState(Models.PrivateKey.random());
   const [username, setUsername] = useState('');
+  const [usernameError, setUsernameError] = useState<string | null>(null);
   const { createHandle, setIsNewAccount } = useOnboardingProcessHandleManager();
 
   const stackRouterContext = useContext(StackRouterContext);
+
+  const validateUsername = (value: string): boolean => {
+    if (!value.trim()) {
+      setUsernameError("Username can't be empty");
+      return false;
+    }
+    setUsernameError(null);
+    return true;
+  };
+
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setUsername(value);
+    if (usernameError) {
+      validateUsername(value);
+    }
+  };
 
   return (
     <form
@@ -321,12 +339,17 @@ const CredsPanelSignUp = () => {
       onSubmit={async (e) => {
         e.preventDefault();
 
+        // Validate username before proceeding
+        if (!validateUsername(username)) {
+          return;
+        }
+
         const defaultServers: Array<string> =
           import.meta.env.VITE_DEFAULT_SERVERS?.split(',') ?? [];
         const processHandle = await createHandle(
           privateKey,
           defaultServers,
-          username,
+          username.trim(), // Ensure we trim whitespace
         );
 
         // Set the new account flag
@@ -357,13 +380,19 @@ const CredsPanelSignUp = () => {
         hint="You can change this later"
         setCroppedImage={setAvatar}
       />
-      <GenCredsPanelItem
-        title="What's your username?"
-        hint="You can change this later"
-        value={username}
-        required={true}
-        onChange={(e) => setUsername(e.target.value)}
-      />
+      <div className="flex flex-col gap-y-1">
+        <GenCredsPanelItem
+          title="What's your username?"
+          hint="You can change this later"
+          value={username}
+          required={true}
+          onChange={handleUsernameChange}
+          onBlur={() => validateUsername(username)}
+        />
+        {usernameError && (
+          <p className="text-red-500 text-sm mt-1">{usernameError}</p>
+        )}
+      </div>
       <GenCredsPanelItem
         title="This is your password. Save it now."
         autoComplete="password"
@@ -375,6 +404,7 @@ const CredsPanelSignUp = () => {
       <button
         type="submit"
         className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+        disabled={!username.trim()}
       >
         Lets go
       </button>
