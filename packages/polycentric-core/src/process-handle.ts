@@ -70,6 +70,7 @@ export class ProcessHandle {
     string,
     Set<(serverId: string) => void>
   >();
+  private readonly _eventKeyMap = new Map<string, string>();
 
   public readonly queryManager: Queries.QueryManager.QueryManager;
   public readonly synchronizer: Synchronization.Synchronizer;
@@ -143,8 +144,29 @@ export class ProcessHandle {
 
   private async loadEventAcks(): Promise<void> {
     const acks = await this._store.getEventAcks();
+
     for (const [eventKey, servers] of Object.entries(acks)) {
+      // Skip empty server arrays
+      if (servers.length === 0) continue;
+
       this._eventAcks.set(eventKey, new Set(servers));
+
+      // Parse the key to extract system, process, and logical clock
+      // Format is typically a hex string representation
+      try {
+        // Try to parse parts of the key to create runtime lookup keys
+        const parts = eventKey.split('_');
+        if (parts.length >= 3) {
+          // Create a runtime lookup key - this is what getEventKey returns
+          const runtimeKey = parts.join('_');
+
+          // Map in both directions for faster lookups
+          this._eventKeyMap.set(eventKey, runtimeKey);
+          this._eventKeyMap.set(runtimeKey, eventKey);
+        }
+      } catch (e) {
+        console.error('Error parsing event key:', eventKey);
+      }
     }
   }
 
@@ -736,16 +758,38 @@ export class ProcessHandle {
     if (!event.process) {
       throw new Error('Event process is undefined');
     }
-    return `${Models.PublicKey.toString(
+    const systemStr = Models.PublicKey.toString(
       Models.PublicKey.fromProto(event.system),
-    )}_${Models.Process.toString(
+    );
+    const processStr = Models.Process.toString(
       Models.Process.fromProto(event.process),
-    )}_${event.logicalClock.toString()}`;
+    );
+    const logicalClock = event.logicalClock.toString();
+
+    // Create a consistent key format for lookups
+    return `${systemStr}_${processStr}_${logicalClock}`;
   }
 
   public getEventAckCount(event: Protocol.Event): number {
+    // First try direct lookup
     const eventKey = this.getEventKey(event);
-    return this._eventAcks.get(eventKey)?.size ?? 0;
+    const directAcks = this._eventAcks.get(eventKey)?.size ?? 0;
+    if (directAcks > 0) {
+      return directAcks;
+    }
+
+    // If no direct match, check for keys containing the logical clock
+    const logicalClockStr = event.logicalClock.toString();
+    let count = 0;
+
+    for (const [key, servers] of this._eventAcks.entries()) {
+      // Look for keys that might match this event based on logical clock
+      if (key.includes(logicalClockStr)) {
+        count = Math.max(count, servers.size);
+      }
+    }
+
+    return count;
   }
 
   public getEventAcks(event: Protocol.Event): Set<string> {
@@ -754,9 +798,34 @@ export class ProcessHandle {
   }
 
   public getEventAckServers(event: Protocol.Event): string[] {
-    const eventKey = this.getEventKey(event);
-    const acks = this._eventAcks.get(eventKey);
-    return acks ? Array.from(acks) : [];
+    // Try direct lookup first
+    const lookupKey = this.getEventKey(event);
+    const directAcks = this._eventAcks.get(lookupKey);
+    if (directAcks && directAcks.size > 0) {
+      return Array.from(directAcks);
+    }
+
+    // Check for the logical clock in any key
+    const logicalClockStr = event.logicalClock.toString();
+    const result = new Set(['local']);
+
+    // Check all stored acknowledgments for this logical clock
+    for (const [key, servers] of this._eventAcks.entries()) {
+      if (key.includes(logicalClockStr)) {
+        for (const server of servers) {
+          result.add(server);
+        }
+      }
+    }
+
+    // If we have external servers, return all of them
+    const external = Array.from(result).filter((s) => s !== 'local');
+    if (external.length > 0) {
+      return Array.from(result);
+    }
+
+    // Default to just local if no external servers found
+    return ['local'];
   }
 
   public subscribeToEventAcks(
@@ -886,8 +955,9 @@ export class ProcessHandle {
       this._eventAcks.set(eventKey, acks);
     }
 
-    if (!acks.has(serverId)) {
+    if (!acks.has(serverId) && serverId !== 'local') {
       acks.add(serverId);
+
       void this._store.indexEvents.saveEventAcks(
         Models.PublicKey.fromProto(decodedEvent.system),
         Models.Process.fromProto(decodedEvent.process),
@@ -902,6 +972,14 @@ export class ProcessHandle {
         }
       }
     }
+  }
+
+  public getAllEventAcks(): Record<string, string[]> {
+    const result: Record<string, string[]> = {};
+    for (const [key, servers] of this._eventAcks.entries()) {
+      result[key] = Array.from(servers);
+    }
+    return result;
   }
 }
 
