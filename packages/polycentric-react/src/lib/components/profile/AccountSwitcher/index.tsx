@@ -68,7 +68,6 @@ const AccountSwitcherItem = ({
         ]}
         title={username}
         onIsOpenChange={(isOpen) => setSubMenuExpanded(isOpen)}
-        className="flex-shrink-0 ml-2"
       />
     </div>
   );
