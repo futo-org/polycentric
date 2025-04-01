@@ -103,13 +103,23 @@ export const PureSidebarProfile = ({
                 <>
                   <button
                     onClick={profile.iAmFollowing ? unfollow : follow}
-                    className="bg-blue-500 text-white px-4 py-2 rounded-full"
+                    className={`px-4 py-2 rounded-full ${
+                      profile.iBlocked
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-blue-500 text-white'
+                    }`}
+                    disabled={profile.iBlocked}
                   >
                     {profile.iAmFollowing ? 'Unfollow' : 'Follow'}
                   </button>
                   <button
                     onClick={profile.iBlocked ? unblock : block}
-                    className="bg-blue-500 text-white px-4 py-2 rounded-full"
+                    className={`px-4 py-2 rounded-full ${
+                      profile.iAmFollowing
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-blue-500 text-white'
+                    }`}
+                    disabled={profile.iAmFollowing}
                   >
                     {profile.iBlocked ? 'Unblock' : 'Block'}
                   </button>
