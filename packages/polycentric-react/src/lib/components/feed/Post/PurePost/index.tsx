@@ -422,13 +422,20 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
           return 'Syncing...';
         case 'acknowledged':
           if (!status.servers || status.servers.length === 0) {
-            return `Synced to servers (${status.acknowledgedServers})\nNo server names available`;
-          } else if (status.servers.length === 1 && status.servers[0] === 'local') {
-            return 'Stored locally only\nWaiting for server acknowledgment';
+            return 'Synced to servers';
+          } else {
+            // Filter out duplicates and ensure just one 'local' entry
+            const uniqueServers = [...new Set(status.servers)];
+            
+            // Don't show 'local' if we have other servers
+            const externalServers = uniqueServers.filter(s => s !== 'local');
+            
+            if (externalServers.length > 0) {
+              return `Synced to ${externalServers.length} server(s):\n${externalServers.join('\n')}`;
+            } else {
+              return 'Stored locally, waiting for server acknowledgments';
+            }
           }
-          return `Synced to servers (${status.acknowledgedServers}):\n${
-            status.servers?.join('\n')
-          }`;
       }
     };
 

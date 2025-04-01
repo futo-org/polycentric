@@ -12,9 +12,11 @@ import { IndexOpinion } from './index-opinion';
 import { IndexProcessState } from './index-process-state';
 import { IndexSystemProcessContentTypeClock } from './index-system-process-content-type-clock';
 import { IndexSystemState } from './index-system-state';
+import Long from 'long';
 
 export * as IndexEvents from './index-events';
 export * as IndexFeed from './index-feed';
+
 
 const PROCESS_SECRET_KEY: Uint8Array = Util.encodeText('PROCESS_SECRET');
 
