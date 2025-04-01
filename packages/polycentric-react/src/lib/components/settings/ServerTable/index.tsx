@@ -48,13 +48,31 @@ const ServerListTableRow = ({
   const [isEditing, setIsEditing] = useState(params.kind === 'newServer');
 
   const [isValidServer, setIsValidServer] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   const [mutationSubmitted, setMutationSubmitted] = useState(false);
 
   useDebouncedEffect(
     () => {
+      if (!inputValue) {
+        setIsValidServer(false);
+        setIsValidating(false);
+        return;
+      }
+
+      setIsValidating(true);
       setIsValidServer(false);
+
       const cancelContext = new CancelContext.CancelContext();
-      fetch(`${inputValue}/version`)
+
+      let urlToCheck = inputValue;
+      if (
+        !urlToCheck.startsWith('http://') &&
+        !urlToCheck.startsWith('https://')
+      ) {
+        urlToCheck = 'https://' + urlToCheck;
+      }
+
+      fetch(`${urlToCheck}/version`)
         .then((res) => res.json())
         .then((json) => {
           if (
@@ -67,12 +85,17 @@ const ServerListTableRow = ({
         })
         .catch(() => {
           setIsValidServer(false);
+        })
+        .finally(() => {
+          if (!cancelContext.cancelled()) {
+            setIsValidating(false);
+          }
         });
 
       return () => cancelContext.cancel();
     },
     [inputValue],
-    1000,
+    500,
   );
 
   const preEditPostButtons = (
@@ -99,6 +122,25 @@ const ServerListTableRow = ({
     </>
   );
 
+  const handleServerSubmit = () => {
+    setMutationSubmitted(true);
+
+    const serverUrl = inputValue;
+
+    // Close first to prevent duplication issues
+    if (params.kind === 'newServer') {
+      params.close();
+    }
+
+    // Remove server if we're editing an existing one
+    if (params.kind === 'existingServer') {
+      processHandle.removeServer(params.server);
+    }
+
+    // Add the server
+    processHandle.addServer(serverUrl);
+  };
+
   const editPostButtons = (
     <>
       {/* Undo */}
@@ -119,21 +161,22 @@ const ServerListTableRow = ({
       </button>
       {/* Accept */}
       <button
-        onClick={() => {
-          setMutationSubmitted(true);
-          if (params.kind === 'existingServer') {
-            processHandle.removeServer(params.server);
-          }
-          processHandle.addServer(inputValue);
-          if (params.kind === 'newServer') {
-            params.close();
-          }
-        }}
-        disabled={!isValidServer || inputValue === '' || mutationSubmitted}
-        className="btn btn-primary rounded-full h-[2.25rem] w-[2.25rem] flex justify-center items-center border bg-white hover:bg-gray-50 disabled:hover:bg-white disabled:text-gray-400"
+        onClick={handleServerSubmit}
+        disabled={
+          (!isValidServer && !isValidating) ||
+          inputValue === '' ||
+          mutationSubmitted
+        }
+        className={`btn btn-primary rounded-full h-[2.25rem] w-[2.25rem] flex justify-center items-center border ${
+          isValidating ? 'bg-gray-100' : 'bg-white hover:bg-gray-50'
+        } disabled:hover:bg-white disabled:text-gray-400`}
         aria-label="Accept"
       >
-        <CheckIcon className="h-5 w-5 disabled:bg-slate-500" />
+        {isValidating ? (
+          <div className="h-4 w-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+        ) : (
+          <CheckIcon className="h-5 w-5 disabled:bg-slate-500" />
+        )}
       </button>
     </>
   );
@@ -163,10 +206,7 @@ const ServerListTableRow = ({
   );
 };
 
-const FEATURED_SERVERS = [
-  'https://srv1-prod.polycentric.io',
-  'https://prod-posts1.polycentric.io',
-];
+const FEATURED_SERVERS = ['https://prod-posts1.polycentric.io'];
 
 export const ServerListTable = () => {
   const { processHandle } = useProcessHandleManager();
