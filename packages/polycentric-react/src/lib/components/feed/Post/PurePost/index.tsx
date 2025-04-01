@@ -21,12 +21,12 @@ import { Link } from '../../../util/link';
 import { Linkify } from '../../../util/linkify';
 // Styling for image viewer
 import { Tooltip } from '@mui/material';
+import { Models } from '@polycentric/polycentric-core';
 import {
   useSystemLink,
   useUsernameCRDTQuery,
 } from '../../../../hooks/queryHooks';
 import { useTopicLink } from '../../../../hooks/utilHooks';
-import { Models } from '@polycentric/polycentric-core';
 import './style.css';
 
 const dateToAgoString = (date: Date | undefined) => {
@@ -421,9 +421,23 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
         case 'syncing':
           return 'Syncing...';
         case 'acknowledged':
-          return `Synced to servers:\n${
-            status.servers?.join('\n') || 'local only'
-          }`;
+          if (!status.servers || status.servers.length === 0) {
+            return 'Synced to servers';
+          } else {
+            // Filter out duplicates and ensure just one 'local' entry
+            const uniqueServers = [...new Set(status.servers)];
+
+            // Don't show 'local' if we have other servers
+            const externalServers = uniqueServers.filter((s) => s !== 'local');
+
+            if (externalServers.length > 0) {
+              return `Synced to ${
+                externalServers.length
+              } server(s):\n${externalServers.join('\n')}`;
+            } else {
+              return 'Stored locally, waiting for server acknowledgments';
+            }
+          }
       }
     };
 
