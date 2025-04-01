@@ -67,7 +67,7 @@ const InnerPureEditProfile = ({
       username.length > 0 &&
       username.length <= 32;
     const descriptionValidAndChanged =
-      description &&
+      description !== undefined &&
       (profile.description ?? '') !== description &&
       description.length <= 256 &&
       (description.match(/\n/g)?.length ?? 0) <= 2;
@@ -114,7 +114,7 @@ const InnerPureEditProfile = ({
       if (usernameValidAndChanged && username) {
         await actions.changeUsername(username);
       }
-      if (descriptionValidAndChanged && description) {
+      if (descriptionValidAndChanged && description !== undefined) {
         await actions.changeDescription(description);
       }
       if (avatarValidAndChanged && avatar) {
@@ -171,11 +171,13 @@ const InnerPureEditProfile = ({
         title="Name"
         value={displayUsername}
         onChange={(e) => setUsername(e.target.value)}
+        maxLength={32}
       />
       <ProfileTextArea
         title="Description"
         value={displayDescription}
         onChange={onDescriptionChange}
+        maxLength={256}
       />
       <div className="h-3" />
       <button
