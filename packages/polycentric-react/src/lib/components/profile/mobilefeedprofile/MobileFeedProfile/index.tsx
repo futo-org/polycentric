@@ -46,12 +46,27 @@ export const MobileProfileFeed = ({
     forceRefreshCounter,
   );
 
+  const iBlocked = useQueryIfAdded(
+    Models.ContentType.ContentTypeBlock,
+    processHandle.system(),
+    encodedSystem,
+    forceRefreshCounter,
+  );
+
   const follow = useCallback(() => {
     processHandle.follow(system).then(() => refreshQueries());
   }, [processHandle, system, refreshQueries]);
 
   const unfollow = useCallback(() => {
     processHandle.unfollow(system).then(() => refreshQueries());
+  }, [processHandle, system, refreshQueries]);
+
+  const block = useCallback(() => {
+    processHandle.block(system).then(() => refreshQueries());
+  }, [processHandle, system, refreshQueries]);
+
+  const unblock = useCallback(() => {
+    processHandle.unblock(system).then(() => refreshQueries());
   }, [processHandle, system, refreshQueries]);
 
   const isMyProfile = Models.PublicKey.equal(system, processHandle.system());
@@ -79,6 +94,7 @@ export const MobileProfileFeed = ({
       backgroundURL,
       isMyProfile,
       iAmFollowing: iAmFollowing ?? false,
+      iBlocked: iBlocked ?? false,
       followerCount: followers,
       followingCount: following,
       system,
@@ -90,6 +106,7 @@ export const MobileProfileFeed = ({
       backgroundURL,
       isMyProfile,
       iAmFollowing,
+      iBlocked,
       followers,
       following,
       system,
@@ -113,6 +130,8 @@ export const MobileProfileFeed = ({
       editProfileActions={editProfileActions}
       follow={follow}
       unfollow={unfollow}
+      block={block}
+      unblock={unblock}
       share={share}
       claims={claims}
     />
