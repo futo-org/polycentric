@@ -57,6 +57,7 @@ export const SidebarLink = ({
 
 export const MainSidebar = () => {
   const isMobile = useIsMobile();
+
   return (
     <div className="h-full w-full flex flex-col space-y-5 justify-between md:p-5">
       <div className="flex flex-col space-y-5 flex-grow min-h-0">
@@ -75,7 +76,7 @@ export const MainSidebar = () => {
           {isMobile ? <MobileTopicSidebar /> : <DesktopTopicSelector />}
         </div>
       </div>
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0 space-y-3">
         <AccountSwitcher />
       </div>
     </div>
