@@ -1,5 +1,6 @@
 import { CancelContext, Models, Util } from '@polycentric/polycentric-core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { publishImageBlob } from '../util/imageProcessing';
 import { useProcessHandleManager } from './processHandleManagerHooks';
 import { useQueryOpinion, useQueryPointerReferences } from './queryHooks';
 
@@ -197,9 +198,19 @@ export function usePostStatsWithLocalActions(pointer: Models.Pointer.Pointer) {
   }, [opinion, stats, opinionOnMount]);
 
   const comment = useCallback(
-    async (text: string) => {
+    async (text: string, upload?: File) => {
       const reference = Models.pointerToReference(pointer);
-      await processHandle.post(text, undefined, reference);
+      
+      if (upload) {
+        const imageManifest = await publishImageBlob(
+          upload, 
+          processHandle,
+        );
+        
+        await processHandle.post(text, imageManifest, reference);
+      } else {
+        await processHandle.post(text, undefined, reference);
+      }
       return true;
     },
     [pointer, processHandle],
