@@ -15,6 +15,8 @@ export const PureMobileFeedProfile = ({
   profile,
   follow,
   unfollow,
+  block,
+  unblock,
   share,
   editProfileActions,
   claims,
@@ -22,6 +24,8 @@ export const PureMobileFeedProfile = ({
   profile: PureSidebarProfileData;
   follow: () => void;
   unfollow: () => void;
+  block: () => void;
+  unblock: () => void;
   share: () => void;
   editProfileActions: EditProfileActions;
   claims: {
@@ -92,14 +96,34 @@ export const PureMobileFeedProfile = ({
                     Edit profile
                   </button>
                 ) : (
-                  <button
-                    className="bg-blue-500 text-white px-4 py-2 rounded-full"
-                    onClick={() => {
-                      profile.iAmFollowing ? unfollow() : follow();
-                    }}
-                  >
-                    {profile.iAmFollowing ? 'Unfollow' : 'Follow'}
-                  </button>
+                  <>
+                    <button
+                      className={`px-4 py-2 rounded-full ${
+                        profile.iBlocked
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-blue-500 text-white'
+                      }`}
+                      onClick={() => {
+                        profile.iAmFollowing ? unfollow() : follow();
+                      }}
+                      disabled={profile.iBlocked}
+                    >
+                      {profile.iAmFollowing ? 'Unfollow' : 'Follow'}
+                    </button>
+                    <button
+                      className={`px-4 py-2 rounded-full ${
+                        profile.iAmFollowing
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-blue-500 text-white'
+                      }`}
+                      onClick={() => {
+                        profile.iBlocked ? unblock() : block();
+                      }}
+                      disabled={profile.iAmFollowing}
+                    >
+                      {profile.iBlocked ? 'Unblock' : 'Block'}
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={share}
