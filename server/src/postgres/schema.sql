@@ -146,10 +146,6 @@ BEGIN
         
         FOREACH moderation_tag IN ARRAY event_row.moderation_tags
         LOOP
-            IF moderation_tag.level > 2 THEN
-                RETURN FALSE;
-            END IF;
-
             IF moderation_tag.name = filter_item.name THEN
                 tag_found := TRUE;
                 IF moderation_tag.level > filter_item.max_level THEN
