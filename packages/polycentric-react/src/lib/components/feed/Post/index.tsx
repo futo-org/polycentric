@@ -41,15 +41,14 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
   ({ data, doesLink, autoExpand, syncStatus, isMyProfile }, ref) => {
     const { value, event, signedEvent } = data;
 
-    // 1. ALL hooks must be called unconditionally at the top level
     const [vouchedClaim, setVouchedClaim] = useState<{
       type: Models.ClaimType.ClaimType;
       value: string;
       system: Models.PublicKey.PublicKey;
     } | null>(null);
     const queryManager = useQueryManager();
+    const [isDeleting, setIsDeleting] = useState(false);
 
-    // Move all hooks up - call them unconditionally
     const pointer = useMemo(
       () => Models.signedEventToPointer(signedEvent),
       [signedEvent],
@@ -61,7 +60,6 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
     const mainURL = useEventLink(event.system, pointer);
     const mainAuthorURL = useSystemLink(event.system);
 
-    // Handle reply references
     const replyingToPointer = useMemo(() => {
       const { references } = event;
       const replyingToRef = references.find((ref) => ref.referenceType.eq(2));
@@ -79,7 +77,6 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
       replyingToPointer,
     );
 
-    // Other hooks
     const imageUrl = useImageManifestDisplayURL(
       event.system,
       'content' in value ? value.image : undefined,
@@ -87,7 +84,21 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
 
     const { actions, stats } = usePostStatsWithLocalActions(pointer);
 
-    // 2. Keep the useEffect for vouch data
+    const enhancedActions = useMemo(() => {
+      if (!actions) return undefined;
+
+      return {
+        ...actions,
+        delete: actions.delete
+          ? () => {
+              setIsDeleting(true);
+              actions.delete?.();
+            }
+          : undefined,
+        isDeleting,
+      };
+    }, [actions, isDeleting]);
+
     useEffect(() => {
       if (
         event.contentType.eq(Models.ContentType.ContentTypeVouch) &&
@@ -130,7 +141,6 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
       }
     }, [event, queryManager]);
 
-    // 3. Calculate derived values based on hook results
     const isDeleted = useMemo(() => {
       if (event.contentType.eq(Models.ContentType.ContentTypeVouch)) {
         return false;
@@ -143,13 +153,10 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
     }, [value, event]);
 
     const content = useMemo(() => {
-      // First check if this is a vouch post by event type, not by structure
       if (event.contentType.eq(Models.ContentType.ContentTypeVouch)) {
-        // Always return empty for vouch posts - we'll display the custom UI in PurePost
         return '';
       }
 
-      // Handle regular posts and claims as before
       if ('content' in value) {
         return value.content;
       } else if ('claimType' in value) {
@@ -191,7 +198,6 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
         event.contentType.eq(Models.ContentType.ContentTypeVouch) &&
         vouchedClaim
       ) {
-        // For vouches, if we have a platform account type claim, use its URL
         if (
           !vouchedClaim.type.equals(Models.ClaimType.ClaimTypeOccupation) &&
           !vouchedClaim.type.equals(Models.ClaimType.ClaimTypeSkill) &&
@@ -203,7 +209,6 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
       return undefined;
     }, [event, value, vouchedClaim]);
 
-    // Prepare the main props
     const main = useMemo(
       () => ({
         author: {
@@ -244,7 +249,6 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
       ],
     );
 
-    // 4. Handle early returns AFTER all hooks are called
     if (isDeleted) {
       return (
         <div
@@ -261,7 +265,7 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
         ref={ref}
         main={main}
         stats={stats}
-        actions={actions}
+        actions={enhancedActions}
         doesLink={doesLink}
         autoExpand={autoExpand}
         syncStatus={syncStatus}
@@ -283,7 +287,6 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
     const [ackCount, setAckCount] = useState<number | null>(null);
     const [servers, setServers] = useState<string[]>([]);
 
-    // Add this flag to track if we've seen external servers
     const hasSeenExternalServersRef = useRef(false);
 
     useEffect(() => {
@@ -295,11 +298,9 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
         return;
       }
 
-      // Initial values
       const initialCount = processHandle.getEventAckCount(data.event);
       const initialServers = processHandle.getEventAckServers(data.event);
 
-      // Check if we already have external servers
       const hasExternalServers = initialServers.some((s) => s !== 'local');
       if (hasExternalServers) {
         hasSeenExternalServersRef.current = true;
@@ -308,7 +309,6 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
       setAckCount(initialCount);
       setServers(initialServers);
 
-      // Check the stored raw acks to make sure we're not missing any servers
       processHandle
         .store()
         .indexEvents.getEventAcks()
@@ -327,7 +327,6 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
             }
           }
 
-          // Fall back to checking by logical clock
           let additionalServers: string[] = [];
 
           for (const [key, serverList] of Object.entries(rawAcks)) {
@@ -337,7 +336,6 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
           }
 
           if (additionalServers.length > 0) {
-            // Add any servers that might be in storage but not in memory
             const allServers = [
               ...new Set([...initialServers, ...additionalServers]),
             ];
@@ -351,24 +349,19 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
           }
         });
 
-      // Set up subscription to be notified of changes
       const unsubscribe = processHandle.subscribeToEventAcks(
         data.event,
         (serverId) => {
-          // If we've seen external servers and this is just a local ack, ignore it
           if (serverId === 'local' && hasSeenExternalServersRef.current) {
             return;
           }
 
-          // Track if this is an external server
           if (serverId !== 'local') {
             hasSeenExternalServersRef.current = true;
           }
 
-          // Get fresh server list and preserve any existing servers
           const newServers = processHandle.getEventAckServers(data.event);
 
-          // Use function form of setState to avoid dependency on servers
           setServers((prevServers) => {
             const combinedServers = [
               ...new Set([...prevServers, ...newServers]),
