@@ -1,4 +1,5 @@
 import {
+  ArrowPathIcon,
   CloudArrowUpIcon,
   CloudIcon,
   ExclamationTriangleIcon,
@@ -301,6 +302,7 @@ export interface PurePostProps {
     repost: () => void;
     comment: (content: string, upload?: File) => Promise<boolean>;
     delete?: () => void;
+    isDeleting?: boolean;
   };
   doesLink?: boolean;
   autoExpand?: boolean;
@@ -531,10 +533,20 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                           actions?.delete && (
                             <button
                               onClick={() => {
-                                actions.delete?.();
+                                if (!actions.isDeleting) {
+                                  actions.delete?.();
+                                }
                               }}
+                              disabled={actions.isDeleting}
+                              className={
+                                actions.isDeleting ? 'cursor-not-allowed' : ''
+                              }
                             >
-                              <TrashIcon className="w-4 h-4 text-gray-400" />
+                              {actions.isDeleting ? (
+                                <ArrowPathIcon className="w-4 h-4 text-gray-400 animate-spin" />
+                              ) : (
+                                <TrashIcon className="w-4 h-4 text-gray-400" />
+                              )}
                             </button>
                           )
                         }

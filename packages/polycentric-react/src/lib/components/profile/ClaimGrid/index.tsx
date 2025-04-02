@@ -261,6 +261,13 @@ export const VouchedBy: React.FC<{ system: Models.PublicKey.PublicKey }> = ({
   const username = useUsernameCRDTQuery(system);
   const profileUrl = useSystemLink(system);
 
+  // Limit username to first 3 characters + ellipsis if longer
+  const displayName = username
+    ? username.length > 3
+      ? username.substring(0, 3) + '.'
+      : username
+    : '?';
+
   return (
     <a
       href={profileUrl}
@@ -269,7 +276,7 @@ export const VouchedBy: React.FC<{ system: Models.PublicKey.PublicKey }> = ({
     >
       {/* Username centered over the avatar */}
       <div className="absolute inset-0 flex items-center justify-center text-xs text-white bg-black bg-opacity-50 rounded-full">
-        {username || 'Unknown'}
+        {displayName}
       </div>
       {/* Avatar */}
       <img
