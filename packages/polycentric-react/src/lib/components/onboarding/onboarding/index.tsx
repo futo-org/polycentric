@@ -393,14 +393,14 @@ const CredsPanelSignUp = () => {
           <p className="text-red-500 text-sm mt-1">{usernameError}</p>
         )}
       </div>
-      <GenCredsPanelItem
+      {/* <GenCredsPanelItem
         title="This is your password. Save it now."
         autoComplete="password"
         value={encode(privateKey.key)}
         readOnly={true}
         copyable={true}
         hint="Click 'Copy' to copy your password to clipboard"
-      />
+      /> */}
       <button
         type="submit"
         className="bg-blue-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"

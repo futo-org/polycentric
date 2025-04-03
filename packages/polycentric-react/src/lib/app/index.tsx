@@ -166,8 +166,8 @@ const SignedinApp = ({
             {showFirstLoginModal && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                 <div className="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4">
-                  <h2 className="text-2xl font-bold">Save Your Backup Key</h2>
-                  <p className="text-gray-600">
+                  <h2 className="text-2xl font-bold">Save Your Backup Key!</h2>
+                  <p className="text-red-600">
                     This is your account backup key. You&apos;ll need this to
                     sign in again. Please save it somewhere safe - without it,
                     you won&apos;t be able to recover your account. You can find
