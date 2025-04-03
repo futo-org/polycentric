@@ -60,7 +60,7 @@ const categories = [
   },
   {
     name: 'Explicit Content',
-    tagName: 'sex',
+    tagName: 'sexual',
     description: [
       'No explicit content',
       'Mildly suggestive, factual or educational',
