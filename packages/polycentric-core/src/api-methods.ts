@@ -605,7 +605,7 @@ export async function getOAuthURL(
   if (redirectUri) {
     url += `?redirectUri=${encodeURIComponent(redirectUri)}`;
   }
-  
+
   try {
     const response = await fetch(url, {
       method: 'GET',
@@ -625,7 +625,7 @@ export async function getOAuthURL(
     console.error('Error fetching OAuth URL:', {
       url,
       error: error instanceof Error ? error.message : String(error),
-      details: error
+      details: error,
     });
     throw error;
   }
