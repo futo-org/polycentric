@@ -605,21 +605,30 @@ export async function getOAuthURL(
   if (redirectUri) {
     url += `?redirectUri=${encodeURIComponent(redirectUri)}`;
   }
+  
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: new Headers({
+        'x-polycentric-user-agent': userAgent,
+      }),
+      credentials: 'include',
+      mode: 'cors',
+    });
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: new Headers({
-      'x-polycentric-user-agent': userAgent,
-    }),
-    credentials: 'include',
-    mode: 'cors',
-  });
+    await checkResponse('getOAuthURL', response);
+    const data = (await response.json()) as string | { url: string };
 
-  await checkResponse('getOAuthURL', response);
-  const data = (await response.json()) as string | { url: string };
-
-  // Handle both string and object responses
-  return typeof data === 'string' ? data : data.url;
+    // Handle both string and object responses
+    return typeof data === 'string' ? data : data.url;
+  } catch (error) {
+    console.error('Error fetching OAuth URL:', {
+      url,
+      error: error instanceof Error ? error.message : String(error),
+      details: error
+    });
+    throw error;
+  }
 }
 
 export async function getOAuthUsername(
