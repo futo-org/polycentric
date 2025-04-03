@@ -308,6 +308,7 @@ export interface PurePostProps {
   autoExpand?: boolean;
   syncStatus?: SyncStatus;
   isMyProfile?: boolean;
+  moderationTags?: Array<{ name: string; level: number }>;
 }
 
 const PostLinkContainer = ({
@@ -370,6 +371,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
       autoExpand = false,
       syncStatus,
       isMyProfile,
+      moderationTags,
     }: PurePostProps,
     infiniteScrollRef,
   ) => {
@@ -498,6 +500,26 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                           )}
                         </div>
                       </Tooltip>
+                    </div>
+                  )}
+                  {moderationTags && moderationTags.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-500 flex flex-col items-center">
+                      <div className="font-semibold">Moderation Tags:</div>
+                      {moderationTags.map((tag, index) => (
+                        <div
+                          key={index}
+                          className="flex justify-between w-full px-1"
+                        >
+                          <span>{tag.name}:</span>
+                          <span
+                            className={`font-mono ${
+                              tag.level > 0 ? 'text-red-500' : 'text-green-500'
+                            }`}
+                          >
+                            {tag.level}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
