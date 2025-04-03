@@ -35,10 +35,14 @@ interface LoadedPostProps {
     servers?: string[];
   };
   isMyProfile: boolean;
+  moderationTags?: Array<{ name: string; level: number }>;
 }
 
 const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
-  ({ data, doesLink, autoExpand, syncStatus, isMyProfile }, ref) => {
+  (
+    { data, doesLink, autoExpand, syncStatus, isMyProfile, moderationTags },
+    ref,
+  ) => {
     const { value, event, signedEvent } = data;
 
     const [vouchedClaim, setVouchedClaim] = useState<{
@@ -270,6 +274,7 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
         autoExpand={autoExpand}
         syncStatus={syncStatus}
         isMyProfile={isMyProfile}
+        moderationTags={moderationTags}
       />
     );
   },
@@ -286,6 +291,9 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
     const { processHandle } = useProcessHandleManager();
     const [ackCount, setAckCount] = useState<number | null>(null);
     const [servers, setServers] = useState<string[]>([]);
+    const [moderationTags, setModerationTags] = useState<
+      Array<{ name: string; level: number }>
+    >([]);
 
     const hasSeenExternalServersRef = useRef(false);
 
@@ -377,6 +385,19 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
       };
     }, [data, processHandle]);
 
+    useEffect(() => {
+      if (!data || !data.signedEvent) return;
+
+      if (data.signedEvent.moderationTags) {
+        setModerationTags(
+          data.signedEvent.moderationTags.map((tag) => ({
+            name: tag.name,
+            level: tag.level,
+          })),
+        );
+      }
+    }, [data]);
+
     if (!data) {
       return <UnloadedPost ref={ref} />;
     }
@@ -410,6 +431,7 @@ export const Post = forwardRef<HTMLDivElement, PostProps>(
         autoExpand={autoExpand}
         syncStatus={isMyPost ? status : undefined}
         isMyProfile={isMyPost}
+        moderationTags={moderationTags}
       />
     );
   },
