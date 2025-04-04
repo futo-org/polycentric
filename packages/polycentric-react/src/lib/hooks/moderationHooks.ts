@@ -2,10 +2,18 @@ import { useContext } from 'react';
 
 import { ModerationContext } from '../app/contexts';
 
-export const useModeration = () => {
-  const context = useContext(ModerationContext);
-  if (!context) {
-    throw new Error('useModeration must be used within a ModerationProvider');
-  }
-  return context;
-};
+export function useModeration() {
+  const {
+    moderationLevels,
+    setModerationLevels,
+    showModerationTags,
+    setShowModerationTags,
+  } = useContext(ModerationContext);
+
+  return {
+    moderationLevels,
+    setModerationLevels,
+    showModerationTags,
+    setShowModerationTags,
+  };
+}
