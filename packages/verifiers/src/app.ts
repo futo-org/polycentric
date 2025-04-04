@@ -233,6 +233,12 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
                     });
                 }
             });
+
+            console.log(
+                `Initialized verifier with type '${verifier.verifierType}' for platform '${name}' (${Core.Models.ClaimType.toString(
+                verifier.claimType
+                )}).`
+            );
         }
     }
 
