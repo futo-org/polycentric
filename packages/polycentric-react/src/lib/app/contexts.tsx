@@ -38,4 +38,11 @@ export const ModerationContext = createContext<{
   setModerationLevels: Dispatch<
     SetStateAction<Record<string, number> | undefined>
   >;
-}>({ moderationLevels: undefined, setModerationLevels: () => undefined });
+  showModerationTags: boolean;
+  setShowModerationTags: Dispatch<SetStateAction<boolean>>;
+}>({
+  moderationLevels: undefined,
+  setModerationLevels: () => undefined,
+  showModerationTags: false,
+  setShowModerationTags: () => undefined,
+});

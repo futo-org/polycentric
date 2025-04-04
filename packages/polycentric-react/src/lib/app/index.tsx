@@ -149,12 +149,29 @@ const SignedinApp = ({
     }
   });
 
+  const [showModerationTags, setShowModerationTags] = useState<boolean>(() => {
+    try {
+      const item = localStorage.getItem('polycentric-show-moderation-tags');
+      return item === 'true';
+    } catch (error) {
+      console.error('Error parsing moderation tags visibility:', error);
+      return false;
+    }
+  });
+
   const moderationContextContainer = useMemo(() => {
     return {
       moderationLevels,
       setModerationLevels,
+      showModerationTags,
+      setShowModerationTags,
     };
-  }, [moderationLevels, setModerationLevels]);
+  }, [
+    moderationLevels,
+    setModerationLevels,
+    showModerationTags,
+    setShowModerationTags,
+  ]);
 
   return (
     <QueryManagerContext.Provider value={queryManager}>
