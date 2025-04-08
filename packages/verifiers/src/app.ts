@@ -28,7 +28,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
         return handle;
     } else {
         const handle = await Core.ProcessHandle.createProcessHandle(metaStore);
-        await handle.addServer('https://srv1-stg.polycentric.io');
+        await handle.addServer('https://staging-stage.polycentric.io');
         await metaStore.setActiveStore(handle.system(), 0);
         return handle;
     }
@@ -41,14 +41,14 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
     const app = express();
     app.use(express.json());
     
-    app.use(cors({
-        origin: ['https://localhost:3000', 'https://app.polycentric.io'],
-        credentials: true,
-        methods: ['GET', 'POST', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'x-polycentric-user-agent', 'Origin', 'Accept']
-    }));
+    // app.use(cors({
+    //     origin: ['https://localhost:3000', 'https://app.polycentric.io', 'https://staging-web.polycentric.io'],
+    //     credentials: true,
+    //     methods: ['GET', 'POST', 'OPTIONS'],
+    //     allowedHeaders: ['Content-Type', 'x-polycentric-user-agent', 'Origin', 'Accept']
+    // }));
 
-    app.options('*', cors());
+    // app.options('*', cors());
 
     // Log all requests
     app.use((req, res, next) => {
@@ -106,7 +106,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
             const claimType = req.params.platformName;
             
             // Use state parameters
-            const webAppUrl = 'https://https://staging-web.polycentric.io/oauth/callback';
+            const webAppUrl = 'https://staging-web.polycentric.io/oauth/callback';
             const redirectUrl = `${webAppUrl}?state=${encodeURIComponent(JSON.stringify({
                 data: encodedData,
                 claimType: claimType
@@ -243,13 +243,16 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
     }
 
     // HTTPS configuration
-    const httpsOptions = {
-        key: fs.readFileSync(path.join(__dirname, '../certs/localhost-key.pem')),
-        cert: fs.readFileSync(path.join(__dirname, '../certs/localhost.pem'))
-    };
+    // const httpsOptions = {
+    //     key: fs.readFileSync(path.join(__dirname, '../certs/localhost-key.pem')),
+    //     cert: fs.readFileSync(path.join(__dirname, '../certs/localhost.pem'))
+    // };
 
-    // Create HTTPS server
-    https.createServer(httpsOptions, app).listen(3002, () => {
-        console.log('Verifiers server listening on HTTPS port 3002');
+    // // Create HTTPS server
+    // https.createServer(httpsOptions, app).listen(3002, () => {
+    //     console.log('Verifiers server listening on HTTPS port 3002');
+    // });
+    app.listen(3002, () => {
+        console.log(`Verifiers server listening on port ${3002}`);
     });
 })();
