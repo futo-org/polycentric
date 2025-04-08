@@ -12,22 +12,17 @@ export type SocialPlatform =
   | 'rumble'
   | 'twitter/X'
   | 'discord'
-  | 'instagram'
   | 'github'
-  | 'minds'
   | 'patreon'
   | 'substack'
   | 'twitch'
   | 'website'
   | 'kick'
   | 'soundcloud'
-  | 'vimeo'
   | 'nebula'
   | 'spotify'
-  | 'spreadshop'
   | 'polycentric'
-  | 'gitlab'
-  | 'dailymotion';
+  | 'gitlab';
 
 export interface ClaimData {
   type: 'social' | 'occupation' | 'skill' | 'freeform';
@@ -44,8 +39,7 @@ const isOAuthVerifiable = (
 ): boolean => {
   return (
     claimType.equals(Core.Models.ClaimType.ClaimTypeDiscord) ||
-    claimType.equals(Core.Models.ClaimType.ClaimTypeTwitter) ||
-    claimType.equals(Core.Models.ClaimType.ClaimTypeInstagram)
+    claimType.equals(Core.Models.ClaimType.ClaimTypeTwitter)
   );
 };
 
@@ -53,20 +47,15 @@ const PLATFORM_TO_CLAIM_TYPE = {
   youtube: Models.ClaimType.ClaimTypeYouTube,
   'twitter/X': Core.Models.ClaimType.ClaimTypeTwitter,
   discord: Core.Models.ClaimType.ClaimTypeDiscord,
-  instagram: Core.Models.ClaimType.ClaimTypeInstagram,
   github: Core.Models.ClaimType.ClaimTypeGitHub,
-  minds: Core.Models.ClaimType.ClaimTypeMinds,
   odysee: Core.Models.ClaimType.ClaimTypeOdysee,
   rumble: Core.Models.ClaimType.ClaimTypeRumble,
   patreon: Core.Models.ClaimType.ClaimTypePatreon,
   substack: Core.Models.ClaimType.ClaimTypeSubstack,
   twitch: Core.Models.ClaimType.ClaimTypeTwitch,
-  dailymotion: Core.Models.ClaimType.ClaimTypeDailymotion,
   nebula: Core.Models.ClaimType.ClaimTypeNebula,
   spotify: Core.Models.ClaimType.ClaimTypeSpotify,
-  spreadshop: Core.Models.ClaimType.ClaimTypeSpreadshop,
   kick: Core.Models.ClaimType.ClaimTypeKick,
-  vimeo: Core.Models.ClaimType.ClaimTypeVimeo,
 } as const;
 
 const PLATFORM_TO_CLAIM_FUNCTION = {
@@ -75,7 +64,6 @@ const PLATFORM_TO_CLAIM_FUNCTION = {
   odysee: Models.claimOdysee,
   rumble: Models.claimRumble,
   github: Models.claimGitHub,
-  minds: Models.claimMinds,
   patreon: Models.claimPatreon,
   substack: Models.claimSubstack,
   twitch: Models.claimTwitch,
@@ -147,16 +135,12 @@ export const ClaimTypePopup = ({
     'twitter/X',
     'github',
     'discord',
-    'instagram',
-    'minds',
     'odysee',
     'patreon',
     'rumble',
     'soundcloud',
     'spotify',
     'twitch',
-    'vimeo',
-    'dailymotion',
     'gitlab',
   ];
 
@@ -222,10 +206,6 @@ const getPlatformHelpText = (platform: SocialPlatform): string => {
       return 'Add this token anywhere to the description of your latest video.';
     case 'twitch':
       return 'Add this token anywhere to your Twitch bio.';
-    case 'instagram':
-      return 'Add this token anywhere to your Instagram bio.';
-    case 'minds':
-      return 'Add this token anywhere to your Minds bio.';
     case 'patreon':
       return 'Add this token anywhere to your Patreon bio.';
     case 'substack':
@@ -241,8 +221,6 @@ const isVerifiablePlatform = (platform: SocialPlatform): boolean => {
     'odysee',
     'rumble',
     'twitch',
-    'instagram',
-    'minds',
     'patreon',
     'substack',
   ].includes(platform);
