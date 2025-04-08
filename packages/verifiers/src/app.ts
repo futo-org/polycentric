@@ -106,7 +106,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
             const claimType = req.params.platformName;
             
             // Use state parameters
-            const webAppUrl = 'https://localhost:3000/oauth/callback';
+            const webAppUrl = 'https://https://staging-web.polycentric.io/oauth/callback';
             const redirectUrl = `${webAppUrl}?state=${encodeURIComponent(JSON.stringify({
                 data: encodedData,
                 claimType: claimType
