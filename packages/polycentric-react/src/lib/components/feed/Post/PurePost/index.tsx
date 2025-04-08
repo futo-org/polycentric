@@ -23,6 +23,7 @@ import { Linkify } from '../../../util/linkify';
 // Styling for image viewer
 import { Tooltip } from '@mui/material';
 import { Models } from '@polycentric/polycentric-core';
+import { useModeration } from '../../../../hooks/moderationHooks';
 import {
   useSystemLink,
   useUsernameCRDTQuery,
@@ -445,6 +446,8 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
       }
     };
 
+    const { showModerationTags } = useModeration();
+
     return (
       <div ref={infiniteScrollRef}>
         {main == null ? (
@@ -502,26 +505,30 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                       </Tooltip>
                     </div>
                   )}
-                  {moderationTags && moderationTags.length > 0 && (
-                    <div className="mt-2 text-xs text-gray-500 flex flex-col items-center">
-                      <div className="font-semibold">Moderation Tags:</div>
-                      {moderationTags.map((tag, index) => (
-                        <div
-                          key={index}
-                          className="flex justify-between w-full px-1"
-                        >
-                          <span>{tag.name}:</span>
-                          <span
-                            className={`font-mono ${
-                              tag.level > 0 ? 'text-red-500' : 'text-green-500'
-                            }`}
+                  {moderationTags &&
+                    moderationTags.length > 0 &&
+                    showModerationTags && (
+                      <div className="mt-2 text-xs text-gray-500 flex flex-col items-center">
+                        <div className="font-semibold">Moderation Tags:</div>
+                        {moderationTags.map((tag, index) => (
+                          <div
+                            key={index}
+                            className="flex justify-between w-full px-1"
                           >
-                            {tag.level}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                            <span>{tag.name}:</span>
+                            <span
+                              className={`font-mono ${
+                                tag.level > 0
+                                  ? 'text-red-500'
+                                  : 'text-green-500'
+                              }`}
+                            >
+                              {tag.level}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                 </div>
                 {/* Right column */}
                 <div className="flex-grow w-full min-w-0 lg:max-w-[600px]">

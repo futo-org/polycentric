@@ -1,3 +1,4 @@
+import { Switch } from '@headlessui/react';
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from 'react';
 import { useModeration } from '../../../hooks/moderationHooks';
 
@@ -97,7 +98,21 @@ export const ModerationTable = () => {
       }
     },
   );
-  const { setModerationLevels } = useModeration();
+
+  const [showModerationTags, setShowModerationTags] = useState<boolean>(() => {
+    try {
+      const item = localStorage.getItem('polycentric-show-moderation-tags');
+      return item === 'true';
+    } catch (error) {
+      console.error('Error parsing moderation tags visibility:', error);
+      return false;
+    }
+  });
+
+  const {
+    setModerationLevels,
+    setShowModerationTags: setContextShowModerationTags,
+  } = useModeration();
 
   const setLevelFunctions = useMemo(() => {
     return categories.map((category) => {
@@ -118,8 +133,40 @@ export const ModerationTable = () => {
     setModerationLevels(levels);
   }, [levels, setModerationLevels]);
 
+  useEffect(() => {
+    localStorage.setItem(
+      'polycentric-show-moderation-tags',
+      showModerationTags.toString(),
+    );
+    setContextShowModerationTags(showModerationTags);
+  }, [showModerationTags, setContextShowModerationTags]);
+
   return (
     <div className="flex flex-col space-y-3">
+      <div className="border rounded-[2rem] p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-medium">Show Moderation Tags on Posts</h3>
+            <p className="text-sm text-gray-500">
+              When enabled, posts will display their moderation level tags
+            </p>
+          </div>
+          <Switch
+            checked={showModerationTags}
+            onChange={setShowModerationTags}
+            className={`${
+              showModerationTags ? 'bg-blue-600' : 'bg-gray-200'
+            } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
+          >
+            <span
+              className={`${
+                showModerationTags ? 'translate-x-6' : 'translate-x-1'
+              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+            />
+          </Switch>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-2 md:gap-10 border rounded-[2rem] p-6">
         {categories.map((category, index) => (
           <div key={category.tagName} className="contents">
