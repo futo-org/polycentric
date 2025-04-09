@@ -529,15 +529,7 @@ export async function getResolveHandle(
   return Models.PublicKey.fromProto(Protocol.PublicKey.decode(rawBody));
 }
 
-export const VERIFIER_SERVER =
-  // Check if we're in a browser environment
-  typeof window !== 'undefined'
-    ? window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1'
-      ? 'https://localhost:3002' // Local development
-      : 'https://staging-verify.polycentric.io' // Staging
-    : process.env.NEXT_PUBLIC_VERIFIER_SERVER ??
-      'https://staging-verify.polycentric.io';
+export const VERIFIER_SERVER = 'https://staging-verify.polycentric.io';
 
 export async function requestVerification(
   pointer: Protocol.Pointer,

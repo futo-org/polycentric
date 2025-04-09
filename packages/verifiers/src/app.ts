@@ -4,10 +4,7 @@ dotenv.config({ path: './.env' });
 import { ObjectId } from 'bson';
 import cors from 'cors';
 import express from 'express';
-import * as fs from 'fs';
 import { StatusCodes } from 'http-status-codes';
-import * as https from 'https';
-import * as path from 'path';
 import { platforms } from './platforms/platforms';
 import { decodeObject, handleBinaryOrJson, writeResult } from './utility';
 import { OAuthVerifier, TextVerifier } from './verifier';
@@ -41,14 +38,14 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
     const app = express();
     app.use(express.json());
     
-    // app.use(cors({
-    //     origin: ['https://localhost:3000', 'https://app.polycentric.io', 'https://staging-web.polycentric.io'],
-    //     credentials: true,
-    //     methods: ['GET', 'POST', 'OPTIONS'],
-    //     allowedHeaders: ['Content-Type', 'x-polycentric-user-agent', 'Origin', 'Accept']
-    // }));
+    app.use(cors({
+        origin: ['https://localhost:3000', 'http://localhost:3000', 'https://app.polycentric.io', 'https://staging-web.polycentric.io'],
+        credentials: true,
+        methods: ['GET', 'POST', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'x-polycentric-user-agent', 'Origin', 'Accept']
+    }));
 
-    // app.options('*', cors());
+    app.options('*', cors());
 
     // Log all requests
     app.use((req, res, next) => {
@@ -241,17 +238,6 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
             );
         }
     }
-
-    // HTTPS configuration
-    // const httpsOptions = {
-    //     key: fs.readFileSync(path.join(__dirname, '../certs/localhost-key.pem')),
-    //     cert: fs.readFileSync(path.join(__dirname, '../certs/localhost.pem'))
-    // };
-
-    // // Create HTTPS server
-    // https.createServer(httpsOptions, app).listen(3002, () => {
-    //     console.log('Verifiers server listening on HTTPS port 3002');
-    // });
     app.listen(3002, () => {
         console.log(`Verifiers server listening on port ${3002}`);
     });

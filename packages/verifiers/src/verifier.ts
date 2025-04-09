@@ -6,7 +6,7 @@ import * as Core from '@polycentric/polycentric-core';
 
 const SERVER_URL = process.env.NODE_ENV === 'development' 
     ? 'http://development:8081'
-    : 'https://srv1-stg.polycentric.io';
+    : 'https://staging-stage.polycentric.io';
 
 export enum VerifierType {
     OAuth = 'oauth',
