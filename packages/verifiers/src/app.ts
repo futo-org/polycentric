@@ -25,7 +25,8 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
         return handle;
     } else {
         const handle = await Core.ProcessHandle.createProcessHandle(metaStore);
-        await handle.addServer('https://staging-stage.polycentric.io');
+        const serverUrl = process.env.SERVER_URL || 'https://staging-stage.polycentric.io';
+        await handle.addServer(serverUrl);
         await metaStore.setActiveStore(handle.system(), 0);
         return handle;
     }
@@ -39,7 +40,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
     app.use(express.json());
     
     app.use(cors({
-        origin: ['https://localhost:3000', 'http://localhost:3000', 'https://app.polycentric.io', 'https://staging-web.polycentric.io'],
+        origin: (process.env.ALLOWED_ORIGINS || 'https://localhost:3000,http://localhost:3000,https://app.polycentric.io,https://staging-web.polycentric.io').split(','),
         credentials: true,
         methods: ['GET', 'POST', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'x-polycentric-user-agent', 'Origin', 'Accept']
@@ -102,8 +103,8 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
             const encodedData = Buffer.from(JSON.stringify(queryObject)).toString('base64');
             const claimType = req.params.platformName;
             
-            // Use state parameters
-            const webAppUrl = 'https://staging-web.polycentric.io/oauth/callback';
+            // Use environment variable with fallback
+            const webAppUrl = process.env.WEB_APP_URL || 'https://staging-web.polycentric.io/oauth/callback';
             const redirectUrl = `${webAppUrl}?state=${encodeURIComponent(JSON.stringify({
                 data: encodedData,
                 claimType: claimType
