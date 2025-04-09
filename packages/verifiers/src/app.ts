@@ -45,7 +45,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
         allowedHeaders: ['Content-Type', 'x-polycentric-user-agent', 'Origin', 'Accept']
     }));
 
-    app.options('*', cors());
+    // app.options('*', cors());
 
     // Log all requests
     app.use((req, res, next) => {
