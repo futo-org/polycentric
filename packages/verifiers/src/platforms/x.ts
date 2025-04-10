@@ -49,28 +49,38 @@ class XOAuthVerifier extends OAuthVerifier<XTokenRequest> {
         if (process.env.X_API_KEY === undefined || process.env.X_API_SECRET === undefined) {
             return Result.errMsg('Verifier not configured');
         }
-
+    
         try {
-            const client = new TwitterApi({
+            // Retrieve stored oauth_token_secret
+            const oauth_token_secret = data.harborSecret; // Ensure this is correct
+    
+            if (!oauth_token_secret) {
+                return Result.errMsg("Missing OAuth token secret");
+            }
+    
+            // Initialize TwitterApi with request token and secret
+            const requestClient = new TwitterApi({
                 appKey: process.env.X_API_KEY,
                 appSecret: process.env.X_API_SECRET,
                 accessToken: data.oauth_token,
-                accessSecret: data.harborSecret,
+                accessSecret: oauth_token_secret,
             });
-
-            const response = await client.login(data.oauth_verifier);
+    
+            // Exchange request token for access token
+            const { accessToken, accessSecret, screenName } = await requestClient.login(data.oauth_verifier);
+    
             return Result.ok({
-                username: response.screenName,
+                username: screenName,
                 token: encodeObject<XToken>({
-                    secret: response.accessSecret,
-                    token: response.accessToken,
+                    secret: accessSecret,
+                    token: accessToken,
                 }),
             });
         } catch (err) {
             if (err instanceof ApiResponseError) {
                 return httpResponseToError(err.code, JSON.stringify(err.data), 'X API Login');
             }
-
+    
             throw err;
         }
     }
