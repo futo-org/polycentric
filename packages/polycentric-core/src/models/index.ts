@@ -677,6 +677,10 @@ export function claimMinds(username: string): Protocol.Claim {
   return claimIdentifier(ClaimType.ClaimTypeMinds, username);
 }
 
+export function claimGitlab(username: string): Protocol.Claim {
+  return claimIdentifier(ClaimType.ClaimTypeGitlab, username);
+}
+
 export function claimPatreon(username: string): Protocol.Claim {
   return claimIdentifier(ClaimType.ClaimTypePatreon, username);
 }
@@ -715,6 +719,10 @@ export function claimSpreadshop(username: string): Protocol.Claim {
 
 export function claimDailyMotion(username: string): Protocol.Claim {
   return claimIdentifier(ClaimType.ClaimTypeDailymotion, username);
+}
+
+export function claimSoundcloud(username: string): Protocol.Claim {
+  return claimIdentifier(ClaimType.ClaimTypeSoundcloud, username);
 }
 
 export class Blob {

@@ -60,7 +60,7 @@ export const getAccountUrl = (
     case type.equals(Models.ClaimType.ClaimTypeInstagram):
       return `https://instagram.com/${value}`;
     case type.equals(Models.ClaimType.ClaimTypeGitHub):
-      return `${value}`;
+      return `https://github.com/${value}`;
     case type.equals(Models.ClaimType.ClaimTypePatreon):
       return `https://www.patreon.com/${value}`;
     case type.equals(Models.ClaimType.ClaimTypeSubstack):
@@ -73,10 +73,14 @@ export const getAccountUrl = (
       return `https://odysee.com/@${value}`;
     case type.equals(Models.ClaimType.ClaimTypeRumble):
       return `https://rumble.com/user/${value}`;
-    case type.equals(Models.ClaimType.ClaimTypeMinds):
-      return `https://minds.com/${value}`;
     case type.equals(Models.ClaimType.ClaimTypeHackerNews):
       return `https://news.ycombinator.com/user?id=${value}`;
+    case type.equals(Models.ClaimType.ClaimTypeGitlab):
+      return `https://gitlab.com/${value}`;
+    case type.equals(Models.ClaimType.ClaimTypeSoundcloud):
+      return `https://soundcloud.com/${value}`;
+    case type.equals(Models.ClaimType.ClaimTypeSpotify):
+      return `https://open.spotify.com/artist/${value}`;
     case type.equals(Models.ClaimType.ClaimTypeURL):
     case type.equals(Models.ClaimType.ClaimTypeWebsite):
       return value; // Assume the value is a URL.
