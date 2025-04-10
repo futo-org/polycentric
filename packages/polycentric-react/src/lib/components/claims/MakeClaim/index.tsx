@@ -17,10 +17,7 @@ export type SocialPlatform =
   | 'substack'
   | 'twitch'
   | 'website'
-  | 'kick'
   | 'soundcloud'
-  | 'nebula'
-  | 'spotify'
   | 'polycentric'
   | 'gitlab';
 
@@ -54,8 +51,10 @@ const PLATFORM_TO_CLAIM_TYPE = {
   substack: Core.Models.ClaimType.ClaimTypeSubstack,
   twitch: Core.Models.ClaimType.ClaimTypeTwitch,
   nebula: Core.Models.ClaimType.ClaimTypeNebula,
-  spotify: Core.Models.ClaimType.ClaimTypeSpotify,
   kick: Core.Models.ClaimType.ClaimTypeKick,
+  soundcloud: Core.Models.ClaimType.ClaimTypeSoundcloud,
+  hackerNews: Core.Models.ClaimType.ClaimTypeHackerNews,
+  gitlab: Core.Models.ClaimType.ClaimTypeGitlab,
 } as const;
 
 const PLATFORM_TO_CLAIM_FUNCTION = {
@@ -68,17 +67,64 @@ const PLATFORM_TO_CLAIM_FUNCTION = {
   substack: Models.claimSubstack,
   twitch: Models.claimTwitch,
   website: Models.claimWebsite,
+  soundcloud: Models.claimSoundcloud,
+  gitlab: Models.claimGitlab,
 } as const;
+
+const extractUsernameFromUrl = (
+  url: string,
+  platform: SocialPlatform,
+): string | null => {
+  const urlString = url.startsWith('http') ? url : `https://${url}`;
+  try {
+    const urlObj = new URL(urlString);
+
+    const patterns: Record<string, RegExp> = {
+      hackerNews: /https:\/\/news\.ycombinator\.com\/user?.+id=(.+)/,
+      twitch: /https:\/\/(?:www\.)?twitch\.tv\/([^/]+)\/?/,
+      github: /https:\/\/(?:www\.)?github\.com\/([^/]+)\/?/,
+      gitlab: /https:\/\/(?:www\.)?gitlab\.com\/([^/]+)\/?/,
+      patreon: /https:\/\/(?:www\.)?patreon\.com\/([^/]+)\/?/,
+      soundcloud: /https:\/\/(?:www\.)?soundcloud\.com\/([^/]+)\/?/,
+      substack: /https:\/\/(?:www\.)?(.+)\.substack\.com\/?/,
+      rumble: /https:\/\/(?:www\.)?rumble\.com\/user\/([^/]+)\/?/,
+    };
+
+    const pattern = patterns[platform];
+    if (!pattern) return null;
+
+    const match = pattern.exec(urlObj.toString());
+    return match ? match[1] : null;
+  } catch (error) {
+    console.error('Error parsing URL:', error);
+    return null;
+  }
+};
+
+const needsFullUrl = (platform: SocialPlatform): boolean => {
+  return (
+    platform === 'website' || platform === 'youtube' || platform === 'odysee'
+  );
+};
 
 export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
   const [step, setStep] = useState<'type' | 'input'>('type');
   const [claimType, setClaimType] = useState<ClaimData['type'] | null>(null);
   const [platform, setPlatform] = useState<SocialPlatform | undefined>();
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const handleSelect = (type: ClaimData['type'], platform?: SocialPlatform) => {
     setClaimType(type);
     setPlatform(platform);
     setStep('input');
+  };
+
+  const handleModalClose = (e: React.MouseEvent) => {
+    if (isVerifying) {
+      e.stopPropagation();
+      return;
+    }
+    onClose();
   };
 
   const renderInput = () => {
@@ -87,6 +133,7 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
     const props = {
       system,
       onCancel: onClose,
+      setIsVerifying,
     };
 
     switch (claimType) {
@@ -106,7 +153,7 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
     <div
       className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-80 z-[9999]"
       style={{ backdropFilter: 'blur(2px)' }}
-      onClick={onClose}
+      onClick={handleModalClose}
     >
       <div
         className="bg-white rounded-lg shadow-lg p-4 max-w-md w-full m-4"
@@ -139,7 +186,8 @@ export const ClaimTypePopup = ({
     'patreon',
     'rumble',
     'soundcloud',
-    'spotify',
+    'hackerNews',
+    'substack',
     'twitch',
     'gitlab',
   ];
@@ -210,6 +258,14 @@ const getPlatformHelpText = (platform: SocialPlatform): string => {
       return 'Add this token anywhere to your Patreon bio.';
     case 'substack':
       return 'Add this token anywhere to your Substack about page.';
+    case 'soundcloud':
+      return 'Add this token anywhere to your SoundCloud bio.';
+    case 'github':
+      return 'Add this token anywhere to your GitHub profile bio.';
+    case 'hackerNews':
+      return 'Add this token anywhere to your Hacker News about page.';
+    case 'gitlab':
+      return 'Add this token anywhere to your GitLab profile description.';
     default:
       return '';
   }
@@ -223,6 +279,10 @@ const isVerifiablePlatform = (platform: SocialPlatform): boolean => {
     'twitch',
     'patreon',
     'substack',
+    'github',
+    'soundcloud',
+    'hackerNews',
+    'gitlab',
   ].includes(platform);
   return result;
 };
@@ -260,10 +320,12 @@ export const SocialMediaInput = ({
   platform,
   system,
   onCancel,
+  setIsVerifying,
 }: {
   platform: SocialPlatform;
   system: Models.PublicKey.PublicKey;
   onCancel: () => void;
+  setIsVerifying: (isVerifying: boolean) => void;
 }) => {
   const [url, setUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -276,7 +338,6 @@ export const SocialMediaInput = ({
   const claims = useClaims(system);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Get the claim type for the platform
   const getClaimTypeForPlatform = useCallback(
     (platform: SocialPlatform): Core.Models.ClaimType.ClaimType => {
       const claimType =
@@ -289,14 +350,12 @@ export const SocialMediaInput = ({
     [],
   );
 
-  // Initialize OAuth on component mount
   const initializeOAuth = useCallback(async () => {
     if (!platform) return;
 
     try {
       const claimType = getClaimTypeForPlatform(platform);
 
-      // Check if this platform is OAuth verifiable
       if (isOAuthVerifiable(claimType)) {
         await handleOAuthLogin(claimType);
       }
@@ -314,7 +373,6 @@ export const SocialMediaInput = ({
     try {
       setIsSubmitting(true);
 
-      // Check for existing claims first
       const claimType = getClaimTypeForPlatform(platform);
       const existingClaim = claims.find((claim) =>
         claim.value.claimType.equals(claimType),
@@ -326,31 +384,70 @@ export const SocialMediaInput = ({
         return;
       }
 
-      // Create the claim
-      const processedUrl = url.startsWith('http') ? url : `https://${url}`;
+      // Get the claim function
       const claimFunction =
         PLATFORM_TO_CLAIM_FUNCTION[
           platform as keyof typeof PLATFORM_TO_CLAIM_FUNCTION
         ] ?? Models.claimURL;
 
-      const claim = claimFunction(processedUrl);
+      // Determine if we need full URL or just username
+      const isOAuth = isOAuthVerifiable(claimType);
+      const requiresFullUrl = needsFullUrl(platform);
 
-      // Create the claim normally - we'll delete it later if verification fails
+      // For OAuth and platforms that need full URLs, use the original flow
+      if (isOAuth || requiresFullUrl) {
+        const processedUrl = url.startsWith('http') ? url : `https://${url}`;
+        const claim = claimFunction(processedUrl);
+        const pointer = await processHandle.claim(claim);
+        setClaimPointer(pointer);
+
+        if (isVerifiablePlatform(platform)) {
+          setVerificationStep('token');
+          setIsVerifying(true);
+        } else {
+          onCancel();
+        }
+        return;
+      }
+
+      // For all other platforms, extract username if URL is provided
+      const username = extractUsernameFromUrl(url, platform) || url;
+      const claim = claimFunction(username);
       const pointer = await processHandle.claim(claim);
       setClaimPointer(pointer);
-
-      if (isVerifiablePlatform(platform)) {
-        setVerificationStep('token');
-      } else {
-        onCancel();
-      }
+      setVerificationStep('token');
+      setIsVerifying(true);
     } catch (error) {
       console.error('Failed to submit claim:', error);
       onCancel();
     } finally {
       setIsSubmitting(false);
     }
-  }, [url, platform, processHandle, claims, onCancel, getClaimTypeForPlatform]);
+  }, [
+    url,
+    platform,
+    processHandle,
+    claims,
+    onCancel,
+    getClaimTypeForPlatform,
+    setIsVerifying,
+  ]);
+
+  const handleCancel = useCallback(async () => {
+    if (verificationStep === 'token' && processHandle && claimPointer) {
+      try {
+        await processHandle.delete(
+          claimPointer.process,
+          claimPointer.logicalClock,
+        );
+      } catch (error) {
+        console.error('Failed to delete unverified claim:', error);
+      }
+    }
+
+    setIsVerifying(false);
+    onCancel();
+  }, [verificationStep, processHandle, claimPointer, onCancel, setIsVerifying]);
 
   const startVerification = useCallback(async () => {
     if (!processHandle || !claimPointer) return;
@@ -368,12 +465,12 @@ export const SocialMediaInput = ({
 
         setVerificationStep('success');
         setTimeout(() => {
+          setIsVerifying(false);
           onCancel();
         }, 2000);
       } catch (error) {
         console.error('Verification request failed:', error);
 
-        // Delete the claim since verification failed
         try {
           await processHandle.delete(
             claimPointer.process,
@@ -386,7 +483,6 @@ export const SocialMediaInput = ({
           );
         }
 
-        // Check for specific platform errors
         const errorMessage =
           error instanceof Error ? error.message : String(error);
 
@@ -425,7 +521,6 @@ export const SocialMediaInput = ({
         setVerificationStep('error');
       }
     } catch (error) {
-      // Delete the claim since verification failed
       if (claimPointer) {
         try {
           await processHandle.delete(
@@ -447,12 +542,15 @@ export const SocialMediaInput = ({
           : 'An unknown error occurred with the verification server.',
       );
     }
+
+    setIsVerifying(false);
   }, [
     processHandle,
     claimPointer,
     platform,
     onCancel,
     getClaimTypeForPlatform,
+    setIsVerifying,
   ]);
 
   if (verificationStep === 'token' && claimPointer) {
@@ -491,7 +589,7 @@ export const SocialMediaInput = ({
         </p>
         <div className="flex justify-end gap-2 mt-4">
           <button
-            onClick={onCancel}
+            onClick={handleCancel}
             className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
           >
             Cancel
@@ -534,7 +632,7 @@ export const SocialMediaInput = ({
         <p className="text-center text-gray-600">{errorMessage}</p>
         <div className="flex justify-center mt-4">
           <button
-            onClick={onCancel}
+            onClick={handleCancel}
             className="px-6 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
           >
             Close
@@ -617,7 +715,6 @@ export const OccupationInput = ({
     try {
       setIsSubmitting(true);
 
-      // Check for existing claims
       const existingClaim = claims.find(
         (claim) =>
           claim.value.claimType.equals(
@@ -727,7 +824,6 @@ export const TextInput = ({
     try {
       setIsSubmitting(true);
 
-      // Check for existing claims
       const existingClaim = claims.find((claim) => {
         const isSkill =
           type === 'skill' &&
@@ -775,7 +871,6 @@ export const TextInput = ({
     );
   }
 
-  // Original input UI
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-xl font-semibold capitalize">Add {type}</h2>
