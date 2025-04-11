@@ -18,8 +18,7 @@ export type SocialPlatform =
   | 'twitch'
   | 'website'
   | 'soundcloud'
-  | 'polycentric'
-  | 'gitlab';
+  | 'polycentric';
 
 export interface ClaimData {
   type: 'social' | 'occupation' | 'skill' | 'freeform';
@@ -54,7 +53,6 @@ const PLATFORM_TO_CLAIM_TYPE = {
   kick: Core.Models.ClaimType.ClaimTypeKick,
   soundcloud: Core.Models.ClaimType.ClaimTypeSoundcloud,
   hackerNews: Core.Models.ClaimType.ClaimTypeHackerNews,
-  gitlab: Core.Models.ClaimType.ClaimTypeGitlab,
 } as const;
 
 const PLATFORM_TO_CLAIM_FUNCTION = {
@@ -68,7 +66,6 @@ const PLATFORM_TO_CLAIM_FUNCTION = {
   twitch: Models.claimTwitch,
   website: Models.claimWebsite,
   soundcloud: Models.claimSoundcloud,
-  gitlab: Models.claimGitlab,
 } as const;
 
 const extractUsernameFromUrl = (
@@ -83,7 +80,6 @@ const extractUsernameFromUrl = (
       hackerNews: /https:\/\/news\.ycombinator\.com\/user?.+id=(.+)/,
       twitch: /https:\/\/(?:www\.)?twitch\.tv\/([^/]+)\/?/,
       github: /https:\/\/(?:www\.)?github\.com\/([^/]+)\/?/,
-      gitlab: /https:\/\/(?:www\.)?gitlab\.com\/([^/]+)\/?/,
       patreon: /https:\/\/(?:www\.)?patreon\.com\/([^/]+)\/?/,
       soundcloud: /https:\/\/(?:www\.)?soundcloud\.com\/([^/]+)\/?/,
       substack: /https:\/\/(?:www\.)?(.+)\.substack\.com\/?/,
@@ -209,7 +205,6 @@ export const ClaimTypePopup = ({
     'hackerNews',
     'substack',
     'twitch',
-    'gitlab',
   ];
 
   if (showSocialPlatforms) {
@@ -284,8 +279,6 @@ const getPlatformHelpText = (platform: SocialPlatform): string => {
       return 'Add this token anywhere to your GitHub profile bio.';
     case 'hackerNews':
       return 'Add this token anywhere to your Hacker News about page.';
-    case 'gitlab':
-      return 'Add this token anywhere to your GitLab profile description.';
     default:
       return '';
   }
@@ -302,7 +295,6 @@ const isVerifiablePlatform = (platform: SocialPlatform): boolean => {
     'github',
     'soundcloud',
     'hackerNews',
-    'gitlab',
   ].includes(platform);
   return result;
 };
