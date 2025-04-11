@@ -81,22 +81,26 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
             const { code, oauth_token, oauth_verifier, state } = req.query;
             let queryObject = {};
             
-            // Handle different OAuth flows (Twitter uses oauth_token/oauth_verifier, Discord uses code)
-            if (code) {
+            // Handle different OAuth flows
+            if (oauth_token && oauth_verifier && state) {
+                // For Twitter/X, include the state directly as harborSecret
+                queryObject = { 
+                    oauth_token, 
+                    oauth_verifier,
+                    harborSecret: state // Use state directly as harborSecret for X
+                };
+            } else if (code) {
                 queryObject = { code };
-            } else if (oauth_token && oauth_verifier) {
-                queryObject = { oauth_token, oauth_verifier };
-            }
-            
-            // Extract harborSecret from state if available
-            if (state) {
-                try {
-                    const stateObj = JSON.parse(state as string);
-                    if (stateObj.harborSecret) {
-                        queryObject = { ...queryObject, harborSecret: stateObj.harborSecret };
+                // Handle state parsing for other platforms
+                if (state) {
+                    try {
+                        const stateObj = JSON.parse(state as string);
+                        if (stateObj.harborSecret) {
+                            queryObject = { ...queryObject, harborSecret: stateObj.harborSecret };
+                        }
+                    } catch (e) {
+                        console.log('Failed to parse state parameter:', e);
                     }
-                } catch (e) {
-                    console.log('Failed to parse state parameter:', e);
                 }
             }
 
