@@ -50,68 +50,28 @@ class XOAuthVerifier extends OAuthVerifier<XTokenRequest> {
             return Result.errMsg('Verifier not configured');
         }
 
-        // Add checks for required parameters from the frontend/callback
-        if (!data.oauth_token) {
-            console.error("getToken called with missing oauth_token");
-            return Result.errMsg("Missing OAuth token in request data");
-        }
-        if (!data.oauth_verifier) {
-            console.error("getToken called with missing oauth_verifier");
-            return Result.errMsg("Missing OAuth verifier in request data");
-        }
-        // Ensure the oauth_token_secret (passed as harborSecret) is present
-        if (!data.harborSecret) {
-            console.error("getToken called with missing harborSecret (OAuth token secret)");
-            return Result.errMsg("Missing OAuth token secret (harborSecret) in request data");
-        }
-
         try {
-            // Retrieve stored oauth_token_secret
-            const oauth_token_secret = data.harborSecret;
-
-            // Log the tokens being used (consider masking secrets in production logs if necessary)
-            console.log(`Attempting X login with oauth_token: ${data.oauth_token}, oauth_verifier: ${data.oauth_verifier}, oauth_token_secret: ${oauth_token_secret ? 'present' : 'missing'}`);
-
-            // Initialize TwitterApi with app credentials and the REQUEST token/secret
-            const requestClient = new TwitterApi({
+            const client = new TwitterApi({
                 appKey: process.env.X_API_KEY,
                 appSecret: process.env.X_API_SECRET,
-                accessToken: data.oauth_token, // This is the request token
-                accessSecret: oauth_token_secret, // This is the request token secret
+                accessToken: data.oauth_token,
+                accessSecret: data.harborSecret,
             });
 
-            // Exchange request token for access token using the oauth_verifier
-            const { accessToken, accessSecret, screenName } = await requestClient.login(data.oauth_verifier);
-
-            // Successfully obtained access token and secret
+            const response = await client.login(data.oauth_verifier);
             return Result.ok({
-                username: screenName,
+                username: response.screenName,
                 token: encodeObject<XToken>({
-                    secret: accessSecret, // Store the ACCESS secret
-                    token: accessToken, // Store the ACCESS token
+                    secret: response.accessSecret,
+                    token: response.accessToken,
                 }),
             });
         } catch (err) {
-            console.error("Error during X API login:", err); // Log the raw error
-
             if (err instanceof ApiResponseError) {
-                // Log specific details from the API response error
-                console.error(`X API Response Error: Status=${err.code}, Data=${JSON.stringify(err.data)}`);
-                const errorMessage = `Returned ${err.code} on X API Login endpoint with content: ${JSON.stringify(err.data)}`;
-                // Return a structured error
-                return Result.err({
-                    message: "Verifier was unable to validate your login information with X",
-                    extendedMessage: errorMessage,
-                });
+                return httpResponseToError(err.code, JSON.stringify(err.data), 'X API Login');
             }
 
-            // Handle other types of errors (network issues, etc.)
-            const extendedMessage = err instanceof Error ? err.message : String(err);
-            console.error("Unexpected error during X login:", extendedMessage);
-            return Result.err({
-                message: "An unexpected error occurred during X verification",
-                extendedMessage: extendedMessage,
-            });
+            throw err;
         }
     }
 
