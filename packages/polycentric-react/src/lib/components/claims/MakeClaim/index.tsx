@@ -107,6 +107,26 @@ const needsFullUrl = (platform: SocialPlatform): boolean => {
   );
 };
 
+const extractOdyseeIdentifier = (urlOrId: string): string | null => {
+  // Try matching lbry:// format first
+  let match = /lbry:\/\/([^/\n\r]+)/.exec(urlOrId);
+  if (match) {
+    return match[1].startsWith('@') ? match[1] : `@${match[1]}`;
+  }
+
+  // Try matching https://odysee.com/ format
+  match = /https:\/\/(?:www\.)?odysee\.com\/([^/\n\r]+)/.exec(urlOrId);
+  if (match) {
+    return match[1].startsWith('@') ? match[1] : `@${match[1]}`;
+  }
+
+  // Assume it might be the identifier itself if it starts with @
+  if (urlOrId.startsWith('@')) {
+    return urlOrId;
+  }
+  return null;
+};
+
 export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
   const [step, setStep] = useState<'type' | 'input'>('type');
   const [claimType, setClaimType] = useState<ClaimData['type'] | null>(null);
@@ -394,32 +414,44 @@ export const SocialMediaInput = ({
       const isOAuth = isOAuthVerifiable(claimType);
       const requiresFullUrl = needsFullUrl(platform);
 
-      // For OAuth and platforms that need full URLs, use the original flow
-      if (isOAuth || requiresFullUrl) {
-        const processedUrl = url.startsWith('http') ? url : `https://${url}`;
-        const claim = claimFunction(processedUrl);
-        const pointer = await processHandle.claim(claim);
-        setClaimPointer(pointer);
+      let claimValue: string;
 
-        if (isVerifiablePlatform(platform)) {
-          setVerificationStep('token');
-          setIsVerifying(true);
-        } else {
-          onCancel();
+      if (platform === 'odysee') {
+        const identifier = extractOdyseeIdentifier(url);
+        if (!identifier) {
+          console.error('Could not parse Odysee URL/Identifier:', url);
+          setErrorMessage('Invalid Odysee URL or Identifier provided.');
+          setVerificationStep('error'); // Or handle error appropriately
+          setIsSubmitting(false);
+          return;
         }
-        return;
+        claimValue = identifier; // Use the extracted identifier for the claim
+      } else if (isOAuth || requiresFullUrl) {
+        // For OAuth and platforms that need full URLs (excluding Odysee now handled above)
+        claimValue = url.startsWith('http') ? url : `https://${url}`;
+      } else {
+        // For all other platforms, extract username if URL is provided
+        claimValue = extractUsernameFromUrl(url, platform) || url;
       }
 
-      // For all other platforms, extract username if URL is provided
-      const username = extractUsernameFromUrl(url, platform) || url;
-      const claim = claimFunction(username);
+      // Create the claim using the determined claimValue
+      const claim = claimFunction(claimValue);
       const pointer = await processHandle.claim(claim);
       setClaimPointer(pointer);
-      setVerificationStep('token');
-      setIsVerifying(true);
+
+      if (isVerifiablePlatform(platform)) {
+        setVerificationStep('token');
+        setIsVerifying(true);
+      } else {
+        // If not verifiable (or OAuth handled elsewhere), close
+        onCancel();
+      }
     } catch (error) {
       console.error('Failed to submit claim:', error);
-      onCancel();
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Failed to add claim',
+      );
+      setVerificationStep('error'); // Show error state
     } finally {
       setIsSubmitting(false);
     }
@@ -431,6 +463,7 @@ export const SocialMediaInput = ({
     onCancel,
     getClaimTypeForPlatform,
     setIsVerifying,
+    setErrorMessage, // Ensure errorMessage state setter is available if needed
   ]);
 
   const handleCancel = useCallback(async () => {
