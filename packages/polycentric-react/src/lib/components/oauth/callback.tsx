@@ -154,7 +154,6 @@ export function OAuthCallback() {
           verificationError,
         );
         await new Promise((resolve) => setTimeout(resolve, 5000));
-        console.log('Retrying verification request...');
 
         await Core.APIMethods.requestVerification(
           pointer,
