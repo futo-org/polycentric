@@ -12,14 +12,13 @@ interface APIError extends Error {
 
 export function OAuthCallback() {
   const [username, setUsername] = useState<string | null>(null);
+  const [permanentToken, setPermanentToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { processHandle } = useProcessHandleManager();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const processOAuth = async () => {
-      const futoIDSecret = localStorage.getItem('futoIDSecret');
-
       const params = new URLSearchParams(window.location.search);
       const stateParam = params.get('state');
 
@@ -45,11 +44,7 @@ export function OAuthCallback() {
             true,
           ) as Core.Models.ClaimType.ClaimType;
 
-          const decodedData = JSON.parse(atob(encodedData));
-          decodedData.harborSecret = futoIDSecret;
-          const newEncodedData = btoa(JSON.stringify(decodedData));
-
-          const tokenQueryString = newEncodedData;
+          const tokenQueryString = encodedData;
 
           try {
             const oauthResponse = await Core.APIMethods.getOAuthUsername(
@@ -59,7 +54,7 @@ export function OAuthCallback() {
             );
 
             setUsername(oauthResponse.username);
-            localStorage.removeItem('futoIDSecret');
+            setPermanentToken(oauthResponse.token);
           } catch (error: unknown) {
             const apiError = error as APIError;
 
@@ -81,9 +76,11 @@ export function OAuthCallback() {
           }
         } catch (error) {
           setError('Failed to process OAuth response');
+          console.error('Error processing OAuth response:', error);
         }
       } catch (error) {
         setError('Failed to process state');
+        console.error('Error processing state parameter:', error);
       }
     };
 
@@ -91,7 +88,11 @@ export function OAuthCallback() {
   }, [processHandle]);
 
   const handleConfirm = async () => {
-    if (!username || !processHandle) return;
+    if (!username || !permanentToken || !processHandle) {
+      setError('Missing necessary information to complete verification.');
+      console.error('handleConfirm missing data:', { username, permanentToken, processHandle });
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -101,11 +102,17 @@ export function OAuthCallback() {
 
       if (!stateParam) {
         setError('Missing state parameter');
+        setIsSubmitting(false);
         return;
       }
 
       const state = JSON.parse(decodeURIComponent(stateParam));
       const claimTypeNum = parseInt(state.claimType);
+      if (!claimTypeNum) {
+        setError('Missing claim type in state');
+        setIsSubmitting(false);
+        return;
+      }
 
       let claim: Core.Protocol.Claim;
       let claimType: Core.Models.ClaimType.ClaimType;
@@ -129,45 +136,31 @@ export function OAuthCallback() {
 
       const pointer = await processHandle.claim(claim);
 
-      // Get token from state
-      const encodedData = state.data;
-      if (!encodedData) {
-        throw new Error('Missing encoded data in state');
-      }
-
-      // Wait for claim to be processed
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
       try {
         await Core.APIMethods.requestVerification(
           pointer,
           claimType,
-          encodedData,
+          permanentToken,
         );
 
-        // Clear OAuth data from localStorage
-        localStorage.removeItem('futoIDSecret');
-
-        // Redirect to home page
         window.location.href = '/';
       } catch (verificationError) {
-        // Retry once after a delay
+        console.error('Initial verification request failed:', verificationError);
         await new Promise((resolve) => setTimeout(resolve, 5000));
+        console.log('Retrying verification request...');
 
         await Core.APIMethods.requestVerification(
           pointer,
           claimType,
-          encodedData,
+          permanentToken,
         );
 
-        localStorage.removeItem('futoIDSecret');
-
-        // Redirect to home page
         window.location.href = '/';
       }
     } catch (error) {
+      console.error('Error during handleConfirm:', error);
       setError(
-        `Failed to create claim: ${
+        `Failed to complete verification: ${
           error instanceof Error ? error.message : 'Unknown error'
         }`,
       );
@@ -189,7 +182,7 @@ export function OAuthCallback() {
     );
   }
 
-  if (!username) {
+  if (!username || !permanentToken) {
     return <div>Loading...</div>;
   }
 
