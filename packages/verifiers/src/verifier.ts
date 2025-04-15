@@ -129,17 +129,8 @@ export abstract class OAuthVerifier<T> extends Verifier {
             return Result.errMsg('Missing challengeResponse');
         }
 
-        try {
-            const challengeResponseDecoded = Buffer.from(challenge, 'base64').toString();
-            
-            const fields: ClaimField[] = claim.claimFields.map((v) => <ClaimField>{ key: v.key.toInt(), value: v.value });
-            return await this.isTokenValid(challengeResponseDecoded, fields);
-        } catch (error) {
-            return Result.err({
-                message: 'Invalid challenge response format',
-                extendedMessage: 'Could not decode the challenge response'
-            });
-        }
+        const fields: ClaimField[] = claim.claimFields.map((v) => <ClaimField>{ key: v.key.toInt(), value: v.value });
+        return await this.isTokenValid(challenge, fields);
     }
 }
 
