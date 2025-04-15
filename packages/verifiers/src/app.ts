@@ -12,6 +12,29 @@ import { OAuthVerifier, TextVerifier } from './verifier';
 import * as Core from '@polycentric/polycentric-core';
 import * as LevelDB from '@polycentric/polycentric-leveldb';
 
+// Temporary store for OAuth 1.0a secrets (token -> secret)
+const oauthSecrets = new Map<string, { secret: string; timeoutId: NodeJS.Timeout }>();
+const OAUTH_SECRET_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+
+function storeOAuthSecret(token: string, secret: string) {
+    clearTimeout(oauthSecrets.get(token)?.timeoutId); // Clear existing timeout if any
+    const timeoutId = setTimeout(() => {
+        oauthSecrets.delete(token);
+        console.log(`Cleared expired OAuth secret for token: ${token.substring(0, 5)}...`);
+    }, OAUTH_SECRET_TIMEOUT_MS);
+    oauthSecrets.set(token, { secret, timeoutId });
+}
+
+function retrieveOAuthSecret(token: string): string | undefined {
+    const entry = oauthSecrets.get(token);
+    if (entry) {
+        clearTimeout(entry.timeoutId); // Clear timeout as it's being used
+        oauthSecrets.delete(token); // Secret should be used only once
+        return entry.secret;
+    }
+    return undefined;
+}
+
 async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
     const persistenceDriver = LevelDB.createPersistenceDriverLevelDB('./state');
     const metaStore = await Core.MetaStore.createMetaStore(persistenceDriver);
@@ -77,46 +100,53 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
 
     app.get('/platforms/:platformName/oauth/callback', (req, res) => {
         try {
-            // Extract all possible OAuth parameters
             const { code, oauth_token, oauth_verifier, state } = req.query;
-            let queryObject = {};
-            
-            // Handle different OAuth flows
-            if (oauth_token && oauth_verifier && state) {
-                // For Twitter/X, include the state directly as harborSecret
-                queryObject = { 
-                    oauth_token, 
-                    oauth_verifier,
-                    harborSecret: state // Use state directly as harborSecret for X
+            let queryObject: Record<string, any> = {};
+            const claimType = req.params.platformName;
+
+            if (oauth_token && typeof oauth_token === 'string' && oauth_verifier && typeof oauth_verifier === 'string') {
+                const secret = retrieveOAuthSecret(oauth_token);
+                if (!secret) {
+                    console.error(`OAuth secret not found or expired for token: ${oauth_token}`);
+                    res.status(StatusCodes.BAD_REQUEST).send('OAuth session expired or invalid.');
+                    return;
+                }
+                queryObject = {
+                    oauth_token: oauth_token,
+                    oauth_verifier: oauth_verifier,
+                    secret: secret,
                 };
             } else if (code) {
                 queryObject = { code };
-                // Handle state parsing for other platforms
-                if (state) {
+                if (state && typeof state === 'string') {
                     try {
-                        const stateObj = JSON.parse(state as string);
-                        if (stateObj.harborSecret) {
-                            queryObject = { ...queryObject, harborSecret: stateObj.harborSecret };
-                        }
+                        const stateObj = JSON.parse(state);
                     } catch (e) {
-                        console.log('Failed to parse state parameter:', e);
+                        console.warn('Failed to parse state parameter:', e);
                     }
                 }
+            } else {
+                 res.status(StatusCodes.BAD_REQUEST).send('Missing required OAuth parameters in callback.');
+                 return;
             }
 
             const encodedData = Buffer.from(JSON.stringify(queryObject)).toString('base64');
-            const claimType = req.params.platformName;
-            
-            // Use environment variable with fallback
+
             const webAppUrl = process.env.WEB_APP_URL || 'https://staging-web.polycentric.io/oauth/callback';
-            const redirectUrl = `${webAppUrl}?state=${encodeURIComponent(JSON.stringify({
+
+            const redirectState = JSON.stringify({
                 data: encodedData,
                 claimType: claimType
-            }))}`;
+            });
+            const redirectUrl = `${webAppUrl}?state=${encodeURIComponent(redirectState)}`;
             res.redirect(redirectUrl);
         } catch (e: unknown) {
-            console.error('OAuth callback error:', e);
-            res.status(500).send('OAuth callback failed');
+            const requestId: string = new ObjectId().toString();
+            console.error(`[500 ERROR] (${requestId}) GET /platforms/:platformName/oauth/callback \n${String(e)}`);
+            res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+                message: `An unknown error has occurred (Request Id: ${requestId})`,
+                extendedMessage: 'Internal server error during OAuth callback processing',
+            });
         }
     });
 
@@ -177,7 +207,23 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
             if (verifier instanceof OAuthVerifier) {
                 app.get(`/platforms/${name}/${verifier.verifierType}/url`, async (req, res) => {
                     try {
-                        writeResult(res, await verifier.getOAuthURL());
+                        const result = await verifier.getOAuthURL();
+                        if (result.success) {
+                            if (typeof result.value === 'object' && 'url' in result.value && 'token' in result.value && 'secret' in result.value) {
+                                storeOAuthSecret(result.value.token, result.value.secret);
+                                res.status(StatusCodes.OK).json({ url: result.value.url });
+                            } else if (typeof result.value === 'string') {
+                                res.status(StatusCodes.OK).json({ url: result.value });
+                            } else {
+                                 console.error(`[500 ERROR] Unexpected success value format from getOAuthURL for platform ${name}`);
+                                 res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+                                     message: 'Internal server error: Unexpected response format from verifier.',
+                                     extendedMessage: 'Verifier returned an unexpected success value format.',
+                                 });
+                            }
+                        } else {
+                            writeResult(res, result);
+                        }
                     } catch (e: unknown) {
                         const requestId: string = new ObjectId().toString();
                         console.error(`[500 ERROR] (${requestId}) GET /platforms/${name}/${verifier.verifierType}/url \n${String(e)}`);
@@ -191,17 +237,34 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
                 app.get(`/platforms/${name}/${verifier.verifierType}/token`, async (req, res) => {
                     try {
                         const challenge = req.query.oauthData as string;
-                        
+                        if (!challenge) {
+                             res.status(StatusCodes.BAD_REQUEST).json({
+                                 message: 'Missing oauthData parameter',
+                                 extendedMessage: 'The required oauthData query parameter was not provided.',
+                             });
+                             return;
+                        }
+
                         const challengeResponse = decodeObject<any>(challenge);
+
+                        console.log(`Decoded oauthData for /token endpoint (Platform ${name}):`, challengeResponse);
+
 
                         writeResult(res, await verifier.getToken(challengeResponse));
                     } catch (e: unknown) {
-                        console.error('Token endpoint error:', e);
                         const requestId: string = new ObjectId().toString();
-                        res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-                            message: `An unknown error has occurred (Request Id: ${requestId})`,
-                            extendedMessage: 'Internal server error while processing OAuth token',
-                        });
+                        console.error(`[500 ERROR] (${requestId}) GET /platforms/${name}/${verifier.verifierType}/token \n${String(e)}`);
+                        if (e instanceof SyntaxError) {
+                             res.status(StatusCodes.BAD_REQUEST).json({
+                                 message: 'Invalid format for oauthData parameter',
+                                 extendedMessage: `Failed to decode base64 or parse JSON: ${e.message}`,
+                             });
+                        } else {
+                            res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+                                message: `An unknown error has occurred (Request Id: ${requestId})`,
+                                extendedMessage: `Internal server error while processing OAuth token: ${e instanceof Error ? e.message : String(e)}`,
+                            });
+                        }
                     }
                 });
             }
