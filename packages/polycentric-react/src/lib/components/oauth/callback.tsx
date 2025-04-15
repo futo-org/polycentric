@@ -90,7 +90,11 @@ export function OAuthCallback() {
   const handleConfirm = async () => {
     if (!username || !permanentToken || !processHandle) {
       setError('Missing necessary information to complete verification.');
-      console.error('handleConfirm missing data:', { username, permanentToken, processHandle });
+      console.error('handleConfirm missing data:', {
+        username,
+        permanentToken,
+        processHandle,
+      });
       return;
     }
 
@@ -145,7 +149,10 @@ export function OAuthCallback() {
 
         window.location.href = '/';
       } catch (verificationError) {
-        console.error('Initial verification request failed:', verificationError);
+        console.error(
+          'Initial verification request failed:',
+          verificationError,
+        );
         await new Promise((resolve) => setTimeout(resolve, 5000));
         console.log('Retrying verification request...');
 
