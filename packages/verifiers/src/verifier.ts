@@ -1,5 +1,6 @@
 import { IncomingHttpHeaders } from 'http';
 import { ClaimField, TokenResponse } from './models';
+import { XOAuthURLResult } from './platforms/x';
 import { Result } from './result';
 
 import * as Core from '@polycentric/polycentric-core';
@@ -55,7 +56,7 @@ export abstract class Verifier {
 
         //TODO: Maybe instead of pointer use something that contains a server?
         const events = await Core.APIMethods.getEvents(
-            SERVER_URL,  // Use the configured server URL
+            SERVER_URL,
             pointer.system,
             Core.Models.Ranges.rangesForSystemFromProto({
                 rangesForProcesses: [
@@ -105,16 +106,15 @@ export abstract class Verifier {
         req: RequestInformation
     ): Promise<Result<void>>;
 }
-export abstract class OAuthVerifier<TTokenRequest> extends Verifier {
-    public verifierType: VerifierType = VerifierType.OAuth;
 
+export abstract class OAuthVerifier<T> extends Verifier {
     constructor(claimType: Core.Models.ClaimType.ClaimType) {
         super(VerifierType.OAuth, claimType);
     }
 
-    public abstract getOAuthURL(): Promise<Result<string>>;
-    public abstract getToken(token: TTokenRequest): Promise<Result<TokenResponse>>;
-    public abstract isTokenValid(challengeResponse: string, claimFields: ClaimField[]): Promise<Result>;
+    public abstract getOAuthURL(): Promise<Result<string | XOAuthURLResult>>;
+    public abstract getToken(data: T): Promise<Result<TokenResponse>>;
+    public abstract isTokenValid(challengeResponse: string, claimFields: ClaimField[]): Promise<Result<void>>;
 
     protected async shouldVouchFor(
         claimPointer: Core.Models.Pointer.Pointer,
@@ -130,11 +130,10 @@ export abstract class OAuthVerifier<TTokenRequest> extends Verifier {
         }
 
         try {
-            // Try to decode the challenge as base64
-            const oauthCallback = Buffer.from(challenge, 'base64').toString();
+            const challengeResponseDecoded = Buffer.from(challenge, 'base64').toString();
             
             const fields: ClaimField[] = claim.claimFields.map((v) => <ClaimField>{ key: v.key.toInt(), value: v.value });
-            return await this.isTokenValid(oauthCallback, fields);
+            return await this.isTokenValid(challengeResponseDecoded, fields);
         } catch (error) {
             return Result.err({
                 message: 'Invalid challenge response format',

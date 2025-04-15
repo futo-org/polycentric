@@ -1,3 +1,4 @@
+import { StatusCodes } from 'http-status-codes';
 import TwitterApi, { ApiResponseError } from 'twitter-api-v2';
 import { ClaimField, Platform, TokenResponse } from '../models';
 import { Result } from '../result';
@@ -11,18 +12,24 @@ export type XToken = {
     token: string;
 };
 
-type XTokenRequest = {
+type XOAuthCallbackData = {
     oauth_token: string;
     oauth_verifier: string;
-    harborSecret: string;
+    secret: string;
 };
 
-class XOAuthVerifier extends OAuthVerifier<XTokenRequest> {
+export type XOAuthURLResult = {
+    url: string;
+    token: string;
+    secret: string;
+};
+
+class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
     constructor() {
         super(Core.Models.ClaimType.ClaimTypeTwitter);
     }
 
-    public async getOAuthURL(): Promise<Result<string>> {
+    public async getOAuthURL(): Promise<Result<XOAuthURLResult>> {
         if (
             process.env.X_API_KEY === undefined ||
             process.env.X_API_SECRET === undefined ||
@@ -37,28 +44,48 @@ class XOAuthVerifier extends OAuthVerifier<XTokenRequest> {
                 appSecret: process.env.X_API_SECRET,
             });
 
-            const oauthRequest = await client.generateAuthLink(getCallbackForPlatform(this.claimType));
-            return Result.ok(`${oauthRequest.url}&harborSecret=${oauthRequest.oauth_token_secret}`);
+            const callbackUrl = getCallbackForPlatform(this.claimType);
+            const oauthRequest = await client.generateAuthLink(callbackUrl, { linkMode: 'authorize' });
+
+            if (!oauthRequest.oauth_callback_confirmed) {
+                 console.error('OAuth callback not confirmed by Twitter/X API.');
+                 return Result.errMsg('Failed to initiate OAuth flow: Callback not confirmed by provider.');
+            }
+
+            return Result.ok({
+                url: oauthRequest.url,
+                token: oauthRequest.oauth_token,
+                secret: oauthRequest.oauth_token_secret,
+            });
         } catch (error: any) {
-            console.error('Twitter API error:', error);
+            console.error('Twitter API error generating auth link:', error);
+             if (error instanceof ApiResponseError) {
+                 return httpResponseToError(error.code, JSON.stringify(error.data), 'X API Auth Link Generation');
+             }
             return Result.errMsg(`Twitter API error: ${error.message}`);
         }
     }
 
-    public async getToken(data: XTokenRequest): Promise<Result<TokenResponse>> {
+    public async getToken(data: XOAuthCallbackData): Promise<Result<TokenResponse>> {
         if (process.env.X_API_KEY === undefined || process.env.X_API_SECRET === undefined) {
             return Result.errMsg('Verifier not configured');
+        }
+
+        if (!data.oauth_token || !data.oauth_verifier || !data.secret) {
+             console.error('getToken called with missing OAuth data:', data);
+             return Result.errMsg('Internal error: Missing required data for token exchange.');
         }
 
         try {
             const client = new TwitterApi({
                 appKey: process.env.X_API_KEY,
                 appSecret: process.env.X_API_SECRET,
-                accessToken: data.oauth_token,
-                accessSecret: data.harborSecret,
+                accessToken: data.oauth_token, // Request token
+                accessSecret: data.secret,     // Request token secret
             });
 
             const response = await client.login(data.oauth_verifier);
+
             return Result.ok({
                 username: response.screenName,
                 token: encodeObject<XToken>({
@@ -67,11 +94,15 @@ class XOAuthVerifier extends OAuthVerifier<XTokenRequest> {
                 }),
             });
         } catch (err) {
+            console.error('X API login/token exchange error:', err);
             if (err instanceof ApiResponseError) {
-                return httpResponseToError(err.code, JSON.stringify(err.data), 'X API Login');
+                return httpResponseToError(err.code, JSON.stringify(err.data), 'X API Login/Token Exchange');
             }
-
-            throw err;
+            return Result.err({
+                 message: 'Failed to exchange OAuth token with X.',
+                 extendedMessage: err instanceof Error ? err.message : String(err),
+                 statusCode: StatusCodes.BAD_GATEWAY // Or appropriate error code
+            });
         }
     }
 
