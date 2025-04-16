@@ -53,6 +53,17 @@ export function OAuthCallback() {
               claimTypeLong,
             );
 
+            // eslint-disable-next-line no-console
+            console.log(
+              '[useEffect] Received oauthResponse:',
+              JSON.stringify(oauthResponse),
+            );
+            // eslint-disable-next-line no-console
+            console.log(
+              '[useEffect] oauthResponse.token value:',
+              oauthResponse?.token,
+            );
+
             setUsername(oauthResponse.username);
             setPermanentToken(oauthResponse.token);
           } catch (error: unknown) {
@@ -140,6 +151,12 @@ export function OAuthCallback() {
 
       const pointer = await processHandle.claim(claim);
 
+      // eslint-disable-next-line no-console
+      console.log(
+        '[handleConfirm] About to call requestVerification with permanentTokenValue:',
+        permanentToken,
+      );
+
       try {
         await Core.APIMethods.requestVerification(
           pointer,
@@ -149,21 +166,15 @@ export function OAuthCallback() {
 
         window.location.href = '/';
       } catch (verificationError) {
+        // eslint-disable-next-line no-console
         console.error(
           'Initial verification request failed:',
           verificationError,
         );
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-
-        await Core.APIMethods.requestVerification(
-          pointer,
-          claimType,
-          permanentToken,
-        );
-
-        window.location.href = '/';
+        throw verificationError;
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error during handleConfirm:', error);
       setError(
         `Failed to complete verification: ${
