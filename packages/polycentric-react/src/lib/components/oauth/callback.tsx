@@ -151,28 +151,17 @@ export function OAuthCallback() {
 
       const pointer = await processHandle.claim(claim);
 
-      // eslint-disable-next-line no-console
-      console.log(
-        '[handleConfirm] About to call requestVerification with permanentTokenValue:',
+      const propagationDelayMs = 3000;
+
+      await new Promise((resolve) => setTimeout(resolve, propagationDelayMs));
+
+      await Core.APIMethods.requestVerification(
+        pointer,
+        claimType,
         permanentToken,
       );
 
-      try {
-        await Core.APIMethods.requestVerification(
-          pointer,
-          claimType,
-          permanentToken,
-        );
-
-        window.location.href = '/';
-      } catch (verificationError) {
-        // eslint-disable-next-line no-console
-        console.error(
-          'Initial verification request failed:',
-          verificationError,
-        );
-        throw verificationError;
-      }
+      window.location.href = '/';
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Error during handleConfirm:', error);
