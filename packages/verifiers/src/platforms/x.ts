@@ -86,14 +86,6 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
 
             const response = await client.login(data.oauth_verifier);
 
-            console.log('[getToken] X Login Response:', {
-                screenName: response.screenName,
-                accessTokenStart: response.accessToken?.substring(0, 5),
-                accessTokenEnd: response.accessToken?.slice(-4),
-                accessSecretStart: response.accessSecret?.substring(0, 5),
-                accessSecretEnd: response.accessSecret?.slice(-4),
-            });
-
             return Result.ok({
                 username: response.screenName,
                 token: encodeObject<XToken>({
@@ -124,22 +116,8 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
             return Result.err({ message: msg, extendedMessage: `Invalid claim fields ${JSON.stringify(claimFields)}` });
         }
 
-        console.log('[isTokenValid] Received challengeResponse (encoded):', challengeResponse);
-
         const payload = decodeObject<XToken>(challengeResponse);
         const id = claimFields[0].value;
-
-        console.log('[isTokenValid] Decoded XToken payload:', {
-            tokenStart: payload.token?.substring(0, 5),
-            tokenEnd: payload.token?.slice(-4),
-            secretStart: payload.secret?.substring(0, 5),
-            secretEnd: payload.secret?.slice(-4),
-        });
-        console.log('[isTokenValid] ENV Check:', {
-            key_exists: !!process.env.X_API_KEY,
-            key_suffix: process.env.X_API_KEY?.slice(-4),
-            secret_exists: !!process.env.X_API_SECRET,
-        });
 
         const client = new TwitterApi({
             appKey: process.env.X_API_KEY!,
@@ -149,7 +127,6 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
         });
 
         try {
-            console.log('[isTokenValid] Calling client.currentUser()');
             const response = await client.currentUser();
             const res = response.screen_name;
             if (res !== id) {

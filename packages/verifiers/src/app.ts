@@ -17,10 +17,9 @@ const oauthSecrets = new Map<string, { secret: string; timeoutId: NodeJS.Timeout
 const OAUTH_SECRET_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 
 function storeOAuthSecret(token: string, secret: string) {
-    clearTimeout(oauthSecrets.get(token)?.timeoutId); // Clear existing timeout if any
+    clearTimeout(oauthSecrets.get(token)?.timeoutId);
     const timeoutId = setTimeout(() => {
         oauthSecrets.delete(token);
-        console.log(`Cleared expired OAuth secret for token: ${token.substring(0, 5)}...`);
     }, OAUTH_SECRET_TIMEOUT_MS);
     oauthSecrets.set(token, { secret, timeoutId });
 }
@@ -68,8 +67,6 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
         methods: ['GET', 'POST', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'x-polycentric-user-agent', 'Origin', 'Accept']
     }));
-
-    // app.options('*', cors());
 
     // Log all requests
     app.use((req, res, next) => {
@@ -246,9 +243,6 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
                         }
 
                         const challengeResponse = decodeObject<any>(challenge);
-
-                        console.log(`Decoded oauthData for /token endpoint (Platform ${name}):`, challengeResponse);
-
 
                         writeResult(res, await verifier.getToken(challengeResponse));
                     } catch (e: unknown) {
