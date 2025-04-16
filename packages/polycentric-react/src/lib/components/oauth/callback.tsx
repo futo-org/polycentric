@@ -151,19 +151,9 @@ export function OAuthCallback() {
 
       const pointer = await processHandle.claim(claim);
 
-      // Log the pointer for debugging
-      // eslint-disable-next-line no-console
-      console.log('[handleConfirm] Claim created, pointer:', JSON.stringify(Core.Models.Pointer.toJSON(pointer)));
+      const propagationDelayMs = 3000;
 
-      // Reintroduce a delay to allow for event propagation/replication
-      const propagationDelayMs = 3000; // 3 seconds - adjust if needed
-      // eslint-disable-next-line no-console
-      console.log(`[handleConfirm] Waiting ${propagationDelayMs}ms for event propagation...`);
       await new Promise((resolve) => setTimeout(resolve, propagationDelayMs));
-      // eslint-disable-next-line no-console
-      console.log('[handleConfirm] Wait finished.');
-
-      console.log('[handleConfirm] About to call requestVerification with permanentTokenValue:', permanentToken);
 
       await Core.APIMethods.requestVerification(
         pointer,
