@@ -86,14 +86,6 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
 
             const response = await client.login(data.oauth_verifier);
 
-            console.log('[getToken] X Login Response:', {
-                screenName: response.screenName,
-                accessTokenStart: response.accessToken?.substring(0, 5),
-                accessTokenEnd: response.accessToken?.slice(-4),
-                accessSecretStart: response.accessSecret?.substring(0, 5),
-                accessSecretEnd: response.accessSecret?.slice(-4),
-            });
-
             return Result.ok({
                 username: response.screenName,
                 token: encodeObject<XToken>({
