@@ -114,7 +114,7 @@ export abstract class OAuthVerifier<T> extends Verifier {
 
     public abstract getOAuthURL(): Promise<Result<string | XOAuthURLResult>>;
     public abstract getToken(data: T): Promise<Result<TokenResponse>>;
-    public abstract isTokenValid(challengeResponse: string, claimFields: ClaimField[]): Promise<Result<void>>;
+    public abstract isTokenValid(challengeResponseDecoded: string, claimFields: ClaimField[]): Promise<Result<void>>;
 
     protected async shouldVouchFor(
         claimPointer: Core.Models.Pointer.Pointer,
@@ -122,15 +122,30 @@ export abstract class OAuthVerifier<T> extends Verifier {
         req: RequestInformation
     ): Promise<Result<void>> {
         const query = req.url.substring(req.url.indexOf('?') + 1);
-
         const challenge = new URLSearchParams(query).get('challengeResponse');
 
         if (challenge === null) {
             return Result.errMsg('Missing challengeResponse');
         }
 
-        const fields: ClaimField[] = claim.claimFields.map((v) => <ClaimField>{ key: v.key.toInt(), value: v.value });
-        return await this.isTokenValid(challenge, fields);
+        // Decode the Base64 encoded token string from the frontend
+        try {
+            const challengeResponseDecoded = Buffer.from(challenge, 'base64').toString('utf8'); // Ensure utf8 encoding
+
+            // Log the decoded string for debugging
+            console.log(`[shouldVouchFor] Decoded challengeResponse for ${Core.Models.ClaimType.toString(this.claimType)}:`, challengeResponseDecoded);
+
+            const fields: ClaimField[] = claim.claimFields.map((v) => <ClaimField>{ key: v.key.toInt(), value: v.value });
+
+            // Pass the DECODED string (which should be JSON) to the specific isTokenValid
+            return await this.isTokenValid(challengeResponseDecoded, fields);
+        } catch (error) {
+            console.error(`[shouldVouchFor] Error decoding Base64 challengeResponse for ${Core.Models.ClaimType.toString(this.claimType)}:`, error, 'Input:', challenge);
+            return Result.err({
+                message: 'Invalid challenge response format',
+                extendedMessage: 'Could not decode the challenge response',
+            });
+        }
     }
 }
 
