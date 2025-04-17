@@ -114,7 +114,7 @@ export abstract class OAuthVerifier<T> extends Verifier {
 
     public abstract getOAuthURL(): Promise<Result<string | XOAuthURLResult>>;
     public abstract getToken(data: T): Promise<Result<TokenResponse>>;
-    public abstract isTokenValid(challengeResponseDecoded: string, claimFields: ClaimField[]): Promise<Result<void>>;
+    public abstract isTokenValid(challengeResponseInput: string, claimFields: ClaimField[]): Promise<Result<void>>;
 
     protected async shouldVouchFor(
         claimPointer: Core.Models.Pointer.Pointer,
@@ -128,24 +128,24 @@ export abstract class OAuthVerifier<T> extends Verifier {
             return Result.errMsg('Missing challengeResponse');
         }
 
-        // Decode the Base64 encoded token string from the frontend
-        try {
-            const challengeResponseDecoded = Buffer.from(challenge, 'base64').toString('utf8'); // Ensure utf8 encoding
+        const fields: ClaimField[] = claim.claimFields.map((v) => <ClaimField>{ key: v.key.toInt(), value: v.value });
+        let inputForIsTokenValid: string;
 
-            // Log the decoded string for debugging
-            console.log(`[shouldVouchFor] Decoded challengeResponse for ${Core.Models.ClaimType.toString(this.claimType)}:`, challengeResponseDecoded);
-
-            const fields: ClaimField[] = claim.claimFields.map((v) => <ClaimField>{ key: v.key.toInt(), value: v.value });
-
-            // Pass the DECODED string (which should be JSON) to the specific isTokenValid
-            return await this.isTokenValid(challengeResponseDecoded, fields);
-        } catch (error) {
-            console.error(`[shouldVouchFor] Error decoding Base64 challengeResponse for ${Core.Models.ClaimType.toString(this.claimType)}:`, error, 'Input:', challenge);
-            return Result.err({
-                message: 'Invalid challenge response format',
-                extendedMessage: 'Could not decode the challenge response',
-            });
+        if (this.claimType.equals(Core.Models.ClaimType.ClaimTypeTwitter)) {
+            inputForIsTokenValid = challenge;
+        } else {
+            try {
+                inputForIsTokenValid = Buffer.from(challenge, 'base64').toString('utf8');
+            } catch (error) {
+                console.error(`[shouldVouchFor] Error decoding Base64 challengeResponse for ${Core.Models.ClaimType.toString(this.claimType)}:`, error, 'Input:', challenge);
+                return Result.err({
+                    message: 'Invalid challenge response format',
+                    extendedMessage: 'Could not decode the challenge response',
+                });
+            }
         }
+
+        return await this.isTokenValid(inputForIsTokenValid, fields);
     }
 }
 
