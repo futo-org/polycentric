@@ -2,7 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import TwitterApi, { ApiResponseError } from 'twitter-api-v2';
 import { ClaimField, Platform, TokenResponse } from '../models';
 import { Result } from '../result';
-import { encodeObject, getCallbackForPlatform, httpResponseToError } from '../utility';
+import { decodeObject, encodeObject, getCallbackForPlatform, httpResponseToError } from '../utility';
 import { OAuthVerifier } from '../verifier';
 
 import * as Core from '@polycentric/polycentric-core';
@@ -106,7 +106,7 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
         }
     }
 
-    public async isTokenValid(challengeResponseDecodedJson: string, claimFields: ClaimField[]): Promise<Result<void>> {
+    public async isTokenValid(challengeResponseBase64: string, claimFields: ClaimField[]): Promise<Result<void>> {
         if (process.env.X_API_KEY === undefined || process.env.X_API_SECRET === undefined) {
             return Result.errMsg('Verifier not configured');
         }
@@ -118,14 +118,14 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
 
         let payload: XToken;
         try {
-            payload = JSON.parse(challengeResponseDecodedJson);
+            payload = decodeObject<XToken>(challengeResponseBase64);
         } catch (e) {
-            console.error("[X.isTokenValid] Failed to parse challenge response JSON:", challengeResponseDecodedJson, e);
+            console.error("[X.isTokenValid] Failed to decode challenge response object:", challengeResponseBase64, e);
             return Result.err({message: "Invalid token data format for X verification."});
         }
 
         if (!payload || !payload.token || !payload.secret) {
-            console.error("[X.isTokenValid] Parsed X payload missing token or secret:", payload);
+            console.error("[X.isTokenValid] Decoded X payload missing token or secret:", payload);
             return Result.err({message: "Incomplete token data for X verification."});
         }
 
