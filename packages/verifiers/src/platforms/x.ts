@@ -2,7 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import TwitterApi, { ApiResponseError } from 'twitter-api-v2';
 import { ClaimField, Platform, TokenResponse } from '../models';
 import { Result } from '../result';
-import { decodeObject, encodeObject, getCallbackForPlatform, httpResponseToError } from '../utility';
+import { encodeObject, getCallbackForPlatform, httpResponseToError } from '../utility';
 import { OAuthVerifier } from '../verifier';
 
 import * as Core from '@polycentric/polycentric-core';
@@ -131,6 +131,18 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
 
         const id = claimFields[0].value;
 
+        console.log('[isTokenValid] Decoded XToken payload:', {
+            tokenStart: payload.token?.substring(0, 5),
+            tokenEnd: payload.token?.slice(-4),
+            secretStart: payload.secret?.substring(0, 5),
+            secretEnd: payload.secret?.slice(-4),
+        });
+        console.log('[isTokenValid] ENV Check:', {
+            key_exists: !!process.env.X_API_KEY,
+            key_suffix: process.env.X_API_KEY?.slice(-4),
+            secret_exists: !!process.env.X_API_SECRET,
+        });
+
         const client = new TwitterApi({
             appKey: process.env.X_API_KEY!,
             appSecret: process.env.X_API_SECRET!,
@@ -139,6 +151,7 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
         });
 
         try {
+            console.log('[isTokenValid] Calling client.currentUser()');
             const response = await client.currentUser();
             const res = response.screen_name;
             if (res !== id) {

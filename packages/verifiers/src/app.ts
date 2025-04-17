@@ -244,6 +244,9 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
 
                         const challengeResponse = decodeObject<any>(challenge);
 
+                        console.log(`Decoded oauthData for /token endpoint (Platform ${name}):`, challengeResponse);
+
+
                         writeResult(res, await verifier.getToken(challengeResponse));
                     } catch (e: unknown) {
                         const requestId: string = new ObjectId().toString();

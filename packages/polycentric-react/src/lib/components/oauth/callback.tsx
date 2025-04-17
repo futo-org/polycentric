@@ -53,6 +53,17 @@ export function OAuthCallback() {
               claimTypeLong,
             );
 
+            // eslint-disable-next-line no-console
+            console.log(
+              '[useEffect] Received oauthResponse:',
+              JSON.stringify(oauthResponse),
+            );
+            // eslint-disable-next-line no-console
+            console.log(
+              '[useEffect] oauthResponse.token value:',
+              oauthResponse?.token,
+            );
+
             setUsername(oauthResponse.username);
             setPermanentToken(oauthResponse.token);
           } catch (error: unknown) {
