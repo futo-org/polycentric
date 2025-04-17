@@ -2,7 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import TwitterApi, { ApiResponseError } from 'twitter-api-v2';
 import { ClaimField, Platform, TokenResponse } from '../models';
 import { Result } from '../result';
-import { decodeObject, encodeObject, getCallbackForPlatform, httpResponseToError } from '../utility';
+import { encodeObject, getCallbackForPlatform, httpResponseToError } from '../utility';
 import { OAuthVerifier } from '../verifier';
 
 import * as Core from '@polycentric/polycentric-core';
@@ -106,7 +106,7 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
         }
     }
 
-    public async isTokenValid(challengeResponse: string, claimFields: ClaimField[]): Promise<Result<void>> {
+    public async isTokenValid(challengeResponseDecodedJson: string, claimFields: ClaimField[]): Promise<Result<void>> {
         if (process.env.X_API_KEY === undefined || process.env.X_API_SECRET === undefined) {
             return Result.errMsg('Verifier not configured');
         }
@@ -116,7 +116,19 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
             return Result.err({ message: msg, extendedMessage: `Invalid claim fields ${JSON.stringify(claimFields)}` });
         }
 
-        const payload = decodeObject<XToken>(challengeResponse);
+        let payload: XToken;
+        try {
+            payload = JSON.parse(challengeResponseDecodedJson);
+        } catch (e) {
+            console.error("[X.isTokenValid] Failed to parse challenge response JSON:", challengeResponseDecodedJson, e);
+            return Result.err({message: "Invalid token data format for X verification."});
+        }
+
+        if (!payload || !payload.token || !payload.secret) {
+            console.error("[X.isTokenValid] Parsed X payload missing token or secret:", payload);
+            return Result.err({message: "Incomplete token data for X verification."});
+        }
+
         const id = claimFields[0].value;
 
         const client = new TwitterApi({
@@ -135,13 +147,13 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
                     extendedMessage: `Username did not match (expected: ${id}, got: ${response.screen_name})`,
                 });
             }
-
             return Result.ok();
         } catch (err) {
+            console.error('[X.isTokenValid] X API verification error:', err);
             if (err instanceof ApiResponseError) {
+                 console.error('[X.isTokenValid] X API ApiResponseError details:', { code: err.code, data: err.data });
                 return httpResponseToError(err.code, JSON.stringify(err.data), 'X API Verification');
             }
-
             return Result.err({
                 message: 'Failed to verify X account',
                 extendedMessage: err instanceof Error ? err.message : String(err),
