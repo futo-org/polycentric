@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "definitions": {
+    "Perf_Test_Event" : {
+      "type" : "object",
+      "properties" : {
+        "system_id" : {
+                "type" : "array", "items" : {"type" : "integer", "minimum" : 0, "maximum" :255}
+              },
+        "timestamp" : {
+                "type" : "integer", "minimum" : -9223372036854775808, "maximum" : 9223372036854775807
+              },
+        "content" : {
+                "type" : "string"
+              }
+      },
+      "additionalProperties" : false
+    },
+    "Perf_Test_SignedEvent" : {
+      "type" : "object",
+      "properties" : {
+        "signature" : {
+                "type" : "array", "items" : {"type" : "integer", "minimum" : 0, "maximum" :255}
+              },
+        "event" : {
+                "$ref" : "#/definitions/Perf_Test_Event"
+              }
+      },
+      "additionalProperties" : false
+    }
+  },
+  "$ref" : "#/definitions/Perf_Test_SignedEvent"
+}

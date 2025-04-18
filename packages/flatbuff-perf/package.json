@@ -1,0 +1,19 @@
+{
+  "name": "flatbuff-perf",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "generate": "flatc --ts -o src src/schema.fbs"
+  },
+  "devDependencies": {
+    "typescript": "~5.7.2",
+    "vite": "^6.3.1"
+  },
+  "dependencies": {
+    "flatbuffers": "^24.3.25"
+  }
+}

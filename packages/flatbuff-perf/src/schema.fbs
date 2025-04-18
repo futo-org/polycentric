@@ -1,0 +1,16 @@
+// Example IDL file for our benchmark
+
+namespace Perf.Test;
+
+table Event {
+  system_id:[ubyte];
+  timestamp:long;
+  content:string;
+}
+
+table SignedEvent {
+  signature:[ubyte];
+  event:Event;
+}
+
+root_type SignedEvent; 
