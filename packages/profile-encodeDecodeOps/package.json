@@ -11,5 +11,8 @@
   "devDependencies": {
     "typescript": "~5.7.2",
     "vite": "^6.3.1"
+  },
+  "dependencies": {
+    "polycentric-core": "file:../polycentric-core"
   }
 }
