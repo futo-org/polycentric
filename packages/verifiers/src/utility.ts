@@ -1,9 +1,9 @@
-import { CookieJar, MemoryCookieStore } from 'tough-cookie';
-import { NextFunction, Response, Request } from 'express';
-import { Result } from './result';
-import { StatusCodes } from 'http-status-codes';
 import axios, { AxiosInstance } from 'axios';
 import bodyParser from 'body-parser';
+import { NextFunction, Request, Response } from 'express';
+import { StatusCodes } from 'http-status-codes';
+import { CookieJar, MemoryCookieStore } from 'tough-cookie';
+import { Result } from './result';
 
 import * as Core from '@polycentric/polycentric-core';
 
@@ -48,8 +48,9 @@ export function encodeObject<T>(token: T): string {
     return encodeURIComponent(Buffer.from(JSON.stringify(token)).toString('base64'));
 }
 
-export function decodeObject<T>(token: string): T {
-    return JSON.parse(Buffer.from(decodeURIComponent(token), 'base64').toString('utf-8'));
+export function decodeObject<T>(base64String: string): T {
+    const jsonString = Buffer.from(base64String, 'base64').toString('utf-8');
+    return JSON.parse(jsonString) as T;
 }
 
 export async function writeResult<T>(res: Response, result: Result<T>): Promise<void> {

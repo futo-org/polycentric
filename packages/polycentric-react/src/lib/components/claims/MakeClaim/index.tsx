@@ -35,7 +35,8 @@ const isOAuthVerifiable = (
 ): boolean => {
   return (
     claimType.equals(Core.Models.ClaimType.ClaimTypeDiscord) ||
-    claimType.equals(Core.Models.ClaimType.ClaimTypeTwitter)
+    claimType.equals(Core.Models.ClaimType.ClaimTypeTwitter) ||
+    claimType.equals(Core.Models.ClaimType.ClaimTypePatreon)
   );
 };
 
@@ -342,7 +343,13 @@ export const SocialMediaInput = ({
   const [url, setUrl] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verificationStep, setVerificationStep] = useState<
-    'input' | 'token' | 'verifying' | 'success' | 'error' | 'duplicate'
+    | 'input'
+    | 'token'
+    | 'verifying'
+    | 'success'
+    | 'error'
+    | 'duplicate'
+    | 'oauth_redirect'
   >('input');
   const [claimPointer, setClaimPointer] =
     useState<Models.Pointer.Pointer | null>(null);
@@ -369,16 +376,28 @@ export const SocialMediaInput = ({
       const claimType = getClaimTypeForPlatform(platform);
 
       if (isOAuthVerifiable(claimType)) {
+        setVerificationStep('oauth_redirect');
         await handleOAuthLogin(claimType);
       }
     } catch (error) {
       console.error('Failed to initialize OAuth:', error);
+      setVerificationStep('error');
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Failed to initialize OAuth authentication.',
+      );
     }
   }, [platform, getClaimTypeForPlatform]);
 
   useEffect(() => {
-    initializeOAuth();
-  }, [initializeOAuth]);
+    // For OAuth platforms, immediately show redirect state and start OAuth flow
+    const claimType = getClaimTypeForPlatform(platform);
+    if (isOAuthVerifiable(claimType)) {
+      setVerificationStep('oauth_redirect');
+      initializeOAuth();
+    }
+  }, [initializeOAuth, platform, getClaimTypeForPlatform]);
 
   const addClaim = useCallback(async () => {
     if (!url || !processHandle || !claims) return;
@@ -681,6 +700,27 @@ export const SocialMediaInput = ({
             OK
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (verificationStep === 'oauth_redirect') {
+    return (
+      <div className="flex flex-col items-center gap-4 p-4">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <p className="text-center">
+          Redirecting you to {platform} for authentication...
+        </p>
+        <p className="text-sm text-gray-500 text-center">
+          You will be redirected to {platform} to authorize access. Please wait
+          a moment.
+        </p>
+        <button
+          onClick={onCancel}
+          className="mt-4 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
+        >
+          Cancel
+        </button>
       </div>
     );
   }

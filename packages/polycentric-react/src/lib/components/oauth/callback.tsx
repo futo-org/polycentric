@@ -75,7 +75,7 @@ export function OAuthCallback() {
               )
             ) {
               setError(
-                "Twitter's OAuth service is temporarily unavailable. Please try again later.",
+                'OAuth service is temporarily unavailable. Please try again later.',
               );
             } else if (apiError?.response?.message) {
               setError(apiError.response.message);
@@ -144,6 +144,10 @@ export function OAuthCallback() {
         case Core.Models.ClaimType.ClaimTypeInstagram.toNumber():
           claim = Core.Models.claimInstagram(username);
           claimType = Core.Models.ClaimType.ClaimTypeInstagram;
+          break;
+        case Core.Models.ClaimType.ClaimTypePatreon.toNumber():
+          claim = Core.Models.claimPatreon(username);
+          claimType = Core.Models.ClaimType.ClaimTypePatreon;
           break;
         default:
           throw new Error(`Unsupported claim type: ${claimTypeNum}`);

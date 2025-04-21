@@ -2,7 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import TwitterApi, { ApiResponseError } from 'twitter-api-v2';
 import { ClaimField, Platform, TokenResponse } from '../models';
 import { Result } from '../result';
-import { encodeObject, getCallbackForPlatform, httpResponseToError } from '../utility';
+import { decodeObject, encodeObject, getCallbackForPlatform, httpResponseToError } from '../utility';
 import { OAuthVerifier } from '../verifier';
 
 import * as Core from '@polycentric/polycentric-core';
