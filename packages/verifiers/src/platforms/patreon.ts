@@ -31,7 +31,7 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
         super(Core.Models.ClaimType.ClaimTypePatreon);
     }
 
-    public async getOAuthURL(): Promise<Result<PatreonOAuthURLResult>> {
+    public async getOAuthURL(): Promise<Result<string>> {
         if (
             process.env.PATREON_CLIENT_ID === undefined ||
             process.env.OAUTH_CALLBACK_DOMAIN === undefined
@@ -59,11 +59,7 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
             const stateToken = Math.random().toString(36).substring(2, 15);
             url.searchParams.append('state', stateToken);
 
-            return Result.ok({
-                url: url.toString(),
-                token: stateToken,
-                secret: stateToken
-            });
+            return Result.ok(url.toString());
         } catch (error: any) {
             console.error('Patreon OAuth URL generation error:', error);
             return Result.errMsg(`Patreon OAuth error: ${error.message}`);
@@ -161,7 +157,7 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
         }
     }
 
-    public async isTokenValid(challengeResponseBase64: string, claimFields: ClaimField[]): Promise<Result<void>> {
+    public async isTokenValid(challengeResponseBase64UrlEncoded: string, claimFields: ClaimField[]): Promise<Result<void>> {
         if (
             process.env.PATREON_CLIENT_ID === undefined ||
             process.env.PATREON_CLIENT_SECRET === undefined
@@ -179,29 +175,30 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
 
         let payload: PatreonToken;
         try {
-            console.log(`[Patreon.isTokenValid] Received challengeResponse: ${challengeResponseBase64.substring(0, 50)}...`);
-            
-            // Repeatedly decode URI component until it stops changing
-            let decoded = challengeResponseBase64;
-            let previousDecoded = '';
-            while (decoded !== previousDecoded) {
-                previousDecoded = decoded;
-                decoded = decodeURIComponent(decoded);
-            }
-            
-            console.log(`[Patreon.isTokenValid] After full URL decoding: ${decoded.substring(0, 50)}...`);
-            
-            // Now decode from base64 and parse JSON
-            payload = JSON.parse(Buffer.from(decoded, 'base64').toString());
-            
-            console.log(`[Patreon.isTokenValid] Decoded payload:`, { 
+            console.log(`[Patreon.isTokenValid] Received challengeResponse: ${challengeResponseBase64UrlEncoded.substring(0, 50)}...`);
+
+            const base64Token = decodeURIComponent(challengeResponseBase64UrlEncoded);
+            console.log(`[Patreon.isTokenValid] After URL decoding: ${base64Token.substring(0, 50)}...`);
+
+            const jsonToken = Buffer.from(base64Token, 'base64').toString('utf8');
+            console.log(`[Patreon.isTokenValid] After Base64 decoding: ${jsonToken.substring(0, 100)}...`);
+
+            payload = JSON.parse(jsonToken);
+
+            console.log(`[Patreon.isTokenValid] Decoded payload:`, {
                 has_access_token: !!payload?.access_token,
                 token_prefix: payload?.access_token?.substring(0, 10),
                 has_refresh_token: !!payload?.refresh_token
             });
-        } catch (e) {
-            console.error("[Patreon.isTokenValid] Failed to decode challenge response:", e, "Input after decodeURIComponent loop:", /* Add decoded here if needed */);
-            return Result.err({message: "Invalid token data format for Patreon verification."});
+        } catch (e: any) {
+            console.error("[Patreon.isTokenValid] Failed to decode/parse challenge response:", e, "Input after decodeURIComponent:", /* base64Token could be logged here if needed */);
+            let errorMessage = "Invalid token data format for Patreon verification.";
+            if (e instanceof SyntaxError) {
+                errorMessage = "Invalid JSON format in Patreon token data.";
+            } else if (e.message.includes('Invalid character') || e.message.includes('base64')) {
+                 errorMessage = "Invalid Base64 encoding in Patreon token data.";
+            }
+            return Result.err({ message: errorMessage, extendedMessage: e.message });
         }
 
         if (!payload || !payload.access_token) {

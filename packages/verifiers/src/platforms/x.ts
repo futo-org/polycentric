@@ -2,7 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import TwitterApi, { ApiResponseError } from 'twitter-api-v2';
 import { ClaimField, Platform, TokenResponse } from '../models';
 import { Result } from '../result';
-import { decodeObject, encodeObject, getCallbackForPlatform, httpResponseToError } from '../utility';
+import { encodeObject, getCallbackForPlatform, httpResponseToError } from '../utility';
 import { OAuthVerifier } from '../verifier';
 
 import * as Core from '@polycentric/polycentric-core';
@@ -106,22 +106,26 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
         }
     }
 
-    public async isTokenValid(challengeResponseBase64: string, claimFields: ClaimField[]): Promise<Result<void>> {
-        if (process.env.X_API_KEY === undefined || process.env.X_API_SECRET === undefined) {
-            return Result.errMsg('Verifier not configured');
-        }
-
-        if (claimFields.length !== 1 || claimFields[0].key !== 0) {
-            const msg = 'Invalid claim fields.';
-            return Result.err({ message: msg, extendedMessage: `Invalid claim fields ${JSON.stringify(claimFields)}` });
+    public async isTokenValid(challengeResponseUrlEncodedBase64: string, claimFields: ClaimField[]): Promise<Result<void>> {
+        if (
+            process.env.X_API_KEY === undefined ||
+            process.env.X_API_SECRET === undefined
+        ) {
+            return Result.errMsg('Verifier not configured: Missing X credentials');
         }
 
         let payload: XToken;
         try {
-            const decoded = decodeURIComponent(challengeResponseBase64);
-            payload = decodeObject<XToken>(decoded);
+            // 1. Decode URL encoding
+            const base64Token = decodeURIComponent(challengeResponseUrlEncodedBase64);
+            console.log(`[X.isTokenValid] After URL decoding: ${base64Token.substring(0, 100)}...`);
+            // 2. Decode Base64
+            const jsonToken = Buffer.from(base64Token, 'base64').toString('utf8');
+            console.log(`[X.isTokenValid] After Base64 decoding: ${jsonToken.substring(0, 100)}...`);
+            // 3. Parse JSON
+            payload = JSON.parse(jsonToken);
         } catch (e) {
-            console.error("[X.isTokenValid] Failed to decode challenge response object:", challengeResponseBase64, e);
+            console.error("[X.isTokenValid] Failed to decode/parse challenge response:", e);
             return Result.err({message: "Invalid token data format for X verification."});
         }
 
@@ -132,13 +136,13 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
 
         const id = claimFields[0].value;
 
-        console.log('[isTokenValid] Decoded XToken payload:', {
+        console.log('[X.isTokenValid] Decoded XToken payload:', {
             tokenStart: payload.token?.substring(0, 5),
             tokenEnd: payload.token?.slice(-4),
             secretStart: payload.secret?.substring(0, 5),
             secretEnd: payload.secret?.slice(-4),
         });
-        console.log('[isTokenValid] ENV Check:', {
+        console.log('[X.isTokenValid] ENV Check:', {
             key_exists: !!process.env.X_API_KEY,
             key_suffix: process.env.X_API_KEY?.slice(-4),
             secret_exists: !!process.env.X_API_SECRET,
@@ -152,7 +156,7 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
         });
 
         try {
-            console.log('[isTokenValid] Calling client.currentUser()');
+            console.log('[X.isTokenValid] Calling client.currentUser()');
             const response = await client.currentUser();
             const res = response.screen_name;
             if (res !== id) {

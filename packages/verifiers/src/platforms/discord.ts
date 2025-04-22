@@ -162,125 +162,91 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
         }
     }
 
-    public async isTokenValid(challengeResponse: string, claimFields: ClaimField[]): Promise<Result<void>> {
+    public async isTokenValid(challengeResponseUrlEncodedBase64: string, claimFields: ClaimField[]): Promise<Result<void>> {
         if (claimFields.length !== 1 || claimFields[0].key !== 0) {
             const msg = 'Invalid claim fields.';
             return Result.err({ message: msg, extendedMessage: `Invalid claim fields ${JSON.stringify(claimFields)}` });
         }
-        
+
+        let payload: DiscordToken;
         try {
-            // Try to parse the challenge as JSON directly
-            try {
-                const oauthData = JSON.parse(challengeResponse);
-                
-                if (oauthData.code) {
-                    // Check if we have a cached username for this code
-                    const cachedUsername = this.usernameCache.get(oauthData.code);
-                    if (cachedUsername) {
-                        const username = claimFields[0].value;
-                        
-                        if (username !== cachedUsername) {
-                            return Result.err({
-                                message: "The username didn't match the account you logged in with",
-                                extendedMessage: `Username did not match (expected: ${cachedUsername}, got: ${username})`,
-                            });
-                        }
-                        
-                        return Result.ok();
-                    }
-                    
-                    // If we don't have a cached username, try to get a token
-                    const tokenResult = await this.getToken(oauthData);
-                    if (tokenResult.error) {
-                        return Result.err({
-                            message: 'Failed to validate token',
-                            extendedMessage: tokenResult.error?.message || 'Unknown error'
-                        });
-                    }
-                    
-                    const tokenResponse = tokenResult.value;
-                    const username = claimFields[0].value;
-                    
-                    if (username !== tokenResponse.username) {
-                        return Result.err({
-                            message: "The username didn't match the account you logged in with",
-                            extendedMessage: `Username did not match (expected: ${tokenResponse.username}, got: ${username})`,
-                        });
-                    }
-                    
-                    return Result.ok();
-                } else if (oauthData.token) {
-                    const username = claimFields[0].value;
-                    
-                    const client = createCookieEnabledAxios();
-                    
-                    const response = await client.get('https://discord.com/api/users/@me', {
-                        headers: {
-                            Authorization: `Bearer ${oauthData.token}`,
-                        },
-                    });
+            // 1. Decode URL encoding
+            const base64Token = decodeURIComponent(challengeResponseUrlEncodedBase64);
+            console.log(`[Discord.isTokenValid] After URL decoding: ${base64Token.substring(0, 100)}...`);
+            // 2. Decode Base64
+            const jsonToken = Buffer.from(base64Token, 'base64').toString('utf8');
+            console.log(`[Discord.isTokenValid] After Base64 decoding: ${jsonToken.substring(0, 100)}...`);
+            // 3. Parse JSON - Expecting { token: "..." } structure from our getToken method
+            payload = JSON.parse(jsonToken);
 
-                    const user = response.data;
-                    const hasDiscriminator = user.discriminator !== undefined && user.discriminator !== '0';
-                    const expectedUsername = hasDiscriminator ? `${user.username}#${user.discriminator}` : user.username;
-                    
-                    if (username !== expectedUsername) {
-                        return Result.err({
-                            message: "The username didn't match the account you logged in with",
-                            extendedMessage: `Username did not match (expected: ${expectedUsername}, got: ${username})`,
-                        });
-                    }
+        } catch (e: any) {
+            console.error("[Discord.isTokenValid] Failed to decode/parse challenge response:", e);
+            // Add more specific error checking if needed
+            return Result.err({message: "Invalid token data format for Discord verification."});
+        }
 
-                    return Result.ok();
-                } else {
-                    return Result.err({
-                        message: 'Invalid OAuth data',
-                        extendedMessage: 'Missing code or token in OAuth data'
-                    });
-                }
-            } catch (jsonError) {
-                // Try to handle it as a raw token
-                try {
-                    const client = createCookieEnabledAxios();
-                    
-                    const response = await client.get('https://discord.com/api/users/@me', {
-                        headers: {
-                            Authorization: `Bearer ${challengeResponse}`,
-                        },
-                    });
-                    
-                    const user = response.data;
-                    const hasDiscriminator = user.discriminator !== undefined && user.discriminator !== '0';
-                    const expectedUsername = hasDiscriminator ? `${user.username}#${user.discriminator}` : user.username;
-                    
-                    const username = claimFields[0].value;
-                    if (username !== expectedUsername) {
-                        return Result.err({
-                            message: "The username didn't match the account you logged in with",
-                            extendedMessage: `Username did not match (expected: ${expectedUsername}, got: ${username})`,
-                        });
-                    }
-                    
-                    return Result.ok();
-                } catch (apiError) {
-                    return Result.err({
-                        message: 'Invalid Discord token format',
-                        extendedMessage: 'The token could not be used to authenticate with Discord'
-                    });
-                }
+        // Check if the parsed payload contains the expected token
+        if (!payload || !payload.token) {
+             console.error("[Discord.isTokenValid] Decoded Discord payload missing token:", payload);
+             return Result.err({message: "Incomplete token data for Discord verification."});
+        }
+
+        // The token might be a placeholder if it came from cache during an invalid_grant scenario in getToken
+        // In a real scenario, we might want to refresh the token, but for now,
+        // if it's the placeholder, we assume the username check passed implicitly in getToken's cache logic.
+        // However, the current getToken returns the *actual* token even on cache hit, just wrapped.
+        // Let's proceed assuming payload.token is the real token needed for verification.
+
+        const expectedClaimUsername = claimFields[0].value;
+
+        try {
+            const client = createCookieEnabledAxios();
+            console.log(`[Discord.isTokenValid] Verifying token starting with: ${payload.token.substring(0, 5)}...`);
+
+            const response = await client.get('https://discord.com/api/users/@me', {
+                headers: {
+                    // Use the decoded token
+                    Authorization: `Bearer ${payload.token}`,
+                },
+            });
+
+            const user = response.data;
+            // Discord username logic (handle discriminator removal)
+            const hasDiscriminator = user.discriminator !== undefined && user.discriminator !== '0';
+            const actualDiscordUsername = hasDiscriminator ? `${user.username}#${user.discriminator}` : user.username;
+
+            console.log(`[Discord.isTokenValid] Claim username: ${expectedClaimUsername}, Discord API username: ${actualDiscordUsername}`);
+
+            if (expectedClaimUsername.toLowerCase() !== actualDiscordUsername.toLowerCase()) {
+                return Result.err({
+                    message: "The username didn't match the account you logged in with",
+                    extendedMessage: `Username mismatch (expected: ${expectedClaimUsername}, got: ${actualDiscordUsername})`,
+                });
             }
+
+            // Usernames match
+            return Result.ok();
+
         } catch (err: any) {
+            console.error('[Discord.isTokenValid] Discord API verification error:', err.response ? JSON.stringify(err.response.data) : err.message);
             if (err.response) {
+                 if (err.response.status === StatusCodes.UNAUTHORIZED) {
+                     return Result.err({
+                         message: 'Discord token is invalid or expired.',
+                         extendedMessage: 'Discord rejected the access token during validation.',
+                         statusCode: StatusCodes.UNAUTHORIZED
+                     });
+                 }
                 return httpResponseToError(
-                    err.response.status, 
-                    JSON.stringify(err.response.data), 
-                    'Discord API validation'
+                    err.response.status,
+                    JSON.stringify(err.response.data),
+                    'Discord API /users/@me Verification'
                 );
             }
-            
             return Result.err({
-                message: 'Discord token validation failed',
-                extendedMessage: err.message
+                message: 'Failed to verify Discord account via API',
+                extendedMessage: err instanceof Error ? err.message : String(err),
+                statusCode: StatusCodes.INTERNAL_SERVER_ERROR // Or BAD_GATEWAY
             });
         }
     }
