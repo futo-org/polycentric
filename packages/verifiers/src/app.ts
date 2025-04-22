@@ -99,7 +99,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
         try {
             const { code, oauth_token, oauth_verifier, state } = req.query;
             let queryObject: Record<string, any> = {};
-            const claimType = req.params.platformName;
+            const platformIdentifier = req.params.platformName;
 
             if (oauth_token && typeof oauth_token === 'string' && oauth_verifier && typeof oauth_verifier === 'string') {
                 const secret = retrieveOAuthSecret(oauth_token);
@@ -113,14 +113,11 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
                     oauth_verifier: oauth_verifier,
                     secret: secret,
                 };
-            } else if (code) {
+            } else if (code && typeof code === 'string') {
                 queryObject = { code };
                 if (state && typeof state === 'string') {
-                    try {
-                        const stateObj = JSON.parse(state);
-                    } catch (e) {
-                        console.warn('Failed to parse state parameter:', e);
-                    }
+                    queryObject.state = state;
+                    console.log(`Received state parameter: ${state}`);
                 }
             } else {
                  res.status(StatusCodes.BAD_REQUEST).send('Missing required OAuth parameters in callback.');
@@ -129,13 +126,15 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
 
             const encodedData = Buffer.from(JSON.stringify(queryObject)).toString('base64');
 
-            const webAppUrl = process.env.WEB_APP_URL || 'https://staging-web.polycentric.io/oauth/callback';
+            const webAppBaseUrl = process.env.WEB_APP_URL || 'https://staging-web.polycentric.io';
+            const webAppCallbackPath = '/oauth/callback';
 
             const redirectState = JSON.stringify({
                 data: encodedData,
-                claimType: claimType
+                claimType: platformIdentifier
             });
-            const redirectUrl = `${webAppUrl}?state=${encodeURIComponent(redirectState)}`;
+            const redirectUrl = `${webAppBaseUrl.replace(/\/$/, '')}${webAppCallbackPath}?state=${encodeURIComponent(redirectState)}`;
+            console.log(`Redirecting to web app: ${redirectUrl}`);
             res.redirect(redirectUrl);
         } catch (e: unknown) {
             const requestId: string = new ObjectId().toString();
@@ -206,11 +205,11 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
                     try {
                         const result = await verifier.getOAuthURL();
                         if (result.success) {
-                            if (typeof result.value === 'object' && 'url' in result.value && 'token' in result.value && 'secret' in result.value) {
+                            if (typeof result.value === 'string') {
+                                res.status(StatusCodes.OK).json({ url: result.value });
+                            } else if (typeof result.value === 'object' && 'url' in result.value && 'token' in result.value && 'secret' in result.value) {
                                 storeOAuthSecret(result.value.token, result.value.secret);
                                 res.status(StatusCodes.OK).json({ url: result.value.url });
-                            } else if (typeof result.value === 'string') {
-                                res.status(StatusCodes.OK).json({ url: result.value });
                             } else {
                                  console.error(`[500 ERROR] Unexpected success value format from getOAuthURL for platform ${name}`);
                                  res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
