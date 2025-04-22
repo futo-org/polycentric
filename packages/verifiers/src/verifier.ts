@@ -129,23 +129,8 @@ export abstract class OAuthVerifier<T> extends Verifier {
         }
 
         const fields: ClaimField[] = claim.claimFields.map((v) => <ClaimField>{ key: v.key.toInt(), value: v.value });
-        let inputForIsTokenValid: string;
 
-        if (this.claimType.equals(Core.Models.ClaimType.ClaimTypeTwitter)) {
-            inputForIsTokenValid = challenge;
-        } else {
-            try {
-                inputForIsTokenValid = Buffer.from(challenge, 'base64').toString('utf8');
-            } catch (error) {
-                console.error(`[shouldVouchFor] Error decoding Base64 challengeResponse for ${Core.Models.ClaimType.toString(this.claimType)}:`, error, 'Input:', challenge);
-                return Result.err({
-                    message: 'Invalid challenge response format',
-                    extendedMessage: 'Could not decode the challenge response',
-                });
-            }
-        }
-
-        return await this.isTokenValid(inputForIsTokenValid, fields);
+        return await this.isTokenValid(challenge, fields);
     }
 }
 
