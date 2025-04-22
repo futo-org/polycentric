@@ -31,7 +31,7 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
         super(Core.Models.ClaimType.ClaimTypePatreon);
     }
 
-    public async getOAuthURL(): Promise<Result<string>> {
+    public async getOAuthURL(): Promise<Result<PatreonOAuthURLResult>> {
         if (
             process.env.PATREON_CLIENT_ID === undefined ||
             process.env.OAUTH_CALLBACK_DOMAIN === undefined
@@ -59,7 +59,11 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
             const stateToken = Math.random().toString(36).substring(2, 15);
             url.searchParams.append('state', stateToken);
 
-            return Result.ok(url.toString());
+            return Result.ok({
+                url: url.toString(),
+                token: stateToken,
+                secret: stateToken
+            });
         } catch (error: any) {
             console.error('Patreon OAuth URL generation error:', error);
             return Result.errMsg(`Patreon OAuth error: ${error.message}`);
@@ -77,10 +81,6 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
         if (!data.code) {
             console.error('getToken called with missing OAuth code:', data);
             return Result.errMsg('Internal error: Missing required code for token exchange.');
-        }
-        if (!data.state) {
-            console.error('getToken called with missing state parameter:', data);
-            return Result.errMsg('Internal error: Missing state parameter for CSRF validation.');
         }
 
         try {
@@ -179,8 +179,15 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
 
         let payload: PatreonToken;
         try {
+            console.log(`[Patreon.isTokenValid] Processing challengeResponse: ${challengeResponseBase64.substring(0, 20)}...`);
             const decoded = decodeURIComponent(challengeResponseBase64);
+            console.log(`[Patreon.isTokenValid] After URL decoding: ${decoded.substring(0, 20)}...`);
             payload = JSON.parse(Buffer.from(decoded, 'base64').toString());
+            console.log(`[Patreon.isTokenValid] Decoded payload:`, { 
+                has_access_token: !!payload?.access_token,
+                token_prefix: payload?.access_token?.substring(0, 10),
+                has_refresh_token: !!payload?.refresh_token
+            });
         } catch (e) {
             console.error("[Patreon.isTokenValid] Failed to decode challenge response:", e);
             return Result.err({message: "Invalid token data format for Patreon verification."});
