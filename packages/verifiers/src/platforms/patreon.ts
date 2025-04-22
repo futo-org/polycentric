@@ -179,7 +179,8 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
 
         let payload: PatreonToken;
         try {
-            payload = JSON.parse(Buffer.from(challengeResponseBase64, 'base64').toString());
+            const decoded = decodeURIComponent(challengeResponseBase64);
+            payload = JSON.parse(Buffer.from(decoded, 'base64').toString());
         } catch (e) {
             console.error("[Patreon.isTokenValid] Failed to decode challenge response:", e);
             return Result.err({message: "Invalid token data format for Patreon verification."});
