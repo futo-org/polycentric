@@ -179,17 +179,28 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
 
         let payload: PatreonToken;
         try {
-            console.log(`[Patreon.isTokenValid] Processing challengeResponse: ${challengeResponseBase64.substring(0, 20)}...`);
-            const decoded = decodeURIComponent(challengeResponseBase64);
-            console.log(`[Patreon.isTokenValid] After URL decoding: ${decoded.substring(0, 20)}...`);
+            console.log(`[Patreon.isTokenValid] Received challengeResponse: ${challengeResponseBase64.substring(0, 50)}...`);
+            
+            // Repeatedly decode URI component until it stops changing
+            let decoded = challengeResponseBase64;
+            let previousDecoded = '';
+            while (decoded !== previousDecoded) {
+                previousDecoded = decoded;
+                decoded = decodeURIComponent(decoded);
+            }
+            
+            console.log(`[Patreon.isTokenValid] After full URL decoding: ${decoded.substring(0, 50)}...`);
+            
+            // Now decode from base64 and parse JSON
             payload = JSON.parse(Buffer.from(decoded, 'base64').toString());
+            
             console.log(`[Patreon.isTokenValid] Decoded payload:`, { 
                 has_access_token: !!payload?.access_token,
                 token_prefix: payload?.access_token?.substring(0, 10),
                 has_refresh_token: !!payload?.refresh_token
             });
         } catch (e) {
-            console.error("[Patreon.isTokenValid] Failed to decode challenge response:", e);
+            console.error("[Patreon.isTokenValid] Failed to decode challenge response:", e, "Input after decodeURIComponent loop:", /* Add decoded here if needed */);
             return Result.err({message: "Invalid token data format for Patreon verification."});
         }
 
