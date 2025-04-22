@@ -17,6 +17,7 @@ export type PatreonToken = {
 
 type PatreonOAuthCallbackData = {
     code: string;
+    state?: string;
 };
 
 export type PatreonOAuthURLResult = {
@@ -30,7 +31,7 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
         super(Core.Models.ClaimType.ClaimTypePatreon);
     }
 
-    public async getOAuthURL(): Promise<Result<PatreonOAuthURLResult>> {
+    public async getOAuthURL(): Promise<Result<string>> {
         if (
             process.env.PATREON_CLIENT_ID === undefined ||
             process.env.OAUTH_CALLBACK_DOMAIN === undefined
@@ -40,10 +41,12 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
 
         try {
             const callbackUrl = getCallbackForPlatform(this.claimType);
-            
-            // Optional scope parameter can be added if needed
-            const scopes = ['identity']; // Most basic scope to get user info
-            
+            if (!callbackUrl) {
+                return Result.errMsg('Could not determine callback URL for Patreon');
+            }
+
+            const scopes = ['identity'];
+
             const url = new URL('https://www.patreon.com/oauth2/authorize');
             url.searchParams.append('response_type', 'code');
             url.searchParams.append('client_id', process.env.PATREON_CLIENT_ID);
@@ -53,15 +56,10 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
                 url.searchParams.append('scope', scopes.join(' '));
             }
             
-            // Create a state token that will be used as both token and secret
             const stateToken = Math.random().toString(36).substring(2, 15);
             url.searchParams.append('state', stateToken);
 
-            return Result.ok({
-                url: url.toString(),
-                token: stateToken,  // Use state as token
-                secret: stateToken, // Use state as secret (not actually used for OAuth 2.0)
-            });
+            return Result.ok(url.toString());
         } catch (error: any) {
             console.error('Patreon OAuth URL generation error:', error);
             return Result.errMsg(`Patreon OAuth error: ${error.message}`);
@@ -70,7 +68,7 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
 
     public async getToken(data: PatreonOAuthCallbackData): Promise<Result<TokenResponse>> {
         if (
-            process.env.PATREON_CLIENT_ID === undefined || 
+            process.env.PATREON_CLIENT_ID === undefined ||
             process.env.PATREON_CLIENT_SECRET === undefined
         ) {
             return Result.errMsg('Verifier not configured');
@@ -78,14 +76,20 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
 
         if (!data.code) {
             console.error('getToken called with missing OAuth code:', data);
-            return Result.errMsg('Internal error: Missing required data for token exchange.');
+            return Result.errMsg('Internal error: Missing required code for token exchange.');
+        }
+        if (!data.state) {
+            console.error('getToken called with missing state parameter:', data);
+            return Result.errMsg('Internal error: Missing state parameter for CSRF validation.');
         }
 
         try {
             const callbackUrl = getCallbackForPlatform(this.claimType);
-            
-            // Exchange the authorization code for an access token
-            const tokenResponse = await axios.post(
+            if (!callbackUrl) {
+                return Result.errMsg('Could not determine callback URL for Patreon token exchange');
+            }
+
+            const tokenResponse = await axios.post<PatreonToken>(
                 'https://www.patreon.com/api/oauth2/token',
                 new URLSearchParams({
                     code: data.code,
@@ -101,7 +105,6 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
                 }
             );
 
-            // Get user's identity information
             const userResponse = await axios.get(
                 'https://www.patreon.com/api/oauth2/v2/identity',
                 {
@@ -114,12 +117,16 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
                 }
             );
 
-            // The vanity field is the username used in Patreon URLs
-            const username = userResponse.data.data.attributes.vanity || 
-                             userResponse.data.data.id; // Fallback to user ID if vanity is not available
+            const username = userResponse.data.data.attributes.vanity ||
+                             userResponse.data.data.id;
+
+            if (!username) {
+                 console.error('Could not extract username (vanity or id) from Patreon identity response:', userResponse.data);
+                 return Result.errMsg('Failed to retrieve username from Patreon.');
+            }
 
             return Result.ok({
-                username,
+                username: String(username),
                 token: encodeObject<PatreonToken>({
                     access_token: tokenResponse.data.access_token,
                     refresh_token: tokenResponse.data.refresh_token,
@@ -129,16 +136,23 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
                 }),
             });
         } catch (err: any) {
-            console.error('Patreon API token exchange error:', err);
-            
+            console.error('Patreon API token exchange error:', err.response ? JSON.stringify(err.response.data) : err.message);
+
             if (err.response) {
+                if (err.response.data?.error === 'invalid_grant') {
+                     return Result.err({
+                        message: 'Invalid or expired authorization code.',
+                        extendedMessage: 'Patreon rejected the authorization code. It might have expired or already been used.',
+                        statusCode: StatusCodes.BAD_REQUEST
+                    });
+                }
                 return httpResponseToError(
                     err.response.status,
                     JSON.stringify(err.response.data),
                     'Patreon API Token Exchange'
                 );
             }
-            
+
             return Result.err({
                 message: 'Failed to exchange OAuth token with Patreon.',
                 extendedMessage: err instanceof Error ? err.message : String(err),
@@ -149,7 +163,7 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
 
     public async isTokenValid(challengeResponseBase64: string, claimFields: ClaimField[]): Promise<Result<void>> {
         if (
-            process.env.PATREON_CLIENT_ID === undefined || 
+            process.env.PATREON_CLIENT_ID === undefined ||
             process.env.PATREON_CLIENT_SECRET === undefined
         ) {
             return Result.errMsg('Verifier not configured');
@@ -157,15 +171,14 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
 
         if (claimFields.length !== 1 || claimFields[0].key !== 0) {
             const msg = 'Invalid claim fields.';
-            return Result.err({ 
-                message: msg, 
-                extendedMessage: `Invalid claim fields ${JSON.stringify(claimFields)}` 
+            return Result.err({
+                message: msg,
+                extendedMessage: `Invalid claim fields ${JSON.stringify(claimFields)}`
             });
         }
 
         let payload: PatreonToken;
         try {
-            // First, URL decode the string if needed
             const decoded = decodeURIComponent(challengeResponseBase64);
             payload = JSON.parse(Buffer.from(decoded, 'base64').toString());
         } catch (e) {
@@ -178,10 +191,9 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
             return Result.err({message: "Incomplete token data for Patreon verification."});
         }
 
-        const username = claimFields[0].value;
+        const expectedUsername = claimFields[0].value;
 
         try {
-            // Verify the token by getting user info
             const userResponse = await axios.get(
                 'https://www.patreon.com/api/oauth2/v2/identity',
                 {
@@ -189,43 +201,56 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
                         Authorization: `Bearer ${payload.access_token}`,
                     },
                     params: {
-                        'fields[user]': 'email,full_name,vanity',
+                        'fields[user]': 'vanity',
                     },
                 }
             );
 
-            const userVanity = userResponse.data.data.attributes.vanity || 
-                               userResponse.data.data.id;
+            const actualUsername = userResponse.data.data.attributes.vanity ||
+                                   userResponse.data.data.id;
 
-            if (userVanity.toLowerCase() !== username.toLowerCase()) {
+            if (!actualUsername) {
+                 console.error('[Patreon.isTokenValid] Could not extract username (vanity or id) from Patreon identity response:', userResponse.data);
+                 return Result.errMsg('Failed to retrieve username from Patreon during validation.');
+            }
+
+            if (String(actualUsername).toLowerCase() !== expectedUsername.toLowerCase()) {
                 return Result.err({
                     message: "The username didn't match the account you logged in with",
-                    extendedMessage: `Username did not match (expected: ${username}, got: ${userVanity})`,
+                    extendedMessage: `Username mismatch (expected: ${expectedUsername}, got: ${actualUsername})`,
                 });
             }
-            
+
             return Result.ok();
         } catch (err: any) {
-            console.error('[Patreon.isTokenValid] Patreon API verification error:', err);
-            
+            console.error('[Patreon.isTokenValid] Patreon API verification error:', err.response ? JSON.stringify(err.response.data) : err.message);
+
             if (err.response) {
+                 if (err.response.status === StatusCodes.UNAUTHORIZED) {
+                     return Result.err({
+                         message: 'Patreon token is invalid or expired.',
+                         extendedMessage: 'Patreon rejected the access token during validation.',
+                         statusCode: StatusCodes.UNAUTHORIZED
+                     });
+                 }
                 return httpResponseToError(
                     err.response.status,
                     JSON.stringify(err.response.data),
                     'Patreon API Verification'
                 );
             }
-            
+
             return Result.err({
                 message: 'Failed to verify Patreon account',
                 extendedMessage: err instanceof Error ? err.message : String(err),
+                statusCode: StatusCodes.INTERNAL_SERVER_ERROR
             });
         }
     }
 
     public async healthCheck(): Promise<Result<void>> {
         if (
-            process.env.PATREON_CLIENT_ID === undefined || 
+            process.env.PATREON_CLIENT_ID === undefined ||
             process.env.PATREON_CLIENT_SECRET === undefined
         ) {
             return Result.errMsg('Verifier not configured: Missing Patreon credentials');
