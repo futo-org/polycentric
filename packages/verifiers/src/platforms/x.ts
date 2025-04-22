@@ -118,7 +118,8 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
 
         let payload: XToken;
         try {
-            payload = decodeObject<XToken>(challengeResponseBase64);
+            const decoded = decodeURIComponent(challengeResponseBase64);
+            payload = decodeObject<XToken>(decoded);
         } catch (e) {
             console.error("[X.isTokenValid] Failed to decode challenge response object:", challengeResponseBase64, e);
             return Result.err({message: "Invalid token data format for X verification."});
