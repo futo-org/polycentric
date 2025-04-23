@@ -244,7 +244,7 @@ build-verifiers:
   stage: build
   cache: *node-cache-config
   script: cd packages/verifiers && npm run build
-  needs: ["build-core"]
+  needs: ["build-core", "build-leveldb"]
   artifacts:
       name: "artifacts"
       expire_in: 60 mins
