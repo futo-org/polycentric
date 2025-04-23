@@ -1,267 +1,333 @@
 import { StatusCodes } from 'http-status-codes';
 import { ClaimField, Platform, TokenResponse } from '../models';
 import { Result } from '../result';
-import { createCookieEnabledAxios, encodeObject, getCallbackForPlatform, httpResponseToError } from '../utility';
+import {
+  createCookieEnabledAxios,
+  encodeObject,
+  getCallbackForPlatform,
+  httpResponseToError,
+} from '../utility';
 import { OAuthVerifier } from '../verifier';
 
 import * as Core from '@polycentric/polycentric-core';
 
 export type DiscordToken = {
-    token: string;
+  token: string;
 };
 
 type DiscordTokenRequest = {
-    code: string;
-    harborSecret?: string; // Add harborSecret to match X implementation
+  code: string;
+  harborSecret?: string; // Add harborSecret to match X implementation
 };
 
 class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
-    constructor() {
-        super(Core.Models.ClaimType.ClaimTypeDiscord);
-        this.tokenCache = new Map<string, TokenResponse>();
-        this.usernameCache = new Map<string, string>();
+  constructor() {
+    super(Core.Models.ClaimType.ClaimTypeDiscord);
+    this.tokenCache = new Map<string, TokenResponse>();
+    this.usernameCache = new Map<string, string>();
+  }
+
+  public async getOAuthURL(): Promise<Result<string>> {
+    if (
+      process.env.DISCORD_CLIENT_ID === undefined ||
+      process.env.OAUTH_CALLBACK_DOMAIN === undefined
+    ) {
+      return Result.errMsg('Verifier not configured');
+    } else {
+      const redirectUri = getCallbackForPlatform(this.claimType, true);
+
+      // Generate a random state value to use as harborSecret
+      const harborSecret = Math.random().toString(36).substring(2, 15);
+
+      // Add state parameter with harborSecret
+      return Result.ok(
+        `https://discord.com/api/oauth2/authorize?client_id=${
+          process.env.DISCORD_CLIENT_ID
+        }&redirect_uri=${redirectUri}&response_type=code&scope=identify&state=${encodeURIComponent(
+          JSON.stringify({ harborSecret }),
+        )}`,
+      );
+    }
+  }
+
+  public async getToken(
+    data: DiscordTokenRequest,
+  ): Promise<Result<TokenResponse>> {
+    if (
+      process.env.DISCORD_CLIENT_ID === undefined ||
+      process.env.DISCORD_CLIENT_SECRET === undefined ||
+      process.env.OAUTH_CALLBACK_DOMAIN === undefined
+    ) {
+      return Result.errMsg('Verifier not configured');
     }
 
-    public async getOAuthURL(): Promise<Result<string>> {
-        if (process.env.DISCORD_CLIENT_ID === undefined || process.env.OAUTH_CALLBACK_DOMAIN === undefined) {
-            return Result.errMsg('Verifier not configured');
-        } else {
-            const redirectUri = getCallbackForPlatform(this.claimType, true);
-            
-            // Generate a random state value to use as harborSecret
-            const harborSecret = Math.random().toString(36).substring(2, 15);
-            
-            // Add state parameter with harborSecret
-            return Result.ok(
-                `https://discord.com/api/oauth2/authorize?client_id=${process.env.DISCORD_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=identify&state=${encodeURIComponent(JSON.stringify({ harborSecret }))}`
-            );
+    try {
+      if (!data.code) {
+        console.error('Missing code parameter for Discord OAuth');
+        return Result.err({
+          message: 'Missing required OAuth parameters',
+          extendedMessage: 'The code parameter is required for Discord OAuth',
+        });
+      }
+
+      // Check if we already have a cached token for this code
+      const cacheKey = `discord_token_${data.code}`;
+      const cachedResponse = this.tokenCache.get(cacheKey);
+
+      const redirectUri = getCallbackForPlatform(this.claimType);
+      const client = createCookieEnabledAxios();
+
+      try {
+        const resp = await client.post(
+          'https://discord.com/api/oauth2/token',
+          new URLSearchParams({
+            client_id: process.env.DISCORD_CLIENT_ID,
+            client_secret: process.env.DISCORD_CLIENT_SECRET,
+            grant_type: 'authorization_code',
+            redirect_uri: redirectUri,
+            code: data.code,
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+          },
+        );
+
+        if (!resp.data || !resp.data.access_token) {
+          console.error('No access token received from Discord');
+          return Result.err({
+            message: 'Failed to obtain access token',
+            extendedMessage: 'Discord did not return an access token',
+          });
         }
+
+        const token = resp.data.access_token;
+        const discordResponse = await client.get(
+          'https://discord.com/api/users/@me',
+          {
+            headers: {
+              Authorization: 'Bearer ' + token,
+            },
+          },
+        );
+
+        if (discordResponse.status === StatusCodes.OK) {
+          const user = discordResponse.data;
+          const hasDiscriminator =
+            user.discriminator !== undefined && user.discriminator !== '0';
+          const expectedUsername = hasDiscriminator
+            ? `${user.username}#${user.discriminator}`
+            : user.username;
+
+          // Store username in cache
+          this.usernameCache.set(data.code, expectedUsername);
+
+          // Create a simple token object and encode it properly
+          const tokenObj: DiscordToken = { token };
+          const encodedToken = encodeObject(tokenObj);
+
+          // Create the token response
+          const tokenResponse: TokenResponse = {
+            username: expectedUsername,
+            token: encodedToken,
+          };
+
+          // Cache the response
+          this.tokenCache.set(cacheKey, tokenResponse);
+
+          return Result.ok(tokenResponse);
+        }
+
+        return httpResponseToError(
+          discordResponse.status,
+          discordResponse.data,
+          'Discord API /users/@me',
+        );
+      } catch (apiError: any) {
+        // Check if this is an "invalid_grant" error (code already used)
+        if (apiError.response?.data?.error === 'invalid_grant') {
+          // If we have a cached username from a previous successful request, return it
+          const cachedUsername = this.usernameCache.get(data.code);
+          if (cachedUsername) {
+            const tokenResponse: TokenResponse = {
+              username: cachedUsername,
+              token: encodeObject<DiscordToken>({ token: 'cached_token' }),
+            };
+
+            // Cache the response
+            this.tokenCache.set(cacheKey, tokenResponse);
+
+            return Result.ok(tokenResponse);
+          }
+
+          return Result.err({
+            message:
+              'Discord authorization code has expired or already been used',
+            extendedMessage: 'Please try the verification process again',
+          });
+        }
+
+        throw apiError; // Re-throw for the outer catch block to handle
+      }
+    } catch (err: any) {
+      console.error('Discord token error:', err);
+      if (err.response) {
+        return httpResponseToError(
+          err.response.status,
+          JSON.stringify(err.response.data),
+          'Discord API token endpoint',
+        );
+      }
+
+      return Result.err({
+        message: 'Discord authentication failed',
+        extendedMessage: err.message,
+      });
+    }
+  }
+
+  public async isTokenValid(
+    challengeResponseUrlEncodedBase64: string,
+    claimFields: ClaimField[],
+  ): Promise<Result<void>> {
+    if (claimFields.length !== 1 || claimFields[0].key !== 0) {
+      const msg = 'Invalid claim fields.';
+      return Result.err({
+        message: msg,
+        extendedMessage: `Invalid claim fields ${JSON.stringify(claimFields)}`,
+      });
     }
 
-    public async getToken(data: DiscordTokenRequest): Promise<Result<TokenResponse>> {
-        if (
-            process.env.DISCORD_CLIENT_ID === undefined ||
-            process.env.DISCORD_CLIENT_SECRET === undefined ||
-            process.env.OAUTH_CALLBACK_DOMAIN === undefined
-        ) {
-            return Result.errMsg('Verifier not configured');
-        }
-
-        try {
-            if (!data.code) {
-                console.error('Missing code parameter for Discord OAuth');
-                return Result.err({
-                    message: 'Missing required OAuth parameters',
-                    extendedMessage: 'The code parameter is required for Discord OAuth'
-                });
-            }
-
-            // Check if we already have a cached token for this code
-            const cacheKey = `discord_token_${data.code}`;
-            const cachedResponse = this.tokenCache.get(cacheKey);
-
-            const redirectUri = getCallbackForPlatform(this.claimType);
-            const client = createCookieEnabledAxios();
-            
-            try {
-                const resp = await client.post(
-                    'https://discord.com/api/oauth2/token',
-                    new URLSearchParams({
-                        client_id: process.env.DISCORD_CLIENT_ID,
-                        client_secret: process.env.DISCORD_CLIENT_SECRET,
-                        grant_type: 'authorization_code',
-                        redirect_uri: redirectUri,
-                        code: data.code,
-                    }),
-                    {
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                    }
-                );
-
-                if (!resp.data || !resp.data.access_token) {
-                    console.error('No access token received from Discord');
-                    return Result.err({
-                        message: 'Failed to obtain access token',
-                        extendedMessage: 'Discord did not return an access token'
-                    });
-                }
-
-                const token = resp.data.access_token;
-                const discordResponse = await client.get('https://discord.com/api/users/@me', {
-                    headers: {
-                        Authorization: 'Bearer ' + token,
-                    },
-                });
-
-                if (discordResponse.status === StatusCodes.OK) {
-                    const user = discordResponse.data;
-                    const hasDiscriminator = user.discriminator !== undefined && user.discriminator !== '0';
-                    const expectedUsername = hasDiscriminator ? `${user.username}#${user.discriminator}` : user.username;
-                    
-                    // Store username in cache
-                    this.usernameCache.set(data.code, expectedUsername);
-                    
-                    // Create a simple token object and encode it properly
-                    const tokenObj: DiscordToken = { token };
-                    const encodedToken = encodeObject(tokenObj);
-                    
-                    // Create the token response
-                    const tokenResponse: TokenResponse = { 
-                        username: expectedUsername, 
-                        token: encodedToken
-                    };
-                    
-                    // Cache the response
-                    this.tokenCache.set(cacheKey, tokenResponse);
-                    
-                    return Result.ok(tokenResponse);
-                }
-
-                return httpResponseToError(discordResponse.status, discordResponse.data, 'Discord API /users/@me');
-            } catch (apiError: any) {
-                // Check if this is an "invalid_grant" error (code already used)
-                if (apiError.response?.data?.error === 'invalid_grant') {
-                    // If we have a cached username from a previous successful request, return it
-                    const cachedUsername = this.usernameCache.get(data.code);
-                    if (cachedUsername) {
-                        const tokenResponse: TokenResponse = {
-                            username: cachedUsername,
-                            token: encodeObject<DiscordToken>({ token: 'cached_token' })
-                        };
-                        
-                        // Cache the response
-                        this.tokenCache.set(cacheKey, tokenResponse);
-                        
-                        return Result.ok(tokenResponse);
-                    }
-                    
-                    return Result.err({
-                        message: 'Discord authorization code has expired or already been used',
-                        extendedMessage: 'Please try the verification process again'
-                    });
-                }
-                
-                throw apiError; // Re-throw for the outer catch block to handle
-            }
-        } catch (err: any) {
-            console.error('Discord token error:', err);
-            if (err.response) {
-                return httpResponseToError(
-                    err.response.status, 
-                    JSON.stringify(err.response.data), 
-                    'Discord API token endpoint'
-                );
-            }
-            
-            return Result.err({
-                message: 'Discord authentication failed',
-                extendedMessage: err.message
-            });
-        }
+    let payload: DiscordToken;
+    try {
+      // 1. Decode URL encoding
+      const base64Token = decodeURIComponent(challengeResponseUrlEncodedBase64);
+      console.log(
+        `[Discord.isTokenValid] After URL decoding: ${base64Token.substring(
+          0,
+          100,
+        )}...`,
+      );
+      // 2. Decode Base64
+      const jsonToken = Buffer.from(base64Token, 'base64').toString('utf8');
+      console.log(
+        `[Discord.isTokenValid] After Base64 decoding: ${jsonToken.substring(
+          0,
+          100,
+        )}...`,
+      );
+      // 3. Parse JSON - Expecting { token: "..." } structure from our getToken method
+      payload = JSON.parse(jsonToken);
+    } catch (e: any) {
+      console.error(
+        '[Discord.isTokenValid] Failed to decode/parse challenge response:',
+        e,
+      );
+      // Add more specific error checking if needed
+      return Result.err({
+        message: 'Invalid token data format for Discord verification.',
+      });
     }
 
-    public async isTokenValid(challengeResponseUrlEncodedBase64: string, claimFields: ClaimField[]): Promise<Result<void>> {
-        if (claimFields.length !== 1 || claimFields[0].key !== 0) {
-            const msg = 'Invalid claim fields.';
-            return Result.err({ message: msg, extendedMessage: `Invalid claim fields ${JSON.stringify(claimFields)}` });
-        }
-
-        let payload: DiscordToken;
-        try {
-            // 1. Decode URL encoding
-            const base64Token = decodeURIComponent(challengeResponseUrlEncodedBase64);
-            console.log(`[Discord.isTokenValid] After URL decoding: ${base64Token.substring(0, 100)}...`);
-            // 2. Decode Base64
-            const jsonToken = Buffer.from(base64Token, 'base64').toString('utf8');
-            console.log(`[Discord.isTokenValid] After Base64 decoding: ${jsonToken.substring(0, 100)}...`);
-            // 3. Parse JSON - Expecting { token: "..." } structure from our getToken method
-            payload = JSON.parse(jsonToken);
-
-        } catch (e: any) {
-            console.error("[Discord.isTokenValid] Failed to decode/parse challenge response:", e);
-            // Add more specific error checking if needed
-            return Result.err({message: "Invalid token data format for Discord verification."});
-        }
-
-        // Check if the parsed payload contains the expected token
-        if (!payload || !payload.token) {
-             console.error("[Discord.isTokenValid] Decoded Discord payload missing token:", payload);
-             return Result.err({message: "Incomplete token data for Discord verification."});
-        }
-
-        // The token might be a placeholder if it came from cache during an invalid_grant scenario in getToken
-        // In a real scenario, we might want to refresh the token, but for now,
-        // if it's the placeholder, we assume the username check passed implicitly in getToken's cache logic.
-        // However, the current getToken returns the *actual* token even on cache hit, just wrapped.
-        // Let's proceed assuming payload.token is the real token needed for verification.
-
-        const expectedClaimUsername = claimFields[0].value;
-
-        try {
-            const client = createCookieEnabledAxios();
-            console.log(`[Discord.isTokenValid] Verifying token starting with: ${payload.token.substring(0, 5)}...`);
-
-            const response = await client.get('https://discord.com/api/users/@me', {
-                headers: {
-                    // Use the decoded token
-                    Authorization: `Bearer ${payload.token}`,
-                },
-            });
-
-            const user = response.data;
-            // Discord username logic (handle discriminator removal)
-            const hasDiscriminator = user.discriminator !== undefined && user.discriminator !== '0';
-            const actualDiscordUsername = hasDiscriminator ? `${user.username}#${user.discriminator}` : user.username;
-
-            console.log(`[Discord.isTokenValid] Claim username: ${expectedClaimUsername}, Discord API username: ${actualDiscordUsername}`);
-
-            if (expectedClaimUsername.toLowerCase() !== actualDiscordUsername.toLowerCase()) {
-                return Result.err({
-                    message: "The username didn't match the account you logged in with",
-                    extendedMessage: `Username mismatch (expected: ${expectedClaimUsername}, got: ${actualDiscordUsername})`,
-                });
-            }
-
-            // Usernames match
-            return Result.ok();
-
-        } catch (err: any) {
-            console.error('[Discord.isTokenValid] Discord API verification error:', err.response ? JSON.stringify(err.response.data) : err.message);
-            if (err.response) {
-                 if (err.response.status === StatusCodes.UNAUTHORIZED) {
-                     return Result.err({
-                         message: 'Discord token is invalid or expired.',
-                         extendedMessage: 'Discord rejected the access token during validation.',
-                         statusCode: StatusCodes.UNAUTHORIZED
-                     });
-                 }
-                return httpResponseToError(
-                    err.response.status,
-                    JSON.stringify(err.response.data),
-                    'Discord API /users/@me Verification'
-                );
-            }
-            return Result.err({
-                message: 'Failed to verify Discord account via API',
-                extendedMessage: err instanceof Error ? err.message : String(err),
-                statusCode: StatusCodes.INTERNAL_SERVER_ERROR // Or BAD_GATEWAY
-            });
-        }
+    // Check if the parsed payload contains the expected token
+    if (!payload || !payload.token) {
+      console.error(
+        '[Discord.isTokenValid] Decoded Discord payload missing token:',
+        payload,
+      );
+      return Result.err({
+        message: 'Incomplete token data for Discord verification.',
+      });
     }
 
-    public healthCheck(): Promise<Result<void>> {
-        throw new Error('Method not implemented.');
-    }
+    // The token might be a placeholder if it came from cache during an invalid_grant scenario in getToken
+    // In a real scenario, we might want to refresh the token, but for now,
+    // if it's the placeholder, we assume the username check passed implicitly in getToken's cache logic.
+    // However, the current getToken returns the *actual* token even on cache hit, just wrapped.
+    // Let's proceed assuming payload.token is the real token needed for verification.
 
-    // Add these properties to the class
-    private tokenCache = new Map<string, TokenResponse>();
-    private usernameCache = new Map<string, string>();
+    const expectedClaimUsername = claimFields[0].value;
+
+    try {
+      const client = createCookieEnabledAxios();
+      console.log(
+        `[Discord.isTokenValid] Verifying token starting with: ${payload.token.substring(
+          0,
+          5,
+        )}...`,
+      );
+
+      const response = await client.get('https://discord.com/api/users/@me', {
+        headers: {
+          // Use the decoded token
+          Authorization: `Bearer ${payload.token}`,
+        },
+      });
+
+      const user = response.data;
+      // Discord username logic (handle discriminator removal)
+      const hasDiscriminator =
+        user.discriminator !== undefined && user.discriminator !== '0';
+      const actualDiscordUsername = hasDiscriminator
+        ? `${user.username}#${user.discriminator}`
+        : user.username;
+
+      console.log(
+        `[Discord.isTokenValid] Claim username: ${expectedClaimUsername}, Discord API username: ${actualDiscordUsername}`,
+      );
+
+      if (
+        expectedClaimUsername.toLowerCase() !==
+        actualDiscordUsername.toLowerCase()
+      ) {
+        return Result.err({
+          message: "The username didn't match the account you logged in with",
+          extendedMessage: `Username mismatch (expected: ${expectedClaimUsername}, got: ${actualDiscordUsername})`,
+        });
+      }
+
+      // Usernames match
+      return Result.ok();
+    } catch (err: any) {
+      console.error(
+        '[Discord.isTokenValid] Discord API verification error:',
+        err.response ? JSON.stringify(err.response.data) : err.message,
+      );
+      if (err.response) {
+        if (err.response.status === StatusCodes.UNAUTHORIZED) {
+          return Result.err({
+            message: 'Discord token is invalid or expired.',
+            extendedMessage:
+              'Discord rejected the access token during validation.',
+            statusCode: StatusCodes.UNAUTHORIZED,
+          });
+        }
+        return httpResponseToError(
+          err.response.status,
+          JSON.stringify(err.response.data),
+          'Discord API /users/@me Verification',
+        );
+      }
+      return Result.err({
+        message: 'Failed to verify Discord account via API',
+        extendedMessage: err instanceof Error ? err.message : String(err),
+        statusCode: StatusCodes.INTERNAL_SERVER_ERROR, // Or BAD_GATEWAY
+      });
+    }
+  }
+
+  public healthCheck(): Promise<Result<void>> {
+    throw new Error('Method not implemented.');
+  }
+
+  // Add these properties to the class
+  private tokenCache = new Map<string, TokenResponse>();
+  private usernameCache = new Map<string, string>();
 }
 
 export const Discord: Platform = {
-    name: 'Discord',
-    verifiers: [new DiscordOAuthVerifier()],
-    version: 1,
+  name: 'Discord',
+  verifiers: [new DiscordOAuthVerifier()],
+  version: 1,
 };

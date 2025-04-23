@@ -104,6 +104,12 @@ format-harbor:
     - ./version.sh
     - ./gitlab-ci/prettier-diff.sh ./packages/harbor-web/src
 
+format-verifiers:
+  stage: format
+  script:
+    - ./version.sh
+    - ./gitlab-ci/prettier-diff.sh ./packages/verifiers/src
+
 build-protocol: 
   stage: build
   cache: 
@@ -233,6 +239,17 @@ build-harbor:
   cache: *node-cache-config
   script: cd packages/harbor-web && npm run build
   needs: ["build-core"]
+
+build-verifiers:
+  stage: build
+  cache: *node-cache-config
+  script: cd packages/verifiers && npm run build
+  needs: ["build-core", "build-leveldb"]
+  artifacts:
+      name: "artifacts"
+      expire_in: 60 mins
+      paths:
+        - ./packages/verifiers/dist/
 
 lint-protocol: 
   stage: lint

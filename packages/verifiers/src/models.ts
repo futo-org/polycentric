@@ -1,17 +1,17 @@
 import { Verifier } from './verifier';
 
 export interface Platform {
-    name: string;
-    verifiers: Verifier[];
-    version: number;
+  name: string;
+  verifiers: Verifier[];
+  version: number;
 }
 
 export interface TokenResponse {
-    username: string;
-    token: string;
+  username: string;
+  token: string;
 }
 
 export interface ClaimField {
-    key: number;
-    value: string;
+  key: number;
+  value: string;
 }

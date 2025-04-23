@@ -5,7 +5,8 @@
     "esModuleInterop": true,
     "outDir": "dist",
     "alwaysStrict": true,
-    "strict": true
+    "strict": true,
+    "skipLibCheck": true
   },
   "include": [
     "src"
