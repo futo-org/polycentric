@@ -89,7 +89,8 @@ pretty:
 		packages/polycentric-bot/src/ \
 		packages/polycentric-desktop/src/ \
 		packages/polycentric-desktop/electron/ \
-		packages/test-data-generator/src/
+		packages/test-data-generator/src/ \
+		packages/verifiers/src/
 
 lint: proto
 	./version.sh
