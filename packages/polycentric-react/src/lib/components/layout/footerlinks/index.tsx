@@ -1,4 +1,3 @@
-
 export const FooterLinks = () => {
   return (
     <div className="p-5 w-full text-right text-gray-400 text-sm">
@@ -28,4 +27,4 @@ export const FooterLinks = () => {
       </a>
     </div>
   );
-}; 
+};
