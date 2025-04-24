@@ -2,7 +2,7 @@ export const FooterLinks = () => {
   return (
     <div className="p-5 w-full text-right text-gray-400 text-sm">
       <a
-        href="mailto:bugs@polycentric.io"
+        href="mailto:polycentric@futo.org"
         target="_blank"
         rel="noreferrer"
         className="block"
