@@ -1,6 +1,7 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 use crate::models::Board;
+use crate::utils::PaginationParams;
 
 // Input data for creating a new board
 #[derive(serde::Deserialize)]
@@ -48,10 +49,11 @@ pub async fn get_board_by_id(pool: &PgPool, board_id: Uuid) -> Result<Option<Boa
     Ok(board)
 }
 
-/// Fetches all boards belonging to a specific category.
+/// Fetches all boards belonging to a specific category with pagination.
 pub async fn get_boards_by_category(
     pool: &PgPool,
     category_id: Uuid,
+    pagination: &PaginationParams,
 ) -> Result<Vec<Board>, sqlx::Error> {
     let boards = sqlx::query_as!(
         Board,
@@ -60,8 +62,11 @@ pub async fn get_boards_by_category(
         FROM boards
         WHERE category_id = $1
         ORDER BY created_at DESC
+        LIMIT $2 OFFSET $3
         "#,
-        category_id
+        category_id,
+        pagination.limit() as i64,
+        pagination.offset() as i64
     )
     .fetch_all(pool)
     .await?;

@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
@@ -8,6 +8,7 @@ use uuid::Uuid;
 use crate::{
     models::Post,
     repositories::{post_repository::{self, CreatePostData, UpdatePostData}, thread_repository}, // Import post and thread repos
+    utils::PaginationParams, // Import
     AppState,
 };
 
@@ -74,16 +75,17 @@ pub async fn get_post_handler(
     }
 }
 
-/// Handler to list all posts within a specific thread.
+/// Handler to list all posts within a specific thread with pagination.
 pub async fn list_posts_in_thread_handler(
     State(state): State<AppState>,
     Path(thread_id): Path<Uuid>,
+    Query(pagination): Query<PaginationParams>, // Extract pagination
 ) -> Response {
     // Optional: Check if thread exists first
     match thread_repository::get_thread_by_id(&state.db_pool, thread_id).await {
         Ok(Some(_)) => {
             // Thread exists, proceed to list posts
-            match post_repository::get_posts_by_thread(&state.db_pool, thread_id).await {
+            match post_repository::get_posts_by_thread(&state.db_pool, thread_id, &pagination).await {
                 Ok(posts) => {
                     (StatusCode::OK, Json(posts)).into_response()
                 }

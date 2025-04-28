@@ -9,6 +9,7 @@ use sqlx::PgPool;
 pub mod models;
 pub mod handlers;
 pub mod repositories;
+pub mod utils;
 
 // Use the specific handlers
 use handlers::{

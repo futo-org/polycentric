@@ -1,6 +1,7 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 use crate::models::Post;
+use crate::utils::PaginationParams;
 
 // Placeholder for Polycentric ID
 type PolycentricId = String;
@@ -60,11 +61,12 @@ pub async fn get_post_by_id(pool: &PgPool, post_id: Uuid) -> Result<Option<Post>
     Ok(post)
 }
 
-/// Fetches all posts belonging to a specific thread.
-/// Typically ordered by creation time.
+/// Fetches all posts belonging to a specific thread with pagination.
+/// Typically ordered by creation time ASC.
 pub async fn get_posts_by_thread(
     pool: &PgPool,
     thread_id: Uuid,
+    pagination: &PaginationParams,
 ) -> Result<Vec<Post>, sqlx::Error> {
     let posts = sqlx::query_as!(
         Post,
@@ -72,9 +74,12 @@ pub async fn get_posts_by_thread(
         SELECT id, thread_id, author_id, content, created_at, quote_of
         FROM posts
         WHERE thread_id = $1
-        ORDER BY created_at ASC -- Usually want posts in chronological order
+        ORDER BY created_at ASC
+        LIMIT $2 OFFSET $3
         "#,
-        thread_id
+        thread_id,
+        pagination.limit() as i64,
+        pagination.offset() as i64
     )
     .fetch_all(pool)
     .await?;

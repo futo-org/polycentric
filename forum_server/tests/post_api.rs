@@ -200,39 +200,73 @@ async fn test_get_post_not_found(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn test_list_posts_in_thread(pool: PgPool) {
-    let app = create_test_app(pool).await;
+async fn test_list_posts_in_thread_pagination(pool: PgPool) {
+    let app = create_test_app(pool.clone()).await;
     let category_id = create_test_category(&app, "List Posts Cat").await;
     let board_id = create_test_board(&app, category_id, "List Posts Board").await;
     let thread_id = create_test_thread(&app, board_id, "List Posts Thread").await;
 
-    // Create posts using helper
-    let _post1_id = create_test_post(&app, thread_id, "Post one", "userA").await;
-    let _post2_id = create_test_post(&app, thread_id, "Post two", "userB").await;
+    // Create 3 posts
+    let post1_id = create_test_post(&app, thread_id, "Post one", "userA").await;
+    let post2_id = create_test_post(&app, thread_id, "Post two", "userB").await;
+    let post3_id = create_test_post(&app, thread_id, "Post three", "userC").await;
 
-    // List posts
-    let list_response = app
+    // Fetch first page (limit 2)
+    let response_page1 = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method(http::Method::GET)
-                .uri(format!("/threads/{}/posts", thread_id))
+                .uri(format!("/threads/{}/posts?limit=2", thread_id))
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
         .unwrap();
 
-    assert_eq!(list_response.status(), StatusCode::OK);
-    let list_body = list_response.into_body().collect().await.unwrap().to_bytes();
-    let fetched_posts: Vec<Post> = serde_json::from_slice(&list_body).unwrap();
+    assert_eq!(response_page1.status(), StatusCode::OK);
+    let body1 = response_page1.into_body().collect().await.unwrap().to_bytes();
+    let posts_page1: Vec<Post> = serde_json::from_slice(&body1).unwrap();
 
-    assert_eq!(fetched_posts.len(), 2);
-    // Query orders by created_at ASC
-    assert_eq!(fetched_posts[0].content, "Post one");
-    assert_eq!(fetched_posts[0].author_id, "userA");
-    assert_eq!(fetched_posts[1].content, "Post two");
-    assert_eq!(fetched_posts[1].author_id, "userB");
-    assert!(fetched_posts.iter().all(|p| p.thread_id == thread_id));
+    assert_eq!(posts_page1.len(), 2);
+    assert_eq!(posts_page1[0].id, post1_id); // Ordered ASC
+    assert_eq!(posts_page1[1].id, post2_id);
+
+    // Fetch second page (limit 2, offset 2)
+    let response_page2 = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri(format!("/threads/{}/posts?limit=2&offset=2", thread_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response_page2.status(), StatusCode::OK);
+    let body2 = response_page2.into_body().collect().await.unwrap().to_bytes();
+    let posts_page2: Vec<Post> = serde_json::from_slice(&body2).unwrap();
+
+    assert_eq!(posts_page2.len(), 1);
+    assert_eq!(posts_page2[0].id, post3_id);
+
+    // Test default limit (should return all 3)
+    let response_default = app
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri(format!("/threads/{}/posts", thread_id)) // No params
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response_default.status(), StatusCode::OK);
+    let body_default = response_default.into_body().collect().await.unwrap().to_bytes();
+    let posts_default: Vec<Post> = serde_json::from_slice(&body_default).unwrap();
+    assert_eq!(posts_default.len(), 3);
 }
 
 #[sqlx::test]

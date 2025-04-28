@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
@@ -8,6 +8,7 @@ use uuid::Uuid;
 use crate::{
     models::Category,
     repositories::category_repository::{self, CreateCategoryData, UpdateCategoryData},
+    utils::PaginationParams,
     AppState,
 };
 
@@ -53,11 +54,12 @@ pub async fn get_category_handler(
     }
 }
 
-/// Handler to list all categories.
+/// Handler to list all categories with pagination.
 pub async fn list_categories_handler(
     State(state): State<AppState>,
+    Query(pagination): Query<PaginationParams>,
 ) -> Response {
-    match category_repository::get_all_categories(&state.db_pool).await {
+    match category_repository::get_all_categories(&state.db_pool, &pagination).await {
         Ok(categories) => {
             // Return 200 OK with the list of categories
             (StatusCode::OK, Json(categories)).into_response()

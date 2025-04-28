@@ -148,43 +148,71 @@ async fn test_get_board_not_found(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn test_list_boards_in_category(pool: PgPool) {
-    let app = create_test_app(pool).await;
+async fn test_list_boards_in_category_pagination(pool: PgPool) {
+    let app = create_test_app(pool.clone()).await;
     let category_id = create_test_category(&app, "List Boards Test Cat").await;
 
-    // Create boards
-    let board_names = vec!["Board A", "Board B"];
-    for name in board_names.iter() {
-        let response = app.clone().oneshot(Request::builder()
-            .method(http::Method::POST)
-            .uri(format!("/categories/{}/boards", category_id))
-            .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-            .body(Body::from(json!({ "name": name, "description": "..." }).to_string()))
-            .unwrap()).await.unwrap();
-        assert_eq!(response.status(), StatusCode::CREATED);
-    }
+    // Create 3 boards
+    let board1_id = create_test_board(&app, category_id, "Board 1").await;
+    let board2_id = create_test_board(&app, category_id, "Board 2").await;
+    let board3_id = create_test_board(&app, category_id, "Board 3").await;
 
-    // List boards
-    let list_response = app
+    // Fetch first page (limit 2)
+    let response_page1 = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method(http::Method::GET)
-                .uri(format!("/categories/{}/boards", category_id))
+                .uri(format!("/categories/{}/boards?limit=2", category_id))
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
         .unwrap();
 
-    assert_eq!(list_response.status(), StatusCode::OK);
-    let list_body = list_response.into_body().collect().await.unwrap().to_bytes();
-    let fetched_boards: Vec<Board> = serde_json::from_slice(&list_body).unwrap();
+    assert_eq!(response_page1.status(), StatusCode::OK);
+    let body1 = response_page1.into_body().collect().await.unwrap().to_bytes();
+    let boards_page1: Vec<Board> = serde_json::from_slice(&body1).unwrap();
 
-    assert_eq!(fetched_boards.len(), 2);
-    // Query orders by created_at DESC, so Board B should be first
-    assert_eq!(fetched_boards[0].name, "Board B");
-    assert_eq!(fetched_boards[1].name, "Board A");
-    assert!(fetched_boards.iter().all(|b| b.category_id == category_id));
+    assert_eq!(boards_page1.len(), 2);
+    assert_eq!(boards_page1[0].id, board3_id); // Ordered DESC
+    assert_eq!(boards_page1[1].id, board2_id);
+
+    // Fetch second page (limit 2, offset 2)
+    let response_page2 = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri(format!("/categories/{}/boards?limit=2&offset=2", category_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response_page2.status(), StatusCode::OK);
+    let body2 = response_page2.into_body().collect().await.unwrap().to_bytes();
+    let boards_page2: Vec<Board> = serde_json::from_slice(&body2).unwrap();
+
+    assert_eq!(boards_page2.len(), 1);
+    assert_eq!(boards_page2[0].id, board1_id);
+
+    // Test default limit (should return all 3)
+    let response_default = app
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri(format!("/categories/{}/boards", category_id)) // No params
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response_default.status(), StatusCode::OK);
+    let body_default = response_default.into_body().collect().await.unwrap().to_bytes();
+    let boards_default: Vec<Board> = serde_json::from_slice(&body_default).unwrap();
+    assert_eq!(boards_default.len(), 3);
 }
 
 #[sqlx::test]

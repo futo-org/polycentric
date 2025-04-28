@@ -1,6 +1,7 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 use crate::models::Thread;
+use crate::utils::PaginationParams;
 
 // Placeholder for Polycentric ID - replace with actual type if needed
 type PolycentricId = String;
@@ -57,10 +58,11 @@ pub async fn get_thread_by_id(pool: &PgPool, thread_id: Uuid) -> Result<Option<T
     Ok(thread)
 }
 
-/// Fetches all threads belonging to a specific board.
+/// Fetches all threads belonging to a specific board with pagination.
 pub async fn get_threads_by_board(
     pool: &PgPool,
     board_id: Uuid,
+    pagination: &PaginationParams,
 ) -> Result<Vec<Thread>, sqlx::Error> {
     let threads = sqlx::query_as!(
         Thread,
@@ -68,9 +70,12 @@ pub async fn get_threads_by_board(
         SELECT id, board_id, title, created_by, created_at
         FROM threads
         WHERE board_id = $1
-        ORDER BY created_at DESC -- Or potentially updated_at later
+        ORDER BY created_at DESC
+        LIMIT $2 OFFSET $3
         "#,
-        board_id
+        board_id,
+        pagination.limit() as i64,
+        pagination.offset() as i64
     )
     .fetch_all(pool)
     .await?;

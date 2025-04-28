@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
@@ -8,6 +8,7 @@ use uuid::Uuid;
 use crate::{
     models::{Board, Category}, // Include Category for checking existence
     repositories::{board_repository::{self, CreateBoardData, UpdateBoardData}, category_repository}, // Import both repos
+    utils::PaginationParams, // Import
     AppState,
 };
 
@@ -62,16 +63,17 @@ pub async fn get_board_handler(
     }
 }
 
-/// Handler to list all boards within a specific category.
+/// Handler to list all boards within a specific category with pagination.
 pub async fn list_boards_in_category_handler(
     State(state): State<AppState>,
     Path(category_id): Path<Uuid>,
+    Query(pagination): Query<PaginationParams>, // Extract pagination
 ) -> Response {
     // Optional: Check if category exists first
     match category_repository::get_category_by_id(&state.db_pool, category_id).await {
         Ok(Some(_)) => {
             // Category exists, proceed to list boards
-            match board_repository::get_boards_by_category(&state.db_pool, category_id).await {
+            match board_repository::get_boards_by_category(&state.db_pool, category_id, &pagination).await {
                 Ok(boards) => {
                     (StatusCode::OK, Json(boards)).into_response()
                 }

@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
@@ -8,6 +8,7 @@ use uuid::Uuid;
 use crate::{
     models::Thread,
     repositories::{thread_repository::{self, CreateThreadData, UpdateThreadData}, board_repository}, // Import thread and board repos
+    utils::PaginationParams, // Import
     AppState,
 };
 
@@ -61,16 +62,17 @@ pub async fn get_thread_handler(
     }
 }
 
-/// Handler to list all threads within a specific board.
+/// Handler to list all threads within a specific board with pagination.
 pub async fn list_threads_in_board_handler(
     State(state): State<AppState>,
     Path(board_id): Path<Uuid>,
+    Query(pagination): Query<PaginationParams>, // Extract pagination
 ) -> Response {
     // Optional: Check if board exists first
     match board_repository::get_board_by_id(&state.db_pool, board_id).await {
         Ok(Some(_)) => {
             // Board exists, proceed to list threads
-            match thread_repository::get_threads_by_board(&state.db_pool, board_id).await {
+            match thread_repository::get_threads_by_board(&state.db_pool, board_id, &pagination).await {
                 Ok(threads) => {
                     (StatusCode::OK, Json(threads)).into_response()
                 }

@@ -136,36 +136,72 @@ async fn test_get_thread_not_found(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn test_list_threads_in_board(pool: PgPool) {
-    let app = create_test_app(pool).await;
+async fn test_list_threads_in_board_pagination(pool: PgPool) {
+    let app = create_test_app(pool.clone()).await;
     let category_id = create_test_category(&app, "List Threads Cat").await;
     let board_id = create_test_board(&app, category_id, "List Threads Board").await;
 
-    // Create threads using helper
-    let _thread1_id = create_test_thread(&app, board_id, "Thread 1").await;
-    let _thread2_id = create_test_thread(&app, board_id, "Thread 2").await;
+    // Create 3 threads
+    let thread1_id = create_test_thread(&app, board_id, "Thread 1").await;
+    let thread2_id = create_test_thread(&app, board_id, "Thread 2").await;
+    let thread3_id = create_test_thread(&app, board_id, "Thread 3").await;
 
-    // List threads
-    let list_response = app
+    // Fetch first page (limit 2)
+    let response_page1 = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method(http::Method::GET)
-                .uri(format!("/boards/{}/threads", board_id))
+                .uri(format!("/boards/{}/threads?limit=2", board_id))
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
         .unwrap();
 
-    assert_eq!(list_response.status(), StatusCode::OK);
-    let list_body = list_response.into_body().collect().await.unwrap().to_bytes();
-    let fetched_threads: Vec<Thread> = serde_json::from_slice(&list_body).unwrap();
+    assert_eq!(response_page1.status(), StatusCode::OK);
+    let body1 = response_page1.into_body().collect().await.unwrap().to_bytes();
+    let threads_page1: Vec<Thread> = serde_json::from_slice(&body1).unwrap();
 
-    assert_eq!(fetched_threads.len(), 2);
-    // Query orders by created_at DESC
-    assert_eq!(fetched_threads[0].title, "Thread 2");
-    assert_eq!(fetched_threads[1].title, "Thread 1");
-    assert!(fetched_threads.iter().all(|t| t.board_id == board_id));
+    assert_eq!(threads_page1.len(), 2);
+    assert_eq!(threads_page1[0].id, thread3_id); // Ordered DESC
+    assert_eq!(threads_page1[1].id, thread2_id);
+
+    // Fetch second page (limit 2, offset 2)
+    let response_page2 = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri(format!("/boards/{}/threads?limit=2&offset=2", board_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response_page2.status(), StatusCode::OK);
+    let body2 = response_page2.into_body().collect().await.unwrap().to_bytes();
+    let threads_page2: Vec<Thread> = serde_json::from_slice(&body2).unwrap();
+
+    assert_eq!(threads_page2.len(), 1);
+    assert_eq!(threads_page2[0].id, thread1_id);
+
+    // Test default limit (should return all 3)
+    let response_default = app
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri(format!("/boards/{}/threads", board_id)) // No params
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response_default.status(), StatusCode::OK);
+    let body_default = response_default.into_body().collect().await.unwrap().to_bytes();
+    let threads_default: Vec<Thread> = serde_json::from_slice(&body_default).unwrap();
+    assert_eq!(threads_default.len(), 3);
 }
 
 #[sqlx::test]

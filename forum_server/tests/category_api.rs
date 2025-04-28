@@ -118,63 +118,73 @@ async fn test_get_category_not_found(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn test_list_categories(pool: PgPool) {
+async fn test_list_categories_pagination(pool: PgPool) {
     let app = create_test_app(pool.clone()).await;
 
-    // 1. Ensure the DB is clean or create known state
-    // (sqlx::test provides a clean slate, but we could clear manually if needed)
+    // Create 3 categories
+    let cat1_id = create_test_category(&app, "Cat 1").await;
+    let cat2_id = create_test_category(&app, "Cat 2").await;
+    let cat3_id = create_test_category(&app, "Cat 3").await;
 
-    // 2. Create a couple of categories
-    let categories_to_create = vec![
-        json!({ "name": "List Cat 1", "description": "First for listing" }),
-        json!({ "name": "List Cat 2", "description": "Second for listing" }),
-    ];
-
-    for cat_json in categories_to_create.iter() {
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method(http::Method::POST)
-                    .uri("/categories")
-                    .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                    .body(Body::from(cat_json.to_string()))
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-        assert_eq!(response.status(), StatusCode::CREATED);
-    }
-
-    // 3. List the categories
-    let list_response = app
+    // Fetch first page (limit 2, offset 0)
+    let response_page1 = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method(http::Method::GET)
-                .uri("/categories")
+                .uri("/categories?limit=2&offset=0") // Add query params
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
         .unwrap();
 
-    assert_eq!(list_response.status(), StatusCode::OK);
+    assert_eq!(response_page1.status(), StatusCode::OK);
+    let body1 = response_page1.into_body().collect().await.unwrap().to_bytes();
+    let categories_page1: Vec<Category> = serde_json::from_slice(&body1).unwrap();
 
-    let list_body = list_response.into_body().collect().await.unwrap().to_bytes();
-    let fetched_categories: Vec<Category> = serde_json::from_slice(&list_body)
-        .expect("Failed to deserialize list of categories");
+    assert_eq!(categories_page1.len(), 2);
+    // Categories ordered by creation DESC, so Cat 3 should be first
+    assert_eq!(categories_page1[0].id, cat3_id);
+    assert_eq!(categories_page1[1].id, cat2_id);
 
-    // 4. Verify the results (order might matter depending on the query)
-    // We ordered by created_at DESC in the query
-    assert_eq!(fetched_categories.len(), 2);
+    // Fetch second page (limit 2, offset 2)
+    let response_page2 = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri("/categories?limit=2&offset=2") // Add query params
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
 
-    // Check the second created category (should be first in the list due to DESC order)
-    assert_eq!(fetched_categories[0].name, "List Cat 2");
-    assert_eq!(fetched_categories[0].description, "Second for listing");
+    assert_eq!(response_page2.status(), StatusCode::OK);
+    let body2 = response_page2.into_body().collect().await.unwrap().to_bytes();
+    let categories_page2: Vec<Category> = serde_json::from_slice(&body2).unwrap();
 
-    // Check the first created category (should be second in the list)
-    assert_eq!(fetched_categories[1].name, "List Cat 1");
-    assert_eq!(fetched_categories[1].description, "First for listing");
+    assert_eq!(categories_page2.len(), 1);
+    assert_eq!(categories_page2[0].id, cat1_id);
+
+    // Test default limit - URI with NO query params
+    let response_default = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri("/categories") // Use URI without explicit params
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response_default.status(), StatusCode::OK);
+    let body_default = response_default.into_body().collect().await.unwrap().to_bytes();
+    let categories_default: Vec<Category> = serde_json::from_slice(&body_default).unwrap();
+    // Default limit is 25, we created 3, so we should get 3 back
+    assert_eq!(categories_default.len(), 3);
 }
 
 #[sqlx::test]
