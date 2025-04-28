@@ -3,7 +3,7 @@ use dotenvy::dotenv;
 use sqlx::postgres::PgPoolOptions;
 
 // Use the router creation function from the library
-use forum_server::create_router;
+use forum_server::{create_router, AppState};
 
 #[tokio::main]
 async fn main() {
@@ -23,8 +23,18 @@ async fn main() {
 
     println!("Database connection pool established.");
 
-    // Create the router using the library function
-    let app = create_router(db_pool);
+    // Load image config
+    let image_upload_dir = std::env::var("IMAGE_UPLOAD_DIR")
+        .expect("IMAGE_UPLOAD_DIR must be set");
+    let image_base_url = std::env::var("IMAGE_BASE_URL")
+        .expect("IMAGE_BASE_URL must be set");
+
+    // Ensure upload directory exists
+    tokio::fs::create_dir_all(&image_upload_dir).await
+        .expect("Failed to create image upload directory");
+
+    // Create the router using the library function, passing config
+    let app = create_router(db_pool, image_upload_dir.clone(), image_base_url);
 
     // Define the address and port to run the server on.
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));

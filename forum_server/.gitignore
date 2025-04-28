@@ -10,3 +10,8 @@
 
 # Environment variables
 .env 
+
+# Uploaded files
+/uploads/ 
+/test_uploads/
+/test_images/

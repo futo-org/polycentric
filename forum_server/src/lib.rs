@@ -2,14 +2,18 @@ use axum::{
     extract::State,
     routing::{get, post, put, delete},
     Router,
+    routing::get_service,
 };
 use sqlx::PgPool;
+use tower_http::services::ServeDir;
+use std::path::PathBuf;
 
 // Declare the modules (now public for the library)
 pub mod models;
 pub mod handlers;
 pub mod repositories;
 pub mod utils;
+pub mod storage;
 
 // Use the specific handlers
 use handlers::{
@@ -19,18 +23,30 @@ use handlers::{
     post_handlers::{create_post_handler, get_post_handler, list_posts_in_thread_handler, update_post_handler, delete_post_handler},
 };
 
+// Use storage
+use storage::LocalImageStorage;
+
 // Define the application state (now public for the library)
 #[derive(Clone)]
 pub struct AppState {
     pub db_pool: PgPool,
+    pub image_storage: LocalImageStorage,
 }
 
 // Function to create the main application router
-pub fn create_router(db_pool: PgPool) -> Router {
+pub fn create_router(db_pool: PgPool, image_upload_dir: String, image_base_url: String) -> Router {
+    // Create image storage instance
+    let image_storage = LocalImageStorage::new(image_upload_dir.clone(), image_base_url);
+
     // Create the application state
     let app_state = AppState {
         db_pool,
+        image_storage,
     };
+
+    // Define static file service
+    let static_dir = PathBuf::from(&image_upload_dir);
+    let static_service = ServeDir::new(static_dir);
 
     // Build our application router
     Router::new()
@@ -43,6 +59,8 @@ pub fn create_router(db_pool: PgPool) -> Router {
         .route("/threads/:thread_id", get(get_thread_handler).put(update_thread_handler).delete(delete_thread_handler))
         .route("/threads/:thread_id/posts", post(create_post_handler).get(list_posts_in_thread_handler))
         .route("/posts/:post_id", get(get_post_handler).put(update_post_handler).delete(delete_post_handler))
+        // Static file serving (ensure base_url doesn't conflict)
+        .nest_service(&app_state.image_storage.base_url, static_service) // Access base_url field directly
         .with_state(app_state)
 }
 

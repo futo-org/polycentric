@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Multipart, Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
@@ -12,19 +12,105 @@ use crate::{
     AppState,
 };
 
-/// Handler to create a new post within a thread.
+/// Handler to create a new post with optional image uploads (multipart/form-data).
 pub async fn create_post_handler(
     State(state): State<AppState>,
-    Path(thread_id): Path<Uuid>, // Extract thread_id from path
-    Json(payload): Json<CreatePostData>,
+    Path(thread_id): Path<Uuid>,
+    mut multipart: Multipart, // Expect multipart form data
 ) -> Response {
-    // Optional: Check if thread exists first
+    // Placeholders for extracted data
+    let mut author_id_opt: Option<String> = None;
+    let mut content_opt: Option<String> = None;
+    let mut quote_of_opt: Option<Uuid> = None;
+    let mut image_urls: Vec<String> = Vec::new();
+
+    // Process multipart stream using next_field()
+    while let Some(field) = match multipart.next_field().await {
+        Ok(field_option) => field_option, // Proceed if Ok(Some(field)) or Ok(None)
+        Err(e) => {
+            eprintln!("Error processing multipart field: {}", e);
+            // Handle specific multipart errors if needed, e.g., PayloadTooLarge
+            return (StatusCode::BAD_REQUEST, format!("Multipart error: {}", e)).into_response();
+        }
+    } {
+        // Got a field successfully (inside the Some(field) block)
+        let field_name = match field.name() {
+            Some(name) => name.to_string(),
+            None => continue, // Skip fields without names
+        };
+
+        if field_name == "image" { // Assuming image files have field name "image"
+            let original_filename = field.file_name().map(|s| s.to_string());
+            match field.bytes().await {
+                Ok(bytes) => {
+                    match state.image_storage.save_image(bytes, original_filename).await {
+                        Ok(url) => image_urls.push(url),
+                        Err(e) => {
+                            eprintln!("Failed to save image: {}", e);
+                            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to save uploaded image").into_response();
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to read image bytes: {}", e);
+                    return (StatusCode::BAD_REQUEST, "Failed to read image data").into_response();
+                }
+            }
+        } else {
+            // Handle text fields
+            match field.text().await {
+                Ok(text) => {
+                    // DEBUG: Log received text field name and value - REMOVE THIS
+                    // eprintln!("[create_post_handler DEBUG] Received text field: name=\"{}\", value=\"{}\"", field_name, text);
+                    // END DEBUG
+                    match field_name.as_str() {
+                        "author_id" => author_id_opt = Some(text),
+                        "content" => content_opt = Some(text),
+                        "quote_of" => {
+                            // Only attempt to parse if the text is not empty
+                            if !text.is_empty() { 
+                                match Uuid::parse_str(&text) {
+                                    Ok(uuid) => quote_of_opt = Some(uuid),
+                                    Err(_) => {
+                                        // Return Bad Request only if parsing fails on non-empty string
+                                        eprintln!("Invalid quote_of UUID format received: {}", text);
+                                        return (StatusCode::BAD_REQUEST, "Invalid quote_of UUID format").into_response();
+                                    }
+                                }
+                            } 
+                            // If text is empty, simply leave quote_of_opt as None
+                        }
+                        _ => { /* Ignore unknown fields */ }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to read text field '{}': {}", field_name, e);
+                    return (StatusCode::BAD_REQUEST, format!("Failed to read field: {}", field_name)).into_response();
+                }
+            }
+        }
+    }
+
+    // Validate required fields
+    let (Some(author_id), Some(content)) = (author_id_opt, content_opt) else {
+        return (StatusCode::BAD_REQUEST, "Missing required fields (author_id, content)").into_response();
+    };
+
+    // Construct payload for repository
+    let payload = CreatePostData {
+        author_id,
+        content,
+        quote_of: quote_of_opt,
+        images: if image_urls.is_empty() { None } else { Some(image_urls) },
+    };
+
+    // Now proceed with checking thread/quote existence and creating the post
+    // (Similar logic as before, but using the constructed payload)
     match thread_repository::get_thread_by_id(&state.db_pool, thread_id).await {
         Ok(Some(_)) => {
-            // Optional: Check if quote_of post exists if provided
             if let Some(quote_id) = payload.quote_of {
                 match post_repository::get_post_by_id(&state.db_pool, quote_id).await {
-                    Ok(Some(_)) => { /* Quoted post exists, proceed */ }
+                    Ok(Some(_)) => { /* Quoted post exists */ }
                     Ok(None) => return (StatusCode::BAD_REQUEST, "Quoted post not found").into_response(),
                     Err(e) => {
                         eprintln!("Failed to check quoted post existence: {}", e);
@@ -33,22 +119,15 @@ pub async fn create_post_handler(
                 }
             }
 
-            // Thread exists (and quoted post, if any), proceed to create post
             match post_repository::create_post(&state.db_pool, thread_id, payload).await {
-                Ok(new_post) => {
-                    (StatusCode::CREATED, Json(new_post)).into_response()
-                }
+                Ok(new_post) => (StatusCode::CREATED, Json(new_post)).into_response(),
                 Err(e) => {
                     eprintln!("Failed to create post: {}", e);
-                    // Could be FK constraint error if quote_of is somehow invalid despite check
                     (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create post").into_response()
                 }
             }
         }
-        Ok(None) => {
-            // Thread not found
-            (StatusCode::NOT_FOUND, "Thread not found").into_response()
-        }
+        Ok(None) => (StatusCode::NOT_FOUND, "Thread not found").into_response(),
         Err(e) => {
             eprintln!("Failed to check thread existence: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Error checking thread").into_response()

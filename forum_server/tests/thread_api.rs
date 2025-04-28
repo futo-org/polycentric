@@ -7,14 +7,14 @@ use axum::{
     http::{self, Request, StatusCode},
 };
 use forum_server::{
-    models::Thread,
+    create_router,
+    models::{Thread, Post},
 };
 use http_body_util::BodyExt;
 use sqlx::PgPool;
 use tower::ServiceExt;
 use serde_json::json;
 use uuid::Uuid;
-use sqlx::Row;
 
 // Bring helpers into scope
 use common::helpers::{create_test_app, create_test_category, create_test_board, create_test_thread, create_test_post};
@@ -318,7 +318,12 @@ async fn test_delete_thread_cascade(pool: PgPool) {
     let category_id = create_test_category(&app, "Cascade Thread Cat").await;
     let board_id = create_test_board(&app, category_id, "Cascade Thread Board").await;
     let thread_id = create_test_thread(&app, board_id, "Cascade Thread").await;
-    let post_id = create_test_post(&app, thread_id, "Cascade Post", "user1", None).await;
+    let post_content = "Post in thread to be deleted";
+    let author_id = "cascade_user_thread";
+    let (status, body_bytes) = create_test_post(&app, thread_id, post_content, author_id, None).await;
+    assert_eq!(status, StatusCode::CREATED, "Helper failed to create post for thread cascade test");
+    let post: Post = serde_json::from_slice(&body_bytes).expect("Failed to parse post in thread cascade test");
+    let post_id = post.id;
 
     // Send DELETE request for the thread
     let response = app

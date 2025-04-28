@@ -4,6 +4,7 @@
 use axum::{
     body::Body,
     http::{self, Request, StatusCode},
+    response::Response,
     Router,
 };
 use forum_server::{
@@ -16,9 +17,16 @@ use tower::ServiceExt;
 use serde_json::json;
 use uuid::Uuid;
 
+// Function to generate a random boundary string
+pub fn generate_boundary() -> String {
+    format!("----WebKitFormBoundary{}", Uuid::new_v4().simple())
+}
 
 pub async fn create_test_app(pool: PgPool) -> Router {
-    create_router(pool)
+    // Provide dummy values for image storage config during testing
+    let test_upload_dir = "./test_uploads".to_string();
+    let test_base_url = "/test_images".to_string();
+    create_router(pool, test_upload_dir, test_base_url)
 }
 
 // NOTE: Removed description from signature to match usage in post_api.rs
@@ -91,28 +99,53 @@ pub async fn create_test_post(
     thread_id: Uuid,
     content: &str,
     author: &str,
-    images: Option<Vec<String>>
-) -> Uuid {
-    let response = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method(http::Method::POST)
-                .uri(format!("/threads/{}/posts", thread_id))
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .body(Body::from(json!({ 
-                    "content": content, 
-                    "author_id": author, 
-                    "quote_of": Option::<Uuid>::None, 
-                    "images": images
-                }).to_string()))
-                .unwrap(),
+    images: Option<Vec<String>> // This remains unused for body construction for now
+) -> (StatusCode, Vec<u8>) {
+    let boundary = generate_boundary();
+    let mut body = Vec::new();
+
+    // Add author_id field
+    body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+    body.extend_from_slice(b"Content-Disposition: form-data; name=\"author_id\"\r\n\r\n");
+    body.extend_from_slice(author.as_bytes());
+    body.extend_from_slice(b"\r\n");
+
+    // Add content field
+    body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+    body.extend_from_slice(b"Content-Disposition: form-data; name=\"content\"\r\n\r\n");
+    body.extend_from_slice(content.as_bytes());
+    body.extend_from_slice(b"\r\n");
+
+    // Add quote_of field (optional, sending empty if None for simplicity in this helper)
+    body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+    body.extend_from_slice(b"Content-Disposition: form-data; name=\"quote_of\"\r\n\r\n");
+    body.extend_from_slice(b""); 
+    body.extend_from_slice(b"\r\n");
+
+    // Add closing boundary
+    body.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
+    
+    // Use a variable for the built request
+    let request = Request::builder()
+        .method(http::Method::POST)
+        .uri(format!("/threads/{}/posts", thread_id))
+        .header(
+            http::header::CONTENT_TYPE, 
+            format!("multipart/form-data; boundary={}", boundary)
         )
+        .body(Body::from(body))
+        .unwrap();
+
+    // Make the request
+    let response: Response = app
+        .clone()
+        .oneshot(request)
         .await
         .unwrap();
+        
     let status = response.status();
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    assert_eq!(status, StatusCode::CREATED, "Failed to create post: {}", String::from_utf8_lossy(&body));
-    let post: Post = serde_json::from_slice(&body).expect("Failed to deserialize post in helper");
-    post.id
+    let response_body = response.into_body().collect().await.unwrap().to_bytes().to_vec(); // Collect as Vec<u8>
+
+    // Return the actual status and body instead of asserting/parsing
+    (status, response_body)
 } 
