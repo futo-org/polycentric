@@ -15,9 +15,10 @@ use sqlx::PgPool;
 use tower::ServiceExt;
 use serde_json::json;
 use uuid::Uuid;
+use sqlx::Row; // Needed for checking existence with count(*)
 
 // Bring helpers into scope
-use common::helpers::{create_test_app, create_test_category, create_test_board};
+use common::helpers::{create_test_app, create_test_category, create_test_board, create_test_thread, create_test_post};
 
 #[sqlx::test]
 async fn test_create_board_success(pool: PgPool) {
@@ -321,4 +322,52 @@ async fn test_delete_board_not_found(pool: PgPool) {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[sqlx::test]
+async fn test_delete_board_cascade(pool: PgPool) {
+    let app = create_test_app(pool.clone()).await;
+    let category_id = create_test_category(&app, "Cascade Board Cat").await;
+    let board_id = create_test_board(&app, category_id, "Cascade Board").await;
+    let thread_id = create_test_thread(&app, board_id, "Cascade Thread").await;
+    let post_id = create_test_post(&app, thread_id, "Cascade Post", "user1").await;
+
+    // Send DELETE request for the board
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::DELETE)
+                .uri(format!("/boards/{}", board_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+
+    // Verify board is gone
+    let board_exists: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM boards WHERE id = $1)")
+        .bind(board_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert!(!board_exists.unwrap_or(true));
+
+    // Verify associated thread is gone (due to cascade)
+    let thread_exists: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM threads WHERE id = $1)")
+        .bind(thread_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert!(!thread_exists.unwrap_or(true));
+
+    // Verify associated post is gone (due to thread cascade)
+    let post_exists: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE id = $1)")
+        .bind(post_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert!(!post_exists.unwrap_or(true));
 } 

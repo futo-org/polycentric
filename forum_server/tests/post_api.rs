@@ -15,6 +15,7 @@ use sqlx::PgPool;
 use tower::ServiceExt;
 use serde_json::json;
 use uuid::Uuid;
+use sqlx::Row;
 
 // Bring helpers into scope
 use common::helpers::{create_test_app, create_test_category, create_test_board, create_test_thread, create_test_post};
@@ -392,6 +393,61 @@ async fn test_delete_post_not_found(pool: PgPool) {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[sqlx::test]
+async fn test_delete_post_sets_quote_null(pool: PgPool) {
+    let app = create_test_app(pool.clone()).await;
+    let category_id = create_test_category(&app, "Quote Null Cat").await;
+    let board_id = create_test_board(&app, category_id, "Quote Null Board").await;
+    let thread_id = create_test_thread(&app, board_id, "Quote Null Thread").await;
+    let post_to_delete_id = create_test_post(&app, thread_id, "Post to be quoted and deleted", "user1").await;
+
+    // Create the quoting post directly in DB for simplicity
+    let quoting_post_id = Uuid::new_v4();
+    sqlx::query!(
+        "INSERT INTO posts (id, thread_id, author_id, content, quote_of) VALUES ($1, $2, $3, $4, $5)",
+        quoting_post_id,
+        thread_id,
+        "user2",
+        "I am quoting a post that will be deleted",
+        post_to_delete_id
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Send DELETE request for the *quoted* post
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::DELETE)
+                .uri(format!("/posts/{}", post_to_delete_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+
+    // Verify the quoted post is gone
+    let deleted_post_exists: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE id = $1)")
+        .bind(post_to_delete_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert!(!deleted_post_exists.unwrap_or(true));
+
+    // Verify the quoting post still exists and its quote_of is NULL
+    let quoting_post = sqlx::query_as::<_, Post>("SELECT * FROM posts WHERE id = $1")
+        .bind(quoting_post_id)
+        .fetch_one(&pool)
+        .await
+        .expect("Quoting post not found after deleting quoted post");
+
+    assert!(quoting_post.quote_of.is_none(), "quote_of was not set to NULL");
 }
 
 // TODO: Add test for unauthorized delete attempt later 
