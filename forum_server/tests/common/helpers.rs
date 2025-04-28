@@ -86,7 +86,13 @@ pub async fn create_test_thread(app: &Router, board_id: Uuid, title: &str) -> Uu
     thread.id
 }
 
-pub async fn create_test_post(app: &Router, thread_id: Uuid, content: &str, author: &str) -> Uuid {
+pub async fn create_test_post(
+    app: &Router,
+    thread_id: Uuid,
+    content: &str,
+    author: &str,
+    images: Option<Vec<String>>
+) -> Uuid {
     let response = app
         .clone()
         .oneshot(
@@ -94,12 +100,16 @@ pub async fn create_test_post(app: &Router, thread_id: Uuid, content: &str, auth
                 .method(http::Method::POST)
                 .uri(format!("/threads/{}/posts", thread_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .body(Body::from(json!({ "content": content, "author_id": author, "quote_of": Option::<Uuid>::None }).to_string()))
+                .body(Body::from(json!({ 
+                    "content": content, 
+                    "author_id": author, 
+                    "quote_of": Option::<Uuid>::None, 
+                    "images": images
+                }).to_string()))
                 .unwrap(),
         )
         .await
         .unwrap();
-    // Get status BEFORE consuming body
     let status = response.status();
     let body = response.into_body().collect().await.unwrap().to_bytes();
     assert_eq!(status, StatusCode::CREATED, "Failed to create post: {}", String::from_utf8_lossy(&body));

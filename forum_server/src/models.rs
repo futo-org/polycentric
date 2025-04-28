@@ -39,15 +39,27 @@ pub struct Thread {
     // Could add fields like last reply time, number of posts, sticky status, etc.
 }
 
-/// Represents a post (reply) within a thread.
+/// Represents an image associated with a post.
 #[derive(Serialize, Deserialize, Debug, Clone, sqlx::FromRow)]
+pub struct PostImage {
+    pub id: Uuid,
+    pub post_id: Uuid,
+    pub image_url: String,
+    // pub alt_text: Option<String>,
+    // pub display_order: i32,
+    pub created_at: DateTime<Utc>,
+}
+
+/// Represents a post (reply) within a thread.
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Post {
     pub id: Uuid,
-    pub thread_id: Uuid, // Foreign key to Thread
+    pub thread_id: Uuid,
     pub author_id: PolycentricId,
-    pub content: String, // For now, simple text content
+    pub content: String, // Contains Markdown
     pub created_at: DateTime<Utc>,
-    pub quote_of: Option<Uuid>, // ID of the post being quoted, if any
+    pub quote_of: Option<Uuid>,
+    #[serde(default)] // Default to empty vec if missing
+    pub images: Vec<PostImage>, // Add images field
     //pub edited_at: Option<DateTime<Utc>>,
-    // Could add fields like images, edit history, etc.
 } 

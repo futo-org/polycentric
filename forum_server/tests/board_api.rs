@@ -330,7 +330,7 @@ async fn test_delete_board_cascade(pool: PgPool) {
     let category_id = create_test_category(&app, "Cascade Board Cat").await;
     let board_id = create_test_board(&app, category_id, "Cascade Board").await;
     let thread_id = create_test_thread(&app, board_id, "Cascade Thread").await;
-    let post_id = create_test_post(&app, thread_id, "Cascade Post", "user1").await;
+    let post_id = create_test_post(&app, thread_id, "Cascade Post", "user1", None).await;
 
     // Send DELETE request for the board
     let response = app
