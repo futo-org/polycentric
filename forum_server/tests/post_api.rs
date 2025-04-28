@@ -650,4 +650,148 @@ async fn test_delete_post_sets_quote_null(pool: PgPool) {
     assert_eq!(quoting_post_full.images[0].image_url, quoting_image_url);
 }
 
+#[sqlx::test]
+async fn test_create_post_too_many_images(pool: PgPool) {
+    let app = create_test_app(pool.clone()).await;
+    let category_id = create_test_category(&app, "Too Many Img Cat").await;
+    let board_id = create_test_board(&app, category_id, "Too Many Img Board").await;
+    let thread_id = create_test_thread(&app, board_id, "Too Many Img Thread").await;
+
+    let post_content = "This post has too many images!";
+    let author_id = "user_many_img";
+    let max_images = 5; // Should match constant in handler
+    
+    let boundary = generate_boundary();
+    let mut body_bytes = Vec::new();
+
+    // Add text fields
+    body_bytes.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+    body_bytes.extend_from_slice(b"Content-Disposition: form-data; name=\"author_id\"\r\n\r\n");
+    body_bytes.extend_from_slice(author_id.as_bytes());
+    body_bytes.extend_from_slice(b"\r\n");
+    body_bytes.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+    body_bytes.extend_from_slice(b"Content-Disposition: form-data; name=\"content\"\r\n\r\n");
+    body_bytes.extend_from_slice(post_content.as_bytes());
+    body_bytes.extend_from_slice(b"\r\n");
+    body_bytes.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+    body_bytes.extend_from_slice(b"Content-Disposition: form-data; name=\"quote_of\"\r\n\r\n");
+    body_bytes.extend_from_slice(b"");
+    body_bytes.extend_from_slice(b"\r\n");
+
+    // Add more images than allowed
+    for i in 0..=(max_images) { // Add max_images + 1 images
+        let image_filename = format!("test_image_{}.jpg", i);
+        let image_content_type = mime::IMAGE_JPEG;
+        let image_bytes = Bytes::from_static(b"fake_jpeg");
+
+        body_bytes.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+        body_bytes.extend_from_slice(
+            format!(
+                "Content-Disposition: form-data; name=\"image\"; filename=\"{}\"\r\n",
+                image_filename
+            )
+            .as_bytes(),
+        );
+        body_bytes.extend_from_slice(format!("Content-Type: {}\r\n\r\n", image_content_type).as_bytes());
+        body_bytes.extend_from_slice(&image_bytes);
+        body_bytes.extend_from_slice(b"\r\n");
+    }
+
+    // Add closing boundary
+    body_bytes.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
+
+    let content_type = format!("multipart/form-data; boundary={}", boundary);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(http::Method::POST)
+                .uri(format!("/threads/{}/posts", thread_id))
+                .header(http::header::CONTENT_TYPE, content_type)
+                .body(Body::from(body_bytes))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    // Expect BAD_REQUEST because the image count limit is checked first
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let error_message = String::from_utf8_lossy(&body);
+    assert!(error_message.contains(&format!("Exceeded maximum number of images ({})", max_images)));
+}
+
+#[sqlx::test]
+async fn test_create_post_image_too_large(pool: PgPool) {
+    let app = create_test_app(pool.clone()).await;
+    let category_id = create_test_category(&app, "Large Img Cat").await;
+    let board_id = create_test_board(&app, category_id, "Large Img Board").await;
+    let thread_id = create_test_thread(&app, board_id, "Large Img Thread").await;
+
+    let post_content = "This post has a large image!";
+    let author_id = "user_large_img";
+    let max_image_size_mb = 10; // Should match constant in handler
+    let max_image_size_bytes = max_image_size_mb * 1024 * 1024;
+    
+    let boundary = generate_boundary();
+    let mut body_bytes = Vec::new();
+
+    // Add text fields
+    body_bytes.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+    body_bytes.extend_from_slice(b"Content-Disposition: form-data; name=\"author_id\"\r\n\r\n");
+    body_bytes.extend_from_slice(author_id.as_bytes());
+    body_bytes.extend_from_slice(b"\r\n");
+    body_bytes.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+    body_bytes.extend_from_slice(b"Content-Disposition: form-data; name=\"content\"\r\n\r\n");
+    body_bytes.extend_from_slice(post_content.as_bytes());
+    body_bytes.extend_from_slice(b"\r\n");
+    body_bytes.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+    body_bytes.extend_from_slice(b"Content-Disposition: form-data; name=\"quote_of\"\r\n\r\n");
+    body_bytes.extend_from_slice(b"");
+    body_bytes.extend_from_slice(b"\r\n");
+
+    // Add one large image field
+    let image_filename = "large_image.bin";
+    let image_content_type = mime::APPLICATION_OCTET_STREAM;
+    // Create fake data slightly larger than the limit
+    let image_data: Vec<u8> = vec![0; max_image_size_bytes + 1]; 
+    let image_bytes = Bytes::from(image_data);
+
+    body_bytes.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+    body_bytes.extend_from_slice(
+        format!(
+            "Content-Disposition: form-data; name=\"image\"; filename=\"{}\"\r\n",
+            image_filename
+        )
+        .as_bytes(),
+    );
+    body_bytes.extend_from_slice(format!("Content-Type: {}\r\n\r\n", image_content_type).as_bytes());
+    body_bytes.extend_from_slice(&image_bytes);
+    body_bytes.extend_from_slice(b"\r\n");
+
+    // Add closing boundary
+    body_bytes.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
+
+    let content_type = format!("multipart/form-data; boundary={}", boundary);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(http::Method::POST)
+                .uri(format!("/threads/{}/posts", thread_id))
+                .header(http::header::CONTENT_TYPE, content_type)
+                .body(Body::from(body_bytes))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    // Expect BAD_REQUEST because the internal multipart parsing fails before our size check
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let error_message = String::from_utf8_lossy(&body);
+    // Check for the generic parsing error message
+    assert!(error_message.contains("Multipart parsing error"), "Expected parsing error, got: {}", error_message);
+}
+
 // TODO: Add test for unauthorized delete attempt later 

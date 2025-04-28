@@ -7,6 +7,7 @@ use axum::{
 use sqlx::PgPool;
 use tower_http::services::ServeDir;
 use std::path::PathBuf;
+use tower_http::limit::RequestBodyLimitLayer;
 
 // Declare the modules (now public for the library)
 pub mod models;
@@ -48,6 +49,9 @@ pub fn create_router(db_pool: PgPool, image_upload_dir: String, image_base_url: 
     let static_dir = PathBuf::from(&image_upload_dir);
     let static_service = ServeDir::new(static_dir);
 
+    // Define limits (e.g., 20MB)
+    const MAX_BODY_SIZE: usize = 20 * 1024 * 1024;
+
     // Build our application router
     Router::new()
         .route("/", get(root))
@@ -62,6 +66,8 @@ pub fn create_router(db_pool: PgPool, image_upload_dir: String, image_base_url: 
         // Static file serving (ensure base_url doesn't conflict)
         .nest_service(&app_state.image_storage.base_url, static_service) // Access base_url field directly
         .with_state(app_state)
+        // Apply the body limit layer to all routes
+        .layer(RequestBodyLimitLayer::new(MAX_BODY_SIZE))
 }
 
 // Basic handler (can stay here or move to its own handlers module)

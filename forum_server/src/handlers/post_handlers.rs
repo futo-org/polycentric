@@ -11,6 +11,9 @@ use crate::{
     utils::PaginationParams, // Import
     AppState,
 };
+use axum::extract::multipart::MultipartError;
+use multer::Error as MulterError;
+use std::error::Error;
 
 /// Handler to create a new post with optional image uploads (multipart/form-data).
 pub async fn create_post_handler(
@@ -18,19 +21,27 @@ pub async fn create_post_handler(
     Path(thread_id): Path<Uuid>,
     mut multipart: Multipart, // Expect multipart form data
 ) -> Response {
+    // Limits
+    const MAX_IMAGES_PER_POST: usize = 5;
+
     // Placeholders for extracted data
     let mut author_id_opt: Option<String> = None;
     let mut content_opt: Option<String> = None;
     let mut quote_of_opt: Option<Uuid> = None;
     let mut image_urls: Vec<String> = Vec::new();
+    let mut image_count: usize = 0; // Counter for images
 
     // Process multipart stream using next_field()
     while let Some(field) = match multipart.next_field().await {
-        Ok(field_option) => field_option, // Proceed if Ok(Some(field)) or Ok(None)
+        Ok(field_option) => field_option,
         Err(e) => {
-            eprintln!("Error processing multipart field: {}", e);
-            // Handle specific multipart errors if needed, e.g., PayloadTooLarge
-            return (StatusCode::BAD_REQUEST, format!("Multipart error: {}", e)).into_response();
+            // Check if the error is due to the overall body size limit layer (based on string)
+            if e.to_string().contains("body limit exceeded") { // Check layer limit
+                 return (StatusCode::PAYLOAD_TOO_LARGE, "Total upload size limit exceeded").into_response();
+            }
+            
+            // Treat other multipart stream processing errors as Bad Request
+            return (StatusCode::BAD_REQUEST, format!("Multipart parsing error: {}", e)).into_response();
         }
     } {
         // Got a field successfully (inside the Some(field) block)
@@ -40,9 +51,24 @@ pub async fn create_post_handler(
         };
 
         if field_name == "image" { // Assuming image files have field name "image"
+            // Check image count limit
+            if image_count >= MAX_IMAGES_PER_POST {
+                return (StatusCode::BAD_REQUEST, format!("Exceeded maximum number of images ({})", MAX_IMAGES_PER_POST)).into_response();
+            }
+            image_count += 1;
+
             let original_filename = field.file_name().map(|s| s.to_string());
-            match field.bytes().await {
+            match field.bytes().await { // This reads the whole field into memory
                 Ok(bytes) => {
+                    // Check individual file size 
+                    const MAX_IMAGE_SIZE: usize = 10 * 1024 * 1024; // 10 MB limit
+                    if bytes.len() > MAX_IMAGE_SIZE {
+                         eprintln!("Uploaded image {} exceeded size limit: {} > {}", 
+                                  original_filename.as_deref().unwrap_or("[unknown]"), 
+                                  bytes.len(), MAX_IMAGE_SIZE);
+                        return (StatusCode::PAYLOAD_TOO_LARGE, format!("Individual image size cannot exceed {}MB", MAX_IMAGE_SIZE / (1024 * 1024))).into_response();
+                    }
+
                     match state.image_storage.save_image(bytes, original_filename).await {
                         Ok(url) => image_urls.push(url),
                         Err(e) => {
@@ -52,6 +78,7 @@ pub async fn create_post_handler(
                     }
                 }
                 Err(e) => {
+                    // This error could also be due to size limits if stream reading fails partway
                     eprintln!("Failed to read image bytes: {}", e);
                     return (StatusCode::BAD_REQUEST, "Failed to read image data").into_response();
                 }
