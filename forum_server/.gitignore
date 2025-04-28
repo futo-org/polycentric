@@ -1,0 +1,12 @@
+# Rust target directory
+/target
+
+# Cargo lock file (optional, depends on policy)
+# Cargo.lock
+
+# IDE specific files
+.idea/
+.vscode/
+
+# Environment variables
+.env 

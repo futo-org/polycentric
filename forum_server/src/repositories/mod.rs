@@ -1,0 +1,5 @@
+// forum_server/src/repositories/mod.rs
+pub mod category_repository;
+pub mod board_repository;
+pub mod thread_repository;
+pub mod post_repository; 
