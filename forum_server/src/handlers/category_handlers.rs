@@ -10,12 +10,15 @@ use crate::{
     repositories::category_repository::{self, CreateCategoryData, UpdateCategoryData},
     utils::PaginationParams,
     AppState,
+    auth::AdminUser,
 };
 
 /// Handler to create a new category.
 /// Expects JSON body with name and description.
+/// Requires Admin privileges.
 pub async fn create_category_handler(
     State(state): State<AppState>,
+    admin: AdminUser,
     Json(payload): Json<CreateCategoryData>,
 ) -> Response {
     match category_repository::create_category(&state.db_pool, payload).await {
@@ -73,8 +76,10 @@ pub async fn list_categories_handler(
 }
 
 /// Handler to update a category.
+/// Requires Admin privileges.
 pub async fn update_category_handler(
     State(state): State<AppState>,
+    admin: AdminUser,
     Path(category_id): Path<Uuid>,
     Json(payload): Json<UpdateCategoryData>,
 ) -> Response {
@@ -96,8 +101,10 @@ pub async fn update_category_handler(
 }
 
 /// Handler to delete a category.
+/// Requires Admin privileges.
 pub async fn delete_category_handler(
     State(state): State<AppState>,
+    admin: AdminUser,
     Path(category_id): Path<Uuid>,
 ) -> Response {
     match category_repository::delete_category(&state.db_pool, category_id).await {

@@ -10,14 +10,19 @@ use crate::{
     repositories::{board_repository::{self, CreateBoardData, UpdateBoardData}, category_repository}, // Import both repos
     utils::PaginationParams, // Import
     AppState,
+    auth::AdminUser, // Import AdminUser
 };
 
 /// Handler to create a new board within a category.
+/// Requires Admin privileges.
 pub async fn create_board_handler(
     State(state): State<AppState>,
-    Path(category_id): Path<Uuid>, // Extract category_id from path
+    admin: AdminUser, // Use AdminUser extractor
+    Path(category_id): Path<Uuid>,
     Json(payload): Json<CreateBoardData>,
 ) -> Response {
+    // Access admin user info if needed: admin.0 (which is AuthenticatedUser)
+    // e.g., let admin_pubkey = admin.0.0;
     // Optional: Check if category exists first (good practice)
     match category_repository::get_category_by_id(&state.db_pool, category_id).await {
         Ok(Some(_)) => {
@@ -45,6 +50,7 @@ pub async fn create_board_handler(
 }
 
 /// Handler to get a single board by its ID.
+// No auth needed for read
 pub async fn get_board_handler(
     State(state): State<AppState>,
     Path(board_id): Path<Uuid>,
@@ -64,10 +70,11 @@ pub async fn get_board_handler(
 }
 
 /// Handler to list all boards within a specific category with pagination.
+// No auth needed for read
 pub async fn list_boards_in_category_handler(
     State(state): State<AppState>,
     Path(category_id): Path<Uuid>,
-    Query(pagination): Query<PaginationParams>, // Extract pagination
+    Query(pagination): Query<PaginationParams>,
 ) -> Response {
     // Optional: Check if category exists first
     match category_repository::get_category_by_id(&state.db_pool, category_id).await {
@@ -95,8 +102,10 @@ pub async fn list_boards_in_category_handler(
 }
 
 /// Handler to update a board.
+/// Requires Admin privileges.
 pub async fn update_board_handler(
     State(state): State<AppState>,
+    admin: AdminUser, // Use AdminUser extractor
     Path(board_id): Path<Uuid>,
     Json(payload): Json<UpdateBoardData>,
 ) -> Response {
@@ -115,8 +124,10 @@ pub async fn update_board_handler(
 }
 
 /// Handler to delete a board.
+/// Requires Admin privileges.
 pub async fn delete_board_handler(
     State(state): State<AppState>,
+    admin: AdminUser, // Use AdminUser extractor
     Path(board_id): Path<Uuid>,
 ) -> Response {
     match board_repository::delete_board(&state.db_pool, board_id).await {

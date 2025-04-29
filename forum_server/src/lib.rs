@@ -11,6 +11,7 @@ use tower_http::limit::RequestBodyLimitLayer;
 use crate::auth::{ChallengeStore, get_challenge_handler};
 use std::sync::Arc;
 use std::sync::RwLock;
+use std::collections::HashSet;
 
 // Declare the modules (now public for the library)
 pub mod models;
@@ -37,10 +38,16 @@ pub struct AppState {
     pub db_pool: PgPool,
     pub image_storage: LocalImageStorage,
     pub challenge_store: ChallengeStore,
+    pub admin_pubkeys: Arc<HashSet<Vec<u8>>>,
 }
 
 // Function to create the main application router
-pub fn create_router(db_pool: PgPool, image_upload_dir: String, image_base_url: String) -> Router {
+pub fn create_router(
+    db_pool: PgPool, 
+    image_upload_dir: String, 
+    image_base_url: String, 
+    admin_pubkeys: Arc<HashSet<Vec<u8>>>,
+) -> Router {
     // Create image storage instance
     let image_storage = LocalImageStorage::new(image_upload_dir.clone(), image_base_url);
 
@@ -52,6 +59,7 @@ pub fn create_router(db_pool: PgPool, image_upload_dir: String, image_base_url: 
         db_pool,
         image_storage,
         challenge_store,
+        admin_pubkeys,
     };
 
     // Define static file service

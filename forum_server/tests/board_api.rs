@@ -4,7 +4,7 @@ mod common;
 
 use axum::{
     body::Body,
-    http::{self, Request, StatusCode},
+    http::{self, Request, StatusCode, HeaderName},
     // Router, // Router is unused
 };
 use forum_server::{
@@ -19,12 +19,17 @@ use uuid::Uuid;
 // use sqlx::Row; // Row is unused
 
 // Bring helpers into scope
-use common::helpers::{create_test_app, create_test_category, create_test_board, create_test_thread, create_test_post, generate_test_keypair};
+use common::helpers::{create_test_app, create_test_category, create_test_board, create_test_thread, create_test_post, generate_test_keypair, get_auth_headers};
 
 #[sqlx::test]
 async fn test_create_board_success(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    let category_id = create_test_category(&app, "Board Test Cat").await;
+    // Setup admin user
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey.clone()])).await;
+    let auth_headers = get_auth_headers(&app, &admin_keypair).await;
+
+    let category_id = create_test_category(&app, "Board Test Cat", &admin_keypair).await;
 
     let board_name = "My First Board";
     let board_desc = "Discussion about the first board";
@@ -35,6 +40,9 @@ async fn test_create_board_success(pool: PgPool) {
                 .method(http::Method::POST)
                 .uri(format!("/categories/{}/boards", category_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
                 .body(Body::from(
                     json!({
                         "name": board_name,
@@ -67,16 +75,53 @@ async fn test_create_board_success(pool: PgPool) {
 }
 
 #[sqlx::test]
+async fn test_create_board_unauthorized(pool: PgPool) {
+    // Setup non-admin user and admin for category creation
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let non_admin_keypair = generate_test_keypair();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey.clone()])).await;
+    let category_id = create_test_category(&app, "Board Auth Test Cat", &admin_keypair).await;
+    let non_admin_auth_headers = get_auth_headers(&app, &non_admin_keypair).await;
+
+    // Attempt creation with non-admin user
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method(http::Method::POST)
+                .uri(format!("/categories/{}/boards", category_id))
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), non_admin_auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), non_admin_auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), non_admin_auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .body(Body::from(json!({ "name": "Unauthorized Board", "description": "Should Fail" }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED); // Or FORBIDDEN
+}
+
+#[sqlx::test]
 async fn test_create_board_invalid_category(pool: PgPool) {
-    let app = create_test_app(pool).await;
+    // Setup admin user (required for the endpoint)
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey.clone()])).await;
+    let auth_headers = get_auth_headers(&app, &admin_keypair).await;
     let non_existent_category_id = Uuid::new_v4();
 
+    // Send request with admin auth (auth passes, but category ID is bad)
     let response = app
         .oneshot(
             Request::builder()
                 .method(http::Method::POST)
                 .uri(format!("/categories/{}/boards", non_existent_category_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
                 .body(Body::from(json!({ "name": "Fail Board", "description": "Should fail" }).to_string()))
                 .unwrap(),
         )
@@ -88,10 +133,16 @@ async fn test_create_board_invalid_category(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_get_board_success(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    let category_id = create_test_category(&app, "Get Board Test Cat").await;
+    // Setup admin for creation
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey.clone()])).await;
+    let category_id = create_test_category(&app, "Get Board Test Cat", &admin_keypair).await;
 
-    // Create a board
+    // Create a board (requires admin)
+    // Need to use the create_test_board helper after updating it, or inline creation with auth
+    // For now, inline creation:
+    let admin_auth_headers = get_auth_headers(&app, &admin_keypair).await;
     let create_response = app
         .clone()
         .oneshot(
@@ -99,6 +150,9 @@ async fn test_get_board_success(pool: PgPool) {
                 .method(http::Method::POST)
                 .uri(format!("/categories/{}/boards", category_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), admin_auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), admin_auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), admin_auth_headers.get("x-polycentric-challenge-id").unwrap())
                 .body(Body::from(json!({ "name": "Board To Get", "description": "Get me!" }).to_string()))
                 .unwrap(),
         )
@@ -109,7 +163,7 @@ async fn test_get_board_success(pool: PgPool) {
     let created_board: Board = serde_json::from_slice(&create_body).unwrap();
     let board_id = created_board.id;
 
-    // Fetch the board
+    // Fetch the board (no auth needed)
     let fetch_response = app
         .oneshot(
             Request::builder()
@@ -132,9 +186,8 @@ async fn test_get_board_success(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_get_board_not_found(pool: PgPool) {
-    let app = create_test_app(pool).await;
+    let app = create_test_app(pool, None).await; // No admin needed
     let non_existent_board_id = Uuid::new_v4();
-
     let response = app
         .oneshot(
             Request::builder()
@@ -145,72 +198,58 @@ async fn test_get_board_not_found(pool: PgPool) {
         )
         .await
         .unwrap();
-
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
 #[sqlx::test]
 async fn test_list_boards_in_category_pagination(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    let category_id = create_test_category(&app, "List Boards Test Cat").await;
+    // Setup admin for creation
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey.clone()])).await;
+    let category_id = create_test_category(&app, "List Boards Test Cat", &admin_keypair).await;
 
-    // Create 3 boards
-    let board1_id = create_test_board(&app, category_id, "Board 1").await;
-    let board2_id = create_test_board(&app, category_id, "Board 2").await;
-    let board3_id = create_test_board(&app, category_id, "Board 3").await;
+    // Create 3 boards (requires admin)
+    // TODO: Update create_test_board helper first
+    let board1_id = create_test_board(&app, category_id, "Board 1", &admin_keypair).await;
+    let board2_id = create_test_board(&app, category_id, "Board 2", &admin_keypair).await;
+    let board3_id = create_test_board(&app, category_id, "Board 3", &admin_keypair).await;
 
-    // Fetch first page (limit 2)
-    let response_page1 = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method(http::Method::GET)
-                .uri(format!("/categories/{}/boards?limit=2", category_id))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
+    // Fetch (no auth needed)
+    let response_page1 = app.clone().oneshot(
+        Request::builder()
+            .method(http::Method::GET)
+            .uri(format!("/categories/{}/boards?limit=2", category_id))
+            .body(Body::empty())
+            .unwrap(),
+    ).await.unwrap();
     assert_eq!(response_page1.status(), StatusCode::OK);
     let body1 = response_page1.into_body().collect().await.unwrap().to_bytes();
     let boards_page1: Vec<Board> = serde_json::from_slice(&body1).unwrap();
-
     assert_eq!(boards_page1.len(), 2);
-    assert_eq!(boards_page1[0].id, board3_id); // Ordered DESC
+    assert_eq!(boards_page1[0].id, board3_id);
     assert_eq!(boards_page1[1].id, board2_id);
 
-    // Fetch second page (limit 2, offset 2)
-    let response_page2 = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method(http::Method::GET)
-                .uri(format!("/categories/{}/boards?limit=2&offset=2", category_id))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
+    let response_page2 = app.clone().oneshot(
+        Request::builder()
+            .method(http::Method::GET)
+            .uri(format!("/categories/{}/boards?limit=2&offset=2", category_id))
+            .body(Body::empty())
+            .unwrap(),
+    ).await.unwrap();
     assert_eq!(response_page2.status(), StatusCode::OK);
     let body2 = response_page2.into_body().collect().await.unwrap().to_bytes();
     let boards_page2: Vec<Board> = serde_json::from_slice(&body2).unwrap();
-
     assert_eq!(boards_page2.len(), 1);
     assert_eq!(boards_page2[0].id, board1_id);
 
-    // Test default limit (should return all 3)
-    let response_default = app
-        .oneshot(
-            Request::builder()
-                .method(http::Method::GET)
-                .uri(format!("/categories/{}/boards", category_id)) // No params
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
+    let response_default = app.oneshot(
+        Request::builder()
+            .method(http::Method::GET)
+            .uri(format!("/categories/{}/boards", category_id))
+            .body(Body::empty())
+            .unwrap(),
+    ).await.unwrap();
     assert_eq!(response_default.status(), StatusCode::OK);
     let body_default = response_default.into_body().collect().await.unwrap().to_bytes();
     let boards_default: Vec<Board> = serde_json::from_slice(&body_default).unwrap();
@@ -219,9 +258,13 @@ async fn test_list_boards_in_category_pagination(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_update_board_success(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    let category_id = create_test_category(&app, "Update Board Cat").await;
-    let board_id = create_test_board(&app, category_id, "Board to Update").await;
+    // Setup admin user
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey.clone()])).await;
+    let auth_headers = get_auth_headers(&app, &admin_keypair).await;
+    let category_id = create_test_category(&app, "Update Board Cat", &admin_keypair).await;
+    let board_id = create_test_board(&app, category_id, "Board to Update", &admin_keypair).await;
 
     let updated_name = "Updated Board Name";
     let updated_desc = "New description.";
@@ -233,6 +276,9 @@ async fn test_update_board_success(pool: PgPool) {
                 .method(http::Method::PUT)
                 .uri(format!("/boards/{}", board_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
                 .body(Body::from(json!({ "name": updated_name, "description": updated_desc }).to_string()))
                 .unwrap(),
         )
@@ -246,28 +292,62 @@ async fn test_update_board_success(pool: PgPool) {
     assert_eq!(updated_board.id, board_id);
     assert_eq!(updated_board.name, updated_name);
     assert_eq!(updated_board.description, updated_desc);
-    assert_eq!(updated_board.category_id, category_id); // Ensure category ID didn't change
-
-    // Verify in DB
+    assert_eq!(updated_board.category_id, category_id);
     let saved_board = sqlx::query_as::<_, Board>("SELECT * FROM boards WHERE id = $1")
-        .bind(board_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        .bind(board_id).fetch_one(&pool).await.unwrap();
     assert_eq!(saved_board.name, updated_name);
     assert_eq!(saved_board.description, updated_desc);
 }
 
 #[sqlx::test]
+async fn test_update_board_unauthorized(pool: PgPool) {
+    // Setup admin for creation, non-admin for update attempt
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let non_admin_keypair = generate_test_keypair();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey.clone()])).await;
+    let category_id = create_test_category(&app, "Update Board Auth Cat", &admin_keypair).await;
+    let board_id = create_test_board(&app, category_id, "Update Auth Board", &admin_keypair).await;
+    let non_admin_auth_headers = get_auth_headers(&app, &non_admin_keypair).await;
+
+    // Attempt update with non-admin
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::PUT)
+                .uri(format!("/boards/{}", board_id))
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), non_admin_auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), non_admin_auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), non_admin_auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .body(Body::from(json!({ "name": "Fail Update", "description": "Should Fail" }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED); // Or FORBIDDEN
+}
+
+#[sqlx::test]
 async fn test_update_board_not_found(pool: PgPool) {
-    let app = create_test_app(pool).await;
+    // Setup admin user (required for the endpoint)
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey.clone()])).await;
+    let auth_headers = get_auth_headers(&app, &admin_keypair).await;
     let non_existent_id = Uuid::new_v4();
+
     let response = app
         .oneshot(
             Request::builder()
                 .method(http::Method::PUT)
                 .uri(format!("/boards/{}", non_existent_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
                 .body(Body::from(json!({ "name": "n", "description": "d" }).to_string()))
                 .unwrap(),
         )
@@ -278,17 +358,24 @@ async fn test_update_board_not_found(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_delete_board_success(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    let category_id = create_test_category(&app, "Delete Board Cat").await;
-    let board_id = create_test_board(&app, category_id, "Board to Delete").await;
+    // Setup admin user
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey.clone()])).await;
+    let auth_headers = get_auth_headers(&app, &admin_keypair).await;
+    let category_id = create_test_category(&app, "Delete Board Cat", &admin_keypair).await;
+    let board_id = create_test_board(&app, category_id, "Board to Delete", &admin_keypair).await;
 
-    // Send DELETE request
+    // Send DELETE request with admin auth
     let response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/boards/{}", board_id))
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -304,19 +391,60 @@ async fn test_delete_board_success(pool: PgPool) {
         .await
         .unwrap();
     assert!(result.is_none());
+}
 
-    // We should also test that cascade delete worked for threads/posts later
+#[sqlx::test]
+async fn test_delete_board_unauthorized(pool: PgPool) {
+    // Setup admin for creation, non-admin for delete attempt
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let non_admin_keypair = generate_test_keypair();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey.clone()])).await;
+    let category_id = create_test_category(&app, "Delete Board Auth Cat", &admin_keypair).await;
+    let board_id = create_test_board(&app, category_id, "Delete Auth Board", &admin_keypair).await;
+    let non_admin_auth_headers = get_auth_headers(&app, &non_admin_keypair).await;
+
+    // Attempt delete with non-admin
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::DELETE)
+                .uri(format!("/boards/{}", board_id))
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), non_admin_auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), non_admin_auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), non_admin_auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED); // Or FORBIDDEN
+
+    // Verify board still exists
+    let result = sqlx::query("SELECT 1 FROM boards WHERE id = $1")
+        .bind(board_id).fetch_optional(&pool).await.unwrap();
+    assert!(result.is_some());
 }
 
 #[sqlx::test]
 async fn test_delete_board_not_found(pool: PgPool) {
-    let app = create_test_app(pool).await;
+    // Setup admin user (required for the endpoint)
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey.clone()])).await;
+    let auth_headers = get_auth_headers(&app, &admin_keypair).await;
     let non_existent_id = Uuid::new_v4();
+
     let response = app
         .oneshot(
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/boards/{}", non_existent_id))
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -327,27 +455,33 @@ async fn test_delete_board_not_found(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_delete_board_cascade(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    let category_id = create_test_category(&app, "Cascade Board Cat").await;
-    let board_id = create_test_board(&app, category_id, "Cascade Board").await;
-    let thread_keypair = generate_test_keypair(); // Keypair for thread
-    let post_keypair = generate_test_keypair(); // Keypair for post
-    let (thread_id, _) = create_test_thread(&app, board_id, "Cascade Thread", &thread_keypair).await; // Pass keypair, capture only ID
+    // Setup admin user
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey.clone()])).await;
+    let admin_auth_headers = get_auth_headers(&app, &admin_keypair).await;
+    let category_id = create_test_category(&app, "Cascade Board Cat", &admin_keypair).await;
+    let board_id = create_test_board(&app, category_id, "Cascade Board", &admin_keypair).await;
+    let thread_keypair = generate_test_keypair();
+    let post_keypair = generate_test_keypair();
+    let (thread_id, _) = create_test_thread(&app, board_id, "Cascade Thread", &thread_keypair).await;
     let post_content = "Post in thread to be deleted";
-    // Removed unused author_id string
-    let (status, body_bytes, expected_author_id) = create_test_post(&app, thread_id, post_content, &post_keypair, None).await; // Use keypair, capture pubkey
+    let (status, body_bytes, expected_author_id) = create_test_post(&app, thread_id, post_content, &post_keypair, None).await;
     assert_eq!(status, StatusCode::CREATED, "Helper failed to create post for board cascade test");
     let post: Post = serde_json::from_slice(&body_bytes).expect("Failed to parse post in board cascade test");
     let post_id = post.id;
-    assert_eq!(post.author_id, expected_author_id); // Verify author
+    assert_eq!(post.author_id, expected_author_id);
 
-    // Send DELETE request for the board
+    // Send DELETE request for the board using admin auth
     let response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/boards/{}", board_id))
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), admin_auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), admin_auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), admin_auth_headers.get("x-polycentric-challenge-id").unwrap())
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -357,26 +491,26 @@ async fn test_delete_board_cascade(pool: PgPool) {
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 
     // Verify board is gone
-    let board_exists: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM boards WHERE id = $1)")
+    let board_result = sqlx::query("SELECT 1 FROM boards WHERE id = $1")
         .bind(board_id)
-        .fetch_one(&pool)
+        .fetch_optional(&pool)
         .await
         .unwrap();
-    assert!(!board_exists.unwrap_or(true));
+    assert!(board_result.is_none(), "Board should be deleted");
 
-    // Verify associated thread is gone (due to cascade)
-    let thread_exists: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM threads WHERE id = $1)")
-        .bind(thread_id) // Bind only the Uuid part
-        .fetch_one(&pool)
+    // Verify thread is gone (due to cascade)
+    let thread_result = sqlx::query("SELECT 1 FROM threads WHERE id = $1")
+        .bind(thread_id)
+        .fetch_optional(&pool)
         .await
         .unwrap();
-    assert!(!thread_exists.unwrap_or(true));
+    assert!(thread_result.is_none(), "Thread should be cascade deleted");
 
-    // Verify associated post is gone (due to thread cascade)
-    let post_exists: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE id = $1)")
+    // Verify post is gone (due to cascade)
+    let post_result = sqlx::query("SELECT 1 FROM posts WHERE id = $1")
         .bind(post_id)
-        .fetch_one(&pool)
+        .fetch_optional(&pool)
         .await
         .unwrap();
-    assert!(!post_exists.unwrap_or(true));
+    assert!(post_result.is_none(), "Post should be cascade deleted");
 } 

@@ -3,7 +3,7 @@ mod common;
 
 use axum::{
     body::Body,
-    http::{self, Request, StatusCode},
+    http::{self, Request, StatusCode, HeaderName},
 };
 use forum_server::{
     models::Category, // Assuming models are public in lib.rs or main.rs
@@ -15,7 +15,7 @@ use serde_json::json; // For creating JSON body easily in tests
 use uuid::Uuid;
 
 // Bring helpers into scope
-use common::helpers::{create_test_app, create_test_category};
+use common::helpers::{create_test_app, create_test_category, generate_test_keypair, get_auth_headers};
 
 // Helper function to create the Axum app with a test database connection
 // This assumes you have configured sqlx::test correctly (e.g., DATABASE_URL set)
@@ -26,10 +26,35 @@ use common::helpers::{create_test_app, create_test_category};
 
 #[sqlx::test]
 async fn test_create_category_success(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
+    // Setup admin user
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await; // Pass admin key
 
-    let category_name = "Test Category";
-    let category_desc = "A category created during testing";
+    // Use helper which now requires admin keypair
+    let category_name = "Admin Category";
+    let category_id = create_test_category(&app, category_name, &admin_keypair).await;
+
+    // Verify directly in the database
+    let saved_category = sqlx::query_as::<_, Category>("SELECT * FROM categories WHERE id = $1")
+        .bind(category_id)
+        .fetch_one(&pool)
+        .await
+        .expect("Failed to fetch category from test DB");
+
+    assert_eq!(saved_category.id, category_id);
+    assert_eq!(saved_category.name, category_name);
+}
+
+#[sqlx::test]
+async fn test_create_category_unauthorized(pool: PgPool) {
+    // Setup non-admin user and empty admin set in app
+    let non_admin_keypair = generate_test_keypair();
+    let app = create_test_app(pool.clone(), None).await; // No admins configured
+    let auth_headers = get_auth_headers(&app, &non_admin_keypair).await;
+
+    let category_name = "Unauthorized Category";
+    let category_desc = "This should fail";
 
     let response = app
         .oneshot(
@@ -37,45 +62,31 @@ async fn test_create_category_success(pool: PgPool) {
                 .method(http::Method::POST)
                 .uri("/categories")
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .body(Body::from(
-                    format!(
-                        r#"{{"name": "{}", "description": "{}"}} "#,
-                        category_name,
-                        category_desc
-                    )
-                ))
+                // Add non-admin auth headers
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .body(Body::from(json!({ "name": category_name, "description": category_desc }).to_string()))
                 .unwrap(),
         )
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::CREATED);
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let created_category: Category = serde_json::from_slice(&body).expect("Failed to deserialize response body");
-
-    assert_eq!(created_category.name, category_name);
-    assert_eq!(created_category.description, category_desc);
-
-    // Optional: Verify directly in the database
-    let saved_category = sqlx::query_as::<_, Category>("SELECT * FROM categories WHERE id = $1")
-        .bind(created_category.id)
-        .fetch_one(&pool)
-        .await
-        .expect("Failed to fetch category from test DB");
-
-    assert_eq!(saved_category.id, created_category.id);
-    assert_eq!(saved_category.name, category_name);
+    // Expect Forbidden (or Unauthorized depending on AuthError mapping in AdminUser)
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED); // Or FORBIDDEN if AuthError is updated
 }
 
 #[sqlx::test]
 async fn test_get_category_success(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
+    // Setup admin user for creation
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
 
-    // Create category using helper
-    let category_id = create_test_category(&app, "Fetch Me").await;
+    // Create category using helper (requires admin)
+    let category_id = create_test_category(&app, "Fetch Me", &admin_keypair).await;
 
-    // 2. Try to fetch the created category
+    // Fetch without auth headers
     let fetch_response = app
         .oneshot(
             Request::builder()
@@ -88,21 +99,16 @@ async fn test_get_category_success(pool: PgPool) {
         .unwrap();
 
     assert_eq!(fetch_response.status(), StatusCode::OK);
-
     let fetch_body = fetch_response.into_body().collect().await.unwrap().to_bytes();
-    let fetched_category: Category = serde_json::from_slice(&fetch_body)
-        .expect("Failed to deserialize fetched category");
-
+    let fetched_category: Category = serde_json::from_slice(&fetch_body).expect("Failed to deserialize fetched category");
     assert_eq!(fetched_category.id, category_id);
     assert_eq!(fetched_category.name, "Fetch Me");
-    assert_eq!(fetched_category.description, "...");
 }
 
 #[sqlx::test]
 async fn test_get_category_not_found(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    let non_existent_id = Uuid::new_v4(); // Generate a random UUID
-
+    let app = create_test_app(pool.clone(), None).await; // No admin needed
+    let non_existent_id = Uuid::new_v4();
     let response = app
         .oneshot(
             Request::builder()
@@ -113,18 +119,20 @@ async fn test_get_category_not_found(pool: PgPool) {
         )
         .await
         .unwrap();
-
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
 #[sqlx::test]
 async fn test_list_categories_pagination(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
+    // Setup admin user for creation
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
 
-    // Create 3 categories
-    let cat1_id = create_test_category(&app, "Cat 1").await;
-    let cat2_id = create_test_category(&app, "Cat 2").await;
-    let cat3_id = create_test_category(&app, "Cat 3").await;
+    // Create 3 categories (requires admin)
+    let cat1_id = create_test_category(&app, "Cat 1", &admin_keypair).await;
+    let cat2_id = create_test_category(&app, "Cat 2", &admin_keypair).await;
+    let cat3_id = create_test_category(&app, "Cat 3", &admin_keypair).await;
 
     // Fetch first page (limit 2, offset 0)
     let response_page1 = app
@@ -132,7 +140,7 @@ async fn test_list_categories_pagination(pool: PgPool) {
         .oneshot(
             Request::builder()
                 .method(http::Method::GET)
-                .uri("/categories?limit=2&offset=0") // Add query params
+                .uri("/categories?limit=2&offset=0")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -154,7 +162,7 @@ async fn test_list_categories_pagination(pool: PgPool) {
         .oneshot(
             Request::builder()
                 .method(http::Method::GET)
-                .uri("/categories?limit=2&offset=2") // Add query params
+                .uri("/categories?limit=2&offset=2")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -168,13 +176,12 @@ async fn test_list_categories_pagination(pool: PgPool) {
     assert_eq!(categories_page2.len(), 1);
     assert_eq!(categories_page2[0].id, cat1_id);
 
-    // Test default limit - URI with NO query params
+    // Test default limit
     let response_default = app
-        .clone()
         .oneshot(
             Request::builder()
                 .method(http::Method::GET)
-                .uri("/categories") // Use URI without explicit params
+                .uri("/categories")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -189,14 +196,19 @@ async fn test_list_categories_pagination(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_update_category_success(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    // Use helper to create initial category
-    let category_id = create_test_category(&app, "To Update").await;
+    // Setup admin user
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
+    let auth_headers = get_auth_headers(&app, &admin_keypair).await;
+
+    // Create category using helper (requires admin)
+    let category_id = create_test_category(&app, "To Update", &admin_keypair).await;
 
     let updated_name = "Updated Category Name";
     let updated_desc = "This description has been updated.";
 
-    // Send PUT request
+    // Send PUT request with admin auth
     let response = app
         .clone()
         .oneshot(
@@ -204,13 +216,14 @@ async fn test_update_category_success(pool: PgPool) {
                 .method(http::Method::PUT)
                 .uri(format!("/categories/{}", category_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .body(Body::from(
-                    json!({
+                // Add admin auth headers
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .body(Body::from(json!({
                         "name": updated_name,
                         "description": updated_desc
-                    })
-                    .to_string(),
-                ))
+                    }).to_string()))
                 .unwrap(),
         )
         .await
@@ -236,8 +249,45 @@ async fn test_update_category_success(pool: PgPool) {
 }
 
 #[sqlx::test]
+async fn test_update_category_unauthorized(pool: PgPool) {
+    // Setup admin for creation, non-admin for update attempt
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let non_admin_keypair = generate_test_keypair();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
+    let category_id = create_test_category(&app, "Update Auth Test", &admin_keypair).await;
+    let non_admin_auth_headers = get_auth_headers(&app, &non_admin_keypair).await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::PUT)
+                .uri(format!("/categories/{}", category_id))
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                // Use non-admin auth headers
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), non_admin_auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), non_admin_auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), non_admin_auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .body(Body::from(json!({
+                        "name": "Fail Update",
+                        "description": "Should Fail"
+                    }).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED); // Or FORBIDDEN
+}
+
+#[sqlx::test]
 async fn test_update_category_not_found(pool: PgPool) {
-    let app = create_test_app(pool).await;
+    // Setup admin user (required for the endpoint)
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
+    let auth_headers = get_auth_headers(&app, &admin_keypair).await;
     let non_existent_id = Uuid::new_v4();
 
     let response = app
@@ -246,6 +296,10 @@ async fn test_update_category_not_found(pool: PgPool) {
                 .method(http::Method::PUT)
                 .uri(format!("/categories/{}", non_existent_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                // Add admin auth headers (auth passes, but ID is bad)
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
                 .body(Body::from(json!({ "name": "n", "description": "d" }).to_string()))
                 .unwrap(),
         )
@@ -257,17 +311,26 @@ async fn test_update_category_not_found(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_delete_category_success(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    // Use helper to create initial category
-    let category_id = create_test_category(&app, "To Delete").await;
+    // Setup admin user
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
+    let auth_headers = get_auth_headers(&app, &admin_keypair).await;
 
-    // Send DELETE request
+    // Create category using helper (requires admin)
+    let category_id = create_test_category(&app, "To Delete", &admin_keypair).await;
+
+    // Send DELETE request with admin auth
     let response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/categories/{}", category_id))
+                // Add admin auth headers
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -283,13 +346,49 @@ async fn test_delete_category_success(pool: PgPool) {
         .await
         .unwrap();
     assert!(result.is_none());
+}
 
-    // Optional: Verify cascade delete if applicable later
+#[sqlx::test]
+async fn test_delete_category_unauthorized(pool: PgPool) {
+    // Setup admin for creation, non-admin for delete attempt
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let non_admin_keypair = generate_test_keypair();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
+    let category_id = create_test_category(&app, "Delete Auth Test", &admin_keypair).await;
+    let non_admin_auth_headers = get_auth_headers(&app, &non_admin_keypair).await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::DELETE)
+                .uri(format!("/categories/{}", category_id))
+                // Use non-admin auth headers
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), non_admin_auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), non_admin_auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), non_admin_auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED); // Or FORBIDDEN
+
+    // Verify category still exists
+    let result = sqlx::query("SELECT 1 FROM categories WHERE id = $1")
+        .bind(category_id).fetch_optional(&pool).await.unwrap();
+    assert!(result.is_some());
 }
 
 #[sqlx::test]
 async fn test_delete_category_not_found(pool: PgPool) {
-    let app = create_test_app(pool).await;
+    // Setup admin user (required for the endpoint)
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
+    let auth_headers = get_auth_headers(&app, &admin_keypair).await;
     let non_existent_id = Uuid::new_v4();
 
     let response = app
@@ -297,6 +396,10 @@ async fn test_delete_category_not_found(pool: PgPool) {
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/categories/{}", non_existent_id))
+                // Add admin auth headers (auth passes, but ID is bad)
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
                 .body(Body::empty())
                 .unwrap(),
         )

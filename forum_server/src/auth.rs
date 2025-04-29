@@ -27,6 +27,7 @@ use crate::AppState;
 use axum::http::HeaderName;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use std::collections::HashSet;
 
 // --- Challenge Nonce Storage ---
 
@@ -266,6 +267,43 @@ where
     }
 }
 
+// --- Admin User Extractor ---
+
+// Wrapper struct to signify an admin user
+#[derive(Debug, Clone)]
+pub struct AdminUser(pub AuthenticatedUser);
+
+#[async_trait]
+impl<S> FromRequestParts<S> for AdminUser
+where
+    AppState: FromRef<S>,
+    S: Send + Sync,
+{
+    // Use AuthError for rejection, same as AuthenticatedUser
+    type Rejection = AuthError; 
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        // 1. Perform standard authentication
+        let authenticated_user = AuthenticatedUser::from_request_parts(parts, state).await?;
+
+        // 2. Get AppState to access admin keys
+        let app_state = AppState::from_ref(state);
+        let admin_keys = &app_state.admin_pubkeys;
+
+        // 3. Check if the authenticated user's key is in the admin set
+        if admin_keys.contains(&authenticated_user.0) {
+            // If yes, wrap the AuthenticatedUser in AdminUser and return Ok
+            Ok(AdminUser(authenticated_user))
+        } else {
+            // If no, return a Forbidden error (using AuthError for consistency)
+            // We might want a more specific variant later, but this works.
+            // Consider adding a `Forbidden` variant to AuthError if needed.
+            eprintln!("Admin access denied for pubkey: {}", base64::encode(&authenticated_user.0)); 
+            Err(AuthError::VerificationFailed) // Reusing VerificationFailed might be okay, or add Forbidden
+        }
+    }
+}
+
 // --- Tests for Authenticator ---
 #[cfg(test)]
 mod tests {
@@ -286,11 +324,15 @@ mod tests {
          let test_db_url = std::env::var("DATABASE_URL")
             .unwrap_or_else(|_| "postgres://test_user:test_password@localhost/test_db_auth".to_string());
         let pool = pool_options.connect_lazy(&test_db_url).expect("Failed to create lazy pool");
+        
+        // Create an empty set of admin keys for tests by default
+        let admin_pubkeys = Arc::new(HashSet::<Vec<u8>>::new()); 
 
         AppState {
             db_pool: pool,
             image_storage: crate::storage::LocalImageStorage::new(".".into(), "/images".into()),
             challenge_store: ChallengeStore::new(),
+            admin_pubkeys, // Initialize the new field
         }
     }
 

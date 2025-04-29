@@ -21,7 +21,7 @@ use common::helpers::create_test_app;
 
 #[sqlx::test]
 async fn test_get_challenge_success(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
+    let app = create_test_app(pool.clone(), None).await;
 
     let response = app
         .oneshot(

@@ -24,10 +24,13 @@ use common::helpers::{create_test_app, create_test_category, create_test_board, 
 
 #[sqlx::test]
 async fn test_create_thread_success(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    let category_id = create_test_category(&app, "Thread Test Cat").await;
-    let board_id = create_test_board(&app, category_id, "Thread Test Board").await;
-    let keypair = generate_test_keypair();
+    // Setup admin for category/board creation
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
+    let category_id = create_test_category(&app, "Thread Test Cat", &admin_keypair).await;
+    let board_id = create_test_board(&app, category_id, "Thread Test Board", &admin_keypair).await;
+    let keypair = generate_test_keypair(); // Keypair for the thread creator
 
     let thread_title = "My First Thread";
 
@@ -64,7 +67,8 @@ async fn test_create_thread_success(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_create_thread_invalid_board(pool: PgPool) {
-    let app = create_test_app(pool).await;
+    // No admin needed for app setup here, as we aren't creating category/board
+    let app = create_test_app(pool, None).await;
     let non_existent_board_id = Uuid::new_v4();
     let keypair = generate_test_keypair();
     let auth_headers = get_auth_headers(&app, &keypair).await;
@@ -89,10 +93,13 @@ async fn test_create_thread_invalid_board(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_get_thread_success(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    let category_id = create_test_category(&app, "Get Thread Cat").await;
-    let board_id = create_test_board(&app, category_id, "Get Thread Board").await;
-    let keypair = generate_test_keypair();
+    // Setup admin for category/board creation
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
+    let category_id = create_test_category(&app, "Get Thread Cat", &admin_keypair).await;
+    let board_id = create_test_board(&app, category_id, "Get Thread Board", &admin_keypair).await;
+    let keypair = generate_test_keypair(); // Thread creator
 
     let (thread_id, expected_creator_id) = create_test_thread(&app, board_id, "Thread To Get", &keypair).await;
 
@@ -119,7 +126,8 @@ async fn test_get_thread_success(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_get_thread_not_found(pool: PgPool) {
-    let app = create_test_app(pool).await;
+    // No admin needed for app setup
+    let app = create_test_app(pool, None).await;
     let non_existent_thread_id = Uuid::new_v4();
 
     let response = app
@@ -138,9 +146,12 @@ async fn test_get_thread_not_found(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_list_threads_in_board_pagination(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    let category_id = create_test_category(&app, "List Threads Cat").await;
-    let board_id = create_test_board(&app, category_id, "List Threads Board").await;
+    // Setup admin for category/board creation
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
+    let category_id = create_test_category(&app, "List Threads Cat", &admin_keypair).await;
+    let board_id = create_test_board(&app, category_id, "List Threads Board", &admin_keypair).await;
     let keypair1 = generate_test_keypair();
     let keypair2 = generate_test_keypair();
     let keypair3 = generate_test_keypair();
@@ -206,9 +217,12 @@ async fn test_list_threads_in_board_pagination(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_update_thread_success(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    let category_id = create_test_category(&app, "Update Thread Cat").await;
-    let board_id = create_test_board(&app, category_id, "Update Thread Board").await;
+    // Setup admin for category/board creation
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
+    let category_id = create_test_category(&app, "Update Thread Cat", &admin_keypair).await;
+    let board_id = create_test_board(&app, category_id, "Update Thread Board", &admin_keypair).await;
     let thread_owner_keypair = generate_test_keypair(); // Keypair for thread creation & update
     let (thread_id, expected_creator_id) = create_test_thread(&app, board_id, "Thread to Update", &thread_owner_keypair).await;
 
@@ -254,9 +268,12 @@ async fn test_update_thread_success(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_update_thread_unauthorized(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    let category_id = create_test_category(&app, "Update Unauthorized Thread Cat").await;
-    let board_id = create_test_board(&app, category_id, "Update Unauthorized Thread Board").await;
+    // Setup admin for category/board creation
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
+    let category_id = create_test_category(&app, "Update Unauthorized Thread Cat", &admin_keypair).await;
+    let board_id = create_test_board(&app, category_id, "Update Unauthorized Thread Board", &admin_keypair).await;
     let thread_owner_keypair = generate_test_keypair(); // Keypair of the thread creator
     let attacker_keypair = generate_test_keypair(); // Different keypair for the attacker
     let (thread_id, _) = create_test_thread(&app, board_id, "Original Thread Title", &thread_owner_keypair).await;
@@ -296,7 +313,8 @@ async fn test_update_thread_unauthorized(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_update_thread_not_found(pool: PgPool) {
-    let app = create_test_app(pool).await;
+    // No admin needed for app setup
+    let app = create_test_app(pool, None).await;
     let non_existent_thread_id = Uuid::new_v4();
     let keypair = generate_test_keypair(); // Need a keypair for auth
     let auth_headers = get_auth_headers(&app, &keypair).await;
@@ -307,6 +325,7 @@ async fn test_update_thread_not_found(pool: PgPool) {
                 .method(http::Method::PUT)
                 .uri(format!("/threads/{}", non_existent_thread_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                 // Add auth headers
                 .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
                 .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
                 .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
@@ -321,9 +340,12 @@ async fn test_update_thread_not_found(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_delete_thread_success(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    let category_id = create_test_category(&app, "Delete Thread Cat").await;
-    let board_id = create_test_board(&app, category_id, "Delete Thread Board").await;
+    // Setup admin for category/board creation
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
+    let category_id = create_test_category(&app, "Delete Thread Cat", &admin_keypair).await;
+    let board_id = create_test_board(&app, category_id, "Delete Thread Board", &admin_keypair).await;
     let thread_owner_keypair = generate_test_keypair(); // Keypair for thread creation & delete
     let (thread_id, _) = create_test_thread(&app, board_id, "Thread to Delete", &thread_owner_keypair).await;
 
@@ -358,9 +380,12 @@ async fn test_delete_thread_success(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_delete_thread_unauthorized(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    let category_id = create_test_category(&app, "Delete Unauthorized Thread Cat").await;
-    let board_id = create_test_board(&app, category_id, "Delete Unauthorized Thread Board").await;
+    // Setup admin for category/board creation
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
+    let category_id = create_test_category(&app, "Delete Unauthorized Thread Cat", &admin_keypair).await;
+    let board_id = create_test_board(&app, category_id, "Delete Unauthorized Thread Board", &admin_keypair).await;
     let thread_owner_keypair = generate_test_keypair(); // Keypair of the thread creator
     let attacker_keypair = generate_test_keypair(); // Different keypair for the attacker
     let (thread_id, _) = create_test_thread(&app, board_id, "Thread To Delete (Unauth)", &thread_owner_keypair).await;
@@ -398,7 +423,8 @@ async fn test_delete_thread_unauthorized(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_delete_thread_not_found(pool: PgPool) {
-    let app = create_test_app(pool).await;
+    // No admin needed for app setup
+    let app = create_test_app(pool, None).await;
     let non_existent_id = Uuid::new_v4();
     let keypair = generate_test_keypair(); // Need keypair even for not found
     let auth_headers = get_auth_headers(&app, &keypair).await;
@@ -422,9 +448,12 @@ async fn test_delete_thread_not_found(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_delete_thread_cascade(pool: PgPool) {
-    let app = create_test_app(pool.clone()).await;
-    let category_id = create_test_category(&app, "Cascade Thread Cat").await;
-    let board_id = create_test_board(&app, category_id, "Cascade Thread Board").await;
+    // Setup admin for category/board creation
+    let admin_keypair = generate_test_keypair();
+    let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
+    let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
+    let category_id = create_test_category(&app, "Cascade Thread Cat", &admin_keypair).await;
+    let board_id = create_test_board(&app, category_id, "Cascade Thread Board", &admin_keypair).await;
     let thread_keypair = generate_test_keypair(); // Keypair for thread
     let post_keypair = generate_test_keypair(); // Keypair for post
     let (thread_id, _) = create_test_thread(&app, board_id, "Cascade Thread", &thread_keypair).await; // Create thread with thread_keypair

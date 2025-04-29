@@ -1,6 +1,8 @@
 use std::net::SocketAddr;
 use dotenvy::dotenv;
 use sqlx::postgres::PgPoolOptions;
+use std::collections::HashSet;
+use std::sync::Arc;
 
 // Use the router creation function from the library
 use forum_server::{create_router, AppState};
@@ -33,8 +35,49 @@ async fn main() {
     tokio::fs::create_dir_all(&image_upload_dir).await
         .expect("Failed to create image upload directory");
 
+    // Load admin pubkeys
+    let admin_pubkeys_str = std::env::var("ADMIN_PUBKEYS")
+        .expect("ADMIN_PUBKEYS environment variable must be set (comma-separated base64)");
+    
+    let admin_pubkeys_set: HashSet<Vec<u8>> = admin_pubkeys_str
+        .split(',')
+        .filter_map(|key_b64| {
+            // Trim whitespace and decode base64
+            let trimmed_key = key_b64.trim();
+            if trimmed_key.is_empty() {
+                None // Skip empty strings
+            } else {
+                match base64::decode(trimmed_key) {
+                    Ok(key_bytes) => {
+                        // Basic length check for Ed25519 keys
+                        if key_bytes.len() == 32 {
+                           Some(key_bytes)
+                        } else {
+                            eprintln!("Warning: Invalid admin pubkey length after decoding: {}", trimmed_key);
+                            None
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Warning: Failed to decode admin pubkey '{}': {}", trimmed_key, e);
+                        None
+                    }
+                }
+            }
+        })
+        .collect();
+
+    if admin_pubkeys_set.is_empty() {
+        println!("Warning: No valid admin public keys loaded from ADMIN_PUBKEYS.");
+    }
+    let admin_pubkeys_arc = Arc::new(admin_pubkeys_set);
+
     // Create the router using the library function, passing config
-    let app = create_router(db_pool, image_upload_dir.clone(), image_base_url);
+    let app = create_router(
+        db_pool, 
+        image_upload_dir.clone(), 
+        image_base_url, 
+        admin_pubkeys_arc // Pass the admin keys set
+    );
 
     // Define the address and port to run the server on.
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));

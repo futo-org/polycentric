@@ -22,21 +22,31 @@ use rand::rngs::OsRng;
 use forum_server::auth::ChallengeResponse;
 use forum_server::AppState;
 use base64;
+use std::collections::HashSet;
+use std::sync::Arc;
 
 // Function to generate a random boundary string
 pub fn generate_boundary() -> String {
     format!("----WebKitFormBoundary{}", Uuid::new_v4().simple())
 }
 
-pub async fn create_test_app(pool: PgPool) -> Router {
+// Updated to accept optional admin keys for specific test setup
+pub async fn create_test_app(pool: PgPool, admin_keys: Option<Vec<Vec<u8>>>) -> Router {
     // Provide dummy values for image storage config during testing
     let test_upload_dir = "./test_uploads".to_string();
     let test_base_url = "/test_images".to_string();
-    create_router(pool, test_upload_dir, test_base_url)
+    
+    // Create admin key set from provided keys or empty if None
+    let admin_pubkeys_set: HashSet<Vec<u8>> = admin_keys.unwrap_or_default().into_iter().collect();
+    let admin_pubkeys_arc = Arc::new(admin_pubkeys_set);
+
+    create_router(pool, test_upload_dir, test_base_url, admin_pubkeys_arc)
 }
 
-// NOTE: Removed description from signature to match usage in post_api.rs
-pub async fn create_test_category(app: &Router, name: &str) -> Uuid {
+// Updated helper to require admin keypair for auth
+pub async fn create_test_category(app: &Router, name: &str, admin_keypair: &SigningKey) -> Uuid {
+    let auth_headers = get_auth_headers(app, admin_keypair).await;
+    
     let response = app
         .clone()
         .oneshot(
@@ -44,12 +54,16 @@ pub async fn create_test_category(app: &Router, name: &str) -> Uuid {
                 .method(http::Method::POST)
                 .uri("/categories")
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                // Add admin auth headers
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
                 .body(Body::from(json!({ "name": name, "description": "..." }).to_string()))
                 .unwrap(),
         )
         .await
         .unwrap();
-    // Get status BEFORE consuming body
+    
     let status = response.status();
     let body = response.into_body().collect().await.unwrap().to_bytes();
     assert_eq!(status, StatusCode::CREATED, "Failed to create category: {}", String::from_utf8_lossy(&body));
@@ -58,7 +72,10 @@ pub async fn create_test_category(app: &Router, name: &str) -> Uuid {
 }
 
 // NOTE: Removed description from signature to match usage in post_api.rs
-pub async fn create_test_board(app: &Router, category_id: Uuid, name: &str) -> Uuid {
+// Updated to require admin keypair for auth
+pub async fn create_test_board(app: &Router, category_id: Uuid, name: &str, admin_keypair: &SigningKey) -> Uuid {
+    let auth_headers = get_auth_headers(app, admin_keypair).await;
+
     let response = app
         .clone()
         .oneshot(
@@ -66,12 +83,16 @@ pub async fn create_test_board(app: &Router, category_id: Uuid, name: &str) -> U
                 .method(http::Method::POST)
                 .uri(format!("/categories/{}/boards", category_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                // Add admin auth headers
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
                 .body(Body::from(json!({ "name": name, "description": "..." }).to_string()))
                 .unwrap(),
         )
         .await
         .unwrap();
-    // Get status BEFORE consuming body
+    
     let status = response.status();
     let body = response.into_body().collect().await.unwrap().to_bytes();
     assert_eq!(status, StatusCode::CREATED, "Failed to create board: {}", String::from_utf8_lossy(&body));
