@@ -297,24 +297,25 @@ async fn test_update_thread_unauthorized(pool: PgPool) {
 #[sqlx::test]
 async fn test_update_thread_not_found(pool: PgPool) {
     let app = create_test_app(pool).await;
-    let non_existent_id = Uuid::new_v4();
-    let keypair = generate_test_keypair(); // Need keypair even for not found
+    let non_existent_thread_id = Uuid::new_v4();
+    let keypair = generate_test_keypair(); // Need a keypair for auth
     let auth_headers = get_auth_headers(&app, &keypair).await;
-    
+
     let response = app
         .oneshot(
             Request::builder()
                 .method(http::Method::PUT)
-                .uri(format!("/threads/{}", non_existent_id))
-                 // Add auth headers
+                .uri(format!("/threads/{}", non_existent_thread_id))
+                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
                 .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
                 .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
-                .body(Body::from(json!({ "title": "t" }).to_string()))
+                .body(Body::from(json!({ "title": "n" }).to_string())) // Still need a valid body
                 .unwrap(),
         )
         .await
         .unwrap();
+
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
@@ -424,42 +425,51 @@ async fn test_delete_thread_cascade(pool: PgPool) {
     let app = create_test_app(pool.clone()).await;
     let category_id = create_test_category(&app, "Cascade Thread Cat").await;
     let board_id = create_test_board(&app, category_id, "Cascade Thread Board").await;
-    let thread_keypair = generate_test_keypair();
-    let post_keypair = generate_test_keypair();
-    let (thread_id, _) = create_test_thread(&app, board_id, "Cascade Thread", &thread_keypair).await;
+    let thread_keypair = generate_test_keypair(); // Keypair for thread
+    let post_keypair = generate_test_keypair(); // Keypair for post
+    let (thread_id, _) = create_test_thread(&app, board_id, "Cascade Thread", &thread_keypair).await; // Create thread with thread_keypair
     let post_content = "Post in thread to be deleted";
-
-    let (status, body_bytes, expected_author_id_bytes) = create_test_post(&app, thread_id, post_content, &post_keypair, None).await;
+    let (status, body_bytes, expected_author_id) = create_test_post(&app, thread_id, post_content, &post_keypair, None).await;
     assert_eq!(status, StatusCode::CREATED, "Helper failed to create post for thread cascade test");
     let post: Post = serde_json::from_slice(&body_bytes).expect("Failed to parse post in thread cascade test");
     let post_id = post.id;
-    assert_eq!(post.author_id, expected_author_id_bytes);
+    assert_eq!(post.author_id, expected_author_id); 
 
+    // --> ADD Authentication using thread_keypair <--
+    let auth_headers = get_auth_headers(&app, &thread_keypair).await;
+
+    // Send DELETE request for the thread
     let response = app
         .clone()
         .oneshot(
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/threads/{}", thread_id))
+                 // Add auth headers for the user who owns the thread
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    assert_eq!(response.status(), StatusCode::NO_CONTENT); // Expect 204
 
-    let thread_exists: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM threads WHERE id = $1)")
+    // Verify thread is gone
+    let thread_result = sqlx::query("SELECT 1 FROM threads WHERE id = $1")
         .bind(thread_id)
-        .fetch_one(&pool)
+        .fetch_optional(&pool)
         .await
         .unwrap();
-    assert!(!thread_exists.unwrap_or(true));
+    assert!(thread_result.is_none(), "Thread should be deleted");
 
-    let post_exists: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE id = $1)")
+    // Verify post is gone (due to cascade)
+    let post_result = sqlx::query("SELECT 1 FROM posts WHERE id = $1")
         .bind(post_id)
-        .fetch_one(&pool)
+        .fetch_optional(&pool)
         .await
         .unwrap();
-    assert!(!post_exists.unwrap_or(true));
-} 
+    assert!(post_result.is_none(), "Post should be cascade deleted");
+}
