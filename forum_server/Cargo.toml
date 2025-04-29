@@ -6,8 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1", features = ["full"] }
-axum = { version = "0.7", features = ["multipart"] }
+tokio = { version = "1", features = ["full", "time"] }
+axum = { version = "0.7", features = ["multipart", "macros"] }
+axum-extra = { version = "0.9", features = ["typed-header"] }
 serde = { version = "1.0", features = ["derive"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "migrate"] }
@@ -16,6 +17,14 @@ chrono = { version = "0.4", features = ["serde"] }
 tower-http = { version = "0.5", features = ["fs", "limit"] }
 futures-util = "0.3"
 multer = "^2.0"
+polycentric-protocol = { path = "../polycentric-protocol", features = ["sqlx"] }
+
+ed25519-dalek = { version = "2.0.0", features = ["rand_core"] }
+rand = "0.8"
+base64 = "0.13.0"
+thiserror = "1.0"
+dashmap = "5.5"
+async-trait = "0.1"
 
 [dev-dependencies]
 # Configure reqwest to use rustls instead of native-tls (which requires OpenSSL dev libs)

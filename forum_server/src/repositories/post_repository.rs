@@ -6,12 +6,13 @@ use crate::{
 };
 
 // Placeholder for Polycentric ID
-type PolycentricId = String;
+type PolycentricId = Vec<u8>;
 
 // Input data for creating a new post
 #[derive(serde::Deserialize)]
 pub struct CreatePostData {
-    pub author_id: PolycentricId,
+    #[serde(skip_deserializing)] // Don't read from request body
+    pub author_id: PolycentricId, // Now Vec<u8>
     pub content: String,
     pub quote_of: Option<Uuid>,
     #[serde(default)] // Ensure it defaults to None if missing in JSON
@@ -26,10 +27,11 @@ pub struct UpdatePostData {
 }
 
 // Intermediate struct to fetch basic post data before images
+#[derive(sqlx::FromRow)] // Added FromRow
 struct PostBaseData {
     id: Uuid,
     thread_id: Uuid,
-    author_id: PolycentricId,
+    author_id: PolycentricId, // Now Vec<u8>
     content: String,
     created_at: chrono::DateTime<chrono::Utc>,
     quote_of: Option<Uuid>,
@@ -39,21 +41,21 @@ struct PostBaseData {
 pub async fn create_post(
     pool: &PgPool,
     thread_id: Uuid,
-    post_data: CreatePostData,
+    post_data: CreatePostData, // Contains Vec<u8>
 ) -> Result<Post, sqlx::Error> {
     // Start a transaction
     let mut tx = pool.begin().await?;
 
     // 1. Insert the main post data
-    let post_base = sqlx::query_as!( // Querying as a temporary struct
+    let post_base = sqlx::query_as!(
         PostBaseData,
         r#"
         INSERT INTO posts (thread_id, author_id, content, quote_of)
-        VALUES ($1, $2, $3, $4)
+        VALUES ($1, $2::BYTEA, $3, $4)
         RETURNING id, thread_id, author_id, content, created_at, quote_of
         "#,
         thread_id,
-        post_data.author_id,
+        &post_data.author_id, // Keep binding as slice
         post_data.content,
         post_data.quote_of
     )
@@ -87,7 +89,7 @@ pub async fn create_post(
     let new_post = Post {
         id: post_base.id,
         thread_id: post_base.thread_id,
-        author_id: post_base.author_id,
+        author_id: post_base.author_id, // Assign Vec<u8>
         content: post_base.content,
         created_at: post_base.created_at,
         quote_of: post_base.quote_of,
@@ -120,7 +122,7 @@ pub async fn get_post_by_id(pool: &PgPool, post_id: Uuid) -> Result<Option<Post>
         Ok(Some(Post {
             id: post_base.id,
             thread_id: post_base.thread_id,
-            author_id: post_base.author_id,
+            author_id: post_base.author_id, // Assign Vec<u8>
             content: post_base.content,
             created_at: post_base.created_at,
             quote_of: post_base.quote_of,
@@ -187,7 +189,7 @@ pub async fn get_posts_by_thread(
         .map(|base| Post {
             id: base.id,
             thread_id: base.thread_id,
-            author_id: base.author_id,
+            author_id: base.author_id, // Assign Vec<u8>
             content: base.content,
             created_at: base.created_at,
             quote_of: base.quote_of,

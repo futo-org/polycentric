@@ -16,6 +16,12 @@ use sqlx::PgPool;
 use tower::ServiceExt;
 use serde_json::json;
 use uuid::Uuid;
+use axum::http::{header::{HeaderName, HeaderValue}, HeaderMap};
+use ed25519_dalek::{Signer, SigningKey};
+use rand::rngs::OsRng;
+use forum_server::auth::ChallengeResponse;
+use forum_server::AppState;
+use base64;
 
 // Function to generate a random boundary string
 pub fn generate_boundary() -> String {
@@ -73,7 +79,62 @@ pub async fn create_test_board(app: &Router, category_id: Uuid, name: &str) -> U
     board.id
 }
 
-pub async fn create_test_thread(app: &Router, board_id: Uuid, title: &str) -> Uuid {
+// Helper to generate a test keypair
+pub fn generate_test_keypair() -> SigningKey {
+    let mut csprng = OsRng{};
+    SigningKey::generate(&mut csprng)
+}
+
+// Helper to get challenge and prepare auth headers
+pub async fn get_auth_headers(app: &Router, keypair: &SigningKey) -> HeaderMap {
+    // 1. Get challenge
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri("/auth/challenge")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK, "Failed to get challenge");
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let challenge_resp: ChallengeResponse = serde_json::from_slice(&body)
+        .expect("Failed to deserialize challenge response in helper");
+
+    // 2. Decode nonce
+    let nonce = base64::decode(&challenge_resp.nonce_base64)
+        .expect("Failed to decode nonce in helper");
+
+    // 3. Sign nonce
+    let signature = keypair.sign(&nonce);
+
+    // 4. Prepare headers
+    let mut headers = HeaderMap::new();
+    let pubkey_bytes = keypair.verifying_key().to_bytes().to_vec();
+    headers.insert(
+        HeaderName::from_static("x-polycentric-pubkey-base64"), 
+        HeaderValue::from_str(&base64::encode(&pubkey_bytes)).unwrap()
+    );
+    headers.insert(
+        HeaderName::from_static("x-polycentric-signature-base64"), 
+        HeaderValue::from_str(&base64::encode(signature.to_bytes())).unwrap()
+    );
+    headers.insert(
+        HeaderName::from_static("x-polycentric-challenge-id"), 
+        HeaderValue::from_str(&challenge_resp.challenge_id.to_string()).unwrap()
+    );
+
+    headers
+}
+
+// Modify create_test_thread - takes Keypair, adds auth headers
+pub async fn create_test_thread(app: &Router, board_id: Uuid, title: &str, keypair: &SigningKey) -> (Uuid, Vec<u8>) {
+    let auth_headers = get_auth_headers(app, keypair).await;
+    let pubkey_bytes = keypair.verifying_key().to_bytes().to_vec(); // Get expected key bytes
+
     let response = app
         .clone()
         .oneshot(
@@ -81,34 +142,44 @@ pub async fn create_test_thread(app: &Router, board_id: Uuid, title: &str) -> Uu
                 .method(http::Method::POST)
                 .uri(format!("/boards/{}/threads", board_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .body(Body::from(json!({ "title": title, "created_by": "test_user" }).to_string()))
+                // Add auth headers
+                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
+                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .body(Body::from(json!({ "title": title }).to_string()))
                 .unwrap(),
         )
         .await
         .unwrap();
-    // Get status BEFORE consuming body
+    
     let status = response.status();
     let body = response.into_body().collect().await.unwrap().to_bytes();
-    assert_eq!(status, StatusCode::CREATED, "Failed to create thread: {}", String::from_utf8_lossy(&body));
+    assert_eq!(status, StatusCode::CREATED, "Failed to create thread in helper: {}", String::from_utf8_lossy(&body));
     let thread: Thread = serde_json::from_slice(&body).expect("Failed to deserialize thread in helper");
-    thread.id
+    
+    // Return ID and the public key bytes used for auth
+    (thread.id, pubkey_bytes)
 }
 
+// Modify create_test_post - takes Keypair, adds auth headers
 pub async fn create_test_post(
     app: &Router,
     thread_id: Uuid,
     content: &str,
-    author: &str,
-    images: Option<Vec<String>> // This remains unused for body construction for now
-) -> (StatusCode, Vec<u8>) {
+    keypair: &SigningKey, // Changed from author: &str
+    _images: Option<Vec<String>> // Renamed unused param
+) -> (StatusCode, Vec<u8>, Vec<u8>) { // Return status, body, and pubkey used
+    let auth_headers = get_auth_headers(app, keypair).await;
+    let pubkey_bytes = keypair.verifying_key().to_bytes().to_vec(); // Get expected key bytes
+
+    // --- Debugging Print --- 
+    println!("--- create_test_post Helper ---");
+    println!("Creating post in thread: {}", thread_id);
+    println!("Using PubKey (b64): {}", base64::encode(&pubkey_bytes));
+    // --- End Debugging --- 
+
     let boundary = generate_boundary();
     let mut body = Vec::new();
-
-    // Add author_id field
-    body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
-    body.extend_from_slice(b"Content-Disposition: form-data; name=\"author_id\"\r\n\r\n");
-    body.extend_from_slice(author.as_bytes());
-    body.extend_from_slice(b"\r\n");
 
     // Add content field
     body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
@@ -116,7 +187,7 @@ pub async fn create_test_post(
     body.extend_from_slice(content.as_bytes());
     body.extend_from_slice(b"\r\n");
 
-    // Add quote_of field (optional, sending empty if None for simplicity in this helper)
+    // Add quote_of field
     body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
     body.extend_from_slice(b"Content-Disposition: form-data; name=\"quote_of\"\r\n\r\n");
     body.extend_from_slice(b""); 
@@ -125,7 +196,6 @@ pub async fn create_test_post(
     // Add closing boundary
     body.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
     
-    // Use a variable for the built request
     let request = Request::builder()
         .method(http::Method::POST)
         .uri(format!("/threads/{}/posts", thread_id))
@@ -133,10 +203,13 @@ pub async fn create_test_post(
             http::header::CONTENT_TYPE, 
             format!("multipart/form-data; boundary={}", boundary)
         )
+        // Add auth headers
+        .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
+        .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+        .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
         .body(Body::from(body))
         .unwrap();
 
-    // Make the request
     let response: Response = app
         .clone()
         .oneshot(request)
@@ -144,8 +217,7 @@ pub async fn create_test_post(
         .unwrap();
         
     let status = response.status();
-    let response_body = response.into_body().collect().await.unwrap().to_bytes().to_vec(); // Collect as Vec<u8>
+    let response_body = response.into_body().collect().await.unwrap().to_bytes().to_vec();
 
-    // Return the actual status and body instead of asserting/parsing
-    (status, response_body)
+    (status, response_body, pubkey_bytes)
 } 

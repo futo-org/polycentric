@@ -4,13 +4,14 @@ use crate::models::Thread;
 use crate::utils::PaginationParams;
 
 // Placeholder for Polycentric ID - replace with actual type if needed
-type PolycentricId = String;
+type PolycentricId = Vec<u8>;
 
 // Input data for creating a new thread
 #[derive(serde::Deserialize)]
 pub struct CreateThreadData {
     pub title: String,
-    pub created_by: PolycentricId, // Assuming this comes from the client
+    #[serde(skip_deserializing)]
+    pub created_by: PolycentricId,
     // board_id will come from the path
 }
 
@@ -30,12 +31,12 @@ pub async fn create_thread(
         Thread,
         r#"
         INSERT INTO threads (board_id, title, created_by)
-        VALUES ($1, $2, $3)
+        VALUES ($1, $2, $3::BYTEA)
         RETURNING id, board_id, title, created_by, created_at
         "#,
         board_id,
         thread_data.title,
-        thread_data.created_by
+        &thread_data.created_by
     )
     .fetch_one(pool)
     .await?;

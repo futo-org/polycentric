@@ -1,10 +1,16 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
+// use polycentric_protocol::model::public_key::PublicKey;
 
 // Using Polycentric ID as a placeholder string for now.
 // We might refine this later based on the actual Polycentric ID format.
-type PolycentricId = String;
+//type PolycentricId = String;
+// Use the actual PublicKey type from the protocol crate.
+// Note: We'll need to ensure this PublicKey can be serialized/deserialized
+// and stored in the database (likely via its byte representation).
+// type PolycentricId = PublicKey;
+type PolycentricId = Vec<u8>;
 
 /// Represents a top-level category in the forum.
 #[derive(Serialize, Deserialize, Debug, Clone, sqlx::FromRow)]

@@ -56,6 +56,11 @@ cargo run
 ```
 The server will start on `http://127.0.0.1:3000`.
 
+## Testing
+```
+dotenv -f .env -- cargo test -- --test-threads=1 --nocapture
+```
+
 ## Docker
 
 Build the image:

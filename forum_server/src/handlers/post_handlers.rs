@@ -14,18 +14,23 @@ use crate::{
 use axum::extract::multipart::MultipartError;
 use multer::Error as MulterError;
 use std::error::Error;
+use crate::auth::AuthenticatedUser; // Import the extractor
 
 /// Handler to create a new post with optional image uploads (multipart/form-data).
 pub async fn create_post_handler(
     State(state): State<AppState>,
     Path(thread_id): Path<Uuid>,
+    user: AuthenticatedUser, // Add the extractor here
     mut multipart: Multipart, // Expect multipart form data
 ) -> Response {
+    // Get authenticated user's PublicKey bytes from the extractor
+    let author_id_bytes = user.0;
+
     // Limits
     const MAX_IMAGES_PER_POST: usize = 5;
 
     // Placeholders for extracted data
-    let mut author_id_opt: Option<String> = None;
+    // let mut author_id_opt: Option<String> = None; // REMOVED
     let mut content_opt: Option<String> = None;
     let mut quote_of_opt: Option<Uuid> = None;
     let mut image_urls: Vec<String> = Vec::new();
@@ -91,7 +96,7 @@ pub async fn create_post_handler(
                     // eprintln!("[create_post_handler DEBUG] Received text field: name=\"{}\", value=\"{}\"", field_name, text);
                     // END DEBUG
                     match field_name.as_str() {
-                        "author_id" => author_id_opt = Some(text),
+                        // "author_id" => author_id_opt = Some(text), // REMOVED
                         "content" => content_opt = Some(text),
                         "quote_of" => {
                             // Only attempt to parse if the text is not empty
@@ -119,14 +124,15 @@ pub async fn create_post_handler(
     }
 
     // Validate required fields
-    let (Some(author_id), Some(content)) = (author_id_opt, content_opt) else {
-        return (StatusCode::BAD_REQUEST, "Missing required fields (author_id, content)").into_response();
+    // let (Some(author_id), Some(content)) = (author_id_opt, content_opt) else { // MODIFIED
+    let Some(content) = content_opt else { // MODIFIED (only check content now)
+        return (StatusCode::BAD_REQUEST, "Missing required field (content)").into_response();
     };
 
     // Construct payload for repository
     let payload = CreatePostData {
-        author_id,
-        content,
+        author_id: author_id_bytes, // MODIFIED: Use the authenticated user's bytes
+        content, // Ensure content is defined from content_opt
         quote_of: quote_of_opt,
         images: if image_urls.is_empty() { None } else { Some(image_urls) },
     };

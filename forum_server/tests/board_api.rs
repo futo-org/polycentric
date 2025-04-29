@@ -19,7 +19,7 @@ use uuid::Uuid;
 // use sqlx::Row; // Row is unused
 
 // Bring helpers into scope
-use common::helpers::{create_test_app, create_test_category, create_test_board, create_test_thread, create_test_post};
+use common::helpers::{create_test_app, create_test_category, create_test_board, create_test_thread, create_test_post, generate_test_keypair};
 
 #[sqlx::test]
 async fn test_create_board_success(pool: PgPool) {
@@ -330,13 +330,16 @@ async fn test_delete_board_cascade(pool: PgPool) {
     let app = create_test_app(pool.clone()).await;
     let category_id = create_test_category(&app, "Cascade Board Cat").await;
     let board_id = create_test_board(&app, category_id, "Cascade Board").await;
-    let thread_id = create_test_thread(&app, board_id, "Cascade Thread").await;
+    let thread_keypair = generate_test_keypair(); // Keypair for thread
+    let post_keypair = generate_test_keypair(); // Keypair for post
+    let (thread_id, _) = create_test_thread(&app, board_id, "Cascade Thread", &thread_keypair).await; // Pass keypair, capture only ID
     let post_content = "Post in thread to be deleted";
-    let author_id = "cascade_user_board";
-    let (status, body_bytes) = create_test_post(&app, thread_id, post_content, author_id, None).await;
+    // Removed unused author_id string
+    let (status, body_bytes, expected_author_id) = create_test_post(&app, thread_id, post_content, &post_keypair, None).await; // Use keypair, capture pubkey
     assert_eq!(status, StatusCode::CREATED, "Helper failed to create post for board cascade test");
     let post: Post = serde_json::from_slice(&body_bytes).expect("Failed to parse post in board cascade test");
     let post_id = post.id;
+    assert_eq!(post.author_id, expected_author_id); // Verify author
 
     // Send DELETE request for the board
     let response = app
@@ -363,7 +366,7 @@ async fn test_delete_board_cascade(pool: PgPool) {
 
     // Verify associated thread is gone (due to cascade)
     let thread_exists: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM threads WHERE id = $1)")
-        .bind(thread_id)
+        .bind(thread_id) // Bind only the Uuid part
         .fetch_one(&pool)
         .await
         .unwrap();

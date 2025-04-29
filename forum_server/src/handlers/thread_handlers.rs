@@ -10,18 +10,28 @@ use crate::{
     repositories::{thread_repository::{self, CreateThreadData, UpdateThreadData}, board_repository}, // Import thread and board repos
     utils::PaginationParams, // Import
     AppState,
+    auth::AuthenticatedUser, // Import the extractor
 };
 
 /// Handler to create a new thread within a board.
 pub async fn create_thread_handler(
     State(state): State<AppState>,
     Path(board_id): Path<Uuid>, // Extract board_id from path
-    Json(payload): Json<CreateThreadData>,
+    user: AuthenticatedUser, // Add the extractor
+    Json(mut payload): Json<CreateThreadData>, // Extract mutable payload to set author
 ) -> Response {
+    // Get authenticated user's ID from the extractor
+    let creator_id = user.0;
+    
+    // Assign the authenticated user ID to the payload
+    // This replaces the need for created_by to be in the JSON request body
+    payload.created_by = creator_id;
+
     // Optional: Check if board exists first
     match board_repository::get_board_by_id(&state.db_pool, board_id).await {
         Ok(Some(_)) => {
             // Board exists, proceed to create thread
+            // Pass the modified payload (with author_id set) to the repository
             match thread_repository::create_thread(&state.db_pool, board_id, payload).await {
                 Ok(new_thread) => {
                     (StatusCode::CREATED, Json(new_thread)).into_response()
