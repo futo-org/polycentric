@@ -182,6 +182,7 @@ export const ForumThreadPage: React.FC = () => {
   const imageInputRef = useRef<HTMLInputElement>(null); // Ref for file input
   const imageUrl = useBlobDisplayURL(newPostImage); // Hook for preview URL
   const textareaRef = useRef<HTMLIonTextareaElement>(null); // Ref for textarea focus
+  const [postToProfile, setPostToProfile] = useState(false); // Add state for checkbox
 
   const serverUrl = encodedServerUrl
     ? decodeURIComponent(encodedServerUrl)
@@ -334,11 +335,49 @@ export const ForumThreadPage: React.FC = () => {
         );
       }
 
+      // --- Start Polycentric Cross-post ---
+      // Get the new post ID from the response
+      const newPost: ForumPost = await createRes.json(); 
+
+      if (postToProfile) {
+        try {
+          // Construct the link back to the new post
+          const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${threadId}/${newPost.id}`;
+          
+          let polycentricContent = '';
+          const replyText = newPostBody.trim();
+          const linkText = `[View on Forum](${forumLinkPath})`;
+
+          if (quotingPost) {
+            // Format the quoted text with '> ' prefix for Polycentric post
+            const quotedTextFormatted = quotingPost.content
+                .split('\n')
+                .map(line => `> ${line}`)
+                .join('\n');
+            polycentricContent = `${quotedTextFormatted}\n\n${replyText}\n\n${linkText}`;
+          } else {
+            // Standard reply, no quote prefix needed
+            polycentricContent = `${replyText}\n\n${linkText}`;
+          }
+
+          console.log("Attempting to post reply to Polycentric profile:", polycentricContent);
+          await processHandle.post(polycentricContent); // Post text only
+          console.log("Successfully posted reply to Polycentric profile.");
+          // Optional: Add a success notification
+        } catch (profilePostError) {
+          console.error("Failed to post reply to Polycentric profile:", profilePostError);
+          // Set error, but don't block success flow for the forum post
+          setPostError("Reply posted, but failed to post to your profile. Please try posting manually.");
+        }
+      }
+      // --- End Polycentric Cross-post ---
+
       // 6. Success
       setNewPostBody('');
       setNewPostImage(undefined);
       setQuotingPost(null); // Clear quote on successful post
       setIsComposing(false);
+      setPostToProfile(false); // Reset checkbox
       await fetchThreadData();
     } catch (err: any) {
       console.error('Error creating post:', err);
@@ -355,6 +394,7 @@ export const ForumThreadPage: React.FC = () => {
     setNewPostBody('');
     setNewPostImage(undefined);
     setQuotingPost(null); // Clear quoting state
+    setPostToProfile(false); // Reset checkbox on cancel
   };
 
   const threadTitle = thread
@@ -446,6 +486,20 @@ export const ForumThreadPage: React.FC = () => {
                     {postError && (
                       <p className="text-red-500 text-sm">Error: {postError}</p>
                     )}
+                    {/* Add Checkbox Here */}
+                    <div className="flex items-center space-x-2 mt-2">
+                      <input
+                        type="checkbox"
+                        id="postToProfileCheckboxReply"
+                        checked={postToProfile}
+                        onChange={(e) => setPostToProfile(e.target.checked)}
+                        disabled={isPosting}
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
+                      />
+                      <label htmlFor="postToProfileCheckboxReply" className="text-sm text-gray-700">
+                        Also post to my Polycentric profile
+                      </label>
+                    </div>
                     {/* Action Buttons Row */}{' '}
                     <div className="flex justify-between items-center pt-2">
                       {/* Upload Button */}{' '}

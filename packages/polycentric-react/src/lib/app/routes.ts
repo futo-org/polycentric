@@ -30,5 +30,8 @@ export const routes: RouteData = {
   '/forums/:serverUrl/:categoryId/:boardId/:threadId': {
     component: ForumThreadPage,
   },
+  '/forums/:serverUrl/:categoryId/:boardId/:threadId/:postId': {
+    component: ForumThreadPage,
+  },
   '/oauth/callback': { component: OAuthCallback },
 };

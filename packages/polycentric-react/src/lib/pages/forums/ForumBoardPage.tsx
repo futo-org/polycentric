@@ -54,6 +54,7 @@ export const ForumBoardPage: React.FC = () => {
   const [createError, setCreateError] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const imageUrl = useBlobDisplayURL(newThreadImage);
+  const [postToProfile, setPostToProfile] = useState(false);
 
   const serverUrl = encodedServerUrl
     ? decodeURIComponent(encodedServerUrl)
@@ -181,11 +182,38 @@ export const ForumBoardPage: React.FC = () => {
         );
       }
 
-      // 6. Success
+      // --- Start Polycentric Cross-post --- 
+      // Get the new thread ID from the response
+      const newThread: ForumThread = await createRes.json(); 
+
+      if (postToProfile) {
+        try {
+          // Construct the path using the ENCODED serverUrl for the route parameter
+          const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${newThread.id}`;
+          // Use Markdown link syntax
+          const polycentricContent = `${newThreadTitle.trim()}\n\n${newThreadBody.trim()}\n\n[View on Forum](${forumLinkPath})`;
+
+          console.log("Attempting to post to Polycentric profile:", polycentricContent);
+          await processHandle.post(polycentricContent); // Post text only for now
+          console.log("Successfully posted to Polycentric profile.");
+          // Optional: Add a success notification for the user
+        } catch (profilePostError) {
+          console.error("Failed to post to Polycentric profile:", profilePostError);
+          // IMPORTANT: Don't re-throw; the forum post succeeded. Just inform the user.
+          // Update UI or use a toast notification to show this secondary error
+          setCreateError("Thread created, but failed to post to your profile. Please try posting manually.");
+          // Note: The main createError state is reused here, which might be slightly confusing
+          // if the original create operation also failed earlier. Consider a separate state for profile post errors.
+        }
+      }
+      // --- End Polycentric Cross-post ---
+
+      // 6. Success (Clear form, fetch data)
       setIsComposing(false);
       setNewThreadTitle('');
       setNewThreadBody('');
       setNewThreadImage(undefined);
+      setPostToProfile(false);
       await fetchBoardData();
     } catch (err: any) {
       console.error('Error creating thread:', err);
@@ -201,6 +229,7 @@ export const ForumBoardPage: React.FC = () => {
     setNewThreadTitle('');
     setNewThreadBody('');
     setNewThreadImage(undefined);
+    setPostToProfile(false);
   };
 
   const boardName = board ? board.name : `Board ${boardId?.substring(0, 8)}...`;
@@ -281,6 +310,20 @@ export const ForumBoardPage: React.FC = () => {
                 {createError && (
                   <p className="text-red-500 text-sm">Error: {createError}</p>
                 )}
+
+                <div className="flex items-center space-x-2 mt-2">
+                  <input
+                    type="checkbox"
+                    id="postToProfileCheckboxThread"
+                    checked={postToProfile}
+                    onChange={(e) => setPostToProfile(e.target.checked)}
+                    disabled={isCreatingThread}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
+                  />
+                  <label htmlFor="postToProfileCheckboxThread" className="text-sm text-gray-700">
+                    Also post to my Polycentric profile
+                  </label>
+                </div>
 
                 <div className="flex justify-between items-center pt-2">
                   <div>
