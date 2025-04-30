@@ -61,6 +61,14 @@ The server will start on `http://127.0.0.1:3000`.
 dotenv -f .env -- cargo test -- --test-threads=1 --nocapture
 ```
 
+## SQL debugging
+```
+DATABASE_URL='URL' sqlx database drop
+DATABASE_URL='URL' sqlx database create
+DATABASE_URL='URL' sqlx migrate run
+DATABASE_URL='URL' cargo sqlx prepare
+```
+
 ## Docker
 
 Build the image:

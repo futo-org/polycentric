@@ -4,6 +4,7 @@ import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
 import { Link } from '../../components/util/link';
 import { useParams } from '../../hooks/stackRouterHooks';
+import { useServerInfo } from '../../hooks/useServerInfo';
 
 // Define types for Category and Board
 interface ForumCategory {
@@ -30,33 +31,31 @@ export const ForumCategoryListPage: React.FC = () => {
 
     const serverUrl = encodedServerUrl ? decodeURIComponent(encodedServerUrl) : null;
 
+    // Use the new hook to get server info
+    const { serverInfo, loading: serverInfoLoading, error: serverInfoError } = useServerInfo(serverUrl);
+
     useEffect(() => {
         if (!serverUrl) {
-            console.log("[fetchData] serverUrl is not ready yet, skipping fetch.");
             setLoading(false);
             return;
         }
 
         const fetchData = async () => {
-            console.log("[fetchData] serverUrl is ready, starting fetch...");
             setLoading(true);
             setError(null);
             try {
                 // 1. Fetch Categories
                 const catApiUrl = `https://localhost:8080/forum/categories`;
-                console.log(`Fetching categories from: ${catApiUrl}`);
                 const catResponse = await fetch(catApiUrl);
                 if (!catResponse.ok) {
                     throw new Error(`Failed to fetch categories: ${catResponse.status} ${catResponse.statusText}`);
                 }
                 const fetchedCategories: ForumCategory[] = await catResponse.json();
-                console.log("Fetched categories:", fetchedCategories);
                 setCategories(fetchedCategories);
 
                 // 2. Fetch Boards for each Category
                 const boardPromises = fetchedCategories.map(async (category) => {
                     const boardApiUrl = `https://localhost:8080/forum/categories/${category.id}/boards`;
-                    console.log(`Fetching boards for category ${category.id} from: ${boardApiUrl}`);
                     const boardResponse = await fetch(boardApiUrl);
                     if (!boardResponse.ok) {
                         console.error(`Failed to fetch boards for category ${category.id}: ${boardResponse.status} ${boardResponse.statusText}`);
@@ -64,7 +63,6 @@ export const ForumCategoryListPage: React.FC = () => {
                     }
                     try {
                         const fetchedBoards: ForumBoard[] = await boardResponse.json();
-                        console.log(`Fetched boards for category ${category.id}:`, fetchedBoards);
                         return { categoryId: category.id, boards: fetchedBoards };
                     } catch (jsonError: any) {
                         console.error(`Error parsing JSON for boards in category ${category.id}:`, jsonError);
@@ -77,7 +75,6 @@ export const ForumCategoryListPage: React.FC = () => {
                 boardResults.forEach(result => {
                     newBoardsByCategory[result.categoryId] = result.boards;
                 });
-                console.log("Boards grouped by category:", newBoardsByCategory);
                 setBoardsByCategory(newBoardsByCategory);
 
             } catch (fetchError: any) {
@@ -93,15 +90,20 @@ export const ForumCategoryListPage: React.FC = () => {
         fetchData();
     }, [serverUrl]);
 
+    // Determine the name to display (use fetched name, fallback to URL)
+    const displayServerName = serverInfo?.name || serverUrl || '...';
+    const displayLoading = loading || serverInfoLoading;
+    const displayError = error || serverInfoError;
+
     return (
         <>
-            <Header canHaveBackButton={true}>Categories on {serverUrl || '...'}</Header>
+            <Header canHaveBackButton={true}>Categories on {displayServerName}</Header>
             <IonContent>
-                <RightCol rightCol={<div />} desktopTitle={`Categories on ${serverUrl || 'Server'}`}>
+                <RightCol rightCol={<div />} desktopTitle={`Categories on ${displayServerName}`}>
                     <div className="p-5 md:p-10 flex flex-col space-y-6"> {/* Increased spacing */}
-                        {loading && <p>Loading forum data...</p>}
-                        {error && <p className="text-red-500">Error: {error}</p>}
-                        {!loading && !error && (
+                        {displayLoading && <p>Loading forum data...</p>}
+                        {displayError && <p className="text-red-500">Error: {displayError}</p>}
+                        {!displayLoading && !displayError && (
                             categories.length === 0 ? (
                                 <p className="text-gray-500">No categories found on this server.</p>
                             ) : (

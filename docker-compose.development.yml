@@ -160,6 +160,8 @@ services:
         ports:
             - "127.0.0.1:8087:3000"
         environment:
+            FORUM_SERVER_NAME: "Polycentric Dev Forum"
+            FORUM_SERVER_IMAGE_URL: "/static/images/server-logo.png"
             DATABASE_URL: "postgres://postgres:testing@postgres/forum_db"
             RUST_LOG: "forum_server=debug,actix_web=info,sqlx=warn"
             PORT: "3000"
@@ -172,6 +174,7 @@ services:
             - ./proto:/usr/src/proto
             - forum_server_cargo_cache:/usr/local/cargo
             - forum_server_target:/usr/src/forum_server/target
+            - ./forum_server/static:/app/static
         command: >
             sh -c "
                 echo 'Attempting to create database (will ignore error if exists)...' && \

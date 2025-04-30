@@ -40,8 +40,9 @@ impl LocalImageStorage {
         // Write the file
         fs::write(&file_path, file_bytes).await?;
 
-        // Construct the URL path
-        let url_path = format!("{}/{}", self.base_url, unique_filename);
+        // Construct the URL path using the new prefix for uploads
+        let upload_url_prefix = "/uploads/images"; // Use the new prefix
+        let url_path = format!("{}/{}", upload_url_prefix, unique_filename);
         
         Ok(url_path)
     }

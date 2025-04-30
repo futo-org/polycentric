@@ -44,10 +44,11 @@ interface PostItemProps {
     post: ForumPost;
     onQuote: (post: ForumPost) => void; // Callback to initiate quoting
     quotedPost?: ForumPost; // Optional: The post being quoted by this post
+    serverUrl: string | null; // Add serverUrl prop
 }
 
 // Component to display a single post
-const PostItem: React.FC<PostItemProps> = ({ post, onQuote, quotedPost }) => {
+const PostItem: React.FC<PostItemProps> = ({ post, onQuote, quotedPost, serverUrl }) => {
     const authorPublicKey = Models.PublicKey.fromProto({ key: post.author_id, keyType: Long.UONE });
     const username = useUsernameCRDTQuery(authorPublicKey) || 'User';
     const postTime = new Date(post.created_at).toLocaleString();
@@ -107,8 +108,8 @@ const PostItem: React.FC<PostItemProps> = ({ post, onQuote, quotedPost }) => {
             {/* Display post image if it exists */}            {postImage && (
                 <div className="my-3">
                     <img 
-                        // Prepend backend URL to the relative image_url
-                        src={`https://localhost:8080${postImage.image_url}`}
+                        // Prepend the correct server base URL (passed as prop) to the relative image_url
+                        src={serverUrl ? `${serverUrl}${postImage.image_url}` : postImage.image_url} // Handle null serverUrl
                         alt={`Image for post ${post.id}`} 
                         className="max-w-full h-auto rounded-md border border-gray-200"
                         // TODO: Consider adding error handling or placeholder for broken images
@@ -155,10 +156,8 @@ export const ForumThreadPage: React.FC = () => {
 
     const fetchThreadData = useCallback(async () => {
         if (!serverUrl || !threadId) {
-            console.log("[fetchThreadData] Missing serverUrl or threadId, skipping fetch.");
             return;
         }
-        console.log(`[fetchThreadData] Fetching data for thread ${threadId}`);
         setLoading(true);
         setError(null);
         try {
@@ -178,7 +177,6 @@ export const ForumThreadPage: React.FC = () => {
 
             // 2. Fetch Posts
             const postsApiUrl = `https://localhost:8080/forum/threads/${threadId}/posts`;
-            console.log(`Fetching posts from: ${postsApiUrl}`);
             const postsResponse = await fetch(postsApiUrl);
 
             if (!postsResponse.ok) {
@@ -186,14 +184,12 @@ export const ForumThreadPage: React.FC = () => {
             }
 
             let fetchedPosts: ForumPost[] = await postsResponse.json();
-            console.log("Raw fetched posts:", JSON.stringify(fetchedPosts));
             
             // Convert the author_id array of numbers into a Uint8Array
             fetchedPosts = fetchedPosts.map(post => {
                 // @ts-ignore - Access the raw author_id which is an array of numbers
                 const authorIdArray: number[] = post.author_id || []; 
                 const authorIdBytes = new Uint8Array(authorIdArray);
-                console.log(`Post ID: ${post.id}, Converting author_id array, Result length: ${authorIdBytes.length}`);
                 return {
                     ...post,
                     // Assign the correctly converted Uint8Array
@@ -337,6 +333,7 @@ export const ForumThreadPage: React.FC = () => {
                                             post={post}
                                             onQuote={handleQuote}
                                             quotedPost={quotedPost} // Pass the found quoted post data
+                                            serverUrl={serverUrl} // Pass serverUrl down
                                         />
                                     );
                                 })}

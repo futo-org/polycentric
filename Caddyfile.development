@@ -18,6 +18,19 @@ localhost:8080 {
         reverse_proxy forum_server:3000
     }
 
+    # Handle server info requests
+    @forum_server_info path /server-info
+    handle @forum_server_info {
+        reverse_proxy forum_server:3000
+    }
+
+    # Handle forum user uploads
+    @forum_uploads path /uploads/images/*
+    handle @forum_uploads {
+        # Don't strip prefix, backend serves from /uploads/images
+        reverse_proxy forum_server:3000
+    }
+
     # Fallback: Handle everything else via Varnish
     handle {
         reverse_proxy http://varnish:80

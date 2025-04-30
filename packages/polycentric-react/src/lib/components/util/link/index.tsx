@@ -80,35 +80,27 @@ const LinkComponent = forwardRef<
 
     const onClick: React.MouseEventHandler<HTMLAnchorElement> = useCallback(
       (e) => {
-        console.log("[LinkComponent onClick] Clicked!", { routerLink, routerDirection });
-        e.preventDefault();
-
         if (stopPropagation) {
-          console.log("[LinkComponent onClick] Stopping propagation.");
           e.stopPropagation();
         }
         if (!routerLink) {
-          console.log("[LinkComponent onClick] No routerLink, returning.");
+          userPassedOnClick?.(e);
           return;
         }
 
         userPassedOnClick?.(e);
-        if (isActive) {
-          console.log("[LinkComponent onClick] Link is already active, returning.");
+        if (e.defaultPrevented) {
           return;
         }
 
         switch (routerDirection) {
           case 'root':
-            console.log(`[LinkComponent onClick] Navigating root: ${routerLink}`);
             stackRouter.setRoot(routerLink, 'forwards');
             break;
           case 'forward':
-            console.log(`[LinkComponent onClick] Navigating forward: ${routerLink}`);
             stackRouter.push(routerLink);
             break;
           case 'back':
-            console.log(`[LinkComponent onClick] Navigating back`);
             stackRouter.pop();
             break;
           default:

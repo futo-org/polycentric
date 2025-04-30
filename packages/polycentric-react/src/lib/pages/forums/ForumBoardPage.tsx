@@ -55,15 +55,25 @@ export const ForumBoardPage: React.FC = () => {
 
     const fetchBoardData = useCallback(async () => {
         if (!serverUrl || !boardId) {
-            console.log("[fetchBoardData] Missing serverUrl or boardId, skipping fetch.");
             return;
         }
         setLoading(true);
         setError(null);
         try {
-            // Fetch threads for the board
+            // Fetch board details first
+            const boardApiUrl = `https://localhost:8080/forum/boards/${boardId}`;
+            const boardResponse = await fetch(boardApiUrl);
+            if (!boardResponse.ok) {
+                // Handle error fetching board details, maybe set a specific error or log
+                console.error(`Failed to fetch board details: ${boardResponse.status} ${boardResponse.statusText}`);
+                // Optionally throw an error to stop execution or continue to fetch threads
+                throw new Error(`Failed to fetch board details: ${boardResponse.status} ${boardResponse.statusText}`);
+            }
+            const fetchedBoard: ForumBoard = await boardResponse.json();
+            setBoard(fetchedBoard); // Set the board state
+
+            // Then fetch threads for the board
             const threadsApiUrl = `https://localhost:8080/forum/boards/${boardId}/threads`;
-            console.log(`Fetching threads from: ${threadsApiUrl}`);
             const threadsResponse = await fetch(threadsApiUrl);
 
             if (!threadsResponse.ok) {
@@ -71,7 +81,6 @@ export const ForumBoardPage: React.FC = () => {
             }
 
             const fetchedThreads: ForumThread[] = await threadsResponse.json();
-            console.log("Fetched threads:", fetchedThreads);
             setThreads(fetchedThreads);
 
         } catch (fetchError: any) {
@@ -96,8 +105,6 @@ export const ForumBoardPage: React.FC = () => {
     };
 
     const handleCreateThreadSubmit = async () => {
-        console.log("Create Thread submit triggered");
-        
         if (!processHandle || !serverUrl || !boardId || !newThreadTitle.trim() || !newThreadBody.trim()) {
             setCreateError('Missing necessary information, title, or body.');
             return;

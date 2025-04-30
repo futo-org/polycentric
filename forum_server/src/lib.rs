@@ -30,6 +30,7 @@ use handlers::{
     board_handlers::{create_board_handler, get_board_handler, list_boards_in_category_handler, update_board_handler, delete_board_handler},
     thread_handlers::{create_thread_handler, get_thread_handler, list_threads_in_board_handler, update_thread_handler, delete_thread_handler},
     post_handlers::{create_post_handler, get_post_handler, list_posts_in_thread_handler, update_post_handler, delete_post_handler},
+    get_server_info_handler,
 };
 
 // Use storage
@@ -52,7 +53,7 @@ pub fn create_router(
     admin_pubkeys: Arc<HashSet<Vec<u8>>>,
 ) -> Router {
     // Create image storage instance
-    let image_storage = LocalImageStorage::new(image_upload_dir.clone(), image_base_url);
+    let image_storage = LocalImageStorage::new(image_upload_dir.clone(), image_base_url.clone());
 
     // Create challenge store instance
     let challenge_store = ChallengeStore::new();
@@ -60,14 +61,20 @@ pub fn create_router(
     // Create the application state
     let app_state = AppState {
         db_pool,
-        image_storage,
+        image_storage: image_storage.clone(),
         challenge_store,
         admin_pubkeys,
     };
 
-    // Define static file service
-    let static_dir = PathBuf::from(&image_upload_dir);
-    let static_service = ServeDir::new(static_dir);
+    // --- Define Static Asset Service (for logo, etc.) ---
+    let static_assets_dir = PathBuf::from("/app/static/images"); 
+    let static_asset_service = ServeDir::new(static_assets_dir);
+    let static_asset_base_url = "/static/images"; // The URL path prefix
+
+    // --- Define User Upload Service --- 
+    let user_upload_dir = PathBuf::from(image_upload_dir); // Use the env var for upload *path*
+    let user_upload_service = ServeDir::new(user_upload_dir);
+    let user_upload_base_url = "/uploads/images"; // Define the new URL prefix for uploads
 
     // Configure CORS
     let cors = CorsLayer::new()
@@ -81,9 +88,10 @@ pub fn create_router(
     // Define limits (e.g., 20MB)
     const MAX_BODY_SIZE: usize = 20 * 1024 * 1024;
 
-    // Build our application router
+    // --- Build Main Application Router ---
     Router::new()
         .route("/", get(root))
+        // --- Restore original routes (no /forum prefix) ---
         // Auth routes
         .route("/auth/challenge", get(get_challenge_handler))
         // Category routes
@@ -100,8 +108,14 @@ pub fn create_router(
         .route("/threads/:thread_id/posts", post(create_post_handler))
         .route("/threads/:thread_id/posts", get(list_posts_in_thread_handler))
         .route("/posts/:post_id", get(get_post_handler).put(update_post_handler).delete(delete_post_handler))
-        // Static file serving
-        .nest_service(&app_state.image_storage.base_url, static_service)
+        // Server Info Route (at root)
+        .route("/server-info", get(get_server_info_handler))
+
+        // --- Static File Serving ---
+        // Serve fixed assets (logo) from /app/static under /static/images URL
+        .nest_service(static_asset_base_url, static_asset_service)
+        // Serve user uploads from IMAGE_UPLOAD_DIR under /uploads/images URL
+        .nest_service(user_upload_base_url, user_upload_service)
         .with_state(app_state)
         // Layers - Apply CORS Layer *before* others if possible, or where appropriate
         .layer(cors)
