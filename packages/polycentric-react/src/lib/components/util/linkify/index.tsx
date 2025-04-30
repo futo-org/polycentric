@@ -4,17 +4,17 @@ import React, { forwardRef, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import {
-    useQueryCRDTSet,
-    useSystemLink,
-    useUsernameCRDTQuery,
+  useQueryCRDTSet,
+  useSystemLink,
+  useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
 import { Link } from '../link';
 import {
-    linkify,
-    mentionRegex,
-    quoteRegex,
-    topicRegex,
-    urlRegex,
+  linkify,
+  mentionRegex,
+  quoteRegex,
+  topicRegex,
+  urlRegex,
 } from './utils';
 
 interface SuggestionPopup {

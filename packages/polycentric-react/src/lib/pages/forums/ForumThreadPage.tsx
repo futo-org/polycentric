@@ -337,13 +337,13 @@ export const ForumThreadPage: React.FC = () => {
 
       // --- Start Polycentric Cross-post ---
       // Get the new post ID from the response
-      const newPost: ForumPost = await createRes.json(); 
+      const newPost: ForumPost = await createRes.json();
 
       if (postToProfile) {
         try {
           // Construct the link back to the new post
           const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${threadId}/${newPost.id}`;
-          
+
           let polycentricContent = '';
           const replyText = newPostBody.trim();
           const linkText = `[View on Forum](${forumLinkPath})`;
@@ -351,23 +351,31 @@ export const ForumThreadPage: React.FC = () => {
           if (quotingPost) {
             // Format the quoted text with '> ' prefix for Polycentric post
             const quotedTextFormatted = quotingPost.content
-                .split('\n')
-                .map(line => `> ${line}`)
-                .join('\n');
+              .split('\n')
+              .map((line) => `> ${line}`)
+              .join('\n');
             polycentricContent = `${quotedTextFormatted}\n\n${replyText}\n\n${linkText}`;
           } else {
             // Standard reply, no quote prefix needed
             polycentricContent = `${replyText}\n\n${linkText}`;
           }
 
-          console.log("Attempting to post reply to Polycentric profile:", polycentricContent);
+          console.log(
+            'Attempting to post reply to Polycentric profile:',
+            polycentricContent,
+          );
           await processHandle.post(polycentricContent); // Post text only
-          console.log("Successfully posted reply to Polycentric profile.");
+          console.log('Successfully posted reply to Polycentric profile.');
           // Optional: Add a success notification
         } catch (profilePostError) {
-          console.error("Failed to post reply to Polycentric profile:", profilePostError);
+          console.error(
+            'Failed to post reply to Polycentric profile:',
+            profilePostError,
+          );
           // Set error, but don't block success flow for the forum post
-          setPostError("Reply posted, but failed to post to your profile. Please try posting manually.");
+          setPostError(
+            'Reply posted, but failed to post to your profile. Please try posting manually.',
+          );
         }
       }
       // --- End Polycentric Cross-post ---
@@ -496,7 +504,10 @@ export const ForumThreadPage: React.FC = () => {
                         disabled={isPosting}
                         className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
                       />
-                      <label htmlFor="postToProfileCheckboxReply" className="text-sm text-gray-700">
+                      <label
+                        htmlFor="postToProfileCheckboxReply"
+                        className="text-sm text-gray-700"
+                      >
                         Also post to my Polycentric profile
                       </label>
                     </div>

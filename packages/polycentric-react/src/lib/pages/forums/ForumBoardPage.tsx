@@ -182,9 +182,9 @@ export const ForumBoardPage: React.FC = () => {
         );
       }
 
-      // --- Start Polycentric Cross-post --- 
+      // --- Start Polycentric Cross-post ---
       // Get the new thread ID from the response
-      const newThread: ForumThread = await createRes.json(); 
+      const newThread: ForumThread = await createRes.json();
 
       if (postToProfile) {
         try {
@@ -193,15 +193,23 @@ export const ForumBoardPage: React.FC = () => {
           // Use Markdown link syntax
           const polycentricContent = `${newThreadTitle.trim()}\n\n${newThreadBody.trim()}\n\n[View on Forum](${forumLinkPath})`;
 
-          console.log("Attempting to post to Polycentric profile:", polycentricContent);
+          console.log(
+            'Attempting to post to Polycentric profile:',
+            polycentricContent,
+          );
           await processHandle.post(polycentricContent); // Post text only for now
-          console.log("Successfully posted to Polycentric profile.");
+          console.log('Successfully posted to Polycentric profile.');
           // Optional: Add a success notification for the user
         } catch (profilePostError) {
-          console.error("Failed to post to Polycentric profile:", profilePostError);
+          console.error(
+            'Failed to post to Polycentric profile:',
+            profilePostError,
+          );
           // IMPORTANT: Don't re-throw; the forum post succeeded. Just inform the user.
           // Update UI or use a toast notification to show this secondary error
-          setCreateError("Thread created, but failed to post to your profile. Please try posting manually.");
+          setCreateError(
+            'Thread created, but failed to post to your profile. Please try posting manually.',
+          );
           // Note: The main createError state is reused here, which might be slightly confusing
           // if the original create operation also failed earlier. Consider a separate state for profile post errors.
         }
@@ -320,7 +328,10 @@ export const ForumBoardPage: React.FC = () => {
                     disabled={isCreatingThread}
                     className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
                   />
-                  <label htmlFor="postToProfileCheckboxThread" className="text-sm text-gray-700">
+                  <label
+                    htmlFor="postToProfileCheckboxThread"
+                    className="text-sm text-gray-700"
+                  >
                     Also post to my Polycentric profile
                   </label>
                 </div>
