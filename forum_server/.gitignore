@@ -11,10 +11,11 @@
 # Environment variables
 .env 
 
+# SQLx offline cache data
+/.sqlx
+sqlx-data.json
+
 # Uploaded files
 /uploads/ 
 /test_uploads/
 /test_images/
-
-./sqlx-data.json
-.sqlx
