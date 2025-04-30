@@ -7,3 +7,6 @@ USING author_id::bytea; -- Attempt to cast existing TEXT data if needed, might f
 ALTER TABLE threads
 ALTER COLUMN created_by TYPE BYTEA
 USING created_by::bytea; -- Attempt to cast existing TEXT data if needed 
+
+ALTER TABLE categories
+ADD CONSTRAINT categories_name_unique UNIQUE (name);

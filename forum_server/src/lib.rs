@@ -12,6 +12,9 @@ use crate::auth::{ChallengeStore, get_challenge_handler};
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::collections::HashSet;
+// Import necessary CORS items
+use tower_http::cors::{Any, CorsLayer};
+use axum::http::{Method, HeaderValue};
 
 // Declare the modules (now public for the library)
 pub mod models;
@@ -66,6 +69,15 @@ pub fn create_router(
     let static_dir = PathBuf::from(&image_upload_dir);
     let static_service = ServeDir::new(static_dir);
 
+    // Configure CORS
+    let cors = CorsLayer::new()
+        // Allow requests from the HTTPS frontend development server
+        .allow_origin("https://localhost:3000".parse::<HeaderValue>().unwrap())
+        // Allow common methods
+        .allow_methods(vec![Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+        // Allow common headers
+        .allow_headers(Any);
+
     // Define limits (e.g., 20MB)
     const MAX_BODY_SIZE: usize = 20 * 1024 * 1024;
 
@@ -91,7 +103,8 @@ pub fn create_router(
         // Static file serving
         .nest_service(&app_state.image_storage.base_url, static_service)
         .with_state(app_state)
-        // Layers
+        // Layers - Apply CORS Layer *before* others if possible, or where appropriate
+        .layer(cors)
         .layer(RequestBodyLimitLayer::new(MAX_BODY_SIZE))
 }
 

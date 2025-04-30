@@ -5,6 +5,7 @@ import { RightCol } from '../../components/layout/rightcol';
 import { AppInfoTable } from '../../components/settings/AppInfoTable';
 import { DarkModeSelector } from '../../components/settings/DarkModeSelector';
 import { ExportKey } from '../../components/settings/ExportKey';
+import { ForumServerListTable } from '../../components/settings/ForumServerTable';
 import { ModerationTable } from '../../components/settings/ModerationTable';
 import { ServerListTable } from '../../components/settings/ServerTable';
 
@@ -18,6 +19,7 @@ export const SettingsPage: Page = () => {
             <div className="flex flex-col space-y-3">
               <h2 className="font-medium">Edit Servers</h2>
               <ServerListTable />
+              <ForumServerListTable />
             </div>
             <div className="flex flex-col space-y-3">
               <h2 className="font-medium">Backup account login token</h2>

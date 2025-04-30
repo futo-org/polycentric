@@ -2,8 +2,26 @@
     debug
 }
 
+# New block for forum server proxy
 localhost:8080 {
-    reverse_proxy http://varnish:80
+    # Handle forum API requests
+    @forum_api path /forum/*
+    handle @forum_api {
+        uri strip_prefix /forum
+        reverse_proxy forum_server:3000
+    }
+
+    # Handle forum static images
+    @forum_static path /static/images/*
+    handle @forum_static {
+        # Don't strip prefix, backend serves from /static/images
+        reverse_proxy forum_server:3000
+    }
+
+    # Fallback: Handle everything else via Varnish
+    handle {
+        reverse_proxy http://varnish:80
+    }
 }
 
 # Add a new subdomain for verifiers

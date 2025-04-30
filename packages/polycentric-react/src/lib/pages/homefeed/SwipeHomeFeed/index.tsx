@@ -1,4 +1,4 @@
-import { IonContent, IonHeader, IonMenuToggle, isPlatform } from '@ionic/react';
+import { IonHeader, IonMenuToggle, isPlatform } from '@ionic/react';
 import {
   createContext,
   useCallback,
@@ -18,7 +18,7 @@ import { Models, Util } from '@polycentric/polycentric-core';
 import { Controller } from 'swiper/modules';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { MobileSwipeTopicContext } from '../../../app/contexts';
-import { Feed, PopupComposeFullscreen } from '../../../components';
+import { Feed } from '../../../components';
 import { Link } from '../../../components/util/link';
 import { useSearchPostsFeed } from '../../../hooks/feedHooks';
 import { useGestureWall } from '../../../hooks/ionicHooks';
@@ -29,6 +29,7 @@ import {
 } from '../../../hooks/queryHooks';
 import { useTopicLink } from '../../../hooks/utilHooks';
 import { numberTo4Chars } from '../../../util/etc';
+import { ForumServerListPage } from '../../forums/ForumServerListPage';
 import { ExploreFeed } from './ExploreFeed';
 import { FollowingFeed } from './FollowingFeed';
 import { TopicFeed } from './TopicFeed';
@@ -284,65 +285,44 @@ const TopicSwipeSelect = ({
 };
 
 export const SwipeHomeFeed = () => {
+  const { processHandle } = useProcessHandleManager();
+  const { system } = processHandle;
+  const [followingEvents, advanceFollowing] = useQueryCRDTSet(
+      system(),
+      Models.ContentType.ContentTypeFollow,
+      50
+  );
   const [headerSwiper, setHeaderSwiper] = useState<SwyperType>();
   const [feedSwiper, setFeedSwiper] = useState<SwyperType>();
-  const { processHandle } = useProcessHandleManager();
-
-  const [joinedTopicEvents, advance] = useQueryCRDTSet(
-    processHandle.system(),
-    Models.ContentType.ContentTypeJoinTopic,
-    30,
-  );
+  const { topic: currentMobileTopic, setTopic: setCurrentMobileTopic } = useContext(MobileSwipeTopicContext);
 
   useEffect(() => {
-    advance();
-  }, [advance]);
+      advanceFollowing();
+  }, [advanceFollowing]);
 
-  const swipeTopics = useMemo(() => {
-    return [
-      'Explore',
-      'Following',
-      ...Util.filterUndefined(
-        joinedTopicEvents.map((event) => event.lwwElementSet?.value),
-      ).map((value) => Util.decodeText(value)),
-    ];
-  }, [joinedTopicEvents]);
+  const followingTopics = useMemo(() => {
+      return Util.filterUndefined(
+          followingEvents.map((event) => event.lwwElementSet?.value)
+      ).map((value) => Util.decodeText(value));
+  }, [followingEvents]);
 
-  const { topic: currentTopic } = useContext(MobileSwipeTopicContext);
-
-  useEffect(() => {
-    if (currentTopic && headerSwiper) {
-      const index = swipeTopics.indexOf(currentTopic);
-      if (index !== -1 && index !== headerSwiper.activeIndex) {
-        const currentIndex = headerSwiper.activeIndex;
-        const indexDistance = Math.abs(index - currentIndex);
-        const transitionDurationMS = indexDistance > 1 ? 1000 : 500;
-        headerSwiper.slideTo(index, transitionDurationMS);
-      }
-    }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTopic]);
+  const topics = useMemo(() => {
+    return ['Following', 'Explore', ...followingTopics];
+  }, [followingTopics]);
 
   const handleSlideChange = useCallback(
     (swiper: SwyperType) => {
-      swiper.allowSlidePrev = true;
-      swiper.allowSlideNext = true;
-
-      if (swiper.activeIndex === 0) {
-        swiper.allowSlidePrev = false;
-      }
-      if (swiper.activeIndex === swipeTopics.length - 1) {
-        swiper.allowSlideNext = false;
-      }
+      setCurrentMobileTopic(topics[swiper.activeIndex]);
     },
-    [swipeTopics],
+    [setCurrentMobileTopic, topics],
   );
 
   useEffect(() => {
-    if (headerSwiper) handleSlideChange(headerSwiper);
-    if (feedSwiper) handleSlideChange(feedSwiper);
-  }, [headerSwiper, feedSwiper, handleSlideChange]);
+    const topicIndex = topics.indexOf(currentMobileTopic);
+    if (topicIndex !== -1 && feedSwiper && !feedSwiper.destroyed) {
+       feedSwiper.slideTo(topicIndex);
+    }
+  }, [currentMobileTopic, feedSwiper, topics]);
 
   const [composeModalOpen, setComposeModalOpen] = useState(false);
 
@@ -350,67 +330,52 @@ export const SwipeHomeFeed = () => {
     return isPlatform('mobile') && !isPlatform('ios') && !isPlatform('ipad');
   }, []);
 
+  const MainContent = useMemo(() => {
+      if (currentMobileTopic === 'Forums') {
+          return <ForumServerListPage />;
+      }
+      return (
+          <Swiper
+              modules={[Controller]}
+              onSwiper={setFeedSwiper}
+              controller={{ control: headerSwiper }}
+              onSlideChange={handleSlideChange}
+              className="h-full"
+          >
+              <SwiperSlide>
+                  <FollowingFeed />
+              </SwiperSlide>
+              <SwiperSlide>
+                  <ExploreFeed />
+              </SwiperSlide>
+              {followingTopics.map((topic) => (
+                  <SwiperSlide key={topic}>
+                      <TopicFeed topic={topic} />
+                  </SwiperSlide>
+              ))}
+          </Swiper>
+      );
+  }, [currentMobileTopic, headerSwiper, followingTopics, handleSlideChange]);
+
   return (
     <>
-      <IonHeader className="">
-        <div className="flex items-center justify-between bg-white h-20 border-b">
-          <IonMenuToggle>
-            <div className="p-3">
-              <MenuIcon />
-            </div>
-          </IonMenuToggle>
+      <IonHeader className="flex justify-center p-2 items-center">
+        <IonMenuToggle>
+          <MenuIcon />
+        </IonMenuToggle>
+        <div className="flex-grow">
           <TopicSwipeSelect
+            topics={topics}
             feedSwiper={feedSwiper}
             setHeaderSwiper={setHeaderSwiper}
-            topics={swipeTopics}
             handleSlideChange={handleSlideChange}
           />
-          <div className="p-3">
-            <div className="w-8 h-8"></div>
-          </div>
         </div>
+        <Link routerLink="/compose">
+          <PencilSquareIcon className="w-8 h-8 text-black" />
+        </Link>
       </IonHeader>
-      <IonContent className="h-[calc(100dvh-5rem)]">
-        <Swiper
-          // h-full should work here but it doesn't
-          className="w-full h-full"
-          modules={[Controller]}
-          onSwiper={setFeedSwiper}
-          controller={{ control: headerSwiper }}
-          edgeSwipeDetection={true}
-          edgeSwipeThreshold={50}
-          onSlideChange={handleSlideChange}
-          cssMode={isMobileNonIOS}
-        >
-          {swipeTopics.map((topic) => (
-            <SwiperSlide key={topic} style={{ overflow: 'auto' }}>
-              {topic === 'Explore' ? (
-                <ExploreFeed />
-              ) : topic === 'Following' ? (
-                <FollowingFeed />
-              ) : (
-                <TopicFeed topic={topic} />
-              )}
-            </SwiperSlide>
-          ))}
-        </Swiper>
-        <button
-          onClick={() => setComposeModalOpen(true)}
-          className="fixed bottom-4 right-4 w-16 h-16 bg-blue-500 rounded-full flex justify-center items-center z-10"
-        >
-          <PencilSquareIcon className="w-8 h-8 text-white" />
-        </button>
-        <PopupComposeFullscreen
-          open={composeModalOpen}
-          setOpen={setComposeModalOpen}
-          preSetTopic={
-            swipeTopics[feedSwiper?.activeIndex ?? 0] !== 'Explore' &&
-            swipeTopics[feedSwiper?.activeIndex ?? 0] !== 'Following'
-              ? swipeTopics[feedSwiper?.activeIndex ?? 0]
-              : undefined
-          }
-        />
-      </IonContent>
+      {MainContent}
     </>
   );
 };

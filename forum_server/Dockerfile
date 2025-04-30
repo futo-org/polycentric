@@ -1,15 +1,27 @@
 # Use the official Rust image.
 # Specify a specific version for reproducibility.
-FROM rust:1.78 AS builder
+FROM rust:1.81 AS builder
 
 # Set the working directory
 WORKDIR /usr/src/forum_server
 
-# Copy the Cargo configuration files
-COPY Cargo.toml Cargo.lock ./
+# Install necessary tools first
+RUN cargo install cargo-watch sqlx-cli --locked
 
-# Copy the source code
-COPY src ./src
+# Copy the Cargo configuration files from the correct subpath
+COPY forum_server/Cargo.toml forum_server/Cargo.lock ./
+
+# Copy the sqlx cache (needs to be generated locally first via `cargo sqlx prepare`)
+COPY forum_server/.sqlx ./.sqlx
+
+# Copy the source code from the correct subpath
+COPY forum_server/src ./src
+
+# We also need the polycentric-protocol dependency
+COPY polycentric-protocol /usr/src/polycentric-protocol
+
+# And the proto definitions it depends on
+COPY proto /usr/src/proto
 
 # Build the application in release mode
 # Using --locked to ensure Cargo.lock is used

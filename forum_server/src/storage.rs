@@ -35,7 +35,7 @@ impl LocalImageStorage {
         let file_path = self.upload_dir.join(&unique_filename);
 
         // Ensure the directory exists (though main.rs already does this)
-        // fs::create_dir_all(&self.upload_dir).await?;
+        fs::create_dir_all(&self.upload_dir).await?;
         
         // Write the file
         fs::write(&file_path, file_bytes).await?;

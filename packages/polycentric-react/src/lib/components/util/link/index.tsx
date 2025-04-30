@@ -7,14 +7,11 @@ import { routes } from '../../../app/routes';
 import { StackElementPathContext } from './StackElementPathContext';
 
 const getUrlComponent = (url: string) => {
-  const path = Object.keys(routes).find((path) => {
-    const match = matchPath(url, {
-      path,
-      exact: true,
-    });
-    if (match) return true;
+  const path = Object.keys(routes).find((pathKey) => {
+    const exact = !pathKey.includes('*');
+    const match = matchPath(url, { path: pathKey, exact });
+    return !!match;
   });
-
   return path ? routes[path].component : null;
 };
 
@@ -28,8 +25,12 @@ export const MemoryRoutedComponent = ({
   }, [routerLink]);
 
   if (!Component) {
-    console.error('No component found for routerLink', routerLink);
-    return null;
+    console.error('[MemoryRoutedComponent] No component found for routerLink', routerLink);
+    return (
+      <IonPage>
+        <div>404 - Component Not Found for {routerLink}</div>
+      </IonPage>
+    );
   }
 
   return (
@@ -79,26 +80,39 @@ const LinkComponent = forwardRef<
 
     const onClick: React.MouseEventHandler<HTMLAnchorElement> = useCallback(
       (e) => {
+        console.log("[LinkComponent onClick] Clicked!", { routerLink, routerDirection });
         e.preventDefault();
 
-        if (stopPropagation) e.stopPropagation();
-        if (!routerLink) return;
+        if (stopPropagation) {
+          console.log("[LinkComponent onClick] Stopping propagation.");
+          e.stopPropagation();
+        }
+        if (!routerLink) {
+          console.log("[LinkComponent onClick] No routerLink, returning.");
+          return;
+        }
 
         userPassedOnClick?.(e);
-        if (isActive) return;
+        if (isActive) {
+          console.log("[LinkComponent onClick] Link is already active, returning.");
+          return;
+        }
 
         switch (routerDirection) {
           case 'root':
+            console.log(`[LinkComponent onClick] Navigating root: ${routerLink}`);
             stackRouter.setRoot(routerLink, 'forwards');
             break;
           case 'forward':
+            console.log(`[LinkComponent onClick] Navigating forward: ${routerLink}`);
             stackRouter.push(routerLink);
             break;
           case 'back':
+            console.log(`[LinkComponent onClick] Navigating back`);
             stackRouter.pop();
             break;
           default:
-            console.error('Invalid routerDirection', routerDirection);
+            console.error('[Link onClick] Invalid routerDirection', routerDirection);
         }
       },
       [

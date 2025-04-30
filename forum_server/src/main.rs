@@ -80,7 +80,8 @@ async fn main() {
     );
 
     // Define the address and port to run the server on.
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    // Bind to 0.0.0.0 to accept connections from outside the container
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000)); 
     println!("Listening on {}", addr);
 
     // Run the server.

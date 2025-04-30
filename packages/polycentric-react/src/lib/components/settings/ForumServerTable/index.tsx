@@ -1,10 +1,10 @@
 import { CheckIcon, PencilIcon } from '@heroicons/react/24/outline';
-import { CancelContext } from '@polycentric/polycentric-core';
+import { CancelContext } from '@polycentric/polycentric-core'; // Keep for CancelContext
 import { useState } from 'react';
-import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
-import { useQueryServers } from '../../../hooks/queryHooks';
+import { useForumServers } from '../../../hooks/forumServerHooks'; // Use the new hook
 import { useDebouncedEffect } from '../../../hooks/utilHooks';
 
+// XIcon remains the same
 const XIcon = ({ className }: { className: string }) => {
   return (
     <svg
@@ -24,6 +24,7 @@ const XIcon = ({ className }: { className: string }) => {
   );
 };
 
+// Interfaces remain the same for row structure
 interface ExistingServer {
   kind: 'existingServer';
   server: string;
@@ -34,12 +35,14 @@ interface NewServer {
   close: () => void;
 }
 
-const ServerListTableRow = ({
+// Rename Row Component
+const ForumServerListTableRow = ({
   params,
 }: {
   params: ExistingServer | NewServer;
 }) => {
-  const { processHandle } = useProcessHandleManager();
+  // Get add/remove functions from the new hook
+  const { addServer, removeServer } = useForumServers();
 
   const [inputValue, setInputValue] = useState(
     params.kind === 'existingServer' ? params.server : '',
@@ -59,7 +62,6 @@ const ServerListTableRow = ({
         return;
       }
 
-      // Allow localhost without version check
       const isLocalhost = /^(https?:\/\/)?localhost(:\d+)?$/.test(inputValue);
       if (isLocalhost) {
         setIsValidServer(true);
@@ -72,7 +74,10 @@ const ServerListTableRow = ({
 
       const cancelContext = new CancelContext.CancelContext();
 
-      let urlToCheck = inputValue;
+      let urlToCheck = inputValue.trim();
+       if (urlToCheck.endsWith('/')) {
+           urlToCheck = urlToCheck.slice(0, -1);
+       }
       if (
         !urlToCheck.startsWith('http://') &&
         !urlToCheck.startsWith('https://')
@@ -80,16 +85,24 @@ const ServerListTableRow = ({
         urlToCheck = 'https://' + urlToCheck;
       }
 
-      fetch(`${urlToCheck}/version`)
-        .then((res) => res.json())
-        .then((json) => {
-          if (
-            cancelContext.cancelled() === false &&
-            json.sha &&
-            typeof json.sha === 'string'
-          ) {
-            setIsValidServer(true);
-          }
+      // Use a different validation endpoint for forum servers, e.g., /api/categories
+      // Or just a basic fetch to see if the server responds
+      fetch(`${urlToCheck}/api/categories`) // Example: Check for categories endpoint
+        .then((res) => {
+           // Check if response is ok (status 200-299)
+          if (cancelContext.cancelled() === false && res.ok) {
+              // Check if the response looks like JSON (optional, adjust as needed)
+             const contentType = res.headers.get("content-type");
+              if (contentType && contentType.indexOf("application/json") !== -1) {
+                  setIsValidServer(true);
+              } else {
+                 // If not JSON, maybe still valid? Decide based on forum server behavior.
+                 // For now, let's consider any OK response valid.
+                 setIsValidServer(true);
+              }
+          } else if (!res.ok) {
+               setIsValidServer(false);
+           }
         })
         .catch(() => {
           setIsValidServer(false);
@@ -120,7 +133,7 @@ const ServerListTableRow = ({
         onClick={() => {
           if (params.kind === 'existingServer') {
             setMutationSubmitted(true);
-            processHandle.removeServer(params.server);
+            removeServer(params.server); // Use removeServer from hook
           }
         }}
         disabled={mutationSubmitted}
@@ -135,20 +148,18 @@ const ServerListTableRow = ({
 
     const serverUrl = inputValue;
 
-    // Close first to prevent duplication issues
     if (params.kind === 'newServer') {
       params.close();
     }
 
-    // Remove server if we're editing an existing one
     if (params.kind === 'existingServer') {
-      processHandle.removeServer(params.server);
+      removeServer(params.server);
     }
 
-    // Add the server
-    processHandle.addServer(serverUrl);
+    addServer(serverUrl);
   };
 
+   // editPostButtons remains largely the same, just ensure handleServerSubmit is called
   const editPostButtons = (
     <>
       {/* Undo */}
@@ -189,6 +200,7 @@ const ServerListTableRow = ({
     </>
   );
 
+  // Row rendering remains the same
   return (
     <tr>
       <td className="px-6 py-3 whitespace-nowrap">
@@ -214,12 +226,14 @@ const ServerListTableRow = ({
   );
 };
 
-const FEATURED_SERVERS = ['https://prod-posts1.polycentric.io'];
+// No featured servers for forum servers initially
+// const FEATURED_FORUM_SERVERS = [];
 
-export const ServerListTable = () => {
-  const { processHandle } = useProcessHandleManager();
+// Rename main component
+export const ForumServerListTable = () => {
+  // Use the forum server hook
+  const { servers, addServer, removeServer } = useForumServers(); // Destructure add/remove for potentially adding featured servers later?
   const [newServer, setNewServer] = useState(false);
-  const servers = useQueryServers(processHandle.system());
 
   return (
     <div className="rounded-[2rem] border overflow-hidden">
@@ -230,13 +244,14 @@ export const ServerListTable = () => {
               scope="col"
               className="pt-6 pl-6 pb-3 text-left text-sm font-medium"
             >
-              My Servers
+              My Forum Servers {/* Update Title */}
             </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {[...servers].map((s) => (
-            <ServerListTableRow
+            // Use the renamed row component
+            <ForumServerListTableRow
               key={s}
               params={{
                 kind: 'existingServer',
@@ -245,7 +260,8 @@ export const ServerListTable = () => {
             />
           ))}
           {newServer && (
-            <ServerListTableRow
+            // Use the renamed row component
+            <ForumServerListTableRow
               params={{
                 kind: 'newServer',
                 close: () => setNewServer(false),
@@ -253,41 +269,13 @@ export const ServerListTable = () => {
             />
           )}
         </tbody>
-        <thead>
-          <tr>
-            <th
-              scope="col"
-              className="pt-6 pl-6 pb-3 text-left text-sm font-medium"
-            >
-              Featured Servers
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {FEATURED_SERVERS.filter((server) => !servers.has(server)).map(
-            (server) => (
-              <tr key={server}>
-                <td className="px-6 py-3 whitespace-nowrap">
-                  <div className="flex items-center justify-between space-x-2">
-                    <div className="text-sm font-medium text-gray-900">
-                      {server}
-                    </div>
-                    <button
-                      onClick={() => processHandle.addServer(server)}
-                      className="btn btn-primary rounded-full h-[2.25rem] px-3 border bg-white hover:bg-gray-50 text-gray-700"
-                    >
-                      Add Server
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ),
-          )}
-        </tbody>
+        {/* Remove Featured Servers section */}
+        {/* <thead> ... </thead> */}
+        {/* <tbody ... > ... </tbody> */}
         <tfoot>
           <tr>
             <td
-              colSpan={3}
+              colSpan={3} // Adjust if needed, though likely still 1 column visually
               className="px-3 pb-3 pt-2 text-left text-xs font-medium uppercase tracking-wider flex justify-between"
             >
               <button
@@ -295,7 +283,7 @@ export const ServerListTable = () => {
                 className="btn btn-primary rounded-full h-[2.25rem] px-3 border bg-white hover:bg-gray-50 text-gray-700 disabled:hover:bg-white disabled:text-gray-500"
                 onClick={() => setNewServer(true)}
               >
-                Add Server
+                Add Forum Server {/* Update Button Text */}
               </button>
             </td>
           </tr>
@@ -303,4 +291,4 @@ export const ServerListTable = () => {
       </table>
     </div>
   );
-};
+}; 
