@@ -27,6 +27,8 @@ export const routes: RouteData = {
   '/forums': { component: ForumServerListPage },
   '/forums/:serverUrl': { component: ForumCategoryListPage },
   '/forums/:serverUrl/:categoryId/:boardId': { component: ForumBoardPage },
-  '/forums/:serverUrl/:categoryId/:boardId/:threadId': { component: ForumThreadPage },
+  '/forums/:serverUrl/:categoryId/:boardId/:threadId': {
+    component: ForumThreadPage,
+  },
   '/oauth/callback': { component: OAuthCallback },
 };

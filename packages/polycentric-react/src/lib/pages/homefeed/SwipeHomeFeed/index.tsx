@@ -288,22 +288,23 @@ export const SwipeHomeFeed = () => {
   const { processHandle } = useProcessHandleManager();
   const { system } = processHandle;
   const [followingEvents, advanceFollowing] = useQueryCRDTSet(
-      system(),
-      Models.ContentType.ContentTypeFollow,
-      50
+    system(),
+    Models.ContentType.ContentTypeFollow,
+    50,
   );
   const [headerSwiper, setHeaderSwiper] = useState<SwyperType>();
   const [feedSwiper, setFeedSwiper] = useState<SwyperType>();
-  const { topic: currentMobileTopic, setTopic: setCurrentMobileTopic } = useContext(MobileSwipeTopicContext);
+  const { topic: currentMobileTopic, setTopic: setCurrentMobileTopic } =
+    useContext(MobileSwipeTopicContext);
 
   useEffect(() => {
-      advanceFollowing();
+    advanceFollowing();
   }, [advanceFollowing]);
 
   const followingTopics = useMemo(() => {
-      return Util.filterUndefined(
-          followingEvents.map((event) => event.lwwElementSet?.value)
-      ).map((value) => Util.decodeText(value));
+    return Util.filterUndefined(
+      followingEvents.map((event) => event.lwwElementSet?.value),
+    ).map((value) => Util.decodeText(value));
   }, [followingEvents]);
 
   const topics = useMemo(() => {
@@ -320,7 +321,7 @@ export const SwipeHomeFeed = () => {
   useEffect(() => {
     const topicIndex = topics.indexOf(currentMobileTopic);
     if (topicIndex !== -1 && feedSwiper && !feedSwiper.destroyed) {
-       feedSwiper.slideTo(topicIndex);
+      feedSwiper.slideTo(topicIndex);
     }
   }, [currentMobileTopic, feedSwiper, topics]);
 
@@ -331,30 +332,30 @@ export const SwipeHomeFeed = () => {
   }, []);
 
   const MainContent = useMemo(() => {
-      if (currentMobileTopic === 'Forums') {
-          return <ForumServerListPage />;
-      }
-      return (
-          <Swiper
-              modules={[Controller]}
-              onSwiper={setFeedSwiper}
-              controller={{ control: headerSwiper }}
-              onSlideChange={handleSlideChange}
-              className="h-full"
-          >
-              <SwiperSlide>
-                  <FollowingFeed />
-              </SwiperSlide>
-              <SwiperSlide>
-                  <ExploreFeed />
-              </SwiperSlide>
-              {followingTopics.map((topic) => (
-                  <SwiperSlide key={topic}>
-                      <TopicFeed topic={topic} />
-                  </SwiperSlide>
-              ))}
-          </Swiper>
-      );
+    if (currentMobileTopic === 'Forums') {
+      return <ForumServerListPage />;
+    }
+    return (
+      <Swiper
+        modules={[Controller]}
+        onSwiper={setFeedSwiper}
+        controller={{ control: headerSwiper }}
+        onSlideChange={handleSlideChange}
+        className="h-full"
+      >
+        <SwiperSlide>
+          <FollowingFeed />
+        </SwiperSlide>
+        <SwiperSlide>
+          <ExploreFeed />
+        </SwiperSlide>
+        {followingTopics.map((topic) => (
+          <SwiperSlide key={topic}>
+            <TopicFeed topic={topic} />
+          </SwiperSlide>
+        ))}
+      </Swiper>
+    );
   }, [currentMobileTopic, headerSwiper, followingTopics, handleSlideChange]);
 
   return (

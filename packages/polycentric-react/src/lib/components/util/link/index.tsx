@@ -25,7 +25,10 @@ export const MemoryRoutedComponent = ({
   }, [routerLink]);
 
   if (!Component) {
-    console.error('[MemoryRoutedComponent] No component found for routerLink', routerLink);
+    console.error(
+      '[MemoryRoutedComponent] No component found for routerLink',
+      routerLink,
+    );
     return (
       <IonPage>
         <div>404 - Component Not Found for {routerLink}</div>
@@ -104,7 +107,10 @@ const LinkComponent = forwardRef<
             stackRouter.pop();
             break;
           default:
-            console.error('[Link onClick] Invalid routerDirection', routerDirection);
+            console.error(
+              '[Link onClick] Invalid routerDirection',
+              routerDirection,
+            );
         }
       },
       [

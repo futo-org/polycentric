@@ -75,9 +75,9 @@ const ForumServerListTableRow = ({
       const cancelContext = new CancelContext.CancelContext();
 
       let urlToCheck = inputValue.trim();
-       if (urlToCheck.endsWith('/')) {
-           urlToCheck = urlToCheck.slice(0, -1);
-       }
+      if (urlToCheck.endsWith('/')) {
+        urlToCheck = urlToCheck.slice(0, -1);
+      }
       if (
         !urlToCheck.startsWith('http://') &&
         !urlToCheck.startsWith('https://')
@@ -89,20 +89,20 @@ const ForumServerListTableRow = ({
       // Or just a basic fetch to see if the server responds
       fetch(`${urlToCheck}/api/categories`) // Example: Check for categories endpoint
         .then((res) => {
-           // Check if response is ok (status 200-299)
+          // Check if response is ok (status 200-299)
           if (cancelContext.cancelled() === false && res.ok) {
-              // Check if the response looks like JSON (optional, adjust as needed)
-             const contentType = res.headers.get("content-type");
-              if (contentType && contentType.indexOf("application/json") !== -1) {
-                  setIsValidServer(true);
-              } else {
-                 // If not JSON, maybe still valid? Decide based on forum server behavior.
-                 // For now, let's consider any OK response valid.
-                 setIsValidServer(true);
-              }
+            // Check if the response looks like JSON (optional, adjust as needed)
+            const contentType = res.headers.get('content-type');
+            if (contentType && contentType.indexOf('application/json') !== -1) {
+              setIsValidServer(true);
+            } else {
+              // If not JSON, maybe still valid? Decide based on forum server behavior.
+              // For now, let's consider any OK response valid.
+              setIsValidServer(true);
+            }
           } else if (!res.ok) {
-               setIsValidServer(false);
-           }
+            setIsValidServer(false);
+          }
         })
         .catch(() => {
           setIsValidServer(false);
@@ -159,7 +159,7 @@ const ForumServerListTableRow = ({
     addServer(serverUrl);
   };
 
-   // editPostButtons remains largely the same, just ensure handleServerSubmit is called
+  // editPostButtons remains largely the same, just ensure handleServerSubmit is called
   const editPostButtons = (
     <>
       {/* Undo */}
@@ -291,4 +291,4 @@ export const ForumServerListTable = () => {
       </table>
     </div>
   );
-}; 
+};
