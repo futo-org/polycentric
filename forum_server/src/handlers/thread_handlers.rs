@@ -7,7 +7,7 @@ use axum::{
 use uuid::Uuid;
 use crate::{
     models::Thread,
-    repositories::{self, board_repository, thread_repository::{self, UpdateThreadData}},
+    repositories::{self, board_repository, thread_repository::{self, CreateThreadData, UpdateThreadData, CreatedThreadInfo}},
     utils::PaginationParams, // Import
     AppState,
     auth::{AuthenticatedUser, AdminUser}, // Import AdminUser
@@ -42,9 +42,9 @@ pub async fn create_thread_handler(
     let mut collected_title: Option<String> = None;
     let mut collected_content: Option<String> = None;
     let mut collected_images: Vec<TempImageField> = Vec::new();
-    let mut collected_poly_system_id_b64: Option<String> = None;
-    let mut collected_poly_process_id_b64: Option<String> = None;
-    let mut collected_poly_log_seq_str: Option<String> = None;
+    let mut collected_system_id_b64: Option<String> = None;
+    let mut collected_process_id_b64: Option<String> = None;
+    let mut collected_log_seq_str: Option<String> = None;
 
     loop { 
         match multipart.next_field().await {
@@ -98,29 +98,28 @@ pub async fn create_thread_handler(
                          }
                     }
                     "polycentric_system_id" => {
-                        match field.text().await {
-                            Ok(text) => collected_poly_system_id_b64 = Some(text),
-                            Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read polycentric_system_id: {}", e)).into_response(),
+                        match field.bytes().await {
+                            Ok(data) => collected_system_id_b64 = String::from_utf8(data.to_vec()).ok(),
+                            Err(_) => return (StatusCode::BAD_REQUEST, "Failed to read polycentric_system_id").into_response(),
                         }
                     }
                     "polycentric_process_id" => {
-                        match field.text().await {
-                            Ok(text) => collected_poly_process_id_b64 = Some(text),
-                            Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read polycentric_process_id: {}", e)).into_response(),
+                        match field.bytes().await {
+                            Ok(data) => collected_process_id_b64 = String::from_utf8(data.to_vec()).ok(),
+                            Err(_) => return (StatusCode::BAD_REQUEST, "Failed to read polycentric_process_id").into_response(),
                         }
                     }
                     "polycentric_log_seq" => {
-                        match field.text().await {
-                            Ok(text) => collected_poly_log_seq_str = Some(text),
-                            Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read polycentric_log_seq: {}", e)).into_response(),
-                        }
+                        match field.bytes().await {
+                             Ok(data) => collected_log_seq_str = String::from_utf8(data.to_vec()).ok(),
+                             Err(_) => return (StatusCode::BAD_REQUEST, "Failed to read polycentric_log_seq").into_response(),
+                         }
                     }
                     _ => { /* Ignore other fields */ }
                 }
             }
             Ok(None) => break, 
             Err(e) => { 
-                eprintln!("Multipart error processing field: {}", e);
                 if e.to_string().contains("body limit exceeded") {
                     return (StatusCode::PAYLOAD_TOO_LARGE, "Total upload size limit exceeded").into_response();
                 }
@@ -139,39 +138,11 @@ pub async fn create_thread_handler(
         _ => return (StatusCode::BAD_REQUEST, "Missing or empty required field: content").into_response(),
     };
 
-    // --- Added: Decode pointer fields --- 
-    let polycentric_system_id = match collected_poly_system_id_b64 {
-        Some(b64) => match BASE64_STANDARD.decode(b64) {
-            Ok(bytes) => Some(bytes),
-            Err(_) => return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_system_id").into_response(),
-        },
-        None => None,
-    };
-    let polycentric_process_id = match collected_poly_process_id_b64 {
-        Some(b64) => match BASE64_STANDARD.decode(b64) {
-            Ok(bytes) => Some(bytes),
-            Err(_) => return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_process_id").into_response(),
-        },
-        None => None,
-    };
-    let polycentric_log_seq = match collected_poly_log_seq_str {
-        Some(s) => match s.parse::<i64>() {
-            Ok(num) => Some(num),
-            Err(_) => return (StatusCode::BAD_REQUEST, "Invalid number format for polycentric_log_seq").into_response(),
-        },
-        None => None,
-    };
-    // Optional: Validation for pointer fields
-    if polycentric_system_id.is_some() != polycentric_process_id.is_some() || polycentric_system_id.is_some() != polycentric_log_seq.is_some() {
-        return (StatusCode::BAD_REQUEST, "Polycentric pointer fields must be provided together or not at all").into_response();
-    }
-
     // Check board existence
     match board_repository::get_board_by_id(&state.db_pool, board_id).await {
         Ok(Some(_)) => { /* Board exists */ }
         Ok(None) => return (StatusCode::NOT_FOUND, "Board not found").into_response(),
         Err(e) => {
-            eprintln!("DB error checking board existence: {}", e);
             return (StatusCode::INTERNAL_SERVER_ERROR, "Error checking board existence").into_response();
         }
     }
@@ -185,28 +156,53 @@ pub async fn create_thread_handler(
         ).await {
             Ok(url) => image_urls.push(url),
             Err(e) => {
-                eprintln!("Failed to save image during thread creation: {}", e);
                 return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to save image").into_response();
             }
         }
     }
     
     // --- Updated: Prepare data for repository including pointer --- 
-    let thread_data = crate::repositories::thread_repository::CreateThreadData {
+    let mut thread_data = repositories::thread_repository::CreateThreadData {
         title,
         content,
         created_by,
         images: if image_urls.is_empty() { None } else { Some(image_urls) },
-        polycentric_system_id,
-        polycentric_process_id,
-        polycentric_log_seq,
+        polycentric_system_id: None,
+        polycentric_process_id: None,
+        polycentric_log_seq: None,
     };
+
+    // --- Process and Validate Pointer Data (If provided) --- 
+    let has_system = collected_system_id_b64.is_some();
+    let has_process = collected_process_id_b64.is_some();
+    let has_seq = collected_log_seq_str.is_some();
+
+    // Ensure all or none are provided
+    if (has_system || has_process || has_seq) && !(has_system && has_process && has_seq) {
+        return (StatusCode::BAD_REQUEST, "Polycentric pointer fields must be provided together or not at all.").into_response();
+    }
+
+    if has_system && has_process && has_seq {
+        // Decode Base64 IDs
+        thread_data.polycentric_system_id = match base64::decode(&collected_system_id_b64.unwrap()) {
+            Ok(id) => Some(id),
+            Err(_) => return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_system_id").into_response(),
+        };
+        thread_data.polycentric_process_id = match base64::decode(&collected_process_id_b64.unwrap()) {
+            Ok(id) => Some(id),
+            Err(_) => return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_process_id").into_response(),
+        };
+        // Parse log sequence number
+        thread_data.polycentric_log_seq = match collected_log_seq_str.unwrap().parse::<i64>() {
+            Ok(seq) => Some(seq),
+            Err(_) => return (StatusCode::BAD_REQUEST, "Invalid number format for polycentric_log_seq").into_response(),
+        };
+    }
 
     // Call repository function
     match thread_repository::create_thread_with_initial_post(&state.db_pool, board_id, thread_data).await {
-        Ok(thread) => (StatusCode::CREATED, Json(thread)).into_response(),
+        Ok(created_info) => (StatusCode::CREATED, Json(created_info)).into_response(),
         Err(e) => {
-            eprintln!("Failed to create thread with initial post: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create thread").into_response()
         }
     }
@@ -221,7 +217,6 @@ pub async fn get_thread_handler(
         Ok(Some(thread)) => (StatusCode::OK, Json(thread)).into_response(),
         Ok(None) => (StatusCode::NOT_FOUND, "Thread not found").into_response(),
         Err(e) => {
-            eprintln!("Failed to fetch thread: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch thread").into_response()
         }
     }
@@ -240,14 +235,12 @@ pub async fn list_threads_in_board_handler(
             match thread_repository::get_threads_by_board(&state.db_pool, board_id, &pagination).await {
                 Ok(threads) => (StatusCode::OK, Json(threads)).into_response(),
                 Err(e) => {
-                    eprintln!("Failed to fetch threads for board {}: {}", board_id, e);
                     (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch threads").into_response()
                 }
             }
         }
         Ok(None) => (StatusCode::NOT_FOUND, "Board not found").into_response(),
         Err(e) => {
-            eprintln!("Failed to check board existence: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Error checking board").into_response()
         }
     }
@@ -276,14 +269,12 @@ pub async fn update_thread_handler(
                 Ok(Some(updated_thread)) => (StatusCode::OK, Json(updated_thread)).into_response(),
                 Ok(None) => (StatusCode::NOT_FOUND, "Thread not found during update").into_response(), // Should be rare
                 Err(e) => {
-                    eprintln!("Failed to update thread: {}", e);
                     (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update thread").into_response()
                 }
             }
         }
         Ok(None) => (StatusCode::NOT_FOUND, "Thread not found").into_response(),
         Err(e) => {
-            eprintln!("Failed to fetch thread for update: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Error fetching thread for update").into_response()
         }
     }
@@ -302,7 +293,6 @@ pub async fn delete_thread_handler(
         Ok(Some(id)) => id,
         Ok(None) => return (StatusCode::NOT_FOUND, "Thread not found").into_response(),
         Err(e) => {
-            eprintln!("Failed to fetch thread author for delete: {}", e);
             return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response();
         }
     };
@@ -323,7 +313,6 @@ pub async fn delete_thread_handler(
             Ok(0) => (StatusCode::NOT_FOUND, "Thread not found during delete").into_response(),
             Ok(_) => (StatusCode::NO_CONTENT).into_response(),
             Err(e) => {
-                eprintln!("Failed to delete thread with posts: {}", e);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete thread").into_response()
             }
         }

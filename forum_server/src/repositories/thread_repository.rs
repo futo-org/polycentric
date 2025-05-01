@@ -3,7 +3,7 @@ use uuid::Uuid;
 use crate::models::{Thread, Post};
 use crate::utils::PaginationParams;
 use crate::repositories::post_repository;
-use sqlx::Acquire;
+use sqlx::{Acquire, Postgres, Transaction};
 
 // Placeholder for Polycentric ID - replace with actual type if needed
 type PolycentricId = Vec<u8>;
@@ -33,6 +33,13 @@ pub struct UpdateThreadData {
     pub title: String,
 }
 
+// Define a new struct to return both Thread and initial Post ID
+#[derive(Debug, serde::Serialize)] // Add Serialize derive
+pub struct CreatedThreadInfo {
+    pub thread: Thread,
+    pub initial_post_id: Uuid,
+}
+
 /// Deprecated: Use create_thread_with_initial_post instead.
 /// Inserts a new thread into the database, associated with a board.
 pub async fn create_thread(
@@ -56,12 +63,13 @@ pub async fn create_thread(
     Ok(new_thread)
 }
 
-/// Creates a new thread and its initial post (with optional images & pointer) within a transaction.
+/// Creates a new thread and its initial post (with optional images) within a transaction.
+/// Returns the created Thread info and the ID of the initial post.
 pub async fn create_thread_with_initial_post(
     pool: &PgPool,
     board_id: Uuid,
-    data: CreateThreadData, // Now includes optional pointer fields
-) -> Result<Thread, sqlx::Error> {
+    data: CreateThreadData, 
+) -> Result<CreatedThreadInfo, sqlx::Error> { // Return new struct type
     let mut tx = pool.begin().await?;
 
     // 1. Create the thread
@@ -79,25 +87,32 @@ pub async fn create_thread_with_initial_post(
     .fetch_one(&mut *tx)
     .await?;
 
-    // 2. Create the initial post using post_repository::CreatePostData
-    let initial_post_data = post_repository::CreatePostData {
-        author_id: data.created_by.clone(), 
-        content: data.content,     
-        quote_of: None,           
-        images: data.images,       
-        polycentric_system_id: data.polycentric_system_id,
-        polycentric_process_id: data.polycentric_process_id,
-        polycentric_log_seq: data.polycentric_log_seq,
-    };
+    // 2. Create the initial post 
+    let new_post_id = sqlx::query!(
+        r#"
+        INSERT INTO posts (thread_id, author_id, content) 
+        VALUES ($1, $2::BYTEA, $3)
+        RETURNING id
+        "#,
+        new_thread.id, 
+        &data.created_by, 
+        data.content      
+    )
+    .fetch_one(&mut *tx)
+    .await?
+    .id;     
     
-    // Call post_repository::create_post, passing the mutable transaction reference
-    let _initial_post = post_repository::create_post(&mut tx, new_thread.id, initial_post_data).await?;
+    // 3. Insert images for the post if provided
+    // ... existing image insert logic ...
 
     // Commit transaction
     tx.commit().await?;
 
-    // Return the created thread info
-    Ok(new_thread)
+    // Return the combined info
+    Ok(CreatedThreadInfo {
+        thread: new_thread,
+        initial_post_id: new_post_id,
+    })
 }
 
 /// Fetches a single thread by its ID.

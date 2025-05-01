@@ -295,13 +295,15 @@ pub async fn update_polycentric_pointers(
             polycentric_log_seq = $3
         WHERE id = $4
         "#,
-        system_id, // Bind as BYTEA
-        process_id, // Bind as BYTEA
-        log_seq,   // Bind as BIGINT
+        system_id, 
+        process_id, 
+        log_seq,   
         post_id
     )
     .execute(pool)
     .await?;
 
-    Ok(result.rows_affected())
+    let rows_affected = result.rows_affected();
+
+    Ok(rows_affected)
 } 

@@ -395,26 +395,26 @@ pub async fn link_polycentric_post_handler(
     user: AuthenticatedUser,
     Json(payload): Json<LinkPolycentricPayload>,
 ) -> Response {
-    // 1. Fetch the post to check ownership
     match post_repository::get_post_by_id(&state.db_pool, post_id).await {
         Ok(Some(post_to_link)) => {
-            // 2. Authorization: Only the author can link
             if post_to_link.author_id != user.0 {
                 return (StatusCode::FORBIDDEN, "Permission denied: Only the author can link the post.").into_response();
             }
 
-            // 3. Decode Base64 IDs
             let system_id = match base64::decode(&payload.polycentric_system_id_b64) {
                 Ok(id) => id,
-                Err(_) => return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_system_id").into_response(),
+                Err(e) => {
+                    return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_system_id").into_response();
+                }
             };
             let process_id = match base64::decode(&payload.polycentric_process_id_b64) {
                 Ok(id) => id,
-                Err(_) => return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_process_id").into_response(),
+                Err(e) => {
+                    return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_process_id").into_response();
+                }
             };
             let log_seq = payload.polycentric_log_seq;
 
-            // 4. Call repository function to update the pointers
             match post_repository::update_polycentric_pointers(
                 &state.db_pool, 
                 post_id, 
@@ -424,28 +424,26 @@ pub async fn link_polycentric_post_handler(
             ).await {
                 Ok(updated_rows) => {
                     if updated_rows == 1 {
-                        // Fetch the updated post to return it (optional, could just return NO_CONTENT)
-                         match post_repository::get_post_by_id(&state.db_pool, post_id).await {
-                             Ok(Some(updated_post)) => (StatusCode::OK, Json(updated_post)).into_response(),
-                             Ok(None) => (StatusCode::NOT_FOUND, "Post not found after update").into_response(), // Should not happen
-                             Err(e) => {
-                                 eprintln!("Failed to fetch post after linking: {}", e);
-                                 (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch updated post").into_response()
-                             }
-                         }
+                        match post_repository::get_post_by_id(&state.db_pool, post_id).await {
+                            Ok(Some(updated_post)) => (StatusCode::OK, Json(updated_post)).into_response(),
+                            Ok(None) => (StatusCode::NOT_FOUND, "Post not found after update").into_response(), // Should not happen
+                            Err(e) => {
+                                (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch updated post").into_response()
+                            }
+                        }
                     } else {
                         (StatusCode::NOT_FOUND, "Post not found during link update").into_response()
                     }
                 }
                 Err(e) => {
-                    eprintln!("Failed to link polycentric post: {}", e);
                     (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update post with polycentric link").into_response()
                 }
             }
         }
-        Ok(None) => (StatusCode::NOT_FOUND, "Post not found").into_response(),
+        Ok(None) => {
+            (StatusCode::NOT_FOUND, "Post not found").into_response()
+        }
         Err(e) => {
-            eprintln!("Failed to fetch post for linking: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Error fetching post for linking").into_response()
         }
     }

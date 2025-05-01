@@ -511,7 +511,7 @@ export const ForumThreadPage: React.FC = () => {
     setDeletePostError(null); // Clear delete error on cancel compose
   };
 
-  // --- Delete Post Handler (Modified) ---
+  // --- Delete Post Handler (Re-add Debugging) ---
   const handleDeletePost = async (postId: string) => {
     // Use post from state for initial confirmation message only
     const postForConfirmation = posts.find(p => p.id === postId);
@@ -522,13 +522,12 @@ export const ForumThreadPage: React.FC = () => {
 
     setDeletingPostId(postId);
     setDeletePostError(null);
-
     let polycentricDeleteAttempted = false;
     let polycentricDeleteSuccess = true; 
-    let freshPostData: ForumPost | null = null; // Variable to hold fresh data
-
+    let freshPostData: ForumPost | null = null; 
     try {
       // --- FETCH FRESH POST DATA --- 
+      console.log(`Fetching latest data for post ${postId} before delete checks...`);
       const freshDataUrl = `https://localhost:8080/forum/posts/${postId}`;
       const freshDataRes = await fetch(freshDataUrl);
       if (!freshDataRes.ok) {
@@ -536,36 +535,67 @@ export const ForumThreadPage: React.FC = () => {
           throw new Error(`Failed to fetch fresh post data (${freshDataRes.status}): ${errorText}`);
       }
       freshPostData = await freshDataRes.json();
-      // Convert author_id bytes if necessary (like in fetchThreadData)
+      console.log("Raw fresh post data fetched:", JSON.stringify(freshPostData));
+      
+      // Convert types
       if (freshPostData) {
            // @ts-ignore
            const authorIdArray: number[] = freshPostData.author_id || [];
            freshPostData.author_id = new Uint8Array(authorIdArray);
-           // Convert log_seq from number/string to Long if necessary
+           
            if (typeof freshPostData.polycentric_log_seq === 'number' || typeof freshPostData.polycentric_log_seq === 'string') {
                try {
                  freshPostData.polycentric_log_seq = Long.fromString(String(freshPostData.polycentric_log_seq));
-               } catch (e) { console.error("Error converting log_seq to Long:", e); freshPostData.polycentric_log_seq = undefined; }
-           } else if (!(freshPostData.polycentric_log_seq instanceof Long)) {
-                freshPostData.polycentric_log_seq = undefined; // Ensure it's Long or undefined
+                 console.log("Converted log_seq to Long:", freshPostData.polycentric_log_seq);
+               } catch (e) { 
+                   console.error("Error converting log_seq to Long:", e);
+                   freshPostData.polycentric_log_seq = undefined; 
+               }
+           } else if (freshPostData.polycentric_log_seq && !(freshPostData.polycentric_log_seq instanceof Long)) {
+               // If it exists but is not Long (e.g., maybe already an object {low, high}), try creating Long from it
+               try {
+                   // Assuming it might be {low, high, unsigned} from JSON parse
+                   const seqObj = freshPostData.polycentric_log_seq as any; 
+                   if (typeof seqObj?.low === 'number' && typeof seqObj?.high === 'number') {
+                       freshPostData.polycentric_log_seq = new Long(seqObj.low, seqObj.high, false); // Assume signed
+                       console.log("Re-created log_seq Long from object:", freshPostData.polycentric_log_seq);
+                   } else {
+                       throw new Error('log_seq object missing low/high properties');
+                   }
+               } catch (e) {
+                   console.error("Error re-creating log_seq Long from object:", e);
+                   freshPostData.polycentric_log_seq = undefined; 
+               }
+           } else if (freshPostData.polycentric_log_seq === null) {
+               freshPostData.polycentric_log_seq = undefined; // Treat null as undefined
            }
       }
-
+      
       if (!freshPostData) {
           throw new Error("Could not retrieve post data for deletion checks.");
       }
 
-      // Re-check authorship using fresh data's author_id
+      // Re-check authorship
       const currentUserPubKey = processHandle?.system()?.key;
       const isAuthor = currentUserPubKey && freshPostData.author_id ? 
                          Buffer.from(currentUserPubKey).equals(Buffer.from(freshPostData.author_id)) : 
                          false;
 
+      // --- LOG VALUES BEFORE CHECK --- 
+      console.log("Values before Polycentric delete check:", {
+          isAuthor,
+          processId: freshPostData.polycentric_process_id,
+          logSeq: freshPostData.polycentric_log_seq,
+          logSeqType: typeof freshPostData.polycentric_log_seq,
+          logSeqIsLong: freshPostData.polycentric_log_seq instanceof Long,
+      });
+      // --- END LOG ---
+
       // 4. Attempt Polycentric Deletion using FRESH data
       if (isAuthor && 
           freshPostData.polycentric_process_id && 
-          freshPostData.polycentric_log_seq) {
-
+          freshPostData.polycentric_log_seq) { // Check if logSeq is now a valid Long object
+          
           polycentricDeleteAttempted = true;
           try {
               if (!processHandle) throw new Error("Process handle unavailable...");
@@ -584,9 +614,11 @@ export const ForumThreadPage: React.FC = () => {
               polycentricDeleteSuccess = false;
               setDeletePostError(`Forum post deleted, but failed to delete corresponding Polycentric post: ${polyError.message || 'Unknown error'}`);
           }
+      } else {
+           console.log("Skipping Polycentric deletion - conditions not met on fresh data."); // Simplified skip log
       }
 
-      // 5. Attempt Forum Post Deletion (remains the same, uses postId)
+      // 5. Attempt Forum Post Deletion
       const authHeaders = await fetchHeaders(); 
       if (!authHeaders) {
         throw new Error("Could not get authentication headers to delete post.");

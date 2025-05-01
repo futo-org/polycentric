@@ -38,6 +38,12 @@ interface FetchedForumThread extends Omit<ForumThread, 'created_by'> {
   created_by: Uint8Array;
 }
 
+// Add interface for the new Thread creation response
+interface CreateThreadResponse {
+  thread: FetchedForumThread; // Use existing Fetched type
+  initial_post_id: string; // Expect UUID as string
+}
+
 // Add a simple CSS override
 // const modalStyleOverride = `
 //   ion-modal.modal-default.show-modal {
@@ -186,20 +192,16 @@ export const ForumBoardPage: React.FC = () => {
   };
 
   const handleCreateThreadSubmit = async () => {
-    if (
-      !processHandle ||
-      !serverUrl ||
-      !boardId ||
-      !newThreadTitle.trim() ||
-      !newThreadBody.trim()
-    ) {
+    if (!processHandle || !serverUrl || !boardId || !newThreadTitle.trim() || !newThreadBody.trim()) {
       setCreateError('Missing necessary information, title, or body.');
       return;
     }
-
     setIsCreatingThread(true);
     setCreateError(null);
     setDeleteThreadError(null);
+
+    let newForumThreadId: string | null = null;
+    let initialForumPostId: string | null = null; // Variable for OP ID
 
     try {
       const challengeUrl = `https://localhost:8080/forum/auth/challenge`;
@@ -232,14 +234,12 @@ export const ForumBoardPage: React.FC = () => {
         formData.append('image', newThreadImage, newThreadImage.name);
       }
 
-      // Add Polycentric Pointer Fields if available (already parsed and stored)
-      if (polycentricSystemId !== undefined && 
-          polycentricProcessId !== undefined && 
-          polycentricLogSeq !== undefined) {
-        const logSeqValue: Long = polycentricLogSeq;
-        formData.append('polycentric_system_id', base64.encode(polycentricSystemId));
-        formData.append('polycentric_process_id', base64.encode(polycentricProcessId));
-        formData.append('polycentric_log_seq', logSeqValue.toString()); 
+      // Add Polycentric pointers if available (for linking thread itself, if needed later)
+      if (polycentricSystemId && polycentricProcessId && polycentricLogSeq) {
+          const logSeqValue: Long = polycentricLogSeq;
+          formData.append('polycentric_system_id', base64.encode(polycentricSystemId));
+          formData.append('polycentric_process_id', base64.encode(polycentricProcessId));
+          formData.append('polycentric_log_seq', logSeqValue.toString());
       }
 
       const createThreadUrl = `https://localhost:8080/forum/boards/${boardId}/threads`;
@@ -257,31 +257,97 @@ export const ForumBoardPage: React.FC = () => {
         );
       }
 
-      const newThread: FetchedForumThread = await createRes.json();
+      // Expect the new response structure
+      const createResponseData: CreateThreadResponse = await createRes.json();
+      newForumThreadId = createResponseData.thread.id;
+      initialForumPostId = createResponseData.initial_post_id; // Store initial post ID
 
+      // --- Polycentric Cross-post & Link --- 
       if (postToProfile) {
-        const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${newThread.id}`;
-        let polycentricContent = '';
-
-        if (polycentricSystemId) {
-          polycentricContent = `Started new forum thread: ${newThreadTitle.trim()}\n\n[View on Forum](${forumLinkPath})`;
-        } else {
-          polycentricContent = `${newThreadTitle.trim()}\n\n${newThreadBody.trim()}\n\n[View on Forum](${forumLinkPath})`;
+        let polycentricPostPointer: Models.Pointer.Pointer | undefined = undefined;
+        try {
+            // Construct content for Polycentric post (using newForumThreadId)
+            const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${newForumThreadId}`;
+            let polycentricContent = '';
+            if (polycentricSystemId) {
+              polycentricContent = `Started new forum thread: ${newThreadTitle.trim()}\n\n[View on Forum](${forumLinkPath})`;
+            } else {
+              polycentricContent = `${newThreadTitle.trim()}\n\n${newThreadBody.trim()}\n\n[View on Forum](${forumLinkPath})`;
+            }
+            
+            // Create Polycentric post and get pointer
+            const signedEventResult = await processHandle.post(polycentricContent); 
+            if (signedEventResult) {
+                polycentricPostPointer = signedEventResult;
+            } else {
+                console.warn("processHandle.post did not return the pointer. Cannot link.");
+                polycentricPostPointer = undefined;
+            }
+        } catch (profilePostError) {
+            console.error(
+              'Failed to post to Polycentric profile:',
+              profilePostError,
+            );
+            setCreateError(
+              'Thread created, but failed to post to your profile. Please try posting manually.',
+            );
         }
 
-        try {
-          await processHandle.post(polycentricContent);
-        } catch (profilePostError) {
-          console.error(
-            'Failed to post to Polycentric profile:',
-            profilePostError,
-          );
-          setCreateError(
-            'Thread created, but failed to post to your profile. Please try posting manually.',
-          );
+        // --- Link Initial Forum Post to Polycentric Post ---
+        if (initialForumPostId && polycentricPostPointer && serverUrl) { 
+           try {
+               console.log(`Linking initial forum post ${initialForumPostId} to Polycentric pointer:`, polycentricPostPointer);
+               const linkHeaders = await fetchHeaders();
+               if (!linkHeaders) throw new Error("Authentication headers unavailable for linking.");
+
+               const linkUrl = `https://localhost:8080/forum/posts/${initialForumPostId}/link-polycentric`; 
+               
+               // --- Construct the payload correctly --- 
+               const linkPayload = {
+                   polycentric_system_id_b64: base64.encode(polycentricPostPointer.system.key),
+                   polycentric_process_id_b64: base64.encode(polycentricPostPointer.process.process),
+                   polycentric_log_seq: polycentricPostPointer.logicalClock.toNumber(), // Send as number
+               };
+               // --- End Construct Payload --- 
+               
+               console.log(`Attempting PUT request to: ${linkUrl}`);
+               console.log("With Payload:", JSON.stringify(linkPayload)); 
+               
+               const linkRes = await fetch(linkUrl, { 
+                   method: 'PUT',
+                   headers: {
+                       ...linkHeaders,
+                       'Content-Type': 'application/json',
+                   },
+                   body: JSON.stringify(linkPayload),
+                   credentials: 'include',
+                });
+               
+               if (!linkRes.ok) {
+                   const errorBody = await linkRes.text();
+                   console.error('Link error response:', errorBody);
+                   throw new Error(
+                       `Failed to link initial post: ${linkRes.status} ${linkRes.statusText}`,
+                   );
+               }
+           } catch (linkError: any) {
+               console.error('Error linking initial forum post to Polycentric post:', linkError);
+               setCreateError(linkError.message?.includes('Failed to get challenge') 
+                               ? 'Failed to authenticate request. Please try again.' 
+                               : (linkError.message || 'Failed to link initial post.'));
+           }
+        } else {
+            // Log if linking skipped
+            console.log("Skipping linking step for initial post. Conditions:", {
+                 hasInitialPostId: !!initialForumPostId,
+                 hasPointer: !!polycentricPostPointer,
+                 hasServerUrl: !!serverUrl
+            });
         }
       }
+      // --- End Polycentric Cross-post & Link ---
 
+      // Success
       setIsComposing(false);
       setNewThreadTitle('');
       setNewThreadBody('');
