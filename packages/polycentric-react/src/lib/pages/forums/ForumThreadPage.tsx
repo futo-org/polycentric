@@ -15,10 +15,12 @@ import React, {
 } from 'react';
 import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
+import { ProfilePicture } from '../../components/profile/ProfilePicture';
+import { Link } from '../../components/util/link';
 import { Linkify } from '../../components/util/linkify';
-import { useBlobDisplayURL } from '../../hooks/imageHooks';
+import { useAvatar, useBlobDisplayURL } from '../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks';
-import { useUsernameCRDTQuery } from '../../hooks/queryHooks';
+import { useSystemLink, useUsernameCRDTQuery } from '../../hooks/queryHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
 import { useAuthHeaders } from '../../hooks/useAuthHeaders';
 import { useIsAdmin } from '../../hooks/useIsAdmin';
@@ -80,6 +82,7 @@ const PostItem: React.FC<PostItemProps> = ({
     key: post.author_id,
     keyType: Long.UONE,
   });
+  const authorAvatarUrl = useAvatar(authorPublicKey);
   const username = useUsernameCRDTQuery(authorPublicKey) || 'User';
   const postTime = new Date(post.created_at).toLocaleString();
   const postImage =
@@ -123,75 +126,80 @@ const PostItem: React.FC<PostItemProps> = ({
   const canDelete = isAdmin || isAuthor;
   // --- End Deletion Logic ---
 
+  const userFeedLink = useSystemLink(authorPublicKey);
+
   return (
-    <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200">
-      <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
-        <span>
-          Posted by <span className="font-medium">{username}</span>
-        </span>
-        <span>{postTime}</span>
+    <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200 grid grid-cols-[auto_1fr] gap-4">
+      {/* Left Column: Author Info */}
+      <div className="flex flex-col items-center space-y-2 pt-1 w-20 flex-shrink-0">
+        <Link
+          routerLink={userFeedLink}
+          className={!userFeedLink ? 'pointer-events-none cursor-default' : ''}
+        >
+          <ProfilePicture
+            src={authorAvatarUrl}
+            alt={`${username}'s profile picture`}
+            className="h-10 w-10 rounded-full"
+          />
+          <span className="text-xs text-center break-words mt-1">
+            {username}
+          </span>
+        </Link>
       </div>
-      {/* Display quoted post if it exists */}{' '}
-      {quotedPost && (
-        <blockquote className="border-l-4 border-gray-300 pl-3 py-2 mb-3 bg-gray-50 rounded-md">
-          <div className="text-sm text-gray-600 mb-1">
-            Quote by <span className="font-medium">{quotedUsername}</span>
-          </div>
-          {/* Render the quoted content safely */}{' '}
-          <div className="prose prose-sm max-w-none text-gray-800">
-            <Linkify
-              as="span" // Use appropriate wrapper element
-              className="" // Add necessary classes
-              content={quotedPost.content}
+
+      {/* Right Column: Post Content & Actions */}
+      <div className="min-w-0">
+        {/* Timestamp moved to top right */}
+        <div className="text-xs text-gray-500 mb-2 text-right">{postTime}</div>
+        {/* Existing Quote Block */}
+        {quotedPost && (
+          <blockquote className="border-l-4 border-gray-300 pl-3 py-2 mb-3 bg-gray-50 rounded-md">
+            <div className="text-sm text-gray-600 mb-1">
+              Quote by <span className="font-medium">{quotedUsername}</span>
+            </div>
+            <div className="prose prose-sm max-w-none text-gray-800">
+              <Linkify as="span" className="" content={quotedPost.content} />
+            </div>
+          </blockquote>
+        )}
+        {/* Existing Post Content */}
+        <div className="prose max-w-none mb-3">
+          <Linkify as="span" className="" content={displayContent} />
+        </div>
+        {/* Existing Image Display */}
+        {postImage && (
+          <div className="my-3">
+            <img
+              src={
+                serverUrl
+                  ? `${serverUrl}${postImage.image_url}`
+                  : postImage.image_url
+              }
+              alt={`Image for post ${post.id}`}
+              className="max-w-full h-auto rounded-md border border-gray-200"
             />
           </div>
-        </blockquote>
-      )}
-      {/* Display post content (only the reply part if it was a quote) */}
-      <div className="prose max-w-none mb-3">
-        <Linkify
-          as="span" // Use appropriate wrapper element
-          className="" // Add necessary classes
-          content={displayContent} // Use the separated content
-        />
-      </div>
-      {/* Display post image if it exists */}{' '}
-      {postImage && (
-        <div className="my-3">
-          <img
-            // Prepend the correct server base URL (passed as prop) to the relative image_url
-            src={
-              serverUrl
-                ? `${serverUrl}${postImage.image_url}`
-                : postImage.image_url
-            } // Handle null serverUrl
-            alt={`Image for post ${post.id}`}
-            className="max-w-full h-auto rounded-md border border-gray-200"
-            // TODO: Consider adding error handling or placeholder for broken images
-          />
-        </div>
-      )}
-      {/* Action buttons */}{' '}
-      <div className="flex justify-end items-center space-x-3">
-        {/* Delete Button */}
-        {canDelete && (
-          <button
-            onClick={() => onDelete(post.id)}
-            disabled={isDeleting} // Disable if any delete is in progress
-            className="p-1 text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Delete Post"
-          >
-            <Trash2 size={16} />
-          </button>
         )}
-        {/* Quote Button */}
-        <button
-          onClick={() => onQuote(post)}
-          disabled={isDeleting} // Also disable quote if deleting
-          className="text-sm text-blue-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Quote
-        </button>
+        {/* Actions moved to bottom */}
+        <div className="flex justify-end items-center space-x-3 pt-2 border-t border-gray-100 mt-3">
+          {canDelete && (
+            <button
+              onClick={() => onDelete(post.id)}
+              disabled={isDeleting}
+              className="p-1 text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Delete Post"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+          <button
+            onClick={() => onQuote(post)}
+            disabled={isDeleting}
+            className="text-sm text-blue-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Quote
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -584,9 +592,6 @@ export const ForumThreadPage: React.FC = () => {
     let freshPostData: ForumPost | null = null;
     try {
       // --- FETCH FRESH POST DATA ---
-      console.log(
-        `Fetching latest data for post ${postId} before delete checks...`,
-      );
       const freshDataUrl = `https://localhost:8080/forum/posts/${postId}`;
       const freshDataRes = await fetch(freshDataUrl);
       if (!freshDataRes.ok) {
@@ -596,10 +601,6 @@ export const ForumThreadPage: React.FC = () => {
         );
       }
       freshPostData = await freshDataRes.json();
-      console.log(
-        'Raw fresh post data fetched:',
-        JSON.stringify(freshPostData),
-      );
 
       // Convert types
       if (freshPostData) {
@@ -614,10 +615,6 @@ export const ForumThreadPage: React.FC = () => {
           try {
             freshPostData.polycentric_log_seq = Long.fromString(
               String(freshPostData.polycentric_log_seq),
-            );
-            console.log(
-              'Converted log_seq to Long:',
-              freshPostData.polycentric_log_seq,
             );
           } catch (e) {
             console.error('Error converting log_seq to Long:', e);
@@ -639,10 +636,6 @@ export const ForumThreadPage: React.FC = () => {
                 seqObj.low,
                 seqObj.high,
                 false,
-              ); // Assume signed
-              console.log(
-                'Re-created log_seq Long from object:',
-                freshPostData.polycentric_log_seq,
               );
             } else {
               throw new Error('log_seq object missing low/high properties');
@@ -668,16 +661,6 @@ export const ForumThreadPage: React.FC = () => {
               Buffer.from(freshPostData.author_id),
             )
           : false;
-
-      // --- LOG VALUES BEFORE CHECK ---
-      console.log('Values before Polycentric delete check:', {
-        isAuthor,
-        processId: freshPostData.polycentric_process_id,
-        logSeq: freshPostData.polycentric_log_seq,
-        logSeqType: typeof freshPostData.polycentric_log_seq,
-        logSeqIsLong: freshPostData.polycentric_log_seq instanceof Long,
-      });
-      // --- END LOG ---
 
       // 4. Attempt Polycentric Deletion using FRESH data
       if (
@@ -715,10 +698,6 @@ export const ForumThreadPage: React.FC = () => {
             }`,
           );
         }
-      } else {
-        console.log(
-          'Skipping Polycentric deletion - conditions not met on fresh data.',
-        ); // Simplified skip log
       }
 
       // 5. Attempt Forum Post Deletion
