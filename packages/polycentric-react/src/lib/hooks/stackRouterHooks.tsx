@@ -340,32 +340,32 @@ export function useParams<
     }
     // Manual extraction for the forum route /forums/:serverUrl/...
     else if (location && location.startsWith(forumPrefix)) {
-        const remainingPath = location.substring(forumPrefix.length);
-        const pathSegments = remainingPath.split('/');
-        params = {}; // Start with empty params
-        if (pathSegments.length >= 1) {
-            params['serverUrl'] = pathSegments[0];
-        }
-        if (pathSegments.length >= 2) {
-            params['categoryId'] = pathSegments[1];
-        }
-        if (pathSegments.length >= 3) {
-            params['boardId'] = pathSegments[2];
-        }
-        if (pathSegments.length >= 4) {
-            params['threadId'] = pathSegments[3];
-        }
-        if (pathSegments.length >= 5) {
-            params['postId'] = pathSegments[4];
-        }
+      const remainingPath = location.substring(forumPrefix.length);
+      const pathSegments = remainingPath.split('/');
+      params = {}; // Start with empty params
+      if (pathSegments.length >= 1) {
+        params['serverUrl'] = pathSegments[0];
+      }
+      if (pathSegments.length >= 2) {
+        params['categoryId'] = pathSegments[1];
+      }
+      if (pathSegments.length >= 3) {
+        params['boardId'] = pathSegments[2];
+      }
+      if (pathSegments.length >= 4) {
+        params['threadId'] = pathSegments[3];
+      }
+      if (pathSegments.length >= 5) {
+        params['postId'] = pathSegments[4];
+      }
     }
-    // --- ADDED: Manual extraction for the user feed route --- 
+    // --- ADDED: Manual extraction for the user feed route ---
     else if (location && location.startsWith(userFeedPrefix)) {
-        const extractedValue = location.substring(userFeedPrefix.length);
-        params = { urlInfoString: extractedValue }; // Assign to 'urlInfoString'
+      const extractedValue = location.substring(userFeedPrefix.length);
+      params = { urlInfoString: extractedValue }; // Assign to 'urlInfoString'
     }
-     // --- END ADDED BLOCK ---
-     else {
+    // --- END ADDED BLOCK ---
+    else {
       // Fallback to generic matching for other routes
       params = getParams(location);
     }

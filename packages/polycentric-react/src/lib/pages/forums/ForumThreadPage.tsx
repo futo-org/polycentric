@@ -6,7 +6,13 @@ import { base64 } from '@scure/base';
 import { Buffer } from 'buffer';
 import Long from 'long'; // Import Long
 import { Trash2 } from 'lucide-react'; // Added Trash2 icon
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
 import { Linkify } from '../../components/util/linkify';
@@ -110,9 +116,10 @@ const PostItem: React.FC<PostItemProps> = ({
   // --- End Separation Logic ---
 
   // --- Deletion Logic ---
-  const isAuthor = currentUserPubKey && post.author_id ? 
-                     Buffer.from(currentUserPubKey).equals(Buffer.from(post.author_id)) : 
-                     false;
+  const isAuthor =
+    currentUserPubKey && post.author_id
+      ? Buffer.from(currentUserPubKey).equals(Buffer.from(post.author_id))
+      : false;
   const canDelete = isAdmin || isAuthor;
   // --- End Deletion Logic ---
 
@@ -225,8 +232,16 @@ export const ForumThreadPage: React.FC = () => {
     : null;
 
   // -- Hooks for Admin/Auth --
-  const { isAdmin, loading: adminLoading, error: adminError } = useIsAdmin(serverUrl ?? '');
-  const { fetchHeaders, loading: headersLoading, error: headersError } = useAuthHeaders(serverUrl ?? '');
+  const {
+    isAdmin,
+    loading: adminLoading,
+    error: adminError,
+  } = useIsAdmin(serverUrl ?? '');
+  const {
+    fetchHeaders,
+    loading: headersLoading,
+    error: headersError,
+  } = useAuthHeaders(serverUrl ?? '');
 
   // -- quoting username logic --
   const quotingAuthorPublicKey = quotingPost
@@ -240,7 +255,7 @@ export const ForumThreadPage: React.FC = () => {
     ? quotingUsernameResult || 'User'
     : '';
 
-  // --- Get Polycentric Pointer Data from URL Query Params --- 
+  // --- Get Polycentric Pointer Data from URL Query Params ---
   const polycentricPointer = useMemo(() => {
     if (typeof window === 'undefined') {
       return { systemId: undefined, processId: undefined, logSeq: undefined };
@@ -255,27 +270,27 @@ export const ForumThreadPage: React.FC = () => {
     let logSeq: Long | undefined = undefined;
 
     try {
-        if (systemIdB64) systemId = base64.decode(systemIdB64);
-        if (processIdB64) processId = base64.decode(processIdB64);
-        if (logSeqStr) logSeq = Long.fromString(logSeqStr);
+      if (systemIdB64) systemId = base64.decode(systemIdB64);
+      if (processIdB64) processId = base64.decode(processIdB64);
+      if (logSeqStr) logSeq = Long.fromString(logSeqStr);
     } catch (e) {
-        console.error("Error parsing Polycentric pointer query params:", e);
-        return { systemId: undefined, processId: undefined, logSeq: undefined };
+      console.error('Error parsing Polycentric pointer query params:', e);
+      return { systemId: undefined, processId: undefined, logSeq: undefined };
     }
 
     if (systemId && processId && logSeq) {
-        return { systemId, processId, logSeq };
+      return { systemId, processId, logSeq };
     } else {
-        return { systemId: undefined, processId: undefined, logSeq: undefined };
+      return { systemId: undefined, processId: undefined, logSeq: undefined };
     }
-  }, []); 
+  }, []);
 
-  const { 
-      systemId: polycentricSystemId, 
-      processId: polycentricProcessId, 
-      logSeq: polycentricLogSeq 
+  const {
+    systemId: polycentricSystemId,
+    processId: polycentricProcessId,
+    logSeq: polycentricLogSeq,
   } = polycentricPointer;
-  // --- End Pointer Data --- 
+  // --- End Pointer Data ---
 
   const fetchThreadData = useCallback(async () => {
     if (!serverUrl || !threadId) {
@@ -364,11 +379,12 @@ export const ForumThreadPage: React.FC = () => {
     let forumPostId: string | null = null; // Variable to store the new forum post ID
 
     try {
-      // --- Create Forum Post --- 
+      // --- Create Forum Post ---
       // 1. Get Challenge
       const challengeUrl = `https://localhost:8080/forum/auth/challenge`;
       const challengeRes = await fetch(challengeUrl);
-      if (!challengeRes.ok) throw new Error(`Challenge fetch failed: ${challengeRes.statusText}`);
+      if (!challengeRes.ok)
+        throw new Error(`Challenge fetch failed: ${challengeRes.statusText}`);
       const { challenge_id, nonce_base64 } = await challengeRes.json();
       const nonce = base64.decode(nonce_base64);
 
@@ -390,14 +406,21 @@ export const ForumThreadPage: React.FC = () => {
       // 4. Create FormData Body
       const formData = new FormData();
       formData.append('content', newPostBody.trim());
-      if (newPostImage) formData.append('image', newPostImage, newPostImage.name);
+      if (newPostImage)
+        formData.append('image', newPostImage, newPostImage.name);
       if (quotingPost) formData.append('quote_of', quotingPost.id);
       // Add polycentric pointers IF the thread itself was linked (passed via query params)
       if (polycentricSystemId && polycentricProcessId && polycentricLogSeq) {
-          const logSeqValue: Long = polycentricLogSeq;
-          formData.append('polycentric_system_id', base64.encode(polycentricSystemId));
-          formData.append('polycentric_process_id', base64.encode(polycentricProcessId));
-          formData.append('polycentric_log_seq', logSeqValue.toString());
+        const logSeqValue: Long = polycentricLogSeq;
+        formData.append(
+          'polycentric_system_id',
+          base64.encode(polycentricSystemId),
+        );
+        formData.append(
+          'polycentric_process_id',
+          base64.encode(polycentricProcessId),
+        );
+        formData.append('polycentric_log_seq', logSeqValue.toString());
       }
 
       // 5. POST Request
@@ -411,15 +434,18 @@ export const ForumThreadPage: React.FC = () => {
       if (!createRes.ok) {
         const errorBody = await createRes.text();
         console.error('Create forum post error:', errorBody);
-        throw new Error(`Failed to create forum post: ${createRes.status} ${createRes.statusText}`);
+        throw new Error(
+          `Failed to create forum post: ${createRes.status} ${createRes.statusText}`,
+        );
       }
 
       const newForumPost: ForumPost = await createRes.json();
       forumPostId = newForumPost.id; // Store the ID
 
-      // --- Polycentric Cross-post & Link --- 
+      // --- Polycentric Cross-post & Link ---
       if (postToProfile) {
-        let polycentricPostPointer: Models.Pointer.Pointer | undefined = undefined;
+        let polycentricPostPointer: Models.Pointer.Pointer | undefined =
+          undefined;
         try {
           // Construct content for Polycentric
           const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${threadId}/${forumPostId}`;
@@ -427,60 +453,85 @@ export const ForumThreadPage: React.FC = () => {
           const replyText = newPostBody.trim();
           const linkText = `[View on Forum](${forumLinkPath})`;
           if (quotingPost) {
-            const quotedTextFormatted = quotingPost.content.split('\n').map(line => `> ${line}`).join('\n');
+            const quotedTextFormatted = quotingPost.content
+              .split('\n')
+              .map((line) => `> ${line}`)
+              .join('\n');
             polycentricContent = `${quotedTextFormatted}\n\n${replyText}\n\n${linkText}`;
           } else {
             polycentricContent = `${replyText}\n\n${linkText}`;
           }
 
           // Create the Polycentric post AND capture the result (assuming it returns Pointer)
-          const signedEventResult = await processHandle.post(polycentricContent); 
+          const signedEventResult =
+            await processHandle.post(polycentricContent);
 
           // Assign the result directly if it's the pointer
           if (signedEventResult) {
-              polycentricPostPointer = signedEventResult; 
+            polycentricPostPointer = signedEventResult;
           } else {
-              console.warn("processHandle.post did not return the pointer. Cannot link.");
-              polycentricPostPointer = undefined; 
+            console.warn(
+              'processHandle.post did not return the pointer. Cannot link.',
+            );
+            polycentricPostPointer = undefined;
           }
-                    
         } catch (profilePostError) {
-          console.error('Failed to post reply to Polycentric profile:', profilePostError);
+          console.error(
+            'Failed to post reply to Polycentric profile:',
+            profilePostError,
+          );
           setPostError('Reply posted, but failed to post to your profile.');
-          polycentricPostPointer = undefined; 
+          polycentricPostPointer = undefined;
         }
 
         // --- Link Forum Post to Polycentric Post (if pointer was retrieved) ---
-        if (forumPostId && polycentricPostPointer && serverUrl) { 
-           try {
-               const linkHeaders = await fetchHeaders();
-               if (!linkHeaders) throw new Error("Authentication headers unavailable for linking.");
+        if (forumPostId && polycentricPostPointer && serverUrl) {
+          try {
+            const linkHeaders = await fetchHeaders();
+            if (!linkHeaders)
+              throw new Error(
+                'Authentication headers unavailable for linking.',
+              );
 
-               const linkUrl = `https://localhost:8080/forum/posts/${forumPostId}/link-polycentric`;
-               const linkPayload = {
-                   polycentric_system_id_b64: base64.encode(polycentricPostPointer.system.key),
-                   polycentric_process_id_b64: base64.encode(polycentricPostPointer.process.process),
-                   polycentric_log_seq: polycentricPostPointer.logicalClock.toNumber(),
-               };
-               const linkRes = await fetch(linkUrl, {
-                   method: 'PUT',
-                   headers: {
-                       ...linkHeaders,
-                       'Content-Type': 'application/json',
-                   },
-                   body: JSON.stringify(linkPayload),
-                   credentials: 'include',
-               });
+            const linkUrl = `https://localhost:8080/forum/posts/${forumPostId}/link-polycentric`;
+            const linkPayload = {
+              polycentric_system_id_b64: base64.encode(
+                polycentricPostPointer.system.key,
+              ),
+              polycentric_process_id_b64: base64.encode(
+                polycentricPostPointer.process.process,
+              ),
+              polycentric_log_seq:
+                polycentricPostPointer.logicalClock.toNumber(),
+            };
+            const linkRes = await fetch(linkUrl, {
+              method: 'PUT',
+              headers: {
+                ...linkHeaders,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(linkPayload),
+              credentials: 'include',
+            });
 
-               if (!linkRes.ok) {
-                   const linkErrorBody = await linkRes.text();
-                   console.error('Link post error body:', linkErrorBody); 
-                   throw new Error(`Failed to link forum post: ${linkRes.status} ${linkRes.statusText}`);
-               }
-           } catch (linkError: any) {
-               console.error('Error linking forum post to Polycentric post:', linkError);
-               setPostError(postError ? `${postError} | Link failed: ${linkError.message}` : `Post created, but failed to link to profile post: ${linkError.message}`);
-           }
+            if (!linkRes.ok) {
+              const linkErrorBody = await linkRes.text();
+              console.error('Link post error body:', linkErrorBody);
+              throw new Error(
+                `Failed to link forum post: ${linkRes.status} ${linkRes.statusText}`,
+              );
+            }
+          } catch (linkError: any) {
+            console.error(
+              'Error linking forum post to Polycentric post:',
+              linkError,
+            );
+            setPostError(
+              postError
+                ? `${postError} | Link failed: ${linkError.message}`
+                : `Post created, but failed to link to profile post: ${linkError.message}`,
+            );
+          }
         }
       }
       // --- End Polycentric Cross-post & Link ---
@@ -488,10 +539,10 @@ export const ForumThreadPage: React.FC = () => {
       // 6. Success
       setNewPostBody('');
       setNewPostImage(undefined); // Corrected function name
-      setQuotingPost(null); 
+      setQuotingPost(null);
       setIsComposing(false);
-      setPostToProfile(false); 
-      await fetchThreadData(); 
+      setPostToProfile(false);
+      await fetchThreadData();
     } catch (err: any) {
       console.error('Error creating post:', err);
       setPostError(err.message || 'An unknown error occurred.');
@@ -514,114 +565,166 @@ export const ForumThreadPage: React.FC = () => {
   // --- Delete Post Handler (Re-add Debugging) ---
   const handleDeletePost = async (postId: string) => {
     // Use post from state for initial confirmation message only
-    const postForConfirmation = posts.find(p => p.id === postId);
-    const postSnippet = postForConfirmation ? `"${postForConfirmation.content.substring(0, 50)}..."` : "this post";
-    if (!window.confirm(`Are you sure you want to delete ${postSnippet}? This action cannot be undone.`)) {
+    const postForConfirmation = posts.find((p) => p.id === postId);
+    const postSnippet = postForConfirmation
+      ? `"${postForConfirmation.content.substring(0, 50)}..."`
+      : 'this post';
+    if (
+      !window.confirm(
+        `Are you sure you want to delete ${postSnippet}? This action cannot be undone.`,
+      )
+    ) {
       return;
     }
 
     setDeletingPostId(postId);
     setDeletePostError(null);
     let polycentricDeleteAttempted = false;
-    let polycentricDeleteSuccess = true; 
-    let freshPostData: ForumPost | null = null; 
+    let polycentricDeleteSuccess = true;
+    let freshPostData: ForumPost | null = null;
     try {
-      // --- FETCH FRESH POST DATA --- 
-      console.log(`Fetching latest data for post ${postId} before delete checks...`);
+      // --- FETCH FRESH POST DATA ---
+      console.log(
+        `Fetching latest data for post ${postId} before delete checks...`,
+      );
       const freshDataUrl = `https://localhost:8080/forum/posts/${postId}`;
       const freshDataRes = await fetch(freshDataUrl);
       if (!freshDataRes.ok) {
-          const errorText = await freshDataRes.text();
-          throw new Error(`Failed to fetch fresh post data (${freshDataRes.status}): ${errorText}`);
+        const errorText = await freshDataRes.text();
+        throw new Error(
+          `Failed to fetch fresh post data (${freshDataRes.status}): ${errorText}`,
+        );
       }
       freshPostData = await freshDataRes.json();
-      console.log("Raw fresh post data fetched:", JSON.stringify(freshPostData));
-      
+      console.log(
+        'Raw fresh post data fetched:',
+        JSON.stringify(freshPostData),
+      );
+
       // Convert types
       if (freshPostData) {
-           // @ts-ignore
-           const authorIdArray: number[] = freshPostData.author_id || [];
-           freshPostData.author_id = new Uint8Array(authorIdArray);
-           
-           if (typeof freshPostData.polycentric_log_seq === 'number' || typeof freshPostData.polycentric_log_seq === 'string') {
-               try {
-                 freshPostData.polycentric_log_seq = Long.fromString(String(freshPostData.polycentric_log_seq));
-                 console.log("Converted log_seq to Long:", freshPostData.polycentric_log_seq);
-               } catch (e) { 
-                   console.error("Error converting log_seq to Long:", e);
-                   freshPostData.polycentric_log_seq = undefined; 
-               }
-           } else if (freshPostData.polycentric_log_seq && !(freshPostData.polycentric_log_seq instanceof Long)) {
-               // If it exists but is not Long (e.g., maybe already an object {low, high}), try creating Long from it
-               try {
-                   // Assuming it might be {low, high, unsigned} from JSON parse
-                   const seqObj = freshPostData.polycentric_log_seq as any; 
-                   if (typeof seqObj?.low === 'number' && typeof seqObj?.high === 'number') {
-                       freshPostData.polycentric_log_seq = new Long(seqObj.low, seqObj.high, false); // Assume signed
-                       console.log("Re-created log_seq Long from object:", freshPostData.polycentric_log_seq);
-                   } else {
-                       throw new Error('log_seq object missing low/high properties');
-                   }
-               } catch (e) {
-                   console.error("Error re-creating log_seq Long from object:", e);
-                   freshPostData.polycentric_log_seq = undefined; 
-               }
-           } else if (freshPostData.polycentric_log_seq === null) {
-               freshPostData.polycentric_log_seq = undefined; // Treat null as undefined
-           }
+        // @ts-ignore
+        const authorIdArray: number[] = freshPostData.author_id || [];
+        freshPostData.author_id = new Uint8Array(authorIdArray);
+
+        if (
+          typeof freshPostData.polycentric_log_seq === 'number' ||
+          typeof freshPostData.polycentric_log_seq === 'string'
+        ) {
+          try {
+            freshPostData.polycentric_log_seq = Long.fromString(
+              String(freshPostData.polycentric_log_seq),
+            );
+            console.log(
+              'Converted log_seq to Long:',
+              freshPostData.polycentric_log_seq,
+            );
+          } catch (e) {
+            console.error('Error converting log_seq to Long:', e);
+            freshPostData.polycentric_log_seq = undefined;
+          }
+        } else if (
+          freshPostData.polycentric_log_seq &&
+          !(freshPostData.polycentric_log_seq instanceof Long)
+        ) {
+          // If it exists but is not Long (e.g., maybe already an object {low, high}), try creating Long from it
+          try {
+            // Assuming it might be {low, high, unsigned} from JSON parse
+            const seqObj = freshPostData.polycentric_log_seq as any;
+            if (
+              typeof seqObj?.low === 'number' &&
+              typeof seqObj?.high === 'number'
+            ) {
+              freshPostData.polycentric_log_seq = new Long(
+                seqObj.low,
+                seqObj.high,
+                false,
+              ); // Assume signed
+              console.log(
+                'Re-created log_seq Long from object:',
+                freshPostData.polycentric_log_seq,
+              );
+            } else {
+              throw new Error('log_seq object missing low/high properties');
+            }
+          } catch (e) {
+            console.error('Error re-creating log_seq Long from object:', e);
+            freshPostData.polycentric_log_seq = undefined;
+          }
+        } else if (freshPostData.polycentric_log_seq === null) {
+          freshPostData.polycentric_log_seq = undefined; // Treat null as undefined
+        }
       }
-      
+
       if (!freshPostData) {
-          throw new Error("Could not retrieve post data for deletion checks.");
+        throw new Error('Could not retrieve post data for deletion checks.');
       }
 
       // Re-check authorship
       const currentUserPubKey = processHandle?.system()?.key;
-      const isAuthor = currentUserPubKey && freshPostData.author_id ? 
-                         Buffer.from(currentUserPubKey).equals(Buffer.from(freshPostData.author_id)) : 
-                         false;
+      const isAuthor =
+        currentUserPubKey && freshPostData.author_id
+          ? Buffer.from(currentUserPubKey).equals(
+              Buffer.from(freshPostData.author_id),
+            )
+          : false;
 
-      // --- LOG VALUES BEFORE CHECK --- 
-      console.log("Values before Polycentric delete check:", {
-          isAuthor,
-          processId: freshPostData.polycentric_process_id,
-          logSeq: freshPostData.polycentric_log_seq,
-          logSeqType: typeof freshPostData.polycentric_log_seq,
-          logSeqIsLong: freshPostData.polycentric_log_seq instanceof Long,
+      // --- LOG VALUES BEFORE CHECK ---
+      console.log('Values before Polycentric delete check:', {
+        isAuthor,
+        processId: freshPostData.polycentric_process_id,
+        logSeq: freshPostData.polycentric_log_seq,
+        logSeqType: typeof freshPostData.polycentric_log_seq,
+        logSeqIsLong: freshPostData.polycentric_log_seq instanceof Long,
       });
       // --- END LOG ---
 
       // 4. Attempt Polycentric Deletion using FRESH data
-      if (isAuthor && 
-          freshPostData.polycentric_process_id && 
-          freshPostData.polycentric_log_seq) { // Check if logSeq is now a valid Long object
-          
-          polycentricDeleteAttempted = true;
-          try {
-              if (!processHandle) throw new Error("Process handle unavailable...");
-              if (!freshPostData.polycentric_process_id) throw new Error("Missing process ID..."); 
-              if (!freshPostData.polycentric_log_seq) throw new Error("Missing log sequence...");
+      if (
+        isAuthor &&
+        freshPostData.polycentric_process_id &&
+        freshPostData.polycentric_log_seq
+      ) {
+        // Check if logSeq is now a valid Long object
 
-              const processToDelete = Models.Process.fromProto({ process: freshPostData.polycentric_process_id });
+        polycentricDeleteAttempted = true;
+        try {
+          if (!processHandle) throw new Error('Process handle unavailable...');
+          if (!freshPostData.polycentric_process_id)
+            throw new Error('Missing process ID...');
+          if (!freshPostData.polycentric_log_seq)
+            throw new Error('Missing log sequence...');
 
-              await processHandle.delete(
-                  processToDelete, 
-                  freshPostData.polycentric_log_seq // Use Long from freshPostData
-              );
-              
-          } catch (polyError: any) {
-              console.error(`Polycentric deletion failed for post ${postId}:`, polyError);
-              polycentricDeleteSuccess = false;
-              setDeletePostError(`Forum post deleted, but failed to delete corresponding Polycentric post: ${polyError.message || 'Unknown error'}`);
-          }
+          const processToDelete = Models.Process.fromProto({
+            process: freshPostData.polycentric_process_id,
+          });
+
+          await processHandle.delete(
+            processToDelete,
+            freshPostData.polycentric_log_seq, // Use Long from freshPostData
+          );
+        } catch (polyError: any) {
+          console.error(
+            `Polycentric deletion failed for post ${postId}:`,
+            polyError,
+          );
+          polycentricDeleteSuccess = false;
+          setDeletePostError(
+            `Forum post deleted, but failed to delete corresponding Polycentric post: ${
+              polyError.message || 'Unknown error'
+            }`,
+          );
+        }
       } else {
-           console.log("Skipping Polycentric deletion - conditions not met on fresh data."); // Simplified skip log
+        console.log(
+          'Skipping Polycentric deletion - conditions not met on fresh data.',
+        ); // Simplified skip log
       }
 
       // 5. Attempt Forum Post Deletion
-      const authHeaders = await fetchHeaders(); 
+      const authHeaders = await fetchHeaders();
       if (!authHeaders) {
-        throw new Error("Could not get authentication headers to delete post.");
+        throw new Error('Could not get authentication headers to delete post.');
       }
       const deleteUrl = `https://localhost:8080/forum/posts/${postId}`;
       const response = await fetch(deleteUrl, {
@@ -630,30 +733,31 @@ export const ForumThreadPage: React.FC = () => {
         credentials: 'include',
       });
       if (!response.ok) {
-         let errorText = `Failed to delete forum post (Status: ${response.status})`;
-         try { errorText = (await response.text()) || errorText; } catch (_) {}
-         console.error("Forum post deletion error:", errorText);
-         if (!polycentricDeleteAttempted || polycentricDeleteSuccess) {
-             setDeletePostError(errorText); 
-         }
-         throw new Error(errorText);
+        let errorText = `Failed to delete forum post (Status: ${response.status})`;
+        try {
+          errorText = (await response.text()) || errorText;
+        } catch (_) {}
+        console.error('Forum post deletion error:', errorText);
+        if (!polycentricDeleteAttempted || polycentricDeleteSuccess) {
+          setDeletePostError(errorText);
+        }
+        throw new Error(errorText);
       }
 
       // Success
       if (polycentricDeleteSuccess) {
-        setDeletePostError(null); 
+        setDeletePostError(null);
       }
       await fetchThreadData(); // Refetch list after successful forum delete
-
     } catch (err: any) {
-       // Outer error handler: includes errors from fetching fresh data or forum delete
-       console.error(`Error during deletion process for post ${postId}:`, err);
-       // Avoid overwriting specific Polycentric error if forum delete also failed
-       if (!polycentricDeleteAttempted || polycentricDeleteSuccess) {
-           setDeletePostError(err.message || 'Failed to delete post.');
-       }
+      // Outer error handler: includes errors from fetching fresh data or forum delete
+      console.error(`Error during deletion process for post ${postId}:`, err);
+      // Avoid overwriting specific Polycentric error if forum delete also failed
+      if (!polycentricDeleteAttempted || polycentricDeleteSuccess) {
+        setDeletePostError(err.message || 'Failed to delete post.');
+      }
     } finally {
-      setDeletingPostId(null); 
+      setDeletingPostId(null);
     }
   };
   // --- End Delete Post Handler ---
@@ -668,7 +772,7 @@ export const ForumThreadPage: React.FC = () => {
   // Combined loading/busy/error states
   const hooksAreLoading = !!serverUrl && (adminLoading || headersLoading);
   const isBusy = loading || hooksAreLoading || isPosting || !!deletingPostId;
-  const hookErrors = !!serverUrl ? (adminError || headersError) : null;
+  const hookErrors = !!serverUrl ? adminError || headersError : null;
   const displayError = error || hookErrors || postError || deletePostError;
 
   return (
@@ -820,9 +924,7 @@ export const ForumThreadPage: React.FC = () => {
                         <button
                           onClick={handlePostSubmit}
                           className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled={
-                            !newPostBody.trim() || isBusy
-                          }
+                          disabled={!newPostBody.trim() || isBusy}
                         >
                           {isPosting ? 'Posting...' : 'Post Reply'}
                         </button>
@@ -833,7 +935,12 @@ export const ForumThreadPage: React.FC = () => {
                   <div className="flex justify-start">
                     <button
                       onClick={() => setIsComposing(true)}
-                      disabled={isBusy || adminError !== null || !processHandle || !serverUrl}
+                      disabled={
+                        isBusy ||
+                        adminError !== null ||
+                        !processHandle ||
+                        !serverUrl
+                      }
                       className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Post Reply

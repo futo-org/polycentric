@@ -6,7 +6,13 @@ import { base64 } from '@scure/base';
 import { Buffer } from 'buffer';
 import Long from 'long';
 import { Trash2 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
 import { Link } from '../../components/util/link';
@@ -73,16 +79,26 @@ export const ForumBoardPage: React.FC = () => {
   const [postToProfile, setPostToProfile] = useState(false);
 
   const [deletingThreadId, setDeletingThreadId] = useState<string | null>(null);
-  const [deleteThreadError, setDeleteThreadError] = useState<string | null>(null);
+  const [deleteThreadError, setDeleteThreadError] = useState<string | null>(
+    null,
+  );
 
   const serverUrl = encodedServerUrl
     ? decodeURIComponent(encodedServerUrl)
     : null;
 
-  const { isAdmin, loading: adminLoading, error: adminError } = useIsAdmin(serverUrl ?? '');
-  const { fetchHeaders, loading: headersLoading, error: headersError } = useAuthHeaders(serverUrl ?? '');
-  
-  // --- Get Polycentric Pointer Data from URL Query Params --- 
+  const {
+    isAdmin,
+    loading: adminLoading,
+    error: adminError,
+  } = useIsAdmin(serverUrl ?? '');
+  const {
+    fetchHeaders,
+    loading: headersLoading,
+    error: headersError,
+  } = useAuthHeaders(serverUrl ?? '');
+
+  // --- Get Polycentric Pointer Data from URL Query Params ---
   const polycentricPointer = useMemo(() => {
     // Ensure window is defined (for SSR safety, though likely not needed here)
     if (typeof window === 'undefined') {
@@ -98,29 +114,29 @@ export const ForumBoardPage: React.FC = () => {
     let logSeq: Long | undefined = undefined;
 
     try {
-        if (systemIdB64) systemId = base64.decode(systemIdB64);
-        if (processIdB64) processId = base64.decode(processIdB64);
-        if (logSeqStr) logSeq = Long.fromString(logSeqStr);
+      if (systemIdB64) systemId = base64.decode(systemIdB64);
+      if (processIdB64) processId = base64.decode(processIdB64);
+      if (logSeqStr) logSeq = Long.fromString(logSeqStr);
     } catch (e) {
-        console.error("Error parsing Polycentric pointer query params:", e);
-        // Reset if any part fails parsing
-        return { systemId: undefined, processId: undefined, logSeq: undefined };
+      console.error('Error parsing Polycentric pointer query params:', e);
+      // Reset if any part fails parsing
+      return { systemId: undefined, processId: undefined, logSeq: undefined };
     }
 
     // Return undefined for all if any part is missing (require all or nothing)
     if (systemId && processId && logSeq) {
-        return { systemId, processId, logSeq };
+      return { systemId, processId, logSeq };
     } else {
-        return { systemId: undefined, processId: undefined, logSeq: undefined };
+      return { systemId: undefined, processId: undefined, logSeq: undefined };
     }
   }, []); // Empty dependency array means this runs once on mount
 
-  const { 
-      systemId: polycentricSystemId, 
-      processId: polycentricProcessId, 
-      logSeq: polycentricLogSeq 
+  const {
+    systemId: polycentricSystemId,
+    processId: polycentricProcessId,
+    logSeq: polycentricLogSeq,
   } = polycentricPointer;
-  // --- End Pointer Data --- 
+  // --- End Pointer Data ---
 
   const fetchBoardData = useCallback(async () => {
     if (!serverUrl || !boardId) {
@@ -157,10 +173,12 @@ export const ForumBoardPage: React.FC = () => {
 
       const fetchedThreadsJSON: ForumThread[] = await threadsResponse.json();
 
-      const convertedThreads: FetchedForumThread[] = fetchedThreadsJSON.map((thread) => ({
-        ...thread,
-        created_by: new Uint8Array(thread.created_by),
-      }));
+      const convertedThreads: FetchedForumThread[] = fetchedThreadsJSON.map(
+        (thread) => ({
+          ...thread,
+          created_by: new Uint8Array(thread.created_by),
+        }),
+      );
 
       setThreads(convertedThreads);
     } catch (fetchError: any) {
@@ -177,7 +195,7 @@ export const ForumBoardPage: React.FC = () => {
       fetchBoardData();
     } else {
       setLoading(false);
-      setError("Server URL not provided.");
+      setError('Server URL not provided.');
       setThreads([]);
     }
   }, [fetchBoardData, serverUrl]);
@@ -192,7 +210,13 @@ export const ForumBoardPage: React.FC = () => {
   };
 
   const handleCreateThreadSubmit = async () => {
-    if (!processHandle || !serverUrl || !boardId || !newThreadTitle.trim() || !newThreadBody.trim()) {
+    if (
+      !processHandle ||
+      !serverUrl ||
+      !boardId ||
+      !newThreadTitle.trim() ||
+      !newThreadBody.trim()
+    ) {
       setCreateError('Missing necessary information, title, or body.');
       return;
     }
@@ -236,10 +260,16 @@ export const ForumBoardPage: React.FC = () => {
 
       // Add Polycentric pointers if available (for linking thread itself, if needed later)
       if (polycentricSystemId && polycentricProcessId && polycentricLogSeq) {
-          const logSeqValue: Long = polycentricLogSeq;
-          formData.append('polycentric_system_id', base64.encode(polycentricSystemId));
-          formData.append('polycentric_process_id', base64.encode(polycentricProcessId));
-          formData.append('polycentric_log_seq', logSeqValue.toString());
+        const logSeqValue: Long = polycentricLogSeq;
+        formData.append(
+          'polycentric_system_id',
+          base64.encode(polycentricSystemId),
+        );
+        formData.append(
+          'polycentric_process_id',
+          base64.encode(polycentricProcessId),
+        );
+        formData.append('polycentric_log_seq', logSeqValue.toString());
       }
 
       const createThreadUrl = `https://localhost:8080/forum/boards/${boardId}/threads`;
@@ -262,87 +292,107 @@ export const ForumBoardPage: React.FC = () => {
       newForumThreadId = createResponseData.thread.id;
       initialForumPostId = createResponseData.initial_post_id; // Store initial post ID
 
-      // --- Polycentric Cross-post & Link --- 
+      // --- Polycentric Cross-post & Link ---
       if (postToProfile) {
-        let polycentricPostPointer: Models.Pointer.Pointer | undefined = undefined;
+        let polycentricPostPointer: Models.Pointer.Pointer | undefined =
+          undefined;
         try {
-            // Construct content for Polycentric post (using newForumThreadId)
-            const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${newForumThreadId}`;
-            let polycentricContent = '';
-            if (polycentricSystemId) {
-              polycentricContent = `Started new forum thread: ${newThreadTitle.trim()}\n\n[View on Forum](${forumLinkPath})`;
-            } else {
-              polycentricContent = `${newThreadTitle.trim()}\n\n${newThreadBody.trim()}\n\n[View on Forum](${forumLinkPath})`;
-            }
-            
-            // Create Polycentric post and get pointer
-            const signedEventResult = await processHandle.post(polycentricContent); 
-            if (signedEventResult) {
-                polycentricPostPointer = signedEventResult;
-            } else {
-                console.warn("processHandle.post did not return the pointer. Cannot link.");
-                polycentricPostPointer = undefined;
-            }
+          // Construct content for Polycentric post (using newForumThreadId)
+          const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${newForumThreadId}`;
+          let polycentricContent = '';
+          if (polycentricSystemId) {
+            polycentricContent = `Started new forum thread: ${newThreadTitle.trim()}\n\n[View on Forum](${forumLinkPath})`;
+          } else {
+            polycentricContent = `${newThreadTitle.trim()}\n\n${newThreadBody.trim()}\n\n[View on Forum](${forumLinkPath})`;
+          }
+
+          // Create Polycentric post and get pointer
+          const signedEventResult =
+            await processHandle.post(polycentricContent);
+          if (signedEventResult) {
+            polycentricPostPointer = signedEventResult;
+          } else {
+            console.warn(
+              'processHandle.post did not return the pointer. Cannot link.',
+            );
+            polycentricPostPointer = undefined;
+          }
         } catch (profilePostError) {
-            console.error(
-              'Failed to post to Polycentric profile:',
-              profilePostError,
-            );
-            setCreateError(
-              'Thread created, but failed to post to your profile. Please try posting manually.',
-            );
+          console.error(
+            'Failed to post to Polycentric profile:',
+            profilePostError,
+          );
+          setCreateError(
+            'Thread created, but failed to post to your profile. Please try posting manually.',
+          );
         }
 
         // --- Link Initial Forum Post to Polycentric Post ---
-        if (initialForumPostId && polycentricPostPointer && serverUrl) { 
-           try {
-               console.log(`Linking initial forum post ${initialForumPostId} to Polycentric pointer:`, polycentricPostPointer);
-               const linkHeaders = await fetchHeaders();
-               if (!linkHeaders) throw new Error("Authentication headers unavailable for linking.");
+        if (initialForumPostId && polycentricPostPointer && serverUrl) {
+          try {
+            console.log(
+              `Linking initial forum post ${initialForumPostId} to Polycentric pointer:`,
+              polycentricPostPointer,
+            );
+            const linkHeaders = await fetchHeaders();
+            if (!linkHeaders)
+              throw new Error(
+                'Authentication headers unavailable for linking.',
+              );
 
-               const linkUrl = `https://localhost:8080/forum/posts/${initialForumPostId}/link-polycentric`; 
-               
-               // --- Construct the payload correctly --- 
-               const linkPayload = {
-                   polycentric_system_id_b64: base64.encode(polycentricPostPointer.system.key),
-                   polycentric_process_id_b64: base64.encode(polycentricPostPointer.process.process),
-                   polycentric_log_seq: polycentricPostPointer.logicalClock.toNumber(), // Send as number
-               };
-               // --- End Construct Payload --- 
-               
-               console.log(`Attempting PUT request to: ${linkUrl}`);
-               console.log("With Payload:", JSON.stringify(linkPayload)); 
-               
-               const linkRes = await fetch(linkUrl, { 
-                   method: 'PUT',
-                   headers: {
-                       ...linkHeaders,
-                       'Content-Type': 'application/json',
-                   },
-                   body: JSON.stringify(linkPayload),
-                   credentials: 'include',
-                });
-               
-               if (!linkRes.ok) {
-                   const errorBody = await linkRes.text();
-                   console.error('Link error response:', errorBody);
-                   throw new Error(
-                       `Failed to link initial post: ${linkRes.status} ${linkRes.statusText}`,
-                   );
-               }
-           } catch (linkError: any) {
-               console.error('Error linking initial forum post to Polycentric post:', linkError);
-               setCreateError(linkError.message?.includes('Failed to get challenge') 
-                               ? 'Failed to authenticate request. Please try again.' 
-                               : (linkError.message || 'Failed to link initial post.'));
-           }
-        } else {
-            // Log if linking skipped
-            console.log("Skipping linking step for initial post. Conditions:", {
-                 hasInitialPostId: !!initialForumPostId,
-                 hasPointer: !!polycentricPostPointer,
-                 hasServerUrl: !!serverUrl
+            const linkUrl = `https://localhost:8080/forum/posts/${initialForumPostId}/link-polycentric`;
+
+            // --- Construct the payload correctly ---
+            const linkPayload = {
+              polycentric_system_id_b64: base64.encode(
+                polycentricPostPointer.system.key,
+              ),
+              polycentric_process_id_b64: base64.encode(
+                polycentricPostPointer.process.process,
+              ),
+              polycentric_log_seq:
+                polycentricPostPointer.logicalClock.toNumber(), // Send as number
+            };
+            // --- End Construct Payload ---
+
+            console.log(`Attempting PUT request to: ${linkUrl}`);
+            console.log('With Payload:', JSON.stringify(linkPayload));
+
+            const linkRes = await fetch(linkUrl, {
+              method: 'PUT',
+              headers: {
+                ...linkHeaders,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(linkPayload),
+              credentials: 'include',
             });
+
+            if (!linkRes.ok) {
+              const errorBody = await linkRes.text();
+              console.error('Link error response:', errorBody);
+              throw new Error(
+                `Failed to link initial post: ${linkRes.status} ${linkRes.statusText}`,
+              );
+            }
+          } catch (linkError: any) {
+            console.error(
+              'Error linking initial forum post to Polycentric post:',
+              linkError,
+            );
+            setCreateError(
+              linkError.message?.includes('Failed to get challenge')
+                ? 'Failed to authenticate request. Please try again.'
+                : linkError.message || 'Failed to link initial post.',
+            );
+          }
+        } else {
+          // Log if linking skipped
+          console.log('Skipping linking step for initial post. Conditions:', {
+            hasInitialPostId: !!initialForumPostId,
+            hasPointer: !!polycentricPostPointer,
+            hasServerUrl: !!serverUrl,
+          });
         }
       }
       // --- End Polycentric Cross-post & Link ---
@@ -356,9 +406,12 @@ export const ForumBoardPage: React.FC = () => {
       await fetchBoardData();
     } catch (err: any) {
       console.error('Error creating thread:', err);
-      setCreateError(err.message?.includes('Failed to get challenge') 
-                     ? 'Failed to authenticate request. Please try again.' 
-                     : (err.message || 'An unknown error occurred while creating the thread.'));
+      setCreateError(
+        err.message?.includes('Failed to get challenge')
+          ? 'Failed to authenticate request. Please try again.'
+          : err.message ||
+              'An unknown error occurred while creating the thread.',
+      );
     } finally {
       setIsCreatingThread(false);
     }
@@ -376,11 +429,17 @@ export const ForumBoardPage: React.FC = () => {
 
   const handleDeleteThread = async (threadId: string, threadTitle: string) => {
     if (!serverUrl || typeof fetchHeaders !== 'function') {
-      setDeleteThreadError("Cannot delete thread: Missing URL or authentication function.");
+      setDeleteThreadError(
+        'Cannot delete thread: Missing URL or authentication function.',
+      );
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to delete the thread "${threadTitle}"? This action cannot be undone.`)) {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete the thread "${threadTitle}"? This action cannot be undone.`,
+      )
+    ) {
       return;
     }
 
@@ -390,7 +449,9 @@ export const ForumBoardPage: React.FC = () => {
     try {
       const authHeaders = await fetchHeaders();
       if (!authHeaders) {
-        throw new Error("Could not get authentication headers to delete thread.");
+        throw new Error(
+          'Could not get authentication headers to delete thread.',
+        );
       }
 
       const deleteUrl = `https://localhost:8080/forum/threads/${threadId}`;
@@ -402,7 +463,9 @@ export const ForumBoardPage: React.FC = () => {
 
       if (!response.ok) {
         let errorText = `Failed to delete thread (Status: ${response.status})`;
-        try { errorText = (await response.text()) || errorText; } catch (_) {}
+        try {
+          errorText = (await response.text()) || errorText;
+        } catch (_) {}
         throw new Error(errorText);
       }
 
@@ -420,9 +483,10 @@ export const ForumBoardPage: React.FC = () => {
   const currentUserPubKey = processHandle?.system()?.key;
 
   const hooksAreLoading = !!serverUrl && (adminLoading || headersLoading);
-  const isBusy = loading || hooksAreLoading || isCreatingThread || !!deletingThreadId;
-  
-  const hookErrors = !!serverUrl ? (adminError || headersError) : null;
+  const isBusy =
+    loading || hooksAreLoading || isCreatingThread || !!deletingThreadId;
+
+  const hookErrors = !!serverUrl ? adminError || headersError : null;
   const displayError = error || hookErrors || createError || deleteThreadError;
 
   return (
@@ -579,9 +643,12 @@ export const ForumBoardPage: React.FC = () => {
               ) : (
                 <ul className="space-y-3">
                   {threads.map((thread) => {
-                    const isAuthor = currentUserPubKey && thread.created_by ? 
-                                      Buffer.from(currentUserPubKey).equals(Buffer.from(thread.created_by)) : 
-                                      false;
+                    const isAuthor =
+                      currentUserPubKey && thread.created_by
+                        ? Buffer.from(currentUserPubKey).equals(
+                            Buffer.from(thread.created_by),
+                          )
+                        : false;
                     const canDelete = !!serverUrl && (isAdmin || isAuthor);
                     const isCurrentlyDeleting = deletingThreadId === thread.id;
                     return (
@@ -603,7 +670,9 @@ export const ForumBoardPage: React.FC = () => {
                         </Link>
                         {canDelete && (
                           <button
-                            onClick={() => handleDeleteThread(thread.id, thread.title)}
+                            onClick={() =>
+                              handleDeleteThread(thread.id, thread.title)
+                            }
                             disabled={isBusy}
                             className="p-2 mr-2 text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Delete Thread"

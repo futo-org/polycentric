@@ -54,14 +54,16 @@ export const ForumCategoryListPage: React.FC = () => {
       try {
         // Ensure serverUrl is valid before proceeding
         if (!serverUrl) {
-             throw new Error("Cannot fetch data: Server URL is missing.");
+          throw new Error('Cannot fetch data: Server URL is missing.');
         }
 
         // Ensure serverUrl doesn't end with a slash to avoid double slashes
-        const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+        const baseUrl = serverUrl.endsWith('/')
+          ? serverUrl.slice(0, -1)
+          : serverUrl;
 
         // 1. Fetch Categories using dynamic serverUrl
-        const catApiUrl = `${baseUrl}/forum/categories`; 
+        const catApiUrl = `${baseUrl}/forum/categories`;
         const catResponse = await fetch(catApiUrl);
         if (!catResponse.ok) {
           throw new Error(

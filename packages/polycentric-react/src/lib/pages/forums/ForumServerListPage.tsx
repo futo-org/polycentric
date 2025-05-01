@@ -13,8 +13,16 @@ interface ServerListItemProps {
 }
 
 const ServerListItem: React.FC<ServerListItemProps> = ({ serverUrl }) => {
-  const { serverInfo, loading: serverInfoLoading, error: serverInfoError } = useServerInfo(serverUrl);
-  const { isAdmin, loading: adminLoading, error: adminError } = useIsAdmin(serverUrl);
+  const {
+    serverInfo,
+    loading: serverInfoLoading,
+    error: serverInfoError,
+  } = useServerInfo(serverUrl);
+  const {
+    isAdmin,
+    loading: adminLoading,
+    error: adminError,
+  } = useIsAdmin(serverUrl);
   const encodedServerUrl = encodeURIComponent(serverUrl);
 
   const displayName = serverInfoLoading
@@ -22,14 +30,17 @@ const ServerListItem: React.FC<ServerListItemProps> = ({ serverUrl }) => {
     : serverInfoError
       ? `Error: ${serverUrl}`
       : serverInfo?.name || serverUrl;
-  const imageUrl = !serverInfoLoading && !serverInfoError ? serverInfo?.imageUrl : null;
+  const imageUrl =
+    !serverInfoLoading && !serverInfoError ? serverInfo?.imageUrl : null;
 
   return (
     <li className="flex items-center justify-between space-x-3 border-b pb-2 mb-2">
       <div className="flex items-center space-x-3 min-w-0">
         {imageUrl && (
           <img
-            src={imageUrl.startsWith('/') ? `${serverUrl}${imageUrl}` : imageUrl}
+            src={
+              imageUrl.startsWith('/') ? `${serverUrl}${imageUrl}` : imageUrl
+            }
             alt={`${displayName} logo`}
             className="w-8 h-8 rounded object-cover flex-shrink-0"
             onError={(e) => {
@@ -75,7 +86,10 @@ export const ForumServerListPage: React.FC = () => {
           <div className="p-5 md:p-10 flex flex-col space-y-4">
             <h2 className="text-lg font-medium">Connected Forum Servers</h2>
             {serverList.length === 0 ? (
-              <p className="text-gray-500">No forum servers added yet. You can add them in the Settings page.</p>
+              <p className="text-gray-500">
+                No forum servers added yet. You can add them in the Settings
+                page.
+              </p>
             ) : (
               <ul className="space-y-2">
                 {serverList.map((server) => (

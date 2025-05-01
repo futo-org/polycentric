@@ -78,23 +78,36 @@ export function useServerInfo(
           try {
             const data: ServerInfo = JSON.parse(responseText);
             // Validate expected fields (adjust validation)
-            if (typeof data?.name !== 'string') { 
-              console.warn(`Received server info missing name from ${baseUrl}:`, data);
+            if (typeof data?.name !== 'string') {
+              console.warn(
+                `Received server info missing name from ${baseUrl}:`,
+                data,
+              );
               // Decide how to handle incomplete data - throw error or use defaults?
-              throw new Error(`Server info missing name received from ${baseUrl}`);
+              throw new Error(
+                `Server info missing name received from ${baseUrl}`,
+              );
             }
             // imageUrl is optional, no strict validation needed unless required
             serverInfoCache.set(baseUrl, data); // Cache successful result
             setServerInfo(data);
           } catch (jsonError) {
-            console.error(`Error parsing JSON response from ${baseUrl}:`, jsonError);
-            console.error(`Raw response text from ${baseUrl}:`, responseText); 
+            console.error(
+              `Error parsing JSON response from ${baseUrl}:`,
+              jsonError,
+            );
+            console.error(`Raw response text from ${baseUrl}:`, responseText);
             throw new Error(`Invalid JSON response received from ${baseUrl}`);
           }
         }
       } catch (fetchError: any) {
-        console.error(`Error fetching server info from ${baseUrl}:`, fetchError);
-        setError(fetchError.message || `Failed to fetch server info from ${baseUrl}.`);
+        console.error(
+          `Error fetching server info from ${baseUrl}:`,
+          fetchError,
+        );
+        setError(
+          fetchError.message || `Failed to fetch server info from ${baseUrl}.`,
+        );
         setServerInfo(null); // Explicitly set to null on error
       } finally {
         setLoading(false);
