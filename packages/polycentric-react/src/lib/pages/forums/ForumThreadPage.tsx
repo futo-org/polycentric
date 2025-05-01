@@ -99,6 +99,24 @@ const PostItem: React.FC<PostItemProps> = ({
     ? quotedUsernameResult || 'User'
     : '';
 
+  // Get profile link for quoted author
+  const quotedAuthorGeneratedLink = quotedAuthorPublicKey
+    ? useSystemLink(quotedAuthorPublicKey)
+    : undefined;
+  const [quotedAuthorStableLink, setQuotedAuthorStableLink] = useState<
+    string | undefined
+  >(undefined);
+
+  // Update the stable link for quoted author when available
+  useEffect(() => {
+    if (
+      quotedAuthorGeneratedLink &&
+      quotedAuthorGeneratedLink !== quotedAuthorStableLink
+    ) {
+      setQuotedAuthorStableLink(quotedAuthorGeneratedLink);
+    }
+  }, [quotedAuthorGeneratedLink, quotedAuthorStableLink]);
+
   // --- Separate Reply Content from Quote Prefix ---
   let displayContent = post.content; // Default to full content
   if (quotedPost) {
@@ -126,15 +144,32 @@ const PostItem: React.FC<PostItemProps> = ({
   const canDelete = isAdmin || isAuthor;
   // --- End Deletion Logic ---
 
-  const userFeedLink = useSystemLink(authorPublicKey);
+  // Get link from hook (which may be undefined initially)
+  const generatedLink = useSystemLink(authorPublicKey);
+
+  // Keep track of a stable link value
+  const [stableUserLink, setStableUserLink] = useState<string | undefined>(
+    undefined,
+  );
+
+  // Update the stable link whenever a valid one is generated
+  useEffect(() => {
+    if (generatedLink && generatedLink !== stableUserLink) {
+      setStableUserLink(generatedLink);
+    }
+  }, [generatedLink, stableUserLink]);
 
   return (
     <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200 grid grid-cols-[auto_1fr] gap-4">
       {/* Left Column: Author Info */}
       <div className="flex flex-col items-center space-y-2 pt-1 w-20 flex-shrink-0">
         <Link
-          routerLink={userFeedLink}
-          className={!userFeedLink ? 'pointer-events-none cursor-default' : ''}
+          routerLink={stableUserLink}
+          className={`text-center ${
+            !stableUserLink
+              ? 'pointer-events-none cursor-default opacity-90'
+              : 'cursor-pointer'
+          }`}
         >
           <ProfilePicture
             src={authorAvatarUrl}
@@ -155,7 +190,17 @@ const PostItem: React.FC<PostItemProps> = ({
         {quotedPost && (
           <blockquote className="border-l-4 border-gray-300 pl-3 py-2 mb-3 bg-gray-50 rounded-md">
             <div className="text-sm text-gray-600 mb-1">
-              Quote by <span className="font-medium">{quotedUsername}</span>
+              Quote by{' '}
+              {quotedAuthorStableLink ? (
+                <Link
+                  routerLink={quotedAuthorStableLink}
+                  className="font-medium hover:underline"
+                >
+                  {quotedUsername}
+                </Link>
+              ) : (
+                <span className="font-medium">{quotedUsername}</span>
+              )}
             </div>
             <div className="prose prose-sm max-w-none text-gray-800">
               <Linkify as="span" className="" content={quotedPost.content} />
