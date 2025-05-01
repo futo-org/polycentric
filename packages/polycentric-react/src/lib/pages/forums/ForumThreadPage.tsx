@@ -20,7 +20,11 @@ import { Link } from '../../components/util/link';
 import { Linkify } from '../../components/util/linkify';
 import { useAvatar, useBlobDisplayURL } from '../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks';
-import { useSystemLink, useUsernameCRDTQuery } from '../../hooks/queryHooks';
+import {
+  useSystemLink,
+  useTextPublicKey,
+  useUsernameCRDTQuery,
+} from '../../hooks/queryHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
 import { useAuthHeaders } from '../../hooks/useAuthHeaders';
 import { useIsAdmin } from '../../hooks/useIsAdmin';
@@ -84,6 +88,7 @@ const PostItem: React.FC<PostItemProps> = ({
   });
   const authorAvatarUrl = useAvatar(authorPublicKey);
   const username = useUsernameCRDTQuery(authorPublicKey) || 'User';
+  const shortPublicKey = useTextPublicKey(authorPublicKey, 10);
   const postTime = new Date(post.created_at).toLocaleString();
   const postImage =
     post.images && post.images.length > 0 ? post.images[0] : null;
@@ -98,6 +103,7 @@ const PostItem: React.FC<PostItemProps> = ({
   const quotedUsername = quotedAuthorPublicKey
     ? quotedUsernameResult || 'User'
     : '';
+  const quotedShortPublicKey = useTextPublicKey(quotedAuthorPublicKey, 10);
 
   // Get profile link for quoted author
   const quotedAuthorGeneratedLink = quotedAuthorPublicKey
@@ -174,11 +180,16 @@ const PostItem: React.FC<PostItemProps> = ({
           <ProfilePicture
             src={authorAvatarUrl}
             alt={`${username}'s profile picture`}
-            className="h-10 w-10 rounded-full"
+            className="h-10 w-10 rounded-full mx-auto"
           />
-          <span className="text-xs text-center break-words mt-1">
-            {username}
-          </span>
+          <div className="flex flex-col items-center mt-1">
+            <span className="text-xs text-center break-words">{username}</span>
+            {shortPublicKey && (
+              <span className="text-xs text-gray-500 font-mono text-center block w-full mt-0.5">
+                {shortPublicKey}
+              </span>
+            )}
+          </div>
         </Link>
       </div>
 
@@ -196,7 +207,12 @@ const PostItem: React.FC<PostItemProps> = ({
                   routerLink={quotedAuthorStableLink}
                   className="font-medium hover:underline"
                 >
-                  {quotedUsername}
+                  <span>{quotedUsername}</span>
+                  {quotedShortPublicKey && (
+                    <span className="ml-1 text-xs text-gray-500 font-mono">
+                      {quotedShortPublicKey}
+                    </span>
+                  )}
                 </Link>
               ) : (
                 <span className="font-medium">{quotedUsername}</span>
