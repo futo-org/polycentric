@@ -21,7 +21,7 @@ pub async fn create_category(
         r#"
         INSERT INTO categories (name, description)
         VALUES ($1, $2)
-        RETURNING id, name, description, created_at
+        RETURNING id, name, description, created_at, "order"
         "#,
         category_data.name,
         category_data.description
@@ -37,7 +37,7 @@ pub async fn get_category_by_id(pool: &PgPool, category_id: Uuid) -> Result<Opti
     let category = sqlx::query_as!(
         Category,
         r#"
-        SELECT id, name, description, created_at
+        SELECT id, name, description, created_at, "order"
         FROM categories
         WHERE id = $1
         "#,
@@ -57,9 +57,9 @@ pub async fn get_all_categories(
     let categories = sqlx::query_as!(
         Category,
         r#"
-        SELECT id, name, description, created_at
+        SELECT id, name, description, created_at, "order"
         FROM categories
-        ORDER BY created_at DESC
+        ORDER BY "order" ASC
         LIMIT $1 OFFSET $2
         "#,
         pagination.limit() as i64, // Cast u64 to i64 for SQLx
@@ -91,7 +91,7 @@ pub async fn update_category(
         UPDATE categories
         SET name = $1, description = $2
         WHERE id = $3
-        RETURNING id, name, description, created_at
+        RETURNING id, name, description, created_at, "order"
         "#,
         update_data.name,
         update_data.description,
@@ -117,4 +117,20 @@ pub async fn delete_category(pool: &PgPool, category_id: Uuid) -> Result<u64, sq
     .await?;
 
     Ok(result.rows_affected())
+}
+
+/// Updates the order of multiple categories based on a provided list of IDs.
+pub async fn update_category_order(pool: &PgPool, ordered_ids: &[Uuid]) -> Result<(), sqlx::Error> {
+    let mut tx = pool.begin().await?;
+    for (index, &category_id) in ordered_ids.iter().enumerate() {
+        sqlx::query!(
+            r#"UPDATE categories SET "order" = $1 WHERE id = $2"#,
+            index as i32, // Cast index to i32 for INTEGER column
+            category_id
+        )
+        .execute(&mut *tx) // Use deref coercion
+        .await?;
+    }
+    tx.commit().await?;
+    Ok(())
 } 

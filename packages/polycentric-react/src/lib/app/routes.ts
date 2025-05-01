@@ -1,5 +1,6 @@
 import { Onboarding } from '../components';
 import { OAuthCallback } from '../components/oauth/callback';
+import { AdminPanelPage } from '../pages/admin/AdminPanelPage';
 import { FollowingFeed } from '../pages/following';
 import { ForumBoardPage } from '../pages/forums/ForumBoardPage';
 import { ForumCategoryListPage } from '../pages/forums/ForumCategoryListPage';
@@ -34,4 +35,5 @@ export const routes: RouteData = {
     component: ForumThreadPage,
   },
   '/oauth/callback': { component: OAuthCallback },
+  '/admin/*': { component: AdminPanelPage },
 };

@@ -5,7 +5,8 @@ import { Models } from '@polycentric/polycentric-core';
 import { base64 } from '@scure/base';
 import { Buffer } from 'buffer';
 import Long from 'long'; // Import Long
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Trash2 } from 'lucide-react'; // Added Trash2 icon
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
 import { Linkify } from '../../components/util/linkify';
@@ -13,6 +14,8 @@ import { useBlobDisplayURL } from '../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks';
 import { useUsernameCRDTQuery } from '../../hooks/queryHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
+import { useAuthHeaders } from '../../hooks/useAuthHeaders';
+import { useIsAdmin } from '../../hooks/useIsAdmin';
 
 // Define types for Thread and Post
 interface ForumThread {
@@ -39,6 +42,10 @@ interface ForumPost {
   created_at: string;
   images: ForumPostImage[]; // Expect an array of image objects
   quote_of?: string; // Add optional quote_of field
+  // Add optional Polycentric pointer fields
+  polycentric_system_id?: Uint8Array;
+  polycentric_process_id?: Uint8Array;
+  polycentric_log_seq?: Long;
 }
 
 interface PostItemProps {
@@ -46,6 +53,10 @@ interface PostItemProps {
   onQuote: (post: ForumPost) => void; // Callback to initiate quoting
   quotedPost?: ForumPost; // Optional: The post being quoted by this post
   serverUrl: string | null; // Add serverUrl prop
+  isAdmin: boolean | undefined;
+  currentUserPubKey: Uint8Array | undefined;
+  onDelete: (postId: string) => void;
+  isDeleting: boolean; // Indicate if *any* post is currently being deleted
 }
 
 // Component to display a single post
@@ -54,6 +65,10 @@ const PostItem: React.FC<PostItemProps> = ({
   onQuote,
   quotedPost,
   serverUrl,
+  isAdmin,
+  currentUserPubKey,
+  onDelete,
+  isDeleting,
 }) => {
   const authorPublicKey = Models.PublicKey.fromProto({
     key: post.author_id,
@@ -93,6 +108,13 @@ const PostItem: React.FC<PostItemProps> = ({
     // A more robust solution might involve backend changes.
   }
   // --- End Separation Logic ---
+
+  // --- Deletion Logic ---
+  const isAuthor = currentUserPubKey && post.author_id ? 
+                     Buffer.from(currentUserPubKey).equals(Buffer.from(post.author_id)) : 
+                     false;
+  const canDelete = isAdmin || isAuthor;
+  // --- End Deletion Logic ---
 
   return (
     <div className="bg-white p-4 rounded-md shadow-sm border border-gray-200">
@@ -143,14 +165,26 @@ const PostItem: React.FC<PostItemProps> = ({
         </div>
       )}
       {/* Action buttons */}{' '}
-      <div className="flex justify-end space-x-3">
+      <div className="flex justify-end items-center space-x-3">
+        {/* Delete Button */}
+        {canDelete && (
+          <button
+            onClick={() => onDelete(post.id)}
+            disabled={isDeleting} // Disable if any delete is in progress
+            className="p-1 text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Delete Post"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
+        {/* Quote Button */}
         <button
           onClick={() => onQuote(post)}
-          className="text-sm text-blue-600 hover:underline"
+          disabled={isDeleting} // Also disable quote if deleting
+          className="text-sm text-blue-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Quote
         </button>
-        {/* Add other actions like reply, report, etc. if needed */}{' '}
       </div>
     </div>
   );
@@ -183,23 +217,65 @@ export const ForumThreadPage: React.FC = () => {
   const imageUrl = useBlobDisplayURL(newPostImage); // Hook for preview URL
   const textareaRef = useRef<HTMLIonTextareaElement>(null); // Ref for textarea focus
   const [postToProfile, setPostToProfile] = useState(false); // Add state for checkbox
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+  const [deletePostError, setDeletePostError] = useState<string | null>(null);
 
   const serverUrl = encodedServerUrl
     ? decodeURIComponent(encodedServerUrl)
     : null;
 
-  // --- Add hook call for quoting user here ---
+  // -- Hooks for Admin/Auth --
+  const { isAdmin, loading: adminLoading, error: adminError } = useIsAdmin(serverUrl ?? '');
+  const { fetchHeaders, loading: headersLoading, error: headersError } = useAuthHeaders(serverUrl ?? '');
+
+  // -- quoting username logic --
   const quotingAuthorPublicKey = quotingPost
     ? Models.PublicKey.fromProto({
         key: Buffer.from(quotingPost.author_id),
         keyType: Long.UONE,
       })
     : undefined;
-  const quotingUsernameResult = useUsernameCRDTQuery(quotingAuthorPublicKey); // Call hook unconditionally
+  const quotingUsernameResult = useUsernameCRDTQuery(quotingAuthorPublicKey);
   const quotingUsernameDisplay = quotingAuthorPublicKey
     ? quotingUsernameResult || 'User'
-    : ''; // Determine display name
-  // --- End added hook call ---
+    : '';
+
+  // --- Get Polycentric Pointer Data from URL Query Params --- 
+  const polycentricPointer = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return { systemId: undefined, processId: undefined, logSeq: undefined };
+    }
+    const queryParams = new URLSearchParams(window.location.search);
+    const systemIdB64 = queryParams.get('polycentricSystemId');
+    const processIdB64 = queryParams.get('polycentricProcessId');
+    const logSeqStr = queryParams.get('polycentricLogSeq');
+
+    let systemId: Uint8Array | undefined = undefined;
+    let processId: Uint8Array | undefined = undefined;
+    let logSeq: Long | undefined = undefined;
+
+    try {
+        if (systemIdB64) systemId = base64.decode(systemIdB64);
+        if (processIdB64) processId = base64.decode(processIdB64);
+        if (logSeqStr) logSeq = Long.fromString(logSeqStr);
+    } catch (e) {
+        console.error("Error parsing Polycentric pointer query params:", e);
+        return { systemId: undefined, processId: undefined, logSeq: undefined };
+    }
+
+    if (systemId && processId && logSeq) {
+        return { systemId, processId, logSeq };
+    } else {
+        return { systemId: undefined, processId: undefined, logSeq: undefined };
+    }
+  }, []); 
+
+  const { 
+      systemId: polycentricSystemId, 
+      processId: polycentricProcessId, 
+      logSeq: polycentricLogSeq 
+  } = polycentricPointer;
+  // --- End Pointer Data --- 
 
   const fetchThreadData = useCallback(async () => {
     if (!serverUrl || !threadId) {
@@ -207,6 +283,7 @@ export const ForumThreadPage: React.FC = () => {
     }
     setLoading(true);
     setError(null);
+    setDeletePostError(null); // Clear delete error on refetch
     try {
       // 1. Fetch Thread Details (optional, could get title from first post or list)
       const threadDetailsUrl = `https://localhost:8080/forum/threads/${threadId}`;
@@ -270,7 +347,7 @@ export const ForumThreadPage: React.FC = () => {
     setNewPostBody(''); // Clear the reply body instead of adding quote text
     setNewPostImage(undefined); // Clear any selected image when quoting
     setPostError(null);
-    // Focus textarea after a short delay to ensure it's visible
+    setDeletePostError(null); // Clear delete error when starting quote
     setTimeout(() => textareaRef.current?.setFocus(), 100);
   }, []); // Empty dependency array as it doesn't depend on component state changes
 
@@ -282,13 +359,16 @@ export const ForumThreadPage: React.FC = () => {
 
     setIsPosting(true);
     setPostError(null);
+    setDeletePostError(null);
+
+    let forumPostId: string | null = null; // Variable to store the new forum post ID
 
     try {
+      // --- Create Forum Post --- 
       // 1. Get Challenge
       const challengeUrl = `https://localhost:8080/forum/auth/challenge`;
       const challengeRes = await fetch(challengeUrl);
-      if (!challengeRes.ok)
-        throw new Error(`Challenge fetch failed: ${challengeRes.statusText}`);
+      if (!challengeRes.ok) throw new Error(`Challenge fetch failed: ${challengeRes.statusText}`);
       const { challenge_id, nonce_base64 } = await challengeRes.json();
       const nonce = base64.decode(nonce_base64);
 
@@ -297,12 +377,11 @@ export const ForumThreadPage: React.FC = () => {
       if (!privateKey) throw new Error('Private key unavailable.');
       const signature = await sign(nonce, privateKey.key);
 
-      // 3. Prepare Headers (Remove Content-Type)
+      // 3. Prepare Headers
       const pubKey = await Models.PrivateKey.derivePublicKey(privateKey);
       const pubKeyBase64 = base64.encode(pubKey.key);
       const signatureBase64 = base64.encode(signature);
       const headers = {
-        // 'Content-Type': 'application/json', // Let browser set Content-Type for FormData
         'X-Polycentric-Pubkey-Base64': pubKeyBase64,
         'X-Polycentric-Signature-Base64': signatureBase64,
         'X-Polycentric-Challenge-ID': challenge_id,
@@ -311,15 +390,17 @@ export const ForumThreadPage: React.FC = () => {
       // 4. Create FormData Body
       const formData = new FormData();
       formData.append('content', newPostBody.trim());
-      if (newPostImage) {
-        formData.append('image', newPostImage, newPostImage.name);
-      }
-      // Add quote_of if quotingPost is set
-      if (quotingPost) {
-        formData.append('quote_of', quotingPost.id);
+      if (newPostImage) formData.append('image', newPostImage, newPostImage.name);
+      if (quotingPost) formData.append('quote_of', quotingPost.id);
+      // Add polycentric pointers IF the thread itself was linked (passed via query params)
+      if (polycentricSystemId && polycentricProcessId && polycentricLogSeq) {
+          const logSeqValue: Long = polycentricLogSeq;
+          formData.append('polycentric_system_id', base64.encode(polycentricSystemId));
+          formData.append('polycentric_process_id', base64.encode(polycentricProcessId));
+          formData.append('polycentric_log_seq', logSeqValue.toString());
       }
 
-      // 5. POST Request with FormData
+      // 5. POST Request
       const createPostUrl = `https://localhost:8080/forum/threads/${threadId}/posts`;
       const createRes = await fetch(createPostUrl, {
         method: 'POST',
@@ -329,64 +410,88 @@ export const ForumThreadPage: React.FC = () => {
 
       if (!createRes.ok) {
         const errorBody = await createRes.text();
-        console.error('Create post error:', errorBody);
-        throw new Error(
-          `Failed to create post: ${createRes.status} ${createRes.statusText}`,
-        );
+        console.error('Create forum post error:', errorBody);
+        throw new Error(`Failed to create forum post: ${createRes.status} ${createRes.statusText}`);
       }
 
-      // --- Start Polycentric Cross-post ---
-      // Get the new post ID from the response
-      const newPost: ForumPost = await createRes.json();
+      const newForumPost: ForumPost = await createRes.json();
+      forumPostId = newForumPost.id; // Store the ID
 
+      // --- Polycentric Cross-post & Link --- 
       if (postToProfile) {
+        let polycentricPostPointer: Models.Pointer.Pointer | undefined = undefined;
         try {
-          // Construct the link back to the new post
-          const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${threadId}/${newPost.id}`;
-
+          // Construct content for Polycentric
+          const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${threadId}/${forumPostId}`;
           let polycentricContent = '';
           const replyText = newPostBody.trim();
           const linkText = `[View on Forum](${forumLinkPath})`;
-
           if (quotingPost) {
-            // Format the quoted text with '> ' prefix for Polycentric post
-            const quotedTextFormatted = quotingPost.content
-              .split('\n')
-              .map((line) => `> ${line}`)
-              .join('\n');
+            const quotedTextFormatted = quotingPost.content.split('\n').map(line => `> ${line}`).join('\n');
             polycentricContent = `${quotedTextFormatted}\n\n${replyText}\n\n${linkText}`;
           } else {
-            // Standard reply, no quote prefix needed
             polycentricContent = `${replyText}\n\n${linkText}`;
           }
 
-          console.log(
-            'Attempting to post reply to Polycentric profile:',
-            polycentricContent,
-          );
-          await processHandle.post(polycentricContent); // Post text only
-          console.log('Successfully posted reply to Polycentric profile.');
-          // Optional: Add a success notification
+          // Create the Polycentric post AND capture the result (assuming it returns Pointer)
+          const signedEventResult = await processHandle.post(polycentricContent); 
+
+          // Assign the result directly if it's the pointer
+          if (signedEventResult) {
+              polycentricPostPointer = signedEventResult; 
+          } else {
+              console.warn("processHandle.post did not return the pointer. Cannot link.");
+              polycentricPostPointer = undefined; 
+          }
+                    
         } catch (profilePostError) {
-          console.error(
-            'Failed to post reply to Polycentric profile:',
-            profilePostError,
-          );
-          // Set error, but don't block success flow for the forum post
-          setPostError(
-            'Reply posted, but failed to post to your profile. Please try posting manually.',
-          );
+          console.error('Failed to post reply to Polycentric profile:', profilePostError);
+          setPostError('Reply posted, but failed to post to your profile.');
+          polycentricPostPointer = undefined; 
+        }
+
+        // --- Link Forum Post to Polycentric Post (if pointer was retrieved) ---
+        if (forumPostId && polycentricPostPointer && serverUrl) { 
+           try {
+               const linkHeaders = await fetchHeaders();
+               if (!linkHeaders) throw new Error("Authentication headers unavailable for linking.");
+
+               const linkUrl = `https://localhost:8080/forum/posts/${forumPostId}/link-polycentric`;
+               const linkPayload = {
+                   polycentric_system_id_b64: base64.encode(polycentricPostPointer.system.key),
+                   polycentric_process_id_b64: base64.encode(polycentricPostPointer.process.process),
+                   polycentric_log_seq: polycentricPostPointer.logicalClock.toNumber(),
+               };
+               const linkRes = await fetch(linkUrl, {
+                   method: 'PUT',
+                   headers: {
+                       ...linkHeaders,
+                       'Content-Type': 'application/json',
+                   },
+                   body: JSON.stringify(linkPayload),
+                   credentials: 'include',
+               });
+
+               if (!linkRes.ok) {
+                   const linkErrorBody = await linkRes.text();
+                   console.error('Link post error body:', linkErrorBody); 
+                   throw new Error(`Failed to link forum post: ${linkRes.status} ${linkRes.statusText}`);
+               }
+           } catch (linkError: any) {
+               console.error('Error linking forum post to Polycentric post:', linkError);
+               setPostError(postError ? `${postError} | Link failed: ${linkError.message}` : `Post created, but failed to link to profile post: ${linkError.message}`);
+           }
         }
       }
-      // --- End Polycentric Cross-post ---
+      // --- End Polycentric Cross-post & Link ---
 
       // 6. Success
       setNewPostBody('');
-      setNewPostImage(undefined);
-      setQuotingPost(null); // Clear quote on successful post
+      setNewPostImage(undefined); // Corrected function name
+      setQuotingPost(null); 
       setIsComposing(false);
-      setPostToProfile(false); // Reset checkbox
-      await fetchThreadData();
+      setPostToProfile(false); 
+      await fetchThreadData(); 
     } catch (err: any) {
       console.error('Error creating post:', err);
       setPostError(err.message || 'An unknown error occurred.');
@@ -403,11 +508,136 @@ export const ForumThreadPage: React.FC = () => {
     setNewPostImage(undefined);
     setQuotingPost(null); // Clear quoting state
     setPostToProfile(false); // Reset checkbox on cancel
+    setDeletePostError(null); // Clear delete error on cancel compose
   };
+
+  // --- Delete Post Handler (Modified) ---
+  const handleDeletePost = async (postId: string) => {
+    // Use post from state for initial confirmation message only
+    const postForConfirmation = posts.find(p => p.id === postId);
+    const postSnippet = postForConfirmation ? `"${postForConfirmation.content.substring(0, 50)}..."` : "this post";
+    if (!window.confirm(`Are you sure you want to delete ${postSnippet}? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingPostId(postId);
+    setDeletePostError(null);
+
+    let polycentricDeleteAttempted = false;
+    let polycentricDeleteSuccess = true; 
+    let freshPostData: ForumPost | null = null; // Variable to hold fresh data
+
+    try {
+      // --- FETCH FRESH POST DATA --- 
+      const freshDataUrl = `https://localhost:8080/forum/posts/${postId}`;
+      const freshDataRes = await fetch(freshDataUrl);
+      if (!freshDataRes.ok) {
+          const errorText = await freshDataRes.text();
+          throw new Error(`Failed to fetch fresh post data (${freshDataRes.status}): ${errorText}`);
+      }
+      freshPostData = await freshDataRes.json();
+      // Convert author_id bytes if necessary (like in fetchThreadData)
+      if (freshPostData) {
+           // @ts-ignore
+           const authorIdArray: number[] = freshPostData.author_id || [];
+           freshPostData.author_id = new Uint8Array(authorIdArray);
+           // Convert log_seq from number/string to Long if necessary
+           if (typeof freshPostData.polycentric_log_seq === 'number' || typeof freshPostData.polycentric_log_seq === 'string') {
+               try {
+                 freshPostData.polycentric_log_seq = Long.fromString(String(freshPostData.polycentric_log_seq));
+               } catch (e) { console.error("Error converting log_seq to Long:", e); freshPostData.polycentric_log_seq = undefined; }
+           } else if (!(freshPostData.polycentric_log_seq instanceof Long)) {
+                freshPostData.polycentric_log_seq = undefined; // Ensure it's Long or undefined
+           }
+      }
+
+      if (!freshPostData) {
+          throw new Error("Could not retrieve post data for deletion checks.");
+      }
+
+      // Re-check authorship using fresh data's author_id
+      const currentUserPubKey = processHandle?.system()?.key;
+      const isAuthor = currentUserPubKey && freshPostData.author_id ? 
+                         Buffer.from(currentUserPubKey).equals(Buffer.from(freshPostData.author_id)) : 
+                         false;
+
+      // 4. Attempt Polycentric Deletion using FRESH data
+      if (isAuthor && 
+          freshPostData.polycentric_process_id && 
+          freshPostData.polycentric_log_seq) {
+
+          polycentricDeleteAttempted = true;
+          try {
+              if (!processHandle) throw new Error("Process handle unavailable...");
+              if (!freshPostData.polycentric_process_id) throw new Error("Missing process ID..."); 
+              if (!freshPostData.polycentric_log_seq) throw new Error("Missing log sequence...");
+
+              const processToDelete = Models.Process.fromProto({ process: freshPostData.polycentric_process_id });
+
+              await processHandle.delete(
+                  processToDelete, 
+                  freshPostData.polycentric_log_seq // Use Long from freshPostData
+              );
+              
+          } catch (polyError: any) {
+              console.error(`Polycentric deletion failed for post ${postId}:`, polyError);
+              polycentricDeleteSuccess = false;
+              setDeletePostError(`Forum post deleted, but failed to delete corresponding Polycentric post: ${polyError.message || 'Unknown error'}`);
+          }
+      }
+
+      // 5. Attempt Forum Post Deletion (remains the same, uses postId)
+      const authHeaders = await fetchHeaders(); 
+      if (!authHeaders) {
+        throw new Error("Could not get authentication headers to delete post.");
+      }
+      const deleteUrl = `https://localhost:8080/forum/posts/${postId}`;
+      const response = await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: { ...authHeaders },
+        credentials: 'include',
+      });
+      if (!response.ok) {
+         let errorText = `Failed to delete forum post (Status: ${response.status})`;
+         try { errorText = (await response.text()) || errorText; } catch (_) {}
+         console.error("Forum post deletion error:", errorText);
+         if (!polycentricDeleteAttempted || polycentricDeleteSuccess) {
+             setDeletePostError(errorText); 
+         }
+         throw new Error(errorText);
+      }
+
+      // Success
+      if (polycentricDeleteSuccess) {
+        setDeletePostError(null); 
+      }
+      await fetchThreadData(); // Refetch list after successful forum delete
+
+    } catch (err: any) {
+       // Outer error handler: includes errors from fetching fresh data or forum delete
+       console.error(`Error during deletion process for post ${postId}:`, err);
+       // Avoid overwriting specific Polycentric error if forum delete also failed
+       if (!polycentricDeleteAttempted || polycentricDeleteSuccess) {
+           setDeletePostError(err.message || 'Failed to delete post.');
+       }
+    } finally {
+      setDeletingPostId(null); 
+    }
+  };
+  // --- End Delete Post Handler ---
 
   const threadTitle = thread
     ? thread.title
     : `Thread ${threadId?.substring(0, 8)}...`;
+
+  // --- Corrected PubKey Access ---
+  const currentUserPubKey = processHandle?.system()?.key;
+
+  // Combined loading/busy/error states
+  const hooksAreLoading = !!serverUrl && (adminLoading || headersLoading);
+  const isBusy = loading || hooksAreLoading || isPosting || !!deletingPostId;
+  const hookErrors = !!serverUrl ? (adminError || headersError) : null;
+  const displayError = error || hookErrors || postError || deletePostError;
 
   return (
     <>
@@ -415,9 +645,16 @@ export const ForumThreadPage: React.FC = () => {
       <IonContent>
         <RightCol rightCol={<div />} desktopTitle={threadTitle}>
           <div className="p-5 md:p-10 flex flex-col space-y-4">
+            {/* Unified Error Display */}
+            {displayError && (
+              <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded mb-4">
+                Error: {displayError}
+              </div>
+            )}
+
             {loading && <p>Loading thread...</p>}
-            {error && <p className="text-red-500">Error: {error}</p>}
-            {/* Post List */}{' '}
+
+            {/* Post List */}
             {!loading && !error && posts.length === 0 && (
               <p className="text-gray-500">No posts in this thread yet.</p>
             )}
@@ -433,23 +670,26 @@ export const ForumThreadPage: React.FC = () => {
                       key={post.id}
                       post={post}
                       onQuote={handleQuote}
-                      quotedPost={quotedPost} // Pass the found quoted post data
-                      serverUrl={serverUrl} // Pass serverUrl down
+                      quotedPost={quotedPost}
+                      serverUrl={serverUrl}
+                      isAdmin={isAdmin}
+                      currentUserPubKey={currentUserPubKey}
+                      onDelete={handleDeletePost}
+                      isDeleting={!!deletingPostId}
                     />
                   );
                 })}
               </div>
             )}
-            {/* Reply/Compose Area */}{' '}
-            {!loading && !error && (
+
+            {/* Reply/Compose Area */}
+            {!loading && !error && serverUrl && processHandle && (
               <div className="pt-6">
                 {isComposing ? (
                   <div className="border p-4 rounded-md bg-gray-50 space-y-3">
-                    {/* Show quoting indicator */}{' '}
                     {quotingPost && (
                       <div className="flex justify-between items-center text-sm text-gray-600 p-2 bg-gray-100 rounded-md">
                         <span>
-                          {/* Use the pre-fetched username */}
                           Quoting post by{' '}
                           <span className="font-medium">
                             {quotingUsernameDisplay}
@@ -459,6 +699,7 @@ export const ForumThreadPage: React.FC = () => {
                           onClick={() => setQuotingPost(null)}
                           className="p-0.5 rounded-full hover:bg-gray-300"
                           title="Remove quote"
+                          disabled={isBusy}
                         >
                           <XCircleIcon className="w-4 h-4 text-gray-500" />
                         </button>
@@ -466,15 +707,14 @@ export const ForumThreadPage: React.FC = () => {
                     )}
                     <h3 className="text-lg font-semibold">Reply to Thread</h3>
                     <IonTextarea
-                      ref={textareaRef} // Assign ref
+                      ref={textareaRef}
                       value={newPostBody}
                       onIonInput={(e) => setNewPostBody(e.detail.value!)}
                       placeholder="Write your reply..."
                       rows={5}
                       className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 bg-white"
-                      disabled={isPosting}
+                      disabled={isBusy}
                     />
-                    {/* Image Preview */}{' '}
                     {newPostImage && imageUrl && (
                       <div className="inline-block relative">
                         <img
@@ -485,23 +725,24 @@ export const ForumThreadPage: React.FC = () => {
                         <button
                           className="absolute top-1 right-1 bg-black bg-opacity-50 rounded-full p-0.5"
                           onClick={() => setNewPostImage(undefined)}
-                          disabled={isPosting}
+                          disabled={isBusy}
                         >
                           <XCircleIcon className="w-5 h-5 text-white hover:text-gray-200" />
                         </button>
                       </div>
                     )}
+
                     {postError && (
                       <p className="text-red-500 text-sm">Error: {postError}</p>
                     )}
-                    {/* Add Checkbox Here */}
+
                     <div className="flex items-center space-x-2 mt-2">
                       <input
                         type="checkbox"
                         id="postToProfileCheckboxReply"
                         checked={postToProfile}
                         onChange={(e) => setPostToProfile(e.target.checked)}
-                        disabled={isPosting}
+                        disabled={isBusy}
                         className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
                       />
                       <label
@@ -511,15 +752,14 @@ export const ForumThreadPage: React.FC = () => {
                         Also post to my Polycentric profile
                       </label>
                     </div>
-                    {/* Action Buttons Row */}{' '}
+
                     <div className="flex justify-between items-center pt-2">
-                      {/* Upload Button */}{' '}
                       <div>
                         <button
                           type="button"
                           onClick={() => imageInputRef.current?.click()}
                           className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50"
-                          disabled={isPosting || !!newPostImage}
+                          disabled={isBusy || !!newPostImage}
                         >
                           <PhotoIcon className="w-7 h-7" />
                         </button>
@@ -537,12 +777,11 @@ export const ForumThreadPage: React.FC = () => {
                           }}
                         />
                       </div>
-                      {/* Cancel/Post Buttons */}{' '}
                       <div className="flex space-x-3">
                         <button
                           onClick={handleCancelCompose}
                           className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-                          disabled={isPosting}
+                          disabled={isBusy}
                         >
                           Cancel
                         </button>
@@ -550,7 +789,7 @@ export const ForumThreadPage: React.FC = () => {
                           onClick={handlePostSubmit}
                           className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                           disabled={
-                            !newPostBody.trim() || isPosting || !processHandle
+                            !newPostBody.trim() || isBusy
                           }
                         >
                           {isPosting ? 'Posting...' : 'Post Reply'}
@@ -562,7 +801,7 @@ export const ForumThreadPage: React.FC = () => {
                   <div className="flex justify-start">
                     <button
                       onClick={() => setIsComposing(true)}
-                      disabled={!processHandle} // Disable if not signed in
+                      disabled={isBusy || adminError !== null || !processHandle || !serverUrl}
                       className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Post Reply

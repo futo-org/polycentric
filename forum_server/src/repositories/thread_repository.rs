@@ -17,6 +17,13 @@ pub struct CreateThreadData {
     pub created_by: PolycentricId,
     #[serde(default)] 
     pub images: Option<Vec<String>>,
+    // Added optional fields for Polycentric pointer
+    #[serde(default)]
+    pub polycentric_system_id: Option<PolycentricId>,
+    #[serde(default)]
+    pub polycentric_process_id: Option<PolycentricId>,
+    #[serde(default)]
+    pub polycentric_log_seq: Option<i64>, 
     // board_id will come from the path
 }
 
@@ -49,11 +56,11 @@ pub async fn create_thread(
     Ok(new_thread)
 }
 
-/// Creates a new thread and its initial post (with optional images) within a transaction.
+/// Creates a new thread and its initial post (with optional images & pointer) within a transaction.
 pub async fn create_thread_with_initial_post(
     pool: &PgPool,
     board_id: Uuid,
-    data: CreateThreadData, // Contains title, content, created_by, optional images
+    data: CreateThreadData, // Now includes optional pointer fields
 ) -> Result<Thread, sqlx::Error> {
     let mut tx = pool.begin().await?;
 
@@ -72,42 +79,24 @@ pub async fn create_thread_with_initial_post(
     .fetch_one(&mut *tx)
     .await?;
 
-    // 2. Create the initial post (without quote_of or direct images column)
-    let new_post_id = sqlx::query!(
-        r#"
-        INSERT INTO posts (thread_id, author_id, content) 
-        VALUES ($1, $2::BYTEA, $3)
-        RETURNING id
-        "#,
-        new_thread.id, 
-        &data.created_by, // Use the same author as the thread creator
-        data.content      // Use the provided content
-    )
-    .fetch_one(&mut *tx)
-    .await? // Fetch the result row containing the ID
-    .id;     // Extract the ID from the fetched row
+    // 2. Create the initial post using post_repository::CreatePostData
+    let initial_post_data = post_repository::CreatePostData {
+        author_id: data.created_by.clone(), 
+        content: data.content,     
+        quote_of: None,           
+        images: data.images,       
+        polycentric_system_id: data.polycentric_system_id,
+        polycentric_process_id: data.polycentric_process_id,
+        polycentric_log_seq: data.polycentric_log_seq,
+    };
     
-    // 3. Insert images for the post if provided
-    if let Some(image_urls) = data.images {
-        if !image_urls.is_empty() {
-            // Prepare batch insert for images
-            let mut query_builder = sqlx::QueryBuilder::new(
-                "INSERT INTO post_images (post_id, image_url) "
-            );
-            query_builder.push_values(image_urls.iter(), |mut b, image_url| {
-                b.push_bind(new_post_id) // Use the ID of the post created in step 2
-                 .push_bind(image_url);
-            });
-            // No RETURNING needed if we don't use the PostImage IDs immediately
-            let query = query_builder.build(); 
-            query.execute(&mut *tx).await?; // Execute batch insert
-        }
-    }
+    // Call post_repository::create_post, passing the mutable transaction reference
+    let _initial_post = post_repository::create_post(&mut tx, new_thread.id, initial_post_data).await?;
 
     // Commit transaction
     tx.commit().await?;
 
-    // Return the created thread info (post info isn't needed by the handler's return type)
+    // Return the created thread info
     Ok(new_thread)
 }
 
@@ -187,5 +176,48 @@ pub async fn delete_thread(pool: &PgPool, thread_id: Uuid) -> Result<u64, sqlx::
     .execute(pool)
     .await?;
 
+    Ok(result.rows_affected())
+}
+
+// --- Add missing functions ---
+
+pub async fn get_thread_author(pool: &PgPool, thread_id: Uuid) -> Result<Option<Vec<u8>>, sqlx::Error> {
+    let result = sqlx::query!(
+        r#"SELECT created_by FROM threads WHERE id = $1"#,
+        thread_id
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(result.map(|row| row.created_by))
+}
+
+pub async fn delete_thread_with_posts(pool: &PgPool, thread_id: Uuid) -> Result<u64, sqlx::Error> {
+    let mut tx = pool.begin().await?;
+
+    // 1. Delete associated post images (handle foreign key constraint)
+    sqlx::query!(
+        "DELETE FROM post_images WHERE post_id IN (SELECT id FROM posts WHERE thread_id = $1)",
+        thread_id
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // 2. Delete posts in the thread
+    sqlx::query!(
+        "DELETE FROM posts WHERE thread_id = $1",
+        thread_id
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    // 3. Delete the thread itself
+    let result = sqlx::query!(
+        "DELETE FROM threads WHERE id = $1",
+        thread_id
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
     Ok(result.rows_affected())
 } 

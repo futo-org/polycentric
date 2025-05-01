@@ -15,12 +15,13 @@ use crate::{
 use axum::extract::multipart::MultipartError;
 use multer::Error as MulterError;
 use std::error::Error;
-use crate::auth::AuthenticatedUser; // Import the extractor
+use crate::auth::{AuthenticatedUser, AdminUser}; // Import AdminUser
 use futures_util::stream::StreamExt; 
 use serde::Deserialize;
 use std::path::Path as StdPath; 
 use tokio::fs;
-use base64; // Import base64 for printing
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _}; // Import base64 for decoding
+use sqlx::Acquire; // Import Acquire trait for starting transactions
 
 // Moved TempImageField definition before its use
 #[derive(Debug)]
@@ -30,32 +31,30 @@ struct TempImageField {
     data: Vec<u8>,
 }
 
-/// Handler to create a new post with optional image uploads (multipart/form-data).
+/// Handler to create a new post with optional image uploads and Polycentric pointer.
 pub async fn create_post_handler(
     State(state): State<AppState>,
     Path(thread_id): Path<Uuid>,
     user: AuthenticatedUser,
     mut multipart: Multipart,
-) -> Response { // Change return type
+) -> Response { 
     let author_id = user.0;
 
     let mut collected_content: Option<String> = None;
     let mut collected_quote_of: Option<Uuid> = None;
     let mut collected_images: Vec<TempImageField> = Vec::new();
+    let mut collected_poly_system_id_b64: Option<String> = None;
+    let mut collected_poly_process_id_b64: Option<String> = None;
+    let mut collected_poly_log_seq_str: Option<String> = None;
 
-    // --- Multipart Processing --- 
-    // (Keep the existing loop structure as it handles errors)
-    // Correctly loop over the Result<Option<Field>, Error>
     loop { 
         match multipart.next_field().await {
             Ok(Some(field)) => {
-                // Process the field if Ok(Some(field))
                 let field_name = match field.name() {
                     Some(name) => name.to_string(),
-                    None => continue, // Skip fields without names
+                    None => continue, 
                 };
                 
-                // Simplified field processing
                 match field_name.as_str() {
                     "content" => {
                         match field.bytes().await {
@@ -69,8 +68,8 @@ pub async fn create_post_handler(
                         }
                     }
                     "quote_of" => {
-                         match field.bytes().await {
-                             Ok(data) => {
+                        match field.bytes().await {
+                            Ok(data) => {
                                 match String::from_utf8(data.to_vec()) {
                                     Ok(value_str) => {
                                         if !value_str.is_empty() {
@@ -82,39 +81,53 @@ pub async fn create_post_handler(
                                     }
                                     Err(_) => return (StatusCode::BAD_REQUEST, "Invalid UTF-8 in quote_of field").into_response(),
                                 }
-                             }
-                             Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read quote_of field: {}", e)).into_response(),
-                         }
+                            }
+                            Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read quote_of field: {}", e)).into_response(),
+                        }
                     }
                     "image" => {
-                         if collected_images.len() >= MAX_IMAGES_PER_POST {
-                             return (StatusCode::BAD_REQUEST, format!("Exceeded maximum number of images ({})", MAX_IMAGES_PER_POST)).into_response();
-                         }
-                         let filename = field.file_name().map(|s| s.to_string());
-                         let content_type = field.content_type().and_then(|s| s.parse::<Mime>().ok());
-                         match field.bytes().await {
-                             Ok(data) => {
-                                 if data.len() as u64 > MAX_IMAGE_SIZE_BYTES {
-                                     return (StatusCode::PAYLOAD_TOO_LARGE, format!("Image size exceeds limit ({} MB)", MAX_IMAGE_SIZE_MB)).into_response();
-                                 }
-                                 collected_images.push(TempImageField {
-                                     filename,
-                                     content_type,
-                                     data: data.to_vec(),
-                                 });
-                             }
-                             Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read image data: {}", e)).into_response(),
-                         }
+                        if collected_images.len() >= MAX_IMAGES_PER_POST {
+                            return (StatusCode::BAD_REQUEST, format!("Exceeded maximum number of images ({})", MAX_IMAGES_PER_POST)).into_response();
+                        }
+                        let filename = field.file_name().map(|s| s.to_string());
+                        let content_type = field.content_type().and_then(|s| s.parse::<Mime>().ok());
+                        match field.bytes().await {
+                            Ok(data) => {
+                                if data.len() as u64 > MAX_IMAGE_SIZE_BYTES {
+                                    return (StatusCode::PAYLOAD_TOO_LARGE, format!("Image size exceeds limit ({} MB)", MAX_IMAGE_SIZE_MB)).into_response();
+                                }
+                                collected_images.push(TempImageField {
+                                    filename,
+                                    content_type,
+                                    data: data.to_vec(),
+                                });
+                            }
+                            Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read image data: {}", e)).into_response(),
+                        }
+                    }
+                    "polycentric_system_id" => {
+                        match field.text().await {
+                            Ok(text) => collected_poly_system_id_b64 = Some(text),
+                            Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read polycentric_system_id: {}", e)).into_response(),
+                        }
+                    }
+                    "polycentric_process_id" => {
+                        match field.text().await {
+                            Ok(text) => collected_poly_process_id_b64 = Some(text),
+                            Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read polycentric_process_id: {}", e)).into_response(),
+                        }
+                    }
+                    "polycentric_log_seq" => {
+                        match field.text().await {
+                            Ok(text) => collected_poly_log_seq_str = Some(text),
+                            Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read polycentric_log_seq: {}", e)).into_response(),
+                        }
                     }
                     _ => { /* Ignore */ }
                 }
             }
-            Ok(None) => {
-                // End of stream
-                break;
-            }
+            Ok(None) => break, 
             Err(e) => {
-                // Handle the error from next_field() itself
                 eprintln!("Multipart error processing field: {}", e);
                 if e.to_string().contains("body limit exceeded") {
                     return (StatusCode::PAYLOAD_TOO_LARGE, "Total upload size limit exceeded").into_response();
@@ -126,11 +139,38 @@ pub async fn create_post_handler(
 
     // --- Validation --- 
     let content = match collected_content {
-        Some(c) if !c.is_empty() => c,
+        Some(c) if !c.trim().is_empty() => c.trim().to_string(), // Trim content
         _ => return (StatusCode::BAD_REQUEST, "Missing or empty required field: content").into_response(),
     };
 
-    // --> ADD THREAD EXISTENCE CHECK HERE <--
+    // --- Added: Decode pointer fields --- 
+    let polycentric_system_id = match collected_poly_system_id_b64 {
+        Some(b64) => match BASE64_STANDARD.decode(b64) {
+            Ok(bytes) => Some(bytes),
+            Err(_) => return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_system_id").into_response(),
+        },
+        None => None,
+    };
+    let polycentric_process_id = match collected_poly_process_id_b64 {
+        Some(b64) => match BASE64_STANDARD.decode(b64) {
+            Ok(bytes) => Some(bytes),
+            Err(_) => return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_process_id").into_response(),
+        },
+        None => None,
+    };
+    let polycentric_log_seq = match collected_poly_log_seq_str {
+        Some(s) => match s.parse::<i64>() {
+            Ok(num) => Some(num),
+            Err(_) => return (StatusCode::BAD_REQUEST, "Invalid number format for polycentric_log_seq").into_response(),
+        },
+        None => None,
+    };
+    // Optional: Add validation if pointer fields must appear together
+    if polycentric_system_id.is_some() != polycentric_process_id.is_some() || polycentric_system_id.is_some() != polycentric_log_seq.is_some() {
+        return (StatusCode::BAD_REQUEST, "Polycentric pointer fields must be provided together or not at all").into_response();
+    }
+
+    // Check thread existence
     match thread_repository::get_thread_by_id(&state.db_pool, thread_id).await {
         Ok(Some(_)) => { /* Thread exists, continue */ }
         Ok(None) => return (StatusCode::NOT_FOUND, "Thread not found").into_response(),
@@ -167,19 +207,38 @@ pub async fn create_post_handler(
         }
     }
 
-    // --- Database Insert --- 
+    // --- Database Insert within a Transaction --- 
+    let mut tx = match state.db_pool.begin().await {
+        Ok(tx) => tx,
+        Err(e) => {
+            eprintln!("Failed to begin transaction: {}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response();
+        }
+    };
+
+    // --- Updated: Pass pointer fields to CreatePostData --- 
     let repo_post_data = post_repository::CreatePostData {
         author_id,
         content,
         quote_of: collected_quote_of,
         images: if image_urls.is_empty() { None } else { Some(image_urls) },
+        polycentric_system_id,
+        polycentric_process_id,
+        polycentric_log_seq,
     };
 
-    match post_repository::create_post(&state.db_pool, thread_id, repo_post_data).await {
-        Ok(post) => (StatusCode::CREATED, Json(post)).into_response(),
+    match post_repository::create_post(&mut tx, thread_id, repo_post_data).await {
+        Ok(post) => {
+            // Commit the transaction before returning success
+            if let Err(e) = tx.commit().await {
+                eprintln!("Failed to commit transaction: {}", e);
+                return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to save post").into_response();
+            }
+            (StatusCode::CREATED, Json(post)).into_response()
+        }
         Err(e) => {
-            eprintln!("Failed to create post in DB: {}", e);
-            // TODO: Add specific DB error checks (e.g., foreign key violation for thread_id?)
+            eprintln!("Failed to create post in DB (transaction rolled back): {}", e);
+            // Transaction is automatically rolled back on drop if not committed
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create post").into_response()
         }
     }
@@ -266,16 +325,32 @@ pub async fn update_post_handler(
 pub async fn delete_post_handler(
     State(state): State<AppState>,
     Path(post_id): Path<Uuid>,
-    user: AuthenticatedUser,
-) -> Response { // Change return type
-    // Fetch post first
+    user: AuthenticatedUser, // Authenticated user's pubkey is user.0
+) -> Response { 
     match post_repository::get_post_by_id(&state.db_pool, post_id).await {
         Ok(Some(post_to_delete)) => {
-            // Authorization check
-            if post_to_delete.author_id != user.0 {
+            // Authorization Check
+            let requester_pubkey = &user.0;
+            let post_author_id = &post_to_delete.author_id;
+
+            // --- DEBUG LOGGING --- 
+            eprintln!("DELETE CHECK FOR POST {}", post_id);
+            eprintln!("  Requester PubKey (Base64): {}", base64::encode(requester_pubkey));
+            eprintln!("  Post Author ID (Base64)  : {}", base64::encode(post_author_id));
+            // --- END DEBUG LOGGING ---
+
+            let is_author = post_author_id == requester_pubkey;
+            let is_admin = state.admin_pubkeys.contains(requester_pubkey);
+
+            eprintln!("  Is Author Check Result: {}", is_author); // Log check result
+            eprintln!("  Is Admin Check Result : {}", is_admin);  // Log check result
+
+            if !is_author && !is_admin {
+                 eprintln!("  Authorization FAILED: Neither author nor admin."); // Log failure
                  return (StatusCode::FORBIDDEN, "Permission denied").into_response();
             }
             
+             eprintln!("  Authorization SUCCEEDED."); // Log success
              // Perform delete
              match post_repository::delete_post(&state.db_pool, post_id).await {
                  Ok(0) => (StatusCode::NOT_FOUND, "Post not found during delete").into_response(), // Should be rare
@@ -303,4 +378,75 @@ const MAX_IMAGE_SIZE_BYTES: u64 = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 #[derive(Deserialize)]
 pub struct UpdatePostPayload {
     content: String,
+}
+
+// --- New Payload for Linking Polycentric Post --- 
+#[derive(Deserialize)]
+pub struct LinkPolycentricPayload {
+    polycentric_system_id_b64: String,
+    polycentric_process_id_b64: String,
+    polycentric_log_seq: i64, // Frontend will send as number/string, backend expects i64
+}
+
+// --- New Handler to Link Polycentric Post --- 
+pub async fn link_polycentric_post_handler(
+    State(state): State<AppState>,
+    Path(post_id): Path<Uuid>,
+    user: AuthenticatedUser,
+    Json(payload): Json<LinkPolycentricPayload>,
+) -> Response {
+    // 1. Fetch the post to check ownership
+    match post_repository::get_post_by_id(&state.db_pool, post_id).await {
+        Ok(Some(post_to_link)) => {
+            // 2. Authorization: Only the author can link
+            if post_to_link.author_id != user.0 {
+                return (StatusCode::FORBIDDEN, "Permission denied: Only the author can link the post.").into_response();
+            }
+
+            // 3. Decode Base64 IDs
+            let system_id = match base64::decode(&payload.polycentric_system_id_b64) {
+                Ok(id) => id,
+                Err(_) => return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_system_id").into_response(),
+            };
+            let process_id = match base64::decode(&payload.polycentric_process_id_b64) {
+                Ok(id) => id,
+                Err(_) => return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_process_id").into_response(),
+            };
+            let log_seq = payload.polycentric_log_seq;
+
+            // 4. Call repository function to update the pointers
+            match post_repository::update_polycentric_pointers(
+                &state.db_pool, 
+                post_id, 
+                system_id, 
+                process_id, 
+                log_seq
+            ).await {
+                Ok(updated_rows) => {
+                    if updated_rows == 1 {
+                        // Fetch the updated post to return it (optional, could just return NO_CONTENT)
+                         match post_repository::get_post_by_id(&state.db_pool, post_id).await {
+                             Ok(Some(updated_post)) => (StatusCode::OK, Json(updated_post)).into_response(),
+                             Ok(None) => (StatusCode::NOT_FOUND, "Post not found after update").into_response(), // Should not happen
+                             Err(e) => {
+                                 eprintln!("Failed to fetch post after linking: {}", e);
+                                 (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch updated post").into_response()
+                             }
+                         }
+                    } else {
+                        (StatusCode::NOT_FOUND, "Post not found during link update").into_response()
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to link polycentric post: {}", e);
+                    (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update post with polycentric link").into_response()
+                }
+            }
+        }
+        Ok(None) => (StatusCode::NOT_FOUND, "Post not found").into_response(),
+        Err(e) => {
+            eprintln!("Failed to fetch post for linking: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Error fetching post for linking").into_response()
+        }
+    }
 } 

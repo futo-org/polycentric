@@ -12,13 +12,14 @@ use crate::{
     AppState,
     auth::AdminUser,
 };
+use serde::Deserialize;
 
 /// Handler to create a new category.
 /// Expects JSON body with name and description.
 /// Requires Admin privileges.
 pub async fn create_category_handler(
     State(state): State<AppState>,
-    admin: AdminUser,
+    _admin: AdminUser,
     Json(payload): Json<CreateCategoryData>,
 ) -> Response {
     match category_repository::create_category(&state.db_pool, payload).await {
@@ -79,7 +80,7 @@ pub async fn list_categories_handler(
 /// Requires Admin privileges.
 pub async fn update_category_handler(
     State(state): State<AppState>,
-    admin: AdminUser,
+    _admin: AdminUser,
     Path(category_id): Path<Uuid>,
     Json(payload): Json<UpdateCategoryData>,
 ) -> Response {
@@ -104,7 +105,7 @@ pub async fn update_category_handler(
 /// Requires Admin privileges.
 pub async fn delete_category_handler(
     State(state): State<AppState>,
-    admin: AdminUser,
+    _admin: AdminUser,
     Path(category_id): Path<Uuid>,
 ) -> Response {
     match category_repository::delete_category(&state.db_pool, category_id).await {
@@ -120,6 +121,25 @@ pub async fn delete_category_handler(
             eprintln!("Failed to delete category: {}", e);
             // Could be constraint violation if ON DELETE is restricted, etc.
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete category").into_response()
+        }
+    }
+}
+
+#[derive(Deserialize)]
+pub struct ReorderPayload {
+    ordered_ids: Vec<Uuid>,
+}
+
+pub async fn reorder_categories_handler(
+    State(state): State<AppState>,
+    _admin: AdminUser,
+    Json(payload): Json<ReorderPayload>,
+) -> impl IntoResponse {
+    match category_repository::update_category_order(&state.db_pool, &payload.ordered_ids).await {
+        Ok(_) => StatusCode::OK,
+        Err(e) => {
+            eprintln!("Failed to reorder categories: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
         }
     }
 } 

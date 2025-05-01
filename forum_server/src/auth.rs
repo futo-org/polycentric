@@ -304,6 +304,23 @@ where
     }
 }
 
+// --- Check Admin Handler ---
+
+#[derive(Serialize)] // Make sure Serialize is imported (use serde::Serialize;)
+pub struct CheckAdminResponse {
+    #[serde(rename = "isAdmin")]
+    is_admin: bool,
+}
+
+/// Checks if the currently authenticated user is an admin.
+pub async fn check_admin_handler(
+    State(state): State<AppState>, // Make sure State is imported (use axum::extract::State;)
+    user: AuthenticatedUser, // Requires standard authentication
+) -> Json<CheckAdminResponse> { // Make sure Json is imported (use axum::response::Json;)
+    let is_admin = state.admin_pubkeys.contains(&user.0);
+    Json(CheckAdminResponse { is_admin })
+}
+
 // --- Tests for Authenticator ---
 #[cfg(test)]
 mod tests {

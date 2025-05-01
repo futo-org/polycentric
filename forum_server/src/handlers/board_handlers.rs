@@ -12,12 +12,13 @@ use crate::{
     AppState,
     auth::AdminUser, // Import AdminUser
 };
+use serde::Deserialize;
 
 /// Handler to create a new board within a category.
 /// Requires Admin privileges.
 pub async fn create_board_handler(
     State(state): State<AppState>,
-    admin: AdminUser, // Use AdminUser extractor
+    _admin: AdminUser, // Added underscore
     Path(category_id): Path<Uuid>,
     Json(payload): Json<CreateBoardData>,
 ) -> Response {
@@ -105,7 +106,7 @@ pub async fn list_boards_in_category_handler(
 /// Requires Admin privileges.
 pub async fn update_board_handler(
     State(state): State<AppState>,
-    admin: AdminUser, // Use AdminUser extractor
+    _admin: AdminUser, // Added underscore
     Path(board_id): Path<Uuid>,
     Json(payload): Json<UpdateBoardData>,
 ) -> Response {
@@ -127,7 +128,7 @@ pub async fn update_board_handler(
 /// Requires Admin privileges.
 pub async fn delete_board_handler(
     State(state): State<AppState>,
-    admin: AdminUser, // Use AdminUser extractor
+    _admin: AdminUser, // Added underscore
     Path(board_id): Path<Uuid>,
 ) -> Response {
     match board_repository::delete_board(&state.db_pool, board_id).await {
@@ -140,6 +141,26 @@ pub async fn delete_board_handler(
         Err(e) => {
             eprintln!("Failed to delete board: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete board").into_response()
+        }
+    }
+}
+
+#[derive(Deserialize)]
+pub struct ReorderBoardsPayload {
+    ordered_ids: Vec<Uuid>,
+    // category_id: Option<Uuid>, // Optional: Include if you need context/validation
+}
+
+pub async fn reorder_boards_handler(
+    State(state): State<AppState>,
+    _admin: AdminUser, // Added underscore
+    Json(payload): Json<ReorderBoardsPayload>,
+) -> impl IntoResponse {
+    match board_repository::update_board_order(&state.db_pool, &payload.ordered_ids).await {
+        Ok(_) => StatusCode::OK,
+        Err(e) => {
+            eprintln!("Failed to reorder boards: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
         }
     }
 } 

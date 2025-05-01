@@ -167,7 +167,7 @@ services:
             PORT: "3000"
             IMAGE_UPLOAD_DIR: "/usr/src/forum_server/uploads/images"
             IMAGE_BASE_URL: "/static/images"
-            ADMIN_PUBKEYS: "CAESIIL3DLosUnzaGQD+qCHQJphobe5pugF0TJtXfNO7pRyd"
+            ADMIN_PUBKEYS: "ZchWDl91xYzhgsfMf847BlXKAoWY+AVNLm6F04i7Mxc="
         volumes:
             - ./forum_server:/usr/src/forum_server
             - ./polycentric-protocol:/usr/src/polycentric-protocol

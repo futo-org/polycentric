@@ -52,8 +52,16 @@ export const ForumCategoryListPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        // 1. Fetch Categories
-        const catApiUrl = `https://localhost:8080/forum/categories`;
+        // Ensure serverUrl is valid before proceeding
+        if (!serverUrl) {
+             throw new Error("Cannot fetch data: Server URL is missing.");
+        }
+
+        // Ensure serverUrl doesn't end with a slash to avoid double slashes
+        const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+
+        // 1. Fetch Categories using dynamic serverUrl
+        const catApiUrl = `${baseUrl}/forum/categories`; 
         const catResponse = await fetch(catApiUrl);
         if (!catResponse.ok) {
           throw new Error(
@@ -63,9 +71,9 @@ export const ForumCategoryListPage: React.FC = () => {
         const fetchedCategories: ForumCategory[] = await catResponse.json();
         setCategories(fetchedCategories);
 
-        // 2. Fetch Boards for each Category
+        // 2. Fetch Boards for each Category using dynamic serverUrl
         const boardPromises = fetchedCategories.map(async (category) => {
-          const boardApiUrl = `https://localhost:8080/forum/categories/${category.id}/boards`;
+          const boardApiUrl = `${baseUrl}/forum/categories/${category.id}/boards`;
           const boardResponse = await fetch(boardApiUrl);
           if (!boardResponse.ok) {
             console.error(

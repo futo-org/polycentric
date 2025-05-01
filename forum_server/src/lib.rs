@@ -8,13 +8,13 @@ use sqlx::PgPool;
 use tower_http::services::ServeDir;
 use std::path::PathBuf;
 use tower_http::limit::RequestBodyLimitLayer;
-use crate::auth::{ChallengeStore, get_challenge_handler};
+use crate::auth::{ChallengeStore, get_challenge_handler, check_admin_handler};
 use std::sync::Arc;
 use std::sync::RwLock;
 use std::collections::HashSet;
 // Import necessary CORS items
-use tower_http::cors::{Any, CorsLayer};
-use axum::http::{Method, HeaderValue};
+// REMOVED: use tower_http::cors::{Any, CorsLayer};
+// REMOVED: use axum::http::{Method, HeaderValue};
 
 // Declare the modules (now public for the library)
 pub mod models;
@@ -26,10 +26,10 @@ pub mod auth;
 
 // Use the specific handlers
 use handlers::{
-    category_handlers::{create_category_handler, get_category_handler, list_categories_handler, update_category_handler, delete_category_handler},
-    board_handlers::{create_board_handler, get_board_handler, list_boards_in_category_handler, update_board_handler, delete_board_handler},
+    category_handlers::{create_category_handler, get_category_handler, list_categories_handler, update_category_handler, delete_category_handler, reorder_categories_handler},
+    board_handlers::{create_board_handler, get_board_handler, list_boards_in_category_handler, update_board_handler, delete_board_handler, reorder_boards_handler},
     thread_handlers::{create_thread_handler, get_thread_handler, list_threads_in_board_handler, update_thread_handler, delete_thread_handler},
-    post_handlers::{create_post_handler, get_post_handler, list_posts_in_thread_handler, update_post_handler, delete_post_handler},
+    post_handlers::{create_post_handler, get_post_handler, list_posts_in_thread_handler, update_post_handler, delete_post_handler, link_polycentric_post_handler},
     get_server_info_handler,
 };
 
@@ -76,14 +76,8 @@ pub fn create_router(
     let user_upload_service = ServeDir::new(user_upload_dir);
     let user_upload_base_url = "/uploads/images"; // Define the new URL prefix for uploads
 
-    // Configure CORS
-    let cors = CorsLayer::new()
-        // Allow requests from the HTTPS frontend development server
-        .allow_origin("https://localhost:3000".parse::<HeaderValue>().unwrap())
-        // Allow common methods
-        .allow_methods(vec![Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
-        // Allow common headers
-        .allow_headers(Any);
+    // REMOVED: CORS Configuration block
+    // let cors = CorsLayer::new()... 
 
     // Define limits (e.g., 20MB)
     const MAX_BODY_SIZE: usize = 20 * 1024 * 1024;
@@ -91,15 +85,18 @@ pub fn create_router(
     // --- Build Main Application Router ---
     Router::new()
         .route("/", get(root))
-        // --- Restore original routes (no /forum prefix) ---
+        // --- Original routes at root ---
         // Auth routes
         .route("/auth/challenge", get(get_challenge_handler))
+        .route("/auth/check-admin", get(check_admin_handler))
         // Category routes
         .route("/categories", post(create_category_handler).get(list_categories_handler))
         .route("/categories/:id", get(get_category_handler).put(update_category_handler).delete(delete_category_handler))
+        .route("/categories/reorder", put(reorder_categories_handler))
         // Board routes
         .route("/categories/:category_id/boards", post(create_board_handler).get(list_boards_in_category_handler))
         .route("/boards/:board_id", get(get_board_handler).put(update_board_handler).delete(delete_board_handler))
+        .route("/boards/reorder", put(reorder_boards_handler))
         // Thread routes
         .route("/boards/:board_id/threads", post(create_thread_handler))
         .route("/boards/:board_id/threads", get(list_threads_in_board_handler))
@@ -108,6 +105,9 @@ pub fn create_router(
         .route("/threads/:thread_id/posts", post(create_post_handler))
         .route("/threads/:thread_id/posts", get(list_posts_in_thread_handler))
         .route("/posts/:post_id", get(get_post_handler).put(update_post_handler).delete(delete_post_handler))
+        // --- Add route for linking polycentric post --- 
+        .route("/posts/:post_id/link-polycentric", put(link_polycentric_post_handler)) 
+        // --- End Add route ---
         // Server Info Route (at root)
         .route("/server-info", get(get_server_info_handler))
 
@@ -117,8 +117,7 @@ pub fn create_router(
         // Serve user uploads from IMAGE_UPLOAD_DIR under /uploads/images URL
         .nest_service(user_upload_base_url, user_upload_service)
         .with_state(app_state)
-        // Layers - Apply CORS Layer *before* others if possible, or where appropriate
-        .layer(cors)
+        // REMOVED: .layer(cors)
         .layer(RequestBodyLimitLayer::new(MAX_BODY_SIZE))
 }
 

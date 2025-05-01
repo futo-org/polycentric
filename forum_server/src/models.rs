@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use sqlx::FromRow;
 // use polycentric_protocol::model::public_key::PublicKey;
 
 // Using Polycentric ID as a placeholder string for now.
@@ -19,6 +20,8 @@ pub struct Category {
     pub name: String,
     pub description: String,
     pub created_at: DateTime<Utc>,
+    #[sqlx(rename = "category_order")]
+    pub order: i32,
     // Could add fields like order, creation timestamp, etc.
 }
 
@@ -30,6 +33,8 @@ pub struct Board {
     pub name: String,
     pub description: String,
     pub created_at: DateTime<Utc>,
+    #[sqlx(rename = "board_order")]
+    pub order: i32,
     // Could add fields like creation timestamp, last post info, etc.
 }
 
@@ -67,5 +72,16 @@ pub struct Post {
     pub quote_of: Option<Uuid>,
     #[serde(default)] // Default to empty vec if missing
     pub images: Vec<PostImage>, // Add images field
-    //pub edited_at: Option<DateTime<Utc>>,
+    pub polycentric_system_id: Option<Vec<u8>>,
+    pub polycentric_process_id: Option<Vec<u8>>,
+    pub polycentric_log_seq: Option<i64>, // Use i64 for BIGINT mapping
+}
+
+/// Represents server information.
+#[derive(Serialize)]
+pub struct ServerInfo {
+    pub name: String,
+    pub description: String,
+    pub logo_url: Option<String>,
+    // Add other relevant server info fields here
 } 

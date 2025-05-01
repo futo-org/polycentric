@@ -3,13 +3,18 @@ import { IonContent } from '@ionic/react';
 import { sign } from '@noble/ed25519';
 import { Models } from '@polycentric/polycentric-core';
 import { base64 } from '@scure/base';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Buffer } from 'buffer';
+import Long from 'long';
+import { Trash2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
 import { Link } from '../../components/util/link';
 import { useBlobDisplayURL } from '../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
+import { useAuthHeaders } from '../../hooks/useAuthHeaders';
+import { useIsAdmin } from '../../hooks/useIsAdmin';
 
 // Define types for Board and Thread
 interface ForumBoard {
@@ -25,7 +30,12 @@ interface ForumThread {
   board_id: string;
   title: string;
   created_at: string;
-  // Add other relevant fields like author, last post time, etc. if needed
+  created_by: number[];
+}
+
+// Interface for fetched threads with Uint8Array
+interface FetchedForumThread extends Omit<ForumThread, 'created_by'> {
+  created_by: Uint8Array;
 }
 
 // Add a simple CSS override
@@ -43,12 +53,12 @@ export const ForumBoardPage: React.FC = () => {
   } = useParams<{ serverUrl: string; categoryId: string; boardId: string }>();
   const { processHandle } = useProcessHandleManager();
   const [board, setBoard] = useState<ForumBoard | null>(null);
-  const [threads, setThreads] = useState<ForumThread[]>([]);
+  const [threads, setThreads] = useState<FetchedForumThread[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newThreadTitle, setNewThreadTitle] = useState('');
   const [newThreadBody, setNewThreadBody] = useState('');
-  const [newThreadImage, setNewThreadImage] = useState<File | undefined>();
+  const [newThreadImage, setNewPostImage] = useState<File | undefined>();
   const [isComposing, setIsComposing] = useState(false);
   const [isCreatingThread, setIsCreatingThread] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -56,34 +66,80 @@ export const ForumBoardPage: React.FC = () => {
   const imageUrl = useBlobDisplayURL(newThreadImage);
   const [postToProfile, setPostToProfile] = useState(false);
 
+  const [deletingThreadId, setDeletingThreadId] = useState<string | null>(null);
+  const [deleteThreadError, setDeleteThreadError] = useState<string | null>(null);
+
   const serverUrl = encodedServerUrl
     ? decodeURIComponent(encodedServerUrl)
     : null;
 
+  const { isAdmin, loading: adminLoading, error: adminError } = useIsAdmin(serverUrl ?? '');
+  const { fetchHeaders, loading: headersLoading, error: headersError } = useAuthHeaders(serverUrl ?? '');
+  
+  // --- Get Polycentric Pointer Data from URL Query Params --- 
+  const polycentricPointer = useMemo(() => {
+    // Ensure window is defined (for SSR safety, though likely not needed here)
+    if (typeof window === 'undefined') {
+      return { systemId: undefined, processId: undefined, logSeq: undefined };
+    }
+    const queryParams = new URLSearchParams(window.location.search);
+    const systemIdB64 = queryParams.get('polycentricSystemId');
+    const processIdB64 = queryParams.get('polycentricProcessId');
+    const logSeqStr = queryParams.get('polycentricLogSeq');
+
+    let systemId: Uint8Array | undefined = undefined;
+    let processId: Uint8Array | undefined = undefined;
+    let logSeq: Long | undefined = undefined;
+
+    try {
+        if (systemIdB64) systemId = base64.decode(systemIdB64);
+        if (processIdB64) processId = base64.decode(processIdB64);
+        if (logSeqStr) logSeq = Long.fromString(logSeqStr);
+    } catch (e) {
+        console.error("Error parsing Polycentric pointer query params:", e);
+        // Reset if any part fails parsing
+        return { systemId: undefined, processId: undefined, logSeq: undefined };
+    }
+
+    // Return undefined for all if any part is missing (require all or nothing)
+    if (systemId && processId && logSeq) {
+        return { systemId, processId, logSeq };
+    } else {
+        return { systemId: undefined, processId: undefined, logSeq: undefined };
+    }
+  }, []); // Empty dependency array means this runs once on mount
+
+  const { 
+      systemId: polycentricSystemId, 
+      processId: polycentricProcessId, 
+      logSeq: polycentricLogSeq 
+  } = polycentricPointer;
+  // --- End Pointer Data --- 
+
   const fetchBoardData = useCallback(async () => {
     if (!serverUrl || !boardId) {
+      setLoading(false);
+      setError(serverUrl ? 'Board ID is missing.' : 'Server URL is missing.');
+      setThreads([]);
       return;
     }
     setLoading(true);
     setError(null);
+    setDeleteThreadError(null);
     try {
-      // Fetch board details first
       const boardApiUrl = `https://localhost:8080/forum/boards/${boardId}`;
       const boardResponse = await fetch(boardApiUrl);
       if (!boardResponse.ok) {
-        // Handle error fetching board details, maybe set a specific error or log
         console.error(
           `Failed to fetch board details: ${boardResponse.status} ${boardResponse.statusText}`,
         );
-        // Optionally throw an error to stop execution or continue to fetch threads
         throw new Error(
           `Failed to fetch board details: ${boardResponse.status} ${boardResponse.statusText}`,
         );
       }
       const fetchedBoard: ForumBoard = await boardResponse.json();
-      setBoard(fetchedBoard); // Set the board state
+      setBoard(fetchedBoard);
 
-      // Then fetch threads for the board
       const threadsApiUrl = `https://localhost:8080/forum/boards/${boardId}/threads`;
       const threadsResponse = await fetch(threadsApiUrl);
 
@@ -93,27 +149,40 @@ export const ForumBoardPage: React.FC = () => {
         );
       }
 
-      const fetchedThreads: ForumThread[] = await threadsResponse.json();
-      setThreads(fetchedThreads);
+      const fetchedThreadsJSON: ForumThread[] = await threadsResponse.json();
+
+      const convertedThreads: FetchedForumThread[] = fetchedThreadsJSON.map((thread) => ({
+        ...thread,
+        created_by: new Uint8Array(thread.created_by),
+      }));
+
+      setThreads(convertedThreads);
     } catch (fetchError: any) {
       console.error('Error fetching board data:', fetchError);
       setError(fetchError.message || 'Failed to load board data.');
-      setThreads([]); // Clear threads on error
+      setThreads([]);
     } finally {
       setLoading(false);
     }
   }, [serverUrl, boardId]);
 
   useEffect(() => {
-    fetchBoardData();
-  }, [fetchBoardData]);
+    if (serverUrl) {
+      fetchBoardData();
+    } else {
+      setLoading(false);
+      setError("Server URL not provided.");
+      setThreads([]);
+    }
+  }, [fetchBoardData, serverUrl]);
 
   const handleCreateThreadClick = () => {
     setIsComposing(true);
     setNewThreadTitle('');
     setNewThreadBody('');
-    setNewThreadImage(undefined);
+    setNewPostImage(undefined);
     setCreateError(null);
+    setDeleteThreadError(null);
   };
 
   const handleCreateThreadSubmit = async () => {
@@ -130,9 +199,9 @@ export const ForumBoardPage: React.FC = () => {
 
     setIsCreatingThread(true);
     setCreateError(null);
+    setDeleteThreadError(null);
 
     try {
-      // 1. Get Challenge
       const challengeUrl = `https://localhost:8080/forum/auth/challenge`;
       const challengeRes = await fetch(challengeUrl);
       if (!challengeRes.ok) {
@@ -141,14 +210,12 @@ export const ForumBoardPage: React.FC = () => {
       const { challenge_id, nonce_base64 } = await challengeRes.json();
       const nonce = base64.decode(nonce_base64);
 
-      // 2. Sign Nonce
       const privateKey = processHandle.processSecret().system;
       if (!privateKey) {
         throw new Error('Private key not available via processSecret.');
       }
       const signature = await sign(nonce, privateKey.key);
 
-      // 3. Prepare Headers
       const pubKey = await Models.PrivateKey.derivePublicKey(privateKey);
       const pubKeyBase64 = base64.encode(pubKey.key);
       const signatureBase64 = base64.encode(signature);
@@ -158,7 +225,6 @@ export const ForumBoardPage: React.FC = () => {
         'X-Polycentric-Challenge-ID': challenge_id,
       };
 
-      // 4. Create FormData Body
       const formData = new FormData();
       formData.append('title', newThreadTitle.trim());
       formData.append('content', newThreadBody.trim());
@@ -166,7 +232,16 @@ export const ForumBoardPage: React.FC = () => {
         formData.append('image', newThreadImage, newThreadImage.name);
       }
 
-      // 5. POST Request with FormData
+      // Add Polycentric Pointer Fields if available (already parsed and stored)
+      if (polycentricSystemId !== undefined && 
+          polycentricProcessId !== undefined && 
+          polycentricLogSeq !== undefined) {
+        const logSeqValue: Long = polycentricLogSeq;
+        formData.append('polycentric_system_id', base64.encode(polycentricSystemId));
+        formData.append('polycentric_process_id', base64.encode(polycentricProcessId));
+        formData.append('polycentric_log_seq', logSeqValue.toString()); 
+      }
+
       const createThreadUrl = `https://localhost:8080/forum/boards/${boardId}/threads`;
       const createRes = await fetch(createThreadUrl, {
         method: 'POST',
@@ -182,50 +257,42 @@ export const ForumBoardPage: React.FC = () => {
         );
       }
 
-      // --- Start Polycentric Cross-post ---
-      // Get the new thread ID from the response
-      const newThread: ForumThread = await createRes.json();
+      const newThread: FetchedForumThread = await createRes.json();
 
       if (postToProfile) {
-        try {
-          // Construct the path using the ENCODED serverUrl for the route parameter
-          const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${newThread.id}`;
-          // Use Markdown link syntax
-          const polycentricContent = `${newThreadTitle.trim()}\n\n${newThreadBody.trim()}\n\n[View on Forum](${forumLinkPath})`;
+        const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${newThread.id}`;
+        let polycentricContent = '';
 
-          console.log(
-            'Attempting to post to Polycentric profile:',
-            polycentricContent,
-          );
-          await processHandle.post(polycentricContent); // Post text only for now
-          console.log('Successfully posted to Polycentric profile.');
-          // Optional: Add a success notification for the user
+        if (polycentricSystemId) {
+          polycentricContent = `Started new forum thread: ${newThreadTitle.trim()}\n\n[View on Forum](${forumLinkPath})`;
+        } else {
+          polycentricContent = `${newThreadTitle.trim()}\n\n${newThreadBody.trim()}\n\n[View on Forum](${forumLinkPath})`;
+        }
+
+        try {
+          await processHandle.post(polycentricContent);
         } catch (profilePostError) {
           console.error(
             'Failed to post to Polycentric profile:',
             profilePostError,
           );
-          // IMPORTANT: Don't re-throw; the forum post succeeded. Just inform the user.
-          // Update UI or use a toast notification to show this secondary error
           setCreateError(
             'Thread created, but failed to post to your profile. Please try posting manually.',
           );
-          // Note: The main createError state is reused here, which might be slightly confusing
-          // if the original create operation also failed earlier. Consider a separate state for profile post errors.
         }
       }
-      // --- End Polycentric Cross-post ---
 
-      // 6. Success (Clear form, fetch data)
       setIsComposing(false);
       setNewThreadTitle('');
       setNewThreadBody('');
-      setNewThreadImage(undefined);
+      setNewPostImage(undefined);
       setPostToProfile(false);
       await fetchBoardData();
     } catch (err: any) {
       console.error('Error creating thread:', err);
-      setCreateError(err.message || 'An unknown error occurred.');
+      setCreateError(err.message?.includes('Failed to get challenge') 
+                     ? 'Failed to authenticate request. Please try again.' 
+                     : (err.message || 'An unknown error occurred while creating the thread.'));
     } finally {
       setIsCreatingThread(false);
     }
@@ -236,11 +303,61 @@ export const ForumBoardPage: React.FC = () => {
     setCreateError(null);
     setNewThreadTitle('');
     setNewThreadBody('');
-    setNewThreadImage(undefined);
+    setNewPostImage(undefined);
     setPostToProfile(false);
+    setDeleteThreadError(null);
+  };
+
+  const handleDeleteThread = async (threadId: string, threadTitle: string) => {
+    if (!serverUrl || typeof fetchHeaders !== 'function') {
+      setDeleteThreadError("Cannot delete thread: Missing URL or authentication function.");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete the thread "${threadTitle}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingThreadId(threadId);
+    setDeleteThreadError(null);
+
+    try {
+      const authHeaders = await fetchHeaders();
+      if (!authHeaders) {
+        throw new Error("Could not get authentication headers to delete thread.");
+      }
+
+      const deleteUrl = `https://localhost:8080/forum/threads/${threadId}`;
+      const response = await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: { ...authHeaders },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        let errorText = `Failed to delete thread (Status: ${response.status})`;
+        try { errorText = (await response.text()) || errorText; } catch (_) {}
+        throw new Error(errorText);
+      }
+
+      await fetchBoardData();
+    } catch (err: any) {
+      console.error(`Error deleting thread ${threadId}:`, err);
+      setDeleteThreadError(err.message || 'Failed to delete thread.');
+    } finally {
+      setDeletingThreadId(null);
+    }
   };
 
   const boardName = board ? board.name : `Board ${boardId?.substring(0, 8)}...`;
+
+  const currentUserPubKey = processHandle?.system()?.key;
+
+  const hooksAreLoading = !!serverUrl && (adminLoading || headersLoading);
+  const isBusy = loading || hooksAreLoading || isCreatingThread || !!deletingThreadId;
+  
+  const hookErrors = !!serverUrl ? (adminError || headersError) : null;
+  const displayError = error || hookErrors || createError || deleteThreadError;
 
   return (
     <>
@@ -248,11 +365,17 @@ export const ForumBoardPage: React.FC = () => {
       <IonContent>
         <RightCol rightCol={<div />} desktopTitle={boardName}>
           <div className="p-5 md:p-10 flex flex-col space-y-4">
-            {!isComposing && (
+            {displayError && (
+              <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded mb-4">
+                Error: {displayError}
+              </div>
+            )}
+
+            {!isComposing && serverUrl && processHandle && (
               <div className="flex justify-end mb-4">
                 <button
                   onClick={handleCreateThreadClick}
-                  disabled={loading || !processHandle}
+                  disabled={isBusy || adminError !== null}
                   className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Create New Thread
@@ -277,7 +400,7 @@ export const ForumBoardPage: React.FC = () => {
                     onChange={(e) => setNewThreadTitle(e.target.value)}
                     placeholder="Enter thread title"
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    disabled={isCreatingThread}
+                    disabled={isBusy}
                   />
                 </div>
                 <div>
@@ -294,7 +417,7 @@ export const ForumBoardPage: React.FC = () => {
                     onChange={(e) => setNewThreadBody(e.target.value)}
                     placeholder="Enter the first post content..."
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    disabled={isCreatingThread}
+                    disabled={isBusy}
                   />
                 </div>
 
@@ -307,16 +430,12 @@ export const ForumBoardPage: React.FC = () => {
                     />
                     <button
                       className="absolute top-1 right-1 bg-black bg-opacity-50 rounded-full p-0.5"
-                      onClick={() => setNewThreadImage(undefined)}
-                      disabled={isCreatingThread}
+                      onClick={() => setNewPostImage(undefined)}
+                      disabled={isBusy}
                     >
                       <XCircleIcon className="w-5 h-5 text-white hover:text-gray-200" />
                     </button>
                   </div>
-                )}
-
-                {createError && (
-                  <p className="text-red-500 text-sm">Error: {createError}</p>
                 )}
 
                 <div className="flex items-center space-x-2 mt-2">
@@ -325,7 +444,7 @@ export const ForumBoardPage: React.FC = () => {
                     id="postToProfileCheckboxThread"
                     checked={postToProfile}
                     onChange={(e) => setPostToProfile(e.target.checked)}
-                    disabled={isCreatingThread}
+                    disabled={isBusy}
                     className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:opacity-50"
                   />
                   <label
@@ -342,7 +461,7 @@ export const ForumBoardPage: React.FC = () => {
                       type="button"
                       onClick={() => imageInputRef.current?.click()}
                       className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50"
-                      disabled={isCreatingThread || !!newThreadImage}
+                      disabled={isBusy || !!newThreadImage}
                     >
                       <PhotoIcon className="w-7 h-7" />
                     </button>
@@ -354,7 +473,7 @@ export const ForumBoardPage: React.FC = () => {
                       onChange={(e) => {
                         const { files } = e.target;
                         if (files !== null && files.length > 0) {
-                          setNewThreadImage(files[0]);
+                          setNewPostImage(files[0]);
                           e.target.value = '';
                         }
                       }}
@@ -364,7 +483,7 @@ export const ForumBoardPage: React.FC = () => {
                     <button
                       onClick={handleCancelCompose}
                       className="px-4 py-2 rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
-                      disabled={isCreatingThread}
+                      disabled={isBusy}
                     >
                       Cancel
                     </button>
@@ -374,7 +493,7 @@ export const ForumBoardPage: React.FC = () => {
                       disabled={
                         !newThreadTitle.trim() ||
                         !newThreadBody.trim() ||
-                        isCreatingThread
+                        isBusy
                       }
                     >
                       {isCreatingThread ? 'Posting...' : 'Post Thread'}
@@ -385,7 +504,6 @@ export const ForumBoardPage: React.FC = () => {
             )}
 
             {loading && <p>Loading threads...</p>}
-            {error && <p className="text-red-500">Error: {error}</p>}
             {!loading &&
               !error &&
               (threads.length === 0 ? (
@@ -394,26 +512,46 @@ export const ForumBoardPage: React.FC = () => {
                 </p>
               ) : (
                 <ul className="space-y-3">
-                  {threads.map((thread) => (
-                    <li
-                      key={thread.id}
-                      className="border rounded-md hover:bg-gray-50 transition-colors"
-                    >
-                      <Link
-                        routerLink={`/forums/${encodedServerUrl}/${categoryId}/${boardId}/${thread.id}`}
-                        className="block group p-3"
+                  {threads.map((thread) => {
+                    const isAuthor = currentUserPubKey && thread.created_by ? 
+                                      Buffer.from(currentUserPubKey).equals(Buffer.from(thread.created_by)) : 
+                                      false;
+                    const canDelete = !!serverUrl && (isAdmin || isAuthor);
+                    const isCurrentlyDeleting = deletingThreadId === thread.id;
+                    return (
+                      <li
+                        key={thread.id}
+                        className="border rounded-md hover:bg-gray-50 transition-colors flex justify-between items-center"
                       >
-                        <h4 className="font-semibold text-blue-700 group-hover:underline">
-                          {thread.title}
-                        </h4>
-                        <p className="text-xs text-gray-500">
-                          Created:{' '}
-                          {new Date(thread.created_at).toLocaleString()}
-                          {/* TODO: Add author info or post count here later */}
-                        </p>
-                      </Link>
-                    </li>
-                  ))}
+                        <Link
+                          routerLink={`/forums/${encodedServerUrl}/${categoryId}/${boardId}/${thread.id}`}
+                          className="block group p-3 flex-grow"
+                        >
+                          <h4 className="font-semibold text-blue-700 group-hover:underline">
+                            {thread.title}
+                          </h4>
+                          <p className="text-xs text-gray-500">
+                            Created:{' '}
+                            {new Date(thread.created_at).toLocaleString()}
+                          </p>
+                        </Link>
+                        {canDelete && (
+                          <button
+                            onClick={() => handleDeleteThread(thread.id, thread.title)}
+                            disabled={isBusy}
+                            className="p-2 mr-2 text-red-500 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Delete Thread"
+                          >
+                            {isCurrentlyDeleting ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                            ) : (
+                              <Trash2 size={16} />
+                            )}
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               ))}
           </div>

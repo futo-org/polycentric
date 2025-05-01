@@ -4,6 +4,7 @@ use crate::{
     models::{Post, PostImage},
     utils::PaginationParams,
 };
+use std::collections::HashMap;
 
 // Placeholder for Polycentric ID
 type PolycentricId = Vec<u8>;
@@ -17,6 +18,10 @@ pub struct CreatePostData {
     pub quote_of: Option<Uuid>,
     #[serde(default)] // Ensure it defaults to None if missing in JSON
     pub images: Option<Vec<String>>,
+    // Added optional fields for Polycentric pointer
+    pub polycentric_system_id: Option<PolycentricId>,
+    pub polycentric_process_id: Option<PolycentricId>,
+    pub polycentric_log_seq: Option<i64>,
 }
 
 // Input data for updating a post (only content for now)
@@ -26,84 +31,102 @@ pub struct UpdatePostData {
     // TODO: Add optional images field for updating images?
 }
 
-// Intermediate struct to fetch basic post data before images
-#[derive(sqlx::FromRow)] // Added FromRow
+// Intermediate struct to fetch base post data including new fields
+#[derive(sqlx::FromRow, Debug)] // Added Debug derive
 struct PostBaseData {
     id: Uuid,
     thread_id: Uuid,
-    author_id: PolycentricId, // Now Vec<u8>
+    author_id: PolycentricId, 
     content: String,
     created_at: chrono::DateTime<chrono::Utc>,
     quote_of: Option<Uuid>,
+    // --- Added new fields ---
+    polycentric_system_id: Option<Vec<u8>>,
+    polycentric_process_id: Option<Vec<u8>>,
+    polycentric_log_seq: Option<i64>,
 }
 
-/// Inserts a new post and its associated images within a transaction.
-pub async fn create_post(
-    pool: &PgPool,
+/// Creates a new post within a thread, potentially including images and a Polycentric pointer.
+/// Must be executed within a transaction.
+pub async fn create_post<'c>(
+    executor: &mut Transaction<'c, Postgres>, // Requires Transaction
     thread_id: Uuid,
-    post_data: CreatePostData, // Contains Vec<u8>
-) -> Result<Post, sqlx::Error> {
-    // Start a transaction
-    let mut tx = pool.begin().await?;
+    post_data: CreatePostData, 
+) -> Result<Post, sqlx::Error> 
+{
 
-    // 1. Insert the main post data
-    let post_base = sqlx::query_as!(
-        PostBaseData,
+    // 1. Insert the basic post data, returning only the ID initially.
+    let new_post_id = sqlx::query!(
         r#"
-        INSERT INTO posts (thread_id, author_id, content, quote_of)
-        VALUES ($1, $2::BYTEA, $3, $4)
-        RETURNING id, thread_id, author_id, content, created_at, quote_of
+        INSERT INTO posts (thread_id, author_id, content, quote_of, 
+                           polycentric_system_id, polycentric_process_id, polycentric_log_seq)
+        VALUES ($1, $2::BYTEA, $3, $4, $5::BYTEA, $6::BYTEA, $7)
+        RETURNING id
         "#,
         thread_id,
-        &post_data.author_id, // Keep binding as slice
+        &post_data.author_id, 
         post_data.content,
-        post_data.quote_of
+        post_data.quote_of,
+        post_data.polycentric_system_id.as_ref().map(|v| v.as_slice()),
+        post_data.polycentric_process_id.as_ref().map(|v| v.as_slice()),
+        post_data.polycentric_log_seq,
     )
-    .fetch_one(&mut *tx) // Use transaction
-    .await?;
+    .fetch_one(&mut **executor) // Dereference twice to get &mut PgConnection
+    .await?
+    .id;
 
-    // 2. Insert images if provided
+    // 2. Insert images if provided, using the same transaction.
     let mut inserted_images: Vec<PostImage> = Vec::new();
-    if let Some(image_urls) = post_data.images {
+    if let Some(image_urls) = &post_data.images {
         if !image_urls.is_empty() {
-            // Prepare batch insert for images
-            let mut query_builder = sqlx::QueryBuilder::new(
-                "INSERT INTO post_images (post_id, image_url) "
-            );
+            let mut query_builder: sqlx::QueryBuilder<sqlx::Postgres> = 
+                sqlx::QueryBuilder::new("INSERT INTO post_images (post_id, image_url) ");
+
             query_builder.push_values(image_urls.iter(), |mut b, image_url| {
-                b.push_bind(post_base.id)
-                 .push_bind(image_url);
+                b.push_bind(new_post_id).push_bind(image_url);
             });
             query_builder.push(" RETURNING id, post_id, image_url, created_at");
 
             let query = query_builder.build_query_as::<PostImage>();
-
-            inserted_images = query.fetch_all(&mut *tx).await?; // Use transaction
+            
+            // Use the dereferenced transaction reference again
+            inserted_images = query.fetch_all(&mut **executor).await?;
         }
     }
 
-    // Commit the transaction
-    tx.commit().await?;
+    // 3. Now fetch the full post data using the ID, within the same transaction.
+    let final_post_data = sqlx::query_as!( PostBaseData,
+        r#"SELECT 
+               id, thread_id, author_id, content, created_at, quote_of, 
+               polycentric_system_id, polycentric_process_id, polycentric_log_seq 
+           FROM posts WHERE id = $1"#,
+        new_post_id
+    )
+    .fetch_one(&mut **executor) // Dereference twice again
+    .await?;
 
-    // Construct the final Post struct
-    let new_post = Post {
-        id: post_base.id,
-        thread_id: post_base.thread_id,
-        author_id: post_base.author_id, // Assign Vec<u8>
-        content: post_base.content,
-        created_at: post_base.created_at,
-        quote_of: post_base.quote_of,
-        images: inserted_images,
-    };
-
-    Ok(new_post)
+    // 4. Construct the final Post object
+    Ok(Post {
+        id: final_post_data.id,
+        thread_id: final_post_data.thread_id,
+        author_id: final_post_data.author_id, 
+        content: final_post_data.content,
+        created_at: final_post_data.created_at,
+        quote_of: final_post_data.quote_of,
+        images: inserted_images, 
+        polycentric_system_id: final_post_data.polycentric_system_id,
+        polycentric_process_id: final_post_data.polycentric_process_id,
+        polycentric_log_seq: final_post_data.polycentric_log_seq,
+    })
 }
 
-/// Fetches a single post by its ID, including its images.
+/// Fetches a single post by its ID, including its images and Polycentric pointers.
 pub async fn get_post_by_id(pool: &PgPool, post_id: Uuid) -> Result<Option<Post>, sqlx::Error> {
-    // 1. Fetch the base post data
+    // 1. Fetch the base post data including new columns
     let post_base_opt = sqlx::query_as!( PostBaseData,
-        r#"SELECT id, thread_id, author_id, content, created_at, quote_of FROM posts WHERE id = $1"#,
+        r#"SELECT id, thread_id, author_id, content, created_at, quote_of,
+                  polycentric_system_id, polycentric_process_id, polycentric_log_seq 
+           FROM posts WHERE id = $1"#,
         post_id
     )
     .fetch_optional(pool)
@@ -122,28 +145,33 @@ pub async fn get_post_by_id(pool: &PgPool, post_id: Uuid) -> Result<Option<Post>
         Ok(Some(Post {
             id: post_base.id,
             thread_id: post_base.thread_id,
-            author_id: post_base.author_id, // Assign Vec<u8>
+            author_id: post_base.author_id, 
             content: post_base.content,
             created_at: post_base.created_at,
             quote_of: post_base.quote_of,
             images,
+            // Assign the new fields
+            polycentric_system_id: post_base.polycentric_system_id,
+            polycentric_process_id: post_base.polycentric_process_id,
+            polycentric_log_seq: post_base.polycentric_log_seq,
         }))
     } else {
         Ok(None)
     }
 }
 
-/// Fetches all posts belonging to a specific thread with pagination, including images.
+/// Fetches all posts belonging to a specific thread with pagination, including images and Polycentric pointers.
 pub async fn get_posts_by_thread(
     pool: &PgPool,
     thread_id: Uuid,
     pagination: &PaginationParams,
 ) -> Result<Vec<Post>, sqlx::Error> {
-    // 1. Fetch base data for posts in the page
+    // 1. Fetch base data for posts in the page including new columns
     let post_bases = sqlx::query_as!(
         PostBaseData,
         r#"
-        SELECT id, thread_id, author_id, content, created_at, quote_of
+        SELECT id, thread_id, author_id, content, created_at, quote_of,
+               polycentric_system_id, polycentric_process_id, polycentric_log_seq
         FROM posts
         WHERE thread_id = $1
         ORDER BY created_at ASC
@@ -169,15 +197,14 @@ pub async fn get_posts_by_thread(
         SELECT id, post_id, image_url, created_at
         FROM post_images
         WHERE post_id = ANY($1)
-        ORDER BY post_id, created_at ASC -- Ensure consistent order for grouping
+        ORDER BY post_id, created_at ASC 
         "#,
-        &post_ids // Pass the collected IDs
+        &post_ids 
     )
     .fetch_all(pool)
     .await?;
 
     // 4. Group images by post_id
-    use std::collections::HashMap;
     let mut images_map: HashMap<Uuid, Vec<PostImage>> = HashMap::new();
     for image in images {
         images_map.entry(image.post_id).or_default().push(image);
@@ -189,11 +216,15 @@ pub async fn get_posts_by_thread(
         .map(|base| Post {
             id: base.id,
             thread_id: base.thread_id,
-            author_id: base.author_id, // Assign Vec<u8>
+            author_id: base.author_id, 
             content: base.content,
             created_at: base.created_at,
             quote_of: base.quote_of,
-            images: images_map.remove(&base.id).unwrap_or_default(), // Get images for this post
+            images: images_map.remove(&base.id).unwrap_or_default(), 
+            // Assign new fields
+            polycentric_system_id: base.polycentric_system_id,
+            polycentric_process_id: base.polycentric_process_id,
+            polycentric_log_seq: base.polycentric_log_seq,
         })
         .collect();
 
@@ -201,7 +232,7 @@ pub async fn get_posts_by_thread(
 }
 
 /// Updates an existing post's content.
-/// NOTE: This version does NOT handle updating images.
+/// NOTE: This version does NOT handle updating images or the Polycentric pointer.
 pub async fn update_post(
     pool: &PgPool,
     post_id: Uuid,
@@ -217,7 +248,7 @@ pub async fn update_post(
     .await?;
 
     if updated_rows.rows_affected() == 1 {
-        // Fetch the updated post data including images
+        // Fetch the updated post data including images/pointer
         get_post_by_id(pool, post_id).await
     } else {
         Ok(None) // Post not found
@@ -229,6 +260,44 @@ pub async fn update_post(
 pub async fn delete_post(pool: &PgPool, post_id: Uuid) -> Result<u64, sqlx::Error> {
     let result = sqlx::query!(
         "DELETE FROM posts WHERE id = $1",
+        post_id
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(result.rows_affected())
+}
+
+// --- Add missing function ---
+pub async fn get_post_author(pool: &PgPool, post_id: Uuid) -> Result<Option<Vec<u8>>, sqlx::Error> {
+    let result = sqlx::query!(
+        r#"SELECT author_id FROM posts WHERE id = $1"#,
+        post_id
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(result.map(|row| row.author_id)) // Extracts the author_id if found
+}
+
+/// Updates the Polycentric pointer fields for a specific post.
+pub async fn update_polycentric_pointers(
+    pool: &PgPool,
+    post_id: Uuid,
+    system_id: Vec<u8>,
+    process_id: Vec<u8>,
+    log_seq: i64,
+) -> Result<u64, sqlx::Error> {
+    let result = sqlx::query!(
+        r#"
+        UPDATE posts
+        SET polycentric_system_id = $1,
+            polycentric_process_id = $2,
+            polycentric_log_seq = $3
+        WHERE id = $4
+        "#,
+        system_id, // Bind as BYTEA
+        process_id, // Bind as BYTEA
+        log_seq,   // Bind as BIGINT
         post_id
     )
     .execute(pool)

@@ -7,15 +7,15 @@ use axum::{
 use uuid::Uuid;
 use crate::{
     models::Thread,
-    repositories::{self, board_repository, thread_repository::{self, CreateThreadData, UpdateThreadData}},
+    repositories::{self, board_repository, thread_repository::{self, UpdateThreadData}},
     utils::PaginationParams, // Import
     AppState,
-    auth::AuthenticatedUser, // Import the extractor
+    auth::{AuthenticatedUser, AdminUser}, // Import AdminUser
 };
 use serde::Deserialize;
 use mime;
 use futures_util::stream::StreamExt;
-use base64; // Keep if needed elsewhere, or remove
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 
 // Define constants if they aren't globally available (copy from post_handlers.rs)
 const MAX_IMAGES_PER_POST: usize = 5;
@@ -30,19 +30,21 @@ struct TempImageField {
     data: Vec<u8>,
 }
 
-/// Handler to create a new thread with initial post and optional images (multipart/form-data).
+/// Handler to create a new thread with initial post, optional images, and Polycentric pointer.
 pub async fn create_thread_handler(
     State(state): State<AppState>,
     Path(board_id): Path<Uuid>,
     user: AuthenticatedUser,
-    mut multipart: Multipart, // Expect multipart data now
+    mut multipart: Multipart, 
 ) -> Response {
     let created_by = user.0;
 
-    // --- Multipart Processing --- 
     let mut collected_title: Option<String> = None;
     let mut collected_content: Option<String> = None;
     let mut collected_images: Vec<TempImageField> = Vec::new();
+    let mut collected_poly_system_id_b64: Option<String> = None;
+    let mut collected_poly_process_id_b64: Option<String> = None;
+    let mut collected_poly_log_seq_str: Option<String> = None;
 
     loop { 
         match multipart.next_field().await {
@@ -95,11 +97,29 @@ pub async fn create_thread_handler(
                              Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read image data: {}", e)).into_response(),
                          }
                     }
-                    _ => { /* Ignore other fields like quote_of */ }
+                    "polycentric_system_id" => {
+                        match field.text().await {
+                            Ok(text) => collected_poly_system_id_b64 = Some(text),
+                            Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read polycentric_system_id: {}", e)).into_response(),
+                        }
+                    }
+                    "polycentric_process_id" => {
+                        match field.text().await {
+                            Ok(text) => collected_poly_process_id_b64 = Some(text),
+                            Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read polycentric_process_id: {}", e)).into_response(),
+                        }
+                    }
+                    "polycentric_log_seq" => {
+                        match field.text().await {
+                            Ok(text) => collected_poly_log_seq_str = Some(text),
+                            Err(e) => return (StatusCode::BAD_REQUEST, format!("Failed to read polycentric_log_seq: {}", e)).into_response(),
+                        }
+                    }
+                    _ => { /* Ignore other fields */ }
                 }
             }
-            Ok(None) => break, // End of stream
-            Err(e) => { // Handle stream error
+            Ok(None) => break, 
+            Err(e) => { 
                 eprintln!("Multipart error processing field: {}", e);
                 if e.to_string().contains("body limit exceeded") {
                     return (StatusCode::PAYLOAD_TOO_LARGE, "Total upload size limit exceeded").into_response();
@@ -118,6 +138,33 @@ pub async fn create_thread_handler(
         Some(c) if !c.trim().is_empty() => c.trim().to_string(),
         _ => return (StatusCode::BAD_REQUEST, "Missing or empty required field: content").into_response(),
     };
+
+    // --- Added: Decode pointer fields --- 
+    let polycentric_system_id = match collected_poly_system_id_b64 {
+        Some(b64) => match BASE64_STANDARD.decode(b64) {
+            Ok(bytes) => Some(bytes),
+            Err(_) => return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_system_id").into_response(),
+        },
+        None => None,
+    };
+    let polycentric_process_id = match collected_poly_process_id_b64 {
+        Some(b64) => match BASE64_STANDARD.decode(b64) {
+            Ok(bytes) => Some(bytes),
+            Err(_) => return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_process_id").into_response(),
+        },
+        None => None,
+    };
+    let polycentric_log_seq = match collected_poly_log_seq_str {
+        Some(s) => match s.parse::<i64>() {
+            Ok(num) => Some(num),
+            Err(_) => return (StatusCode::BAD_REQUEST, "Invalid number format for polycentric_log_seq").into_response(),
+        },
+        None => None,
+    };
+    // Optional: Validation for pointer fields
+    if polycentric_system_id.is_some() != polycentric_process_id.is_some() || polycentric_system_id.is_some() != polycentric_log_seq.is_some() {
+        return (StatusCode::BAD_REQUEST, "Polycentric pointer fields must be provided together or not at all").into_response();
+    }
 
     // Check board existence
     match board_repository::get_board_by_id(&state.db_pool, board_id).await {
@@ -139,18 +186,20 @@ pub async fn create_thread_handler(
             Ok(url) => image_urls.push(url),
             Err(e) => {
                 eprintln!("Failed to save image during thread creation: {}", e);
-                // Consider deleting already saved images if one fails?
                 return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to save image").into_response();
             }
         }
     }
     
-    // Prepare data for repository
-    let thread_data = repositories::thread_repository::CreateThreadData {
+    // --- Updated: Prepare data for repository including pointer --- 
+    let thread_data = crate::repositories::thread_repository::CreateThreadData {
         title,
         content,
         created_by,
         images: if image_urls.is_empty() { None } else { Some(image_urls) },
+        polycentric_system_id,
+        polycentric_process_id,
+        polycentric_log_seq,
     };
 
     // Call repository function
@@ -240,35 +289,46 @@ pub async fn update_thread_handler(
     }
 }
 
-/// Handler to delete a thread.
+/// Handler to delete a thread (Admin OR Author).
 pub async fn delete_thread_handler(
     State(state): State<AppState>,
     Path(thread_id): Path<Uuid>,
-    user: AuthenticatedUser,
+    admin_user: Option<AdminUser>,         // Optional: Try to extract admin first
+    auth_user: Option<AuthenticatedUser>, // Optional: Try to extract regular user if not admin
 ) -> Response {
-    // Fetch thread first
-    match thread_repository::get_thread_by_id(&state.db_pool, thread_id).await {
-        Ok(Some(thread_to_delete)) => {
-            // Authorization check
-            if thread_to_delete.created_by != user.0 {
-                 return (StatusCode::FORBIDDEN, "Permission denied").into_response();
-            }
-            
-            // Perform delete
-            match thread_repository::delete_thread(&state.db_pool, thread_id).await {
-                 Ok(0) => (StatusCode::NOT_FOUND, "Thread not found during delete").into_response(), // Should be rare
-                 Ok(_) => (StatusCode::NO_CONTENT).into_response(), // Success (1 row deleted)
-                 Err(e) => {
-                    eprintln!("Failed to delete thread: {}", e);
-                    (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete thread").into_response()
-                 }
-            }
-        }
-        Ok(None) => (StatusCode::NOT_FOUND, "Thread not found").into_response(),
+    // 1. Fetch thread author first
+    let author_result = thread_repository::get_thread_author(&state.db_pool, thread_id).await;
+    let author_id = match author_result {
+        Ok(Some(id)) => id,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Thread not found").into_response(),
         Err(e) => {
-            eprintln!("Failed to fetch thread for delete: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Error fetching thread for delete").into_response()
+            eprintln!("Failed to fetch thread author for delete: {}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response();
         }
+    };
+
+    // 2. Check authorization: Admin OR Author
+    let can_delete = if admin_user.is_some() {
+        true // Admin can delete
+    } else if let Some(user) = auth_user {
+        user.0 == author_id // Authenticated user can delete if they are the author
+    } else {
+        false // Not admin and not authenticated user
+    };
+
+    // 3. Perform deletion or return forbidden
+    if can_delete {
+         // Use the function that also deletes posts
+        match thread_repository::delete_thread_with_posts(&state.db_pool, thread_id).await {
+            Ok(0) => (StatusCode::NOT_FOUND, "Thread not found during delete").into_response(),
+            Ok(_) => (StatusCode::NO_CONTENT).into_response(),
+            Err(e) => {
+                eprintln!("Failed to delete thread with posts: {}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete thread").into_response()
+            }
+        }
+    } else {
+        (StatusCode::FORBIDDEN, "Permission denied").into_response()
     }
 }
 
