@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { useIsMobile } from '../../../hooks/styleHooks';
 import { SearchBox } from '../../search/searchbox';
+import { FooterLinks } from '../footerlinks';
 
 export const RightCol = ({
   children,
@@ -31,24 +32,7 @@ export const RightCol = ({
               </div>
               {rightCol}
             </div>
-            <div className="p-5 w-full text-right text-gray-400 text-sm">
-              <a
-                href="https://gitlab.futo.org/polycentric/polycentric"
-                target="_blank"
-                rel="noreferrer"
-                className="block"
-              >
-                Source Code
-              </a>
-              <a
-                href="https://docs.polycentric.io/privacy-policy/"
-                target="_blank"
-                rel="noreferrer"
-                className="block"
-              >
-                Privacy Policy
-              </a>
-            </div>
+            <FooterLinks />
           </div>
         </div>
       )}
