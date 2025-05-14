@@ -20,7 +20,6 @@ pub struct Category {
     pub name: String,
     pub description: String,
     pub created_at: DateTime<Utc>,
-    #[sqlx(rename = "category_order")]
     pub order: i32,
     // Could add fields like order, creation timestamp, etc.
 }
@@ -33,7 +32,6 @@ pub struct Board {
     pub name: String,
     pub description: String,
     pub created_at: DateTime<Utc>,
-    #[sqlx(rename = "board_order")]
     pub order: i32,
     // Could add fields like creation timestamp, last post info, etc.
 }

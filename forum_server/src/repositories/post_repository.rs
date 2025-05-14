@@ -5,6 +5,7 @@ use crate::{
     utils::PaginationParams,
 };
 use std::collections::HashMap;
+use tracing::debug;
 
 // Placeholder for Polycentric ID
 type PolycentricId = Vec<u8>;
@@ -167,6 +168,7 @@ pub async fn get_posts_by_thread(
     pagination: &PaginationParams,
 ) -> Result<Vec<Post>, sqlx::Error> {
     // 1. Fetch base data for posts in the page including new columns
+    debug!(?thread_id, ?pagination, "Fetching base post data for thread page");
     let post_bases = sqlx::query_as!(
         PostBaseData,
         r#"
@@ -185,13 +187,17 @@ pub async fn get_posts_by_thread(
     .await?;
 
     if post_bases.is_empty() {
+        debug!(?thread_id, "No base posts found for this page.");
         return Ok(Vec::new());
     }
+    debug!(?thread_id, count = post_bases.len(), fetched_post_ids = ?post_bases.iter().map(|p| p.id).collect::<Vec<_>>(), "Fetched base posts");
 
     // 2. Collect post IDs for image fetching
     let post_ids: Vec<Uuid> = post_bases.iter().map(|p| p.id).collect();
+    debug!(?thread_id, ?post_ids, "Collected post IDs for image fetching");
 
     // 3. Fetch all images associated with these post IDs
+    debug!(?thread_id, ?post_ids, "Fetching images for post IDs");
     let images = sqlx::query_as!(PostImage,
         r#"
         SELECT id, post_id, image_url, created_at
@@ -203,12 +209,14 @@ pub async fn get_posts_by_thread(
     )
     .fetch_all(pool)
     .await?;
+    debug!(?thread_id, image_count = images.len(), ?images, "Fetched images");
 
     // 4. Group images by post_id
     let mut images_map: HashMap<Uuid, Vec<PostImage>> = HashMap::new();
     for image in images {
         images_map.entry(image.post_id).or_default().push(image);
     }
+    debug!(?thread_id, ?images_map, "Grouped images by post_id");
 
     // 5. Combine base data with images
     let posts: Vec<Post> = post_bases
@@ -227,6 +235,7 @@ pub async fn get_posts_by_thread(
             polycentric_log_seq: base.polycentric_log_seq,
         })
         .collect();
+    debug!(?thread_id, post_count = posts.len(), ?posts, "Final combined posts before returning");
 
     Ok(posts)
 }

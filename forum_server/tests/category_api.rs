@@ -152,9 +152,9 @@ async fn test_list_categories_pagination(pool: PgPool) {
     let categories_page1: Vec<Category> = serde_json::from_slice(&body1).unwrap();
 
     assert_eq!(categories_page1.len(), 2);
-    // Categories ordered by creation DESC, so Cat 3 should be first
-    assert_eq!(categories_page1[0].id, cat3_id);
-    assert_eq!(categories_page1[1].id, cat2_id);
+    // Assert based on ascending order assigned during creation
+    assert_eq!(categories_page1[0].id, cat1_id); // Cat 1 has order 0
+    assert_eq!(categories_page1[1].id, cat2_id); // Cat 2 has order 1
 
     // Fetch second page (limit 2, offset 2)
     let response_page2 = app
@@ -174,7 +174,8 @@ async fn test_list_categories_pagination(pool: PgPool) {
     let categories_page2: Vec<Category> = serde_json::from_slice(&body2).unwrap();
 
     assert_eq!(categories_page2.len(), 1);
-    assert_eq!(categories_page2[0].id, cat1_id);
+    // Assert based on ascending order
+    assert_eq!(categories_page2[0].id, cat3_id); // Cat 3 has order 2
 
     // Test default limit
     let response_default = app
@@ -192,6 +193,10 @@ async fn test_list_categories_pagination(pool: PgPool) {
     let categories_default: Vec<Category> = serde_json::from_slice(&body_default).unwrap();
     // Default limit is 25, we created 3, so we should get 3 back
     assert_eq!(categories_default.len(), 3);
+    // Optional: Assert order for default limit if needed
+    assert_eq!(categories_default[0].id, cat1_id);
+    assert_eq!(categories_default[1].id, cat2_id);
+    assert_eq!(categories_default[2].id, cat3_id);
 }
 
 #[sqlx::test]

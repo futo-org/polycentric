@@ -100,7 +100,11 @@ pub fn create_router(
         // Thread routes
         .route("/boards/:board_id/threads", post(create_thread_handler))
         .route("/boards/:board_id/threads", get(list_threads_in_board_handler))
-        .route("/threads/:thread_id", get(get_thread_handler).put(update_thread_handler).delete(delete_thread_handler))
+        .route("/threads/:thread_id", 
+            axum::routing::on(axum::routing::MethodFilter::GET, get_thread_handler)
+            .on(axum::routing::MethodFilter::PUT, update_thread_handler)
+            .on(axum::routing::MethodFilter::DELETE, delete_thread_handler)
+        )
         // Post routes
         .route("/threads/:thread_id/posts", post(create_post_handler))
         .route("/threads/:thread_id/posts", get(list_posts_in_thread_handler))

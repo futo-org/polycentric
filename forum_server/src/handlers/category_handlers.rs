@@ -4,6 +4,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use tracing::{error, info, warn};
 use uuid::Uuid;
 use crate::{
     models::Category,
@@ -24,13 +25,11 @@ pub async fn create_category_handler(
 ) -> Response {
     match category_repository::create_category(&state.db_pool, payload).await {
         Ok(new_category) => {
-            // Successfully created, return 201 Created with the new category
+            info!(category_id = %new_category.id, "Successfully created category");
             (StatusCode::CREATED, Json(new_category)).into_response()
         }
         Err(e) => {
-            eprintln!("Failed to create category: {}", e);
-            // Handle specific errors maybe? For now, generic 500
-            // TODO: Add better error handling (e.g., check for duplicate names?)
+            error!(error = %e, "Failed to create category");
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create category").into_response()
         }
     }
@@ -51,8 +50,7 @@ pub async fn get_category_handler(
             (StatusCode::NOT_FOUND, "Category not found").into_response()
         }
         Err(e) => {
-            eprintln!("Failed to fetch category: {}", e);
-            // Generic error, return 500 Internal Server Error
+            error!(error = %e, category_id = %category_id, "Failed to fetch category");
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch category").into_response()
         }
     }
@@ -69,8 +67,7 @@ pub async fn list_categories_handler(
             (StatusCode::OK, Json(categories)).into_response()
         }
         Err(e) => {
-            eprintln!("Failed to fetch categories: {}", e);
-            // Generic error, return 500 Internal Server Error
+            error!(error = %e, "Failed to fetch categories");
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch categories").into_response()
         }
     }
@@ -86,16 +83,15 @@ pub async fn update_category_handler(
 ) -> Response {
     match category_repository::update_category(&state.db_pool, category_id, payload).await {
         Ok(Some(updated_category)) => {
-            // Return 200 OK with the updated category
+            info!(category_id = %updated_category.id, "Successfully updated category");
             (StatusCode::OK, Json(updated_category)).into_response()
         }
         Ok(None) => {
-            // Category with that ID not found
+            warn!(category_id = %category_id, "Attempted to update non-existent category");
             (StatusCode::NOT_FOUND, "Category not found").into_response()
         }
         Err(e) => {
-            eprintln!("Failed to update category: {}", e);
-            // Could be constraint violation if name must be unique, etc.
+            error!(error = %e, category_id = %category_id, "Failed to update category");
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update category").into_response()
         }
     }
@@ -110,16 +106,15 @@ pub async fn delete_category_handler(
 ) -> Response {
     match category_repository::delete_category(&state.db_pool, category_id).await {
         Ok(rows_affected) if rows_affected == 1 => {
-            // Successfully deleted
+            info!(category_id = %category_id, "Successfully deleted category");
             (StatusCode::NO_CONTENT).into_response()
         }
         Ok(_) => {
-            // No rows affected, meaning category not found
+            warn!(category_id = %category_id, "Attempted to delete non-existent category");
             (StatusCode::NOT_FOUND, "Category not found").into_response()
         }
         Err(e) => {
-            eprintln!("Failed to delete category: {}", e);
-            // Could be constraint violation if ON DELETE is restricted, etc.
+            error!(error = %e, category_id = %category_id, "Failed to delete category");
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete category").into_response()
         }
     }
@@ -136,9 +131,12 @@ pub async fn reorder_categories_handler(
     Json(payload): Json<ReorderPayload>,
 ) -> impl IntoResponse {
     match category_repository::update_category_order(&state.db_pool, &payload.ordered_ids).await {
-        Ok(_) => StatusCode::OK,
+        Ok(_) => {
+            info!(count = payload.ordered_ids.len(), "Successfully reordered categories");
+            StatusCode::OK
+        }
         Err(e) => {
-            eprintln!("Failed to reorder categories: {}", e);
+            error!(error = %e, count = payload.ordered_ids.len(), "Failed to reorder categories");
             StatusCode::INTERNAL_SERVER_ERROR
         }
     }

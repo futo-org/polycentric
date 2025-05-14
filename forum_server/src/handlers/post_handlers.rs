@@ -22,6 +22,7 @@ use std::path::Path as StdPath;
 use tokio::fs;
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _}; // Import base64 for decoding
 use sqlx::Acquire; // Import Acquire trait for starting transactions
+use tracing::{error, info, warn, debug};
 
 // Moved TempImageField definition before its use
 #[derive(Debug)]
@@ -128,7 +129,7 @@ pub async fn create_post_handler(
             }
             Ok(None) => break, 
             Err(e) => {
-                eprintln!("Multipart error processing field: {}", e);
+                warn!(error = %e, "Multipart processing error");
                 if e.to_string().contains("body limit exceeded") {
                     return (StatusCode::PAYLOAD_TOO_LARGE, "Total upload size limit exceeded").into_response();
                 }
@@ -175,7 +176,7 @@ pub async fn create_post_handler(
         Ok(Some(_)) => { /* Thread exists, continue */ }
         Ok(None) => return (StatusCode::NOT_FOUND, "Thread not found").into_response(),
         Err(e) => {
-            eprintln!("DB error checking thread existence: {}", e);
+            error!(error = %e, thread_id = %thread_id, "DB error checking thread existence during post creation");
             return (StatusCode::INTERNAL_SERVER_ERROR, "Error checking thread existence").into_response();
         }
     }
@@ -186,7 +187,7 @@ pub async fn create_post_handler(
             Ok(Some(_)) => { /* Quoted post exists */ }
             Ok(None) => return (StatusCode::BAD_REQUEST, "Quoted post not found").into_response(),
             Err(e) => {
-                eprintln!("DB error checking quoted post: {}", e);
+                error!(error = %e, quote_id = %quote_id, "DB error checking quoted post during post creation");
                 return (StatusCode::INTERNAL_SERVER_ERROR, "Error checking quoted post").into_response();
             }
         }
@@ -195,13 +196,16 @@ pub async fn create_post_handler(
     // --- Image Saving --- 
     let mut image_urls: Vec<String> = Vec::new();
     for image_field in collected_images {
+        // Clone filename for logging
+        let filename_for_log = image_field.filename.clone();
         match state.image_storage.save_image(
             image_field.data.into(), 
-            image_field.filename,
+            image_field.filename, // Pass original owned Option<String>
         ).await {
             Ok(url) => image_urls.push(url),
             Err(e) => {
-                eprintln!("Failed to save image: {}", e);
+                // Use the cloned filename in the log
+                error!(error = %e, filename = ?filename_for_log, "Failed to save image during post creation");
                 return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to save image").into_response();
             }
         }
@@ -211,7 +215,7 @@ pub async fn create_post_handler(
     let mut tx = match state.db_pool.begin().await {
         Ok(tx) => tx,
         Err(e) => {
-            eprintln!("Failed to begin transaction: {}", e);
+            error!(error = %e, "Failed to begin transaction for post creation");
             return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response();
         }
     };
@@ -231,14 +235,15 @@ pub async fn create_post_handler(
         Ok(post) => {
             // Commit the transaction before returning success
             if let Err(e) = tx.commit().await {
-                eprintln!("Failed to commit transaction: {}", e);
+                error!(error = %e, thread_id = %thread_id, post_id = %post.id, "Failed to commit transaction after creating post");
                 return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to save post").into_response();
             }
+            info!(post_id = %post.id, thread_id = %thread_id, author_id = ?post.author_id, "Successfully created post");
             (StatusCode::CREATED, Json(post)).into_response()
         }
         Err(e) => {
-            eprintln!("Failed to create post in DB (transaction rolled back): {}", e);
-            // Transaction is automatically rolled back on drop if not committed
+            // Log the error. Rollback is implicit on drop.
+            error!(error = %e, thread_id = %thread_id, "Failed to create post in DB (transaction rolling back)");
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create post").into_response()
         }
     }
@@ -253,7 +258,7 @@ pub async fn get_post_handler(
         Ok(Some(post)) => (StatusCode::OK, Json(post)).into_response(),
         Ok(None) => (StatusCode::NOT_FOUND, "Post not found").into_response(),
         Err(e) => {
-            eprintln!("Failed to fetch post: {}", e);
+            error!(error = %e, post_id = %post_id, "Failed to fetch post");
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch post").into_response()
         }
     }
@@ -272,14 +277,14 @@ pub async fn list_posts_in_thread_handler(
             match post_repository::get_posts_by_thread(&state.db_pool, thread_id, &pagination).await {
                 Ok(posts) => (StatusCode::OK, Json(posts)).into_response(),
                 Err(e) => {
-                    eprintln!("Failed to fetch posts for thread {}: {}", thread_id, e);
+                    error!(error = %e, thread_id = %thread_id, "Failed to fetch posts for thread");
                     (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch posts").into_response()
                 }
             }
         }
         Ok(None) => (StatusCode::NOT_FOUND, "Thread not found").into_response(),
         Err(e) => {
-            eprintln!("Failed to check thread existence: {}", e);
+            error!(error = %e, thread_id = %thread_id, "Error checking thread existence before listing posts");
             (StatusCode::INTERNAL_SERVER_ERROR, "Error checking thread").into_response()
         }
     }
@@ -297,6 +302,7 @@ pub async fn update_post_handler(
         Ok(Some(post_to_update)) => {
              // Authorization check
             if post_to_update.author_id != user.0 {
+                warn!(post_id = %post_id, user_pubkey = ?user.0, actual_author = ?post_to_update.author_id, "User attempted to update post they did not create");
                 return (StatusCode::FORBIDDEN, "Permission denied").into_response();
             }
 
@@ -305,17 +311,24 @@ pub async fn update_post_handler(
 
              // Perform update
             match post_repository::update_post(&state.db_pool, post_id, update_data).await {
-                Ok(Some(updated_post)) => (StatusCode::OK, Json(updated_post)).into_response(),
-                Ok(None) => (StatusCode::NOT_FOUND, "Post not found during update").into_response(), // Should be rare
+                Ok(Some(updated_post)) => {
+                    info!(post_id = %updated_post.id, "Successfully updated post");
+                    (StatusCode::OK, Json(updated_post)).into_response()
+                }
+                Ok(None) => {
+                    // Should be rare if author check passed, but handle defensively
+                    warn!(post_id = %post_id, user_pubkey = ?user.0, "Post not found during update attempt, despite passing author check");
+                    (StatusCode::NOT_FOUND, "Post not found during update").into_response()
+                }
                 Err(e) => {
-                    eprintln!("Failed to update post: {}", e);
+                    error!(error = %e, post_id = %post_id, "Failed to update post in database");
                     (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update post").into_response()
                 }
             }
         }
         Ok(None) => (StatusCode::NOT_FOUND, "Post not found").into_response(),
         Err(e) => {
-            eprintln!("Failed to fetch post for update: {}", e);
+            error!(error = %e, post_id = %post_id, "Failed to fetch post for update");
             (StatusCode::INTERNAL_SERVER_ERROR, "Error fetching post for update").into_response()
         }
     }
@@ -327,44 +340,42 @@ pub async fn delete_post_handler(
     Path(post_id): Path<Uuid>,
     user: AuthenticatedUser, // Authenticated user's pubkey is user.0
 ) -> Response { 
-    match post_repository::get_post_by_id(&state.db_pool, post_id).await {
-        Ok(Some(post_to_delete)) => {
-            // Authorization Check
-            let requester_pubkey = &user.0;
-            let post_author_id = &post_to_delete.author_id;
+    let user_pubkey = user.0; // Extract user's public key
 
-            // --- DEBUG LOGGING --- 
-            eprintln!("DELETE CHECK FOR POST {}", post_id);
-            eprintln!("  Requester PubKey (Base64): {}", base64::encode(requester_pubkey));
-            eprintln!("  Post Author ID (Base64)  : {}", base64::encode(post_author_id));
-            // --- END DEBUG LOGGING ---
-
-            let is_author = post_author_id == requester_pubkey;
-            let is_admin = state.admin_pubkeys.contains(requester_pubkey);
-
-            eprintln!("  Is Author Check Result: {}", is_author); // Log check result
-            eprintln!("  Is Admin Check Result : {}", is_admin);  // Log check result
-
-            if !is_author && !is_admin {
-                 eprintln!("  Authorization FAILED: Neither author nor admin."); // Log failure
-                 return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+    // Check authorization: Fetch author ID first
+    match post_repository::get_post_author(&state.db_pool, post_id).await {
+        Ok(Some(author_id)) => {
+            if author_id != user_pubkey {
+                // Log the attempt and return Forbidden
+                warn!(post_id = %post_id, user_pubkey = ?user_pubkey, actual_author = ?author_id, "User attempted to delete post they did not create");
+                return (StatusCode::FORBIDDEN, "Permission denied").into_response();
             }
-            
-             eprintln!("  Authorization SUCCEEDED."); // Log success
-             // Perform delete
-             match post_repository::delete_post(&state.db_pool, post_id).await {
-                 Ok(0) => (StatusCode::NOT_FOUND, "Post not found during delete").into_response(), // Should be rare
-                 Ok(_) => (StatusCode::NO_CONTENT).into_response(), // Success (1 row deleted)
-                 Err(e) => {
-                    eprintln!("Failed to delete post: {}", e);
-                    (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete post").into_response()
-                 }
-             }
+            // User is authorized, proceed to delete
         }
-        Ok(None) => (StatusCode::NOT_FOUND, "Post not found").into_response(),
+        Ok(None) => {
+            warn!(post_id = %post_id, user_pubkey = ?user_pubkey, "User attempted to delete non-existent post");
+            return (StatusCode::NOT_FOUND, "Post not found").into_response();
+        }
         Err(e) => {
-            eprintln!("Failed to fetch post for delete: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Error fetching post for delete").into_response()
+            error!(error = %e, post_id = %post_id, "Failed to check post author before deletion");
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Database error checking author").into_response();
+        }
+    }
+
+    // Proceed with deletion
+    match post_repository::delete_post(&state.db_pool, post_id).await {
+        Ok(rows_affected) if rows_affected == 1 => {
+            info!(post_id = %post_id, deleted_by_user = ?user_pubkey, "Successfully deleted post");
+            (StatusCode::NO_CONTENT).into_response()
+        }
+        Ok(_) => {
+            // rows_affected was 0, post likely already deleted
+             warn!(post_id = %post_id, deleted_by_user = ?user_pubkey, "Attempted delete, but post not found during delete operation (0 rows affected)");
+            (StatusCode::NOT_FOUND, "Post not found").into_response()
+        }
+        Err(e) => {
+            error!(error = %e, post_id = %post_id, deleted_by_user = ?user_pubkey, "Failed to delete post from database");
+            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete post").into_response()
         }
     }
 }
@@ -395,56 +406,62 @@ pub async fn link_polycentric_post_handler(
     user: AuthenticatedUser,
     Json(payload): Json<LinkPolycentricPayload>,
 ) -> Response {
-    match post_repository::get_post_by_id(&state.db_pool, post_id).await {
-        Ok(Some(post_to_link)) => {
-            if post_to_link.author_id != user.0 {
-                return (StatusCode::FORBIDDEN, "Permission denied: Only the author can link the post.").into_response();
-            }
+    let user_pubkey = user.0;
 
-            let system_id = match base64::decode(&payload.polycentric_system_id_b64) {
-                Ok(id) => id,
-                Err(e) => {
-                    return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_system_id").into_response();
-                }
-            };
-            let process_id = match base64::decode(&payload.polycentric_process_id_b64) {
-                Ok(id) => id,
-                Err(e) => {
-                    return (StatusCode::BAD_REQUEST, "Invalid base64 for polycentric_process_id").into_response();
-                }
-            };
-            let log_seq = payload.polycentric_log_seq;
-
-            match post_repository::update_polycentric_pointers(
-                &state.db_pool, 
-                post_id, 
-                system_id, 
-                process_id, 
-                log_seq
-            ).await {
-                Ok(updated_rows) => {
-                    if updated_rows == 1 {
-                        match post_repository::get_post_by_id(&state.db_pool, post_id).await {
-                            Ok(Some(updated_post)) => (StatusCode::OK, Json(updated_post)).into_response(),
-                            Ok(None) => (StatusCode::NOT_FOUND, "Post not found after update").into_response(), // Should not happen
-                            Err(e) => {
-                                (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch updated post").into_response()
-                            }
-                        }
-                    } else {
-                        (StatusCode::NOT_FOUND, "Post not found during link update").into_response()
-                    }
-                }
-                Err(e) => {
-                    (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update post with polycentric link").into_response()
-                }
+    // 1. Verify user is the author of the post
+    match post_repository::get_post_author(&state.db_pool, post_id).await {
+        Ok(Some(author_id)) => {
+            if author_id != user_pubkey {
+                warn!(post_id = %post_id, user_pubkey = ?user_pubkey, actual_author = ?author_id, "User attempted to link Polycentric pointer to post they don't own");
+                return (StatusCode::FORBIDDEN, "Permission denied. You can only link your own posts.").into_response();
             }
         }
         Ok(None) => {
-            (StatusCode::NOT_FOUND, "Post not found").into_response()
+            warn!(post_id = %post_id, user_pubkey = ?user_pubkey, "Attempted to link non-existent post");
+            return (StatusCode::NOT_FOUND, "Post not found.").into_response();
         }
         Err(e) => {
-            (StatusCode::INTERNAL_SERVER_ERROR, "Error fetching post for linking").into_response()
+            error!(error = %e, post_id = %post_id, "Failed to check post author before linking Polycentric pointer");
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Database error checking author.").into_response();
+        }
+    }
+
+    // 2. Decode Base64 IDs
+    let system_id = match BASE64_STANDARD.decode(&payload.polycentric_system_id_b64) {
+        Ok(id) => id,
+        Err(_) => {
+            warn!(post_id = %post_id, user_pubkey = ?user_pubkey, "Invalid base64 for system_id provided by user");
+            return (StatusCode::BAD_REQUEST, "Invalid base64 format for polycentric_system_id").into_response();
+        }
+    };
+    let process_id = match BASE64_STANDARD.decode(&payload.polycentric_process_id_b64) {
+        Ok(id) => id,
+        Err(_) => {
+            warn!(post_id = %post_id, user_pubkey = ?user_pubkey, "Invalid base64 for process_id provided by user");
+            return (StatusCode::BAD_REQUEST, "Invalid base64 format for polycentric_process_id").into_response();
+        }
+    };
+
+    // 3. Call repository to update the post with pointer details
+    match post_repository::update_polycentric_pointers(
+        &state.db_pool, 
+        post_id, 
+        system_id, 
+        process_id, 
+        payload.polycentric_log_seq
+    ).await {
+        Ok(rows_affected) if rows_affected == 1 => {
+            info!(post_id = %post_id, user_pubkey = ?user_pubkey, log_seq = payload.polycentric_log_seq, "Successfully linked Polycentric pointer to post");
+            StatusCode::OK.into_response()
+        }
+        Ok(_) => {
+            // Should be rare if author check passed, but handle defensively
+            warn!(post_id = %post_id, user_pubkey = ?user_pubkey, "Post not found during link attempt, despite passing author check");
+            StatusCode::NOT_FOUND.into_response()
+        }
+        Err(e) => {
+            error!(error = %e, post_id = %post_id, user_pubkey = ?user_pubkey, "Failed to link Polycentric pointer in database");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 } 

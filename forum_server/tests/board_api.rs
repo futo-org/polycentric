@@ -227,7 +227,7 @@ async fn test_list_boards_in_category_pagination(pool: PgPool) {
     let body1 = response_page1.into_body().collect().await.unwrap().to_bytes();
     let boards_page1: Vec<Board> = serde_json::from_slice(&body1).unwrap();
     assert_eq!(boards_page1.len(), 2);
-    assert_eq!(boards_page1[0].id, board3_id);
+    assert_eq!(boards_page1[0].id, board1_id);
     assert_eq!(boards_page1[1].id, board2_id);
 
     let response_page2 = app.clone().oneshot(
@@ -241,7 +241,7 @@ async fn test_list_boards_in_category_pagination(pool: PgPool) {
     let body2 = response_page2.into_body().collect().await.unwrap().to_bytes();
     let boards_page2: Vec<Board> = serde_json::from_slice(&body2).unwrap();
     assert_eq!(boards_page2.len(), 1);
-    assert_eq!(boards_page2[0].id, board1_id);
+    assert_eq!(boards_page2[0].id, board3_id);
 
     let response_default = app.oneshot(
         Request::builder()
@@ -461,16 +461,22 @@ async fn test_delete_board_cascade(pool: PgPool) {
     let app = create_test_app(pool.clone(), Some(vec![admin_pubkey.clone()])).await;
     let admin_auth_headers = get_auth_headers(&app, &admin_keypair).await;
     let category_id = create_test_category(&app, "Cascade Board Cat", &admin_keypair).await;
-    let board_id = create_test_board(&app, category_id, "Cascade Board", &admin_keypair).await;
+    let board_id = create_test_board(&app, category_id, "Cascade Delete Board", &admin_keypair).await;
     let thread_keypair = generate_test_keypair();
-    let post_keypair = generate_test_keypair();
-    let (thread_id, _) = create_test_thread(&app, board_id, "Cascade Thread", &thread_keypair).await;
-    let post_content = "Post in thread to be deleted";
-    let (status, body_bytes, expected_author_id) = create_test_post(&app, thread_id, post_content, &post_keypair, None).await;
-    assert_eq!(status, StatusCode::CREATED, "Helper failed to create post for board cascade test");
-    let post: Post = serde_json::from_slice(&body_bytes).expect("Failed to parse post in board cascade test");
-    let post_id = post.id;
-    assert_eq!(post.author_id, expected_author_id);
+    let (thread_id, initial_post_id) = create_test_thread(&app, board_id, "Thread To Delete", "Content", &thread_keypair).await;
+
+    // Verify thread and post exist initially
+    let thread_result = sqlx::query!("SELECT id FROM threads WHERE id = $1", thread_id)
+        .fetch_optional(&pool)
+        .await
+        .unwrap();
+    assert!(thread_result.is_some());
+
+    let post_result = sqlx::query!("SELECT id FROM posts WHERE id = $1", initial_post_id)
+        .fetch_optional(&pool)
+        .await
+        .unwrap();
+    assert!(post_result.is_some());
 
     // Send DELETE request for the board using admin auth
     let response = app
@@ -508,9 +514,9 @@ async fn test_delete_board_cascade(pool: PgPool) {
 
     // Verify post is gone (due to cascade)
     let post_result = sqlx::query("SELECT 1 FROM posts WHERE id = $1")
-        .bind(post_id)
+        .bind(initial_post_id)
         .fetch_optional(&pool)
         .await
         .unwrap();
     assert!(post_result.is_none(), "Post should be cascade deleted");
-} 
+}

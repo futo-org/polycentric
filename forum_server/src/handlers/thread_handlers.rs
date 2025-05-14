@@ -4,6 +4,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use tracing::{error, info, warn, debug};
 use uuid::Uuid;
 use crate::{
     models::Thread,
@@ -120,6 +121,7 @@ pub async fn create_thread_handler(
             }
             Ok(None) => break, 
             Err(e) => { 
+                warn!(error = %e, "Multipart processing error");
                 if e.to_string().contains("body limit exceeded") {
                     return (StatusCode::PAYLOAD_TOO_LARGE, "Total upload size limit exceeded").into_response();
                 }
@@ -143,6 +145,7 @@ pub async fn create_thread_handler(
         Ok(Some(_)) => { /* Board exists */ }
         Ok(None) => return (StatusCode::NOT_FOUND, "Board not found").into_response(),
         Err(e) => {
+            error!(error = %e, board_id = %board_id, "Error checking board existence during thread creation");
             return (StatusCode::INTERNAL_SERVER_ERROR, "Error checking board existence").into_response();
         }
     }
@@ -150,12 +153,16 @@ pub async fn create_thread_handler(
     // --- Image Saving --- 
     let mut image_urls: Vec<String> = Vec::new();
     for image_field in collected_images {
+        // Clone filename for logging in case save_image takes ownership implicitly
+        let filename_for_log = image_field.filename.clone();
         match state.image_storage.save_image(
             image_field.data.into(), 
-            image_field.filename,
+            image_field.filename, // Pass the original owned Option<String> here
         ).await {
             Ok(url) => image_urls.push(url),
             Err(e) => {
+                // Log the cloned filename
+                error!(error = %e, image_filename = ?filename_for_log, "Failed to save image during thread creation");
                 return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to save image").into_response();
             }
         }
@@ -201,8 +208,12 @@ pub async fn create_thread_handler(
 
     // Call repository function
     match thread_repository::create_thread_with_initial_post(&state.db_pool, board_id, thread_data).await {
-        Ok(created_info) => (StatusCode::CREATED, Json(created_info)).into_response(),
+        Ok(created_info) => {
+            info!(thread_id = %created_info.thread.id, post_id = %created_info.initial_post_id, board_id = %board_id, created_by = ?created_info.thread.created_by, "Successfully created thread");
+            (StatusCode::CREATED, Json(created_info)).into_response()
+        }
         Err(e) => {
+            error!(error = %e, board_id = %board_id, "Failed to create thread in database");
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create thread").into_response()
         }
     }
@@ -217,6 +228,7 @@ pub async fn get_thread_handler(
         Ok(Some(thread)) => (StatusCode::OK, Json(thread)).into_response(),
         Ok(None) => (StatusCode::NOT_FOUND, "Thread not found").into_response(),
         Err(e) => {
+            error!(error = %e, thread_id = %thread_id, "Failed to fetch thread");
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch thread").into_response()
         }
     }
@@ -235,12 +247,14 @@ pub async fn list_threads_in_board_handler(
             match thread_repository::get_threads_by_board(&state.db_pool, board_id, &pagination).await {
                 Ok(threads) => (StatusCode::OK, Json(threads)).into_response(),
                 Err(e) => {
+                    error!(error = %e, board_id = %board_id, "Failed to fetch threads for board");
                     (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch threads").into_response()
                 }
             }
         }
         Ok(None) => (StatusCode::NOT_FOUND, "Board not found").into_response(),
         Err(e) => {
+            error!(error = %e, board_id = %board_id, "Error checking board existence before listing threads");
             (StatusCode::INTERNAL_SERVER_ERROR, "Error checking board").into_response()
         }
     }
@@ -253,12 +267,18 @@ pub async fn update_thread_handler(
     user: AuthenticatedUser,
     Json(payload): Json<UpdateThreadPayload>,
 ) -> Response {
+    // Validate title is not empty or just whitespace
+    if payload.title.trim().is_empty() {
+        return (StatusCode::BAD_REQUEST, "Title cannot be empty").into_response();
+    }
+
     // Fetch thread first
     match thread_repository::get_thread_by_id(&state.db_pool, thread_id).await {
         Ok(Some(thread_to_update)) => {
             // Authorization check
             if thread_to_update.created_by != user.0 {
-                return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+                warn!(thread_id = %thread_id, user_pubkey = ?user.0, actual_author = ?thread_to_update.created_by, "User attempted to update thread they did not create");
+                return (StatusCode::FORBIDDEN, "You can only update your own threads.").into_response();
             }
 
             // Construct update data
@@ -266,16 +286,24 @@ pub async fn update_thread_handler(
 
             // Perform update
             match thread_repository::update_thread(&state.db_pool, thread_id, update_data).await {
-                Ok(Some(updated_thread)) => (StatusCode::OK, Json(updated_thread)).into_response(),
+                Ok(Some(updated_thread)) => {
+                    info!(thread_id = %updated_thread.id, "Successfully updated thread title");
+                    (StatusCode::OK, Json(updated_thread)).into_response()
+                }
                 Ok(None) => (StatusCode::NOT_FOUND, "Thread not found during update").into_response(), // Should be rare
                 Err(e) => {
-                    (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update thread").into_response()
+                    error!(error = %e, thread_id = %thread_id, "Failed to update thread title in database");
+                    (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update thread title.").into_response()
                 }
             }
         }
-        Ok(None) => (StatusCode::NOT_FOUND, "Thread not found").into_response(),
+        Ok(None) => {
+            warn!(thread_id = %thread_id, user_pubkey = ?user.0, "User attempted to update non-existent thread");
+            (StatusCode::NOT_FOUND, "Thread not found.").into_response()
+        }
         Err(e) => {
-            (StatusCode::INTERNAL_SERVER_ERROR, "Error fetching thread for update").into_response()
+            error!(error = %e, thread_id = %thread_id, "Failed to check thread author before update");
+            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to check thread author.").into_response()
         }
     }
 }
@@ -284,39 +312,72 @@ pub async fn update_thread_handler(
 pub async fn delete_thread_handler(
     State(state): State<AppState>,
     Path(thread_id): Path<Uuid>,
-    admin_user: Option<AdminUser>,         // Optional: Try to extract admin first
-    auth_user: Option<AuthenticatedUser>, // Optional: Try to extract regular user if not admin
+    admin_user: Option<AdminUser>,
+    auth_user: Option<AuthenticatedUser>,
 ) -> Response {
-    // 1. Fetch thread author first
-    let author_result = thread_repository::get_thread_author(&state.db_pool, thread_id).await;
-    let author_id = match author_result {
-        Ok(Some(id)) => id,
-        Ok(None) => return (StatusCode::NOT_FOUND, "Thread not found").into_response(),
-        Err(e) => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Database error").into_response();
-        }
-    };
+    let is_admin = admin_user.is_some();
+    let mut requesting_user_pubkey: Option<Vec<u8>> = None;
 
-    // 2. Check authorization: Admin OR Author
-    let can_delete = if admin_user.is_some() {
-        true // Admin can delete
-    } else if let Some(user) = auth_user {
-        user.0 == author_id // Authenticated user can delete if they are the author
-    } else {
-        false // Not admin and not authenticated user
-    };
-
-    // 3. Perform deletion or return forbidden
-    if can_delete {
-         // Use the function that also deletes posts
-        match thread_repository::delete_thread_with_posts(&state.db_pool, thread_id).await {
-            Ok(0) => (StatusCode::NOT_FOUND, "Thread not found during delete").into_response(),
-            Ok(_) => (StatusCode::NO_CONTENT).into_response(),
-            Err(e) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete thread").into_response()
+    // If not admin, we need an authenticated user
+    if !is_admin {
+        match auth_user {
+            Some(user) => {
+                requesting_user_pubkey = Some(user.0); // Store the pubkey
+            }
+            None => {
+                // Not admin and not authenticated
+                warn!(thread_id = %thread_id, "Unauthenticated attempt to delete thread");
+                return (StatusCode::UNAUTHORIZED, "Authentication required.").into_response();
             }
         }
+    }
+    // Now, either is_admin is true, or requesting_user_pubkey is Some
+
+    // Fetch the author ID of the thread
+    let author_id = match thread_repository::get_thread_author(&state.db_pool, thread_id).await {
+        Ok(Some(id)) => id,
+        Ok(None) => {
+            warn!(thread_id = %thread_id, deleted_by_admin = is_admin, user_pubkey = ?requesting_user_pubkey, "Attempted to delete non-existent thread");
+            return (StatusCode::NOT_FOUND, "Thread not found").into_response();
+        }
+        Err(e) => {
+            error!(error = %e, thread_id = %thread_id, "Failed to fetch thread author for deletion check");
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Database error fetching author").into_response();
+        }
+    };
+
+    // Authorization check: Admin OR Author
+    let can_delete = if is_admin {
+        true // Admin can always delete
+    } else if let Some(ref pubkey) = requesting_user_pubkey {
+        *pubkey == author_id // Non-admin must match the author
     } else {
+        // This case should theoretically be unreachable due to the initial check,
+        // but defensively return false.
+        false
+    };
+
+    if can_delete {
+        // Use a reference for logging to avoid moving the Option
+        let log_pubkey_ref = requesting_user_pubkey.as_ref();
+        match thread_repository::delete_thread_with_posts(&state.db_pool, thread_id).await {
+            Ok(0) => {
+                 // This might happen if the thread was deleted between the author check and here
+                 warn!(thread_id = %thread_id, deleted_by_admin = is_admin, user_pubkey = ?log_pubkey_ref, "Attempted delete, but thread not found during delete operation");
+                 (StatusCode::NOT_FOUND, "Thread not found during delete").into_response()
+             }
+             Ok(_) => {
+                 info!(thread_id = %thread_id, deleted_by_admin = is_admin, user_pubkey = ?log_pubkey_ref, "Successfully deleted thread");
+                 (StatusCode::NO_CONTENT).into_response()
+             }
+             Err(e) => {
+                 error!(error = %e, thread_id = %thread_id, deleted_by_admin = is_admin, user_pubkey = ?log_pubkey_ref, "Failed to delete thread from database");
+                 (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete thread").into_response()
+             }
+         }
+    } else {
+        // Log the forbidden attempt
+        warn!(thread_id = %thread_id, user_pubkey = ?requesting_user_pubkey, actual_author = ?author_id, "User attempted to delete thread they did not create");
         (StatusCode::FORBIDDEN, "Permission denied").into_response()
     }
 }

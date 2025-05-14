@@ -4,6 +4,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use tracing::{error, info, warn};
 use uuid::Uuid;
 use crate::{
     models::{Board, Category}, // Include Category for checking existence
@@ -30,10 +31,13 @@ pub async fn create_board_handler(
             // Category exists, proceed to create board
             match board_repository::create_board(&state.db_pool, category_id, payload).await {
                 Ok(new_board) => {
+                    // Log success
+                    info!(category_id = %category_id, board_id = %new_board.id, "Successfully created board");
                     (StatusCode::CREATED, Json(new_board)).into_response()
                 }
                 Err(e) => {
-                    eprintln!("Failed to create board: {}", e);
+                    // Use tracing::error! for structured logging
+                    error!(error = %e, category_id = %category_id, "Failed to create board");
                     // Could be a DB constraint error, etc.
                     (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create board").into_response()
                 }
@@ -41,10 +45,13 @@ pub async fn create_board_handler(
         }
         Ok(None) => {
             // Category not found
+            // Use tracing::error! - consider warn! if this is a common client error not needing alerting
+            error!(category_id = %category_id, "Attempted to create board in non-existent category");
             (StatusCode::NOT_FOUND, "Category not found").into_response()
         }
         Err(e) => {
-            eprintln!("Failed to check category existence: {}", e);
+            // Use tracing::error!
+            error!(error = %e, category_id = %category_id, "Failed to check category existence before creating board");
             (StatusCode::INTERNAL_SERVER_ERROR, "Error checking category").into_response()
         }
     }
@@ -64,7 +71,7 @@ pub async fn get_board_handler(
             (StatusCode::NOT_FOUND, "Board not found").into_response()
         }
         Err(e) => {
-            eprintln!("Failed to fetch board: {}", e);
+            error!(error = %e, board_id = %board_id, "Failed to fetch board");
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch board").into_response()
         }
     }
@@ -86,17 +93,18 @@ pub async fn list_boards_in_category_handler(
                     (StatusCode::OK, Json(boards)).into_response()
                 }
                 Err(e) => {
-                    eprintln!("Failed to fetch boards for category {}: {}", category_id, e);
+                    error!(error = %e, category_id = %category_id, "Failed to fetch boards for category");
                     (StatusCode::INTERNAL_SERVER_ERROR, "Failed to fetch boards").into_response()
                 }
             }
         }
         Ok(None) => {
             // Category not found
+            warn!(category_id = %category_id, "Attempted to list boards for non-existent category");
             (StatusCode::NOT_FOUND, "Category not found").into_response()
         }
         Err(e) => {
-            eprintln!("Failed to check category existence: {}", e);
+            error!(error = %e, category_id = %category_id, "Failed to check category existence before listing boards");
             (StatusCode::INTERNAL_SERVER_ERROR, "Error checking category").into_response()
         }
     }
@@ -112,13 +120,15 @@ pub async fn update_board_handler(
 ) -> Response {
     match board_repository::update_board(&state.db_pool, board_id, payload).await {
         Ok(Some(updated_board)) => {
+            info!(board_id = %updated_board.id, "Successfully updated board");
             (StatusCode::OK, Json(updated_board)).into_response()
         }
         Ok(None) => {
+            warn!(board_id = %board_id, "Attempted to update non-existent board");
             (StatusCode::NOT_FOUND, "Board not found").into_response()
         }
         Err(e) => {
-            eprintln!("Failed to update board: {}", e);
+            error!(error = %e, board_id = %board_id, "Failed to update board");
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update board").into_response()
         }
     }
@@ -133,13 +143,16 @@ pub async fn delete_board_handler(
 ) -> Response {
     match board_repository::delete_board(&state.db_pool, board_id).await {
         Ok(rows_affected) if rows_affected == 1 => {
+            info!(board_id = %board_id, "Successfully deleted board");
             (StatusCode::NO_CONTENT).into_response()
         }
         Ok(_) => {
+            // Assuming 0 rows affected means not found
+            warn!(board_id = %board_id, "Attempted to delete non-existent board");
             (StatusCode::NOT_FOUND, "Board not found").into_response()
         }
         Err(e) => {
-            eprintln!("Failed to delete board: {}", e);
+            error!(error = %e, board_id = %board_id, "Failed to delete board");
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete board").into_response()
         }
     }
@@ -157,9 +170,12 @@ pub async fn reorder_boards_handler(
     Json(payload): Json<ReorderBoardsPayload>,
 ) -> impl IntoResponse {
     match board_repository::update_board_order(&state.db_pool, &payload.ordered_ids).await {
-        Ok(_) => StatusCode::OK,
+        Ok(_) => {
+            info!(count = payload.ordered_ids.len(), "Successfully reordered boards");
+            StatusCode::OK
+        }
         Err(e) => {
-            eprintln!("Failed to reorder boards: {}", e);
+            error!(error = %e, count = payload.ordered_ids.len(), "Failed to reorder boards");
             StatusCode::INTERNAL_SERVER_ERROR
         }
     }

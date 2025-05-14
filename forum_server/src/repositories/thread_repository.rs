@@ -34,7 +34,7 @@ pub struct UpdateThreadData {
 }
 
 // Define a new struct to return both Thread and initial Post ID
-#[derive(Debug, serde::Serialize)] // Add Serialize derive
+#[derive(Debug, serde::Serialize, serde::Deserialize)] // Add Deserialize
 pub struct CreatedThreadInfo {
     pub thread: Thread,
     pub initial_post_id: Uuid,

@@ -151,35 +151,57 @@ pub async fn get_auth_headers(app: &Router, keypair: &SigningKey) -> HeaderMap {
     headers
 }
 
-// Modify create_test_thread - takes Keypair, adds auth headers
-pub async fn create_test_thread(app: &Router, board_id: Uuid, title: &str, keypair: &SigningKey) -> (Uuid, Vec<u8>) {
+// Modify create_test_thread - takes Keypair, adds auth headers, sends multipart
+pub async fn create_test_thread(app: &Router, board_id: Uuid, title: &str, content: &str, keypair: &SigningKey) -> (Uuid, Uuid) {
     let auth_headers = get_auth_headers(app, keypair).await;
-    let pubkey_bytes = keypair.verifying_key().to_bytes().to_vec(); // Get expected key bytes
+    
+    let boundary = generate_boundary();
+    let mut body = Vec::new();
+
+    // Add title field
+    body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+    body.extend_from_slice(b"Content-Disposition: form-data; name=\"title\"\r\n\r\n");
+    body.extend_from_slice(title.as_bytes());
+    body.extend_from_slice(b"\r\n");
+
+    // Add content field (for the initial post)
+    body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
+    body.extend_from_slice(b"Content-Disposition: form-data; name=\"content\"\r\n\r\n");
+    body.extend_from_slice(content.as_bytes());
+    body.extend_from_slice(b"\r\n");
+
+    // Add closing boundary
+    body.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
+
+    let request = Request::builder()
+        .method(http::Method::POST)
+        .uri(format!("/boards/{}/threads", board_id))
+        .header(
+            http::header::CONTENT_TYPE, 
+            format!("multipart/form-data; boundary={}", boundary)
+        )
+        // Add auth headers
+        .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
+        .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
+        .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
+        .body(Body::from(body))
+        .unwrap();
 
     let response = app
         .clone()
-        .oneshot(
-            Request::builder()
-                .method(http::Method::POST)
-                .uri(format!("/boards/{}/threads", board_id))
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                // Add auth headers
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
-                .body(Body::from(json!({ "title": title }).to_string()))
-                .unwrap(),
-        )
+        .oneshot(request)
         .await
         .unwrap();
     
     let status = response.status();
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    assert_eq!(status, StatusCode::CREATED, "Failed to create thread in helper: {}", String::from_utf8_lossy(&body));
-    let thread: Thread = serde_json::from_slice(&body).expect("Failed to deserialize thread in helper");
+    let response_body = response.into_body().collect().await.unwrap().to_bytes();
+    assert_eq!(status, StatusCode::CREATED, "Failed to create thread in helper: {}", String::from_utf8_lossy(&response_body));
     
-    // Return ID and the public key bytes used for auth
-    (thread.id, pubkey_bytes)
+    // Deserialize into CreatedThreadInfo to get the thread ID and initial post ID
+    let created_info: forum_server::repositories::thread_repository::CreatedThreadInfo = serde_json::from_slice(&response_body)
+        .expect("Failed to deserialize CreatedThreadInfo in helper");
+    
+    (created_info.thread.id, created_info.initial_post_id)
 }
 
 // Modify create_test_post - takes Keypair, adds auth headers

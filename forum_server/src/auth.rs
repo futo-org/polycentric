@@ -188,6 +188,11 @@ where
     type Rejection = AuthError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        // ---> ADDED: Debug Logging <---
+        tracing::debug!("[Auth Extractor] Attempting authentication...");
+        tracing::debug!("[Auth Extractor] Received Headers: {:#?}", parts.headers);
+        // ---> END ADDED DEBUG <---
+
         // Get ChallengeStore from AppState
         let app_state = AppState::from_ref(state);
         let challenge_store = &app_state.challenge_store;
@@ -198,6 +203,9 @@ where
             .get(HEADER_PUBKEY)
             .and_then(|v| v.to_str().ok())
             .ok_or_else(|| {
+                // ---> ADDED: Debug Logging <---
+                tracing::debug!("[Auth Extractor] FAILED: Missing or invalid header: {}", HEADER_PUBKEY);
+                // ---> END ADDED DEBUG <---
                 AuthError::MissingOrInvalidHeaders
             })?;
         let signature_b64 = parts
@@ -205,6 +213,9 @@ where
             .get(HEADER_SIGNATURE)
             .and_then(|v| v.to_str().ok())
             .ok_or_else(|| {
+                // ---> ADDED: Debug Logging <---
+                tracing::debug!("[Auth Extractor] FAILED: Missing or invalid header: {}", HEADER_SIGNATURE);
+                // ---> END ADDED DEBUG <---
                 AuthError::MissingOrInvalidHeaders
             })?;
         let challenge_id_str = parts
@@ -212,38 +223,70 @@ where
             .get(HEADER_CHALLENGE_ID)
             .and_then(|v| v.to_str().ok())
             .ok_or_else(|| {
+                // ---> ADDED: Debug Logging <---
+                tracing::debug!("[Auth Extractor] FAILED: Missing or invalid header: {}", HEADER_CHALLENGE_ID);
+                // ---> END ADDED DEBUG <---
                  AuthError::MissingOrInvalidHeaders
             })?;
             
+        // ---> ADDED: Debug Logging <---
+        tracing::debug!("[Auth Extractor] Extracted Headers: pubkey_b64={}, sig_b64={}, challenge_id={}", pubkey_b64, signature_b64, challenge_id_str);
+        // ---> END ADDED DEBUG <---
+
         // 2. Decode base64
         let pubkey_bytes = base64::decode(pubkey_b64).map_err(|e| {
+            // ---> ADDED: Debug Logging <---
+            tracing::debug!("[Auth Extractor] FAILED: Base64 decode error for pubkey: {}", e);
+            // ---> END ADDED DEBUG <---
             AuthError::InvalidBase64(e)
         })?;
         let signature_bytes = base64::decode(signature_b64).map_err(|e| {
+            // ---> ADDED: Debug Logging <---
+            tracing::debug!("[Auth Extractor] FAILED: Base64 decode error for signature: {}", e);
+            // ---> END ADDED DEBUG <---
              AuthError::InvalidBase64(e)
         })?;
 
         // 3. Parse challenge ID and retrieve nonce
         let challenge_id = Uuid::parse_str(challenge_id_str)
             .map_err(|_| {
-                AuthError::MissingOrInvalidHeaders
+                // ---> ADDED: Debug Logging <---
+                tracing::debug!("[Auth Extractor] FAILED: Could not parse challenge ID string: {}", challenge_id_str);
+                // ---> END ADDED DEBUG <---
+                AuthError::MissingOrInvalidHeaders // Re-use error, maybe add specific one later
             })?; 
-
+        
+        // ---> ADDED: Debug Logging <---
+        tracing::debug!("[Auth Extractor] Attempting to use challenge ID: {}", challenge_id);
+        // ---> END ADDED DEBUG <---
         let nonce = challenge_store
             .use_challenge(challenge_id)
             .ok_or_else(|| {
+                 // ---> ADDED: Debug Logging <---
+                 tracing::debug!("[Auth Extractor] FAILED: Challenge ID {} not found or expired", challenge_id);
+                 // ---> END ADDED DEBUG <---
                  AuthError::InvalidOrExpiredChallenge
              })?;
+
+        // ---> ADDED: Debug Logging <---
+        tracing::debug!("[Auth Extractor] Successfully retrieved nonce for challenge ID {}", challenge_id);
+        // ---> END ADDED DEBUG <---
 
         // 4. Construct VerifyingKey and Signature
         let pubkey_array: &[u8; 32] = pubkey_bytes
             .as_slice()
             .try_into()
             .map_err(|_| {
+                // ---> ADDED: Debug Logging <---
+                tracing::debug!("[Auth Extractor] FAILED: Public key bytes length incorrect (expected 32)");
+                // ---> END ADDED DEBUG <---
                 AuthError::InvalidPublicKey
             })?;
         let verifying_key = VerifyingKey::from_bytes(pubkey_array)
             .map_err(|_| {
+                // ---> ADDED: Debug Logging <---
+                tracing::debug!("[Auth Extractor] FAILED: Could not construct VerifyingKey from bytes");
+                // ---> END ADDED DEBUG <---
                 AuthError::InvalidPublicKey
             })?;
 
@@ -251,18 +294,30 @@ where
             .as_slice()
             .try_into()
             .map_err(|_| {
+                // ---> ADDED: Debug Logging <---
+                tracing::debug!("[Auth Extractor] FAILED: Signature bytes length incorrect (expected 64)");
+                // ---> END ADDED DEBUG <---
                 AuthError::InvalidSignature
             })?;
         let signature = Signature::from_bytes(signature_array);
 
         // 5. Verify signature against nonce
+        // ---> ADDED: Debug Logging <---
+        tracing::debug!("[Auth Extractor] Verifying signature...");
+        // ---> END ADDED DEBUG <---
         verifying_key
             .verify(&nonce, &signature)
             .map_err(|e| {
+                 // ---> ADDED: Debug Logging <---
+                 tracing::debug!("[Auth Extractor] FAILED: Signature verification failed: {}", e);
+                 // ---> END ADDED DEBUG <---
                  AuthError::VerificationFailed
              })?;
 
         // 6. Return Ok with the verified public key bytes
+        // ---> ADDED: Debug Logging <---
+        tracing::debug!("[Auth Extractor] Authentication SUCCESSFUL for pubkey (b64): {}", pubkey_b64);
+        // ---> END ADDED DEBUG <---
         Ok(AuthenticatedUser(pubkey_bytes))
     }
 }
