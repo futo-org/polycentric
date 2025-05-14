@@ -24,6 +24,8 @@ export interface RequestInformation {
 export abstract class Verifier {
   public readonly verifierType: VerifierType;
   public readonly claimType: Core.Models.ClaimType.ClaimType;
+  private readonly MAX_RETRIES = 3;
+  private readonly RETRY_DELAY_MS = 1000;
 
   constructor(
     verifierType: VerifierType,
@@ -63,26 +65,60 @@ export abstract class Verifier {
     console.info('requestVouch pointer', pointer);
 
     //TODO: Maybe instead of pointer use something that contains a server?
-    const events = await Core.APIMethods.getEvents(
-      SERVER_URL,
-      pointer.system,
-      Core.Models.Ranges.rangesForSystemFromProto({
-        rangesForProcesses: [
-          {
-            process: pointer.process,
-            ranges: [
+    let events: Core.Protocol.Events | undefined;
+    let lastError: { message: string } | undefined;
+
+    for (let i = 0; i < this.MAX_RETRIES; i++) {
+      try {
+        events = await Core.APIMethods.getEvents(
+          SERVER_URL,
+          pointer.system,
+          Core.Models.Ranges.rangesForSystemFromProto({
+            rangesForProcesses: [
               {
-                low: pointer.logicalClock,
-                high: pointer.logicalClock,
+                process: pointer.process,
+                ranges: [
+                  {
+                    low: pointer.logicalClock,
+                    high: pointer.logicalClock,
+                  },
+                ],
               },
             ],
-          },
-        ],
-      }),
-    );
+          }),
+        );
 
-    if (events.events.length < 1) {
-      return Result.err({ message: 'requestVouch: Could not find event.' });
+        if (events.events.length > 0) {
+          lastError = undefined; // Clear last error if successful
+          break; // Exit loop if events are found
+        }
+        lastError = {
+          message:
+            'requestVouch: Could not find event after attempt ' + (i + 1),
+        };
+        console.warn(lastError.message);
+      } catch (error: any) {
+        lastError = {
+          message: `requestVouch: Error fetching events (attempt ${i + 1}): ${
+            error.message
+          }`,
+        };
+        console.error(lastError.message);
+      }
+
+      if (i < this.MAX_RETRIES - 1) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.RETRY_DELAY_MS),
+        );
+      }
+    }
+
+    if (lastError || !events || events.events.length < 1) {
+      return Result.err(
+        lastError || {
+          message: 'requestVouch: Could not find event after all retries.',
+        },
+      );
     }
 
     const ev = Core.Models.Event.fromBuffer(events.events[0].event);
