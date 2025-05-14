@@ -92,20 +92,33 @@ export abstract class Verifier {
           lastError = undefined; // Clear last error if successful
           break; // Exit loop if events are found
         }
-        lastError = { message: 'requestVouch: Could not find event after attempt ' + (i + 1) };
+        lastError = {
+          message:
+            'requestVouch: Could not find event after attempt ' + (i + 1),
+        };
         console.warn(lastError.message);
       } catch (error: any) {
-        lastError = { message: `requestVouch: Error fetching events (attempt ${i + 1}): ${error.message}` };
+        lastError = {
+          message: `requestVouch: Error fetching events (attempt ${i + 1}): ${
+            error.message
+          }`,
+        };
         console.error(lastError.message);
       }
 
       if (i < this.MAX_RETRIES - 1) {
-        await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY_MS));
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.RETRY_DELAY_MS),
+        );
       }
     }
 
     if (lastError || !events || events.events.length < 1) {
-      return Result.err(lastError || { message: 'requestVouch: Could not find event after all retries.' });
+      return Result.err(
+        lastError || {
+          message: 'requestVouch: Could not find event after all retries.',
+        },
+      );
     }
 
     const ev = Core.Models.Event.fromBuffer(events.events[0].event);
