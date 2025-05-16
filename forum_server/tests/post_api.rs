@@ -400,7 +400,6 @@ async fn test_get_post_not_found(pool: PgPool) {
 
 #[sqlx::test]
 async fn test_list_posts_in_thread_pagination(pool: PgPool) {
-    println!("DEBUG: MAYBE HERE...");
     // Setup admin for category/board/thread creation
     let admin_keypair = generate_test_keypair();
     let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
@@ -422,8 +421,6 @@ async fn test_list_posts_in_thread_pagination(pool: PgPool) {
     assert_eq!(post1.author_id, expected_author1_id);
     assert!(post1.images.is_empty(), "Post 1 should have no images initially");
 
-    println!("DEBUG: MAYBE HERE 2...");
-
     // Create post 2 using helper
     let (status2, body2, expected_author2_id) = create_test_post(&app, thread_id, "Post two", &post2_keypair, None).await;
     assert_eq!(status2, StatusCode::CREATED);
@@ -431,14 +428,12 @@ async fn test_list_posts_in_thread_pagination(pool: PgPool) {
     let post2_id = post2.id;
     assert_eq!(post2.author_id, expected_author2_id);
     assert!(post2.images.is_empty(), "Post 2 should have no images initially");
-    println!("DEBUG: MAYBE HERE 3...");
     let (status3, body3, expected_author3_id) = create_test_post(&app, thread_id, "Post three", &post3_keypair, None).await; 
     assert_eq!(status3, StatusCode::CREATED);
     let post3: Post = serde_json::from_slice(&body3).expect("Failed to parse post 3");
     let post3_id = post3.id;
     assert_eq!(post3.author_id, expected_author3_id); 
     assert!(post3.images.is_empty(), "Post 3 should have no images initially");
-    println!("DEBUG: MAYBE HERE 4...");
     // Fetch first page (limit 2)
     let response_page1 = app
         .clone()
@@ -451,7 +446,6 @@ async fn test_list_posts_in_thread_pagination(pool: PgPool) {
         )
         .await
         .unwrap();
-    println!("DEBUG: MAYBE HERE 5...");
     assert_eq!(response_page1.status(), StatusCode::OK);
     let body_page1 = response_page1.into_body().collect().await.unwrap().to_bytes();
     let posts_page1: Vec<Post> = serde_json::from_slice(&body_page1).unwrap();
@@ -472,14 +466,12 @@ async fn test_list_posts_in_thread_pagination(pool: PgPool) {
         )
         .await
         .unwrap();
-    println!("DEBUG: MAYBE HERE 6...");
     assert_eq!(response_page2.status(), StatusCode::OK);
     let body_page2 = response_page2.into_body().collect().await.unwrap().to_bytes();
     let posts_page2: Vec<Post> = serde_json::from_slice(&body_page2).unwrap();
 
     assert_eq!(posts_page2.len(), 2); // Expect 2 posts on page 2
     // Don't assert strict order on page 2 either
-    println!("DEBUG: MAYBE HERE 7...");
 
     // ---> ADDED: Fetch third page (limit 2, offset 4) <---
     let response_page3 = app
@@ -493,7 +485,6 @@ async fn test_list_posts_in_thread_pagination(pool: PgPool) {
         )
         .await
         .unwrap();
-    println!("DEBUG: MAYBE HERE 8...");
     assert_eq!(response_page3.status(), StatusCode::OK);
     let body_page3 = response_page3.into_body().collect().await.unwrap().to_bytes();
     let posts_page3: Vec<Post> = serde_json::from_slice(&body_page3).unwrap();

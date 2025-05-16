@@ -391,8 +391,6 @@ async fn test_delete_thread_success(pool: PgPool) {
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/threads/{}", thread_id))
-                // ---> ADDED Content-Type <---
-                .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
                 .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
                 .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
@@ -436,7 +434,6 @@ async fn test_delete_thread_unauthorized(pool: PgPool) {
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/threads/{}", thread_id))
-                // Add attacker's auth headers
                 .header(HeaderName::from_static("x-polycentric-pubkey-base64"), attacker_auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
                 .header(HeaderName::from_static("x-polycentric-signature-base64"), attacker_auth_headers.get("x-polycentric-signature-base64").unwrap())
                 .header(HeaderName::from_static("x-polycentric-challenge-id"), attacker_auth_headers.get("x-polycentric-challenge-id").unwrap())
@@ -471,7 +468,6 @@ async fn test_delete_thread_not_found(pool: PgPool) {
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/threads/{}", non_existent_id))
-                 // Add auth headers
                 .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
                 .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
                 .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
