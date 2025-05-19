@@ -531,7 +531,7 @@ export async function getResolveHandle(
 
 export const VERIFIER_SERVER =
   process.env.NEXT_PUBLIC_VERIFIER_SERVER ??
-  'https://staging-verify.polycentric.io';
+  'https://verify.polycentric.io';
 
 export async function requestVerification(
   pointer: Protocol.Pointer,
