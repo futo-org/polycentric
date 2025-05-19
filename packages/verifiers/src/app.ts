@@ -90,7 +90,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
 
   // Log all requests
   app.use((req, res, next) => {
-    console.log('Incoming request:', {
+    console.log(`[${new Date().toISOString()}] Incoming request:`, {
       method: req.method,
       url: req.url,
       headers: req.headers,
