@@ -161,8 +161,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
         'base64',
       );
 
-      const webAppBaseUrl =
-        process.env.WEB_APP_URL || 'https://polycentric.io';
+      const webAppBaseUrl = process.env.WEB_APP_URL || 'https://polycentric.io';
       const webAppCallbackPath = '/oauth/callback';
 
       const redirectState = JSON.stringify({
