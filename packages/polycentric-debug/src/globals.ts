@@ -1,7 +1,7 @@
 import * as Core from '@polycentric/polycentric-core';
 import Long from 'long';
 
-export const SERVER = 'https://srv1-stg.polycentric.io';
+export const SERVER = 'https://serv1-stg.polycentric.io';
 export const TRUST_ROOT = Core.Models.PublicKey.fromProto(
   Core.Protocol.PublicKey.create({
     keyType: 1,
