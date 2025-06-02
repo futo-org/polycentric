@@ -786,8 +786,8 @@ mod tests {
 
         let loaded_events = crate::postgres::load_posts_before_id(
             &mut transaction,
+            None,
             100000,
-            1,
             &ModerationOptions {
                 filters: Some(ModerationFilters(vec![ModerationFilter {
                     name: ModerationTagName::new(String::from("sexual")),
@@ -867,8 +867,8 @@ mod tests {
         // Don't load unapproved events
         let loaded_events = crate::postgres::load_posts_before_id(
             &mut transaction,
+            None,
             100000,
-            1,
             &ModerationOptions {
                 filters: Some(ModerationFilters(vec![ModerationFilter {
                     name: ModerationTagName::new(String::from("sexual")),
@@ -904,8 +904,8 @@ mod tests {
 
         let loaded_events = crate::postgres::load_posts_before_id(
             &mut transaction,
+            None,
             100000,
-            1,
             &ModerationOptions {
                 filters: Some(ModerationFilters(vec![ModerationFilter {
                     name: ModerationTagName::new(String::from("sexual")),
@@ -921,8 +921,8 @@ mod tests {
 
         let loaded_events2 = crate::postgres::load_posts_before_id(
             &mut transaction,
+            None,
             100000,
-            1,
             &ModerationOptions {
                 filters: Some(ModerationFilters(vec![
                     ModerationFilter {
@@ -950,8 +950,8 @@ mod tests {
 
         let loaded_events_default = crate::postgres::load_posts_before_id(
             &mut transaction,
+            None,
             100000,
-            1,
             &ModerationOptions {
                 filters: None,
                 mode: ModerationMode::Strong,
@@ -1021,8 +1021,8 @@ mod tests {
 
         let loaded_events = crate::postgres::load_posts_before_id(
             &mut transaction,
+            None,
             100000,
-            1,
             &ModerationOptions {
                 filters: Some(ModerationFilters(vec![
                     ModerationFilter {
@@ -1050,8 +1050,8 @@ mod tests {
 
         let loaded_events2 = crate::postgres::load_posts_before_id(
             &mut transaction,
+            None,
             100000,
-            1,
             &ModerationOptions {
                 filters: Some(ModerationFilters(vec![
                     ModerationFilter {
@@ -1110,8 +1110,8 @@ mod tests {
         // In weak mode, events should be visible while we wait for moderation
         let loaded_events_weak = crate::postgres::load_posts_before_id(
             &mut transaction,
+            None,
             100000,
-            1,
             &ModerationOptions {
                 filters: Some(ModerationFilters(vec![ModerationFilter {
                     name: ModerationTagName::new(String::from("violence")),
@@ -1128,8 +1128,8 @@ mod tests {
         // In strong mode, events should not be visible until moderation is complete
         let loaded_events_strong = crate::postgres::load_posts_before_id(
             &mut transaction,
+            None,
             100000,
-            1,
             &ModerationOptions {
                 filters: Some(ModerationFilters(vec![ModerationFilter {
                     name: ModerationTagName::new(String::from("violence")),
