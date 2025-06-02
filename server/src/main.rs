@@ -502,7 +502,7 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
             crate::migrate::backfill_remote_server(
                 pool,
                 address,
-                config.backfill_remote_server_position,
+                config.backfill_remote_server_position.map(|id| (None, id as i64)),
             )
             .await?;
         }

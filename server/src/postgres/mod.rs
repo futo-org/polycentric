@@ -67,6 +67,7 @@ struct ExploreRow {
             polycentric_protocol::model::moderation_tag::ModerationTag,
         >,
     >,
+    unix_milliseconds: Option<i64>,
 }
 
 #[allow(dead_code)]
@@ -90,7 +91,7 @@ struct SystemRow {
 pub(crate) struct EventsAndCursor {
     pub events:
         ::std::vec::Vec<polycentric_protocol::model::signed_event::SignedEvent>,
-    pub cursor: Option<u64>,
+    pub cursor: Option<(Option<i64>, i64)>,
 }
 
 pub(crate) async fn prepare_database(
@@ -158,31 +159,26 @@ pub(crate) async fn load_event(
 
 pub(crate) async fn load_events_after_id(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    start_id: &::std::option::Option<u64>,
+    start_cursor: &::std::option::Option<(Option<i64>, i64)>,
     limit: u64,
     moderation_options: &ModerationOptions,
 ) -> ::anyhow::Result<EventsAndCursor> {
-    let query = "
-        SELECT
-            id, raw_event, server_time, moderation_tags
-        FROM
-            events
-        WHERE
-            ($1 IS NULL OR id > $1)
-        AND filter_events_by_moderation(events, $3::moderation_filter_type[], $4::moderation_mode)
-        ORDER BY
-            id ASC
-        LIMIT $2;
-    ";
-
-    let start_id_query = if let Some(x) = start_id {
-        Some(i64::try_from(*x)?)
-    } else {
-        None
+    let (start_timestamp, start_id) = match start_cursor {
+        Some((ts, id)) => (*ts, *id),
+        None => (None, 0),
     };
 
+    let query = "
+        SELECT id, raw_event, server_time, moderation_tags, unix_milliseconds FROM events
+        WHERE (unix_milliseconds, id) > ($1, $2)
+        AND filter_events_by_moderation(events, $4::moderation_filter_type[], $5::moderation_mode)
+        ORDER BY unix_milliseconds ASC NULLS FIRST, id ASC
+        LIMIT $3;
+    ";
+
     let rows = ::sqlx::query_as::<_, ExploreRow>(query)
-        .bind(start_id_query)
+        .bind(start_timestamp)
+        .bind(start_id)
         .bind(i64::try_from(limit)?)
         .bind(moderation_options.get_filters_with_defaults())
         .bind(moderation_options.mode)
@@ -195,14 +191,14 @@ pub(crate) async fn load_events_after_id(
         let event =
             polycentric_protocol::model::signed_event::from_raw_event_with_moderation_tags(
                 &row.raw_event,
-                row.moderation_tags.clone()
+                row.moderation_tags.clone(),
             )?;
         result_set.push(event);
     }
 
     let result = EventsAndCursor {
         events: result_set,
-        cursor: rows.last().map(|last_elem| last_elem.id),
+        cursor: rows.last().map(|last_elem| (last_elem.unix_milliseconds, last_elem.id as i64 )),
     };
 
     Ok(result)
@@ -210,21 +206,27 @@ pub(crate) async fn load_events_after_id(
 
 pub(crate) async fn load_posts_before_id(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    start_id: u64,
+    start_cursor: Option<(Option<i64>, i64)>,
     limit: u64,
     moderation_options: &ModerationOptions,
 ) -> ::anyhow::Result<EventsAndCursor> {
-    let query = "
-        SELECT id, raw_event, server_time, moderation_tags FROM events
-        WHERE id < $1
-        AND content_type = $2
-        AND filter_events_by_moderation(events, $4::moderation_filter_type[], $5::moderation_mode)
-        ORDER BY id DESC
-        LIMIT $3;
-    ";
+    let (start_timestamp, start_id) = match start_cursor {
+        Some((ts, id)) => (ts, id),
+        None => (None, i64::MAX),
+    };
 
+    let query = "
+        SELECT id, raw_event, server_time, moderation_tags, unix_milliseconds FROM events
+        WHERE ($1::BIGINT IS NULL OR unix_milliseconds <= $1) AND (unix_milliseconds < $1 OR id < $2)
+        AND content_type = $3
+        AND filter_events_by_moderation(events, $5::moderation_filter_type[], $6::moderation_mode)
+        ORDER BY unix_milliseconds DESC NULLS LAST, id DESC
+        LIMIT $4;
+    ";
+    
     let rows = ::sqlx::query_as::<_, ExploreRow>(query)
-        .bind(i64::try_from(start_id)?)
+        .bind(start_timestamp)
+        .bind(start_id)
         .bind(i64::try_from(
             polycentric_protocol::model::known_message_types::POST,
         )?)
@@ -240,14 +242,14 @@ pub(crate) async fn load_posts_before_id(
         let event =
             polycentric_protocol::model::signed_event::from_raw_event_with_moderation_tags(
                 &row.raw_event,
-                row.moderation_tags.clone()
+                row.moderation_tags.clone(),
             )?;
         result_set.push(event);
     }
 
     let result = EventsAndCursor {
         events: result_set,
-        cursor: rows.last().map(|last_elem| last_elem.id),
+        cursor: rows.last().map(|last_elem| (last_elem.unix_milliseconds, last_elem.id as i64)),
     };
 
     Ok(result)

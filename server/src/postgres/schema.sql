@@ -95,6 +95,9 @@ ON events (system_key_type, system_key, content_type);
 CREATE INDEX IF NOT EXISTS idx_vouch_events_filter 
 ON events (content_type, system_key_type, system_key, unix_milliseconds DESC);
 
+CREATE INDEX IF NOT EXISTS idx_events_explore_feed
+ON events (content_type, unix_milliseconds DESC NULLS LAST, id DESC);
+
 DO $$ BEGIN
     CREATE TYPE moderation_filter_type AS (
         name VARCHAR(20),

@@ -143,7 +143,7 @@ pub(crate) async fn backfill_search(
     pool: ::sqlx::PgPool,
     search: ::opensearch::OpenSearch,
 ) -> ::anyhow::Result<()> {
-    let mut position = None;
+    let mut position: Option<(Option<i64>, i64)> = None;
 
     loop {
         ::log::info!("position: {:?}", position);
@@ -184,7 +184,7 @@ pub(crate) async fn backfill_search(
 pub(crate) async fn backfill_remote_server(
     pool: ::sqlx::PgPool,
     address: String,
-    starting_position: ::std::option::Option<u64>,
+    starting_position: ::std::option::Option<(Option<i64>, i64)>,
 ) -> ::anyhow::Result<()> {
     let http_client = ::reqwest::Client::new();
 
