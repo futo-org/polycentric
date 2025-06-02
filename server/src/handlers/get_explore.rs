@@ -1,7 +1,7 @@
 use crate::moderation::ModerationFilters;
 use ::protobuf::{Message, MessageField};
-use polycentric_protocol::protocol::Events;
 use anyhow::{anyhow, bail, Context};
+use polycentric_protocol::protocol::Events;
 
 #[derive(::serde::Deserialize)]
 pub(crate) struct Query {
@@ -18,29 +18,52 @@ pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
-    let start_cursor: Option<(Option<i64>, i64)> = if let Some(cursor_str) = query.cursor {
+    let start_cursor: Option<(Option<i64>, i64)> = if let Some(cursor_str) =
+        query.cursor
+    {
         let parse_logic = || -> anyhow::Result<(Option<i64>, i64)> {
-            let bytes = ::base64::decode_config(&cursor_str, ::base64::URL_SAFE)
-                .map_err(|e| anyhow!("Cursor base64 decoding failed: {}", e))?;
+            let bytes =
+                ::base64::decode_config(&cursor_str, ::base64::URL_SAFE)
+                    .map_err(|e| {
+                        anyhow!("Cursor base64 decoding failed: {}", e)
+                    })?;
 
-            if bytes.len() == 16 { // Two i64 values (timestamp + id)
-                let ts_bytes_slice = bytes.get(0..8).context("Invalid cursor: missing timestamp bytes")?;
-                let id_bytes_slice = bytes.get(8..16).context("Invalid cursor: missing id bytes")?;
-                
-                let ts_array: [u8; 8] = ts_bytes_slice.try_into().map_err(|_| anyhow!("Invalid cursor: timestamp part not 8 bytes"))?;
-                let id_array: [u8; 8] = id_bytes_slice.try_into().map_err(|_| anyhow!("Invalid cursor: id part not 8 bytes"))?;
+            if bytes.len() == 16 {
+                // Two i64 values (timestamp + id)
+                let ts_bytes_slice = bytes
+                    .get(0..8)
+                    .context("Invalid cursor: missing timestamp bytes")?;
+                let id_bytes_slice = bytes
+                    .get(8..16)
+                    .context("Invalid cursor: missing id bytes")?;
+
+                let ts_array: [u8; 8] =
+                    ts_bytes_slice.try_into().map_err(|_| {
+                        anyhow!("Invalid cursor: timestamp part not 8 bytes")
+                    })?;
+                let id_array: [u8; 8] =
+                    id_bytes_slice.try_into().map_err(|_| {
+                        anyhow!("Invalid cursor: id part not 8 bytes")
+                    })?;
 
                 let timestamp = i64::from_le_bytes(ts_array);
                 let id = i64::from_le_bytes(id_array);
                 Ok((Some(timestamp), id))
-            } else if bytes.len() == 8 { // Only id, timestamp is None
-                 let id_array: [u8; 8] = bytes.as_slice().try_into().map_err(|_| anyhow!("Invalid cursor: single component not 8 bytes"))?;
-                 let id = i64::from_le_bytes(id_array);
-                 // load_posts_before_id handles None outer Option as first page (None, i64::MAX).
-                 // If client sends a specific ID for a NULL timestamp event, it will be (None, id).
-                 Ok((None, id))
+            } else if bytes.len() == 8 {
+                // Only id, timestamp is None
+                let id_array: [u8; 8] =
+                    bytes.as_slice().try_into().map_err(|_| {
+                        anyhow!("Invalid cursor: single component not 8 bytes")
+                    })?;
+                let id = i64::from_le_bytes(id_array);
+                // load_posts_before_id handles None outer Option as first page (None, i64::MAX).
+                // If client sends a specific ID for a NULL timestamp event, it will be (None, id).
+                Ok((None, id))
             } else {
-                bail!("Invalid cursor length: expected 8 or 16 bytes, got {}", bytes.len());
+                bail!(
+                    "Invalid cursor length: expected 8 or 16 bytes, got {}",
+                    bytes.len()
+                );
             }
         };
         Some(crate::warp_try_err_400!(parse_logic()))

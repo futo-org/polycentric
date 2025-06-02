@@ -198,7 +198,9 @@ pub(crate) async fn load_events_after_id(
 
     let result = EventsAndCursor {
         events: result_set,
-        cursor: rows.last().map(|last_elem| (last_elem.unix_milliseconds, last_elem.id as i64 )),
+        cursor: rows.last().map(|last_elem| {
+            (last_elem.unix_milliseconds, last_elem.id as i64)
+        }),
     };
 
     Ok(result)
@@ -223,7 +225,7 @@ pub(crate) async fn load_posts_before_id(
         ORDER BY unix_milliseconds DESC NULLS LAST, id DESC
         LIMIT $4;
     ";
-    
+
     let rows = ::sqlx::query_as::<_, ExploreRow>(query)
         .bind(start_timestamp)
         .bind(start_id)
@@ -249,7 +251,9 @@ pub(crate) async fn load_posts_before_id(
 
     let result = EventsAndCursor {
         events: result_set,
-        cursor: rows.last().map(|last_elem| (last_elem.unix_milliseconds, last_elem.id as i64)),
+        cursor: rows.last().map(|last_elem| {
+            (last_elem.unix_milliseconds, last_elem.id as i64)
+        }),
     };
 
     Ok(result)
