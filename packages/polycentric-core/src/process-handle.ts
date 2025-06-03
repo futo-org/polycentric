@@ -981,6 +981,50 @@ export class ProcessHandle {
     }
     return result;
   }
+
+  public async deleteAccount(): Promise<void> {
+    const allProcessData =
+      await this._store.indexProcessStates.getAllProcessStatesForSystem(
+        this._system,
+      );
+
+    for (const { process, state } of allProcessData) {
+      const allEventsToDelete: Models.Pointer.Pointer[] = [];
+
+      for (const range of state.ranges) {
+        for (
+          let lc = range.low;
+          lc.lessThanOrEqual(range.high);
+          lc = lc.add(Long.UONE)
+        ) {
+          allEventsToDelete.push({
+            system: this._system,
+            process: process,
+            logicalClock: lc,
+          } as Models.Pointer.Pointer);
+        }
+      }
+
+      allEventsToDelete.sort((a, b) => b.logicalClock.compare(a.logicalClock));
+
+      for (const eventPointer of allEventsToDelete) {
+        try {
+          await this.delete(eventPointer.process, eventPointer.logicalClock);
+        } catch (error) {
+          console.warn(
+            `Failed to delete event system: ${Models.PublicKey.toString(
+              eventPointer.system,
+            )}, process: ${Models.Process.toString(
+              eventPointer.process,
+            )}, lc: ${eventPointer.logicalClock.toString()}: `,
+            error,
+          );
+        }
+      }
+    }
+
+    await fullSync(this);
+  }
 }
 
 export async function solveChallenge(
