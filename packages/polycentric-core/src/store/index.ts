@@ -3,6 +3,7 @@ import * as PersistenceDriver from '../persistence-driver';
 import * as Protocol from '../protocol';
 import * as Util from '../util';
 
+import Long from 'long';
 import { HasIngest } from './has-ingest';
 import { IndexCRDTElementSet } from './index-crdt-element-set';
 import { IndexEvents } from './index-events';
@@ -12,7 +13,6 @@ import { IndexOpinion } from './index-opinion';
 import { IndexProcessState } from './index-process-state';
 import { IndexSystemProcessContentTypeClock } from './index-system-process-content-type-clock';
 import { IndexSystemState } from './index-system-state';
-import Long from 'long';
 
 export * as IndexEvents from './index-events';
 export * as IndexFeed from './index-feed';
@@ -146,5 +146,19 @@ export class Store {
       logicalClock,
       servers,
     );
+  }
+
+  public async wipeAllData(): Promise<void> {
+    // This is a destructive operation. It will clear all data in the underlying database for this store.
+    await this.level.clear();
+    // After clearing, most in-memory caches or states within the store an its indices
+    // might be invalid. Ideally, the Store instance should not be used after this
+    // without re-initialization or being discarded.
+    // For now, we are not handling in-memory state reset here,
+    // relying on the caller to discard this Store instance.
+
+    // Re-initialize essential structures if the store instance were to be reused (not current design)
+    // For example, re-put process secret if it were stored in-memory or needed default state.
+    // However, since the process handle and its store will be discarded, this is not strictly necessary.
   }
 }
