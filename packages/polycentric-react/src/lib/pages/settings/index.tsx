@@ -4,6 +4,7 @@ import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
 import { AppInfoTable } from '../../components/settings/AppInfoTable';
 import { DarkModeSelector } from '../../components/settings/DarkModeSelector';
+import { DeleteAccount } from '../../components/settings/DeleteAccount';
 import { ExportKey } from '../../components/settings/ExportKey';
 import { ModerationTable } from '../../components/settings/ModerationTable';
 import { ServerListTable } from '../../components/settings/ServerTable';
@@ -34,6 +35,10 @@ export const SettingsPage: Page = () => {
             <div className="flex flex-col space-y-3">
               <h2 className="font-medium">Moderation</h2>
               <ModerationTable />
+            </div>
+            <div className="flex flex-col space-y-3">
+              <h2 className="font-medium">Delete Account</h2>
+              <DeleteAccount />
             </div>
           </div>
         </RightCol>
