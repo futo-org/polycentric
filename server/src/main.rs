@@ -1,3 +1,4 @@
+use crate::cursor::ExploreCursor;
 use ::anyhow::Context;
 use ::cadence::{StatsdClient, UdpMetricSink};
 use ::log::*;
@@ -10,6 +11,7 @@ use polycentric_protocol::model;
 
 mod cache;
 mod config;
+mod cursor;
 mod handlers;
 mod ingest;
 mod migrate;
@@ -504,7 +506,7 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
                 address,
                 config
                     .backfill_remote_server_position
-                    .map(|id| (None, id as i64)),
+                    .map(|id| ExploreCursor::id_only(id as i64)),
             )
             .await?;
         }

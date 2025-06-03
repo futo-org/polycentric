@@ -2,6 +2,7 @@ use ::protobuf::Message;
 use ::sqlx::Executor;
 use ::std::convert::TryFrom;
 
+use crate::cursor::ExploreCursor;
 use crate::moderation::{ModerationFilters, ModerationOptions};
 
 pub(crate) mod count_lww_element_references;
@@ -91,7 +92,7 @@ struct SystemRow {
 pub(crate) struct EventsAndCursor {
     pub events:
         ::std::vec::Vec<polycentric_protocol::model::signed_event::SignedEvent>,
-    pub cursor: Option<(Option<i64>, i64)>,
+    pub cursor: Option<ExploreCursor>,
 }
 
 pub(crate) async fn prepare_database(
@@ -159,14 +160,14 @@ pub(crate) async fn load_event(
 
 pub(crate) async fn load_events_after_id(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    start_cursor: &::std::option::Option<(Option<i64>, i64)>,
+    start_cursor: Option<ExploreCursor>,
     limit: u64,
     moderation_options: &ModerationOptions,
 ) -> ::anyhow::Result<EventsAndCursor> {
-    let (start_timestamp, start_id) = match start_cursor {
-        Some((ts, id)) => (*ts, *id),
-        None => (None, 0),
-    };
+    let effective_cursor =
+        start_cursor.unwrap_or_else(ExploreCursor::ascending_first_page);
+    let start_timestamp = effective_cursor.timestamp;
+    let start_id = effective_cursor.id;
 
     let query = "
         SELECT id, raw_event, server_time, moderation_tags, unix_milliseconds FROM events
@@ -199,7 +200,7 @@ pub(crate) async fn load_events_after_id(
     let result = EventsAndCursor {
         events: result_set,
         cursor: rows.last().map(|last_elem| {
-            (last_elem.unix_milliseconds, last_elem.id as i64)
+            ExploreCursor::new(last_elem.unix_milliseconds, last_elem.id as i64)
         }),
     };
 
@@ -208,14 +209,14 @@ pub(crate) async fn load_events_after_id(
 
 pub(crate) async fn load_posts_before_id(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
-    start_cursor: Option<(Option<i64>, i64)>,
+    start_cursor: Option<ExploreCursor>,
     limit: u64,
     moderation_options: &ModerationOptions,
 ) -> ::anyhow::Result<EventsAndCursor> {
-    let (start_timestamp, start_id) = match start_cursor {
-        Some((ts, id)) => (ts, id),
-        None => (None, i64::MAX),
-    };
+    let effective_cursor =
+        start_cursor.unwrap_or_else(ExploreCursor::descending_first_page);
+    let start_timestamp = effective_cursor.timestamp;
+    let start_id = effective_cursor.id;
 
     let query = "
         SELECT id, raw_event, server_time, moderation_tags, unix_milliseconds FROM events
@@ -252,7 +253,7 @@ pub(crate) async fn load_posts_before_id(
     let result = EventsAndCursor {
         events: result_set,
         cursor: rows.last().map(|last_elem| {
-            (last_elem.unix_milliseconds, last_elem.id as i64)
+            ExploreCursor::new(last_elem.unix_milliseconds, last_elem.id as i64)
         }),
     };
 
