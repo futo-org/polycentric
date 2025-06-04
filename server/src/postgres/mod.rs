@@ -173,7 +173,7 @@ pub(crate) async fn load_events_after_id(
         SELECT id, raw_event, server_time, moderation_tags, unix_milliseconds FROM events
         WHERE 
             CASE
-                WHEN $1::BIGINT IS NULL THEN id > $2 -- First page logic
+                WHEN $1::BIGINT IS NULL THEN TRUE -- First page, no cursor filtering
                 ELSE (unix_milliseconds > $1 OR (unix_milliseconds = $1 AND id > $2)) -- Subsequent page logic
             END
         AND filter_events_by_moderation(events, $4::moderation_filter_type[], $5::moderation_mode)
