@@ -366,12 +366,11 @@ pub(crate) async fn ingest_event_search(
     );
 
     let content_type = *event.content_type();
-    let search_doc: Option<crate::opensearch::OpenSearchContent> = if content_type
-        == known_message_types::POST
-    {
-        let post_content = Post::parse_from_bytes(event.content())?;
-        
-        let first_byte_reference_b64: Option<String> = event.references().iter().find_map(|r_enum| {
+    let search_doc: Option<crate::opensearch::OpenSearchContent> =
+        if content_type == known_message_types::POST {
+            let post_content = Post::parse_from_bytes(event.content())?;
+
+            let first_byte_reference_b64: Option<String> = event.references().iter().find_map(|r_enum| {
             if let polycentric_protocol::model::reference::Reference::Bytes(bytes_vec) = r_enum {
                 Some(base64::encode_config(bytes_vec, base64::URL_SAFE_NO_PAD))
             } else {
@@ -379,32 +378,32 @@ pub(crate) async fn ingest_event_search(
             }
         });
 
-        Some(crate::opensearch::OpenSearchContent {
-            message_content: post_content.content.unwrap_or_default(),
-            unix_milliseconds: *event.unix_milliseconds(),
-            byte_reference: first_byte_reference_b64,
-        })
-    } else if content_type == known_message_types::USERNAME {
-        let lww_element = event.lww_element().clone().ok_or_else(|| {
+            Some(crate::opensearch::OpenSearchContent {
+                message_content: post_content.content.unwrap_or_default(),
+                unix_milliseconds: *event.unix_milliseconds(),
+                byte_reference: first_byte_reference_b64,
+            })
+        } else if content_type == known_message_types::USERNAME {
+            let lww_element = event.lww_element().clone().ok_or_else(|| {
             ::anyhow::anyhow!("LWW Element missing for USERNAME content type in ingest_event_search")
         })?;
-        Some(crate::opensearch::OpenSearchContent {
-            message_content: String::from_utf8(lww_element.value)?,
-            unix_milliseconds: Some(lww_element.unix_milliseconds),
-            byte_reference: None,
-        })
-    } else if content_type == known_message_types::DESCRIPTION {
-        let lww_element = event.lww_element().clone().ok_or_else(|| {
+            Some(crate::opensearch::OpenSearchContent {
+                message_content: String::from_utf8(lww_element.value)?,
+                unix_milliseconds: Some(lww_element.unix_milliseconds),
+                byte_reference: None,
+            })
+        } else if content_type == known_message_types::DESCRIPTION {
+            let lww_element = event.lww_element().clone().ok_or_else(|| {
             ::anyhow::anyhow!("LWW Element missing for DESCRIPTION content type in ingest_event_search")
         })?;
-        Some(crate::opensearch::OpenSearchContent {
-            message_content: String::from_utf8(lww_element.value)?,
-            unix_milliseconds: Some(lww_element.unix_milliseconds),
-            byte_reference: None,
-        })
-    } else {
-        None
-    };
+            Some(crate::opensearch::OpenSearchContent {
+                message_content: String::from_utf8(lww_element.value)?,
+                unix_milliseconds: Some(lww_element.unix_milliseconds),
+                byte_reference: None,
+            })
+        } else {
+            None
+        };
 
     if let Some(doc) = search_doc {
         let response_result = search
@@ -417,9 +416,10 @@ pub(crate) async fn ingest_event_search(
             Ok(response) => {
                 let status = response.status_code();
                 if !status.is_success() {
-                    let response_body = response.text().await.unwrap_or_else(|e| {
-                        format!("Failed to get response text: {}", e)
-                    });
+                    let response_body =
+                        response.text().await.unwrap_or_else(|e| {
+                            format!("Failed to get response text: {}", e)
+                        });
                     error!(
                         "Failed to index document {} into OpenSearch: status: {}, body: {}",
                         doc_id,
@@ -443,7 +443,8 @@ pub(crate) async fn ingest_event_search(
                 );
                 return Err(::anyhow::anyhow!(
                     "OpenSearch communication error for document {}: {}",
-                    doc_id, e
+                    doc_id,
+                    e
                 ));
             }
         }
