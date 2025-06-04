@@ -8,7 +8,7 @@ use ::std::fmt::Error;
 use ::std::ops::Deref;
 use ::std::time::SystemTime;
 use polycentric_protocol::model::{
-    known_message_types, pointer, signed_event::SignedEvent,
+    known_message_types, signed_event::SignedEvent,
 };
 
 // Start of Selection
