@@ -1,5 +1,9 @@
+use crate::cursor::ExploreCursor;
 use crate::moderation::ModerationOptions;
+use ::log::*;
 use ::protobuf::Message;
+
+const PAGE_SIZE: u64 = 20;
 
 async fn load_version(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
@@ -143,17 +147,20 @@ pub(crate) async fn backfill_search(
     pool: ::sqlx::PgPool,
     search: ::opensearch::OpenSearch,
 ) -> ::anyhow::Result<()> {
-    let mut position = None;
+    let mut position: Option<ExploreCursor> = None;
+    let mut total_processed: u64 = 0;
+
+    info!("Starting search backfill");
 
     loop {
-        ::log::info!("position: {:?}", position);
+        info!("position: {:?}", position);
 
         let mut transaction = pool.begin().await?;
 
-        let batch = crate::postgres::load_events_after_id(
+        let db_result = crate::postgres::load_events_after_id(
             &mut transaction,
-            &position,
-            25,
+            position,
+            PAGE_SIZE,
             &ModerationOptions {
                 filters: None,
                 mode: crate::config::ModerationMode::Off,
@@ -163,34 +170,47 @@ pub(crate) async fn backfill_search(
 
         transaction.commit().await?;
 
-        if batch.cursor.is_none() {
+        if db_result.cursor.is_none() {
             break;
         } else {
-            position = batch.cursor;
+            position = db_result.cursor;
         }
 
-        for signed_event in batch.events {
+        let num_events_in_batch = db_result.events.len() as u64;
+        for signed_event in db_result.events {
             crate::ingest::ingest_event_search(
                 &search,
                 &polycentric_protocol::model::EventLayers::new(signed_event)?,
             )
             .await?;
         }
+        total_processed += num_events_in_batch;
     }
 
+    info!(
+        "Search backfill completed. Processed {} events",
+        total_processed
+    );
     Ok(())
 }
 
 pub(crate) async fn backfill_remote_server(
     pool: ::sqlx::PgPool,
     address: String,
-    starting_position: ::std::option::Option<u64>,
+    starting_position: Option<ExploreCursor>,
 ) -> ::anyhow::Result<()> {
-    let http_client = ::reqwest::Client::new();
+    info!(
+        "Starting remote server backfill from {} at position {:?}",
+        address,
+        starting_position.map(|p| p.to_base64_str())
+    );
+
+    let mut position = starting_position;
+
+    let client = ::reqwest::Client::new();
 
     {
-        let response =
-            http_client.get(address.clone() + "/version").send().await?;
+        let response = client.get(address.clone() + "/version").send().await?;
 
         if response.status() != ::reqwest::StatusCode::OK {
             ::log::error!("invalid server");
@@ -198,8 +218,6 @@ pub(crate) async fn backfill_remote_server(
             return Ok(());
         }
     }
-
-    let mut position = starting_position;
 
     let http_concurrency = 20;
 
@@ -212,13 +230,13 @@ pub(crate) async fn backfill_remote_server(
             break;
         }
 
-        ::log::info!("position: {:?}", position);
+        info!("position: {:?}", position);
 
         let mut transaction = pool.begin().await?;
 
         let batch = crate::postgres::load_events_after_id(
             &mut transaction,
-            &position,
+            position,
             50,
             &ModerationOptions {
                 filters: None,
@@ -251,7 +269,7 @@ pub(crate) async fn backfill_remote_server(
         let failed = failed.clone();
         let address = address.clone();
         let batch_bytes = batch_proto.write_to_bytes()?;
-        let http_client = http_client.clone();
+        let client = client.clone();
 
         let semaphore = ::std::sync::Arc::clone(&semaphore);
         let permit = semaphore.acquire_owned().await?;
@@ -264,7 +282,7 @@ pub(crate) async fn backfill_remote_server(
             let _permit = permit;
 
             let op = || async {
-                let result = http_client
+                let result = client
                     .post(address.clone() + "/events")
                     .body(batch_bytes.clone())
                     .send()
@@ -305,6 +323,12 @@ pub(crate) async fn backfill_remote_server(
                 *failed.lock().await = true;
             }
         });
+
+        info!(
+            "Got {} events, new position: {:?}",
+            batch.events.len(),
+            position.map(|p| p.to_base64_str())
+        );
     }
 
     Ok(())
