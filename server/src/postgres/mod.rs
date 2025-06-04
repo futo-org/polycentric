@@ -171,7 +171,10 @@ pub(crate) async fn load_events_after_id(
 
     let query = "
         SELECT id, raw_event, server_time, moderation_tags, unix_milliseconds FROM events
-        WHERE (unix_milliseconds, id) > ($1, $2)
+        WHERE 
+            ($1::BIGINT IS NULL OR unix_milliseconds >= $1) 
+            AND 
+            ( ($1::BIGINT IS NOT NULL AND unix_milliseconds > $1) OR id > $2 )
         AND filter_events_by_moderation(events, $4::moderation_filter_type[], $5::moderation_mode)
         ORDER BY unix_milliseconds ASC NULLS FIRST, id ASC
         LIMIT $3;
