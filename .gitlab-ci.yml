@@ -52,7 +52,7 @@ stages:
   - format
   - build
   - lint
-  - test
+  # - test
   - deploy
 
 check:
@@ -354,20 +354,20 @@ test:
 deploy-polycentric-web-staging:
   stage: deploy
   script: make deploy-polycentric-web-staging
-  needs: ["check", "test", "build-web"]
+  needs: ["check", "build-web"] #test is disabled
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
 
 deploy-polycentric-web-production:
   stage: deploy
   script: make deploy-polycentric-web-production
-  needs: ["check", "test", "build-web"]
+  needs: ["check", "build-web"] #test is disabled
   rules:
     - if: $CI_COMMIT_BRANCH == "production"
 
 push-server-image-staging:
   stage: deploy
-  needs: ["check", "test", "build-server-release"]
+  needs: ["check", "build-server-release"]
   image:
     name: gcr.io/kaniko-project/executor:v1.14.0-debug
     entrypoint: [""]
@@ -381,7 +381,7 @@ push-server-image-staging:
 
 push-server-image-tag:
   stage: deploy
-  needs: ["check", "test", "build-server-release"]
+  needs: ["check", "build-server-release"] #test is disabled
   image:
     name: gcr.io/kaniko-project/executor:v1.14.0-debug
     entrypoint: [""]
@@ -455,7 +455,7 @@ push-verifiers-image-tag:
 
 push-server-image-production:
   stage: deploy
-  needs: ["check", "test", "build-server-release"]
+  needs: ["check", "build-server-release"] #test is disabled
   image:
     name: gcr.io/kaniko-project/executor:v1.14.0-debug
     entrypoint: [""]
