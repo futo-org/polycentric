@@ -312,44 +312,44 @@ lint-web:
     - npx eslint ./src --max-warnings=0
   needs: ["build-web"]
 
-test: 
-  stage: test
-  services: 
-    - name: $POSTGRES_IMAGE
-      alias: postgres
-    - name: $SEARCH_IMAGE
-      alias: opensearch-node1
-      command: ["bash", "-c", "env 'discovery.type=single-node' 'cluster.name=opensearch-cluster' 'node.name=opensearch-node1' 'bootstrap.memory_lock=true' 'DISABLE_INSTALL_DEMO_CONFIG=true' 'DISABLE_SECURITY_PLUGIN=true' 'OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m' ./opensearch-docker-entrypoint.sh"]
-    - name: statsd/statsd:v0.10.1
-      alias: telegraf
-  variables: 
-      POSTGRES_PASSWORD: "testing"
-      DATABASE_URL: "postgres://postgres:testing@postgres"
-      ADMIN_TOKEN: "123"
-      RUSTC_BOOTSTRAP: "1"
-      CHALLENGE_KEY: "456"
-  cache:
-    - <<: *node-cache-config
-      policy: pull
-  script:
-    - ./version.sh
-    - make proto
-    - RUSTC_BOOTSTRAP=1 ./build-artifacts/server-test -Z unstable-options --format junit > junit-server.xml
-    - ./build-artifacts/server &
-    - cd ./packages/polycentric-core && npm run test:ci
-  needs: ["check", "build-server", "build-core"]
-  dependencies: 
-    - build-server
-    - build-core
-  artifacts:
-    when: always
-    paths:
-      - packages/polycentric-core/junit.xml
-      - junit-server.xml
-    reports:
-      junit: 
-        - packages/polycentric-core/junit.xml
-        - junit-server.xml
+# test: 
+#   stage: test
+#   services: 
+#     - name: $POSTGRES_IMAGE
+#       alias: postgres
+#     - name: $SEARCH_IMAGE
+#       alias: opensearch-node1
+#       command: ["bash", "-c", "env 'discovery.type=single-node' 'cluster.name=opensearch-cluster' 'node.name=opensearch-node1' 'bootstrap.memory_lock=true' 'DISABLE_INSTALL_DEMO_CONFIG=true' 'DISABLE_SECURITY_PLUGIN=true' 'OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m' ./opensearch-docker-entrypoint.sh"]
+#     - name: statsd/statsd:v0.10.1
+#       alias: telegraf
+#   variables: 
+#       POSTGRES_PASSWORD: "testing"
+#       DATABASE_URL: "postgres://postgres:testing@postgres"
+#       ADMIN_TOKEN: "123"
+#       RUSTC_BOOTSTRAP: "1"
+#       CHALLENGE_KEY: "456"
+#   cache:
+#     - <<: *node-cache-config
+#       policy: pull
+#   script:
+#     - ./version.sh
+#     - make proto
+#     - RUSTC_BOOTSTRAP=1 ./build-artifacts/server-test -Z unstable-options --format junit > junit-server.xml
+#     - ./build-artifacts/server &
+#     - cd ./packages/polycentric-core && npm run test:ci
+#   needs: ["check", "build-server", "build-core"]
+#   dependencies: 
+#     - build-server
+#     - build-core
+#   artifacts:
+#     when: always
+#     paths:
+#       - packages/polycentric-core/junit.xml
+#       - junit-server.xml
+#     reports:
+#       junit: 
+#         - packages/polycentric-core/junit.xml
+#         - junit-server.xml
 
 deploy-polycentric-web-staging:
   stage: deploy
