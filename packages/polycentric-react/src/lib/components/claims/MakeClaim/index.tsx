@@ -395,7 +395,7 @@ export const SocialMediaInput = ({
           : 'Failed to initialize OAuth authentication.',
       );
     }
-  }, [platform, getClaimTypeForPlatform]);
+  }, [platform, getClaimTypeForPlatform, processHandle]);
 
   useEffect(() => {
     // For OAuth platforms, immediately show redirect state and start OAuth flow
