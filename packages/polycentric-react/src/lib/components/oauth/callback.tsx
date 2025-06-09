@@ -46,9 +46,11 @@ export function OAuthCallback() {
 
           const tokenQueryString = encodedData;
 
+          const systemState = await processHandle.loadSystemState(processHandle.system());
+
           try {
             const oauthResponse = await Core.APIMethods.getOAuthUsername(
-              Core.APIMethods.VERIFIER_SERVER,
+              systemState.verifiers()[0],
               tokenQueryString,
               claimTypeLong,
             );
@@ -148,7 +150,10 @@ export function OAuthCallback() {
 
       await new Promise((resolve) => setTimeout(resolve, propagationDelayMs));
 
+      const systemState = await processHandle.loadSystemState(processHandle.system());
+
       await Core.APIMethods.requestVerification(
+        systemState.verifiers()[0],
         pointer,
         claimType,
         permanentToken,
