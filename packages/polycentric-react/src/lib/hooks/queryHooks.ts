@@ -250,6 +250,27 @@ export function useQueryServers(
   return servers;
 }
 
+export function useQueryVerifiers(
+  system: Models.PublicKey.PublicKey,
+): ReadonlySet<string> {
+  const queryManager = useQueryManager();
+
+  const [servers, setServers] = useState<ReadonlySet<string>>(new Set());
+
+  useEffect(() => {
+    const subscription = Queries.QueryVerifiers.queryVerifiersObservable(
+      queryManager.queryVerifiers,
+      system,
+    ).subscribe((latestVerifiers) => {
+      setServers(latestVerifiers);
+    });
+
+    return subscription.unsubscribe.bind(subscription);
+  }, [queryManager, system]);
+
+  return servers;
+}
+
 export function useIndex<T>(
   system: Models.PublicKey.PublicKey,
   contentType: Models.ContentType.ContentType,

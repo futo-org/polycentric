@@ -8,6 +8,7 @@ import { DeleteAccount } from '../../components/settings/DeleteAccount';
 import { ExportKey } from '../../components/settings/ExportKey';
 import { ModerationTable } from '../../components/settings/ModerationTable';
 import { ServerListTable } from '../../components/settings/ServerTable';
+import { VerifierListTable } from '../../components/settings/VerifierTable';
 
 export const SettingsPage: Page = () => {
   return (
@@ -19,6 +20,10 @@ export const SettingsPage: Page = () => {
             <div className="flex flex-col space-y-3">
               <h2 className="font-medium">Edit Servers</h2>
               <ServerListTable />
+            </div>
+            <div className="flex flex-col space-y-3">
+              <h2 className="font-medium">Edit Verifiers</h2>
+              <VerifierListTable />
             </div>
             <div className="flex flex-col space-y-3">
               <h2 className="font-medium">Backup account login token</h2>
