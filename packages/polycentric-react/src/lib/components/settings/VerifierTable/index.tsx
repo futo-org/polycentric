@@ -75,7 +75,7 @@ const VerifierListTableRow = ({
       // TODO validation logic for verifiers
       setIsValidServer(true);
       setIsValidating(false);
-      
+
       return () => cancelContext.cancel();
     },
     [inputValue],
@@ -194,7 +194,7 @@ export const VerifierListTable = () => {
   const { processHandle } = useProcessHandleManager();
   const [newVerifier, setNewVerifier] = useState(false);
   const servers = useQueryVerifiers(processHandle.system());
-  
+
   return (
     <div className="rounded-[2rem] border overflow-hidden">
       <table className="min-w-full divide-y divide-gray-200">

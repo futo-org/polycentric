@@ -353,8 +353,8 @@ const CredsPanelSignUp = () => {
         );
 
         // Adding the default verifiers after the process handle is created, just because modifying the createHandle function seems more error prone than this feature is worth
-        const defaultVerifiers: Array<string>
-          = import.meta.env.VITE_DEFAULT_VERIFIERS?.split(',') ?? [];
+        const defaultVerifiers: Array<string> =
+          import.meta.env.VITE_DEFAULT_VERIFIERS?.split(',') ?? [];
 
         for (const verifier of defaultVerifiers) {
           await processHandle.addVerifier(verifier);

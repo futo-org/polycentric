@@ -300,12 +300,17 @@ const isVerifiablePlatform = (platform: SocialPlatform): boolean => {
   return result;
 };
 
-const handleOAuthLogin = async (processHandle: Core.ProcessHandle.ProcessHandle, claimType: Core.Models.ClaimType.ClaimType) => {
+const handleOAuthLogin = async (
+  processHandle: Core.ProcessHandle.ProcessHandle,
+  claimType: Core.Models.ClaimType.ClaimType,
+) => {
   try {
     // Make sure we're using the correct origin for the redirect URI
     const redirectUri = `${window.location.origin}/oauth/callback`;
 
-    const systemState = await processHandle.loadSystemState(processHandle.system());
+    const systemState = await processHandle.loadSystemState(
+      processHandle.system(),
+    );
 
     // Get the OAuth URL
     const oauthUrl = await Core.APIMethods.getOAuthURL(
@@ -504,7 +509,9 @@ export const SocialMediaInput = ({
       await Core.ProcessHandle.fullSync(processHandle);
 
       try {
-        const systemState = await processHandle.loadSystemState(processHandle.system());
+        const systemState = await processHandle.loadSystemState(
+          processHandle.system(),
+        );
 
         await Core.APIMethods.requestVerification(
           systemState.verifiers()[0],
