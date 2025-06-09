@@ -1,11 +1,11 @@
 import * as RXJS from 'rxjs';
 
 import Long from 'long';
-import * as ProcessHandle from './process-handle';
 import * as Models from './models';
-import * as Util from './util';
+import * as ProcessHandle from './process-handle';
 import * as Protocol from './protocol';
 import * as Queries from './queries';
+import * as Util from './util';
 
 function expectToBeDefined<T>(value: T): asserts value is NonNullable<T> {
   expect(value).toBeDefined();

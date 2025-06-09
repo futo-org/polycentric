@@ -8,6 +8,7 @@ import { QueryHead } from './query-head';
 import { QueryLatest } from './query-latest';
 import { QueryServers } from './query-servers';
 import { QueryTopStringReferences } from './query-top-string-references';
+import { QueryVerifiers } from './query-verifiers';
 
 import * as QueryCRDTSet from './query-crdt-set';
 import * as QueryIndex from './query-index';
@@ -21,6 +22,7 @@ export class QueryManager implements HasUpdate {
   public readonly processHandle: ProcessHandle.ProcessHandle;
 
   public readonly queryServers: QueryServers;
+  public readonly queryVerifiers: QueryVerifiers;
   public readonly queryHead: QueryHead;
   public readonly queryEvent: QueryEvent;
   public readonly queryBlob: QueryBlob;
@@ -40,6 +42,7 @@ export class QueryManager implements HasUpdate {
     this.processHandle = processHandle;
 
     this.queryServers = new QueryServers(processHandle);
+    this.queryVerifiers = new QueryVerifiers(processHandle);
     this.queryHead = new QueryHead(
       processHandle,
       this.queryServers,

@@ -16,15 +16,18 @@ import * as Util from './util';
 export class SystemState {
   private _servers: string[];
   private _authorities: string[];
+  private _verifiers: string[];
   private _processes: Models.Process.Process[];
 
   public constructor(
     servers: string[],
     authorities: string[],
+    verifiers: string[],
     processes: Models.Process.Process[],
   ) {
     this._servers = servers;
     this._authorities = authorities;
+    this._verifiers = verifiers;
     this._processes = processes;
   }
 
@@ -34,6 +37,10 @@ export class SystemState {
 
   public authorities(): string[] {
     return this._authorities;
+  }
+
+  public verifiers(): string[] {
+    return this._verifiers;
   }
 
   public processes(): Models.Process.Process[] {
@@ -50,7 +57,7 @@ function protoSystemStateToSystemState(
     processes.push(Models.Process.fromProto(process));
   }
 
-  return new SystemState([], [], processes);
+  return new SystemState([], [], [], processes);
 }
 
 export class ProcessHandle {
@@ -346,6 +353,22 @@ export class ProcessHandle {
     );
   }
 
+  public async addVerifier(server: string): Promise<Models.Pointer.Pointer> {
+    return await this.setCRDTElementSetItem(
+      Models.ContentType.ContentTypeVerifier,
+      Util.encodeText(server),
+      Protocol.LWWElementSet_Operation.ADD,
+    );
+  }
+
+  public async removeVerifier(server: string): Promise<Models.Pointer.Pointer> {
+    return await this.setCRDTElementSetItem(
+      Models.ContentType.ContentTypeVerifier,
+      Util.encodeText(server),
+      Protocol.LWWElementSet_Operation.REMOVE,
+    );
+  }
+
   public async addAuthority(server: string): Promise<Models.Pointer.Pointer> {
     return await this.setCRDTElementSetItem(
       Models.ContentType.ContentTypeAuthority,
@@ -499,6 +522,14 @@ export class ProcessHandle {
       .push(
         ...(
           await loadCRDTElementSetItems(Models.ContentType.ContentTypeAuthority)
+        ).map(Util.decodeText),
+      );
+
+    systemState
+      .verifiers()
+      .push(
+        ...(
+          await loadCRDTElementSetItems(Models.ContentType.ContentTypeVerifier)
         ).map(Util.decodeText),
       );
 

@@ -26,12 +26,6 @@ function encodeModerationLevels(
 
 const userAgent = 'polycentric-core-' + Version.SHA.substring(0, 8);
 
-// Guard access to process.env
-let verifierServer = 'https://verify.polycentric.io';
-if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_VERIFIER_SERVER) {
-  verifierServer = process.env.NEXT_PUBLIC_VERIFIER_SERVER;
-}
-export const VERIFIER_SERVER = verifierServer;
 
 export async function postEvents(
   server: string,
@@ -537,13 +531,14 @@ export async function getResolveHandle(
 }
 
 export async function requestVerification(
+  verifier: string,
   pointer: Protocol.Pointer,
   claimType: Models.ClaimType.ClaimType,
   challengeResponse?: string,
 ): Promise<void> {
   const verifierType = challengeResponse ? 'oauth' : 'text';
 
-  let url = `${VERIFIER_SERVER}/platforms/${claimType.toString()}/${verifierType}/vouch`;
+  let url = `${verifier}/platforms/${claimType.toString()}/${verifierType}/vouch`;
 
   if (challengeResponse) {
     url += `?challengeResponse=${encodeURIComponent(challengeResponse)}`;

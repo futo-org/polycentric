@@ -1,11 +1,13 @@
-export * as QueryIndex from './query-index';
-export * as QueryManager from './query-manager';
-export * as Shared from './shared';
+export * as HasUpdate from './has-update';
+export * as QueryBlob from './query-blob';
+export * as QueryCRDT from './query-crdt';
 export * as QueryCRDTSet from './query-crdt-set';
 export * as QueryCursor from './query-cursor';
-export * as HasUpdate from './has-update';
 export * as QueryEvent from './query-event';
-export * as QueryBlob from './query-blob';
 export * as QueryHead from './query-head';
-export * as QueryCRDT from './query-crdt';
+export * as QueryIndex from './query-index';
+export * as QueryManager from './query-manager';
 export * as QueryServers from './query-servers';
+export * as QueryVerifiers from './query-verifiers';
+export * as Shared from './shared';
+
