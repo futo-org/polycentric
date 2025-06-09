@@ -26,7 +26,6 @@ function encodeModerationLevels(
 
 const userAgent = 'polycentric-core-' + Version.SHA.substring(0, 8);
 
-
 export async function postEvents(
   server: string,
   events: Models.SignedEvent.SignedEvent[],

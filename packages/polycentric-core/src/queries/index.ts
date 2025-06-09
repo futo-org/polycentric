@@ -10,4 +10,3 @@ export * as QueryManager from './query-manager';
 export * as QueryServers from './query-servers';
 export * as QueryVerifiers from './query-verifiers';
 export * as Shared from './shared';
-

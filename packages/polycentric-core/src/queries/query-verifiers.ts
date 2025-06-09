@@ -47,7 +47,9 @@ export class QueryVerifiers {
       }
 
       if (event.lwwElementSet === undefined) {
-        throw new Error('lwwElementSet should not be undefined for verifier event');
+        throw new Error(
+          'lwwElementSet should not be undefined for verifier event',
+        );
       }
 
       result.add(Util.decodeText(event.lwwElementSet.value));
@@ -73,9 +75,7 @@ export class QueryVerifiers {
         const queryState = new Box<QueryIndex.Cell[]>([]);
         const callbacks = new Set([callback]);
         const fulfilled = new OnceFlag();
-        const servers = new Box<Set<string>>(
-          new Set<string>(),
-        );
+        const servers = new Box<Set<string>>(new Set<string>());
 
         if (servers.value.size !== 0) {
           fulfilled.set();
