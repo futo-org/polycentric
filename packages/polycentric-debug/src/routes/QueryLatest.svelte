@@ -2,7 +2,7 @@
     import * as Core from '@polycentric/polycentric-core';
     import { APIMethods } from '@polycentric/polycentric-core';
     import Long from 'long';
-    import { SERVER, decodeBase64UrlSafe, printableEvent, replacer, stringToBytes } from '../globals';
+    import { serverStore, decodeBase64UrlSafe, printableEvent, replacer, stringToBytes } from '../globals';
 
     let _output = "";
     let _keyType = "1";
@@ -34,8 +34,8 @@
         }
 
         const response = contentTypeNum 
-            ? await APIMethods.getQueryLatest(SERVER, system, [new Long(contentTypeNum!, 0, true) as any])
-            : await APIMethods.getQueryLatest(SERVER, system, [...Array(1000).keys()].map(v => new Long(v, 0, true) as any));
+            ? await APIMethods.getQueryLatest($serverStore, system, [new Long(contentTypeNum!, 0, true) as any])
+            : await APIMethods.getQueryLatest($serverStore, system, [...Array(1000).keys()].map(v => new Long(v, 0, true) as any));
         let responseEvents = response.events.map(m => Core.Models.Event.fromBuffer(Core.Models.SignedEvent.fromProto(m).event));
         console.log("responseEvents", responseEvents);
 

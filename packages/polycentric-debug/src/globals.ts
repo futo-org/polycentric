@@ -1,7 +1,9 @@
 import * as Core from '@polycentric/polycentric-core';
 import Long from 'long';
+import { writable } from 'svelte/store';
 
-export const SERVER = 'https://serv1-stg.polycentric.io';
+export const serverStore = writable('https://serv1.polycentric.io');
+
 export const TRUST_ROOT = Core.Models.PublicKey.fromProto(
   Core.Protocol.PublicKey.create({
     keyType: 1,
@@ -167,7 +169,20 @@ export function replacer(key: any, value: any) {
   return value;
 }
 
-export function decodeBase64UrlSafe(base64UrlSafeString: string) {
+export function bytesToString(bytes: Uint8Array): string {
+  return new TextDecoder().decode(bytes);
+}
+
+export function bytesToBinaryString(bytes: Uint8Array): string {
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return binary;
+}
+
+export function decodeBase64UrlSafe(base64UrlSafeString: string): string {
   let base64StandardString = base64UrlSafeString
     .replace(/-/g, '+')
     .replace(/_/g, '/');
@@ -179,15 +194,6 @@ export function encodeBase64UrlSafe(data: string) {
   let base64UrlSafe = base64.replace(/\+/g, '-').replace(/\//g, '_');
   base64UrlSafe = base64UrlSafe.replace(/=+$/, '');
   return base64UrlSafe;
-}
-
-export function bytesToString(bytes: Uint8Array): string {
-  let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return binary;
 }
 
 export function stringToBytes(str: string): Uint8Array {
