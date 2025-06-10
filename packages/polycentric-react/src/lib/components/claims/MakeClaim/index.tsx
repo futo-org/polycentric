@@ -128,13 +128,17 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
   const [step, setStep] = useState<'type' | 'input'>('type');
   const [claimType, setClaimType] = useState<ClaimData['type'] | null>(null);
   const [platform, setPlatform] = useState<SocialPlatform | undefined>();
-  const [verifier, setVerifier] = useState<string>("");
+  const [verifier, setVerifier] = useState<string>('');
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const handleSelect = (type: ClaimData['type'], platform?: SocialPlatform, verifier?: string) => {
+  const handleSelect = (
+    type: ClaimData['type'],
+    platform?: SocialPlatform,
+    verifier?: string,
+  ) => {
     setClaimType(type);
     setPlatform(platform);
-    if(verifier)setVerifier(verifier);
+    if (verifier) setVerifier(verifier);
     setStep('input');
   };
 
@@ -158,7 +162,11 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
     switch (claimType) {
       case 'social':
         return platform ? (
-          <SocialMediaInput {...props} platform={platform} verifier={verifier} />
+          <SocialMediaInput
+            {...props}
+            platform={platform}
+            verifier={verifier}
+          />
         ) : null;
       case 'occupation':
         return <OccupationInput {...props} />;
@@ -192,11 +200,15 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
 export const ClaimTypePopup = ({
   onSelect,
 }: {
-  onSelect: (type: ClaimData['type'], platform?: SocialPlatform, verifier?: string) => void;
+  onSelect: (
+    type: ClaimData['type'],
+    platform?: SocialPlatform,
+    verifier?: string,
+  ) => void;
 }) => {
   const [showSocialPlatforms, setShowSocialPlatforms] = useState(false);
   const [verifiers, setVerifiers] = useState<string[]>([]);
-  const [selectedVerifier, setSelectedVerifier] = useState<string>("");
+  const [selectedVerifier, setSelectedVerifier] = useState<string>('');
   const { processHandle } = useProcessHandleManager();
 
   const socialPlatforms: SocialPlatform[] = [
@@ -220,10 +232,11 @@ export const ClaimTypePopup = ({
       );
       const verifiers = systemState.verifiers();
       setVerifiers(verifiers);
-      if(selectedVerifier === "" && verifiers.length > 0) setSelectedVerifier(verifiers[0]); //Assumes that an empty string indicates no verifier has been selected
+      if (selectedVerifier === '' && verifiers.length > 0)
+        setSelectedVerifier(verifiers[0]); //Assumes that an empty string indicates no verifier has been selected
     };
-      
-    if(showSocialPlatforms) fetchVerifiers();
+
+    if (showSocialPlatforms) fetchVerifiers();
   }, [processHandle, showSocialPlatforms, selectedVerifier]);
 
   if (showSocialPlatforms) {
@@ -248,7 +261,8 @@ export const ClaimTypePopup = ({
         <select
           value={selectedVerifier}
           onChange={(e) => setSelectedVerifier(e.target.value)}
-          className="text-left px-4 py-2 hover:bg-gray-100 rounded-md">
+          className="text-left px-4 py-2 hover:bg-gray-100 rounded-md"
+        >
           {verifiers.map((verifier) => (
             <option key={verifier}>{verifier}</option>
           ))}
