@@ -162,7 +162,7 @@ export abstract class OAuthVerifier<T> extends Verifier {
     super(VerifierType.OAuth, claimType);
   }
 
-  public abstract getOAuthURL(): Promise<Result<string | XOAuthURLResult>>;
+  public abstract getOAuthURL(redirectUri: string): Promise<Result<string | XOAuthURLResult>>;
   public abstract getToken(data: T): Promise<Result<TokenResponse>>;
   public abstract isTokenValid(
     challengeResponseInput: string,

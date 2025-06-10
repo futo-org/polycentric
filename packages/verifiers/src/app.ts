@@ -161,18 +161,14 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
         'base64',
       );
 
-      const webAppBaseUrl = process.env.WEB_APP_URL || 'https://polycentric.io';
-      const webAppCallbackPath = '/oauth/callback';
-
       const redirectState = JSON.stringify({
         data: encodedData,
         claimType: platformIdentifier,
       });
-      const redirectUrl = `${webAppBaseUrl.replace(
-        /\/$/,
-        '',
-      )}${webAppCallbackPath}?state=${encodeURIComponent(redirectState)}`;
-      res.redirect(redirectUrl);
+
+      const redirectUrlObject = new URL(decodeURIComponent(req.query.redirectUri as string));
+      redirectUrlObject.searchParams.set('state', redirectState);
+      res.redirect(redirectUrlObject.href);
     } catch (e: unknown) {
       const requestId: string = new ObjectId().toString();
       console.error(

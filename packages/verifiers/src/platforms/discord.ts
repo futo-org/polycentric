@@ -27,14 +27,14 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
     this.usernameCache = new Map<string, string>();
   }
 
-  public async getOAuthURL(): Promise<Result<string>> {
+  public async getOAuthURL(finalRedirectUri: string): Promise<Result<string>> {
     if (
       process.env.DISCORD_CLIENT_ID === undefined ||
       process.env.OAUTH_CALLBACK_DOMAIN === undefined
     ) {
       return Result.errMsg('Verifier not configured');
     } else {
-      const redirectUri = getCallbackForPlatform(this.claimType, true);
+      const redirectUri = getCallbackForPlatform(this.claimType, finalRedirectUri, true);
 
       const harborSecret = Math.random().toString(36).substring(2, 15);
 

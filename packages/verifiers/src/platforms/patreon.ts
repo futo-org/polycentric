@@ -35,7 +35,7 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
     super(Core.Models.ClaimType.ClaimTypePatreon);
   }
 
-  public async getOAuthURL(): Promise<Result<string>> {
+  public async getOAuthURL(finalRedirectUri: string): Promise<Result<string>> {
     if (
       process.env.PATREON_CLIENT_ID === undefined ||
       process.env.OAUTH_CALLBACK_DOMAIN === undefined
@@ -44,7 +44,7 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
     }
 
     try {
-      const callbackUrl = getCallbackForPlatform(this.claimType);
+      const callbackUrl = getCallbackForPlatform(this.claimType, finalRedirectUri);
       if (!callbackUrl) {
         return Result.errMsg('Could not determine callback URL for Patreon');
       }

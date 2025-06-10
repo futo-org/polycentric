@@ -114,10 +114,11 @@ export function httpResponseToError<T>(
 
 export function getCallbackForPlatform(
   platform: Core.Models.ClaimType.ClaimType,
+  redirectUri: string,
   uriEncode = false,
 ) {
   const url = `${process.env.OAUTH_CALLBACK_DOMAIN}/platforms/${platform
     .toInt()
-    .toString()}/oauth/callback`;
+    .toString()}/oauth/callback?redirectUri=${encodeURIComponent(redirectUri)}`;
   return uriEncode ? encodeURIComponent(url) : url;
 }

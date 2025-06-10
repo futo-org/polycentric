@@ -33,7 +33,7 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
     super(Core.Models.ClaimType.ClaimTypeTwitter);
   }
 
-  public async getOAuthURL(): Promise<Result<XOAuthURLResult>> {
+  public async getOAuthURL(finalRedirectUri: string): Promise<Result<XOAuthURLResult>> {
     if (
       process.env.X_API_KEY === undefined ||
       process.env.X_API_SECRET === undefined ||
@@ -48,7 +48,7 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
         appSecret: process.env.X_API_SECRET,
       });
 
-      const callbackUrl = getCallbackForPlatform(this.claimType);
+      const callbackUrl = getCallbackForPlatform(this.claimType, finalRedirectUri);
       const oauthRequest = await client.generateAuthLink(callbackUrl, {
         linkMode: 'authorize',
       });
