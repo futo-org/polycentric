@@ -266,7 +266,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
           `/platforms/${name}/${verifier.verifierType}/url`,
           async (req, res) => {
             try {
-              const result = await verifier.getOAuthURL();
+              const result = await verifier.getOAuthURL(decodeURIComponent(req.query.redirectUri as string));
               if (result.success) {
                 if (typeof result.value === 'string') {
                   res.status(StatusCodes.OK).json({ url: result.value });
