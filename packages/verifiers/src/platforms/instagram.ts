@@ -19,14 +19,14 @@ class InstagramOAuthVerifier extends OAuthVerifier<InstagramTokenRequest> {
     super(Core.Models.ClaimType.ClaimTypeInstagram);
   }
 
-  public async getOAuthURL(): Promise<Result<string>> {
+  public async getOAuthURL(finalRedirectUri: string): Promise<Result<string>> {
     if (
       process.env.INSTAGRAM_CLIENT_ID === undefined ||
       process.env.OAUTH_CALLBACK_DOMAIN === undefined
     ) {
       return Result.errMsg('Verifier not configured');
     } else {
-      const redirectUri = getCallbackForPlatform(this.claimType, true);
+      const redirectUri = getCallbackForPlatform(this.claimType, finalRedirectUri, true);
       return Result.ok(
         `https://api.instagram.com/oauth/authorize?client_id=${process.env.INSTAGRAM_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=user_profile`,
       );
@@ -44,7 +44,7 @@ class InstagramOAuthVerifier extends OAuthVerifier<InstagramTokenRequest> {
       return Result.errMsg('Verifier not configured');
     }
 
-    const redirectUri = getCallbackForPlatform(this.claimType);
+    const redirectUri = getCallbackForPlatform(this.claimType, "");
     const client = createCookieEnabledAxios();
     const form = new FormData();
     form.append('client_id', process.env.INSTAGRAM_CLIENT_ID);

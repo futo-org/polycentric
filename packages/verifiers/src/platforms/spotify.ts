@@ -20,7 +20,7 @@ class SpotifyOAuthVerifier extends OAuthVerifier<SpotifyTokenRequest> {
     super(Core.Models.ClaimType.ClaimTypeSpotify);
   }
 
-  public async getOAuthURL(): Promise<Result<string>> {
+  public async getOAuthURL(finalRedirectUri: string): Promise<Result<string>> {
     if (
       process.env.SPOTIFY_CLIENT_ID === undefined ||
       process.env.OAUTH_CALLBACK_DOMAIN === undefined
@@ -28,7 +28,7 @@ class SpotifyOAuthVerifier extends OAuthVerifier<SpotifyTokenRequest> {
       return Result.errMsg('Verifier not configured');
     }
 
-    const redirectUri = getCallbackForPlatform(this.claimType, true);
+    const redirectUri = getCallbackForPlatform(this.claimType, finalRedirectUri, true);
     return Result.ok(
       `https://accounts.spotify.com/authorize?response_type=code&client_id=${encodeURIComponent(
         process.env.SPOTIFY_CLIENT_ID,
@@ -47,7 +47,7 @@ class SpotifyOAuthVerifier extends OAuthVerifier<SpotifyTokenRequest> {
       return Result.errMsg('Verifier not configured');
     }
 
-    const redirectUri = getCallbackForPlatform(this.claimType);
+    const redirectUri = getCallbackForPlatform(this.claimType, "");
     const client = createCookieEnabledAxios();
     const fdata = {
       code: data.code,

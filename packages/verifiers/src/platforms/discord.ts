@@ -71,7 +71,7 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
       const cacheKey = `discord_token_${data.code}`;
       const cachedResponse = this.tokenCache.get(cacheKey);
 
-      const redirectUri = getCallbackForPlatform(this.claimType);
+      const redirectUri = getCallbackForPlatform(this.claimType, "");
       const client = createCookieEnabledAxios();
 
       try {
