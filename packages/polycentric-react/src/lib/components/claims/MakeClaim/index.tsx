@@ -128,11 +128,13 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
   const [step, setStep] = useState<'type' | 'input'>('type');
   const [claimType, setClaimType] = useState<ClaimData['type'] | null>(null);
   const [platform, setPlatform] = useState<SocialPlatform | undefined>();
+  const [verifier, setVerifier] = useState<string>("");
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const handleSelect = (type: ClaimData['type'], platform?: SocialPlatform) => {
+  const handleSelect = (type: ClaimData['type'], platform?: SocialPlatform, verifier?: string) => {
     setClaimType(type);
     setPlatform(platform);
+    if(verifier)setVerifier(verifier);
     setStep('input');
   };
 
@@ -156,7 +158,7 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
     switch (claimType) {
       case 'social':
         return platform ? (
-          <SocialMediaInput {...props} platform={platform} />
+          <SocialMediaInput {...props} platform={platform} verifier={verifier} />
         ) : null;
       case 'occupation':
         return <OccupationInput {...props} />;
@@ -190,10 +192,11 @@ export const MakeClaim = ({ onClose, system }: MakeClaimProps) => {
 export const ClaimTypePopup = ({
   onSelect,
 }: {
-  onSelect: (type: ClaimData['type'], platform?: SocialPlatform) => void;
+  onSelect: (type: ClaimData['type'], platform?: SocialPlatform, verifier?: string) => void;
 }) => {
   const [showSocialPlatforms, setShowSocialPlatforms] = useState(false);
   const [verifiers, setVerifiers] = useState<string[]>([]);
+  const [selectedVerifier, setSelectedVerifier] = useState<string>("");
   const { processHandle } = useProcessHandleManager();
 
   const socialPlatforms: SocialPlatform[] = [
@@ -215,11 +218,13 @@ export const ClaimTypePopup = ({
       const systemState = await processHandle.loadSystemState(
         processHandle.system(),
       );
-      setVerifiers(systemState.verifiers());
+      const verifiers = systemState.verifiers();
+      setVerifiers(verifiers);
+      if(selectedVerifier === "" && verifiers.length > 0) setSelectedVerifier(verifiers[0]); //Assumes that an empty string indicates no verifier has been selected
     };
       
     if(showSocialPlatforms) fetchVerifiers();
-  }, [processHandle, showSocialPlatforms]);
+  }, [processHandle, showSocialPlatforms, selectedVerifier]);
 
   if (showSocialPlatforms) {
     return (
@@ -233,14 +238,16 @@ export const ClaimTypePopup = ({
         {socialPlatforms.map((platform) => (
           <button
             key={platform}
-            onClick={() => onSelect('social', platform)}
+            onClick={() => onSelect('social', platform, selectedVerifier)}
             className="text-left px-4 py-2 hover:bg-gray-100 rounded-md capitalize"
           >
             {platform}
           </button>
         ))}
-        <h2 className="text-xl font-semibold">Select Verifier</h2>
+        <h3 className="text-xl font-semibold">Select Verifier</h3>
         <select
+          value={selectedVerifier}
+          onChange={(e) => setSelectedVerifier(e.target.value)}
           className="text-left px-4 py-2 hover:bg-gray-100 rounded-md">
           {verifiers.map((verifier) => (
             <option key={verifier}>{verifier}</option>
@@ -321,20 +328,16 @@ const isVerifiablePlatform = (platform: SocialPlatform): boolean => {
 };
 
 const handleOAuthLogin = async (
-  processHandle: Core.ProcessHandle.ProcessHandle,
+  verifier: string,
   claimType: Core.Models.ClaimType.ClaimType,
 ) => {
   try {
     // Make sure we're using the correct origin for the redirect URI
     const redirectUri = `${window.location.origin}/oauth/callback`;
 
-    const systemState = await processHandle.loadSystemState(
-      processHandle.system(),
-    );
-
     // Get the OAuth URL
     const oauthUrl = await Core.APIMethods.getOAuthURL(
-      systemState.verifiers()[0],
+      verifier,
       claimType,
       redirectUri,
     );
@@ -359,11 +362,13 @@ const handleOAuthLogin = async (
 export const SocialMediaInput = ({
   platform,
   system,
+  verifier,
   onCancel,
   setIsVerifying,
 }: {
   platform: SocialPlatform;
   system: Models.PublicKey.PublicKey;
+  verifier: string;
   onCancel: () => void;
   setIsVerifying: (isVerifying: boolean) => void;
 }) => {
@@ -404,7 +409,7 @@ export const SocialMediaInput = ({
 
       if (isOAuthVerifiable(claimType)) {
         setVerificationStep('oauth_redirect');
-        await handleOAuthLogin(processHandle, claimType);
+        await handleOAuthLogin(verifier, claimType);
       }
     } catch (error) {
       console.error('Failed to initialize OAuth:', error);
@@ -415,7 +420,7 @@ export const SocialMediaInput = ({
           : 'Failed to initialize OAuth authentication.',
       );
     }
-  }, [platform, getClaimTypeForPlatform, processHandle]);
+  }, [platform, getClaimTypeForPlatform, verifier]);
 
   useEffect(() => {
     // For OAuth platforms, immediately show redirect state and start OAuth flow
@@ -529,12 +534,8 @@ export const SocialMediaInput = ({
       await Core.ProcessHandle.fullSync(processHandle);
 
       try {
-        const systemState = await processHandle.loadSystemState(
-          processHandle.system(),
-        );
-
         await Core.APIMethods.requestVerification(
-          systemState.verifiers()[0],
+          verifier,
           claimPointer,
           getClaimTypeForPlatform(platform),
         );
