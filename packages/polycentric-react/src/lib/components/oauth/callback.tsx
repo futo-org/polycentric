@@ -31,7 +31,7 @@ export function OAuthCallback() {
         const state = JSON.parse(decodeURIComponent(stateParam));
         const encodedData = state.data;
 
-        if (!encodedData || !state.claimType || !processHandle) {
+        if (!encodedData || !state.claimType || !state.verifier || !processHandle) {
           setError('Missing required OAuth parameters');
           return;
         }
@@ -46,13 +46,9 @@ export function OAuthCallback() {
 
           const tokenQueryString = encodedData;
 
-          const systemState = await processHandle.loadSystemState(
-            processHandle.system(),
-          );
-
           try {
             const oauthResponse = await Core.APIMethods.getOAuthUsername(
-              systemState.verifiers()[0],
+              state.verifier,
               tokenQueryString,
               claimTypeLong,
             );

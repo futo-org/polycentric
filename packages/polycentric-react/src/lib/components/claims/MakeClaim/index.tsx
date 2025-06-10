@@ -347,7 +347,7 @@ const handleOAuthLogin = async (
 ) => {
   try {
     // Make sure we're using the correct origin for the redirect URI
-    const redirectUri = `${window.location.origin}/oauth/callback`;
+    const redirectUri = `${window.location.origin}/oauth/callback?verifier=${verifier}`;
 
     // Get the OAuth URL
     const oauthUrl = await Core.APIMethods.getOAuthURL(
