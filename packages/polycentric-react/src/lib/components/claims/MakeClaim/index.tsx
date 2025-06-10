@@ -639,6 +639,7 @@ export const SocialMediaInput = ({
     processHandle,
     claimPointer,
     platform,
+    verifier,
     onCancel,
     getClaimTypeForPlatform,
     setIsVerifying,
