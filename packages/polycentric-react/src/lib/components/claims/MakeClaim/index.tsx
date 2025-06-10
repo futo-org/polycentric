@@ -193,6 +193,8 @@ export const ClaimTypePopup = ({
   onSelect: (type: ClaimData['type'], platform?: SocialPlatform) => void;
 }) => {
   const [showSocialPlatforms, setShowSocialPlatforms] = useState(false);
+  const [verifiers, setVerifiers] = useState<string[]>([]);
+  const { processHandle } = useProcessHandleManager();
 
   const socialPlatforms: SocialPlatform[] = [
     'youtube',
@@ -207,6 +209,17 @@ export const ClaimTypePopup = ({
     'substack',
     'twitch',
   ];
+
+  useEffect(() => {
+    const fetchVerifiers = async () => {
+      const systemState = await processHandle.loadSystemState(
+        processHandle.system(),
+      );
+      setVerifiers(systemState.verifiers());
+    };
+      
+    if(showSocialPlatforms) fetchVerifiers();
+  }, [processHandle, showSocialPlatforms]);
 
   if (showSocialPlatforms) {
     return (
@@ -226,6 +239,13 @@ export const ClaimTypePopup = ({
             {platform}
           </button>
         ))}
+        <h2 className="text-xl font-semibold">Select Verifier</h2>
+        <select
+          className="text-left px-4 py-2 hover:bg-gray-100 rounded-md">
+          {verifiers.map((verifier) => (
+            <option key={verifier}>{verifier}</option>
+          ))}
+        </select>
       </div>
     );
   }
