@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useBlobDisplayURL } from '../../../../../hooks/imageHooks';
-import {
-  cropImageToBlob,
-} from '../../../../../util/imageProcessing';
+import { cropImageToBlob } from '../../../../../util/imageProcessing';
 import { CropProfilePicModal } from '../../../CropProfilePic';
 import { ProfilePicture } from '../../../ProfilePicture';
 
