@@ -28,10 +28,7 @@ class SpotifyOAuthVerifier extends OAuthVerifier<SpotifyTokenRequest> {
       return Result.errMsg('Verifier not configured');
     }
 
-    const redirectUri = getCallbackForPlatform(
-      this.claimType,
-      true,
-    );
+    const redirectUri = getCallbackForPlatform(this.claimType, true);
     return Result.ok(
       `https://accounts.spotify.com/authorize?response_type=code&client_id=${encodeURIComponent(
         process.env.SPOTIFY_CLIENT_ID,

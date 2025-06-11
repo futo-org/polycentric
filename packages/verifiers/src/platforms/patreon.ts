@@ -44,9 +44,7 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
     }
 
     try {
-      const callbackUrl = getCallbackForPlatform(
-        this.claimType,
-      );
+      const callbackUrl = getCallbackForPlatform(this.claimType);
       if (!callbackUrl) {
         return Result.errMsg('Could not determine callback URL for Patreon');
       }

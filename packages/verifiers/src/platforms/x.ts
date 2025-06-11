@@ -50,9 +50,7 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
         appSecret: process.env.X_API_SECRET,
       });
 
-      const callbackUrl = getCallbackForPlatform(
-        this.claimType,
-      );
+      const callbackUrl = getCallbackForPlatform(this.claimType);
       const oauthRequest = await client.generateAuthLink(callbackUrl, {
         linkMode: 'authorize',
       });

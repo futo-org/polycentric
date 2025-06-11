@@ -26,10 +26,7 @@ class InstagramOAuthVerifier extends OAuthVerifier<InstagramTokenRequest> {
     ) {
       return Result.errMsg('Verifier not configured');
     } else {
-      const redirectUri = getCallbackForPlatform(
-        this.claimType,
-        true,
-      );
+      const redirectUri = getCallbackForPlatform(this.claimType, true);
       return Result.ok(
         `https://api.instagram.com/oauth/authorize?client_id=${process.env.INSTAGRAM_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=user_profile`,
       );

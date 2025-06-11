@@ -34,10 +34,7 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
     ) {
       return Result.errMsg('Verifier not configured');
     } else {
-      const redirectUri = getCallbackForPlatform(
-        this.claimType,
-        true,
-      );
+      const redirectUri = getCallbackForPlatform(this.claimType, true);
 
       const harborSecret = Math.random().toString(36).substring(2, 15);
 
