@@ -408,7 +408,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
       );
     }
   }
-  app.listen(3001, () => {
-    console.log(`Verifiers server listening on port ${3001}`);
+  app.listen(3002, () => {
+    console.log(`Verifiers server listening on port ${3002}`);
   });
 })();
