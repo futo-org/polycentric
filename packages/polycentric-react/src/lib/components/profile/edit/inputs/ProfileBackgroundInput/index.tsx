@@ -1,7 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBlobDisplayURL } from '../../../../../hooks/imageHooks';
-import { cropImageToWebp } from '../../../../../util/imageProcessing';
+import {
+  cropImageToBlob,
+  dataURLToBlob,
+} from '../../../../../util/imageProcessing';
 import { CropProfilePicModal } from '../../../CropProfilePic';
+
+function usePrevious<T>(value: T): T | undefined {
+  const ref = useRef<T>();
+  useEffect(() => {
+    ref.current = value;
+  });
+  return ref.current;
+}
 
 export const ProfileBackgroundInput = ({
   title,
@@ -14,16 +25,38 @@ export const ProfileBackgroundInput = ({
   setCroppedImage: (image?: Blob) => void;
   originalImageURL?: string;
 }) => {
+  const [previewURL, setPreviewURL] = useState<string | undefined>();
   const [rawImage, setRawImage] = useState<File | undefined>(undefined);
   // react-easy-crop requires an image URL to crop
   const rawImageURL = useBlobDisplayURL(rawImage);
   const [cropping, setCropping] = useState(false);
-  const [internalCroppedImage, setInternalCroppedImage] = useState<
-    Blob | undefined
-  >();
-  const croppedPreviewURL = useBlobDisplayURL(internalCroppedImage);
+  const prevOriginalImageURL = usePrevious(originalImageURL);
 
-  const previewURL = croppedPreviewURL ?? originalImageURL;
+  useEffect(() => {
+    // This effect handles resetting the preview.
+    // It clears the preview only when the originalImageURL (the source of truth)
+    // has actually changed from one valid URL to another, indicating a successful
+    // save and data refresh. It ignores flickers to/from undefined during loading.
+    if (
+      prevOriginalImageURL &&
+      originalImageURL &&
+      prevOriginalImageURL !== originalImageURL
+    ) {
+      if (previewURL) {
+        URL.revokeObjectURL(previewURL);
+        setPreviewURL(undefined);
+      }
+    }
+  }, [originalImageURL, prevOriginalImageURL, previewURL]);
+
+  useEffect(() => {
+    // Clean up the preview URL when the component unmounts
+    return () => {
+      if (previewURL) {
+        URL.revokeObjectURL(previewURL);
+      }
+    };
+  }, [previewURL]);
 
   return (
     <div className="flex flex-col gap-y-1">
@@ -33,7 +66,7 @@ export const ProfileBackgroundInput = ({
           <div
             className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden"
             style={{
-              backgroundImage: previewURL ? `url(${previewURL})` : 'none',
+              backgroundImage: `url(${previewURL || originalImageURL || ''})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             }}
@@ -73,15 +106,19 @@ export const ProfileBackgroundInput = ({
           }}
           onCrop={async ({ x, y, width, height }) => {
             if (rawImage) {
-              const croppedImage = await cropImageToWebp(
+              const croppedImage = await cropImageToBlob(
                 rawImage,
                 x,
                 y,
                 width,
                 height,
               );
-              setInternalCroppedImage(croppedImage);
               setCroppedImage(croppedImage);
+
+              if (previewURL) {
+                URL.revokeObjectURL(previewURL);
+              }
+              setPreviewURL(URL.createObjectURL(croppedImage));
             }
             setCropping(false);
           }}

@@ -1,8 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBlobDisplayURL } from '../../../../../hooks/imageHooks';
-import { cropImageToWebp } from '../../../../../util/imageProcessing';
+import {
+  cropImageToBlob,
+} from '../../../../../util/imageProcessing';
 import { CropProfilePicModal } from '../../../CropProfilePic';
 import { ProfilePicture } from '../../../ProfilePicture';
+
+function usePrevious<T>(value: T): T | undefined {
+  const ref = useRef<T>();
+  useEffect(() => {
+    ref.current = value;
+  });
+  return ref.current;
+}
 
 export const ProfileAvatarInput = ({
   title,
@@ -15,23 +25,44 @@ export const ProfileAvatarInput = ({
   setCroppedImage: (image?: Blob) => void;
   originalImageURL?: string;
 }) => {
+  const [previewURL, setPreviewURL] = useState<string | undefined>();
   const [rawImage, setRawImage] = useState<File | undefined>(undefined);
   // react-easy-crop requires an image URL to crop
   const rawImageURL = useBlobDisplayURL(rawImage);
   const [cropping, setCropping] = useState(false);
-  const [internalCroppedImage, setInternalCroppedImage] = useState<
-    Blob | undefined
-  >();
-  const croppedPreviewURL = useBlobDisplayURL(internalCroppedImage);
+  const prevOriginalImageURL = usePrevious(originalImageURL);
 
-  const previewURL = croppedPreviewURL ?? originalImageURL;
+  useEffect(() => {
+    if (
+      prevOriginalImageURL &&
+      originalImageURL &&
+      prevOriginalImageURL !== originalImageURL
+    ) {
+      if (previewURL) {
+        URL.revokeObjectURL(previewURL);
+        setPreviewURL(undefined);
+      }
+    }
+  }, [originalImageURL, prevOriginalImageURL, previewURL]);
+
+  useEffect(() => {
+    // Clean up the preview URL when the component unmounts
+    return () => {
+      if (previewURL) {
+        URL.revokeObjectURL(previewURL);
+      }
+    };
+  }, [previewURL]);
 
   return (
     <div className="flex flex-col gap-y-1">
       <h3 className="font-medium">{title}</h3>
       <div className="">
         <label htmlFor="upload-button" className="">
-          <ProfilePicture className="w-16 h-16" src={previewURL} />
+          <ProfilePicture
+            className="w-16 h-16"
+            src={previewURL || originalImageURL}
+          />
         </label>
         <input
           id="upload-button"
@@ -63,15 +94,19 @@ export const ProfileAvatarInput = ({
           }}
           onCrop={async ({ x, y, width, height }) => {
             if (rawImage) {
-              const croppedImage = await cropImageToWebp(
+              const croppedImage = await cropImageToBlob(
                 rawImage,
                 x,
                 y,
                 width,
                 height,
               );
-              setInternalCroppedImage(croppedImage);
               setCroppedImage(croppedImage);
+
+              if (previewURL) {
+                URL.revokeObjectURL(previewURL);
+              }
+              setPreviewURL(URL.createObjectURL(croppedImage));
             }
             setCropping(false);
           }}

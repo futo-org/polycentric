@@ -8,34 +8,56 @@ import { avatarResolutions } from '../util/imageProcessing';
 import { useBlobQuery, useQueryManager } from './queryHooks';
 import { ObservableCacheItem, useObservableWithCache } from './utilHooks';
 
-const blobURLCache = new Map<Blob, { url: string; count: number }>();
+const blobURLCache = new Map<string, { url: string; count: number }>();
+
+// Simple hash function for blobs
+const hashBlob = async (blob: Blob): Promise<string> => {
+  const buffer = await blob.arrayBuffer();
+  const digest = await crypto.subtle.digest('SHA-1', buffer);
+  // convert digest to hex string
+  const hashArray = Array.from(new Uint8Array(digest));
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
+};
 
 export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
   const [blobURL, setBlobURL] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    if (blob) {
-      let cacheEntry = blobURLCache.get(blob);
+    if (!blob) {
+      setBlobURL(undefined);
+      return;
+    }
+
+    let cacheKey: string;
+    let revoked = false;
+
+    const manageBlobURL = async () => {
+      cacheKey = await hashBlob(blob);
+      if (revoked) return;
+
+      let cacheEntry = blobURLCache.get(cacheKey);
       if (!cacheEntry) {
         const newURL = URL.createObjectURL(blob);
         cacheEntry = { url: newURL, count: 1 };
-        blobURLCache.set(blob, cacheEntry);
+        blobURLCache.set(cacheKey, cacheEntry);
       } else {
         cacheEntry.count++;
       }
       setBlobURL(cacheEntry.url);
-    } else {
-      setBlobURL(undefined);
-    }
+    };
+
+    manageBlobURL();
 
     return () => {
-      if (blob) {
-        const cacheEntry = blobURLCache.get(blob);
+      revoked = true;
+      if (cacheKey) {
+        const cacheEntry = blobURLCache.get(cacheKey);
         if (cacheEntry) {
           cacheEntry.count--;
           if (cacheEntry.count === 0) {
             URL.revokeObjectURL(cacheEntry.url);
-            blobURLCache.delete(blob);
+            blobURLCache.delete(cacheKey);
           }
         }
       }
