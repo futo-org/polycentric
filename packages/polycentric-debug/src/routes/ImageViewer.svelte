@@ -5,7 +5,13 @@
     export let system: Core.Models.PublicKey.PublicKey;
     export let imageBundle: Core.Protocol.ImageBundle;
 
-    const manifest = imageBundle.imageManifests.find(m => m.width.toNumber() === 256);
+    let manifest: Core.Protocol.ImageManifest | undefined;
+
+    if (imageBundle.imageManifests && imageBundle.imageManifests.length > 0) {
+        manifest = imageBundle.imageManifests.reduce((largest, current) => {
+            return current.width.greaterThan(largest.width) ? current : largest;
+        });
+    }
 </script>
 
 <div>

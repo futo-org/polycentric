@@ -114,6 +114,12 @@ fn trace_event(
 
         content_str = String::from_utf8(lww_element_set.value)?;
     } else if content_type
+        == polycentric_protocol::model::known_message_types::AVATAR
+        || content_type
+            == polycentric_protocol::model::known_message_types::BANNER
+    {
+        content_str = "updated".to_string();
+    } else if content_type
         == polycentric_protocol::model::known_message_types::OPINION
     {
         let lww_element = event.lww_element().clone().ok_or(Error)?;

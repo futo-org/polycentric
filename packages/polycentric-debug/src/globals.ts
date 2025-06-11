@@ -1,6 +1,6 @@
 import * as Core from '@polycentric/polycentric-core';
 import Long from 'long';
-import { writable } from 'svelte/store';
+import { writable, type Writable } from 'svelte/store';
 
 export const serverStore = writable('https://serv1.polycentric.io');
 
@@ -12,6 +12,14 @@ export const TRUST_ROOT = Core.Models.PublicKey.fromProto(
     ),
   }),
 );
+
+export const processHandleStore: Writable<Core.ProcessHandle.ProcessHandle> = writable();
+export const usernameStore: Writable<string> = writable("");
+
+let processHandle: Core.ProcessHandle.ProcessHandle;
+processHandleStore.subscribe(value => {
+  processHandle = value;
+});
 
 function contentTypeToString(
   contentType: Core.Models.ContentType.ContentType,
@@ -67,9 +75,13 @@ export function printableEvent(event: Core.Models.Event.Event): any {
         claimType: Core.Models.ClaimType.toString(claim.claimType as any),
       };
       break;
-    case Core.Models.ContentType.ContentTypeBlobSection.toInt():
-      const bytes = bytesToString(event.content);
-      content = encodeBase64UrlSafe(bytes);
+    case Core.Models.ContentType.ContentTypeAvatar.toInt():
+    case Core.Models.ContentType.ContentTypeBanner.toInt():
+      try {
+        content = Core.Protocol.ImageBundle.decode(event.content);
+      } catch (e) {
+        content = { error: "Failed to decode ImageBundle", data: event.content };
+      }
       break;
     default:
       content = event.content;
@@ -82,12 +94,6 @@ export function printableEvent(event: Core.Models.Event.Event): any {
       case Core.Models.ContentType.ContentTypeUsername.toInt():
       case Core.Models.ContentType.ContentTypeDescription.toInt():
         lwwElementValue = bytesToString(event.lwwElement.value);
-        break;
-      case Core.Models.ContentType.ContentTypeAvatar.toInt():
-      case Core.Models.ContentType.ContentTypeBanner.toInt():
-        lwwElementValue = Core.Protocol.ImageBundle.decode(
-          event.lwwElement.value,
-        );
         break;
       default:
         lwwElementValue = event.lwwElement.value;
@@ -160,7 +166,7 @@ export function printableEvent(event: Core.Models.Event.Event): any {
 
 export function replacer(key: any, value: any) {
   if (value instanceof Uint8Array) {
-    return encodeBase64UrlSafe(bytesToString(value));
+    return encodeBase64UrlSafe(bytesToBinaryString(value));
   }
   if (Long.isLong(value)) {
     return value.toString();
