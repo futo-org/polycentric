@@ -21,6 +21,7 @@ export function OAuthCallback() {
     const processOAuth = async () => {
       const params = new URLSearchParams(window.location.search);
       const stateParam = params.get('state');
+      const verifier = decodeURIComponent(params.get('verifier') || '');
 
       if (!stateParam) {
         setError('Missing state parameter');
@@ -34,10 +35,10 @@ export function OAuthCallback() {
         if (
           !encodedData ||
           !state.claimType ||
-          !state.verifier ||
+          !verifier ||
           !processHandle
         ) {
-          setError('Missing required OAuth parameters');
+          setError(`Missing required OAuth parameters`);
           return;
         }
 
@@ -53,7 +54,7 @@ export function OAuthCallback() {
 
           try {
             const oauthResponse = await Core.APIMethods.getOAuthUsername(
-              state.verifier,
+              verifier,
               tokenQueryString,
               claimTypeLong,
             );
