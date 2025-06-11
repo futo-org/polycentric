@@ -166,9 +166,16 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
         claimType: platformIdentifier,
       });
 
-      const redirectUrlObject = new URL(
-        decodeURIComponent(JSON.parse(state as string).redirectUri),
-      );
+      let redirectUrlObject;
+      if (state && typeof state === 'string') {
+        redirectUrlObject = new URL(
+          decodeURIComponent(JSON.parse(state as string).redirectUri),
+        );
+      } else {
+        redirectUrlObject = new URL(
+          decodeURIComponent(req.query.finalRedirectUri as stringW),
+        );
+      }
       redirectUrlObject.searchParams.set('state', redirectState);
       res.redirect(redirectUrlObject.href);
     } catch (e: unknown) {

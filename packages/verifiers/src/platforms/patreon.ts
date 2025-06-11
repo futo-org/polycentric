@@ -61,7 +61,10 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
       }
 
       const stateToken = Math.random().toString(36).substring(2, 15);
-      url.searchParams.append('state', stateToken);
+      url.searchParams.append(
+        'state',
+        JSON.stringify({ stateToken, redirectUri: finalRedirectUri }),
+      );
 
       return Result.ok(url.toString());
     } catch (error: any) {
