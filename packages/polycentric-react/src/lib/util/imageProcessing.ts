@@ -13,7 +13,6 @@ export const convertBlobToUint8Array = async (
 
 export async function resizeImageToWebp(
   image: Blob,
-  quality = 0.7,
   maxResX = 1000,
   maxResY = 1000,
   upscale = false,
@@ -71,19 +70,16 @@ export async function resizeImageToWebp(
 export const publishImageBlob = async (
   image: Blob,
   handle: ProcessHandle.ProcessHandle,
-  quality = 0.7,
   maxResX = 1000,
   maxResY = 1000,
   upscale = false,
 ): Promise<Protocol.ImageManifest> => {
-  const [newBlob, width, height] = await resizeImageToWebp(
+  const [, width, height] = await resizeImageToWebp(
     image,
-    quality,
     maxResX,
     maxResY,
     upscale,
   );
-  console.log('[avatar] resized', newBlob.size, newBlob.type, width, height);
   const newUint8Array = await convertBlobToUint8Array(image);
 
   const imageRanges = await handle.publishBlob(newUint8Array);
@@ -105,7 +101,6 @@ export const publishBlobToAvatar = async (
   handle: ProcessHandle.ProcessHandle,
 ) => {
   const resolutions: Array<number> = [256, 128, 32];
-  const quality = 0.7;
   const imageBundle: Protocol.ImageBundle = {
     imageManifests: [],
   };
@@ -115,7 +110,6 @@ export const publishBlobToAvatar = async (
     const manifest = await publishImageBlob(
       blob,
       handle,
-      quality,
       resolution,
       resolution,
       true,

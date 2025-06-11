@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useBlobDisplayURL } from '../../../../../hooks/imageHooks';
-import {
-  cropImageToBlob,
-  dataURLToBlob,
-} from '../../../../../util/imageProcessing';
+import { cropImageToBlob } from '../../../../../util/imageProcessing';
 import { CropProfilePicModal } from '../../../CropProfilePic';
 
 function usePrevious<T>(value: T): T | undefined {
