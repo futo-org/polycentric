@@ -1,6 +1,6 @@
 <script lang="ts">
     import * as Core from '@polycentric/polycentric-core';
-    import { SERVER, printableEvent, replacer } from '../globals';
+    import { serverStore, printableEvent, replacer } from '../globals';
 
     let _output = "";
     let _reference = "";
@@ -34,13 +34,13 @@
             fromType: fromTypeNum
         }) : Core.Protocol.QueryReferencesRequestEvents.create({});
 
-        const initialResponse = await Core.APIMethods.getQueryReferences(SERVER, ref, undefined, queryRefEvents);
+        const initialResponse = await Core.APIMethods.getQueryReferences($serverStore, ref, undefined, queryRefEvents);
         const items = initialResponse.items;
         let cursor = initialResponse.cursor;
         
         if (allPages) {
             while (cursor) {
-                const response = await Core.APIMethods.getQueryReferences(SERVER, ref, cursor, queryRefEvents);
+                const response = await Core.APIMethods.getQueryReferences($serverStore, ref, cursor, queryRefEvents);
                 items.push(...response.items);
                 cursor = response.cursor;
             }
