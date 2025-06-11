@@ -26,7 +26,11 @@ class InstagramOAuthVerifier extends OAuthVerifier<InstagramTokenRequest> {
     ) {
       return Result.errMsg('Verifier not configured');
     } else {
-      const redirectUri = getCallbackForPlatform(this.claimType, finalRedirectUri, true);
+      const redirectUri = getCallbackForPlatform(
+        this.claimType,
+        finalRedirectUri,
+        true,
+      );
       return Result.ok(
         `https://api.instagram.com/oauth/authorize?client_id=${process.env.INSTAGRAM_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=user_profile`,
       );
@@ -44,7 +48,7 @@ class InstagramOAuthVerifier extends OAuthVerifier<InstagramTokenRequest> {
       return Result.errMsg('Verifier not configured');
     }
 
-    const redirectUri = getCallbackForPlatform(this.claimType, "");
+    const redirectUri = getCallbackForPlatform(this.claimType, '');
     const client = createCookieEnabledAxios();
     const form = new FormData();
     form.append('client_id', process.env.INSTAGRAM_CLIENT_ID);

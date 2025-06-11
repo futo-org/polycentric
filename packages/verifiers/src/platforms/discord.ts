@@ -34,7 +34,11 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
     ) {
       return Result.errMsg('Verifier not configured');
     } else {
-      const redirectUri = getCallbackForPlatform(this.claimType, finalRedirectUri, true);
+      const redirectUri = getCallbackForPlatform(
+        this.claimType,
+        finalRedirectUri,
+        true,
+      );
 
       const harborSecret = Math.random().toString(36).substring(2, 15);
 
@@ -71,7 +75,7 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
       const cacheKey = `discord_token_${data.code}`;
       const cachedResponse = this.tokenCache.get(cacheKey);
 
-      const redirectUri = getCallbackForPlatform(this.claimType, "");
+      const redirectUri = getCallbackForPlatform(this.claimType, '');
       const client = createCookieEnabledAxios();
 
       try {

@@ -53,7 +53,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
   } else {
     const handle = await Core.ProcessHandle.createProcessHandle(metaStore);
     const serverUrl =
-      process.env.SERVER_URL || 'https://staging-stage.polycentric.io';
+      process.env.SERVER_URL || 'https://staging-serv1.polycentric.io/';
     await handle.addServer(serverUrl);
     await metaStore.setActiveStore(handle.system(), 0);
     return handle;
@@ -166,7 +166,9 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
         claimType: platformIdentifier,
       });
 
-      const redirectUrlObject = new URL(decodeURIComponent(req.query.redirectUri as string));
+      const redirectUrlObject = new URL(
+        decodeURIComponent(req.query.redirectUri as string),
+      );
       redirectUrlObject.searchParams.set('state', redirectState);
       res.redirect(redirectUrlObject.href);
     } catch (e: unknown) {
@@ -266,7 +268,9 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
           `/platforms/${name}/${verifier.verifierType}/url`,
           async (req, res) => {
             try {
-              const result = await verifier.getOAuthURL(decodeURIComponent(req.query.redirectUri as string));
+              const result = await verifier.getOAuthURL(
+                decodeURIComponent(req.query.redirectUri as string),
+              );
               if (result.success) {
                 if (typeof result.value === 'string') {
                   res.status(StatusCodes.OK).json({ url: result.value });
@@ -404,7 +408,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
       );
     }
   }
-  app.listen(3002, () => {
-    console.log(`Verifiers server listening on port ${3002}`);
+  app.listen(3001, () => {
+    console.log(`Verifiers server listening on port ${3001}`);
   });
 })();

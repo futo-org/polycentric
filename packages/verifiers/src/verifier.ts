@@ -8,7 +8,7 @@ import * as Core from '@polycentric/polycentric-core';
 const SERVER_URL =
   process.env.NODE_ENV === 'development'
     ? process.env.DEV_SERVER_URL || 'http://development:8081'
-    : process.env.SERVER_URL || 'https://staging-stage.polycentric.io';
+    : process.env.SERVER_URL || 'https://staging-serv1.polycentric.io/';
 
 export enum VerifierType {
   OAuth = 'oauth',
@@ -162,7 +162,9 @@ export abstract class OAuthVerifier<T> extends Verifier {
     super(VerifierType.OAuth, claimType);
   }
 
-  public abstract getOAuthURL(redirectUri: string): Promise<Result<string | XOAuthURLResult>>;
+  public abstract getOAuthURL(
+    redirectUri: string,
+  ): Promise<Result<string | XOAuthURLResult>>;
   public abstract getToken(data: T): Promise<Result<TokenResponse>>;
   public abstract isTokenValid(
     challengeResponseInput: string,

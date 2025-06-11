@@ -31,7 +31,12 @@ export function OAuthCallback() {
         const state = JSON.parse(decodeURIComponent(stateParam));
         const encodedData = state.data;
 
-        if (!encodedData || !state.claimType || !state.verifier || !processHandle) {
+        if (
+          !encodedData ||
+          !state.claimType ||
+          !state.verifier ||
+          !processHandle
+        ) {
           setError('Missing required OAuth parameters');
           return;
         }
