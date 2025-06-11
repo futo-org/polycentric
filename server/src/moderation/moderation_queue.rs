@@ -237,9 +237,10 @@ async fn pull_queue_events(
         match *event.content_type() {
             ct::POST => {
                 // Standard post parsing (existing behaviour)
-                let post = polycentric_protocol::protocol::Post::parse_from_bytes(
-                    event.content(),
-                )?;
+                let post =
+                    polycentric_protocol::protocol::Post::parse_from_bytes(
+                        event.content(),
+                    )?;
 
                 let (blob, blob_db_ids) = if post.image.sections.is_empty() {
                     (None, None)
@@ -283,8 +284,12 @@ async fn pull_queue_events(
                 let (blob, blob_db_ids) = if logical_clocks.is_empty() {
                     (None, None)
                 } else {
-                    let (blob, blob_db_ids) =
-                        get_blob_by_logical_clocks(transaction, &event, &logical_clocks).await?;
+                    let (blob, blob_db_ids) = get_blob_by_logical_clocks(
+                        transaction,
+                        &event,
+                        &logical_clocks,
+                    )
+                    .await?;
                     (Some(blob), Some(blob_db_ids))
                 };
 
