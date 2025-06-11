@@ -127,6 +127,52 @@ async fn get_blob(
     Ok((blob, blob_db_ids))
 }
 
+async fn get_blob_by_logical_clocks(
+    transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
+    event: &crate::model::event::Event,
+    logical_clocks: &[u64],
+) -> ::anyhow::Result<(Vec<u8>, Vec<i64>)> {
+    if logical_clocks.is_empty() {
+        return Ok((Vec::new(), Vec::new()));
+    }
+
+    let query = "
+        SELECT content, id
+        FROM events
+        WHERE system_key_type = $1
+        AND system_key = $2
+        AND process = $3
+        AND logical_clock = ANY($4)
+        ORDER BY logical_clock ASC
+    ";
+
+    let system = event.system();
+    let system_key_type =
+        i64::try_from(crate::model::public_key::get_key_type(system))?;
+    let system_key_bytes = crate::model::public_key::get_key_bytes(system);
+    let process_bytes = event.process().bytes();
+    let logical_clock_array: Vec<i64> = logical_clocks
+        .iter()
+        .map(|lc| i64::try_from(*lc).unwrap())
+        .collect();
+
+    let rows: Vec<(Vec<u8>, i64)> = ::sqlx::query_as(query)
+        .bind(system_key_type)
+        .bind(system_key_bytes)
+        .bind(process_bytes)
+        .bind(&logical_clock_array)
+        .fetch_all(&mut **transaction)
+        .await?;
+
+    let mut blob = Vec::new();
+    let mut blob_db_ids = Vec::new();
+    for (row, id) in rows.iter() {
+        blob.extend_from_slice(row);
+        blob_db_ids.push(*id);
+    }
+    Ok((blob, blob_db_ids))
+}
+
 async fn pull_queue_events(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
 ) -> ::anyhow::Result<Vec<ModerationQueueItem>> {
@@ -185,28 +231,85 @@ async fn pull_queue_events(
         let signed_event =
             crate::model::signed_event::from_vec(&row.raw_event)?;
         let event = crate::model::event::from_vec(signed_event.event())?;
-        let post = polycentric_protocol::protocol::Post::parse_from_bytes(
-            event.content(),
-        )?;
 
-        let (blob, blob_db_ids) = match post.image.sections.len() {
-            0 => {
-                debug!("Event has no image sections, skipping");
-                (None, None)
+        use polycentric_protocol::model::known_message_types as ct;
+
+        match *event.content_type() {
+            ct::POST => {
+                // Standard post parsing (existing behaviour)
+                let post =
+                    polycentric_protocol::protocol::Post::parse_from_bytes(
+                        event.content(),
+                    )?;
+
+                let (blob, blob_db_ids) = if post.image.sections.is_empty() {
+                    (None, None)
+                } else {
+                    let (blob, blob_db_ids) =
+                        get_blob(transaction, &event, &post).await?;
+                    (Some(blob), Some(blob_db_ids))
+                };
+
+                result_set.push(ModerationQueueItem {
+                    id: row.id,
+                    content: post.content,
+                    blob,
+                    blob_db_ids,
+                });
+            }
+            ct::DESCRIPTION => {
+                // DESCRIPTION uses LWW element for text
+                let text_content = event
+                    .lww_element()
+                    .as_ref()
+                    .and_then(|lww| String::from_utf8(lww.value.clone()).ok());
+
+                result_set.push(ModerationQueueItem {
+                    id: row.id,
+                    content: text_content,
+                    blob: None,
+                    blob_db_ids: None,
+                });
+            }
+            ct::AVATAR => {
+                // Avatar references blob sections via indices with index_type == BLOB_SECTION
+                let logical_clocks: Vec<u64> = event
+                    .indices()
+                    .indices
+                    .iter()
+                    .filter(|idx| idx.index_type == ct::BLOB_SECTION)
+                    .map(|idx| idx.logical_clock)
+                    .collect();
+
+                let (blob, blob_db_ids) = if logical_clocks.is_empty() {
+                    (None, None)
+                } else {
+                    let (blob, blob_db_ids) = get_blob_by_logical_clocks(
+                        transaction,
+                        &event,
+                        &logical_clocks,
+                    )
+                    .await?;
+                    (Some(blob), Some(blob_db_ids))
+                };
+
+                result_set.push(ModerationQueueItem {
+                    id: row.id,
+                    content: None,
+                    blob,
+                    blob_db_ids,
+                });
             }
             _ => {
-                let (blob, blob_db_ids) =
-                    get_blob(transaction, &event, &post).await?;
-                (Some(blob), Some(blob_db_ids))
+                // Unsupported type – skip moderation
+                result_set.push(ModerationQueueItem {
+                    id: row.id,
+                    content: None,
+                    blob: None,
+                    blob_db_ids: None,
+                });
             }
-        };
-
-        result_set.push(ModerationQueueItem {
-            id: row.id,
-            content: post.content,
-            blob,
-            blob_db_ids,
-        });
+        }
     }
 
     debug!("Queue events pulled successfully");

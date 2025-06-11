@@ -2,7 +2,7 @@
     import * as Core from '@polycentric/polycentric-core';
     import type { ClaimType } from '@polycentric/polycentric-core/dist/models';
     import Long from 'long';
-    import { SERVER, TRUST_ROOT, printableEvent, replacer } from '../globals';
+    import { serverStore, TRUST_ROOT, printableEvent, replacer } from '../globals';
 
     let _output = "";
     let _claimType = "";
@@ -23,7 +23,7 @@
 
         const claimTypeLong = new Long(claimTypeNum, 0, true) as ClaimType.ClaimType;
         console.log("getResolveClaim", {claimTypeNum, claimTypeLong, claimValue})
-        const response = await Core.APIMethods.getResolveClaim(SERVER, TRUST_ROOT, claimTypeLong, claimValue);
+        const response = await Core.APIMethods.getResolveClaim($serverStore, TRUST_ROOT, claimTypeLong, claimValue);
 
         const responseEvents = response.matches.map(m => <any> { 
             claim: printableEvent(Core.Models.Event.fromBuffer(Core.Models.SignedEvent.fromProto(m.claim!).event)), 
