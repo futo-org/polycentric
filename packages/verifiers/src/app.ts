@@ -167,7 +167,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
       });
 
       const redirectUrlObject = new URL(
-        decodeURIComponent(req.query.redirectUri as string),
+        decodeURIComponent(JSON.parse(state as string).redirectUri),
       );
       redirectUrlObject.searchParams.set('state', redirectState);
       res.redirect(redirectUrlObject.href);

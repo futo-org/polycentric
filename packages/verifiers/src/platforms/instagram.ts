@@ -28,7 +28,6 @@ class InstagramOAuthVerifier extends OAuthVerifier<InstagramTokenRequest> {
     } else {
       const redirectUri = getCallbackForPlatform(
         this.claimType,
-        finalRedirectUri,
         true,
       );
       return Result.ok(
@@ -48,7 +47,7 @@ class InstagramOAuthVerifier extends OAuthVerifier<InstagramTokenRequest> {
       return Result.errMsg('Verifier not configured');
     }
 
-    const redirectUri = getCallbackForPlatform(this.claimType, '');
+    const redirectUri = getCallbackForPlatform(this.claimType);
     const client = createCookieEnabledAxios();
     const form = new FormData();
     form.append('client_id', process.env.INSTAGRAM_CLIENT_ID);

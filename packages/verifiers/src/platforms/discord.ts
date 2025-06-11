@@ -36,7 +36,6 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
     } else {
       const redirectUri = getCallbackForPlatform(
         this.claimType,
-        finalRedirectUri,
         true,
       );
 
@@ -46,7 +45,7 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
         `https://discord.com/api/oauth2/authorize?client_id=${
           process.env.DISCORD_CLIENT_ID
         }&redirect_uri=${redirectUri}&response_type=code&scope=identify&state=${encodeURIComponent(
-          JSON.stringify({ harborSecret }),
+          JSON.stringify({ harborSecret, redirectUri: finalRedirectUri }),
         )}`,
       );
     }
@@ -75,7 +74,7 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
       const cacheKey = `discord_token_${data.code}`;
       const cachedResponse = this.tokenCache.get(cacheKey);
 
-      const redirectUri = getCallbackForPlatform(this.claimType, '');
+      const redirectUri = getCallbackForPlatform(this.claimType);
       const client = createCookieEnabledAxios();
 
       try {
