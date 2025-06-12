@@ -104,6 +104,40 @@ export class IndexProcessState implements HasIngest {
       sublevel: this.level,
     };
   }
+
+  public async getAllProcessStatesForSystem(
+    system: Models.PublicKey.PublicKey,
+  ): Promise<
+    {
+      process: Models.Process.Process;
+      state: Models.Storage.StorageTypeProcessState;
+    }[]
+  > {
+    const results: {
+      process: Models.Process.Process;
+      state: Models.Storage.StorageTypeProcessState;
+    }[] = [];
+    const systemKeyTypeStr = system.keyType.toString();
+    const systemKeyB64 = Base64.encode(system.key);
+    const systemKeyPrefixString = systemKeyTypeStr + systemKeyB64;
+
+    for await (const [keyBytes, valueBytes] of this.level.iterator()) {
+      const keyString = Util.decodeText(keyBytes);
+      if (keyString.startsWith(systemKeyPrefixString)) {
+        const processKeyB64 = keyString.substring(systemKeyPrefixString.length);
+        try {
+          const processBytes = Base64.decode(processKeyB64);
+          const process = Models.Process.fromProto({ process: processBytes });
+          const state =
+            Models.Storage.storageTypeProcessStateFromBuffer(valueBytes);
+          results.push({ process, state });
+        } catch (e) {
+          console.warn('Failed to parse process key or state:', e);
+        }
+      }
+    }
+    return results;
+  }
 }
 
 function updateProcessState(

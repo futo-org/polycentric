@@ -214,7 +214,7 @@ const ServerListTableRow = ({
   );
 };
 
-const FEATURED_SERVERS = ['https://prod-posts1.polycentric.io'];
+const FEATURED_SERVERS = ['https://serv2.polycentric.io'];
 
 export const ServerListTable = () => {
   const { processHandle } = useProcessHandleManager();

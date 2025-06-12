@@ -26,6 +26,13 @@ function encodeModerationLevels(
 
 const userAgent = 'polycentric-core-' + Version.SHA.substring(0, 8);
 
+// Guard access to process.env
+let verifierServer = 'https://verify.polycentric.io';
+if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_VERIFIER_SERVER) {
+  verifierServer = process.env.NEXT_PUBLIC_VERIFIER_SERVER;
+}
+export const VERIFIER_SERVER = verifierServer;
+
 export async function postEvents(
   server: string,
   events: Models.SignedEvent.SignedEvent[],
@@ -528,10 +535,6 @@ export async function getResolveHandle(
 
   return Models.PublicKey.fromProto(Protocol.PublicKey.decode(rawBody));
 }
-
-export const VERIFIER_SERVER =
-  process.env.NEXT_PUBLIC_VERIFIER_SERVER ??
-  'https://staging-verify.polycentric.io';
 
 export async function requestVerification(
   pointer: Protocol.Pointer,

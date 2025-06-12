@@ -31,6 +31,7 @@ type BaseProcessHandleManagerHookReturn = {
     identity: string,
   ) => Promise<ProcessHandle.ProcessHandle>;
   signOut: (account?: MetaStore.StoreInfo) => Promise<void>;
+  clearProcessHandle: () => Promise<void>;
   metaStore: MetaStore.IMetaStore;
   setIsNewAccount: (value: boolean) => void;
   isNewAccount: boolean;
@@ -88,6 +89,10 @@ export function useProcessHandleManagerBaseComponentHook(
     },
     [metaStore],
   );
+
+  const clearProcessHandle = useCallback(async () => {
+    await changeHandle(undefined);
+  }, [changeHandle]);
 
   const createHandle = useCallback(
     async (
@@ -246,6 +251,7 @@ export function useProcessHandleManagerBaseComponentHook(
     createHandle,
     createHandleFromExportBundle,
     signOut,
+    clearProcessHandle,
     metaStore,
     isNewAccount,
     setIsNewAccount,

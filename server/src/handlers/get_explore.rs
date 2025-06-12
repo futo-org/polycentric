@@ -1,3 +1,4 @@
+use crate::cursor::ExploreCursor;
 use crate::moderation::ModerationFilters;
 use ::protobuf::{Message, MessageField};
 use polycentric_protocol::protocol::Events;
@@ -17,15 +18,15 @@ pub(crate) async fn handler(
     state: ::std::sync::Arc<crate::State>,
     query: Query,
 ) -> Result<Box<dyn ::warp::Reply>, ::warp::Rejection> {
-    let start_id = if let Some(cursor) = query.cursor {
-        u64::from_le_bytes(crate::warp_try_err_500!(crate::warp_try_err_500!(
-            ::base64::decode_config(cursor, ::base64::URL_SAFE)
-        )
-        .as_slice()
-        .try_into()))
-    } else {
-        crate::warp_try_err_500!(u64::try_from(i64::MAX))
-    };
+    let start_cursor: Option<ExploreCursor> =
+        if let Some(cursor_str) = query.cursor {
+            let parse_logic = || -> anyhow::Result<ExploreCursor> {
+                ExploreCursor::from_base64_str(&cursor_str)
+            };
+            Some(crate::warp_try_err_400!(parse_logic()))
+        } else {
+            None // No cursor provided, means first page
+        };
 
     let limit = query.limit.unwrap_or(10);
 
@@ -35,7 +36,7 @@ pub(crate) async fn handler(
     let db_result = crate::warp_try_err_500!(
         crate::postgres::load_posts_before_id(
             &mut transaction,
-            start_id,
+            start_cursor, // Pass the parsed composite cursor
             limit,
             &crate::moderation::ModerationOptions {
                 filters: query.moderation_filters.clone(),
@@ -57,9 +58,8 @@ pub(crate) async fn handler(
         polycentric_protocol::protocol::ResultEventsAndRelatedEventsAndCursor::new();
     result.result_events = MessageField::some(events);
 
-    result.cursor = db_result
-        .cursor
-        .map(|cursor| u64::to_le_bytes(cursor).to_vec());
+    result.cursor = db_result.cursor.map(|cursor| cursor.to_bytes());
+
     crate::warp_try_err_500!(transaction.commit().await);
 
     let result_serialized = crate::warp_try_err_500!(result.write_to_bytes());

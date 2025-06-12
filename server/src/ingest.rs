@@ -8,7 +8,7 @@ use ::std::fmt::Error;
 use ::std::ops::Deref;
 use ::std::time::SystemTime;
 use polycentric_protocol::model::{
-    known_message_types, pointer, signed_event::SignedEvent,
+    known_message_types, signed_event::SignedEvent,
 };
 
 // Start of Selection
@@ -113,6 +113,12 @@ fn trace_event(
         let lww_element_set = event.lww_element_set().clone().ok_or(Error)?;
 
         content_str = String::from_utf8(lww_element_set.value)?;
+    } else if content_type
+        == polycentric_protocol::model::known_message_types::AVATAR
+        || content_type
+            == polycentric_protocol::model::known_message_types::BANNER
+    {
+        content_str = "updated".to_string();
     } else if content_type
         == polycentric_protocol::model::known_message_types::OPINION
     {
@@ -357,77 +363,97 @@ pub(crate) async fn ingest_event_search(
     search: &::opensearch::OpenSearch,
     layers: &polycentric_protocol::model::EventLayers,
 ) -> ::anyhow::Result<()> {
-    let signed_event = layers.signed_event();
     let event = layers.event();
 
-    let event_type = *event.content_type();
-    if event_type == known_message_types::POST
-        || event_type == known_message_types::DESCRIPTION
-        || event_type == known_message_types::USERNAME
-    {
-        let index_name: &str;
-        let index_id: String;
-        let version: u64;
-        let body: crate::opensearch::OpenSearchContent;
+    let doc_id = format!(
+        "{}-{}",
+        polycentric_protocol::model::public_key::to_base64(event.system())?,
+        event.logical_clock()
+    );
 
-        if event_type == known_message_types::POST {
-            index_name = "messages";
-            let pointer = pointer::from_signed_event(signed_event)?;
-            index_id = pointer::to_base64(&pointer)?;
-            version = 0;
+    let content_type = *event.content_type();
+    let search_doc: Option<crate::opensearch::OpenSearchContent> =
+        if content_type == known_message_types::POST {
+            let post_content = Post::parse_from_bytes(event.content())?;
 
-            let content_str = Post::parse_from_bytes(event.content())?
-                .content
-                .ok_or(Error)?;
-
-            let byte_reference =
-                event.references().iter().find_map(|reference| {
-                    if let polycentric_protocol::model::reference::Reference::Bytes(bytes) =
-                        reference
-                    {
-                        String::from_utf8(bytes.clone()).ok()
-                    } else {
-                        None
-                    }
-                });
-
-            let unix_milliseconds = event.unix_milliseconds();
-
-            body = crate::opensearch::OpenSearchContent {
-                message_content: content_str,
-                unix_milliseconds: *unix_milliseconds,
-                byte_reference,
-            };
-        } else {
-            index_name = if event_type == known_message_types::USERNAME {
-                "profile_names"
+            let first_byte_reference_b64: Option<String> = event.references().iter().find_map(|r_enum| {
+            if let polycentric_protocol::model::reference::Reference::Bytes(bytes_vec) = r_enum {
+                Some(base64::encode_config(bytes_vec, base64::URL_SAFE_NO_PAD))
             } else {
-                "profile_descriptions"
-            };
+                None
+            }
+        });
+
+            Some(crate::opensearch::OpenSearchContent {
+                message_content: post_content.content.unwrap_or_default(),
+                unix_milliseconds: *event.unix_milliseconds(),
+                byte_reference: first_byte_reference_b64,
+            })
+        } else if content_type == known_message_types::USERNAME {
             let lww_element = event.lww_element().clone().ok_or_else(|| {
-                println!("LWW Element had no content");
-                Error
-            })?;
-            version = lww_element.unix_milliseconds;
-            index_id = polycentric_protocol::model::public_key::to_base64(
-                event.system(),
-            )?;
-            let content_str = String::from_utf8(lww_element.value)?;
-
-            body = crate::opensearch::OpenSearchContent {
-                message_content: content_str,
+            ::anyhow::anyhow!("LWW Element missing for USERNAME content type in ingest_event_search")
+        })?;
+            Some(crate::opensearch::OpenSearchContent {
+                message_content: String::from_utf8(lww_element.value)?,
+                unix_milliseconds: Some(lww_element.unix_milliseconds),
                 byte_reference: None,
-                unix_milliseconds: None,
-            };
-        }
+            })
+        } else if content_type == known_message_types::DESCRIPTION {
+            let lww_element = event.lww_element().clone().ok_or_else(|| {
+            ::anyhow::anyhow!("LWW Element missing for DESCRIPTION content type in ingest_event_search")
+        })?;
+            Some(crate::opensearch::OpenSearchContent {
+                message_content: String::from_utf8(lww_element.value)?,
+                unix_milliseconds: Some(lww_element.unix_milliseconds),
+                byte_reference: None,
+            })
+        } else {
+            None
+        };
 
-        search
-            .index(IndexParts::IndexId(index_name, &index_id))
-            .version_type(opensearch::params::VersionType::External)
-            .version(i64::try_from(version)?)
-            .body(body)
+    if let Some(doc) = search_doc {
+        let response_result = search
+            .index(IndexParts::IndexId("messages", &doc_id))
+            .body(&doc)
             .send()
-            .await?;
+            .await;
+
+        match response_result {
+            Ok(response) => {
+                let status = response.status_code();
+                if !status.is_success() {
+                    let response_body =
+                        response.text().await.unwrap_or_else(|e| {
+                            format!("Failed to get response text: {}", e)
+                        });
+                    error!(
+                        "Failed to index document {} into OpenSearch: status: {}, body: {}",
+                        doc_id,
+                        status,
+                        response_body
+                    );
+                    return Err(::anyhow::anyhow!(
+                        "OpenSearch indexing failed for document {}: status {}, body: {}",
+                        doc_id,
+                        status,
+                        response_body
+                    ));
+                } else {
+                    debug!("Indexed document {} into OpenSearch", doc_id);
+                }
+            }
+            Err(e) => {
+                error!(
+                    "Error sending document {} to OpenSearch: {}",
+                    doc_id, e
+                );
+                return Err(::anyhow::anyhow!(
+                    "OpenSearch communication error for document {}: {}",
+                    doc_id,
+                    e
+                ));
+            }
+        }
     }
 
     Ok(())

@@ -47,8 +47,8 @@ export function validateInvariants(ranges: readonly IRange[]): boolean {
 export function deepCopy(ranges: readonly IRange[]): IRange[] {
   return ranges.map((item) => {
     return {
-      low: new Long(item.low.low, item.low.high, item.low.unsigned),
-      high: new Long(item.high.low, item.high.high, item.high.unsigned),
+      low: Long.fromValue(item.low),
+      high: Long.fromValue(item.high),
     };
   });
 }
@@ -109,14 +109,7 @@ export function subtractRange(
   left: readonly IRange[],
   right: readonly IRange[],
 ): IRange[] {
-  const result: IRange[] = [];
-
-  for (const item of left) {
-    result.push({
-      low: item.low,
-      high: item.high,
-    });
-  }
+  const result: IRange[] = deepCopy(left);
 
   for (const range of right) {
     for (let i = result.length - 1; i >= 0; i--) {
@@ -132,25 +125,39 @@ export function subtractRange(
         result.splice(i, 1);
       } else if (range.low.lessThanOrEqual(result[i].low)) {
         result[i].low = range.high.add(Long.UONE);
+        if (result[i].low.greaterThan(result[i].high)) {
+          result.splice(i, 1);
+        }
       } else if (range.high.greaterThanOrEqual(result[i].high)) {
         result[i].high = range.low.subtract(Long.UONE);
+        if (result[i].low.greaterThan(result[i].high)) {
+          result.splice(i, 1);
+        }
       } else if (
         range.low.greaterThan(result[i].low) &&
         range.high.lessThan(result[i].high)
       ) {
         const current = result[i];
 
-        result.splice(i, 1);
-
-        result.push({
+        const lowPart = {
           low: current.low,
           high: range.low.subtract(Long.UONE),
-        });
+        };
 
-        result.push({
+        const highPart = {
           low: range.high.add(Long.UONE),
           high: current.high,
-        });
+        };
+
+        const fragments: IRange[] = [];
+        if (lowPart.low.lessThanOrEqual(lowPart.high)) {
+          fragments.push(lowPart);
+        }
+        if (highPart.low.lessThanOrEqual(highPart.high)) {
+          fragments.push(highPart);
+        }
+
+        result.splice(i, 1, ...fragments);
       } else {
         throw Error('impossible');
       }
@@ -176,13 +183,17 @@ export function takeRangesMaxItems(
 
     const maxItems = limit.subtract(sum);
 
+    if (maxItems.isZero()) {
+      break;
+    }
+
     if (count.lessThanOrEqual(maxItems)) {
       result.push(range);
 
       sum = sum.add(count);
     } else {
       result.push({
-        high: range.low.add(maxItems),
+        high: range.low.add(maxItems.subtract(Long.UONE)),
         low: range.low,
       });
 

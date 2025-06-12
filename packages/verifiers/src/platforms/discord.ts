@@ -17,7 +17,7 @@ export type DiscordToken = {
 
 type DiscordTokenRequest = {
   code: string;
-  harborSecret?: string; // Add harborSecret to match X implementation
+  harborSecret?: string;
 };
 
 class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
@@ -36,10 +36,8 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
     } else {
       const redirectUri = getCallbackForPlatform(this.claimType, true);
 
-      // Generate a random state value to use as harborSecret
       const harborSecret = Math.random().toString(36).substring(2, 15);
 
-      // Add state parameter with harborSecret
       return Result.ok(
         `https://discord.com/api/oauth2/authorize?client_id=${
           process.env.DISCORD_CLIENT_ID
@@ -70,7 +68,6 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
         });
       }
 
-      // Check if we already have a cached token for this code
       const cacheKey = `discord_token_${data.code}`;
       const cachedResponse = this.tokenCache.get(cacheKey);
 
@@ -120,20 +117,16 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
             ? `${user.username}#${user.discriminator}`
             : user.username;
 
-          // Store username in cache
           this.usernameCache.set(data.code, expectedUsername);
 
-          // Create a simple token object and encode it properly
           const tokenObj: DiscordToken = { token };
           const encodedToken = encodeObject(tokenObj);
 
-          // Create the token response
           const tokenResponse: TokenResponse = {
             username: expectedUsername,
             token: encodedToken,
           };
 
-          // Cache the response
           this.tokenCache.set(cacheKey, tokenResponse);
 
           return Result.ok(tokenResponse);
@@ -145,9 +138,7 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
           'Discord API /users/@me',
         );
       } catch (apiError: any) {
-        // Check if this is an "invalid_grant" error (code already used)
         if (apiError.response?.data?.error === 'invalid_grant') {
-          // If we have a cached username from a previous successful request, return it
           const cachedUsername = this.usernameCache.get(data.code);
           if (cachedUsername) {
             const tokenResponse: TokenResponse = {
@@ -155,7 +146,6 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
               token: encodeObject<DiscordToken>({ token: 'cached_token' }),
             };
 
-            // Cache the response
             this.tokenCache.set(cacheKey, tokenResponse);
 
             return Result.ok(tokenResponse);
@@ -168,7 +158,7 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
           });
         }
 
-        throw apiError; // Re-throw for the outer catch block to handle
+        throw apiError;
       }
     } catch (err: any) {
       console.error('Discord token error:', err);
@@ -201,36 +191,18 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
 
     let payload: DiscordToken;
     try {
-      // 1. Decode URL encoding
       const base64Token = decodeURIComponent(challengeResponseUrlEncodedBase64);
-      console.log(
-        `[Discord.isTokenValid] After URL decoding: ${base64Token.substring(
-          0,
-          100,
-        )}...`,
-      );
-      // 2. Decode Base64
       const jsonToken = Buffer.from(base64Token, 'base64').toString('utf8');
-      console.log(
-        `[Discord.isTokenValid] After Base64 decoding: ${jsonToken.substring(
-          0,
-          100,
-        )}...`,
-      );
-      // 3. Parse JSON - Expecting { token: "..." } structure from our getToken method
       payload = JSON.parse(jsonToken);
     } catch (e: any) {
       console.error(
         '[Discord.isTokenValid] Failed to decode/parse challenge response:',
         e,
       );
-      // Add more specific error checking if needed
       return Result.err({
         message: 'Invalid token data format for Discord verification.',
       });
     }
-
-    // Check if the parsed payload contains the expected token
     if (!payload || !payload.token) {
       console.error(
         '[Discord.isTokenValid] Decoded Discord payload missing token:',
@@ -241,41 +213,23 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
       });
     }
 
-    // The token might be a placeholder if it came from cache during an invalid_grant scenario in getToken
-    // In a real scenario, we might want to refresh the token, but for now,
-    // if it's the placeholder, we assume the username check passed implicitly in getToken's cache logic.
-    // However, the current getToken returns the *actual* token even on cache hit, just wrapped.
-    // Let's proceed assuming payload.token is the real token needed for verification.
-
     const expectedClaimUsername = claimFields[0].value;
 
     try {
       const client = createCookieEnabledAxios();
-      console.log(
-        `[Discord.isTokenValid] Verifying token starting with: ${payload.token.substring(
-          0,
-          5,
-        )}...`,
-      );
 
       const response = await client.get('https://discord.com/api/users/@me', {
         headers: {
-          // Use the decoded token
           Authorization: `Bearer ${payload.token}`,
         },
       });
 
       const user = response.data;
-      // Discord username logic (handle discriminator removal)
       const hasDiscriminator =
         user.discriminator !== undefined && user.discriminator !== '0';
       const actualDiscordUsername = hasDiscriminator
         ? `${user.username}#${user.discriminator}`
         : user.username;
-
-      console.log(
-        `[Discord.isTokenValid] Claim username: ${expectedClaimUsername}, Discord API username: ${actualDiscordUsername}`,
-      );
 
       if (
         expectedClaimUsername.toLowerCase() !==
@@ -287,7 +241,6 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
         });
       }
 
-      // Usernames match
       return Result.ok();
     } catch (err: any) {
       console.error(
@@ -312,7 +265,7 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
       return Result.err({
         message: 'Failed to verify Discord account via API',
         extendedMessage: err instanceof Error ? err.message : String(err),
-        statusCode: StatusCodes.INTERNAL_SERVER_ERROR, // Or BAD_GATEWAY
+        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
       });
     }
   }
@@ -321,7 +274,6 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
     throw new Error('Method not implemented.');
   }
 
-  // Add these properties to the class
   private tokenCache = new Map<string, TokenResponse>();
   private usernameCache = new Map<string, string>();
 }

@@ -75,7 +75,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
     cors({
       origin: (
         process.env.ALLOWED_ORIGINS ||
-        'https://localhost:3000,http://localhost:3000,https://app.polycentric.io,https://staging-web.polycentric.io'
+        'https://localhost:3000,http://localhost:3000,https://app.polycentric.io,https://staging-web.polycentric.io,https://web.polycentric.io,https://polycentric.io'
       ).split(','),
       credentials: true,
       methods: ['GET', 'POST', 'OPTIONS'],
@@ -90,7 +90,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
 
   // Log all requests
   app.use((req, res, next) => {
-    console.log('Incoming request:', {
+    console.log(`[${new Date().toISOString()}] Incoming request:`, {
       method: req.method,
       url: req.url,
       headers: req.headers,
@@ -161,8 +161,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
         'base64',
       );
 
-      const webAppBaseUrl =
-        process.env.WEB_APP_URL || 'https://staging-web.polycentric.io';
+      const webAppBaseUrl = process.env.WEB_APP_URL || 'https://polycentric.io';
       const webAppCallbackPath = '/oauth/callback';
 
       const redirectState = JSON.stringify({

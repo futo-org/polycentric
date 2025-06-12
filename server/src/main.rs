@@ -1,3 +1,4 @@
+use crate::cursor::ExploreCursor;
 use ::anyhow::Context;
 use ::cadence::{StatsdClient, UdpMetricSink};
 use ::log::*;
@@ -10,6 +11,7 @@ use polycentric_protocol::model;
 
 mod cache;
 mod config;
+mod cursor;
 mod handlers;
 mod ingest;
 mod migrate;
@@ -387,22 +389,36 @@ async fn run_moderation_queue(
     let csam_request_rate_limiter = config.csam_request_rate_limit;
     let task = tokio::task::spawn({
         async move {
-            let result = moderation::moderation_queue::run(
+            moderation::moderation_queue::run(
                 pool_clone,
                 csam_provider.as_deref(),
                 tag_provider.as_deref(),
                 tagging_request_rate_limit,
                 csam_request_rate_limiter,
             )
-            .await;
-            if let Err(e) = result {
-                error!("Error running moderation queue: {}", e);
-            }
+            .await
         }
     });
-    task.await?;
 
-    Ok(())
+    match task.await {
+        Ok(run_result) => {
+            // The task completed without panicking.
+            // run_result is the Result from moderation::moderation_queue::run
+            match run_result {
+                Ok(()) => Ok(()),
+                Err(e) => {
+                    // Log the error and propagate it.
+                    error!("Error running moderation queue: {}", e);
+                    Err(e.into()) // Assumes e: Into<Box<dyn ::std::error::Error>>
+                }
+            }
+        }
+        Err(join_error) => {
+            // The task panicked or was cancelled.
+            error!("Moderation queue task failed to join: {}", join_error);
+            Err(Box::new(join_error)) // Convert JoinError to Box<dyn ::std::error::Error>
+        }
+    }
 }
 
 #[::tokio::main]
@@ -488,7 +504,9 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
             crate::migrate::backfill_remote_server(
                 pool,
                 address,
-                config.backfill_remote_server_position,
+                config
+                    .backfill_remote_server_position
+                    .map(|id| ExploreCursor::id_only(id as i64)),
             )
             .await?;
         }
