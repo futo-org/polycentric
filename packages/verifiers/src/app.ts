@@ -173,7 +173,7 @@ async function loadProcessHandle(): Promise<Core.ProcessHandle.ProcessHandle> {
         );
       } else {
         redirectUrlObject = new URL(
-          decodeURIComponent(req.query.finalRedirectUri as stringW),
+          decodeURIComponent(req.query.finalRedirectUri as string),
         );
       }
       redirectUrlObject.searchParams.set('state', redirectState);
