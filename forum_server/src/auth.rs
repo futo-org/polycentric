@@ -34,6 +34,8 @@ use std::collections::HashSet;
 const CHALLENGE_TTL: Duration = Duration::from_secs(60 * 5); // 5 minutes TTL for a challenge
 const NONCE_LENGTH: usize = 32; // 32 bytes for nonce
 
+// TODO: add a challenge store that can be shared between instances of the server for HA.
+
 #[derive(Debug, Clone)]
 struct ChallengeNonce {
     nonce: Vec<u8>,

@@ -33,6 +33,8 @@ use handlers::{
     get_server_info_handler,
 };
 
+// TODO break into read and write pools if we want HA routes.
+
 // Use storage
 use storage::LocalImageStorage;
 
