@@ -356,7 +356,9 @@ const CredsPanelSignUp = () => {
         const defaultVerifiersRaw = import.meta.env.VITE_DEFAULT_VERIFIERS;
 
         if (!defaultVerifiersRaw) {
-          console.error('missing \'VITE_DEFAULT_VERIFIERS\' environment variable.');
+          console.error(
+            "missing 'VITE_DEFAULT_VERIFIERS' environment variable.",
+          );
         }
 
         const defaultVerifiers = defaultVerifiersRaw
