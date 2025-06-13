@@ -126,6 +126,26 @@ export const useTopicDisplayText = (
       return undefined;
     }
 
-    return topic.replace(urlPrefixRegex, '');
+    const looksLikeBase64 = /^[A-Za-z0-9+/]+={0,2}$/.test(topic);
+
+    let processed = topic;
+    if (looksLikeBase64) {
+      try {
+        // Add padding if necessary so length becomes multiple of 4
+        let padded = topic;
+        const mod = padded.length % 4;
+        if (mod !== 0) padded += '='.repeat(4 - mod);
+
+        const binary = atob(padded);
+        // Convert binary string to Uint8Array then to UTF-8 string
+        processed = new TextDecoder().decode(
+          Uint8Array.from(binary, (c) => c.charCodeAt(0)),
+        );
+      } catch {
+        // If decoding fails, leave as-is
+      }
+    }
+
+    return processed.replace(urlPrefixRegex, '');
   }, [topic]);
 };
