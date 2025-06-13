@@ -33,6 +33,15 @@ if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_VERIFIER_SERVER) {
 }
 export const VERIFIER_SERVER = verifierServer;
 
+let verifierAssociatedServers: ReadonlyArray<string> = ["https://serv1.polycentric.io"];
+if(typeof process !== 'undefined' && process.env.VERIFIER_ASSOCIATED_SERVERS) {
+  verifierAssociatedServers = process.env.VERIFIER_ASSOCIATED_SERVERS
+    .split(',')
+    .map((url) => url.trim())
+    .filter((url) => url.length > 0);
+}
+export const VERIFIER_ASSOCIATED_SERVERS = verifierAssociatedServers;
+
 export async function postEvents(
   server: string,
   events: Models.SignedEvent.SignedEvent[],
