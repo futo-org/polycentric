@@ -33,7 +33,7 @@ if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_VERIFIER_SERVER) {
 }
 export const VERIFIER_SERVER = verifierServer;
 
-let verifierAssociatedServers: ReadonlyArray<string> = [
+let verifierAssociatedServers: readonly string[] = [
   'https://serv1.polycentric.io',
 ];
 if (typeof process !== 'undefined' && process.env.VERIFIER_ASSOCIATED_SERVERS) {
