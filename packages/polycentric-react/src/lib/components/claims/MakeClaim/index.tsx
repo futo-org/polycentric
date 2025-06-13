@@ -212,7 +212,9 @@ export const ClaimTypePopup = ({
 
   useEffect(() => {
     const fetchServers = async () => {
-      const systemState = await processHandle.loadSystemState(processHandle.system());
+      const systemState = await processHandle.loadSystemState(
+        processHandle.system(),
+      );
       setServerList(systemState.servers());
     };
 
@@ -220,12 +222,16 @@ export const ClaimTypePopup = ({
   }, [processHandle]);
 
   const verifierAssociatedServers = Core.APIMethods.VERIFIER_ASSOCIATED_SERVERS;
-  const tooltipText = (verifierAssociatedServers.length === 1) 
-    ? `To make social media claims, you must use the following server: ${verifierAssociatedServers[0]}`
-    : `To make social media claims, you must use at least one of the following servers: ${verifierAssociatedServers.join(', ')}`;
+  const tooltipText =
+    verifierAssociatedServers.length === 1
+      ? `To make social media claims, you must use the following server: ${verifierAssociatedServers[0]}`
+      : `To make social media claims, you must use at least one of the following servers: ${verifierAssociatedServers.join(
+          ', ',
+        )}`;
 
-  const canUseVerifiers = serverList.filter((server) => verifierAssociatedServers.includes(server)).length > 0
-  
+  const canUseVerifiers =
+    serverList.filter((server) => verifierAssociatedServers.includes(server))
+      .length > 0;
 
   if (showSocialPlatforms) {
     return (
@@ -253,9 +259,13 @@ export const ClaimTypePopup = ({
     <div className="flex flex-col gap-2">
       <button
         onClick={() => setShowSocialPlatforms(true)}
-        className={canUseVerifiers ? "text-left px-4 py-2 hover:bg-gray-100 rounded-md" : "text-left px-4 py-2 rounded-md disabled:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50"}
+        className={
+          canUseVerifiers
+            ? 'text-left px-4 py-2 hover:bg-gray-100 rounded-md'
+            : 'text-left px-4 py-2 rounded-md disabled:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-50'
+        }
         disabled={!canUseVerifiers}
-        title={canUseVerifiers ? "" : tooltipText}
+        title={canUseVerifiers ? '' : tooltipText}
       >
         Social Media
       </button>
