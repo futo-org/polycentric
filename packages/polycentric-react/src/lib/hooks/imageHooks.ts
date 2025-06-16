@@ -22,6 +22,13 @@ const hashBlob = async (blob: Blob): Promise<string> => {
   return hashHex;
 };
 
+
+export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
+  let url = useBlobDisplayURLs((blob) ? [blob] : []);
+  return (url.length > 0) ? url[0] : undefined;
+}
+
+
 export const useBlobDisplayURLs = (blobs?: Blob[]): string[] => {
   const [blobURLs, setBlobURLs] = useState<string[]>([]);
 

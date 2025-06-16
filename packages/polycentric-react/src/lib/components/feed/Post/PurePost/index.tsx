@@ -270,7 +270,7 @@ export interface PurePostProps {
     author: Profile;
     publishedAt?: Date;
     topic?: string;
-    image?: string;
+    images: string[];
     url?: string;
     replyingToName?: string;
     replyingToURL?: string;
@@ -301,7 +301,7 @@ export interface PurePostProps {
     dislike: () => void;
     neutralopinion: () => void;
     repost: () => void;
-    comment: (content: string, upload?: File) => Promise<boolean>;
+    comment: (content: string, upload: File[]) => Promise<boolean>;
     delete?: () => void;
     isDeleting?: boolean;
   };
@@ -633,10 +633,10 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                     )}
                     <div onClick={(e) => e.stopPropagation()} className="w-fit">
                       <Zoom classDialog="custom-post-img-zoom">
-                        <img
-                          src={main.image}
+                        {main.images.map((image) => (<img
+                          src={image}
                           className="rounded-2xl max-h-60 max-w-full w-auto hover:opacity-80 border"
-                        />
+                        />))}
                       </Zoom>
                       {/* sub.post */}
                       {sub && (

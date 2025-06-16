@@ -11,7 +11,7 @@ export const PopupCompose = ({
 }: {
   onPost: (
     content: string,
-    upload?: File | undefined,
+    upload: File[],
     topic?: string | undefined,
   ) => Promise<boolean>;
   preSetTopic?: string;
@@ -44,13 +44,13 @@ export const PopupComposeFullscreen = ({
   const onPost = useCallback(
     async (
       content: string,
-      upload?: File,
+      upload: File[],
       topic?: string,
     ): Promise<boolean> => {
       try {
-        let imageBundle;
-        if (upload) {
-          imageBundle = await publishImageBlob(upload, processHandle);
+        let imageBundle = [];
+        for(const file of upload) {
+          imageBundle.push(await publishImageBlob(file, processHandle));
         }
 
         let topicReference;

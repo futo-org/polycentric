@@ -3,7 +3,7 @@ import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { FeedItem } from '../../../hooks/feedHooks';
 import {
   useAvatar,
-  useImageManifestDisplayURL,
+  useImageManifestDisplayURLs
 } from '../../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import {
@@ -81,9 +81,9 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
       replyingToPointer,
     );
 
-    const imageUrl = useImageManifestDisplayURL(
+    const imageUrls = useImageManifestDisplayURLs(
       event.system,
-      'content' in value ? value.image : undefined,
+      'content' in value ? value.images : undefined,
     );
 
     const { actions, stats } = usePostStatsWithLocalActions(pointer);
@@ -224,7 +224,7 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
         replyingToName,
         replyingToURL,
         content: content || '',
-        image: imageUrl,
+        images: imageUrls,
         topic,
         publishedAt: mainDate,
         url: mainURL,
@@ -243,7 +243,7 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
         mainURL,
         mainAuthorURL,
         mainKey,
-        imageUrl,
+        imageUrls,
         topic,
         replyingToName,
         replyingToURL,
