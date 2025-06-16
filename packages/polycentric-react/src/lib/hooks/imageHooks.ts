@@ -3,9 +3,9 @@ import { toSvg } from 'jdenticon';
 import Long from 'long';
 import * as RXJS from 'rxjs';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { avatarResolutions } from '../util/imageProcessing';
-import { useBlobQuery, useQueryManager } from './queryHooks';
+import { useBlobQueries, useQueryManager } from './queryHooks';
 import { ObservableCacheItem, useObservableWithCache } from './utilHooks';
 
 const blobURLCache = new Map<string, { url: string; count: number }>();
@@ -77,34 +77,41 @@ export const useBlobDisplayURLs = (blobs?: Blob[]): string[] => {
   return blobURLs;
 };
 
-export const useImageManifestDisplayURL = (
+export const useImageManifestDisplayURLs = (
   system?: Models.PublicKey.PublicKey,
-  manifest?: Protocol.ImageManifest | null,
-): string | undefined => {
-  const { process, sections, mime } = useMemo(() => {
-    const process = manifest?.process
-      ? Models.Process.fromProto(manifest.process)
-      : undefined;
-    const sections = manifest?.sections;
-    const mime = manifest?.mime;
+  manifests?: Protocol.ImageManifest[],
+): string[] => {
+  const manifestInfo = useMemo(() => {
+    const manifestInfo = [];
 
-    return { process, sections, mime };
-  }, [manifest]);
+    if(!manifests) {
+      return [];
+    }
 
-  const parseBlob = useCallback(
-    (buffer: Uint8Array) => {
-      return new Blob([buffer], {
-        type: mime,
-      });
-    },
-    [mime],
-  );
+    for(const manifest of manifests){
+      const process = manifest?.process
+        ? Models.Process.fromProto(manifest.process)
+        : undefined;
+      const sections = manifest?.sections;
+      const mime = manifest?.mime;
 
-  const blob = useBlobQuery(system, process, sections, parseBlob);
+      manifestInfo.push({ process, sections, mime });
+    }
+    
+    return manifestInfo;
+  }, [manifests]);
 
-  const imageURL = useBlobDisplayURL(blob);
+  const parseBlob = (buffer: Uint8Array, mime: string) => {
+    return new Blob([buffer], {
+      type: mime,
+    });
+  }
 
-  return imageURL;
+  const blobs = useBlobQueries(system, manifestInfo, parseBlob);
+
+  const imageURLs = useBlobDisplayURLs(blobs.filter((blob) => blob !== undefined) as Blob[]);
+
+  return imageURLs;
 };
 
 function observableBlobToURL(blob: Blob): RXJS.Observable<string> {

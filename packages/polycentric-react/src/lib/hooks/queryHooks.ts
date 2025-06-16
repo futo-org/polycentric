@@ -8,6 +8,7 @@ import {
   Ranges,
   Util,
 } from '@polycentric/polycentric-core';
+import { UnregisterCallback } from '@polycentric/polycentric-core/dist/queries/shared';
 import Long from 'long';
 import {
   createContext,
@@ -167,43 +168,51 @@ export const useDateFromUnixMS = (unixMS: Long | undefined) => {
   }, [unixMS]);
 };
 
-export function useBlobQuery<T>(
+export function useBlobQueries<T>(
   system: Models.PublicKey.PublicKey | undefined,
-  process: Models.Process.Process | undefined,
-  range: Ranges.IRange[] | undefined,
-  parse: (buffer: Uint8Array) => T,
-): T | undefined {
+  manifestInfo: { process: Models.Process.Process | undefined, sections: Ranges.IRange[] | undefined, mime: string }[],
+  parse: (buffer: Uint8Array, mime: string) => T,
+): (T | undefined)[] {
   const queryManager = useQueryManager();
-  const [state, setState] = useState<T | undefined>(undefined);
+  const [state, setState] = useState<(T | undefined)[]>([]);
 
   useEffect(() => {
-    if (system !== undefined && process !== undefined && range !== undefined) {
-      const cancelContext = new CancelContext.CancelContext();
+    const cancelContext = new CancelContext.CancelContext();
+    const unregisterCallbacks: UnregisterCallback[] = [];
 
-      const unregister = queryManager.queryBlob.query(
-        system,
-        process,
-        range,
-        (buffer: Uint8Array | undefined) => {
-          if (cancelContext.cancelled()) {
-            return;
+    const results: (T | undefined)[] = [];
+
+    for(const info of manifestInfo) {
+      if (system !== undefined && info.process !== undefined && info.sections !== undefined) {
+        unregisterCallbacks.push(queryManager.queryBlob.query(
+          system,
+          info.process,
+          info.sections,
+          (buffer: Uint8Array | undefined) => {
+            if (cancelContext.cancelled()) {
+                return;
+            }
+
+            if (buffer) {
+              results.push(parse(buffer, info.mime));
+            } else {
+              results.push(undefined);
+            }
+
+            setState(results);
+          },
+        ));
+
+        return () => {
+          cancelContext.cancel();
+          for(const unregister of unregisterCallbacks) {
+            unregister();
           }
-
-          if (buffer) {
-            setState(parse(buffer));
-          } else {
-            setState(undefined);
-          }
-        },
-      );
-
-      return () => {
-        cancelContext.cancel();
-        unregister();
-        setState(undefined);
+          setState([]);
+        };
       };
     }
-  }, [system, process, range, queryManager, parse]);
+  }, [system, manifestInfo, queryManager, parse]);
 
   return state;
 }
