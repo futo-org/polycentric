@@ -22,38 +22,46 @@ const hashBlob = async (blob: Blob): Promise<string> => {
   return hashHex;
 };
 
-export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
-  const [blobURL, setBlobURL] = useState<string | undefined>(undefined);
+export const useBlobDisplayURLs = (blobs?: Blob[]): string[] => {
+  const [blobURLs, setBlobURLs] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!blob) {
-      setBlobURL(undefined);
+    if (!blobs) {
+      setBlobURLs([]);
       return;
     }
 
-    let cacheKey: string;
+    let cacheKeys: string[] = [];
     let revoked = false;
 
-    const manageBlobURL = async () => {
-      cacheKey = await hashBlob(blob);
-      if (revoked) return;
+    const manageBlobURLs = async () => {
+      const newBlobURLs = [];
 
-      let cacheEntry = blobURLCache.get(cacheKey);
-      if (!cacheEntry) {
-        const newURL = URL.createObjectURL(blob);
-        cacheEntry = { url: newURL, count: 1 };
-        blobURLCache.set(cacheKey, cacheEntry);
-      } else {
-        cacheEntry.count++;
+      for(const blob of blobs) {
+        const cacheKey = await hashBlob(blob);
+        cacheKeys.push(cacheKey);
+        if (revoked) return;
+
+        let cacheEntry = blobURLCache.get(cacheKey);
+        if (!cacheEntry) {
+          const newURL = URL.createObjectURL(blob);
+          cacheEntry = { url: newURL, count: 1 };
+          blobURLCache.set(cacheKey, cacheEntry);
+        } else {
+          cacheEntry.count++;
+        }
+
+        newBlobURLs.push(cacheEntry.url);
       }
-      setBlobURL(cacheEntry.url);
+
+      setBlobURLs(newBlobURLs);
     };
 
-    manageBlobURL();
+    manageBlobURLs();
 
     return () => {
       revoked = true;
-      if (cacheKey) {
+      for(const cacheKey of cacheKeys) {
         const cacheEntry = blobURLCache.get(cacheKey);
         if (cacheEntry) {
           cacheEntry.count--;
@@ -64,9 +72,9 @@ export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
         }
       }
     };
-  }, [blob]);
+  }, [blobs]);
 
-  return blobURL;
+  return blobURLs;
 };
 
 export const useImageManifestDisplayURL = (

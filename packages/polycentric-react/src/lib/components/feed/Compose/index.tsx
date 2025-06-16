@@ -1,6 +1,6 @@
 import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { useCallback, useRef, useState } from 'react';
-import { useBlobDisplayURL } from '../../../hooks/imageHooks';
+import { useBlobDisplayURLs } from '../../../hooks/imageHooks';
 import { MentionSuggestions } from '../../util/linkify';
 import { TopicSuggestionBox } from '../TopicSuggestionBox';
 
@@ -103,7 +103,7 @@ export const Compose = ({
   minTextboxHeightPx = 125,
   postingProgress,
 }: {
-  onPost: (content: string, upload?: File, topic?: string) => Promise<boolean>;
+  onPost: (content: string, upload: File[], topic?: string) => Promise<boolean>;
   preSetTopic?: string;
   hideTopic?: boolean;
   topicDisabled?: boolean;
@@ -115,7 +115,7 @@ export const Compose = ({
 }) => {
   const [content, setContent] = useState('');
   const [topic, setTopic] = useState(preSetTopic ?? '');
-  const [upload, setUpload] = useState<File | undefined>();
+  const [upload, setUpload] = useState<File[]>([]);
   const [mentionState, setMentionState] = useState<{
     active: boolean;
     position: { top: number; left: number };
@@ -124,12 +124,13 @@ export const Compose = ({
   } | null>(null);
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const uploadRef = useRef<HTMLInputElement | null>(null);
-  const imageUrl = useBlobDisplayURL(upload);
+  
+  const imageUrls = useBlobDisplayURLs(upload);
 
   const post = useCallback(() => {
     onPost?.(content, upload, topic).then(() => {
       setContent('');
-      setUpload(undefined);
+      setUpload([]);
       if (textRef.current)
         textRef.current.style.height = `${minTextboxHeightPx}px`;
     });
@@ -325,22 +326,22 @@ export const Compose = ({
             </div>
           )}
         </div>
-        {upload && (
+        {upload.map((file, index) => (
           <div>
             <div className="p-4 inline-block relative">
               <img
                 className="max-h-[20rem] max-w-[20rem] rounded-sm inline-block border-gray-1000 border"
-                src={imageUrl}
+                src={imageUrls[index]}
               />
               <button
                 className="absolute top-5 right-5 "
-                onClick={() => setUpload(undefined)}
+                onClick={() => setUpload(upload.filter((u) => u !== file))}
               >
                 <XCircleIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
               </button>
             </div>
           </div>
-        )}
+        ))}
       </div>
 
       <div className="w-full flex justify-between items-center pt-4">
@@ -353,6 +354,7 @@ export const Compose = ({
           </button>
           <input
             type="file"
+            multiple
             className="hidden"
             name="img"
             accept="image/*"
@@ -360,7 +362,7 @@ export const Compose = ({
             onChange={(e) => {
               const { files } = e.target;
               if (files !== null && files.length > 0) {
-                setUpload(files[0]);
+                setUpload(Array.from(files));
               }
             }}
           />

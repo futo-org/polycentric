@@ -198,12 +198,16 @@ export function usePostStatsWithLocalActions(pointer: Models.Pointer.Pointer) {
   }, [opinion, stats, opinionOnMount]);
 
   const comment = useCallback(
-    async (text: string, upload?: File) => {
+    async (text: string, upload?: File[]) => {
       const reference = Models.pointerToReference(pointer);
 
       if (upload) {
-        const imageManifest = await publishImageBlob(upload, processHandle);
+        const imageManifest = [];
 
+        for (const u of upload) {
+          imageManifest.push(await publishImageBlob(u, processHandle));
+        }
+        
         await processHandle.post(text, imageManifest, reference);
       } else {
         await processHandle.post(text, undefined, reference);
