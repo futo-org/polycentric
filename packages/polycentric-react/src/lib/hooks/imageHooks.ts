@@ -24,7 +24,8 @@ const hashBlob = async (blob: Blob): Promise<string> => {
 
 
 export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
-  let url = useBlobDisplayURLs((blob) ? [blob] : []);
+  const memoizedBlobs = useMemo(() => [blob], [blob]);
+  let url = useBlobDisplayURLs((memoizedBlobs[0]) ? memoizedBlobs as Blob[] : []);
   return (url.length > 0) ? url[0] : undefined;
 }
 
