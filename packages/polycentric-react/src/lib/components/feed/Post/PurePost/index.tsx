@@ -634,6 +634,7 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                     <div onClick={(e) => e.stopPropagation()} className="w-fit">
                       <Zoom classDialog="custom-post-img-zoom">
                         {main.images.map((image) => (<img
+                          key={image}
                           src={image}
                           className="rounded-2xl max-h-60 max-w-full w-auto hover:opacity-80 border"
                         />))}

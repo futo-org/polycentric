@@ -327,7 +327,7 @@ export const Compose = ({
           )}
         </div>
         {upload.map((file, index) => (
-          <div>
+          <div key={file.name}>
             <div className="p-4 inline-block relative">
               <img
                 className="max-h-[20rem] max-w-[20rem] rounded-sm inline-block border-gray-1000 border"

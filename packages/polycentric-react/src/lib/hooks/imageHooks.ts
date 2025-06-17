@@ -24,8 +24,10 @@ const hashBlob = async (blob: Blob): Promise<string> => {
 
 
 export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
+  if(!blob) return undefined;
+  
   const memoizedBlobs = useMemo(() => [blob], [blob]);
-  let url = useBlobDisplayURLs((memoizedBlobs[0]) ? memoizedBlobs as Blob[] : []);
+  let url = useBlobDisplayURLs(memoizedBlobs);
   return (url.length > 0) ? url[0] : undefined;
 }
 
@@ -115,9 +117,10 @@ export const useImageManifestDisplayURLs = (
     });
   }, []);
 
-  const blobs = useBlobQueries(system, manifestInfo, parseBlob);
 
-  const imageURLs = useBlobDisplayURLs(blobs.filter((blob) => blob !== undefined) as Blob[]);
+  const blobs = useBlobQueries(system, manifestInfo, parseBlob);
+  const filteredBlobs = useMemo(() => blobs.filter((blob) => blob !== undefined) as Blob[], [blobs]);
+  const imageURLs = useBlobDisplayURLs(filteredBlobs);
 
   return imageURLs;
 };
