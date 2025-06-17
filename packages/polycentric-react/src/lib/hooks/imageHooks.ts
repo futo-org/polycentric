@@ -3,7 +3,7 @@ import { toSvg } from 'jdenticon';
 import Long from 'long';
 import * as RXJS from 'rxjs';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { avatarResolutions } from '../util/imageProcessing';
 import { useBlobQueries, useQueryManager } from './queryHooks';
 import { ObservableCacheItem, useObservableWithCache } from './utilHooks';
@@ -108,11 +108,11 @@ export const useImageManifestDisplayURLs = (
     return manifestInfo;
   }, [manifests]);
 
-  const parseBlob = (buffer: Uint8Array, mime: string) => {
+  const parseBlob = useCallback((buffer: Uint8Array, mime: string) => {
     return new Blob([buffer], {
       type: mime,
     });
-  }
+  }, []);
 
   const blobs = useBlobQueries(system, manifestInfo, parseBlob);
 

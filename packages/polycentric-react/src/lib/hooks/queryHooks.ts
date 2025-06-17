@@ -184,6 +184,7 @@ export function useBlobQueries<T>(
 
     for(const info of manifestInfo) {
       if (system !== undefined && info.process !== undefined && info.sections !== undefined) {
+
         unregisterCallbacks.push(queryManager.queryBlob.query(
           system,
           info.process,
@@ -198,20 +199,19 @@ export function useBlobQueries<T>(
             } else {
               results.push(undefined);
             }
-
             setState(results);
           },
         ));
-
-        return () => {
-          cancelContext.cancel();
-          for(const unregister of unregisterCallbacks) {
-            unregister();
-          }
-          setState([]);
-        };
       };
     }
+
+    return () => {
+      cancelContext.cancel();
+      for(const unregister of unregisterCallbacks) {
+        unregister();
+      }
+      setState([]);
+    };
   }, [system, manifestInfo, queryManager, parse]);
 
   return state;
