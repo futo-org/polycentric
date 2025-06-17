@@ -22,13 +22,11 @@ const hashBlob = async (blob: Blob): Promise<string> => {
   return hashHex;
 };
 
-
 export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
-  const memoizedBlobs = useMemo(() => (blob) ? [blob] : [], [blob]);
+  const memoizedBlobs = useMemo(() => (blob ? [blob] : []), [blob]);
   let url = useBlobDisplayURLs(memoizedBlobs);
-  return (url.length > 0) ? url[0] : undefined;
-}
-
+  return url.length > 0 ? url[0] : undefined;
+};
 
 export const useBlobDisplayURLs = (blobs?: Blob[]): string[] => {
   const [blobURLs, setBlobURLs] = useState<string[]>([]);
@@ -45,7 +43,7 @@ export const useBlobDisplayURLs = (blobs?: Blob[]): string[] => {
     const manageBlobURLs = async () => {
       const newBlobURLs = [];
 
-      for(const blob of blobs) {
+      for (const blob of blobs) {
         const cacheKey = await hashBlob(blob);
         cacheKeys.push(cacheKey);
         if (revoked) return;
@@ -69,7 +67,7 @@ export const useBlobDisplayURLs = (blobs?: Blob[]): string[] => {
 
     return () => {
       revoked = true;
-      for(const cacheKey of cacheKeys) {
+      for (const cacheKey of cacheKeys) {
         const cacheEntry = blobURLCache.get(cacheKey);
         if (cacheEntry) {
           cacheEntry.count--;
@@ -92,11 +90,11 @@ export const useImageManifestDisplayURLs = (
   const manifestInfo = useMemo(() => {
     const manifestInfo = [];
 
-    if(!manifests) {
+    if (!manifests) {
       return [];
     }
 
-    for(const manifest of manifests){
+    for (const manifest of manifests) {
       const process = manifest?.process
         ? Models.Process.fromProto(manifest.process)
         : undefined;
@@ -105,7 +103,7 @@ export const useImageManifestDisplayURLs = (
 
       manifestInfo.push({ process, sections, mime });
     }
-    
+
     return manifestInfo;
   }, [manifests]);
 
@@ -115,9 +113,11 @@ export const useImageManifestDisplayURLs = (
     });
   }, []);
 
-
   const blobs = useBlobQueries(system, manifestInfo, parseBlob);
-  const filteredBlobs = useMemo(() => blobs.filter((blob) => blob !== undefined) as Blob[], [blobs]);
+  const filteredBlobs = useMemo(
+    () => blobs.filter((blob) => blob !== undefined) as Blob[],
+    [blobs],
+  );
   const imageURLs = useBlobDisplayURLs(filteredBlobs);
 
   return imageURLs;

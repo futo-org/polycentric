@@ -170,7 +170,11 @@ export const useDateFromUnixMS = (unixMS: Long | undefined) => {
 
 export function useBlobQueries<T>(
   system: Models.PublicKey.PublicKey | undefined,
-  manifestInfo: { process: Models.Process.Process | undefined, sections: Ranges.IRange[] | undefined, mime: string }[],
+  manifestInfo: {
+    process: Models.Process.Process | undefined;
+    sections: Ranges.IRange[] | undefined;
+    mime: string;
+  }[],
   parse: (buffer: Uint8Array, mime: string) => T,
 ): (T | undefined)[] {
   const queryManager = useQueryManager();
@@ -182,32 +186,37 @@ export function useBlobQueries<T>(
 
     const results: (T | undefined)[] = [];
 
-    for(const info of manifestInfo) {
-      if (system !== undefined && info.process !== undefined && info.sections !== undefined) {
-
-        unregisterCallbacks.push(queryManager.queryBlob.query(
-          system,
-          info.process,
-          info.sections,
-          (buffer: Uint8Array | undefined) => {
-            if (cancelContext.cancelled()) {
+    for (const info of manifestInfo) {
+      if (
+        system !== undefined &&
+        info.process !== undefined &&
+        info.sections !== undefined
+      ) {
+        unregisterCallbacks.push(
+          queryManager.queryBlob.query(
+            system,
+            info.process,
+            info.sections,
+            (buffer: Uint8Array | undefined) => {
+              if (cancelContext.cancelled()) {
                 return;
-            }
+              }
 
-            if (buffer) {
-              results.push(parse(buffer, info.mime));
-            } else {
-              results.push(undefined);
-            }
-            setState(results);
-          },
-        ));
-      };
+              if (buffer) {
+                results.push(parse(buffer, info.mime));
+              } else {
+                results.push(undefined);
+              }
+              setState(results);
+            },
+          ),
+        );
+      }
     }
 
     return () => {
       cancelContext.cancel();
-      for(const unregister of unregisterCallbacks) {
+      for (const unregister of unregisterCallbacks) {
         unregister();
       }
       setState([]);

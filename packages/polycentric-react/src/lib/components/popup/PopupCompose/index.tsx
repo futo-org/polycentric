@@ -49,7 +49,7 @@ export const PopupComposeFullscreen = ({
     ): Promise<boolean> => {
       try {
         let imageBundle = [];
-        for(const file of upload) {
+        for (const file of upload) {
           imageBundle.push(await publishImageBlob(file, processHandle));
         }
 

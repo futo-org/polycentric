@@ -207,7 +207,7 @@ export function usePostStatsWithLocalActions(pointer: Models.Pointer.Pointer) {
         for (const u of upload) {
           imageManifest.push(await publishImageBlob(u, processHandle));
         }
-        
+
         await processHandle.post(text, imageManifest, reference);
       } else {
         await processHandle.post(text, undefined, reference);

@@ -3,7 +3,7 @@ import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { FeedItem } from '../../../hooks/feedHooks';
 import {
   useAvatar,
-  useImageManifestDisplayURLs
+  useImageManifestDisplayURLs,
 } from '../../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import {
