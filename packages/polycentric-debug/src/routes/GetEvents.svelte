@@ -18,6 +18,10 @@
     let showComparison = false;
 
     async function compareChains() {
+        if (!$processHandleStore) {
+            _error = "Please load your profile (private key) to compare local vs server chains.";
+            return;
+        }
         _error = undefined;
         _events = [];
         showComparison = false;
@@ -376,7 +380,7 @@
     <button on:click={() => getPolycentricEvents(_keyType, _publicKey, _contentTypeFilter)}>Get Events</button>
     <button on:click={() => getAvatarBlobs(_keyType, _publicKey)}>Get Avatar Blobs</button>
     <button on:click={() => getBannerBlobs(_keyType, _publicKey)}>Get Banner Blobs</button>
-    <button on:click={compareChains}>Compare Chains</button>
+    <button on:click={compareChains} disabled={!$processHandleStore}>Compare Chains</button>
     <datalist id="contentTypes">
         <option value="1">Delete</option>
         <option value="2">System Processes</option>

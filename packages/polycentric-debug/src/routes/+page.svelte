@@ -89,7 +89,8 @@
     {/if}
 </div>
 
-{#if $processHandleStore}
+<!-- Debug tabs are now always visible; features that depend on a loaded profile will guard themselves internally -->
+
 <div class="tabs" style="margin-bottom: 10px;">
     <div role="button" tabindex="0" class="tab" class:active={activeTab === 'events'} on:click={() => activeTab = 'events'}>
         Events By System
@@ -118,9 +119,6 @@
     <QueryReferencesPointer />
 {:else if activeTab === 'queryLatest'}
     <QueryLatest />
-{/if}
-{:else}
-    <p>Please load a profile to continue.</p>
 {/if}
 
 <Constants />
