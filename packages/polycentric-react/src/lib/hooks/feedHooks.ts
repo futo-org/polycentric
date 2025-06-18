@@ -407,9 +407,25 @@ export function useLikesFeed(
       )
         return;
 
-      const pointer = Models.Pointer.fromProto(
-        Protocol.Pointer.decode(opinion.event.references[0].reference),
-      );
+      // Safely decode the pointer reference. There are some cases (e.g. when the
+      // liked post was created on a remote server that this server has not yet
+      // synced with) where the reference may be malformed or incomplete. In
+      // those situations `Models.Pointer.fromProto` will throw – previously
+      // crashing the entire React render tree. We catch that error and simply
+      // ignore the opinion until the data becomes available, logging for
+      // debugging purposes.
+
+      let pointer: Models.Pointer.Pointer | undefined;
+      try {
+        pointer = Models.Pointer.fromProto(
+          Protocol.Pointer.decode(opinion.event.references[0].reference),
+        );
+      } catch (err) {
+        console.warn('Skipping opinion with invalid pointer:', err);
+        return; // Skip this opinion – nothing else we can do right now.
+      }
+
+      if (!pointer) return;
 
       queryManager.queryEvent.query(
         pointer.system,
