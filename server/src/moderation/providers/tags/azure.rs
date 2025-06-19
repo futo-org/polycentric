@@ -129,7 +129,7 @@ pub struct ContentSafety {
     endpoint: String,
     subscription_key: String,
     api_version: String,
-    client: Client,
+    client: Client,is_some()
 }
 
 impl ContentSafety {
@@ -178,7 +178,7 @@ impl ContentSafety {
         &self,
         media_type: MediaType,
         text_content: &Option<String>,
-        image_content: &Option<Vec<u8>>,
+        images: &Vec<BlobData>,
         blocklists: &Option<Vec<String>>,
         enable_ocr: bool,
     ) -> DetectionRequest {
@@ -212,7 +212,7 @@ impl ContentSafety {
         &self,
         media_type: MediaType,
         text_content: &Option<String>,
-        image_content: &Option<Vec<u8>>,
+        images: &Vec<BlobData>,
         enable_ocr: bool,
         blocklists: &Option<Vec<String>>,
     ) -> ::anyhow::Result<DetectionResult> {
@@ -221,7 +221,7 @@ impl ContentSafety {
         let request_body = self.build_request_body(
             media_type,
             text_content,
-            image_content,
+            images,
             blocklists,
             enable_ocr,
         );
@@ -296,7 +296,7 @@ impl ModerationTaggingProvider for AzureTagProvider {
         let media_type = match (
             event.content.is_some()
                 && !event.content.as_ref().unwrap().is_empty(),
-            event.blob.is_some(),
+            !event.blobs.is_empty(),
         ) {
             (true, false) => MediaType::Text,
             (false, true) => MediaType::Image,
@@ -307,7 +307,7 @@ impl ModerationTaggingProvider for AzureTagProvider {
         };
 
         let result = detector
-            .detect(media_type, &event.content, &event.blob, true, &None)
+            .detect(media_type, &event.content, &event.blobs, true, &None)
             .await;
 
         // Always return ok, error is handled in the moderation queue

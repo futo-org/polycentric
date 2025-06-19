@@ -125,7 +125,7 @@ impl ModerationCSAMProvider for PhotoDNAProvider {
             return Err(anyhow::anyhow!("PhotoDNA is not initialized"));
         }
 
-        let image_blob = event.blob.as_ref().ok_or_else(|| {
+        let image_blob = event.blobs.as_ref().ok_or_else(|| {
             anyhow::anyhow!("No image blob provided in the event")
         })?;
 

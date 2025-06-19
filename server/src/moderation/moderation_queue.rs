@@ -3,6 +3,7 @@ use futures::stream::{self, StreamExt};
 use log::debug;
 use protobuf::Message;
 use std::sync::Arc;
+use std::collections::HashSet;
 use tokio::sync::Semaphore;
 use tokio::time::{self, Duration};
 
@@ -65,27 +66,39 @@ pub struct ModerationQueueItem {
     // database id
     pub id: i64,
     pub content: Option<String>,
-    pub blob: Option<Vec<u8>>,
-    pub blob_db_ids: Option<Vec<i64>>,
+    pub blobs: Vec<BlobData>
 }
 
-async fn get_blob(
+struct BlobData {
+    pub blob: Vec<u8>,
+    pub blob_db_ids: Vec<i64>,
+}
+
+async fn get_blobs(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event: &crate::model::event::Event,
     post: &polycentric_protocol::protocol::Post,
-) -> ::anyhow::Result<(Vec<u8>, Vec<i64>)> {
+) -> ::anyhow::Result<Vec<(BlobData)>> {
     debug!("Getting blob for event");
-    let mut logical_clocks = vec![];
-    for range in post.image.sections.iter() {
-        let start = range.low;
-        let end = range.high;
-        for i in start..=end {
-            logical_clocks.push(i);
+    
+    let mut logical_clock_sets: Vec<HashSet<u64>> = vec![];
+
+    for image in post.images.iter() {
+        let mut logical_clocks = HashSet::new();
+        for range in post.image.sections.iter() {
+            let start = range.low;
+            let end = range.high;
+            for i in start..=end {
+                logical_clocks.insert(i);
+            }
         }
+        logical_clock_sets.push(logical_clocks);
     }
+    
+
 
     let query = "
-    SELECT content, id
+    SELECT content, id, logical_clock
     FROM events
     WHERE system_key_type = $1
     AND system_key = $2
@@ -99,12 +112,20 @@ async fn get_blob(
         i64::try_from(crate::model::public_key::get_key_type(system))?;
     let system_key_bytes = crate::model::public_key::get_key_bytes(system);
     let process_bytes = event.process().bytes();
+
+
+    let mut logical_clocks: Vec<u64> = vec![];
+    for set in logical_clock_sets.iter() {
+        for clock in set.iter() {
+            logical_clocks.push(*clock);
+        }
+    }
     let logical_clock_array: Vec<i64> = logical_clocks
         .into_iter()
         .map(|lc| i64::try_from(lc).unwrap())
         .collect();
 
-    let rows: Vec<(Vec<u8>, i64)> = sqlx::query_as(query)
+    let rows: Vec<(Vec<u8>, i64, i64)> = sqlx::query_as(query)
         .bind(system_key_type)
         .bind(system_key_bytes)
         .bind(process_bytes)
@@ -112,10 +133,24 @@ async fn get_blob(
         .fetch_all(&mut **transaction)
         .await?;
 
-    // concat the sorted event.content() into a single buffer
-    let mut blob = Vec::new();
-    let mut blob_db_ids = Vec::new();
-    for (row, id) in rows.iter() {
+    
+    let mut blobs = vec![BlobData { blob: Vec::new(), blob_db_ids: Vec::new() }; logical_clock_sets.len()];
+
+    for (row, id, logical_clock) in rows.iter() {
+        let mut index = 0;
+        while index < logical_clock_sets.len() {
+            if logical_clock_sets[index].contains(&(*logical_clock as u64)) {
+                break;
+            }
+
+            index += 1;
+        }
+
+        // concat the sorted event.content() into a single buffer
+        let blob = &mut blobs[index].blob;
+        let blob_db_ids = &mut blobs[index].blob_db_ids;
+
+        
         blob.extend_from_slice(row);
         blob_db_ids.push(*id);
     }
@@ -124,7 +159,7 @@ async fn get_blob(
         "Blob retrieved successfully for event: {:?}",
         event.logical_clock()
     );
-    Ok((blob, blob_db_ids))
+    Ok(blobs)
 }
 
 async fn get_blob_by_logical_clocks(
@@ -242,19 +277,16 @@ async fn pull_queue_events(
                         event.content(),
                     )?;
 
-                let (blob, blob_db_ids) = if post.image.sections.is_empty() {
-                    (None, None)
+                let blobs = if post.images.is_empty() {
+                    vec![]
                 } else {
-                    let (blob, blob_db_ids) =
-                        get_blob(transaction, &event, &post).await?;
-                    (Some(blob), Some(blob_db_ids))
+                    get_blobs(transaction, &event, &post).await?
                 };
 
                 result_set.push(ModerationQueueItem {
                     id: row.id,
                     content: post.content,
-                    blob,
-                    blob_db_ids,
+                    blobs: blobs,
                 });
             }
             ct::DESCRIPTION => {
@@ -267,8 +299,7 @@ async fn pull_queue_events(
                 result_set.push(ModerationQueueItem {
                     id: row.id,
                     content: text_content,
-                    blob: None,
-                    blob_db_ids: None,
+                    blobs: vec![],
                 });
             }
             ct::AVATAR => {
