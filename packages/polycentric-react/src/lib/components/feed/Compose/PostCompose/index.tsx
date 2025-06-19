@@ -16,7 +16,7 @@ export const PostCompose = ({ preSetTopic }: { preSetTopic?: string }) => {
     ): Promise<boolean> => {
       try {
         setPostingProgress(0.1);
-        let imageBundles: Protocol.ImageManifest[] = [];
+        const imageBundles: Protocol.ImageManifest[] = [];
         for (const upload of uploads) {
           imageBundles.push(await publishImageBlob(upload, processHandle));
         }

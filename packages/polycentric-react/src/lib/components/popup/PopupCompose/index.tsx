@@ -1,4 +1,4 @@
-import { Models, Util } from '@polycentric/polycentric-core';
+import { Models, Protocol, Util } from '@polycentric/polycentric-core';
 import { useCallback } from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import { publishImageBlob } from '../../../util/imageProcessing';
@@ -48,7 +48,7 @@ export const PopupComposeFullscreen = ({
       topic?: string,
     ): Promise<boolean> => {
       try {
-        let imageBundle = [];
+        const imageBundle: Protocol.ImageManifest[] = [];
         for (const file of upload) {
           imageBundle.push(await publishImageBlob(file, processHandle));
         }
