@@ -325,11 +325,15 @@ async fn pull_queue_events(
                     (Some(blob), Some(blob_db_ids))
                 };
 
+
+
                 result_set.push(ModerationQueueItem {
                     id: row.id,
                     content: None,
-                    blob,
-                    blob_db_ids,
+                    blobs: match(blob, blob_db_ids) {
+                        (Some(blob), Some(blob_db_ids)) => vec![BlobData { blob: blob, blob_db_ids: blob_db_ids }],
+                        _ => vec![],
+                    },
                 });
             }
             _ => {
@@ -337,8 +341,7 @@ async fn pull_queue_events(
                 result_set.push(ModerationQueueItem {
                     id: row.id,
                     content: None,
-                    blob: None,
-                    blob_db_ids: None,
+                    blobs: vec![],
                 });
             }
         }
@@ -387,7 +390,7 @@ async fn process_event(
     debug!("Processing event: {:?}", event.id);
     // Acquire a permit from the rate limiter
 
-    let should_csam = event.blob.is_some() && csam.is_some();
+    let should_csam = !event.blobs.is_empty() && csam.is_some();
 
     // It's written like this so we can do a join if we need to do both
     // Can't join on None
@@ -451,11 +454,17 @@ async fn process_event(
     };
 
     debug!("Event processed: {:?}", event.id);
+
+    let mut blob_db_ids: Vec<i64> = vec![];
+    for blob_data in event.blobs.iter() {
+        blob_db_ids.extend(blob_data.blob_db_ids.iter());
+    }
+
     ModerationResult {
         event_id: event.id,
         has_error,
         tags: tags.clone(),
-        blob_db_ids: event.blob_db_ids.clone(),
+        blob_db_ids: Some(blob_db_ids),
         is_csam,
     }
     // }

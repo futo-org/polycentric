@@ -131,7 +131,7 @@ pub struct ContentSafety {
     endpoint: String,
     subscription_key: String,
     api_version: String,
-    client: Client,is_some()
+    client: Client
 }
 
 impl ContentSafety {
@@ -239,7 +239,7 @@ impl ContentSafety {
             .await?;
 
         if response.status().is_success() {
-            let body = response.text().await?;
+            let body: String = response.text().await?;
             let result: DetectionResult = serde_json::from_str(&body)?;
             Ok(result)
         } else {
