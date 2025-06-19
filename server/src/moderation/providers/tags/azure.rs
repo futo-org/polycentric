@@ -1,4 +1,6 @@
 use super::interface::{ModerationTaggingProvider, ModerationTaggingResult};
+use crate::moderation::moderation_queue::BlobData;
+
 use crate::{
     config::Config, model::moderation_tag::ModerationTag,
     moderation::moderation_queue::ModerationQueueItem,

@@ -69,23 +69,25 @@ pub struct ModerationQueueItem {
     pub blobs: Vec<BlobData>
 }
 
-struct BlobData {
+#[derive(Clone)]
+pub struct BlobData {
     pub blob: Vec<u8>,
     pub blob_db_ids: Vec<i64>,
 }
+
 
 async fn get_blobs(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event: &crate::model::event::Event,
     post: &polycentric_protocol::protocol::Post,
-) -> ::anyhow::Result<Vec<(BlobData)>> {
+) -> ::anyhow::Result<Vec<BlobData>> {
     debug!("Getting blob for event");
     
     let mut logical_clock_sets: Vec<HashSet<u64>> = vec![];
 
     for image in post.images.iter() {
         let mut logical_clocks = HashSet::new();
-        for range in post.image.sections.iter() {
+        for range in image.sections.iter() {
             let start = range.low;
             let end = range.high;
             for i in start..=end {
@@ -147,11 +149,10 @@ async fn get_blobs(
         }
 
         // concat the sorted event.content() into a single buffer
-        let blob = &mut blobs[index].blob;
-        let blob_db_ids = &mut blobs[index].blob_db_ids;
-
-        
+        let blob = &mut (blobs[index].blob);
         blob.extend_from_slice(row);
+
+        let blob_db_ids = &mut (blobs[index].blob_db_ids);
         blob_db_ids.push(*id);
     }
 
