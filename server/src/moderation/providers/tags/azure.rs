@@ -1,5 +1,4 @@
 use super::interface::{ModerationTaggingProvider, ModerationTaggingResult};
-use crate::moderation::moderation_queue::BlobData;
 
 use crate::{
     config::Config, model::moderation_tag::ModerationTag,
@@ -62,8 +61,8 @@ pub struct Image {
 #[serde(untagged)]
 #[serde(rename_all = "camelCase")]
 pub enum DetectionRequest {
-    Images {
-        images: Vec<Image>,
+    Image {
+        image: Image,
     },
     Text {
         text: String,
@@ -71,13 +70,14 @@ pub enum DetectionRequest {
         blocklist_names: Vec<String>,
     },
     #[serde(rename_all = "camelCase")]
-    ImagesWithText {
+    ImageWithText {
         text: String,
         enable_ocr: bool,
-        images: Vec<Image>,
+        image: Image,
         categories: Vec<Category>,
     },
 }
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CategoriesAnalysis {
@@ -180,27 +180,24 @@ impl ContentSafety {
         &self,
         media_type: MediaType,
         text_content: &Option<String>,
-        images: &Vec<BlobData>,
+        image_content: &Option<Vec<u8>>,
         blocklists: &Option<Vec<String>>,
         enable_ocr: bool,
     ) -> DetectionRequest {
-        let mut encoded_images: Vec<Image> = vec![];
-        for blob_data in images {
-            encoded_images.push(Image {
-                content: ::base64::encode(&blob_data.blob),
-            });
-        }
-
         match media_type {
             MediaType::Text => DetectionRequest::Text {
                 text: text_content.as_ref().unwrap().to_string(),
                 blocklist_names: blocklists.clone().unwrap_or_default(),
             },
-            MediaType::Image => DetectionRequest::Images {
-                images: encoded_images,
+            MediaType::Image => DetectionRequest::Image {
+                image: Image {
+                    content: ::base64::encode(image_content.as_ref().unwrap()),
+                },
             },
-            MediaType::ImageWithText => DetectionRequest::ImagesWithText {
-                images: encoded_images,
+            MediaType::ImageWithText => DetectionRequest::ImageWithText {
+                image: Image {
+                    content: ::base64::encode(image_content.as_ref().unwrap()),
+                },
                 text: text_content.as_ref().unwrap().to_string(),
                 enable_ocr,
                 categories: vec![
@@ -213,11 +210,12 @@ impl ContentSafety {
         }
     }
 
+
     pub async fn detect(
         &self,
         media_type: MediaType,
         text_content: &Option<String>,
-        images: &Vec<BlobData>,
+        image_content: &Option<Vec<u8>>,
         enable_ocr: bool,
         blocklists: &Option<Vec<String>>,
     ) -> ::anyhow::Result<DetectionResult> {
@@ -226,7 +224,7 @@ impl ContentSafety {
         let request_body = self.build_request_body(
             media_type,
             text_content,
-            images,
+            image_content,
             blocklists,
             enable_ocr,
         );
@@ -242,7 +240,7 @@ impl ContentSafety {
             .await?;
 
         if response.status().is_success() {
-            let body: String = response.text().await?;
+            let body = response.text().await?;
             let result: DetectionResult = serde_json::from_str(&body)?;
             Ok(result)
         } else {
@@ -251,6 +249,7 @@ impl ContentSafety {
             Err(anyhow::anyhow!("Detection error: {:?}", error))
         }
     }
+
 }
 
 pub struct AzureTagProvider {
@@ -310,65 +309,84 @@ impl ModerationTaggingProvider for AzureTagProvider {
                 return Err(anyhow::anyhow!("No content or blob"));
             }
         };
+        
+        let blob_inputs = match event.blobs.len() {
+            0 => vec![None],
+            _ => event.blobs.iter().map(|blob| Some(blob.blob.clone())).collect(),
+        };
 
-        let result = detector
-            .detect(media_type, &event.content, &event.blobs, true, &None)
-            .await;
+        let mut results: Vec<DetectionResult> = vec![];
+        for blob in blob_inputs {
+            let result = detector
+              .detect(media_type, &event.content, &blob, true, &None)
+              .await;
+            
+            match result {
+                Ok(res) => results.push(res),
+                Err(e) => return Err(anyhow::anyhow!("Error detecting content: {}", e))
+            }
+        }
 
-        // Always return ok, error is handled in the moderation queue
-        match result {
-            Ok(result) => {
-                let hate_result = result
+        let mut max_hate_level = 0;
+        let mut max_sexual_level = 0;
+        let mut max_violence_level = 0;
+        let mut max_self_harm_level = 0;
+
+        for result in results {
+            let hate_result = result
                     .categories_analysis
                     .iter()
                     .find(|category| category.category == Category::Hate);
-                let sexual_result = result
+            let sexual_result = result
                     .categories_analysis
                     .iter()
                     .find(|category| category.category == Category::Sexual);
-                let violence_result = result
+            let violence_result = result
                     .categories_analysis
                     .iter()
                     .find(|category| category.category == Category::Violence);
-                let self_harm_result = result
+            let self_harm_result = result
                     .categories_analysis
                     .iter()
                     .find(|category| category.category == Category::SelfHarm);
 
-                let (hate_level, sexual_level, violence_level, self_harm_level) =
-                    match (
-                        hate_result,
-                        sexual_result,
-                        violence_result,
-                        self_harm_result,
-                    ) {
-                        (
-                            Some(hate),
-                            Some(sexual),
-                            Some(violence),
-                            Some(self_harm),
-                        ) => (
-                            hate.severity as i16 / 2,
-                            sexual.severity as i16 / 2,
-                            violence.severity as i16 / 2,
-                            self_harm.severity as i16 / 2,
-                        ),
-                        _ => (0, 0, 0, 0),
-                    };
-
-                let tags = vec![
-                    ModerationTag::new("hate".to_string(), hate_level),
-                    ModerationTag::new("sexual".to_string(), sexual_level),
-                    ModerationTag::new(
-                        "violence".to_string(),
-                        cmp::max(violence_level, self_harm_level),
-                    ),
-                ];
-
-                Ok(ModerationTaggingResult { tags })
-            }
-
-            Err(e) => Err(anyhow::anyhow!("Error detecting content: {}", e)),
+            let (hate_level, sexual_level, violence_level, self_harm_level) =
+            match (
+                hate_result,
+                sexual_result,
+                violence_result,
+                self_harm_result,
+            ) {
+                (
+                    Some(hate),
+                    Some(sexual),
+                    Some(violence),
+                    Some(self_harm),
+                ) => (
+                    hate.severity as i16 / 2,
+                    sexual.severity as i16 / 2,
+                    violence.severity as i16 / 2,
+                    self_harm.severity as i16 / 2,
+                ),
+                _ => (0, 0, 0, 0),
+            };
+            
+            max_hate_level = cmp::max(max_hate_level, hate_level);
+            max_sexual_level = cmp::max(max_sexual_level, sexual_level);
+            max_violence_level = cmp::max(max_violence_level, violence_level);
+            max_self_harm_level = cmp::max(max_self_harm_level, self_harm_level);
         }
+
+        let tags = vec![
+            ModerationTag::new("hate".to_string(), max_hate_level),
+            ModerationTag::new("sexual".to_string(), max_sexual_level),
+            ModerationTag::new(
+                "violence".to_string(),
+                cmp::max(max_violence_level, max_self_harm_level),
+            ),
+        ];
+
+        // Always return ok, error is handled in the moderation queue
+        Ok(ModerationTaggingResult { tags })
     }
 }
