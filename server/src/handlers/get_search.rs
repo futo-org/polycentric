@@ -97,7 +97,13 @@ pub(crate) async fn handler_inner(
             let id = hit._id;
             if hit._index == "messages" {
                 let pointer =
-                    polycentric_protocol::model::pointer::from_base64(&id)?;
+                    match polycentric_protocol::model::pointer::from_base64(&id)
+                    {
+                        Ok(ptr) => ptr,
+                        Err(_) => {
+                            continue;
+                        }
+                    };
 
                 let event_result = crate::postgres::load_event(
                     &mut transaction,
