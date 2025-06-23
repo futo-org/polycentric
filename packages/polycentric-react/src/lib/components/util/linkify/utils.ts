@@ -2,7 +2,7 @@ import { Models } from '@polycentric/polycentric-core';
 
 // match URLs that don't start with a slash
 export const urlRegex =
-  /(?:^|[^\/])(?<url>(?:http|ftp|https):\/\/(?:[\w_-]+(?:(?:\.[\w_-]+)+))(?:[\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-]))/gi;
+  /(?:^|[^\/])(?<url>(?:http|ftp|https):\/\/(?:[\w_-]+(?:(?:\.[\w_-]+)+))(?:[\w.,@?^=%&:\/~+#()\-]*[\w@?^=%&:\/~+#()\-]))/gi;
 export const topicRegex = /(?:^|\s)(?<topic>\/\S+)/gi;
 export const mentionRegex =
   /@(?<mention>CAESI[A-Za-z0-9/+]+)(?<space>[ \t\r\n]*)/g;
