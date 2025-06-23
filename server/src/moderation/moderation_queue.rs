@@ -2,8 +2,8 @@ use crate::moderation::providers;
 use futures::stream::{self, StreamExt};
 use log::debug;
 use protobuf::Message;
-use std::sync::Arc;
 use std::collections::HashSet;
+use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tokio::time::{self, Duration};
 
@@ -66,7 +66,7 @@ pub struct ModerationQueueItem {
     // database id
     pub id: i64,
     pub content: Option<String>,
-    pub blobs: Vec<BlobData>
+    pub blobs: Vec<BlobData>,
 }
 
 #[derive(Clone)]
@@ -75,14 +75,13 @@ pub struct BlobData {
     pub blob_db_ids: Vec<i64>,
 }
 
-
 async fn get_blobs(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event: &crate::model::event::Event,
     post: &polycentric_protocol::protocol::Post,
 ) -> ::anyhow::Result<Vec<BlobData>> {
     debug!("Getting blob for event");
-    
+
     let mut logical_clock_sets: Vec<HashSet<u64>> = vec![];
 
     for image in post.images.iter() {
@@ -96,8 +95,6 @@ async fn get_blobs(
         }
         logical_clock_sets.push(logical_clocks);
     }
-    
-
 
     let query = "
     SELECT content, id, logical_clock
@@ -114,7 +111,6 @@ async fn get_blobs(
         i64::try_from(crate::model::public_key::get_key_type(system))?;
     let system_key_bytes = crate::model::public_key::get_key_bytes(system);
     let process_bytes = event.process().bytes();
-
 
     let mut logical_clocks: Vec<u64> = vec![];
     for set in logical_clock_sets.iter() {
@@ -135,8 +131,13 @@ async fn get_blobs(
         .fetch_all(&mut **transaction)
         .await?;
 
-    
-    let mut blobs = vec![BlobData { blob: Vec::new(), blob_db_ids: Vec::new() }; logical_clock_sets.len()];
+    let mut blobs = vec![
+        BlobData {
+            blob: Vec::new(),
+            blob_db_ids: Vec::new()
+        };
+        logical_clock_sets.len()
+    ];
 
     for (row, id, logical_clock) in rows.iter() {
         let mut index = 0;
@@ -287,7 +288,7 @@ async fn pull_queue_events(
                 result_set.push(ModerationQueueItem {
                     id: row.id,
                     content: post.content,
-                    blobs: blobs,
+                    blobs,
                 });
             }
             ct::DESCRIPTION => {
@@ -325,13 +326,13 @@ async fn pull_queue_events(
                     (Some(blob), Some(blob_db_ids))
                 };
 
-
-
                 result_set.push(ModerationQueueItem {
                     id: row.id,
                     content: None,
-                    blobs: match(blob, blob_db_ids) {
-                        (Some(blob), Some(blob_db_ids)) => vec![BlobData { blob: blob, blob_db_ids: blob_db_ids }],
+                    blobs: match (blob, blob_db_ids) {
+                        (Some(blob), Some(blob_db_ids)) => {
+                            vec![BlobData { blob, blob_db_ids }]
+                        }
                         _ => vec![],
                     },
                 });

@@ -125,8 +125,6 @@ impl ModerationCSAMProvider for PhotoDNAProvider {
             return Err(anyhow::anyhow!("PhotoDNA is not initialized"));
         }
 
-
-
         let image_blobs = &event.blobs;
         if image_blobs.is_empty() {
             return Err(anyhow::anyhow!("No image blob provided in the event"));
@@ -135,12 +133,15 @@ impl ModerationCSAMProvider for PhotoDNAProvider {
         let mut result = false;
 
         for blob_data in image_blobs.iter() {
-            let result_for_image = self.photo_dna.as_ref().unwrap().detect(&blob_data.blob).await?;
+            let result_for_image = self
+                .photo_dna
+                .as_ref()
+                .unwrap()
+                .detect(&blob_data.blob)
+                .await?;
             result = result || result_for_image.is_match;
         }
 
-        Ok(ModerationCSAMResult {
-            is_csam: result,
-        })
+        Ok(ModerationCSAMResult { is_csam: result })
     }
 }

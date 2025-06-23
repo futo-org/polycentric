@@ -131,7 +131,7 @@ pub struct ContentSafety {
     endpoint: String,
     subscription_key: String,
     api_version: String,
-    client: Client
+    client: Client,
 }
 
 impl ContentSafety {
