@@ -129,7 +129,7 @@ impl ModerationCSAMProvider for PhotoDNAProvider {
 
         let image_blobs = &event.blobs;
         if image_blobs.is_empty() {
-            anyhow::anyhow!("No image blob provided in the event");
+            return Err(anyhow::anyhow!("No image blob provided in the event"));
         }
 
         let mut result = false;

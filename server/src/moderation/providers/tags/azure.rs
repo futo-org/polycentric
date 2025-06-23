@@ -62,8 +62,8 @@ pub struct Image {
 #[serde(untagged)]
 #[serde(rename_all = "camelCase")]
 pub enum DetectionRequest {
-    Image {
-        image: Image,
+    Images {
+        images: Vec<Image>,
     },
     Text {
         text: String,
@@ -71,10 +71,10 @@ pub enum DetectionRequest {
         blocklist_names: Vec<String>,
     },
     #[serde(rename_all = "camelCase")]
-    ImageWithText {
+    ImagesWithText {
         text: String,
         enable_ocr: bool,
-        image: Image,
+        images: Vec<Image>,
         categories: Vec<Category>,
     },
 }
@@ -184,20 +184,23 @@ impl ContentSafety {
         blocklists: &Option<Vec<String>>,
         enable_ocr: bool,
     ) -> DetectionRequest {
+        let mut encoded_images: Vec<Image> = vec![];
+        for blob_data in images {
+            encoded_images.push(Image {
+                content: ::base64::encode(&blob_data.blob),
+            });
+        }
+
         match media_type {
             MediaType::Text => DetectionRequest::Text {
                 text: text_content.as_ref().unwrap().to_string(),
                 blocklist_names: blocklists.clone().unwrap_or_default(),
             },
-            MediaType::Image => DetectionRequest::Image {
-                image: Image {
-                    content: ::base64::encode(image_content.as_ref().unwrap()),
-                },
+            MediaType::Image => DetectionRequest::Images {
+                images: encoded_images,
             },
-            MediaType::ImageWithText => DetectionRequest::ImageWithText {
-                image: Image {
-                    content: ::base64::encode(image_content.as_ref().unwrap()),
-                },
+            MediaType::ImageWithText => DetectionRequest::ImagesWithText {
+                images: encoded_images,
                 text: text_content.as_ref().unwrap().to_string(),
                 enable_ocr,
                 categories: vec![
