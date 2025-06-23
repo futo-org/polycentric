@@ -78,7 +78,6 @@ pub enum DetectionRequest {
     },
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CategoriesAnalysis {
     pub category: Category,
@@ -210,7 +209,6 @@ impl ContentSafety {
         }
     }
 
-
     pub async fn detect(
         &self,
         media_type: MediaType,
@@ -249,7 +247,6 @@ impl ContentSafety {
             Err(anyhow::anyhow!("Detection error: {:?}", error))
         }
     }
-
 }
 
 pub struct AzureTagProvider {
@@ -309,21 +306,30 @@ impl ModerationTaggingProvider for AzureTagProvider {
                 return Err(anyhow::anyhow!("No content or blob"));
             }
         };
-        
+
         let blob_inputs = match event.blobs.len() {
             0 => vec![None],
-            _ => event.blobs.iter().map(|blob| Some(blob.blob.clone())).collect(),
+            _ => event
+                .blobs
+                .iter()
+                .map(|blob| Some(blob.blob.clone()))
+                .collect(),
         };
 
         let mut results: Vec<DetectionResult> = vec![];
         for blob in blob_inputs {
             let result = detector
-              .detect(media_type, &event.content, &blob, true, &None)
-              .await;
-            
+                .detect(media_type, &event.content, &blob, true, &None)
+                .await;
+
             match result {
                 Ok(res) => results.push(res),
-                Err(e) => return Err(anyhow::anyhow!("Error detecting content: {}", e))
+                Err(e) => {
+                    return Err(anyhow::anyhow!(
+                        "Error detecting content: {}",
+                        e
+                    ))
+                }
             }
         }
 
@@ -334,47 +340,48 @@ impl ModerationTaggingProvider for AzureTagProvider {
 
         for result in results {
             let hate_result = result
-                    .categories_analysis
-                    .iter()
-                    .find(|category| category.category == Category::Hate);
+                .categories_analysis
+                .iter()
+                .find(|category| category.category == Category::Hate);
             let sexual_result = result
-                    .categories_analysis
-                    .iter()
-                    .find(|category| category.category == Category::Sexual);
+                .categories_analysis
+                .iter()
+                .find(|category| category.category == Category::Sexual);
             let violence_result = result
-                    .categories_analysis
-                    .iter()
-                    .find(|category| category.category == Category::Violence);
+                .categories_analysis
+                .iter()
+                .find(|category| category.category == Category::Violence);
             let self_harm_result = result
-                    .categories_analysis
-                    .iter()
-                    .find(|category| category.category == Category::SelfHarm);
+                .categories_analysis
+                .iter()
+                .find(|category| category.category == Category::SelfHarm);
 
             let (hate_level, sexual_level, violence_level, self_harm_level) =
-            match (
-                hate_result,
-                sexual_result,
-                violence_result,
-                self_harm_result,
-            ) {
-                (
-                    Some(hate),
-                    Some(sexual),
-                    Some(violence),
-                    Some(self_harm),
-                ) => (
-                    hate.severity as i16 / 2,
-                    sexual.severity as i16 / 2,
-                    violence.severity as i16 / 2,
-                    self_harm.severity as i16 / 2,
-                ),
-                _ => (0, 0, 0, 0),
-            };
-            
+                match (
+                    hate_result,
+                    sexual_result,
+                    violence_result,
+                    self_harm_result,
+                ) {
+                    (
+                        Some(hate),
+                        Some(sexual),
+                        Some(violence),
+                        Some(self_harm),
+                    ) => (
+                        hate.severity as i16 / 2,
+                        sexual.severity as i16 / 2,
+                        violence.severity as i16 / 2,
+                        self_harm.severity as i16 / 2,
+                    ),
+                    _ => (0, 0, 0, 0),
+                };
+
             max_hate_level = cmp::max(max_hate_level, hate_level);
             max_sexual_level = cmp::max(max_sexual_level, sexual_level);
             max_violence_level = cmp::max(max_violence_level, violence_level);
-            max_self_harm_level = cmp::max(max_self_harm_level, self_harm_level);
+            max_self_harm_level =
+                cmp::max(max_self_harm_level, self_harm_level);
         }
 
         let tags = vec![
