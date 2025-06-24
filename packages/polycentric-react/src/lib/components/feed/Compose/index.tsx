@@ -360,8 +360,10 @@ export const Compose = ({
             accept="image/*"
             ref={uploadRef}
             onChange={(e) => {
+              const IMAGE_UPLOAD_LIMIT = 4;
+
               const { files } = e.target;
-              if (files !== null && files.length > 0) {
+              if (files !== null && files.length > 0 && files.length <= IMAGE_UPLOAD_LIMIT) {
                 setUpload(Array.from(files));
               }
             }}
