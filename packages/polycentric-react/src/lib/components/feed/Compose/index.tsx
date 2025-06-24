@@ -362,14 +362,16 @@ export const Compose = ({
             onChange={(e) => {
               const IMAGE_UPLOAD_LIMIT = 4;
               const { files } = e.target;
-              if(files === null) return;
+              if (files === null) return;
 
-              const fileList = Array.from(files).filter((file) => !upload.includes(file));
+              const fileList = Array.from(files).filter(
+                (file) => !upload.includes(file),
+              );
 
-              if(fileList.length === 0) return;
+              if (fileList.length === 0) return;
 
-              if(fileList.length + upload.length > IMAGE_UPLOAD_LIMIT) {
-                alert("You can only attach a maximum of 4 images");
+              if (fileList.length + upload.length > IMAGE_UPLOAD_LIMIT) {
+                alert('You can only attach a maximum of 4 images');
                 return;
               }
 
