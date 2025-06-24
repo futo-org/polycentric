@@ -184,9 +184,12 @@ export function useBlobQueries<T>(
     const cancelContext = new CancelContext.CancelContext();
     const unregisterCallbacks: UnregisterCallback[] = [];
 
-    const results: (T | undefined)[] = [];
+    const results: (T | undefined)[] = Array(manifestInfo.length).fill(undefined);
 
-    for (const info of manifestInfo) {
+    for (let i = 0; i < manifestInfo.length; i++) {
+      const index = i; // Maintain the correct index within each callback
+      const info = manifestInfo[index];
+
       if (
         system !== undefined &&
         info.process !== undefined &&
@@ -203,9 +206,7 @@ export function useBlobQueries<T>(
               }
 
               if (buffer) {
-                results.push(parse(buffer, info.mime));
-              } else {
-                results.push(undefined);
+                results[index] = parse(buffer, info.mime);
               }
               setState(results);
             },
