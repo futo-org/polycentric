@@ -326,22 +326,24 @@ export const Compose = ({
             </div>
           )}
         </div>
-        {upload.map((file, index) => (
-          <div key={file.name}>
-            <div className="p-4 inline-block relative">
-              <img
-                className="max-h-[20rem] max-w-[20rem] rounded-sm inline-block border-gray-1000 border"
-                src={imageUrls[index]}
-              />
-              <button
-                className="absolute top-5 right-5 "
-                onClick={() => setUpload(upload.filter((u) => u !== file))}
-              >
-                <XCircleIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
-              </button>
+        <div className="grid gap-1 grid-cols-2 max-h-[20rem] max-w-[20rem]">
+          {upload.map((file, index) => (
+            <div key={file.name} className="m-0 p-0">
+              <div className="inline-block relative m-0 p-0">
+                <img
+                  className="max-h-[10rem] max-w-[10rem] rounded-sm inline-block border-gray-1000 border"
+                  src={imageUrls[index]}
+                />
+                <button
+                  className="absolute top-5 right-5 "
+                  onClick={() => setUpload(upload.filter((u) => u !== file))}
+                >
+                  <XCircleIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+            ))}
+        </div>
       </div>
 
       <div className="w-full flex justify-between items-center pt-4">

@@ -631,16 +631,17 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                         <span>: {main.vouchedClaim.value}</span>
                       </div>
                     )}
-                    <div onClick={(e) => e.stopPropagation()} className="w-fit">
-                      <Zoom classDialog="custom-post-img-zoom">
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <div className="w-fit h-fit grid grid-cols-2 gap-1">
                         {main.images.map((image) => (
-                          <img
-                            key={image}
-                            src={image}
-                            className="rounded-2xl max-h-60 max-w-full w-auto hover:opacity-80 border"
-                          />
+                          <Zoom key={image} classDialog="custom-post-img-zoom">
+                            <img
+                              src={image}
+                              className="rounded-2xl max-h-[10rem] max-w-[10rem] p-0 m-0 w-auto hover:opacity-80 border"
+                            />
+                          </Zoom>
                         ))}
-                      </Zoom>
+                      </div>
                       {/* sub.post */}
                       {sub && (
                         <Link
