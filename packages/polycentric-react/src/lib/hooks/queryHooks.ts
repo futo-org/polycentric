@@ -184,7 +184,9 @@ export function useBlobQueries<T>(
     const cancelContext = new CancelContext.CancelContext();
     const unregisterCallbacks: UnregisterCallback[] = [];
 
-    const results: (T | undefined)[] = Array(manifestInfo.length).fill(undefined);
+    const results: (T | undefined)[] = Array(manifestInfo.length).fill(
+      undefined,
+    );
 
     for (let i = 0; i < manifestInfo.length; i++) {
       const index = i; // Maintain the correct index within each callback
