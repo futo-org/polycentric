@@ -191,7 +191,7 @@ export class ProcessHandle {
   ): Promise<Models.Pointer.Pointer> {
     if (content.length > ProcessHandle.MAX_POST_LENGTH) {
       throw new Error(
-        `Post content exceeds maximum length of ${ProcessHandle.MAX_POST_LENGTH} characters`,
+        `Post content exceeds maximum length of ${String(ProcessHandle.MAX_POST_LENGTH)} characters`,
       );
     }
 
