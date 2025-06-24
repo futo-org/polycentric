@@ -691,15 +691,6 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                     }}
                     count={stats?.comments}
                   />
-                  <DislikeButton
-                    onClick={() =>
-                      stats?.opinion === 'disliked'
-                        ? actions?.neutralopinion()
-                        : actions?.dislike()
-                    }
-                    count={stats?.dislikes}
-                    clicked={stats?.opinion === 'disliked'}
-                  />
                   <LikeButton
                     onClick={() =>
                       stats?.opinion === 'liked'
@@ -708,6 +699,15 @@ export const PurePost = forwardRef<HTMLDivElement, PurePostProps>(
                     }
                     count={stats?.likes}
                     clicked={stats?.opinion === 'liked'}
+                  />
+                  <DislikeButton
+                    onClick={() =>
+                      stats?.opinion === 'disliked'
+                        ? actions?.neutralopinion()
+                        : actions?.dislike()
+                    }
+                    count={stats?.dislikes}
+                    clicked={stats?.opinion === 'disliked'}
                   />
                   {navigator.share && (
                     <SharePostButton
