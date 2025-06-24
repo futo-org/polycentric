@@ -342,7 +342,7 @@ export const Compose = ({
                 </button>
               </div>
             </div>
-            ))}
+          ))}
         </div>
       </div>
 
