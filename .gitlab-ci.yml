@@ -66,6 +66,7 @@ default:
       - proto/protocol.proto
   paths:
     - ${CI_PROJECT_DIR}/server/target
+    - ${CI_PROJECT_DIR}/polycentric-protocol/target
   policy: pull-push
 
 stages:
