@@ -447,6 +447,12 @@ export const ForumThreadPage: React.FC = () => {
       return;
     }
 
+    // Character limit validation (mirror backend constraints)
+    if (newPostBody.trim().length > 10000) {
+      setPostError('Post content cannot exceed 10,000 characters.');
+      return;
+    }
+
     setIsPosting(true);
     setPostError(null);
     setDeletePostError(null);
@@ -821,6 +827,13 @@ export const ForumThreadPage: React.FC = () => {
   const hookErrors = !!serverUrl ? adminError || headersError : null;
   const displayError = error || hookErrors || postError || deletePostError;
 
+  const replyCharCount = newPostBody.length;
+  const getCountClass = (count: number, limit: number) => {
+    if (count > limit) return 'text-red-500';
+    if (count > limit * 0.9) return 'text-yellow-600';
+    return 'text-gray-500';
+  };
+
   return (
     <>
       <Header
@@ -948,6 +961,12 @@ export const ForumThreadPage: React.FC = () => {
                       </label>
                     </div>
 
+                    <div className="flex justify-between items-center text-sm mt-1">
+                      <span className={getCountClass(replyCharCount, 10000)}>
+                        {replyCharCount}/10000
+                      </span>
+                    </div>
+
                     <div className="flex justify-between items-center pt-2">
                       <div>
                         <button
@@ -983,7 +1002,11 @@ export const ForumThreadPage: React.FC = () => {
                         <button
                           onClick={handlePostSubmit}
                           className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled={!newPostBody.trim() || isBusy}
+                          disabled={
+                            !newPostBody.trim() ||
+                            newPostBody.trim().length > 10000 ||
+                            isBusy
+                          }
                         >
                           {isPosting ? 'Posting...' : 'Post Reply'}
                         </button>

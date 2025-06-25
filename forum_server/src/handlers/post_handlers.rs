@@ -11,6 +11,7 @@ use crate::{
     repositories::{self, thread_repository, post_repository::{self, CreatePostData, UpdatePostData}},
     utils::PaginationParams, // Import
     AppState,
+    constants::MAX_POST_CONTENT_LENGTH,
 };
 use axum::extract::multipart::MultipartError;
 use multer::Error as MulterError;
@@ -143,6 +144,14 @@ pub async fn create_post_handler(
         Some(c) if !c.trim().is_empty() => c.trim().to_string(), // Trim content
         _ => return (StatusCode::BAD_REQUEST, "Missing or empty required field: content").into_response(),
     };
+
+    // Enforce character limit for post content
+    if content.chars().count() > MAX_POST_CONTENT_LENGTH {
+        return (StatusCode::BAD_REQUEST, format!(
+            "Content exceeds maximum length of {} characters",
+            MAX_POST_CONTENT_LENGTH
+        )).into_response();
+    }
 
     // --- Added: Decode pointer fields --- 
     let polycentric_system_id = match collected_poly_system_id_b64 {
@@ -306,8 +315,20 @@ pub async fn update_post_handler(
                 return (StatusCode::FORBIDDEN, "Permission denied").into_response();
             }
 
+            // Validate new content
+            let trimmed_content = payload.content.trim();
+            if trimmed_content.is_empty() {
+                return (StatusCode::BAD_REQUEST, "Content cannot be empty").into_response();
+            }
+            if trimmed_content.chars().count() > MAX_POST_CONTENT_LENGTH {
+                return (StatusCode::BAD_REQUEST, format!(
+                    "Content exceeds maximum length of {} characters",
+                    MAX_POST_CONTENT_LENGTH
+                )).into_response();
+            }
+
             // Construct update data
-            let update_data = UpdatePostData { content: payload.content };
+            let update_data = UpdatePostData { content: trimmed_content.to_string() };
 
              // Perform update
             match post_repository::update_post(&state.db_pool, post_id, update_data).await {

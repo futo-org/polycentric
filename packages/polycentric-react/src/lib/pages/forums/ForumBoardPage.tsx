@@ -221,6 +221,17 @@ export const ForumBoardPage: React.FC = () => {
       setCreateError('Missing necessary information, title, or body.');
       return;
     }
+
+    // Character limit validation (mirror backend constraints)
+    if (newThreadTitle.trim().length > 100) {
+      setCreateError('Title cannot exceed 100 characters.');
+      return;
+    }
+    if (newThreadBody.trim().length > 10000) {
+      setCreateError('Post body cannot exceed 10,000 characters.');
+      return;
+    }
+
     setIsCreatingThread(true);
     setCreateError(null);
     setDeleteThreadError(null);
@@ -490,6 +501,15 @@ export const ForumBoardPage: React.FC = () => {
   const hookErrors = !!serverUrl ? adminError || headersError : null;
   const displayError = error || hookErrors || createError || deleteThreadError;
 
+  const titleCharCount = newThreadTitle.length;
+  const bodyCharCount = newThreadBody.length;
+
+  const getCountClass = (count: number, limit: number) => {
+    if (count > limit) return 'text-red-500';
+    if (count > limit * 0.9) return 'text-yellow-600';
+    return 'text-gray-500';
+  };
+
   return (
     <>
       <Header
@@ -547,6 +567,11 @@ export const ForumBoardPage: React.FC = () => {
                     disabled={isBusy}
                   />
                 </div>
+                <div className="flex justify-between items-center text-sm mt-1">
+                  <span className={getCountClass(titleCharCount, 100)}>
+                    {titleCharCount}/100
+                  </span>
+                </div>
                 <div>
                   <label
                     htmlFor="threadBody"
@@ -563,6 +588,11 @@ export const ForumBoardPage: React.FC = () => {
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     disabled={isBusy}
                   />
+                </div>
+                <div className="flex justify-between items-center text-sm mt-1">
+                  <span className={getCountClass(bodyCharCount, 10000)}>
+                    {bodyCharCount}/10000
+                  </span>
                 </div>
 
                 {newThreadImage && imageUrl && (
@@ -637,6 +667,8 @@ export const ForumBoardPage: React.FC = () => {
                       disabled={
                         !newThreadTitle.trim() ||
                         !newThreadBody.trim() ||
+                        newThreadTitle.trim().length > 100 ||
+                        newThreadBody.trim().length > 10000 ||
                         isBusy
                       }
                     >

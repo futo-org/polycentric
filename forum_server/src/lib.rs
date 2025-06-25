@@ -23,6 +23,7 @@ pub mod repositories;
 pub mod utils;
 pub mod storage;
 pub mod auth;
+pub mod constants;
 
 // Use the specific handlers
 use handlers::{

@@ -12,6 +12,7 @@ use crate::{
     utils::PaginationParams, // Import
     AppState,
     auth::{AuthenticatedUser, AdminUser}, // Import AdminUser
+    constants::{MAX_THREAD_TITLE_LENGTH, MAX_POST_CONTENT_LENGTH},
 };
 use serde::Deserialize;
 use mime;
@@ -139,6 +140,20 @@ pub async fn create_thread_handler(
         Some(c) if !c.trim().is_empty() => c.trim().to_string(),
         _ => return (StatusCode::BAD_REQUEST, "Missing or empty required field: content").into_response(),
     };
+
+    // Enforce character limits
+    if title.chars().count() > MAX_THREAD_TITLE_LENGTH {
+        return (StatusCode::BAD_REQUEST, format!(
+            "Title exceeds maximum length of {} characters",
+            MAX_THREAD_TITLE_LENGTH
+        )).into_response();
+    }
+    if content.chars().count() > MAX_POST_CONTENT_LENGTH {
+        return (StatusCode::BAD_REQUEST, format!(
+            "Content exceeds maximum length of {} characters",
+            MAX_POST_CONTENT_LENGTH
+        )).into_response();
+    }
 
     // Check board existence
     match board_repository::get_board_by_id(&state.db_pool, board_id).await {
@@ -270,6 +285,12 @@ pub async fn update_thread_handler(
     // Validate title is not empty or just whitespace
     if payload.title.trim().is_empty() {
         return (StatusCode::BAD_REQUEST, "Title cannot be empty").into_response();
+    }
+    if payload.title.trim().chars().count() > MAX_THREAD_TITLE_LENGTH {
+        return (StatusCode::BAD_REQUEST, format!(
+            "Title exceeds maximum length of {} characters",
+            MAX_THREAD_TITLE_LENGTH
+        )).into_response();
     }
 
     // Fetch thread first
