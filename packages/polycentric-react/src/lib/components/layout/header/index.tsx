@@ -1,9 +1,4 @@
-import {
-    IonHeader,
-    IonTitle,
-    RouterDirection,
-    isPlatform,
-} from '@ionic/react';
+import { IonHeader, IonTitle, RouterDirection, isPlatform } from '@ionic/react';
 
 import { ChevronLeftIcon } from '@heroicons/react/24/outline';
 import { useEffect, useMemo, useRef, useState } from 'react';

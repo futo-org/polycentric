@@ -29,8 +29,7 @@ export const AddServerButton: React.FC<AddServerButtonProps> = ({
     }
   };
 
-  const defaultStyleBase =
-    'px-3 py-1 rounded-md text-sm focus:outline-none';
+  const defaultStyleBase = 'px-3 py-1 rounded-md text-sm focus:outline-none';
 
   const defaultStyle = isInList
     ? `${defaultStyleBase} bg-red-500 text-white hover:bg-red-600`
@@ -41,4 +40,4 @@ export const AddServerButton: React.FC<AddServerButtonProps> = ({
       {isInList ? 'Remove Server' : 'Add Server'}
     </button>
   );
-}; 
+};

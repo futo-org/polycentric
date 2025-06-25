@@ -34,7 +34,9 @@ const storeForumServers = (servers: Set<string>): void => {
 
 export const useForumServers = () => {
   // Initialize from localStorage synchronously to avoid flash-of-empty
-  const [servers, setServers] = useState<Set<string>>(() => getStoredForumServers());
+  const [servers, setServers] = useState<Set<string>>(() =>
+    getStoredForumServers(),
+  );
 
   const addServer = (serverUrl: string) => {
     let urlToAdd = serverUrl.trim();

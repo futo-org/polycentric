@@ -32,4 +32,4 @@ export const useAddServerPrompt = (serverUrl: string | null | undefined) => {
       addServer(serverUrl);
     }
   }, [serverUrl, servers, addServer]);
-}; 
+};

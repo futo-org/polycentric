@@ -371,7 +371,9 @@ export const ForumThreadPage: React.FC = () => {
     setDeletePostError(null); // Clear delete error on refetch
     try {
       // Ensure baseUrl derived from serverUrl (strip trailing slash)
-      const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+      const baseUrl = serverUrl.endsWith('/')
+        ? serverUrl.slice(0, -1)
+        : serverUrl;
 
       // 1. Fetch Thread Details (optional, could get title from first post or list)
       const threadDetailsUrl = `${baseUrl}/forum/threads/${threadId}`;
