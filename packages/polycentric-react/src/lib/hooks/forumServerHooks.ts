@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 const FORUM_SERVERS_STORAGE_KEY = 'polycentric_forum_servers';
 
@@ -33,12 +33,8 @@ const storeForumServers = (servers: Set<string>): void => {
 };
 
 export const useForumServers = () => {
-  const [servers, setServers] = useState<Set<string>>(new Set());
-
-  // Load servers from local storage on initial mount
-  useEffect(() => {
-    setServers(getStoredForumServers());
-  }, []);
+  // Initialize from localStorage synchronously to avoid flash-of-empty
+  const [servers, setServers] = useState<Set<string>>(() => getStoredForumServers());
 
   const addServer = (serverUrl: string) => {
     let urlToAdd = serverUrl.trim();

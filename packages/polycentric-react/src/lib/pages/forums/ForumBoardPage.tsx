@@ -13,6 +13,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { AddServerButton } from '../../components/forums/AddServerButton';
 import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
 import { Link } from '../../components/util/link';
@@ -491,9 +492,22 @@ export const ForumBoardPage: React.FC = () => {
 
   return (
     <>
-      <Header canHaveBackButton={true}>{boardName}</Header>
+      <Header
+        canHaveBackButton={true}
+        right={<AddServerButton serverUrl={serverUrl} />}
+      >
+        {boardName}
+      </Header>
       <IonContent>
-        <RightCol rightCol={<div />} desktopTitle={boardName}>
+        <RightCol
+          rightCol={<div />}
+          desktopTitle={
+            <div className="flex items-center justify-between">
+              <span>{boardName}</span>
+              <AddServerButton serverUrl={serverUrl} />
+            </div>
+          }
+        >
           <div className="p-5 md:p-10 flex flex-col space-y-4">
             {displayError && (
               <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded mb-4">

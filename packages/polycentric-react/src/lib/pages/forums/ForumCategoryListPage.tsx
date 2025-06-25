@@ -1,5 +1,6 @@
 import { IonContent } from '@ionic/react';
 import React, { useEffect, useState } from 'react';
+import { AddServerButton } from '../../components/forums/AddServerButton';
 import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
 import { Link } from '../../components/util/link';
@@ -121,13 +122,21 @@ export const ForumCategoryListPage: React.FC = () => {
 
   return (
     <>
-      <Header canHaveBackButton={true}>
+      <Header
+        canHaveBackButton={true}
+        right={<AddServerButton serverUrl={serverUrl} />}
+      >
         Categories on {displayServerName}
       </Header>
       <IonContent>
         <RightCol
           rightCol={<div />}
-          desktopTitle={`Categories on ${displayServerName}`}
+          desktopTitle={
+            <div className="flex items-center justify-between">
+              <span>{`Categories on ${displayServerName}`}</span>
+              <AddServerButton serverUrl={serverUrl} />
+            </div>
+          }
         >
           <div className="p-5 md:p-10 flex flex-col space-y-6">
             {' '}

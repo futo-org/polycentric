@@ -1,4 +1,9 @@
-import { IonHeader, IonTitle, RouterDirection, isPlatform } from '@ionic/react';
+import {
+    IonHeader,
+    IonTitle,
+    RouterDirection,
+    isPlatform,
+} from '@ionic/react';
 
 import { ChevronLeftIcon } from '@heroicons/react/24/outline';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -8,9 +13,11 @@ import { Link } from '../../util/link';
 export const Header = ({
   children,
   canHaveBackButton = true,
+  right,
 }: {
   children?: React.ReactNode;
   canHaveBackButton?: boolean;
+  right?: React.ReactNode;
 }) => {
   const isMobile = useIsMobile();
   const ref = useRef<HTMLIonHeaderElement>(null);
@@ -28,40 +35,40 @@ export const Header = ({
   }, [canGoBack]);
 
   if (isMobile) {
+    const baseClasses =
+      'bg-white px-4 border-b text-black flex items-center justify-between';
+
+    const BackButton = canHaveBackButton ? (
+      <Link routerDirection={routerDirection} routerLink="/" className="p-1">
+        <ChevronLeftIcon className="h-6 w-6" />
+      </Link>
+    ) : (
+      <div className="w-6 h-6 m-1" />
+    );
+
+    // iOS needs IonHeader children flat (no extra div) – we keep structure minimal
     if (isPlatform('ios')) {
       return (
-        <IonHeader className="bg-white px-4 border-b text-black" ref={ref}>
-          {canHaveBackButton ? (
-            <Link
-              routerDirection={routerDirection}
-              routerLink="/"
-              className="p-1"
-            >
-              <ChevronLeftIcon className="h-6 w-6" />
-            </Link>
-          ) : (
-            <div className="w-6 h-6 m-1" />
-          )}
-          <IonTitle className="text-black">{children}</IonTitle>
+        <IonHeader className={baseClasses} ref={ref}>
+          <div className="flex items-center space-x-2">
+            {BackButton}
+            <IonTitle className="text-base text-black whitespace-nowrap">
+              {children}
+            </IonTitle>
+          </div>
+          {right}
         </IonHeader>
       );
     } else {
       return (
-        <IonHeader className="bg-white px-4 border-b text-black" ref={ref}>
-          <div className="flex py-3 items-center">
-            {canHaveBackButton ? (
-              <Link
-                routerDirection={routerDirection}
-                routerLink="/"
-                className="p-1"
-              >
-                <ChevronLeftIcon className="h-6 w-6" />
-              </Link>
-            ) : (
-              <div className="w-6 h-6 m-1" />
-            )}
-            <IonTitle className="text-xl text-black">{children}</IonTitle>
+        <IonHeader className={baseClasses} ref={ref}>
+          <div className="flex py-3 items-center space-x-2">
+            {BackButton}
+            <IonTitle className="text-xl text-black whitespace-nowrap">
+              {children}
+            </IonTitle>
           </div>
+          {right}
         </IonHeader>
       );
     }

@@ -13,6 +13,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { AddServerButton } from '../../components/forums/AddServerButton';
 import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
 import { ProfilePicture } from '../../components/profile/ProfilePicture';
@@ -369,8 +370,11 @@ export const ForumThreadPage: React.FC = () => {
     setError(null);
     setDeletePostError(null); // Clear delete error on refetch
     try {
+      // Ensure baseUrl derived from serverUrl (strip trailing slash)
+      const baseUrl = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+
       // 1. Fetch Thread Details (optional, could get title from first post or list)
-      const threadDetailsUrl = `https://localhost:8080/forum/threads/${threadId}`;
+      const threadDetailsUrl = `${baseUrl}/forum/threads/${threadId}`;
       const threadRes = await fetch(threadDetailsUrl);
       if (threadRes.ok) {
         const fetchedThread: ForumThread = await threadRes.json();
@@ -386,7 +390,7 @@ export const ForumThreadPage: React.FC = () => {
       }
 
       // 2. Fetch Posts
-      const postsApiUrl = `https://localhost:8080/forum/threads/${threadId}/posts`;
+      const postsApiUrl = `${baseUrl}/forum/threads/${threadId}/posts`;
       const postsResponse = await fetch(postsApiUrl);
 
       if (!postsResponse.ok) {
@@ -817,9 +821,22 @@ export const ForumThreadPage: React.FC = () => {
 
   return (
     <>
-      <Header canHaveBackButton={true}>{threadTitle}</Header>
+      <Header
+        canHaveBackButton={true}
+        right={<AddServerButton serverUrl={serverUrl} />}
+      >
+        {threadTitle}
+      </Header>
       <IonContent>
-        <RightCol rightCol={<div />} desktopTitle={threadTitle}>
+        <RightCol
+          rightCol={<div />}
+          desktopTitle={
+            <div className="flex items-center justify-between">
+              <span>{threadTitle}</span>
+              <AddServerButton serverUrl={serverUrl} />
+            </div>
+          }
+        >
           <div className="p-5 md:p-10 flex flex-col space-y-4">
             {/* Unified Error Display */}
             {displayError && (
