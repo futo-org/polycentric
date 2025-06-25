@@ -1,11 +1,12 @@
 import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import * as Core from '@polycentric/polycentric-core';
-import { Models } from '@polycentric/polycentric-core';
+import { Models, ProcessHandle, Protocol } from '@polycentric/polycentric-core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useBlobDisplayURLs } from '../../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import { useClaims } from '../../../hooks/queryHooks';
+import { publishImageBlob } from '../../../util/imageProcessing';
 
 export type SocialPlatform =
   | 'hackerNews'
@@ -855,6 +856,15 @@ const ImageInput = ({ onUpdate }: { onUpdate: (files: File[]) => void }) => {
   </div>)
 }
 
+const publishImageBlobs = async (images: File[], processHandle: ProcessHandle.ProcessHandle) => {
+  const imageManifests: Protocol.ImageManifest[] = [];
+  for (const image of images){
+    const blob = await publishImageBlob(image, processHandle);
+    imageManifests.push(blob);
+  }
+  return imageManifests;
+}
+
 export const OccupationInput = ({
   onCancel,
   system,
@@ -877,6 +887,8 @@ export const OccupationInput = ({
     if (!processHandle || !claims) return;
     try {
       setIsSubmitting(true);
+
+      const imageManifests: Protocol.ImageManifest[] = await publishImageBlobs(images, processHandle);
 
       const existingClaim = claims.find(
         (claim) =>
@@ -977,6 +989,7 @@ export const TextInput = ({
 }) => {
   const [text, setText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [images, setImages] = useState<File[]>([]);
   const [verificationStep, setVerificationStep] = useState<
     'input' | 'duplicate'
   >('input');
@@ -987,6 +1000,8 @@ export const TextInput = ({
     if (!processHandle || !claims) return;
     try {
       setIsSubmitting(true);
+
+      const imageManifests: Protocol.ImageManifest[] = await publishImageBlobs(images, processHandle);
 
       const existingClaim = claims.find((claim) => {
         const isSkill =
@@ -1007,7 +1022,7 @@ export const TextInput = ({
       }
 
       const claim =
-        type === 'skill' ? Models.claimSkill(text) : Models.claimGeneric(text);
+        type === 'skill' ? Models.claimSkill(text, imageManifests) : Models.claimGeneric(text, imageManifests);
       await processHandle.claim(claim);
       onCancel();
     } catch (error) {
@@ -1045,7 +1060,7 @@ export const TextInput = ({
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
-      <ImageInput />
+      <ImageInput onUpdate={(e) => setImages(e)}/>
       <div className="flex justify-end gap-2">
         <button
           onClick={onCancel}
