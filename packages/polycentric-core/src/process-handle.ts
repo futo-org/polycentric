@@ -184,14 +184,14 @@ export class ProcessHandle {
 
   public async post(
     content: string,
-    image?: Protocol.ImageManifest,
+    images?: Protocol.ImageManifest[],
     reference?: Protocol.Reference,
   ): Promise<Models.Pointer.Pointer> {
     return await this.publish(
       Models.ContentType.ContentTypePost,
       Protocol.Post.encode({
         content: content,
-        image: image,
+        images: images ?? [],
       }).finish(),
       undefined,
       undefined,

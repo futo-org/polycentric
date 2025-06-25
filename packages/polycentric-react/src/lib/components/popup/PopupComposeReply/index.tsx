@@ -27,7 +27,7 @@ export const PopupComposeReply = ({
     topic: string;
     ContentLink?: string;
   };
-  onComment: (content: string, upload?: File) => Promise<boolean>;
+  onComment: (content: string, upload: File[]) => Promise<boolean>;
 }) => {
   const isMobile = useIsMobile();
 
@@ -132,10 +132,10 @@ export const PopupComposeReplyFullscreen = ({
   };
   open: boolean;
   setOpen: (b: boolean) => void;
-  onComment?: (content: string, upload?: File) => Promise<boolean>;
+  onComment?: (content: string, upload: File[]) => Promise<boolean>;
 }) => {
   const onCommentWithClose = useCallback(
-    async (content: string, upload?: File) => {
+    async (content: string, upload: File[]) => {
       try {
         await onComment?.(content, upload);
         setOpen(false);

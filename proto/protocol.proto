@@ -165,8 +165,9 @@ message Reference {
 
 message Post {
     reserved 2;
+    reserved 3;
     optional string        content = 1;
-    optional ImageManifest image   = 3;
+    repeated ImageManifest images   = 4;
 }
 
 message Claim {

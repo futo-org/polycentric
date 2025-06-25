@@ -1,4 +1,4 @@
-import { Models, Util } from '@polycentric/polycentric-core';
+import { Models, Protocol, Util } from '@polycentric/polycentric-core';
 import { useCallback, useState } from 'react';
 import { Compose } from '..';
 import { useProcessHandleManager } from '../../../../hooks/processHandleManagerHooks';
@@ -11,14 +11,14 @@ export const PostCompose = ({ preSetTopic }: { preSetTopic?: string }) => {
   const onPost = useCallback(
     async (
       content: string,
-      upload?: File,
+      uploads: File[],
       topic?: string,
     ): Promise<boolean> => {
       try {
         setPostingProgress(0.1);
-        let imageBundle;
-        if (upload) {
-          imageBundle = await publishImageBlob(upload, processHandle);
+        const imageBundles: Protocol.ImageManifest[] = [];
+        for (const upload of uploads) {
+          imageBundles.push(await publishImageBlob(upload, processHandle));
         }
         setPostingProgress(0.5);
 
@@ -29,7 +29,7 @@ export const PostCompose = ({ preSetTopic }: { preSetTopic?: string }) => {
           topicReference = Models.bufferToReference(topicBuffer);
         }
 
-        await processHandle.post(content, imageBundle, topicReference);
+        await processHandle.post(content, imageBundles, topicReference);
         setPostingProgress(1);
         setTimeout(() => {
           setPostingProgress(0);

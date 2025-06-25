@@ -1,4 +1,5 @@
 use super::interface::{ModerationTaggingProvider, ModerationTaggingResult};
+
 use crate::{
     config::Config, model::moderation_tag::ModerationTag,
     moderation::moderation_queue::ModerationQueueItem,
@@ -296,7 +297,7 @@ impl ModerationTaggingProvider for AzureTagProvider {
         let media_type = match (
             event.content.is_some()
                 && !event.content.as_ref().unwrap().is_empty(),
-            event.blob.is_some(),
+            !event.blobs.is_empty(),
         ) {
             (true, false) => MediaType::Text,
             (false, true) => MediaType::Image,
@@ -306,64 +307,93 @@ impl ModerationTaggingProvider for AzureTagProvider {
             }
         };
 
-        let result = detector
-            .detect(media_type, &event.content, &event.blob, true, &None)
-            .await;
+        let blob_inputs = match event.blobs.len() {
+            0 => vec![None],
+            _ => event
+                .blobs
+                .iter()
+                .map(|blob| Some(blob.blob.clone()))
+                .collect(),
+        };
+
+        let mut results: Vec<DetectionResult> = vec![];
+        for blob in blob_inputs {
+            let result = detector
+                .detect(media_type, &event.content, &blob, true, &None)
+                .await;
+
+            match result {
+                Ok(res) => results.push(res),
+                Err(e) => {
+                    return Err(anyhow::anyhow!(
+                        "Error detecting content: {}",
+                        e
+                    ))
+                }
+            }
+        }
+
+        let mut max_hate_level = 0;
+        let mut max_sexual_level = 0;
+        let mut max_violence_level = 0;
+        let mut max_self_harm_level = 0;
+
+        for result in results {
+            let hate_result = result
+                .categories_analysis
+                .iter()
+                .find(|category| category.category == Category::Hate);
+            let sexual_result = result
+                .categories_analysis
+                .iter()
+                .find(|category| category.category == Category::Sexual);
+            let violence_result = result
+                .categories_analysis
+                .iter()
+                .find(|category| category.category == Category::Violence);
+            let self_harm_result = result
+                .categories_analysis
+                .iter()
+                .find(|category| category.category == Category::SelfHarm);
+
+            let (hate_level, sexual_level, violence_level, self_harm_level) =
+                match (
+                    hate_result,
+                    sexual_result,
+                    violence_result,
+                    self_harm_result,
+                ) {
+                    (
+                        Some(hate),
+                        Some(sexual),
+                        Some(violence),
+                        Some(self_harm),
+                    ) => (
+                        hate.severity as i16 / 2,
+                        sexual.severity as i16 / 2,
+                        violence.severity as i16 / 2,
+                        self_harm.severity as i16 / 2,
+                    ),
+                    _ => (0, 0, 0, 0),
+                };
+
+            max_hate_level = cmp::max(max_hate_level, hate_level);
+            max_sexual_level = cmp::max(max_sexual_level, sexual_level);
+            max_violence_level = cmp::max(max_violence_level, violence_level);
+            max_self_harm_level =
+                cmp::max(max_self_harm_level, self_harm_level);
+        }
+
+        let tags = vec![
+            ModerationTag::new("hate".to_string(), max_hate_level),
+            ModerationTag::new("sexual".to_string(), max_sexual_level),
+            ModerationTag::new(
+                "violence".to_string(),
+                cmp::max(max_violence_level, max_self_harm_level),
+            ),
+        ];
 
         // Always return ok, error is handled in the moderation queue
-        match result {
-            Ok(result) => {
-                let hate_result = result
-                    .categories_analysis
-                    .iter()
-                    .find(|category| category.category == Category::Hate);
-                let sexual_result = result
-                    .categories_analysis
-                    .iter()
-                    .find(|category| category.category == Category::Sexual);
-                let violence_result = result
-                    .categories_analysis
-                    .iter()
-                    .find(|category| category.category == Category::Violence);
-                let self_harm_result = result
-                    .categories_analysis
-                    .iter()
-                    .find(|category| category.category == Category::SelfHarm);
-
-                let (hate_level, sexual_level, violence_level, self_harm_level) =
-                    match (
-                        hate_result,
-                        sexual_result,
-                        violence_result,
-                        self_harm_result,
-                    ) {
-                        (
-                            Some(hate),
-                            Some(sexual),
-                            Some(violence),
-                            Some(self_harm),
-                        ) => (
-                            hate.severity as i16 / 2,
-                            sexual.severity as i16 / 2,
-                            violence.severity as i16 / 2,
-                            self_harm.severity as i16 / 2,
-                        ),
-                        _ => (0, 0, 0, 0),
-                    };
-
-                let tags = vec![
-                    ModerationTag::new("hate".to_string(), hate_level),
-                    ModerationTag::new("sexual".to_string(), sexual_level),
-                    ModerationTag::new(
-                        "violence".to_string(),
-                        cmp::max(violence_level, self_harm_level),
-                    ),
-                ];
-
-                Ok(ModerationTaggingResult { tags })
-            }
-
-            Err(e) => Err(anyhow::anyhow!("Error detecting content: {}", e)),
-        }
+        Ok(ModerationTaggingResult { tags })
     }
 }
