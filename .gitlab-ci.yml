@@ -181,7 +181,15 @@ build-server-release:
       key: ${CI_COMMIT_REF_SLUG}-rs-build-release
   script: 
     - ./version.sh
+    - echo "Cleaning protocol build artifacts"
+    - cd polycentric-protocol
+    - cargo clean
+    - cd ..
     - cd server
+    - echo "Cleaning old build artifacts"
+    - cargo clean
+    - echo "Starting sccache server"
+    - /opt/sccache/sccache --start-server || true
     - cargo build --release
   needs: ["build-server"]
   artifacts:
