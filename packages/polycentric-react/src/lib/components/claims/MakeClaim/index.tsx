@@ -888,8 +888,6 @@ export const OccupationInput = ({
     try {
       setIsSubmitting(true);
 
-      const imageManifests: Protocol.ImageManifest[] = await publishImageBlobs(images, processHandle);
-
       const existingClaim = claims.find(
         (claim) =>
           claim.value.claimType.equals(
@@ -905,6 +903,8 @@ export const OccupationInput = ({
         setIsSubmitting(false);
         return;
       }
+
+      const imageManifests: Protocol.ImageManifest[] = await publishImageBlobs(images, processHandle);
 
       const claim = Models.claimOccupation(organization, role, location, imageManifests);
       await processHandle.claim(claim);
@@ -1001,8 +1001,6 @@ export const TextInput = ({
     try {
       setIsSubmitting(true);
 
-      const imageManifests: Protocol.ImageManifest[] = await publishImageBlobs(images, processHandle);
-
       const existingClaim = claims.find((claim) => {
         const isSkill =
           type === 'skill' &&
@@ -1021,8 +1019,11 @@ export const TextInput = ({
         return;
       }
 
+      const imageManifests: Protocol.ImageManifest[] = await publishImageBlobs(images, processHandle);
+
       const claim =
         type === 'skill' ? Models.claimSkill(text, imageManifests) : Models.claimGeneric(text, imageManifests);
+
       await processHandle.claim(claim);
       onCancel();
     } catch (error) {
@@ -1030,7 +1031,7 @@ export const TextInput = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [text, type, processHandle, claims, onCancel]);
+  }, [text, type, processHandle, claims, images, onCancel]);
 
   if (verificationStep === 'duplicate') {
     return (

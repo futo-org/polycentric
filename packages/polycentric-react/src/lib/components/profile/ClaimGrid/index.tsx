@@ -28,7 +28,7 @@ import WebsiteIcon from '../../../../graphics/icons/rendered/website.svg.png';
 import WorkIcon from '../../../../graphics/icons/rendered/work.svg.png';
 import TwitterIcon from '../../../../graphics/icons/rendered/x.svg.png';
 import YouTubeIcon from '../../../../graphics/icons/rendered/youtube.svg.png';
-import { useAvatar } from '../../../hooks/imageHooks';
+import { useAvatar, useImageManifestDisplayURLs } from '../../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import {
   useClaimVouches,
@@ -289,28 +289,26 @@ export const VouchedBy: React.FC<{ system: Models.PublicKey.PublicKey }> = ({
 };
 
 const ClaimCircle: React.FC<{
-  claim: {
-    field: { value: string };
-    type: Long;
-    pointer: Protocol.Reference;
-    process: Models.Process.Process;
-    logicalClock: Long;
-  };
+  claim: Protocol.Claim;
+  pointer: Protocol.Reference;
+  process: Models.Process.Process;
+  logicalClock: Long;
   position: 'start' | 'middle' | 'end';
   system: Models.PublicKey.PublicKey;
   isMyProfile?: boolean;
-}> = ({ claim, position, system, isMyProfile }) => {
+}> = ({ claim, pointer, process, logicalClock, position, system, isMyProfile }) => {
   const [expanded, setExpanded] = useState(false);
   const { processHandle } = useProcessHandleManager();
+  const images = useImageManifestDisplayURLs(system, claim.images);
   const [icon, color] = useMemo(
-    () => getIconFromClaimType(claim.type),
-    [claim.type],
+    () => getIconFromClaimType(claim.claimType),
+    [claim.claimType],
   );
   const url = useMemo(
-    () => getAccountUrl(claim.type, claim.field.value),
-    [claim.type, claim.field.value],
+    () => getAccountUrl(claim.claimType, claim.claimFields[0].value),
+    [claim.claimType, claim.claimFields[0].value],
   );
-  const vouches = useClaimVouches(system, claim.pointer);
+  const vouches = useClaimVouches(system, pointer);
   const [vouchStatus, setVouchStatus] = useState<'none' | 'success' | 'error'>(
     'none',
   );
@@ -331,7 +329,7 @@ const ClaimCircle: React.FC<{
   const handleVouch = async () => {
     if (!processHandle || hasUserVouched) return;
     try {
-      await processHandle.vouchByReference(claim.pointer);
+      await processHandle.vouchByReference(pointer);
       setVouchStatus('success');
     } catch (error) {
       setVouchStatus('error');
@@ -345,7 +343,7 @@ const ClaimCircle: React.FC<{
 
     try {
       setIsDeleting(true);
-      await processHandle.delete(claim.process, claim.logicalClock);
+      await processHandle.delete(process, logicalClock);
       setShowDeleteConfirm(false);
       setExpanded(false);
     } catch (error) {
@@ -406,7 +404,8 @@ const ClaimCircle: React.FC<{
             onClick={handleUrlClick}
             className="px-2 py-1 rounded hover:bg-black/10 transition-colors"
           >
-            {claim.field.value}
+            {claim.claimFields.map((field) => (<p>{field.value}</p>))}
+            {images.map((image) => (<img src={image} alt="Claim Image" className="w-16 h-16" />))}
           </button>
         ) : (
           icon
@@ -564,25 +563,13 @@ export const ClaimGrid: React.FC<{
 }> = ({ system, claims, isMyProfile }) => {
   const [showClaimModal, setShowClaimModal] = useState(false);
 
-  const claimsUnwrapped = useMemo(() => {
-    return claims.flatMap(({ value, pointer, process, logicalClock }) =>
-      value.claimFields.map((field) => ({
-        field,
-        type: value.claimType,
-        pointer,
-        process,
-        logicalClock,
-      })),
-    );
-  }, [claims]);
-
   const claimsInGroupsOfThree = useMemo(() => {
     const out = [];
-    for (let i = 0; i < claimsUnwrapped.length; i += 3) {
-      out.push(claimsUnwrapped.slice(i, i + 3));
+    for (let i = 0; i < claims.length; i += 3) {
+      out.push(claims.slice(i, i + 3));
     }
     return out;
-  }, [claimsUnwrapped]);
+  }, [claims]);
 
   return (
     <div className="flex flex-col items-center justify-center space-y-3">
@@ -607,9 +594,12 @@ export const ClaimGrid: React.FC<{
         claimsInGroupsOfThree.map((group, index) => (
           <div key={index} className="grid relative grid-cols-3 gap-4">
             {group.map((claim, index) => (
-              <div key={claim.field.value || index} className="w-16 h-16">
+              <div key={claim.value.claimFields[0].value || index} className="w-16 h-16">
                 <ClaimCircle
-                  claim={claim}
+                  claim={claim.value}
+                  pointer={claim.pointer}
+                  process={claim.process}
+                  logicalClock={claim.logicalClock}
                   position={
                     index === 0 ? 'start' : index === 1 ? 'middle' : 'end'
                   }
