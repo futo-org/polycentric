@@ -791,10 +791,15 @@ export const SocialMediaInput = ({
   );
 };
 
-const ImageInput = ({}) => {
+const ImageInput = ({ onUpdate }: { onUpdate: (files: File[]) => void }) => {
   const uploadRef = useRef<HTMLInputElement | null>(null);
   const [upload, setUpload] = useState<File[]>([]);
   const imageUrls = useBlobDisplayURLs(upload);
+
+  const update = (newValue: File[]) => {
+    setUpload(newValue);
+    onUpdate(newValue);
+  }
 
   return (<div>
     <div className="grid gap-1 grid-cols-2 max-h-[20rem] max-w-[20rem]">
@@ -807,7 +812,7 @@ const ImageInput = ({}) => {
           />
           <button
             className="absolute top-5 right-5 "
-            onClick={() => setUpload(upload.filter((u) => u !== file))}
+            onClick={() => update(upload.filter((u) => u !== file))}
           >
             <XCircleIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
           </button>
@@ -844,7 +849,7 @@ const ImageInput = ({}) => {
           return;
         }
 
-        setUpload(upload.concat(fileList));
+        update(upload.concat(fileList));
       }}
     />
   </div>)
@@ -860,6 +865,7 @@ export const OccupationInput = ({
   const [organization, setOrganization] = useState('');
   const [role, setRole] = useState('');
   const [location, setLocation] = useState('');
+  const [images, setImages] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verificationStep, setVerificationStep] = useState<
     'input' | 'duplicate'
@@ -888,7 +894,7 @@ export const OccupationInput = ({
         return;
       }
 
-      const claim = Models.claimOccupation(organization, role, location);
+      const claim = Models.claimOccupation(organization, role, location, imageManifests);
       await processHandle.claim(claim);
       onCancel();
     } catch (error) {
@@ -940,7 +946,7 @@ export const OccupationInput = ({
         value={location}
         onChange={(e) => setLocation(e.target.value)}
       />
-      <ImageInput />
+      <ImageInput onUpdate={(e) => setImages(e)}/>
       <div className="flex justify-end gap-2">
         <button
           onClick={onCancel}
