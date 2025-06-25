@@ -11,10 +11,12 @@ const TopicBox = ({
   topic,
   setTopic,
   disabled,
+  maxTopicLength,
 }: {
   topic: string;
   setTopic: (s: string) => void;
   disabled?: boolean;
+  maxTopicLength: number;
 }) => {
   // const [focused, setFocused] = useState(false)
   return (
@@ -32,7 +34,11 @@ const TopicBox = ({
         value={topic}
         onChange={(e) => {
           const { value } = e.target;
-          setTopic(value);
+          let val = value;
+          if (val.length > maxTopicLength) {
+            val = val.slice(0, maxTopicLength);
+          }
+          setTopic(val);
 
           //   if (e.currentTarget.selectionStart != null && e.currentTarget.selectionStart < 1) {
           //     e.currentTarget.setSelectionRange(1, 1)
@@ -102,6 +108,7 @@ export const Compose = ({
   maxTextboxHeightPx = 440,
   minTextboxHeightPx = 125,
   maxLength = 10000,
+  maxTopicLength = 100,
   postingProgress,
 }: {
   onPost: (content: string, upload?: File, topic?: string) => Promise<boolean>;
@@ -113,6 +120,7 @@ export const Compose = ({
   maxTextboxHeightPx?: number;
   minTextboxHeightPx?: number;
   maxLength?: number;
+  maxTopicLength?: number;
   postingProgress?: number;
 }) => {
   const [content, setContent] = useState('');
@@ -271,6 +279,7 @@ export const Compose = ({
             topic={topic}
             setTopic={setTopic}
             disabled={topicDisabled}
+            maxTopicLength={maxTopicLength}
           />
         </div>
       )}
@@ -381,11 +390,20 @@ export const Compose = ({
           >
             {content.length}/{maxLength}
           </span>
+          {/* Topic counter */}
+          <span
+            className={`text-sm ${
+              topic.length >= maxTopicLength ? 'text-red-500' : 'text-gray-500'
+            }`}
+          >
+            {topic.length}/{maxTopicLength}
+          </span>
         </div>
         <button
           disabled={
             (!content && !upload) ||
             content.length > maxLength ||
+            topic.length > maxTopicLength ||
             (postingProgress != null && postingProgress > 0)
           }
           className="bg-slate-50 hover:bg-slate-200 disabled:bg-white border disabled:text-gray-500 text-gray-800 rounded-full px-8 py-2 font-medium text-lg tracking-wide"
