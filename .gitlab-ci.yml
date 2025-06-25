@@ -35,6 +35,7 @@ default:
     files:
       - server/Cargo.toml
       - polycentric-protocol/Cargo.toml
+      - proto/protocol.proto
   paths:
     - ${CI_PROJECT_DIR}/.sccache/
     - ${CI_PROJECT_DIR}/.cargo/
@@ -119,6 +120,8 @@ build-protocol:
   script:
     - ./version.sh
     - cd polycentric-protocol
+    - echo "Cleaning old build artifacts"
+    - cargo clean
     - echo "Building protocol binary"
     - cargo build
     - echo "Running protocol tests"
@@ -140,6 +143,8 @@ build-server:
     - ./version.sh
     - mkdir build-artifacts
     - cd server
+    - echo "Cleaning old build artifacts"
+    - cargo clean
     - echo "Building server binary"
     - cargo build --locked
     - echo "Building test binary"
