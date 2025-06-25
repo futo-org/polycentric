@@ -445,7 +445,7 @@ push-web-image-tag:
 
 push-web-image-master:
   stage: deploy
-  needs: ["push-server-image-staging"]
+  needs: ["push-server-image-master"]
   image:
     name: gcr.io/kaniko-project/executor:v1.14.0-debug
     entrypoint: [""]

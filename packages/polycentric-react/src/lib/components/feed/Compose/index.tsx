@@ -101,6 +101,7 @@ export const Compose = ({
   hfull = false,
   maxTextboxHeightPx = 440,
   minTextboxHeightPx = 125,
+  maxLength = 10000,
   postingProgress,
 }: {
   onPost: (content: string, upload?: File, topic?: string) => Promise<boolean>;
@@ -111,6 +112,7 @@ export const Compose = ({
   hfull?: boolean;
   maxTextboxHeightPx?: number;
   minTextboxHeightPx?: number;
+  maxLength?: number;
   postingProgress?: number;
 }) => {
   const [content, setContent] = useState('');
@@ -149,7 +151,14 @@ export const Compose = ({
 
   const handleInput = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const newContent = e.target.value;
+      let newContent = e.target.value;
+
+      // Enforce character limit
+      if (newContent.length > maxLength) {
+        newContent = newContent.slice(0, maxLength);
+        // Update the textarea value to reflect truncation immediately
+        e.target.value = newContent;
+      }
       const cursorPosition = e.target.selectionStart;
       setContent(newContent);
 
@@ -211,7 +220,7 @@ export const Compose = ({
         setMentionState(null);
       }
     },
-    [flexGrow, minTextboxHeightPx, maxTextboxHeightPx],
+    [flexGrow, minTextboxHeightPx, maxTextboxHeightPx, maxLength],
   );
 
   // Add this helper function
@@ -364,10 +373,19 @@ export const Compose = ({
               }
             }}
           />
+          {/* Character counter */}
+          <span
+            className={`text-sm ${
+              content.length >= maxLength ? 'text-red-500' : 'text-gray-500'
+            }`}
+          >
+            {content.length}/{maxLength}
+          </span>
         </div>
         <button
           disabled={
             (!content && !upload) ||
+            content.length > maxLength ||
             (postingProgress != null && postingProgress > 0)
           }
           className="bg-slate-50 hover:bg-slate-200 disabled:bg-white border disabled:text-gray-500 text-gray-800 rounded-full px-8 py-2 font-medium text-lg tracking-wide"
