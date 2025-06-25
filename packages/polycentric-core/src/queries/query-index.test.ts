@@ -102,8 +102,8 @@ describe('query index', () => {
 
     handle.advance(10);
 
-    await s1p1.claim(Models.claimGeneric('1'));
-    await s1p1.claim(Models.claimGeneric('2'));
+    await s1p1.claim(Models.claimGeneric('1', []));
+    await s1p1.claim(Models.claimGeneric('2', []));
 
     handle.unregister();
 
@@ -120,7 +120,7 @@ describe('query index', () => {
     await s2p1.addServer(TEST_SERVER);
 
     for (let i = 0; i < 30; i++) {
-      await s2p1.claim(Models.claimGeneric(i.toString()));
+      await s2p1.claim(Models.claimGeneric(i.toString(), []));
     }
 
     await ProcessHandle.fullSync(s2p1);
@@ -183,12 +183,12 @@ describe('query index', () => {
     const queryManager = new QueryIndex.QueryManager(s1p1);
     queryManager.useNetwork(false);
 
-    await s1p1.claim(Models.claimGeneric('1'));
-    await s1p1.claim(Models.claimGeneric('2'));
-    await s1p1.claim(Models.claimGeneric('3'));
-    await s1p1.claim(Models.claimGeneric('4'));
-    await s1p1.claim(Models.claimGeneric('5'));
-    await s1p1.claim(Models.claimGeneric('6'));
+    await s1p1.claim(Models.claimGeneric('1', []));
+    await s1p1.claim(Models.claimGeneric('2', []));
+    await s1p1.claim(Models.claimGeneric('3', []));
+    await s1p1.claim(Models.claimGeneric('4', []));
+    await s1p1.claim(Models.claimGeneric('5', []));
+    await s1p1.claim(Models.claimGeneric('6', []));
 
     let stage = 0;
 
@@ -238,12 +238,12 @@ describe('query index', () => {
 
     const copyList = [];
 
-    await s1p1.claim(Models.claimGeneric('1'));
-    copyList.push(await s1p1.claim(Models.claimGeneric('2')));
-    await s1p1.claim(Models.claimGeneric('3'));
-    await s1p1.claim(Models.claimGeneric('4'));
-    copyList.push(await s1p1.claim(Models.claimGeneric('5')));
-    copyList.push(await s1p1.claim(Models.claimGeneric('6')));
+    await s1p1.claim(Models.claimGeneric('1', []));
+    copyList.push(await s1p1.claim(Models.claimGeneric('2', [])));
+    await s1p1.claim(Models.claimGeneric('3', []));
+    await s1p1.claim(Models.claimGeneric('4', []));
+    copyList.push(await s1p1.claim(Models.claimGeneric('5', [])));
+    copyList.push(await s1p1.claim(Models.claimGeneric('6', [])));
 
     const s2p1 = await ProcessHandle.createTestProcessHandle();
 
@@ -313,9 +313,9 @@ describe('query index', () => {
 
         handle.advance(10);
 
-        await s1p1.claim(Models.claimGeneric('1'));
-        const secondClaim = await s1p1.claim(Models.claimGeneric('2'));
-        await s1p1.claim(Models.claimGeneric('3'));
+        await s1p1.claim(Models.claimGeneric('1', []));
+        const secondClaim = await s1p1.claim(Models.claimGeneric('2', []));
+        await s1p1.claim(Models.claimGeneric('3', []));
         await s1p1.delete(secondClaim.process, secondClaim.logicalClock);
       })();
     });
