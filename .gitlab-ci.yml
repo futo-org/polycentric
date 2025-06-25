@@ -30,11 +30,20 @@ default:
     - ${CI_PROJECT_DIR}/packages/harbor-web/node_modules/
   policy: pull
 
-.rust-cache-config: &rust-cache-config
+.rust-cache-config-protocol: &rust-cache-config-protocol
+  key:
+    files:
+      - polycentric-protocol/Cargo.toml
+      - proto/protocol.proto
+  paths:
+    - ${CI_PROJECT_DIR}/.sccache/
+    - ${CI_PROJECT_DIR}/.cargo/
+  policy: pull-push
+
+.rust-cache-config-server: &rust-cache-config-server
   key:
     files:
       - server/Cargo.toml
-      - polycentric-protocol/Cargo.toml
       - proto/protocol.proto
   paths:
     - ${CI_PROJECT_DIR}/.sccache/
@@ -114,7 +123,7 @@ format-verifiers:
 build-protocol: 
   stage: build
   cache: 
-   - <<: *rust-cache-config
+   - <<: *rust-cache-config-protocol
    - <<: *rust-cache-build-config
      key: ${CI_COMMIT_REF_SLUG}-rs-build
   script:
@@ -136,7 +145,7 @@ build-protocol:
 build-server: 
   stage: build
   cache: 
-   - <<: *rust-cache-config
+   - <<: *rust-cache-config-server
    - <<: *rust-cache-build-config
      key: ${CI_COMMIT_REF_SLUG}-rs-build
   script:
@@ -163,7 +172,7 @@ build-server:
 build-server-release: 
   stage: build
   cache: 
-    - <<: *rust-cache-config
+    - <<: *rust-cache-config-server
     - <<: *rust-cache-build-config
       key: ${CI_COMMIT_REF_SLUG}-rs-build-release
   script: 
@@ -259,7 +268,7 @@ build-verifiers:
 lint-protocol: 
   stage: lint
   cache: 
-    - <<: *rust-cache-config
+    - <<: *rust-cache-config-protocol
     - <<: *rust-cache-build-config
       key: ${CI_COMMIT_REF_SLUG}-rs-lint
   script: 
@@ -271,7 +280,7 @@ lint-protocol:
 lint-server: 
   stage: lint
   cache: 
-    - <<: *rust-cache-config
+    - <<: *rust-cache-config-server
     - <<: *rust-cache-build-config
       key: ${CI_COMMIT_REF_SLUG}-rs-lint
   script: 
