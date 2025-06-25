@@ -123,14 +123,16 @@ format-verifiers:
 build-protocol: 
   stage: build
   cache: 
-   - <<: *rust-cache-config-protocol
-   - <<: *rust-cache-build-config
-     key: ${CI_COMMIT_REF_SLUG}-rs-build
+    - <<: *rust-cache-config-protocol
+    - <<: *rust-cache-build-config
+      key: ${CI_COMMIT_REF_SLUG}-rs-build
   script:
     - ./version.sh
     - cd polycentric-protocol
     - echo "Cleaning old build artifacts"
     - cargo clean
+    - echo "Starting sccache server"
+    - /opt/sccache/sccache --start-server || true
     - echo "Building protocol binary"
     - cargo build
     - echo "Running protocol tests"
@@ -145,15 +147,17 @@ build-protocol:
 build-server: 
   stage: build
   cache: 
-   - <<: *rust-cache-config-server
-   - <<: *rust-cache-build-config
-     key: ${CI_COMMIT_REF_SLUG}-rs-build
+    - <<: *rust-cache-config-server
+    - <<: *rust-cache-build-config
+      key: ${CI_COMMIT_REF_SLUG}-rs-build
   script:
     - ./version.sh
     - mkdir build-artifacts
     - cd server
     - echo "Cleaning old build artifacts"
     - cargo clean
+    - echo "Starting sccache server"
+    - /opt/sccache/sccache --start-server || true
     - echo "Building server binary"
     - cargo build --locked
     - echo "Building test binary"
