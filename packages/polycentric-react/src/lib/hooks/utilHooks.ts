@@ -103,14 +103,37 @@ export function useObservableWithCache<T>(
   return state;
 }
 
+const decodeBase64Topic = (topic: string): string => {
+  const looksLikeBase64 = /^[A-Za-z0-9+/]+={0,2}$/.test(topic);
+  if (!looksLikeBase64) {
+    return topic;
+  }
+
+  try {
+    // Add padding if necessary so length becomes multiple of 4
+    let padded = topic;
+    const mod = padded.length % 4;
+    if (mod !== 0) padded += '='.repeat(4 - mod);
+
+    const binary = atob(padded);
+    // Convert binary string to Uint8Array then to UTF-8 string
+    return new TextDecoder().decode(
+      Uint8Array.from(binary, (c) => c.charCodeAt(0)),
+    );
+  } catch {
+    // If decoding fails, return original topic
+    return topic;
+  }
+};
+
 export const useTopicLink = (topic: string | undefined): string | undefined => {
   return useMemo(() => {
     if (!topic) {
       return undefined;
     }
 
-    let urlTopic = topic;
-    if (topic.startsWith('/')) urlTopic = topic.substring(1);
+    let urlTopic = decodeBase64Topic(topic);
+    if (urlTopic.startsWith('/')) urlTopic = urlTopic.substring(1);
 
     return `/t/${urlTopic}`;
   }, [topic]);
@@ -120,12 +143,12 @@ const urlPrefixRegex = /^((http[s]?:\/\/)?(www\.)?)/;
 export const useTopicDisplayText = (
   topic: string | undefined,
 ): string | undefined => {
-  // if starts with [http[s]://][www.] remove it
   return useMemo(() => {
     if (!topic) {
       return undefined;
     }
 
-    return topic.replace(urlPrefixRegex, '');
+    const decodedTopic = decodeBase64Topic(topic);
+    return decodedTopic.replace(urlPrefixRegex, '');
   }, [topic]);
 };

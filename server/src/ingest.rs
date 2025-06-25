@@ -11,6 +11,8 @@ use polycentric_protocol::model::{
     known_message_types, signed_event::SignedEvent,
 };
 
+const MAX_POST_LENGTH: usize = 10_000;
+
 // Start of Selection
 // full ingestion pipeline
 pub(crate) async fn ingest_event_batch(
@@ -273,6 +275,19 @@ async fn ingest_event_postgres_single(
 
     let content = layers.content();
 
+    // Enforce post character limit
+    if *event.content_type() == known_message_types::POST {
+        let post = Post::parse_from_bytes(event.content())?;
+        if let Some(ref text) = post.content {
+            if text.len() > MAX_POST_LENGTH {
+                return Err(::anyhow::anyhow!(
+                    "post content exceeds maximum length of {} characters",
+                    MAX_POST_LENGTH
+                ));
+            }
+        }
+    }
+
     // update_counts must run before delete_event or event inserted
     crate::postgres::update_counts::update_counts(
         &mut *transaction,
@@ -365,11 +380,12 @@ pub(crate) async fn ingest_event_search(
 ) -> ::anyhow::Result<()> {
     let event = layers.event();
 
-    let doc_id = format!(
-        "{}-{}",
-        polycentric_protocol::model::public_key::to_base64(event.system())?,
-        event.logical_clock()
-    );
+    // Use the full event pointer (system + process + logical clock + digest) as the OpenSearch _id so that we can reliably decode it later in `get_search`.
+    let pointer = polycentric_protocol::model::pointer::from_signed_event(
+        layers.signed_event(),
+    )?;
+
+    let doc_id = polycentric_protocol::model::pointer::to_base64(&pointer)?;
 
     let content_type = *event.content_type();
     let search_doc: Option<crate::opensearch::OpenSearchContent> =

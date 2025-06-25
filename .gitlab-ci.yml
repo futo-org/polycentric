@@ -351,6 +351,7 @@ lint-web:
 #         - packages/polycentric-core/junit.xml
 #         - junit-server.xml
 
+# LEGACY
 deploy-polycentric-web-staging:
   stage: deploy
   script: make deploy-polycentric-web-staging
@@ -365,9 +366,9 @@ deploy-polycentric-web-production:
   rules:
     - if: $CI_COMMIT_BRANCH == "production"
 
-push-server-image-staging:
+push-server-image-production:
   stage: deploy
-  needs: ["check", "build-server-release"]
+  needs: ["check", "build-server-release"] #test is disabled
   image:
     name: gcr.io/kaniko-project/executor:v1.14.0-debug
     entrypoint: [""]
@@ -375,9 +376,12 @@ push-server-image-staging:
     - /kaniko/executor
       --context "${CI_PROJECT_DIR}"
       --dockerfile "${CI_PROJECT_DIR}/server.dockerfile"
-      --destination "${CI_REGISTRY_IMAGE}:stg"
+      --destination "${CI_REGISTRY_IMAGE}"
   rules:
-    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_COMMIT_BRANCH == "production"
+
+# LEGACY
+
 
 push-server-image-tag:
   stage: deploy
@@ -393,23 +397,37 @@ push-server-image-tag:
   rules:
     - if: $CI_COMMIT_TAG && $CI_COMMIT_BRANCH == "master"
 
-    # - ./version.sh
-    # - echo "{\"auths\":{\"$DO_OCI_REGISTRY\":{\"username\":\"doadmin\",\"password\":\"$CI_DO_OCI_TOKEN\"}}}" > /kaniko/.docker/config.json
-    # - /kaniko/executor --context "${CI_PROJECT_DIR}" --dockerfile ${CI_PROJECT_DIR}/server.dockerfile --destination $DO_OCI_REGISTRY/$CI_PROJECT_DIR:stg
-
-push-web-image-staging:
+push-server-image-master:
   stage: deploy
-  needs: ["push-server-image-staging"]
+  needs: ["check", "build-server-release"]
   image:
     name: gcr.io/kaniko-project/executor:v1.14.0-debug
     entrypoint: [""]
   script:
     - /kaniko/executor
       --context "${CI_PROJECT_DIR}"
-      --dockerfile "${CI_PROJECT_DIR}/web.dockerfile"
-      --destination "${CI_REGISTRY_IMAGE}/web:stg"
+      --dockerfile "${CI_PROJECT_DIR}/server.dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:master"
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
+
+push-server-image-staging:
+  stage: deploy
+  needs: ["check", "build-server-release"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/server.dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:stg"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "staging"
+
+    # - ./version.sh
+    # - echo "{\"auths\":{\"$DO_OCI_REGISTRY\":{\"username\":\"doadmin\",\"password\":\"$CI_DO_OCI_TOKEN\"}}}" > /kaniko/.docker/config.json
+    # - /kaniko/executor --context "${CI_PROJECT_DIR}" --dockerfile ${CI_PROJECT_DIR}/server.dockerfile --destination $DO_OCI_REGISTRY/$CI_PROJECT_DIR:stg
 
 push-web-image-tag:
   stage: deploy
@@ -425,6 +443,62 @@ push-web-image-tag:
   rules:
     - if: $CI_COMMIT_TAG && $CI_COMMIT_BRANCH == "master"
 
+push-web-image-master:
+  stage: deploy
+  needs: ["push-server-image-master"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/web.dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}/web:master"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+
+push-web-image-staging:
+  stage: deploy
+  needs: ["push-server-image-staging"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/web.dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}/web:stg"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "staging"
+
+push-verifiers-image-tag:
+  stage: deploy
+  needs: ["push-server-image-master"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/packages/verifiers/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}/verifiers:${CI_COMMIT_TAG}"
+  rules:
+    - if: $CI_COMMIT_TAG && $CI_COMMIT_BRANCH == "master"
+
+push-verifiers-image-master:
+  stage: deploy
+  needs: ["push-server-image-master"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/packages/verifiers/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}/verifiers:master"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+
 push-verifiers-image-staging:
   stage: deploy
   needs: ["push-server-image-staging"]
@@ -437,35 +511,7 @@ push-verifiers-image-staging:
       --dockerfile "${CI_PROJECT_DIR}/packages/verifiers/Dockerfile"
       --destination "${CI_REGISTRY_IMAGE}/verifiers:stg"
   rules:
-    - if: $CI_COMMIT_BRANCH == "master"
-
-push-verifiers-image-tag:
-  stage: deploy
-  needs: ["push-server-image-staging"]
-  image:
-    name: gcr.io/kaniko-project/executor:v1.14.0-debug
-    entrypoint: [""]
-  script:
-    - /kaniko/executor
-      --context "${CI_PROJECT_DIR}"
-      --dockerfile "${CI_PROJECT_DIR}/packages/verifiers/Dockerfile"
-      --destination "${CI_REGISTRY_IMAGE}/verifiers:${CI_COMMIT_TAG}"
-  rules:
-    - if: $CI_COMMIT_TAG && $CI_COMMIT_BRANCH == "master"
-
-push-server-image-production:
-  stage: deploy
-  needs: ["check", "build-server-release"] #test is disabled
-  image:
-    name: gcr.io/kaniko-project/executor:v1.14.0-debug
-    entrypoint: [""]
-  script:
-    - /kaniko/executor
-      --context "${CI_PROJECT_DIR}"
-      --dockerfile "${CI_PROJECT_DIR}/server.dockerfile"
-      --destination "${CI_REGISTRY_IMAGE}"
-  rules:
-    - if: $CI_COMMIT_BRANCH == "production"
+    - if: $CI_COMMIT_BRANCH == "staging"
 
     # - ./version.sh
     # - echo "{\"auths\":{\"$DO_OCI_REGISTRY\":{\"username\":\"doadmin\",\"password\":\"$CI_DO_OCI_TOKEN\"}}}" > /kaniko/.docker/config.json
