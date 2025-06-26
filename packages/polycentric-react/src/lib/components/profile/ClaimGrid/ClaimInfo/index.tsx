@@ -143,7 +143,6 @@ export const ClaimInfo: React.FC<ClaimInfoProps> = ({
                       <button
                         onClick={() => {
                           setShowDeleteConfirm(false);
-                          // TODO close modal
                         }}
                         className="px-4 py-2 text-gray-600 hover:text-gray-700"
                         disabled={isDeleting}
