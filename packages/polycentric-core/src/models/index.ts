@@ -633,7 +633,10 @@ export function claimOccupation(
   };
 }
 
-export function claimSkill(skill: string, images: Protocol.ImageManifest[]): Protocol.Claim {
+export function claimSkill(
+  skill: string,
+  images: Protocol.ImageManifest[],
+): Protocol.Claim {
   return claimIdentifier(ClaimType.ClaimTypeSkill, skill, images);
 }
 
@@ -661,7 +664,10 @@ export function claimBitcoin(username: string): Protocol.Claim {
   return claimIdentifier(ClaimType.ClaimTypeBitcoin, username);
 }
 
-export function claimGeneric(text: string, images: Protocol.ImageManifest[]): Protocol.Claim {
+export function claimGeneric(
+  text: string,
+  images: Protocol.ImageManifest[],
+): Protocol.Claim {
   return claimIdentifier(ClaimType.ClaimTypeGeneric, text, images);
 }
 
