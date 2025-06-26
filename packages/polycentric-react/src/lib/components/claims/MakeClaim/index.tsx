@@ -800,70 +800,75 @@ const ImageInput = ({ onUpdate }: { onUpdate: (files: File[]) => void }) => {
   const update = (newValue: File[]) => {
     setUpload(newValue);
     onUpdate(newValue);
-  }
+  };
 
-  return (<div>
-    <div className="grid gap-1 grid-cols-2 max-h-[20rem] max-w-[20rem]">
-      {upload.map((file, index) => (
-      <div key={file.name} className="m-0 p-0">
-        <div className="inline-block relative m-0 p-0">
-          <img
-            className="max-h-[10rem] max-w-[10rem] rounded-sm inline-block border-gray-1000 border"
-            src={imageUrls[index]}
-          />
-          <button
-            className="absolute top-5 right-5 "
-            onClick={() => update(upload.filter((u) => u !== file))}
-          >
-            <XCircleIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
-          </button>
-        </div>
+  return (
+    <div>
+      <div className="grid gap-1 grid-cols-2 max-h-[20rem] max-w-[20rem]">
+        {upload.map((file, index) => (
+          <div key={file.name} className="m-0 p-0">
+            <div className="inline-block relative m-0 p-0">
+              <img
+                className="max-h-[10rem] max-w-[10rem] rounded-sm inline-block border-gray-1000 border"
+                src={imageUrls[index]}
+              />
+              <button
+                className="absolute top-5 right-5 "
+                onClick={() => update(upload.filter((u) => u !== file))}
+              >
+                <XCircleIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
-      ))}
-    </div>
-    <button onClick={() => uploadRef.current?.click()}>
-      <PhotoIcon
-        className="w-9 h-9 text-gray-300 hover:text-gray-400"
-        strokeWidth="1"
+      <button onClick={() => uploadRef.current?.click()}>
+        <PhotoIcon
+          className="w-9 h-9 text-gray-300 hover:text-gray-400"
+          strokeWidth="1"
+        />
+      </button>
+      <input
+        type="file"
+        multiple
+        className="hidden"
+        name="img"
+        accept="image/*"
+        ref={uploadRef}
+        onChange={(e) => {
+          const IMAGE_UPLOAD_LIMIT = 4;
+          const { files } = e.target;
+          if (files === null) return;
+
+          const fileList = Array.from(files).filter(
+            (file) => !upload.includes(file),
+          );
+
+          if (fileList.length === 0) return;
+
+          if (fileList.length + upload.length > IMAGE_UPLOAD_LIMIT) {
+            alert('You can only attach a maximum of 4 images');
+            return;
+          }
+
+          update(upload.concat(fileList));
+        }}
       />
-    </button>
-    <input
-      type="file"
-      multiple
-      className="hidden"
-      name="img"
-      accept="image/*"
-      ref={uploadRef}
-      onChange={(e) => {
-        const IMAGE_UPLOAD_LIMIT = 4;
-        const { files } = e.target;
-        if (files === null) return;
+    </div>
+  );
+};
 
-        const fileList = Array.from(files).filter(
-          (file) => !upload.includes(file),
-        );
-
-        if (fileList.length === 0) return;
-
-        if (fileList.length + upload.length > IMAGE_UPLOAD_LIMIT) {
-          alert('You can only attach a maximum of 4 images');
-          return;
-        }
-
-        update(upload.concat(fileList));
-      }}
-    />
-  </div>)
-}
-
-const publishImageBlobs = async (images: File[], processHandle: ProcessHandle.ProcessHandle) => {
+const publishImageBlobs = async (
+  images: File[],
+  processHandle: ProcessHandle.ProcessHandle,
+) => {
   const imageManifests: Protocol.ImageManifest[] = [];
-  for (const image of images){
+  for (const image of images) {
     const blob = await publishImageBlob(image, processHandle);
     imageManifests.push(blob);
   }
   return imageManifests;
-}
+};
 
 export const OccupationInput = ({
   onCancel,
@@ -904,9 +909,17 @@ export const OccupationInput = ({
         return;
       }
 
-      const imageManifests: Protocol.ImageManifest[] = await publishImageBlobs(images, processHandle);
+      const imageManifests: Protocol.ImageManifest[] = await publishImageBlobs(
+        images,
+        processHandle,
+      );
 
-      const claim = Models.claimOccupation(organization, role, location, imageManifests);
+      const claim = Models.claimOccupation(
+        organization,
+        role,
+        location,
+        imageManifests,
+      );
       await processHandle.claim(claim);
       onCancel();
     } catch (error) {
@@ -958,7 +971,7 @@ export const OccupationInput = ({
         value={location}
         onChange={(e) => setLocation(e.target.value)}
       />
-      <ImageInput onUpdate={(e) => setImages(e)}/>
+      <ImageInput onUpdate={(e) => setImages(e)} />
       <div className="flex justify-end gap-2">
         <button
           onClick={onCancel}
@@ -1019,10 +1032,15 @@ export const TextInput = ({
         return;
       }
 
-      const imageManifests: Protocol.ImageManifest[] = await publishImageBlobs(images, processHandle);
+      const imageManifests: Protocol.ImageManifest[] = await publishImageBlobs(
+        images,
+        processHandle,
+      );
 
       const claim =
-        type === 'skill' ? Models.claimSkill(text, imageManifests) : Models.claimGeneric(text, imageManifests);
+        type === 'skill'
+          ? Models.claimSkill(text, imageManifests)
+          : Models.claimGeneric(text, imageManifests);
 
       await processHandle.claim(claim);
       onCancel();
@@ -1061,7 +1079,7 @@ export const TextInput = ({
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
-      <ImageInput onUpdate={(e) => setImages(e)}/>
+      <ImageInput onUpdate={(e) => setImages(e)} />
       <div className="flex justify-end gap-2">
         <button
           onClick={onCancel}

@@ -28,7 +28,10 @@ import WebsiteIcon from '../../../../graphics/icons/rendered/website.svg.png';
 import WorkIcon from '../../../../graphics/icons/rendered/work.svg.png';
 import TwitterIcon from '../../../../graphics/icons/rendered/x.svg.png';
 import YouTubeIcon from '../../../../graphics/icons/rendered/youtube.svg.png';
-import { useAvatar, useImageManifestDisplayURLs } from '../../../hooks/imageHooks';
+import {
+  useAvatar,
+  useImageManifestDisplayURLs,
+} from '../../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import {
   useClaimVouches,
@@ -297,18 +300,24 @@ const ClaimCircle: React.FC<{
   position: 'start' | 'middle' | 'end';
   system: Models.PublicKey.PublicKey;
   isMyProfile?: boolean;
-}> = ({ claim, pointer, process, logicalClock, position, system, isMyProfile }) => {
+}> = ({
+  claim,
+  pointer,
+  process,
+  logicalClock,
+  position,
+  system,
+  isMyProfile,
+}) => {
   const { processHandle } = useProcessHandleManager();
   const images = useImageManifestDisplayURLs(system, claim.images);
   const [icon, color] = useMemo(
     () => getIconFromClaimType(claim.claimType),
     [claim.claimType],
   );
-  
+
   const vouches = useClaimVouches(system, pointer);
   const [claimMenuOpen, setClaimMenuOpen] = useState(false);
-
-
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -319,29 +328,35 @@ const ClaimCircle: React.FC<{
     <div
       className="relative"
       style={{
-        zIndex: position === 'start'
-          ? 1
-          : position === 'middle'
-            ? 2
-            : 3,
+        zIndex: position === 'start' ? 1 : position === 'middle' ? 2 : 3,
       }}
     >
-      <Modal open={claimMenuOpen} setOpen={setClaimMenuOpen} title={`${Models.ClaimType.toString(claim.claimType as Models.ClaimType.ClaimType)} Claim`} shrink={false}>
-        <ClaimInfo processHandle={processHandle} claim={claim} pointer={pointer} process={process} logicalClock={logicalClock} system={system} vouches={vouches} isMyProfile={isMyProfile} />
+      <Modal
+        open={claimMenuOpen}
+        setOpen={setClaimMenuOpen}
+        title={`${Models.ClaimType.toString(
+          claim.claimType as Models.ClaimType.ClaimType,
+        )} Claim`}
+        shrink={false}
+      >
+        <ClaimInfo
+          processHandle={processHandle}
+          claim={claim}
+          pointer={pointer}
+          process={process}
+          logicalClock={logicalClock}
+          system={system}
+          vouches={vouches}
+          isMyProfile={isMyProfile}
+        />
       </Modal>
       <div
         className={`rounded-full w-16 h-16 p-2 flex items-center justify-center transition-all duration-300 whitespace-nowrap overflow-hidden 
-          ${
-          position === 'start'
-            ? 'left-0'
-            : '' 
-        }`}
+          ${position === 'start' ? 'left-0' : ''}`}
         style={{ backgroundColor: color }}
         onClick={handleClick}
       >
-        {(
-          icon
-        )}
+        {icon}
       </div>
 
       {/* Non-expanded vouch count */}
@@ -400,7 +415,10 @@ export const ClaimGrid: React.FC<{
         claimsInGroupsOfThree.map((group, index) => (
           <div key={index} className="grid relative grid-cols-3 gap-4">
             {group.map((claim, index) => (
-              <div key={claim.value.claimFields[0].value || index} className="w-16 h-16">
+              <div
+                key={claim.value.claimFields[0].value || index}
+                className="w-16 h-16"
+              >
                 <ClaimCircle
                   claim={claim.value}
                   pointer={claim.pointer}
