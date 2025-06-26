@@ -28,9 +28,7 @@ import WebsiteIcon from '../../../../graphics/icons/rendered/website.svg.png';
 import WorkIcon from '../../../../graphics/icons/rendered/work.svg.png';
 import TwitterIcon from '../../../../graphics/icons/rendered/x.svg.png';
 import YouTubeIcon from '../../../../graphics/icons/rendered/youtube.svg.png';
-import {
-  useAvatar
-} from '../../../hooks/imageHooks';
+import { useAvatar } from '../../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import {
   useClaimVouches,
