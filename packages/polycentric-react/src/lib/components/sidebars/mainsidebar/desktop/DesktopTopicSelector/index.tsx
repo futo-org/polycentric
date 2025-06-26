@@ -153,7 +153,57 @@ const TrendingTopics = () => {
     };
   }, []);
 
-  const trendingTopics = useQueryTopStringReferences(hookOptions);
+  const { processHandle } = useProcessHandleManager();
+  const system = useMemo(() => processHandle.system(), [processHandle]);
+
+  const [blockedEvents, advanceBlocked] = useQueryCRDTSet(
+    system,
+    Models.ContentType.ContentTypeBlockTopic,
+    100,
+  );
+
+  useEffect(() => {
+    advanceBlocked();
+  }, [advanceBlocked]);
+
+  const blockedTopicSet = useMemo(() => {
+    const set = new Set<string>();
+    blockedEvents.forEach((e) => {
+      const value = e.lwwElementSet?.value;
+      if (value) {
+        const plain = Util.decodeText(value);
+        set.add(plain);
+        set.add(window.btoa(String.fromCharCode(...value)));
+      }
+    });
+    return set;
+  }, [blockedEvents]);
+
+  const trendingTopicsAll = useQueryTopStringReferences(hookOptions);
+
+  const decodeBase64Topic = (t: string): string => {
+    const looksLikeBase64 = /^[A-Za-z0-9+/]+={0,2}$/.test(t);
+    if (!looksLikeBase64) return t;
+    try {
+      let padded = t;
+      const mod = padded.length % 4;
+      if (mod !== 0) padded += '='.repeat(4 - mod);
+      const binary = atob(padded);
+      return new TextDecoder().decode(
+        Uint8Array.from(binary, (c) => c.charCodeAt(0)),
+      );
+    } catch {
+      return t;
+    }
+  };
+
+  const trendingTopics = useMemo(() => {
+    return trendingTopicsAll.filter((topic) => {
+      if (blockedTopicSet.has(topic.key)) return false;
+      if (blockedTopicSet.has(decodeBase64Topic(topic.key))) return false;
+      return true;
+    });
+  }, [trendingTopicsAll, blockedTopicSet]);
 
   return (
     <>
