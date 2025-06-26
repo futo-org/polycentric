@@ -29,8 +29,7 @@ import WorkIcon from '../../../../graphics/icons/rendered/work.svg.png';
 import TwitterIcon from '../../../../graphics/icons/rendered/x.svg.png';
 import YouTubeIcon from '../../../../graphics/icons/rendered/youtube.svg.png';
 import {
-  useAvatar,
-  useImageManifestDisplayURLs,
+  useAvatar
 } from '../../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import {
@@ -310,7 +309,6 @@ const ClaimCircle: React.FC<{
   isMyProfile,
 }) => {
   const { processHandle } = useProcessHandleManager();
-  const images = useImageManifestDisplayURLs(system, claim.images);
   const [icon, color] = useMemo(
     () => getIconFromClaimType(claim.claimType),
     [claim.claimType],

@@ -927,7 +927,7 @@ export const OccupationInput = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [organization, role, location, processHandle, claims, onCancel]);
+  }, [organization, role, location, processHandle, claims, images, onCancel]);
 
   if (verificationStep === 'duplicate') {
     return (

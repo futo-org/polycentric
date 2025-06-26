@@ -6,7 +6,7 @@ import { VouchedBy } from '..';
 import { useImageManifestDisplayURLs } from '../../../../hooks/imageHooks';
 import { getAccountUrl } from '../../../util/linkify/utils';
 
-export const ClaimInfo: React.FC<{
+export interface ClaimInfoProps {
   processHandle: ProcessHandle.ProcessHandle;
   claim: Protocol.Claim;
   pointer: Protocol.Reference;
@@ -15,7 +15,9 @@ export const ClaimInfo: React.FC<{
   system: Models.PublicKey.PublicKey;
   vouches: Models.Event.Event[];
   isMyProfile: boolean | undefined;
-}> = ({
+}
+
+export const ClaimInfo: React.FC<ClaimInfoProps> = ({
   processHandle,
   claim,
   pointer,
@@ -24,10 +26,10 @@ export const ClaimInfo: React.FC<{
   system,
   vouches,
   isMyProfile,
-}) => {
+}: ClaimInfoProps) => {
   const url = useMemo(
     () => getAccountUrl(claim.claimType, claim.claimFields[0].value),
-    [claim.claimType, claim.claimFields[0].value],
+    [claim.claimType, claim.claimFields],
   );
   const images = useImageManifestDisplayURLs(system, claim.images);
 
