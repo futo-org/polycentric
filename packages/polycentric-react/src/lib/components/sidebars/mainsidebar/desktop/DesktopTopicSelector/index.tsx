@@ -88,9 +88,12 @@ const TopicListItem = ({
               .leaveTopic(topic.key)
               .then(() => void refreshIfAdded());
           } else {
-            processHandle
-              .joinTopic(topic.key)
-              .then(() => void refreshIfAdded());
+            // Ensure topic not blocked before joining
+            processHandle.unblockTopic?.(topic.key).finally(() => {
+              processHandle
+                .joinTopic(topic.key)
+                .then(() => void refreshIfAdded());
+            });
           }
         }}
         onMouseEnter={() => setButtonHovered(true)}
