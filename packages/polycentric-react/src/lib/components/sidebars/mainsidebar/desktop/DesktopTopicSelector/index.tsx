@@ -12,6 +12,7 @@ import {
   useQueryTopStringReferences,
 } from '../../../../../hooks/queryHooks';
 import {
+  normalizeTopic as normalizeTopicString,
   useTopicDisplayText,
   useTopicLink,
 } from '../../../../../hooks/utilHooks';
@@ -64,6 +65,11 @@ const TopicListItem = ({
 
   const styleMainAsHovered = mainHovered && !buttonHovered;
 
+  const normalizedKey = useMemo(
+    () => normalizeTopicString(topic.key),
+    [topic.key],
+  );
+
   return (
     <Link
       className={`py-0.5 px-1 rounded flex items-center space-x-2 text-left 
@@ -85,12 +91,15 @@ const TopicListItem = ({
           e.stopPropagation();
           if (topicJoined) {
             processHandle
-              .leaveTopic(topic.key)
+              .leaveTopic(normalizedKey)
               .then(() => void refreshIfAdded());
           } else {
-            processHandle
-              .joinTopic(topic.key)
-              .then(() => void refreshIfAdded());
+            // Ensure topic not blocked before joining
+            processHandle.unblockTopic?.(normalizedKey).finally(() => {
+              processHandle
+                .joinTopic(normalizedKey)
+                .then(() => void refreshIfAdded());
+            });
           }
         }}
         onMouseEnter={() => setButtonHovered(true)}
@@ -150,7 +159,39 @@ const TrendingTopics = () => {
     };
   }, []);
 
-  const trendingTopics = useQueryTopStringReferences(hookOptions);
+  const { processHandle } = useProcessHandleManager();
+  const system = useMemo(() => processHandle.system(), [processHandle]);
+
+  const [blockedEvents, advanceBlocked] = useQueryCRDTSet(
+    system,
+    Models.ContentType.ContentTypeBlockTopic,
+    100,
+  );
+
+  useEffect(() => {
+    advanceBlocked();
+  }, [advanceBlocked]);
+
+  const blockedTopicSet = useMemo(() => {
+    const set = new Set<string>();
+    blockedEvents.forEach((e) => {
+      const value = e.lwwElementSet?.value;
+      if (value) {
+        const plain = Util.decodeText(value);
+        set.add(normalizeTopicString(plain));
+        set.add(window.btoa(String.fromCharCode(...value)));
+      }
+    });
+    return set;
+  }, [blockedEvents]);
+
+  const trendingTopicsAll = useQueryTopStringReferences(hookOptions);
+
+  const trendingTopics = useMemo(() => {
+    return trendingTopicsAll.filter(
+      (topic) => !blockedTopicSet.has(normalizeTopicString(topic.key)),
+    );
+  }, [trendingTopicsAll, blockedTopicSet]);
 
   return (
     <>
