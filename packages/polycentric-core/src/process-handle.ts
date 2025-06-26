@@ -390,6 +390,22 @@ export class ProcessHandle {
     );
   }
 
+  public async blockTopic(topic: string): Promise<Models.Pointer.Pointer> {
+    return await this.setCRDTElementSetItem(
+      Models.ContentType.ContentTypeBlockTopic,
+      Util.encodeText(topic),
+      Protocol.LWWElementSet_Operation.ADD,
+    );
+  }
+
+  public async unblockTopic(topic: string): Promise<Models.Pointer.Pointer> {
+    return await this.setCRDTElementSetItem(
+      Models.ContentType.ContentTypeBlockTopic,
+      Util.encodeText(topic),
+      Protocol.LWWElementSet_Operation.REMOVE,
+    );
+  }
+
   public async vouch(
     pointer: Models.Pointer.Pointer,
   ): Promise<Models.Pointer.Pointer> {
