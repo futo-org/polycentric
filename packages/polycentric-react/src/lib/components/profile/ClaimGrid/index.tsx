@@ -327,7 +327,7 @@ const ClaimCircle: React.FC<{
       }}
     >
       <Modal open={claimMenuOpen} setOpen={setClaimMenuOpen} title={`${Models.ClaimType.toString(claim.claimType as Models.ClaimType.ClaimType)} Claim`} shrink={false}>
-        <ClaimInfo processHandle={processHandle} claim={claim} pointer={pointer} process={process} logicalClock={logicalClock} system={system} vouches={vouches} />
+        <ClaimInfo processHandle={processHandle} claim={claim} pointer={pointer} process={process} logicalClock={logicalClock} system={system} vouches={vouches} isMyProfile={isMyProfile} />
       </Modal>
       <div
         className={`rounded-full w-16 h-16 p-2 flex items-center justify-center transition-all duration-300 whitespace-nowrap overflow-hidden 
