@@ -38,6 +38,7 @@ import {
 import { MakeClaim } from '../../claims/MakeClaim';
 import { getAccountUrl } from '../../util/linkify/utils';
 import { Modal } from '../../util/modal';
+import { ClaimInfo } from './ClaimInfo';
 
 const getIconFromClaimType = (
   type: Long,
@@ -370,10 +371,8 @@ const ClaimCircle: React.FC<{
             : 3,
       }}
     >
-      <Modal open={claimMenuOpen} setOpen={setClaimMenuOpen} title="Claim">
-        <div>
-          <p>Claim</p>
-        </div>
+      <Modal open={claimMenuOpen} setOpen={setClaimMenuOpen} title={`${Models.ClaimType.toString(claim.claimType as Models.ClaimType.ClaimType)} Claim`} shrink={false}>
+        <ClaimInfo url={url} claim={claim} system={system} />
       </Modal>
       <div
         className={`rounded-full w-16 h-16 p-2 flex items-center justify-center transition-all duration-300 whitespace-nowrap overflow-hidden 
