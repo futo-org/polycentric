@@ -36,7 +36,6 @@ import {
   useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
 import { MakeClaim } from '../../claims/MakeClaim';
-import { getAccountUrl } from '../../util/linkify/utils';
 import { Modal } from '../../util/modal';
 import { ClaimInfo } from './ClaimInfo';
 
@@ -305,55 +304,11 @@ const ClaimCircle: React.FC<{
     () => getIconFromClaimType(claim.claimType),
     [claim.claimType],
   );
-  const url = useMemo(
-    () => getAccountUrl(claim.claimType, claim.claimFields[0].value),
-    [claim.claimType, claim.claimFields[0].value],
-  );
+  
   const vouches = useClaimVouches(system, pointer);
-  const [vouchStatus, setVouchStatus] = useState<'none' | 'success' | 'error'>(
-    'none',
-  );
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
   const [claimMenuOpen, setClaimMenuOpen] = useState(false);
 
-  // Check if the current user has already vouched for this claim
-  const hasUserVouched = useMemo(() => {
-    if (!processHandle || !vouches) return false;
 
-    const currentUserSystem = processHandle.system();
-    return vouches.some(
-      (vouch) =>
-        vouch && Models.PublicKey.equal(vouch.system, currentUserSystem),
-    );
-  }, [processHandle, vouches]);
-
-  const handleVouch = async () => {
-    if (!processHandle || hasUserVouched) return;
-    try {
-      await processHandle.vouchByReference(pointer);
-      setVouchStatus('success');
-    } catch (error) {
-      setVouchStatus('error');
-      console.error('Failed to vouch:', error);
-      setTimeout(() => setVouchStatus('none'), 2000);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!processHandle || isDeleting) return;
-
-    try {
-      setIsDeleting(true);
-      await processHandle.delete(process, logicalClock);
-      setShowDeleteConfirm(false);
-    } catch (error) {
-      console.error('Failed to delete claim:', error);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -372,7 +327,7 @@ const ClaimCircle: React.FC<{
       }}
     >
       <Modal open={claimMenuOpen} setOpen={setClaimMenuOpen} title={`${Models.ClaimType.toString(claim.claimType as Models.ClaimType.ClaimType)} Claim`} shrink={false}>
-        <ClaimInfo url={url} claim={claim} system={system} />
+        <ClaimInfo processHandle={processHandle} claim={claim} pointer={pointer} process={process} logicalClock={logicalClock} system={system} vouches={vouches} />
       </Modal>
       <div
         className={`rounded-full w-16 h-16 p-2 flex items-center justify-center transition-all duration-300 whitespace-nowrap overflow-hidden 
