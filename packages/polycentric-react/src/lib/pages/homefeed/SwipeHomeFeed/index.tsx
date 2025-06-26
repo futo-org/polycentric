@@ -27,7 +27,11 @@ import {
   useQueryCRDTSet,
   useQueryTopStringReferences,
 } from '../../../hooks/queryHooks';
-import { useTopicDisplayText, useTopicLink } from '../../../hooks/utilHooks';
+import {
+  normalizeTopic as normalizeTopicString,
+  useTopicDisplayText,
+  useTopicLink,
+} from '../../../hooks/utilHooks';
 import { numberTo4Chars } from '../../../util/etc';
 import { ExploreFeed } from './ExploreFeed';
 import { FollowingFeed } from './FollowingFeed';
@@ -117,37 +121,16 @@ const TopicSearchResults = ({ query }: { query?: string }) => {
       const v = e.lwwElementSet?.value;
       if (v) {
         const plain = Util.decodeText(v);
-        s.add(plain);
-        const encoded = btoa(unescape(encodeURIComponent(plain)));
-        s.add(encoded.replace(/=+$/, ''));
+        s.add(normalizeTopicString(plain));
       }
     });
     return s;
   }, [blockedEvents]);
 
-  const decodeBase64 = (str: string): string => {
-    try {
-      // Add padding
-      let padded = str;
-      const mod = padded.length % 4;
-      if (mod !== 0) padded += '='.repeat(4 - mod);
-      const binary = atob(padded);
-      return decodeURIComponent(
-        Array.from(binary)
-          .map((c) => '%' + c.charCodeAt(0).toString(16).padStart(2, '0'))
-          .join(''),
-      );
-    } catch {
-      return str;
-    }
-  };
-
   const topTopics = useMemo(() => {
-    return topTopicsAll.filter((t) => {
-      if (blockedSet.has(t.key)) return false;
-      if (blockedSet.has(decodeBase64(t.key))) return false;
-      return true;
-    });
+    return topTopicsAll.filter(
+      (t) => !blockedSet.has(normalizeTopicString(t.key)),
+    );
   }, [topTopicsAll, blockedSet]);
 
   return (

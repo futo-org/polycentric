@@ -12,6 +12,7 @@ import {
   useQueryTopStringReferences,
 } from '../../../../../hooks/queryHooks';
 import {
+  normalizeTopic as normalizeTopicString,
   useTopicDisplayText,
   useTopicLink,
 } from '../../../../../hooks/utilHooks';
@@ -64,6 +65,11 @@ const TopicListItem = ({
 
   const styleMainAsHovered = mainHovered && !buttonHovered;
 
+  const normalizedKey = useMemo(
+    () => normalizeTopicString(topic.key),
+    [topic.key],
+  );
+
   return (
     <Link
       className={`py-0.5 px-1 rounded flex items-center space-x-2 text-left 
@@ -85,13 +91,13 @@ const TopicListItem = ({
           e.stopPropagation();
           if (topicJoined) {
             processHandle
-              .leaveTopic(topic.key)
+              .leaveTopic(normalizedKey)
               .then(() => void refreshIfAdded());
           } else {
             // Ensure topic not blocked before joining
-            processHandle.unblockTopic?.(topic.key).finally(() => {
+            processHandle.unblockTopic?.(normalizedKey).finally(() => {
               processHandle
-                .joinTopic(topic.key)
+                .joinTopic(normalizedKey)
                 .then(() => void refreshIfAdded());
             });
           }
@@ -172,7 +178,7 @@ const TrendingTopics = () => {
       const value = e.lwwElementSet?.value;
       if (value) {
         const plain = Util.decodeText(value);
-        set.add(plain);
+        set.add(normalizeTopicString(plain));
         set.add(window.btoa(String.fromCharCode(...value)));
       }
     });
@@ -181,28 +187,10 @@ const TrendingTopics = () => {
 
   const trendingTopicsAll = useQueryTopStringReferences(hookOptions);
 
-  const decodeBase64Topic = (t: string): string => {
-    const looksLikeBase64 = /^[A-Za-z0-9+/]+={0,2}$/.test(t);
-    if (!looksLikeBase64) return t;
-    try {
-      let padded = t;
-      const mod = padded.length % 4;
-      if (mod !== 0) padded += '='.repeat(4 - mod);
-      const binary = atob(padded);
-      return new TextDecoder().decode(
-        Uint8Array.from(binary, (c) => c.charCodeAt(0)),
-      );
-    } catch {
-      return t;
-    }
-  };
-
   const trendingTopics = useMemo(() => {
-    return trendingTopicsAll.filter((topic) => {
-      if (blockedTopicSet.has(topic.key)) return false;
-      if (blockedTopicSet.has(decodeBase64Topic(topic.key))) return false;
-      return true;
-    });
+    return trendingTopicsAll.filter(
+      (topic) => !blockedTopicSet.has(normalizeTopicString(topic.key)),
+    );
   }, [trendingTopicsAll, blockedTopicSet]);
 
   return (

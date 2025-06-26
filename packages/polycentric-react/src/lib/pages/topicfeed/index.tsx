@@ -20,6 +20,7 @@ import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks';
 import { useQueryIfAdded } from '../../hooks/queryHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
 import { useIsMobile } from '../../hooks/styleHooks';
+import { normalizeTopic } from '../../hooks/utilHooks';
 import { TopFeedVideo } from './TopFeedVideo';
 import { shittyTestIfYoutubeIDRegex, youtubeURLRegex } from './platformRegex';
 
@@ -42,7 +43,7 @@ export const TopicFeedPage: Page = () => {
   const [composeModalOpen, setComposeModalOpen] = useState(false);
 
   const topic: string = useMemo(() => {
-    return decodeURIComponent(escapedTopic);
+    return normalizeTopic(decodeURIComponent(escapedTopic));
   }, [escapedTopic]);
 
   const displayTopic = useMemo(() => {
