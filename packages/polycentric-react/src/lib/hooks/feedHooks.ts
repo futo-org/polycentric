@@ -15,6 +15,7 @@ import { useProcessHandleManager } from './processHandleManagerHooks';
 import {
   ParsedEvent,
   useIndex,
+  useQueryCRDTSet,
   useQueryCursor,
   useQueryManager,
   useQueryReferenceEventFeed,
@@ -84,6 +85,28 @@ export const useExploreFeed: FeedHook = () => {
   const queryManager = useQueryManager();
   const { moderationLevels } = useModeration();
 
+  const { processHandle } = useProcessHandleManager();
+  const system = useMemo(() => processHandle.system(), [processHandle]);
+
+  const [blockedTopicEvents, advanceBlockedTopics] = useQueryCRDTSet(
+    system,
+    Models.ContentType.ContentTypeBlockTopic,
+    100,
+  );
+
+  // load initial blocked topics
+  useEffect(() => {
+    if (system) {
+      advanceBlockedTopics();
+    }
+  }, [advanceBlockedTopics, system]);
+
+  const blockedTopics = useMemo(() => {
+    return blockedTopicEvents
+      .filter((e) => e.lwwElementSet?.value)
+      .map((e) => Util.decodeText(e.lwwElementSet!.value));
+  }, [blockedTopicEvents]);
+
   const loadCallback = useMemo(
     () =>
       Queries.QueryCursor.makeGetExploreCallback(
@@ -93,7 +116,32 @@ export const useExploreFeed: FeedHook = () => {
     [queryManager.processHandle, moderationLevels],
   );
 
-  return useQueryCursor(loadCallback, decodePost);
+  // Filter out posts referencing blocked topics
+  const [data, advance, nothingFound] = useQueryCursor(
+    loadCallback,
+    decodePost,
+  );
+
+  const blockedSet = useMemo(() => new Set(blockedTopics), [blockedTopics]);
+
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      if (!item) return true;
+
+      const references = item.event.references ?? [];
+      for (const ref of references) {
+        try {
+          const text = Util.decodeText(ref.reference);
+          if (blockedSet.has(text)) return false;
+        } catch (_) {
+          continue;
+        }
+      }
+      return true;
+    });
+  }, [data, blockedSet]);
+
+  return [filteredData, advance, nothingFound];
 };
 
 const makeGetSearchCallbackWithMinQueryLength = (

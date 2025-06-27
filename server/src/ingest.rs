@@ -11,6 +11,8 @@ use polycentric_protocol::model::{
     known_message_types, signed_event::SignedEvent,
 };
 
+const MAX_POST_LENGTH: usize = 10_000;
+
 // Start of Selection
 // full ingestion pipeline
 pub(crate) async fn ingest_event_batch(
@@ -280,6 +282,19 @@ async fn ingest_event_postgres_single(
         .as_secs();
 
     let content = layers.content();
+
+    // Enforce post character limit
+    if *event.content_type() == known_message_types::POST {
+        let post = Post::parse_from_bytes(event.content())?;
+        if let Some(ref text) = post.content {
+            if text.len() > MAX_POST_LENGTH {
+                return Err(::anyhow::anyhow!(
+                    "post content exceeds maximum length of {} characters",
+                    MAX_POST_LENGTH
+                ));
+            }
+        }
+    }
 
     // update_counts must run before delete_event or event inserted
     crate::postgres::update_counts::update_counts(

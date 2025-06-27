@@ -27,7 +27,11 @@ import {
   useQueryCRDTSet,
   useQueryTopStringReferences,
 } from '../../../hooks/queryHooks';
-import { useTopicLink } from '../../../hooks/utilHooks';
+import {
+  normalizeTopic as normalizeTopicString,
+  useTopicDisplayText,
+  useTopicLink,
+} from '../../../hooks/utilHooks';
 import { numberTo4Chars } from '../../../util/etc';
 import { ExploreFeed } from './ExploreFeed';
 import { FollowingFeed } from './FollowingFeed';
@@ -72,6 +76,7 @@ const TopicSearchResultsItem = ({
   topic: Models.AggregationBucket.Type;
 }) => {
   const topicLink = useTopicLink(topic.key);
+  const displayText = useTopicDisplayText(topic.key);
   const { close } = useContext(PopupSearchMenuContext);
   return (
     <Link
@@ -84,7 +89,7 @@ const TopicSearchResultsItem = ({
       <div className="bg-gray-100 h-12 w-12 text-sm rounded-full flex justify-center items-center">
         {numberTo4Chars(topic.value)}
       </div>
-      <div className="text-lg">{topic.key}</div>
+      <div className="text-lg">{displayText}</div>
     </Link>
   );
 };
@@ -94,7 +99,39 @@ const TopicSearchResults = ({ query }: { query?: string }) => {
     return { query, minQueryChars: 3 };
   }, [query]);
 
-  const topTopics = useQueryTopStringReferences(hookOptions);
+  const topTopicsAll = useQueryTopStringReferences(hookOptions);
+
+  // load blocked topics
+  const { processHandle } = useProcessHandleManager();
+  const system = useMemo(() => processHandle.system(), [processHandle]);
+
+  const [blockedEvents, advanceBlocked] = useQueryCRDTSet(
+    system,
+    Models.ContentType.ContentTypeBlockTopic,
+    100,
+  );
+
+  useEffect(() => {
+    advanceBlocked();
+  }, [advanceBlocked]);
+
+  const blockedSet = useMemo(() => {
+    const s = new Set<string>();
+    blockedEvents.forEach((e) => {
+      const v = e.lwwElementSet?.value;
+      if (v) {
+        const plain = Util.decodeText(v);
+        s.add(normalizeTopicString(plain));
+      }
+    });
+    return s;
+  }, [blockedEvents]);
+
+  const topTopics = useMemo(() => {
+    return topTopicsAll.filter(
+      (t) => !blockedSet.has(normalizeTopicString(t.key)),
+    );
+  }, [topTopicsAll, blockedSet]);
 
   return (
     <div className="flex flex-col space-y-2 w-[18rem] pt-4">
