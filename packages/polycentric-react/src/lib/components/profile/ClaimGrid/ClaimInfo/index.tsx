@@ -85,7 +85,7 @@ export const ClaimInfo: React.FC<ClaimInfoProps> = ({
     <div className="w-fit h-fit min-w-[20rem] flex flex-col gap-2">
       {claim.claimFields.map((field) => (
         <div key={field.key + field.value}>
-          {url ? <a href={url}>{field.value}</a> : field.value}
+          {url ? <a href={url} className="text-blue-500 hover:underline">{field.value}</a> : field.value}
         </div>
       ))}
       <div className="w-fit h-fit grid grid-cols-2 gap-1">
