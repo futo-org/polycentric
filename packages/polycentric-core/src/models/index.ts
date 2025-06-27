@@ -66,6 +66,7 @@ export namespace ContentType {
   export const ContentTypeAuthority = makeContentType(16);
   export const ContentTypeJoinTopic = makeContentType(17);
   export const ContentTypeBlock = makeContentType(18);
+  export const ContentTypeBlockTopic = makeContentType(19);
 }
 
 export namespace CensorshipType {

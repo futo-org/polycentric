@@ -1,8 +1,12 @@
 import {
+  EyeSlashIcon as EyeSlashIconOutlined,
   PencilSquareIcon,
   StarIcon as StarIconOutlined,
 } from '@heroicons/react/24/outline';
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import {
+  EyeSlashIcon as EyeSlashIconSolid,
+  StarIcon as StarIconSolid,
+} from '@heroicons/react/24/solid';
 import { IonContent } from '@ionic/react';
 import { Models, Util } from '@polycentric/polycentric-core';
 import { useEffect, useMemo, useState } from 'react';
@@ -16,6 +20,7 @@ import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks';
 import { useQueryIfAdded } from '../../hooks/queryHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
 import { useIsMobile } from '../../hooks/styleHooks';
+import { normalizeTopic } from '../../hooks/utilHooks';
 import { TopFeedVideo } from './TopFeedVideo';
 import { shittyTestIfYoutubeIDRegex, youtubeURLRegex } from './platformRegex';
 
@@ -38,7 +43,7 @@ export const TopicFeedPage: Page = () => {
   const [composeModalOpen, setComposeModalOpen] = useState(false);
 
   const topic: string = useMemo(() => {
-    return decodeURIComponent(escapedTopic);
+    return normalizeTopic(decodeURIComponent(escapedTopic));
   }, [escapedTopic]);
 
   const displayTopic = useMemo(() => {
@@ -80,11 +85,19 @@ export const TopicFeedPage: Page = () => {
     encodedTopic,
   );
 
+  const blockedTopicInitially = useQueryIfAdded(
+    Models.ContentType.ContentTypeBlockTopic,
+    processHandle.system(),
+    encodedTopic,
+  );
+
   const [topicJoined, setTopicJoined] = useState(false);
+  const [topicBlocked, setTopicBlocked] = useState(false);
 
   useEffect(() => {
     setTopicJoined(joinedTopicInitially ?? false);
-  }, [joinedTopicInitially]);
+    setTopicBlocked(blockedTopicInitially ?? false);
+  }, [joinedTopicInitially, blockedTopicInitially]);
 
   const topicSelectButton = useMemo(
     () => (
@@ -98,8 +111,17 @@ export const TopicFeedPage: Page = () => {
               setTopicJoined(false);
             });
           } else {
-            processHandle.joinTopic(topic).then(() => {
-              setTopicJoined(true);
+            // Ensure the topic is not blocked
+            const unblockPromise = topicBlocked
+              ? processHandle.unblockTopic(topic).then(() => {
+                  setTopicBlocked(false);
+                })
+              : Promise.resolve();
+
+            unblockPromise.then(() => {
+              processHandle.joinTopic(topic).then(() => {
+                setTopicJoined(true);
+              });
             });
           }
         }}
@@ -111,7 +133,44 @@ export const TopicFeedPage: Page = () => {
         )}
       </button>
     ),
-    [topic, topicJoined, processHandle],
+    [topic, topicJoined, processHandle, topicBlocked],
+  );
+
+  const topicBlockButton = useMemo(
+    () => (
+      <button
+        className={`w-12 h-12 rounded-full flex items-center justify-center ${
+          topicBlocked === true ? 'bg-red-300 text-red-50' : 'bg-red-100'
+        }`}
+        onClick={() => {
+          if (topicBlocked === true) {
+            processHandle.unblockTopic(topic).then(() => {
+              setTopicBlocked(false);
+            });
+          } else {
+            // If topic is currently a favorite, remove it first to make mutually exclusive
+            const leavePromise = topicJoined
+              ? processHandle.leaveTopic(topic).then(() => {
+                  setTopicJoined(false);
+                })
+              : Promise.resolve();
+
+            leavePromise.then(() => {
+              processHandle.blockTopic(topic).then(() => {
+                setTopicBlocked(true);
+              });
+            });
+          }
+        }}
+      >
+        {topicBlocked === true ? (
+          <EyeSlashIconSolid className="w-6 h-6" />
+        ) : (
+          <EyeSlashIconOutlined className="w-6 h-6" />
+        )}
+      </button>
+    ),
+    [topic, topicBlocked, processHandle, topicJoined],
   );
 
   const topComponent = useMemo(() => {
@@ -133,7 +192,10 @@ export const TopicFeedPage: Page = () => {
         ) : (
           <h1 className="text-lg text-gray-800">{topic}</h1>
         )}
-        {topicSelectButton}
+        <div className="flex space-x-2">
+          {topicBlockButton}
+          {topicSelectButton}
+        </div>
       </div>
     );
 
@@ -144,16 +206,18 @@ export const TopicFeedPage: Page = () => {
         {isMobile === false && <PostCompose preSetTopic={topic} />}
       </div>
     );
-  }, [topic, isMobile, topicSelectButton]);
+  }, [topic, isMobile, topicSelectButton, topicBlockButton]);
 
   return (
     <>
-      {/* Mobile only */}
       <Header>
         <div className="w-full flex justify-between items-center">
           <div className="" />
           <div>{displayTopic}</div>
-          {topicSelectButton}
+          <div className="flex space-x-2">
+            {topicBlockButton}
+            {topicSelectButton}
+          </div>
         </div>
       </Header>
 

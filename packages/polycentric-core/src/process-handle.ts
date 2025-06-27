@@ -75,6 +75,8 @@ export class ProcessHandle {
   public readonly queryManager: Queries.QueryManager.QueryManager;
   public readonly synchronizer: Synchronization.Synchronizer;
 
+  public static readonly MAX_POST_LENGTH = 10000;
+
   private constructor(
     store: Store.Store,
     processSecret: Models.ProcessSecret.ProcessSecret,
@@ -187,6 +189,14 @@ export class ProcessHandle {
     images?: Protocol.ImageManifest[],
     reference?: Protocol.Reference,
   ): Promise<Models.Pointer.Pointer> {
+    if (content.length > ProcessHandle.MAX_POST_LENGTH) {
+      throw new Error(
+        `Post content exceeds maximum length of ${String(
+          ProcessHandle.MAX_POST_LENGTH,
+        )} characters`,
+      );
+    }
+
     return await this.publish(
       Models.ContentType.ContentTypePost,
       Protocol.Post.encode({
@@ -375,6 +385,22 @@ export class ProcessHandle {
   public async leaveTopic(topic: string): Promise<Models.Pointer.Pointer> {
     return await this.setCRDTElementSetItem(
       Models.ContentType.ContentTypeJoinTopic,
+      Util.encodeText(topic),
+      Protocol.LWWElementSet_Operation.REMOVE,
+    );
+  }
+
+  public async blockTopic(topic: string): Promise<Models.Pointer.Pointer> {
+    return await this.setCRDTElementSetItem(
+      Models.ContentType.ContentTypeBlockTopic,
+      Util.encodeText(topic),
+      Protocol.LWWElementSet_Operation.ADD,
+    );
+  }
+
+  public async unblockTopic(topic: string): Promise<Models.Pointer.Pointer> {
+    return await this.setCRDTElementSetItem(
+      Models.ContentType.ContentTypeBlockTopic,
       Util.encodeText(topic),
       Protocol.LWWElementSet_Operation.REMOVE,
     );
