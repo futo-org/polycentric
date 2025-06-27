@@ -314,6 +314,7 @@ const ClaimCircle: React.FC<{
 
   const vouches = useClaimVouches(system, pointer);
   const [claimMenuOpen, setClaimMenuOpen] = useState(false);
+  const [hasVouchedInThisSession, setHasVouchedInThisSession] = useState(false);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -344,6 +345,8 @@ const ClaimCircle: React.FC<{
           system={system}
           vouches={vouches}
           isMyProfile={isMyProfile}
+          hasVouchedInThisSession={hasVouchedInThisSession}
+          setHasVouchedInThisSession={setHasVouchedInThisSession}
         />
       </Modal>
       <div

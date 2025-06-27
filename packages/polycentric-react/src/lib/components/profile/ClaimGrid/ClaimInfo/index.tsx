@@ -15,6 +15,8 @@ export interface ClaimInfoProps {
   system: Models.PublicKey.PublicKey;
   vouches: Models.Event.Event[];
   isMyProfile: boolean | undefined;
+  hasVouchedInThisSession: boolean;
+  setHasVouchedInThisSession: (hasVouchedInThisSession: boolean) => void;
 }
 
 export const ClaimInfo: React.FC<ClaimInfoProps> = ({
@@ -26,6 +28,8 @@ export const ClaimInfo: React.FC<ClaimInfoProps> = ({
   system,
   vouches,
   isMyProfile,
+  hasVouchedInThisSession,
+  setHasVouchedInThisSession,
 }: ClaimInfoProps) => {
   const url = useMemo(
     () => getAccountUrl(claim.claimType, claim.claimFields[0].value),
@@ -40,7 +44,7 @@ export const ClaimInfo: React.FC<ClaimInfoProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Check if the current user has already vouched for this claim
-  const hasUserVouched = useMemo(() => {
+  const hasUserVouchedBefore = useMemo(() => {
     if (!processHandle || !vouches) return false;
 
     const currentUserSystem = processHandle.system();
@@ -51,10 +55,11 @@ export const ClaimInfo: React.FC<ClaimInfoProps> = ({
   }, [processHandle, vouches]);
 
   const handleVouch = async () => {
-    if (!processHandle || hasUserVouched) return;
+    if (!processHandle || hasUserVouchedBefore || hasVouchedInThisSession) return;
     try {
       await processHandle.vouchByReference(pointer);
       setVouchStatus('success');
+      setHasVouchedInThisSession(true);
     } catch (error) {
       setVouchStatus('error');
       console.error('Failed to vouch:', error);
@@ -189,7 +194,7 @@ export const ClaimInfo: React.FC<ClaimInfoProps> = ({
                 </div>
               )}
             </>
-          ) : hasUserVouched ? (
+          ) : (hasUserVouchedBefore || hasVouchedInThisSession) ? (
             <div className="px-4 py-1 text-sm border border-green-600 text-green-600 bg-green-50 rounded-md">
               Verified
             </div>
@@ -206,7 +211,7 @@ export const ClaimInfo: React.FC<ClaimInfoProps> = ({
                     ? 'bg-red-100 text-red-600 border-red-600'
                     : 'bg-gray-100 text-blue-600 border-blue-600 hover:bg-blue-50'
               }`}
-              disabled={hasUserVouched}
+              disabled={hasUserVouchedBefore}
             >
               Verify
             </button>
