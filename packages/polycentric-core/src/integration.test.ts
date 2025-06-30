@@ -80,7 +80,7 @@ describe('integration', () => {
     );
 
     const claimPointer = await s1p1.claim(
-      Models.claimGeneric('I Can Lift 4pl8'),
+      Models.claimGeneric('I Can Lift 4pl8', []),
     );
 
     await s1p1.vouch(claimPointer);
