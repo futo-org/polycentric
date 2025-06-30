@@ -36,7 +36,8 @@ import {
   useUsernameCRDTQuery,
 } from '../../../hooks/queryHooks';
 import { MakeClaim } from '../../claims/MakeClaim';
-import { getAccountUrl } from '../../util/linkify/utils';
+import { Modal } from '../../util/modal';
+import { ClaimInfo } from './ClaimInfo';
 
 const getIconFromClaimType = (
   type: Long,
@@ -289,258 +290,76 @@ export const VouchedBy: React.FC<{ system: Models.PublicKey.PublicKey }> = ({
 };
 
 const ClaimCircle: React.FC<{
-  claim: {
-    field: { value: string };
-    type: Long;
-    pointer: Protocol.Reference;
-    process: Models.Process.Process;
-    logicalClock: Long;
-  };
+  claim: Protocol.Claim;
+  pointer: Protocol.Reference;
+  process: Models.Process.Process;
+  logicalClock: Long;
   position: 'start' | 'middle' | 'end';
   system: Models.PublicKey.PublicKey;
   isMyProfile?: boolean;
-}> = ({ claim, position, system, isMyProfile }) => {
-  const [expanded, setExpanded] = useState(false);
+}> = ({
+  claim,
+  pointer,
+  process,
+  logicalClock,
+  position,
+  system,
+  isMyProfile,
+}) => {
   const { processHandle } = useProcessHandleManager();
   const [icon, color] = useMemo(
-    () => getIconFromClaimType(claim.type),
-    [claim.type],
+    () => getIconFromClaimType(claim.claimType),
+    [claim.claimType],
   );
-  const url = useMemo(
-    () => getAccountUrl(claim.type, claim.field.value),
-    [claim.type, claim.field.value],
-  );
-  const vouches = useClaimVouches(system, claim.pointer);
-  const [vouchStatus, setVouchStatus] = useState<'none' | 'success' | 'error'>(
-    'none',
-  );
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Check if the current user has already vouched for this claim
-  const hasUserVouched = useMemo(() => {
-    if (!processHandle || !vouches) return false;
-
-    const currentUserSystem = processHandle.system();
-    return vouches.some(
-      (vouch) =>
-        vouch && Models.PublicKey.equal(vouch.system, currentUserSystem),
-    );
-  }, [processHandle, vouches]);
-
-  const handleVouch = async () => {
-    if (!processHandle || hasUserVouched) return;
-    try {
-      await processHandle.vouchByReference(claim.pointer);
-      setVouchStatus('success');
-    } catch (error) {
-      setVouchStatus('error');
-      console.error('Failed to vouch:', error);
-      setTimeout(() => setVouchStatus('none'), 2000);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!processHandle || isDeleting) return;
-
-    try {
-      setIsDeleting(true);
-      await processHandle.delete(claim.process, claim.logicalClock);
-      setShowDeleteConfirm(false);
-      setExpanded(false);
-    } catch (error) {
-      console.error('Failed to delete claim:', error);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+  const vouches = useClaimVouches(system, pointer);
+  const [claimMenuOpen, setClaimMenuOpen] = useState(false);
+  const [hasVouchedInThisSession, setHasVouchedInThisSession] = useState(false);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!expanded) {
-      setExpanded(true);
-    }
-  };
-
-  const handleUrlClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (url) {
-      window.open(url, '_blank');
-    }
-    setExpanded(false);
+    setClaimMenuOpen(true);
   };
 
   return (
     <div
       className="relative"
       style={{
-        zIndex: expanded
-          ? 10
-          : position === 'start'
-            ? 1
-            : position === 'middle'
-              ? 2
-              : 3,
+        zIndex: position === 'start' ? 1 : position === 'middle' ? 2 : 3,
       }}
-      onClick={() => expanded && setExpanded(false)}
     >
-      <div
-        className={`rounded-full w-16 h-16 p-2 flex items-center justify-center transition-all duration-300 whitespace-nowrap overflow-hidden ${
-          expanded ? 'absolute w-[14rem] h-[4rem]' : ''
-        } ${
-          position === 'start'
-            ? 'left-0'
-            : position === 'middle'
-              ? expanded
-                ? '-translate-x-[5rem]'
-                : ''
-              : expanded
-                ? '-translate-x-[10rem]'
-                : ''
-        }`}
-        style={{ backgroundColor: color }}
-        onClick={!expanded ? handleClick : undefined}
+      <Modal
+        open={claimMenuOpen}
+        setOpen={setClaimMenuOpen}
+        title={`${Models.ClaimType.toString(
+          claim.claimType as Models.ClaimType.ClaimType,
+        )} Claim`}
+        shrink={false}
       >
-        {expanded ? (
-          <button
-            onClick={handleUrlClick}
-            className="px-2 py-1 rounded hover:bg-black/10 transition-colors"
-          >
-            {claim.field.value}
-          </button>
-        ) : (
-          icon
-        )}
+        <ClaimInfo
+          processHandle={processHandle}
+          claim={claim}
+          pointer={pointer}
+          process={process}
+          logicalClock={logicalClock}
+          system={system}
+          vouches={vouches}
+          isMyProfile={isMyProfile}
+          hasVouchedInThisSession={hasVouchedInThisSession}
+          setHasVouchedInThisSession={setHasVouchedInThisSession}
+        />
+      </Modal>
+      <div
+        className={`rounded-full w-16 h-16 p-2 flex items-center justify-center transition-all duration-300 whitespace-nowrap overflow-hidden 
+          ${position === 'start' ? 'left-0' : ''}`}
+        style={{ backgroundColor: color }}
+        onClick={handleClick}
+      >
+        {icon}
       </div>
 
-      {/* Vouches and Vouch Button */}
-      {expanded && (
-        <>
-          {/* Vouches */}
-          <div className="absolute -top-8 w-full flex justify-center gap-2">
-            {vouches?.map(
-              (vouch, index) =>
-                vouch && (
-                  <div key={index} className="flex flex-col items-center">
-                    <VouchedBy system={vouch.system} />
-                  </div>
-                ),
-            )}
-          </div>
-
-          {/* Vouch/Remove Button */}
-          <div className="absolute -bottom-20 w-full flex justify-center">
-            {isMyProfile ? (
-              <>
-                {
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowDeleteConfirm(true);
-                    }}
-                    className="px-4  py-1 text-sm text-red-600 hover:text-red-700 border border-red-600 rounded-md hover:bg-red-50 transition-colors bg-gray-100"
-                  >
-                    Remove
-                  </button>
-                }
-
-                {showDeleteConfirm && (
-                  <div
-                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowDeleteConfirm(false);
-                    }}
-                  >
-                    <div
-                      className="bg-white p-6 rounded-lg shadow-lg max-w-sm mx-4"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <h3 className="text-lg font-semibold mb-4">
-                        Delete Claim?
-                      </h3>
-                      <p className="text-gray-600 mb-6">
-                        This action cannot be undone.
-                      </p>
-                      <div className="flex justify-end gap-4">
-                        <button
-                          onClick={() => {
-                            setShowDeleteConfirm(false);
-                            setExpanded(false);
-                          }}
-                          className="px-4 py-2 text-gray-600 hover:text-gray-700"
-                          disabled={isDeleting}
-                        >
-                          Cancel
-                        </button>
-                        {
-                          <button
-                            onClick={handleDelete}
-                            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed"
-                            disabled={isDeleting}
-                          >
-                            {isDeleting ? (
-                              <span className="flex items-center justify-center">
-                                <svg
-                                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <circle
-                                    className="opacity-25"
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                  ></circle>
-                                  <path
-                                    className="opacity-75"
-                                    fill="currentColor"
-                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                  ></path>
-                                </svg>
-                                Deleting...
-                              </span>
-                            ) : (
-                              'Delete'
-                            )}
-                          </button>
-                        }
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : hasUserVouched ? (
-              <div className="px-4 py-1 text-sm border border-green-600 text-green-600 bg-green-50 rounded-md">
-                Verified
-              </div>
-            ) : (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleVouch();
-                }}
-                className={`px-4 py-1 text-sm border rounded-md transition-all duration-300 ${
-                  vouchStatus === 'success'
-                    ? 'bg-green-100 text-green-600 border-green-600 opacity-0'
-                    : vouchStatus === 'error'
-                      ? 'bg-red-100 text-red-600 border-red-600'
-                      : 'bg-gray-100 text-blue-600 border-blue-600 hover:bg-blue-50'
-                }`}
-                disabled={hasUserVouched}
-              >
-                Verify
-              </button>
-            )}
-          </div>
-        </>
-      )}
-
       {/* Non-expanded vouch count */}
-      {!expanded && vouches?.length > 0 && (
+      {vouches?.length > 0 && (
         <div
           className="absolute bottom-0 right-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center"
           title={`${vouches.length} vouches`}
@@ -564,25 +383,13 @@ export const ClaimGrid: React.FC<{
 }> = ({ system, claims, isMyProfile }) => {
   const [showClaimModal, setShowClaimModal] = useState(false);
 
-  const claimsUnwrapped = useMemo(() => {
-    return claims.flatMap(({ value, pointer, process, logicalClock }) =>
-      value.claimFields.map((field) => ({
-        field,
-        type: value.claimType,
-        pointer,
-        process,
-        logicalClock,
-      })),
-    );
-  }, [claims]);
-
   const claimsInGroupsOfThree = useMemo(() => {
     const out = [];
-    for (let i = 0; i < claimsUnwrapped.length; i += 3) {
-      out.push(claimsUnwrapped.slice(i, i + 3));
+    for (let i = 0; i < claims.length; i += 3) {
+      out.push(claims.slice(i, i + 3));
     }
     return out;
-  }, [claimsUnwrapped]);
+  }, [claims]);
 
   return (
     <div className="flex flex-col items-center justify-center space-y-3">
@@ -607,9 +414,15 @@ export const ClaimGrid: React.FC<{
         claimsInGroupsOfThree.map((group, index) => (
           <div key={index} className="grid relative grid-cols-3 gap-4">
             {group.map((claim, index) => (
-              <div key={claim.field.value || index} className="w-16 h-16">
+              <div
+                key={claim.value.claimFields[0].value || index}
+                className="w-16 h-16"
+              >
                 <ClaimCircle
-                  claim={claim}
+                  claim={claim.value}
+                  pointer={claim.pointer}
+                  process={claim.process}
+                  logicalClock={claim.logicalClock}
                   position={
                     index === 0 ? 'start' : index === 1 ? 'middle' : 'end'
                   }

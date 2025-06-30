@@ -584,6 +584,7 @@ export namespace ClaimType {
 function claimIdentifier(
   claimType: ClaimType.ClaimType,
   identifier: string,
+  images: Protocol.ImageManifest[] = [],
 ): Protocol.Claim {
   return {
     claimType: claimType,
@@ -593,6 +594,7 @@ function claimIdentifier(
         value: identifier,
       },
     ],
+    images: images,
   };
 }
 
@@ -600,6 +602,7 @@ export function claimOccupation(
   organization: string | undefined,
   role: string | undefined,
   location: string | undefined,
+  images: Protocol.ImageManifest[],
 ): Protocol.Claim {
   const fields = [];
 
@@ -627,11 +630,15 @@ export function claimOccupation(
   return {
     claimType: ClaimType.ClaimTypeOccupation,
     claimFields: fields,
+    images: images,
   };
 }
 
-export function claimSkill(skill: string): Protocol.Claim {
-  return claimIdentifier(ClaimType.ClaimTypeSkill, skill);
+export function claimSkill(
+  skill: string,
+  images: Protocol.ImageManifest[],
+): Protocol.Claim {
+  return claimIdentifier(ClaimType.ClaimTypeSkill, skill, images);
 }
 
 export function claimHackerNews(username: string): Protocol.Claim {
@@ -658,8 +665,11 @@ export function claimBitcoin(username: string): Protocol.Claim {
   return claimIdentifier(ClaimType.ClaimTypeBitcoin, username);
 }
 
-export function claimGeneric(text: string): Protocol.Claim {
-  return claimIdentifier(ClaimType.ClaimTypeGeneric, text);
+export function claimGeneric(
+  text: string,
+  images: Protocol.ImageManifest[],
+): Protocol.Claim {
+  return claimIdentifier(ClaimType.ClaimTypeGeneric, text, images);
 }
 
 export function claimDiscord(username: string): Protocol.Claim {

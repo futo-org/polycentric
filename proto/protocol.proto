@@ -173,6 +173,7 @@ message Post {
 message Claim {
              uint64          claim_type   = 1;
     repeated ClaimFieldEntry claim_fields = 2;
+    repeated ImageManifest   images       = 3;
 }
 
 message ClaimFieldEntry {
