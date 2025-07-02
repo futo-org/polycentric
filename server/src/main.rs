@@ -263,6 +263,13 @@ async fn serve_api(
         .and_then(crate::handlers::get_recommend_profiles::handler)
         .with(cors.clone());
 
+    let route_get_health = ::warp::get()
+        .and(::warp::path("health"))
+        .and(::warp::path::end())
+        .and(state_filter.clone())
+        .and_then(crate::handlers::get_health::handler)
+        .with(cors.clone());
+
     let route_get_version = ::warp::get()
         .and(::warp::path("version"))
         .and(::warp::path::end())
@@ -337,6 +344,7 @@ async fn serve_api(
         .or(route_get_top_string_references)
         .or(route_get_explore)
         .or(route_get_recommended_profiles)
+        .or(route_get_health)
         .or(route_get_version)
         .or(route_post_censor)
         .or(route_get_find_claim_and_vouch)

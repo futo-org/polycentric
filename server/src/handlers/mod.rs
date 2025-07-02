@@ -18,3 +18,4 @@ pub(crate) mod post_claim_handle;
 pub(crate) mod post_events;
 pub(crate) mod post_purge;
 pub(crate) mod util;
+pub(crate) mod get_health;
