@@ -19,8 +19,7 @@ use std::{env, process::exit, time::Duration};
 
 #[tokio::main]
 async fn main() {
-    let port = env::var("HTTP_PORT_API")
-        .unwrap_or_else(|_| "8081".into());
+    let port = env::var("HTTP_PORT_API").unwrap_or_else(|_| "8081".into());
     let host = env::var("HOST").unwrap_or_else(|_| "localhost".into());
     let path = env::var("HEALTH_PATH").unwrap_or_else(|_| "/health".into());
 
@@ -50,4 +49,4 @@ async fn main() {
             exit(1);
         }
     }
-} 
+}

@@ -49,5 +49,8 @@ pub(crate) async fn handler(
         StatusCode::SERVICE_UNAVAILABLE
     };
 
-    Ok(::warp::reply::with_status(::warp::reply::json(&body), status).into_response())
-} 
+    Ok(
+        ::warp::reply::with_status(::warp::reply::json(&body), status)
+            .into_response(),
+    )
+}
