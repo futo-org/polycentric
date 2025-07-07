@@ -39,3 +39,7 @@ protoc-bin-vendored = "3.0.0"
 
 [profile.release]
 lto = true
+
+[[bin]]
+name = "health_probe"
+path = "src/bin/health_probe.rs"

@@ -261,6 +261,14 @@ async fn ingest_event_postgres_single(
 ) -> ::anyhow::Result<()> {
     let event = layers.event();
 
+    let image_upload_limit = 4;
+    if *event.content_type() == known_message_types::POST {
+        let post = Post::parse_from_bytes(event.content())?;
+        if post.images.len() > image_upload_limit {
+            return Err(anyhow::anyhow!("Post contained too many images"));
+        }
+    }
+
     if crate::postgres::does_event_exist(&mut *transaction, event).await? {
         return Ok(());
     }

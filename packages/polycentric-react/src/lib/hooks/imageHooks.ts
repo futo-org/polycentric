@@ -5,7 +5,7 @@ import * as RXJS from 'rxjs';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { avatarResolutions } from '../util/imageProcessing';
-import { useBlobQuery, useQueryManager } from './queryHooks';
+import { useBlobQueries, useQueryManager } from './queryHooks';
 import { ObservableCacheItem, useObservableWithCache } from './utilHooks';
 
 const blobURLCache = new Map<string, { url: string; count: number }>();
@@ -23,37 +23,51 @@ const hashBlob = async (blob: Blob): Promise<string> => {
 };
 
 export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
-  const [blobURL, setBlobURL] = useState<string | undefined>(undefined);
+  const memoizedBlobs = useMemo(() => (blob ? [blob] : []), [blob]);
+  const url = useBlobDisplayURLs(memoizedBlobs);
+  return url.length > 0 ? url[0] : undefined;
+};
+
+export const useBlobDisplayURLs = (blobs?: Blob[]): string[] => {
+  const [blobURLs, setBlobURLs] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!blob) {
-      setBlobURL(undefined);
+    if (!blobs) {
+      setBlobURLs([]);
       return;
     }
 
-    let cacheKey: string;
+    const cacheKeys: string[] = [];
     let revoked = false;
 
-    const manageBlobURL = async () => {
-      cacheKey = await hashBlob(blob);
-      if (revoked) return;
+    const manageBlobURLs = async () => {
+      const newBlobURLs = [];
 
-      let cacheEntry = blobURLCache.get(cacheKey);
-      if (!cacheEntry) {
-        const newURL = URL.createObjectURL(blob);
-        cacheEntry = { url: newURL, count: 1 };
-        blobURLCache.set(cacheKey, cacheEntry);
-      } else {
-        cacheEntry.count++;
+      for (const blob of blobs) {
+        const cacheKey = await hashBlob(blob);
+        cacheKeys.push(cacheKey);
+        if (revoked) return;
+
+        let cacheEntry = blobURLCache.get(cacheKey);
+        if (!cacheEntry) {
+          const newURL = URL.createObjectURL(blob);
+          cacheEntry = { url: newURL, count: 1 };
+          blobURLCache.set(cacheKey, cacheEntry);
+        } else {
+          cacheEntry.count++;
+        }
+
+        newBlobURLs.push(cacheEntry.url);
       }
-      setBlobURL(cacheEntry.url);
+
+      setBlobURLs(newBlobURLs);
     };
 
-    manageBlobURL();
+    manageBlobURLs();
 
     return () => {
       revoked = true;
-      if (cacheKey) {
+      for (const cacheKey of cacheKeys) {
         const cacheEntry = blobURLCache.get(cacheKey);
         if (cacheEntry) {
           cacheEntry.count--;
@@ -64,39 +78,49 @@ export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
         }
       }
     };
-  }, [blob]);
+  }, [blobs]);
 
-  return blobURL;
+  return blobURLs;
 };
 
-export const useImageManifestDisplayURL = (
+export const useImageManifestDisplayURLs = (
   system?: Models.PublicKey.PublicKey,
-  manifest?: Protocol.ImageManifest | null,
-): string | undefined => {
-  const { process, sections, mime } = useMemo(() => {
-    const process = manifest?.process
-      ? Models.Process.fromProto(manifest.process)
-      : undefined;
-    const sections = manifest?.sections;
-    const mime = manifest?.mime;
+  manifests?: Protocol.ImageManifest[],
+): string[] => {
+  const manifestInfo = useMemo(() => {
+    const manifestInfo = [];
 
-    return { process, sections, mime };
-  }, [manifest]);
+    if (!manifests) {
+      return [];
+    }
 
-  const parseBlob = useCallback(
-    (buffer: Uint8Array) => {
-      return new Blob([buffer], {
-        type: mime,
-      });
-    },
-    [mime],
+    for (const manifest of manifests) {
+      const process = manifest?.process
+        ? Models.Process.fromProto(manifest.process)
+        : undefined;
+      const sections = manifest?.sections;
+      const mime = manifest?.mime;
+
+      manifestInfo.push({ process, sections, mime });
+    }
+
+    return manifestInfo;
+  }, [manifests]);
+
+  const parseBlob = useCallback((buffer: Uint8Array, mime: string) => {
+    return new Blob([buffer], {
+      type: mime,
+    });
+  }, []);
+
+  const blobs = useBlobQueries(system, manifestInfo, parseBlob);
+  const filteredBlobs = useMemo(
+    () => blobs.filter((blob) => blob !== undefined) as Blob[],
+    [blobs],
   );
+  const imageURLs = useBlobDisplayURLs(filteredBlobs);
 
-  const blob = useBlobQuery(system, process, sections, parseBlob);
-
-  const imageURL = useBlobDisplayURL(blob);
-
-  return imageURL;
+  return imageURLs;
 };
 
 function observableBlobToURL(blob: Blob): RXJS.Observable<string> {

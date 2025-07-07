@@ -186,7 +186,7 @@ export class ProcessHandle {
 
   public async post(
     content: string,
-    image?: Protocol.ImageManifest,
+    images?: Protocol.ImageManifest[],
     reference?: Protocol.Reference,
   ): Promise<Models.Pointer.Pointer> {
     if (content.length > ProcessHandle.MAX_POST_LENGTH) {
@@ -201,7 +201,7 @@ export class ProcessHandle {
       Models.ContentType.ContentTypePost,
       Protocol.Post.encode({
         content: content,
-        image: image,
+        images: images ?? [],
       }).finish(),
       undefined,
       undefined,

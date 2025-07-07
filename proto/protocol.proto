@@ -165,13 +165,15 @@ message Reference {
 
 message Post {
     reserved 2;
+    reserved 3;
     optional string        content = 1;
-    optional ImageManifest image   = 3;
+    repeated ImageManifest images   = 4;
 }
 
 message Claim {
              uint64          claim_type   = 1;
     repeated ClaimFieldEntry claim_fields = 2;
+    repeated ImageManifest   images       = 3;
 }
 
 message ClaimFieldEntry {

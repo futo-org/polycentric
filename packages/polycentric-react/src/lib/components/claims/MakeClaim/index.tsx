@@ -1,9 +1,12 @@
+import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import * as Core from '@polycentric/polycentric-core';
-import { Models } from '@polycentric/polycentric-core';
-import { useCallback, useEffect, useState } from 'react';
+import { Models, ProcessHandle, Protocol } from '@polycentric/polycentric-core';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useBlobDisplayURLs } from '../../../hooks/imageHooks';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import { useClaims } from '../../../hooks/queryHooks';
+import { publishImageBlob } from '../../../util/imageProcessing';
 
 export type SocialPlatform =
   | 'hackerNews'
@@ -789,6 +792,84 @@ export const SocialMediaInput = ({
   );
 };
 
+const ImageInput = ({ onUpdate }: { onUpdate: (files: File[]) => void }) => {
+  const uploadRef = useRef<HTMLInputElement | null>(null);
+  const [upload, setUpload] = useState<File[]>([]);
+  const imageUrls = useBlobDisplayURLs(upload);
+
+  const update = (newValue: File[]) => {
+    setUpload(newValue);
+    onUpdate(newValue);
+  };
+
+  return (
+    <div>
+      <div className="grid gap-1 grid-cols-2 max-h-[20rem] max-w-[20rem]">
+        {upload.map((file, index) => (
+          <div key={file.name} className="m-0 p-0">
+            <div className="inline-block relative m-0 p-0">
+              <img
+                className="max-h-[10rem] max-w-[10rem] rounded-sm inline-block border-gray-1000 border"
+                src={imageUrls[index]}
+              />
+              <button
+                className="absolute top-5 right-5 "
+                onClick={() => update(upload.filter((u) => u !== file))}
+              >
+                <XCircleIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <button onClick={() => uploadRef.current?.click()}>
+        <PhotoIcon
+          className="w-9 h-9 text-gray-300 hover:text-gray-400"
+          strokeWidth="1"
+        />
+      </button>
+      <input
+        type="file"
+        multiple
+        className="hidden"
+        name="img"
+        accept="image/*"
+        ref={uploadRef}
+        onChange={(e) => {
+          const IMAGE_UPLOAD_LIMIT = 4;
+          const { files } = e.target;
+          if (files === null) return;
+
+          const fileList = Array.from(files).filter(
+            (file) => !upload.includes(file),
+          );
+
+          if (fileList.length === 0) return;
+
+          if (fileList.length + upload.length > IMAGE_UPLOAD_LIMIT) {
+            alert('You can only attach a maximum of 4 images');
+            return;
+          }
+
+          update(upload.concat(fileList));
+        }}
+      />
+    </div>
+  );
+};
+
+const publishImageBlobs = async (
+  images: File[],
+  processHandle: ProcessHandle.ProcessHandle,
+) => {
+  const imageManifests: Protocol.ImageManifest[] = [];
+  for (const image of images) {
+    const blob = await publishImageBlob(image, processHandle);
+    imageManifests.push(blob);
+  }
+  return imageManifests;
+};
+
 export const OccupationInput = ({
   onCancel,
   system,
@@ -799,6 +880,7 @@ export const OccupationInput = ({
   const [organization, setOrganization] = useState('');
   const [role, setRole] = useState('');
   const [location, setLocation] = useState('');
+  const [images, setImages] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [verificationStep, setVerificationStep] = useState<
     'input' | 'duplicate'
@@ -827,7 +909,17 @@ export const OccupationInput = ({
         return;
       }
 
-      const claim = Models.claimOccupation(organization, role, location);
+      const imageManifests: Protocol.ImageManifest[] = await publishImageBlobs(
+        images,
+        processHandle,
+      );
+
+      const claim = Models.claimOccupation(
+        organization,
+        role,
+        location,
+        imageManifests,
+      );
       await processHandle.claim(claim);
       onCancel();
     } catch (error) {
@@ -835,7 +927,7 @@ export const OccupationInput = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [organization, role, location, processHandle, claims, onCancel]);
+  }, [organization, role, location, processHandle, claims, images, onCancel]);
 
   if (verificationStep === 'duplicate') {
     return (
@@ -879,6 +971,7 @@ export const OccupationInput = ({
         value={location}
         onChange={(e) => setLocation(e.target.value)}
       />
+      <ImageInput onUpdate={(e) => setImages(e)} />
       <div className="flex justify-end gap-2">
         <button
           onClick={onCancel}
@@ -909,6 +1002,7 @@ export const TextInput = ({
 }) => {
   const [text, setText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [images, setImages] = useState<File[]>([]);
   const [verificationStep, setVerificationStep] = useState<
     'input' | 'duplicate'
   >('input');
@@ -938,8 +1032,16 @@ export const TextInput = ({
         return;
       }
 
+      const imageManifests: Protocol.ImageManifest[] = await publishImageBlobs(
+        images,
+        processHandle,
+      );
+
       const claim =
-        type === 'skill' ? Models.claimSkill(text) : Models.claimGeneric(text);
+        type === 'skill'
+          ? Models.claimSkill(text, imageManifests)
+          : Models.claimGeneric(text, imageManifests);
+
       await processHandle.claim(claim);
       onCancel();
     } catch (error) {
@@ -947,7 +1049,7 @@ export const TextInput = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [text, type, processHandle, claims, onCancel]);
+  }, [text, type, processHandle, claims, images, onCancel]);
 
   if (verificationStep === 'duplicate') {
     return (
@@ -977,6 +1079,7 @@ export const TextInput = ({
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
+      <ImageInput onUpdate={(e) => setImages(e)} />
       <div className="flex justify-end gap-2">
         <button
           onClick={onCancel}

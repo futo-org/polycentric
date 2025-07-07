@@ -375,6 +375,14 @@ export function useFollowingFeed(
                     event,
                     Protocol.Claim.decode(event.content),
                   );
+                } else if (
+                  event.contentType.eq(Models.ContentType.ContentTypeVouch)
+                ) {
+                  return new ParsedEvent<Protocol.Vouch>(
+                    signedEvent,
+                    event,
+                    Protocol.Vouch.decode(event.content),
+                  );
                 }
               } catch (error) {
                 console.error('Failed to decode event:', error);
