@@ -250,7 +250,8 @@ async fn pull_queue_events(
                     let (blob, blob_db_ids) =
                         get_blob(transaction, &event, &post).await?;
 
-                    if blob.is_empty() {
+                    // Skip if the blob is empty *or* exceeds Azure Content Safety’s 4 MiB limit.
+                    if blob.is_empty() || blob.len() > 4 * 1024 * 1024 {
                         (None, None)
                     } else {
                         (Some(blob), Some(blob_db_ids))
@@ -298,7 +299,8 @@ async fn pull_queue_events(
                     )
                     .await?;
 
-                    if blob.is_empty() {
+                    // Skip if the blob is empty or exceeds 4 MiB.
+                    if blob.is_empty() || blob.len() > 4 * 1024 * 1024 {
                         (None, None)
                     } else {
                         (Some(blob), Some(blob_db_ids))

@@ -293,6 +293,13 @@ impl ModerationTaggingProvider for AzureTagProvider {
 
         let detector = self.content_safety.as_ref().unwrap();
 
+        // Guard: Azure returns 400 for text longer than 10 000 characters.
+        if let Some(content) = &event.content {
+            if content.len() > 10_000 {
+                return Ok(ModerationTaggingResult { tags: vec![] });
+            }
+        }
+
         let media_type = match (
             event.content.is_some()
                 && !event.content.as_ref().unwrap().is_empty(),
