@@ -242,12 +242,19 @@ async fn pull_queue_events(
                         event.content(),
                     )?;
 
+                // Retrieve the blob bytes for this post (if any), but only
+                // include them in the queue item when we actually have data.
                 let (blob, blob_db_ids) = if post.image.sections.is_empty() {
                     (None, None)
                 } else {
                     let (blob, blob_db_ids) =
                         get_blob(transaction, &event, &post).await?;
-                    (Some(blob), Some(blob_db_ids))
+
+                    if blob.is_empty() {
+                        (None, None)
+                    } else {
+                        (Some(blob), Some(blob_db_ids))
+                    }
                 };
 
                 result_set.push(ModerationQueueItem {
@@ -290,7 +297,12 @@ async fn pull_queue_events(
                         &logical_clocks,
                     )
                     .await?;
-                    (Some(blob), Some(blob_db_ids))
+
+                    if blob.is_empty() {
+                        (None, None)
+                    } else {
+                        (Some(blob), Some(blob_db_ids))
+                    }
                 };
 
                 result_set.push(ModerationQueueItem {
