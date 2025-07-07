@@ -276,24 +276,33 @@ async fn pull_queue_events(
                 let username: Option<String> = {
                     use polycentric_protocol::model::known_message_types as kmt;
                     // Prepare moderation options – we don't filter when fetching the username itself.
-                    let moderation_options = crate::moderation::ModerationOptions {
-                        filters: None,
-                        mode: crate::config::ModerationMode::Off,
-                    };
+                    let moderation_options =
+                        crate::moderation::ModerationOptions {
+                            filters: None,
+                            mode: crate::config::ModerationMode::Off,
+                        };
 
                     // Attempt to retrieve the most recent USERNAME event for this author (system).
-                    if let Ok(username_events) = crate::postgres::select_latest_by_content_type::select(
-                        transaction,
-                        event.system(),
-                        &[kmt::USERNAME],
-                        &moderation_options,
-                    )
-                    .await
+                    if let Ok(username_events) =
+                        crate::postgres::select_latest_by_content_type::select(
+                            transaction,
+                            event.system(),
+                            &[kmt::USERNAME],
+                            &moderation_options,
+                        )
+                        .await
                     {
                         if let Some(first_event) = username_events.first() {
-                            if let Ok(username_event) = crate::model::event::from_vec(first_event.event()) {
-                                if let Some(lww) = username_event.lww_element() {
-                                    if let Ok(name_str) = String::from_utf8(lww.value.clone()) {
+                            if let Ok(username_event) =
+                                crate::model::event::from_vec(
+                                    first_event.event(),
+                                )
+                            {
+                                if let Some(lww) = username_event.lww_element()
+                                {
+                                    if let Ok(name_str) =
+                                        String::from_utf8(lww.value.clone())
+                                    {
                                         Some(name_str)
                                     } else {
                                         None
@@ -317,11 +326,14 @@ async fn pull_queue_events(
                         event.content(),
                     )?;
 
-                let combined_content: Option<String> = match (username, post.content.clone()) {
-                    (Some(name), Some(content)) => Some(format!("[{}] said: {}", name, content)),
-                    (Some(name), None) => Some(format!("[{}] said:", name)),
-                    (None, content) => content,
-                };
+                let combined_content: Option<String> =
+                    match (username, post.content.clone()) {
+                        (Some(name), Some(content)) => {
+                            Some(format!("[{}] said: {}", name, content))
+                        }
+                        (Some(name), None) => Some(format!("[{}] said:", name)),
+                        (None, content) => content,
+                    };
 
                 let blobs = if post.images.is_empty() {
                     vec![]
