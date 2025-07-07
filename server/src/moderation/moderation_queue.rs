@@ -329,9 +329,9 @@ async fn pull_queue_events(
                 let combined_content: Option<String> =
                     match (username, post.content.clone()) {
                         (Some(name), Some(content)) => {
-                            Some(format!("[{}] said: {}", name, content))
+                            Some(format!("{} said: {}", name, content))
                         }
-                        (Some(name), None) => Some(format!("[{}] said:", name)),
+                        (Some(name), None) => Some(format!("{} said:", name)),
                         (None, content) => content,
                     };
 
