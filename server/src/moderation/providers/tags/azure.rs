@@ -430,7 +430,8 @@ impl ModerationTaggingProvider for AzureTagProvider {
         // Validate that we have actual content to process
         let has_text = event.content.is_some()
             && !event.content.as_ref().unwrap().trim().is_empty();
-        let has_images = !event.blobs.is_empty() && event.blobs.iter().any(|blob| !blob.blob.is_empty());
+        let has_images = !event.blobs.is_empty()
+            && event.blobs.iter().any(|blob| !blob.blob.is_empty());
 
         if !has_text && !has_images {
             // No valid content to process - return empty result instead of error
@@ -475,8 +476,14 @@ impl ModerationTaggingProvider for AzureTagProvider {
             match result {
                 Ok(res) => results.push(res),
                 Err(e) => {
-                    error!("Azure processing failed for event {}: {}", event.id, e);
-                    return Err(anyhow::anyhow!("Error detecting content: {}", e))
+                    error!(
+                        "Azure processing failed for event {}: {}",
+                        event.id, e
+                    );
+                    return Err(anyhow::anyhow!(
+                        "Error detecting content: {}",
+                        e
+                    ));
                 }
             }
         }
@@ -529,7 +536,8 @@ impl ModerationTaggingProvider for AzureTagProvider {
             max_hate_level = cmp::max(max_hate_level, hate_level);
             max_sexual_level = cmp::max(max_sexual_level, sexual_level);
             max_violence_level = cmp::max(max_violence_level, violence_level);
-            max_self_harm_level = cmp::max(max_self_harm_level, self_harm_level);
+            max_self_harm_level =
+                cmp::max(max_self_harm_level, self_harm_level);
         }
 
         debug!("Azure processing successful for event {}", event.id);
