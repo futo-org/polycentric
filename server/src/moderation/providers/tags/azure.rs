@@ -323,15 +323,19 @@ impl ContentSafety {
                 // Handle specific error codes that indicate permanent failures
                 match error_code.as_str() {
                     "InvalidImageFormat" | "InvalidImageSize"
-                    | "NotSupportedImage" => {
+                    | "NotSupportedImage" | "InvalidRequestBody" => {
                         // These are permanent failures - don't retry
+                        warn!(
+                            "Permanent Azure error ({}): {}",
+                            error_code,
+                            error.error.message.as_deref().unwrap_or("Unknown")
+                        );
                         Err(anyhow::anyhow!(
                             "Permanent Azure error: {}",
                             error_code
                         ))
                     }
                     "InvalidRequest" => {
-                        // Usually means malformed request - log details
                         warn!(
                             "Invalid request details: {:?}",
                             error.error.details

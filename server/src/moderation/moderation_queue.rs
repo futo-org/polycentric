@@ -76,11 +76,14 @@ async fn get_blob(
 ) -> ::anyhow::Result<(Vec<u8>, Vec<i64>)> {
     debug!("Getting blob for event");
     let mut logical_clocks = vec![];
-    for range in post.image.sections.iter() {
-        let start = range.low;
-        let end = range.high;
-        for i in start..=end {
-            logical_clocks.push(i);
+    // Check if post has image field (single image support)
+    if let Some(image) = post.image.as_ref() {
+        for range in image.sections.iter() {
+            let start = range.low;
+            let end = range.high;
+            for i in start..=end {
+                logical_clocks.push(i);
+            }
         }
     }
 
@@ -244,23 +247,35 @@ async fn pull_queue_events(
 
                 // Retrieve the blob bytes for this post (if any), but only
                 // include them in the queue item when we actually have data.
-                let (blob, blob_db_ids) = if post.image.sections.is_empty() {
+                let (blob, blob_db_ids) = if post
+                    .image
+                    .as_ref()
+                    .map_or(true, |img| img.sections.is_empty())
+                {
                     (None, None)
                 } else {
                     let (blob, blob_db_ids) =
                         get_blob(transaction, &event, &post).await?;
 
-                    // Skip if the blob is empty *or* exceeds Azure Content Safety's 4 MiB limit.
+                    // Skip if the blob is empty, too large, or too small for Azure
                     if blob.is_empty() || blob.len() > 4 * 1024 * 1024 {
                         debug!("Skipping POST event {} - blob empty or too large ({} bytes)", row.id, blob.len());
                         (None, None)
                     } else {
-                        debug!(
-                            "POST event {} has valid blob: {} bytes",
-                            row.id,
-                            blob.len()
-                        );
-                        (Some(blob), Some(blob_db_ids))
+                        // Check if image is too small for Azure (minimum 50px width)
+                        // This is a basic check - we assume most small images are icons/avatars that are too small
+                        if blob.len() < 1000 {
+                            // Very small blobs are likely too small for Azure's 50px minimum
+                            debug!("Skipping POST event {} - blob likely too small for Azure ({} bytes)", row.id, blob.len());
+                            (None, None)
+                        } else {
+                            debug!(
+                                "POST event {} has valid blob: {} bytes",
+                                row.id,
+                                blob.len()
+                            );
+                            (Some(blob), Some(blob_db_ids))
+                        }
                     }
                 };
 
@@ -310,40 +325,81 @@ async fn pull_queue_events(
             }
             ct::AVATAR => {
                 // Avatar references blob sections via indices with index_type == BLOB_SECTION
-                let logical_clocks: Vec<u64> = event
-                    .indices()
-                    .indices
-                    .iter()
-                    .filter(|idx| idx.index_type == ct::BLOB_SECTION)
-                    .map(|idx| idx.logical_clock)
-                    .collect();
-
-                let (blob, blob_db_ids) = if logical_clocks.is_empty() {
-                    debug!(
-                        "Skipping AVATAR event {} - no blob sections",
-                        row.id
-                    );
-                    (None, None)
+                // For avatars, we need to get the ImageBundle first to find the largest resolution
+                let avatar_bundle = if let Some(lww) = event.lww_element() {
+                    match polycentric_protocol::protocol::ImageBundle::parse_from_bytes(&lww.value) {
+                        Ok(bundle) => Some(bundle),
+                        Err(e) => {
+                            debug!("Failed to parse avatar bundle for event {}: {}", row.id, e);
+                            None
+                        }
+                    }
                 } else {
-                    let (blob, blob_db_ids) = get_blob_by_logical_clocks(
-                        transaction,
-                        &event,
-                        &logical_clocks,
-                    )
-                    .await?;
+                    debug!("AVATAR event {} has no LWW element", row.id);
+                    None
+                };
 
-                    // Skip if the blob is empty or exceeds 4 MiB.
-                    if blob.is_empty() || blob.len() > 4 * 1024 * 1024 {
-                        debug!("Skipping AVATAR event {} - blob empty or too large ({} bytes)", row.id, blob.len());
-                        (None, None)
+                let (blob, blob_db_ids) = if let Some(bundle) = avatar_bundle {
+                    // Find the largest available avatar resolution (prefer 256x256, then 128x128, then 32x32)
+                    let largest_manifest = bundle
+                        .image_manifests
+                        .iter()
+                        .max_by_key(|manifest| manifest.width);
+
+                    if let Some(manifest) = largest_manifest {
+                        if manifest.process.as_ref().is_some() {
+                            let logical_clocks: Vec<u64> = manifest
+                                .sections
+                                .iter()
+                                .flat_map(|range| range.low..=range.high)
+                                .collect();
+
+                            if logical_clocks.is_empty() {
+                                debug!("AVATAR event {} - no logical clocks in manifest", row.id);
+                                (None, None)
+                            } else {
+                                let (blob, blob_db_ids) =
+                                    get_blob_by_logical_clocks(
+                                        transaction,
+                                        &event,
+                                        &logical_clocks,
+                                    )
+                                    .await?;
+
+                                // Skip if the blob is empty or too large for Azure
+                                if blob.is_empty()
+                                    || blob.len() > 4 * 1024 * 1024
+                                {
+                                    debug!("Skipping AVATAR event {} - blob empty or too large ({} bytes)", row.id, blob.len());
+                                    (None, None)
+                                } else {
+                                    debug!(
+                                        "AVATAR event {} has valid blob: {} bytes ({}x{} resolution)",
+                                        row.id,
+                                        blob.len(),
+                                        manifest.width,
+                                        manifest.height
+                                    );
+                                    (Some(blob), Some(blob_db_ids))
+                                }
+                            }
+                        } else {
+                            debug!(
+                                "AVATAR event {} - manifest has no process",
+                                row.id
+                            );
+                            (None, None)
+                        }
                     } else {
                         debug!(
-                            "AVATAR event {} has valid blob: {} bytes",
-                            row.id,
-                            blob.len()
+                            "AVATAR event {} - no image manifests found",
+                            row.id
                         );
-                        (Some(blob), Some(blob_db_ids))
+                        (None, None)
                     }
+                } else {
+                    debug!("AVATAR event {} - no valid avatar bundle", row.id);
+                    (None, None)
                 };
 
                 // Only create queue item if we have a valid blob
