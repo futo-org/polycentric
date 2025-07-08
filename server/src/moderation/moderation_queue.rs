@@ -338,14 +338,36 @@ async fn pull_queue_events(
                 let blobs = if post.images.is_empty() {
                     vec![]
                 } else {
-                    get_blobs(transaction, &event, &post).await?
+                    let mut valid_blobs = vec![];
+                    let all_blobs = get_blobs(transaction, &event, &post).await?;
+                    
+                    for blob_data in all_blobs {
+                        // Skip if the blob is empty *or* exceeds Azure Content Safety's 4 MiB limit.
+                        if blob_data.blob.is_empty() || blob_data.blob.len() > 4 * 1024 * 1024 {
+                            debug!("Skipping blob in POST event {} - blob empty or too large ({} bytes)", row.id, blob_data.blob.len());
+                        } else {
+                            debug!("POST event {} has valid blob: {} bytes", row.id, blob_data.blob.len());
+                            valid_blobs.push(blob_data);
+                        }
+                    }
+                    valid_blobs
                 };
 
-                result_set.push(ModerationQueueItem {
-                    id: row.id,
-                    content: combined_content,
-                    blobs,
-                });
+                // Only create queue item if we have content or valid blobs
+                let has_content = combined_content.is_some()
+                    && !combined_content.as_ref().unwrap().trim().is_empty();
+                let has_blobs = !blobs.is_empty();
+
+                if has_content || has_blobs {
+                    debug!("Creating POST queue item: id={}, has_content={}, has_blobs={}", row.id, has_content, has_blobs);
+                    result_set.push(ModerationQueueItem {
+                        id: row.id,
+                        content: combined_content,
+                        blobs,
+                    });
+                } else {
+                    debug!("Skipping POST event {} - no content or valid blobs", row.id);
+                }
             }
             ct::DESCRIPTION => {
                 // DESCRIPTION uses LWW element for text
@@ -354,11 +376,21 @@ async fn pull_queue_events(
                     .as_ref()
                     .and_then(|lww| String::from_utf8(lww.value.clone()).ok());
 
-                result_set.push(ModerationQueueItem {
-                    id: row.id,
-                    content: text_content,
-                    blobs: vec![],
-                });
+                // Only create queue item if we have valid text content
+                if let Some(content) = text_content {
+                    if !content.trim().is_empty() {
+                        debug!("Creating DESCRIPTION queue item: id={}, content_len={}", row.id, content.len());
+                        result_set.push(ModerationQueueItem {
+                            id: row.id,
+                            content: Some(content),
+                            blobs: vec![],
+                        });
+                    } else {
+                        debug!("Skipping DESCRIPTION event {} - empty content after trim", row.id);
+                    }
+                } else {
+                    debug!("Skipping DESCRIPTION event {} - no valid UTF-8 content", row.id);
+                }
             }
             ct::AVATAR => {
                 // Avatar references blob sections via indices with index_type == BLOB_SECTION
@@ -371,6 +403,10 @@ async fn pull_queue_events(
                     .collect();
 
                 let (blob, blob_db_ids) = if logical_clocks.is_empty() {
+                    debug!(
+                        "Skipping AVATAR event {} - no blob sections",
+                        row.id
+                    );
                     (None, None)
                 } else {
                     let (blob, blob_db_ids) = get_blob_by_logical_clocks(
@@ -379,19 +415,32 @@ async fn pull_queue_events(
                         &logical_clocks,
                     )
                     .await?;
-                    (Some(blob), Some(blob_db_ids))
+
+                    // Skip if the blob is empty or exceeds 4 MiB.
+                    if blob.is_empty() || blob.len() > 4 * 1024 * 1024 {
+                        debug!("Skipping AVATAR event {} - blob empty or too large ({} bytes)", row.id, blob.len());
+                        (None, None)
+                    } else {
+                        debug!(
+                            "AVATAR event {} has valid blob: {} bytes",
+                            row.id,
+                            blob.len()
+                        );
+                        (Some(blob), Some(blob_db_ids))
+                    }
                 };
 
-                result_set.push(ModerationQueueItem {
-                    id: row.id,
-                    content: None,
-                    blobs: match (blob, blob_db_ids) {
-                        (Some(blob), Some(blob_db_ids)) => {
-                            vec![BlobData { blob, blob_db_ids }]
-                        }
-                        _ => vec![],
-                    },
-                });
+                // Only create queue item if we have a valid blob
+                if blob.is_some() {
+                    debug!("Creating AVATAR queue item: id={}", row.id);
+                    result_set.push(ModerationQueueItem {
+                        id: row.id,
+                        content: None,
+                        blobs: vec![BlobData { blob: blob.unwrap(), blob_db_ids: blob_db_ids.unwrap() }],
+                    });
+                } else {
+                    debug!("Skipping AVATAR event {} - no valid blob", row.id);
+                }
             }
             _ => {
                 // Unsupported type – skip moderation
@@ -444,7 +493,13 @@ async fn process_event(
     request_rate_limiter: &RateLimiter,
     csam_request_rate_limiter: &RateLimiter,
 ) -> ModerationResult {
-    debug!("Processing event: {:?}", event.id);
+    debug!(
+        "Processing event: {:?}, has_content={}, has_blobs={}",
+        event.id,
+        event.content.is_some(),
+        !event.blobs.is_empty()
+    );
+
     // Acquire a permit from the rate limiter
 
     let should_csam = !event.blobs.is_empty() && csam.is_some();
@@ -453,6 +508,7 @@ async fn process_event(
     // Can't join on None
     let (tagging_result, csam_result) = match (tag, should_csam) {
         (Some(tag), true) => {
+            debug!("Event {}: Running both tagging and CSAM", event.id);
             let tagging_future = tag_event(tag, event, request_rate_limiter);
             let csam_future = csam_detect_event(
                 csam.unwrap(),
@@ -463,22 +519,31 @@ async fn process_event(
                 tokio::join!(tagging_future, csam_future);
             (Some(tagging_result), Some(csam_result))
         }
-        (Some(tag), false) => (
-            Some(tag_event(tag, event, request_rate_limiter).await),
-            None,
-        ),
-        (None, true) => (
-            None,
-            Some(
-                csam_detect_event(
-                    csam.unwrap(),
-                    event,
-                    csam_request_rate_limiter,
-                )
-                .await,
-            ),
-        ),
-        (None, false) => (None, None),
+        (Some(tag), false) => {
+            debug!("Event {}: Running tagging only", event.id);
+            (
+                Some(tag_event(tag, event, request_rate_limiter).await),
+                None,
+            )
+        }
+        (None, true) => {
+            debug!("Event {}: Running CSAM only", event.id);
+            (
+                None,
+                Some(
+                    csam_detect_event(
+                        csam.unwrap(),
+                        event,
+                        csam_request_rate_limiter,
+                    )
+                    .await,
+                ),
+            )
+        }
+        (None, false) => {
+            debug!("Event {}: No moderation providers available", event.id);
+            (None, None)
+        }
     };
 
     let mut has_error = false;
@@ -497,7 +562,14 @@ async fn process_event(
 
     let tags = match tagging_result {
         Some(ref result) => match result {
-            Ok(result) => result.tags.clone(),
+            Ok(result) => {
+                debug!(
+                    "Event {}: Tagging successful, {} tags",
+                    event.id,
+                    result.tags.len()
+                );
+                result.tags.clone()
+            }
             Err(e) => {
                 debug!(
                     "Tagging error for event: {:?}, error: {:?}",
@@ -510,13 +582,18 @@ async fn process_event(
         None => Vec::new(),
     };
 
-    debug!("Event processed: {:?}", event.id);
+    debug!(
+        "Event {} processed: has_error={}, is_csam={}, tags_count={}",
+        event.id,
+        has_error,
+        is_csam,
+        tags.len()
+    );
 
     let mut blob_db_ids: Vec<i64> = vec![];
     for blob_data in event.blobs.iter() {
         blob_db_ids.extend(blob_data.blob_db_ids.iter());
     }
-
     ModerationResult {
         event_id: event.id,
         has_error,

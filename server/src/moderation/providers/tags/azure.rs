@@ -5,6 +5,7 @@ use crate::{
     moderation::moderation_queue::ModerationQueueItem,
 };
 use async_trait::async_trait;
+use log::{debug, error, warn};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -184,28 +185,80 @@ impl ContentSafety {
         enable_ocr: bool,
     ) -> DetectionRequest {
         match media_type {
-            MediaType::Text => DetectionRequest::Text {
-                text: text_content.as_ref().unwrap().to_string(),
-                blocklist_names: blocklists.clone().unwrap_or_default(),
-            },
-            MediaType::Image => DetectionRequest::Image {
-                image: Image {
-                    content: ::base64::encode(image_content.as_ref().unwrap()),
-                },
-            },
-            MediaType::ImageWithText => DetectionRequest::ImageWithText {
-                image: Image {
-                    content: ::base64::encode(image_content.as_ref().unwrap()),
-                },
-                text: text_content.as_ref().unwrap().to_string(),
-                enable_ocr,
-                categories: vec![
-                    Category::Hate,
-                    Category::SelfHarm,
-                    Category::Sexual,
-                    Category::Violence,
-                ],
-            },
+            MediaType::Text => {
+                let text = text_content.as_ref().unwrap();
+
+                // Defensive check: never send empty text
+                if text.trim().is_empty() {
+                    warn!("Attempting to send empty text to Azure - this should not happen");
+                    return DetectionRequest::Text {
+                        text: "".to_string(),
+                        blocklist_names: blocklists.clone().unwrap_or_default(),
+                    };
+                }
+
+                debug!("Building text request: text_len={}", text.len());
+                DetectionRequest::Text {
+                    text: text.to_string(),
+                    blocklist_names: blocklists.clone().unwrap_or_default(),
+                }
+            }
+            MediaType::Image => {
+                let image_bytes = image_content.as_ref().unwrap();
+
+                // Defensive check: never send empty images
+                if image_bytes.is_empty() {
+                    warn!("Attempting to send empty image to Azure - this should not happen");
+                    return DetectionRequest::Text {
+                        text: "".to_string(),
+                        blocklist_names: blocklists.clone().unwrap_or_default(),
+                    };
+                }
+
+                let base64_content = ::base64::encode(image_bytes);
+                debug!(
+                    "Building image request: image_bytes={}, base64_len={}",
+                    image_bytes.len(),
+                    base64_content.len()
+                );
+
+                DetectionRequest::Image {
+                    image: Image {
+                        content: base64_content,
+                    },
+                }
+            }
+            MediaType::ImageWithText => {
+                let text = text_content.as_ref().unwrap();
+                let image_bytes = image_content.as_ref().unwrap();
+
+                // Defensive check: never send empty images
+                if image_bytes.is_empty() {
+                    warn!("Attempting to send empty image to Azure - this should not happen");
+                    return DetectionRequest::Text {
+                        text: text.to_string(),
+                        blocklist_names: blocklists.clone().unwrap_or_default(),
+                    };
+                }
+
+                let base64_content = ::base64::encode(image_bytes);
+                debug!("Building image+text request: text_len={}, image_bytes={}, base64_len={}", 
+                    text.len(), image_bytes.len(), base64_content.len());
+
+                DetectionRequest::ImageWithText {
+                    image: Image {
+                        content: base64_content,
+                    },
+                    text: text.to_string(),
+                    enable_ocr,
+                    categories: vec![
+                        Category::Hate,
+                        Category::SelfHarm,
+                        Category::Sexual,
+                        Category::Violence,
+                    ],
+                }
+            }
         }
     }
 
@@ -229,6 +282,14 @@ impl ContentSafety {
 
         let body_json = serde_json::to_string(&request_body)?;
 
+        // Log request details for debugging
+        debug!("Azure Content Safety request: media_type={:?}, text_len={}, image_len={}, url={}", 
+            media_type,
+            text_content.as_ref().map(|t| t.len()).unwrap_or(0),
+            image_content.as_ref().map(|i| i.len()).unwrap_or(0),
+            url
+        );
+
         let response = self
             .client
             .post(&url)
@@ -240,11 +301,62 @@ impl ContentSafety {
         if response.status().is_success() {
             let body = response.text().await?;
             let result: DetectionResult = serde_json::from_str(&body)?;
+            debug!("Azure Content Safety success: media_type={:?}", media_type);
             Ok(result)
         } else {
+            let status = response.status();
             let body = response.text().await?;
+
+            // Log detailed error information
+            error!(
+                "Azure Content Safety error: status={}, body={}",
+                status, body
+            );
+
             let error: DetectionErrorResponse = serde_json::from_str(&body)?;
-            Err(anyhow::anyhow!("Detection error: {:?}", error))
+
+            // Log specific error details for debugging
+            if let Some(error_code) = &error.error.code {
+                warn!(
+                    "Azure Content Safety error: code={}, message={:?}",
+                    error_code, error.error.message
+                );
+                // Handle specific error codes that indicate permanent failures
+                match error_code.as_str() {
+                    "InvalidImageFormat" | "InvalidImageSize"
+                    | "NotSupportedImage" => {
+                        // These are permanent failures - don't retry
+                        Err(anyhow::anyhow!(
+                            "Permanent Azure error: {}",
+                            error_code
+                        ))
+                    }
+                    "InvalidRequest" => {
+                        // Usually means malformed request - log details
+                        warn!(
+                            "Invalid request details: {:?}",
+                            error.error.details
+                        );
+                        Err(anyhow::anyhow!(
+                            "Invalid request to Azure: {}",
+                            error_code
+                        ))
+                    }
+                    _ => {
+                        // Other errors might be transient
+                        Err(anyhow::anyhow!(
+                            "Azure error: {} - {}",
+                            error_code,
+                            error.error.message.as_deref().unwrap_or("Unknown")
+                        ))
+                    }
+                }
+            } else {
+                Err(anyhow::anyhow!(
+                    "Azure error without code: {:?}",
+                    error.error
+                ))
+            }
         }
     }
 }
@@ -294,19 +406,57 @@ impl ModerationTaggingProvider for AzureTagProvider {
 
         let detector = self.content_safety.as_ref().unwrap();
 
-        let media_type = match (
-            event.content.is_some()
-                && !event.content.as_ref().unwrap().is_empty(),
+        // Log event details for debugging
+        debug!("Processing moderation event: id={}, has_content={}, has_blobs={}, content_len={}, blobs_count={}", 
+            event.id,
+            event.content.is_some(),
             !event.blobs.is_empty(),
-        ) {
+            event.content.as_ref().map(|c| c.len()).unwrap_or(0),
+            event.blobs.len()
+        );
+
+        // Guard: Azure returns 400 for text longer than 10 000 characters.
+        if let Some(content) = &event.content {
+            if content.len() > 10_000 {
+                warn!(
+                    "Skipping event {} - text too long ({} chars)",
+                    event.id,
+                    content.len()
+                );
+                return Ok(ModerationTaggingResult { tags: vec![] });
+            }
+        }
+
+        // Validate that we have actual content to process
+        let has_text = event.content.is_some()
+            && !event.content.as_ref().unwrap().trim().is_empty();
+        let has_images = !event.blobs.is_empty() && event.blobs.iter().any(|blob| !blob.blob.is_empty());
+
+        if !has_text && !has_images {
+            // No valid content to process - return empty result instead of error
+            debug!("Skipping event {} - no valid content or blobs", event.id);
+            return Ok(ModerationTaggingResult { tags: vec![] });
+        }
+
+        let media_type = match (has_text, has_images) {
             (true, false) => MediaType::Text,
             (false, true) => MediaType::Image,
             (true, true) => MediaType::ImageWithText,
             _ => {
-                return Err(anyhow::anyhow!("No content or blob"));
+                debug!(
+                    "Skipping event {} - invalid content combination",
+                    event.id
+                );
+                return Ok(ModerationTaggingResult { tags: vec![] });
             }
         };
 
+        debug!(
+            "Sending event {} to Azure: media_type={:?}",
+            event.id, media_type
+        );
+
+        // Handle multiple images by processing each blob separately
         let blob_inputs = match event.blobs.len() {
             0 => vec![None],
             _ => event
@@ -325,14 +475,13 @@ impl ModerationTaggingProvider for AzureTagProvider {
             match result {
                 Ok(res) => results.push(res),
                 Err(e) => {
-                    return Err(anyhow::anyhow!(
-                        "Error detecting content: {}",
-                        e
-                    ))
+                    error!("Azure processing failed for event {}: {}", event.id, e);
+                    return Err(anyhow::anyhow!("Error detecting content: {}", e))
                 }
             }
         }
 
+        // Combine results from all images by taking the maximum severity for each category
         let mut max_hate_level = 0;
         let mut max_sexual_level = 0;
         let mut max_violence_level = 0;
@@ -380,9 +529,10 @@ impl ModerationTaggingProvider for AzureTagProvider {
             max_hate_level = cmp::max(max_hate_level, hate_level);
             max_sexual_level = cmp::max(max_sexual_level, sexual_level);
             max_violence_level = cmp::max(max_violence_level, violence_level);
-            max_self_harm_level =
-                cmp::max(max_self_harm_level, self_harm_level);
+            max_self_harm_level = cmp::max(max_self_harm_level, self_harm_level);
         }
+
+        debug!("Azure processing successful for event {}", event.id);
 
         let tags = vec![
             ModerationTag::new("hate".to_string(), max_hate_level),
@@ -393,7 +543,6 @@ impl ModerationTaggingProvider for AzureTagProvider {
             ),
         ];
 
-        // Always return ok, error is handled in the moderation queue
         Ok(ModerationTaggingResult { tags })
     }
 }
