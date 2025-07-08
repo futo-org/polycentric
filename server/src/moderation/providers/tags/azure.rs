@@ -300,16 +300,15 @@ impl ContentSafety {
                     "Azure Content Safety error: code={}, message={:?}",
                     error_code, error.error.message
                 );
-
                 // Handle specific error codes that indicate permanent failures
                 match error_code.as_str() {
                     "InvalidImageFormat" | "InvalidImageSize"
                     | "NotSupportedImage" => {
                         // These are permanent failures - don't retry
-                        return Err(anyhow::anyhow!(
+                        Err(anyhow::anyhow!(
                             "Permanent Azure error: {}",
                             error_code
-                        ));
+                        ))
                     }
                     "InvalidRequest" => {
                         // Usually means malformed request - log details
@@ -317,25 +316,25 @@ impl ContentSafety {
                             "Invalid request details: {:?}",
                             error.error.details
                         );
-                        return Err(anyhow::anyhow!(
+                        Err(anyhow::anyhow!(
                             "Invalid request to Azure: {}",
                             error_code
-                        ));
+                        ))
                     }
                     _ => {
                         // Other errors might be transient
-                        return Err(anyhow::anyhow!(
+                        Err(anyhow::anyhow!(
                             "Azure error: {} - {}",
                             error_code,
                             error.error.message.as_deref().unwrap_or("Unknown")
-                        ));
+                        ))
                     }
                 }
             } else {
-                return Err(anyhow::anyhow!(
+                Err(anyhow::anyhow!(
                     "Azure error without code: {:?}",
                     error.error
-                ));
+                ))
             }
         }
     }
