@@ -4,11 +4,11 @@ use crate::{
     moderation::moderation_queue::ModerationQueueItem,
 };
 use async_trait::async_trait;
+use log::{debug, error, warn};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::{cmp, collections::HashMap};
-use log::{debug, warn, error};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum MediaType {
@@ -195,13 +195,17 @@ impl ContentSafety {
             MediaType::Image => {
                 let image_bytes = image_content.as_ref().unwrap();
                 let base64_content = ::base64::encode(image_bytes);
-                debug!("Building image request: image_bytes={}, base64_len={}", image_bytes.len(), base64_content.len());
-                
+                debug!(
+                    "Building image request: image_bytes={}, base64_len={}",
+                    image_bytes.len(),
+                    base64_content.len()
+                );
+
                 // Validate that we have actual image data
                 if image_bytes.is_empty() {
                     warn!("Attempting to send empty image to Azure");
                 }
-                
+
                 DetectionRequest::Image {
                     image: Image {
                         content: base64_content,
@@ -214,12 +218,12 @@ impl ContentSafety {
                 let base64_content = ::base64::encode(image_bytes);
                 debug!("Building image+text request: text_len={}, image_bytes={}, base64_len={}", 
                     text.len(), image_bytes.len(), base64_content.len());
-                
+
                 // Validate that we have actual image data
                 if image_bytes.is_empty() {
                     warn!("Attempting to send empty image to Azure");
                 }
-                
+
                 DetectionRequest::ImageWithText {
                     image: Image {
                         content: base64_content,
@@ -256,7 +260,7 @@ impl ContentSafety {
         );
 
         let body_json = serde_json::to_string(&request_body)?;
-        
+
         // Log request details for debugging
         debug!("Azure Content Safety request: media_type={:?}, text_len={}, image_len={}, url={}", 
             media_type,
@@ -281,36 +285,57 @@ impl ContentSafety {
         } else {
             let status = response.status();
             let body = response.text().await?;
-            
+
             // Log detailed error information
-            error!("Azure Content Safety error: status={}, body={}", status, body);
-            
+            error!(
+                "Azure Content Safety error: status={}, body={}",
+                status, body
+            );
+
             let error: DetectionErrorResponse = serde_json::from_str(&body)?;
-            
+
             // Log specific error details for debugging
             if let Some(error_code) = &error.error.code {
-                warn!("Azure Content Safety error: code={}, message={:?}", 
-                    error_code, error.error.message);
-                
+                warn!(
+                    "Azure Content Safety error: code={}, message={:?}",
+                    error_code, error.error.message
+                );
+
                 // Handle specific error codes that indicate permanent failures
                 match error_code.as_str() {
-                    "InvalidImageFormat" | "InvalidImageSize" | "NotSupportedImage" => {
+                    "InvalidImageFormat" | "InvalidImageSize"
+                    | "NotSupportedImage" => {
                         // These are permanent failures - don't retry
-                        return Err(anyhow::anyhow!("Permanent Azure error: {}", error_code));
+                        return Err(anyhow::anyhow!(
+                            "Permanent Azure error: {}",
+                            error_code
+                        ));
                     }
                     "InvalidRequest" => {
                         // Usually means malformed request - log details
-                        warn!("Invalid request details: {:?}", error.error.details);
-                        return Err(anyhow::anyhow!("Invalid request to Azure: {}", error_code));
+                        warn!(
+                            "Invalid request details: {:?}",
+                            error.error.details
+                        );
+                        return Err(anyhow::anyhow!(
+                            "Invalid request to Azure: {}",
+                            error_code
+                        ));
                     }
                     _ => {
                         // Other errors might be transient
-                        return Err(anyhow::anyhow!("Azure error: {} - {}", 
-                            error_code, error.error.message.as_deref().unwrap_or("Unknown")));
+                        return Err(anyhow::anyhow!(
+                            "Azure error: {} - {}",
+                            error_code,
+                            error.error.message.as_deref().unwrap_or("Unknown")
+                        ));
                     }
                 }
             } else {
-                return Err(anyhow::anyhow!("Azure error without code: {:?}", error.error));
+                return Err(anyhow::anyhow!(
+                    "Azure error without code: {:?}",
+                    error.error
+                ));
             }
         }
     }
@@ -373,16 +398,20 @@ impl ModerationTaggingProvider for AzureTagProvider {
         // Guard: Azure returns 400 for text longer than 10 000 characters.
         if let Some(content) = &event.content {
             if content.len() > 10_000 {
-                warn!("Skipping event {} - text too long ({} chars)", event.id, content.len());
+                warn!(
+                    "Skipping event {} - text too long ({} chars)",
+                    event.id,
+                    content.len()
+                );
                 return Ok(ModerationTaggingResult { tags: vec![] });
             }
         }
 
         // Validate that we have actual content to process
-        let has_text = event.content.is_some() && 
-            !event.content.as_ref().unwrap().trim().is_empty();
-        let has_image = event.blob.is_some() && 
-            !event.blob.as_ref().unwrap().is_empty();
+        let has_text = event.content.is_some()
+            && !event.content.as_ref().unwrap().trim().is_empty();
+        let has_image =
+            event.blob.is_some() && !event.blob.as_ref().unwrap().is_empty();
 
         if !has_text && !has_image {
             // No valid content to process - return empty result instead of error
@@ -395,12 +424,18 @@ impl ModerationTaggingProvider for AzureTagProvider {
             (false, true) => MediaType::Image,
             (true, true) => MediaType::ImageWithText,
             _ => {
-                debug!("Skipping event {} - invalid content combination", event.id);
+                debug!(
+                    "Skipping event {} - invalid content combination",
+                    event.id
+                );
                 return Ok(ModerationTaggingResult { tags: vec![] });
             }
         };
 
-        debug!("Sending event {} to Azure: media_type={:?}", event.id, media_type);
+        debug!(
+            "Sending event {} to Azure: media_type={:?}",
+            event.id, media_type
+        );
 
         let result = detector
             .detect(media_type, &event.content, &event.blob, true, &None)
