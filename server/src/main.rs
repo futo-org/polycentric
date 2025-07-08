@@ -432,7 +432,7 @@ async fn main() -> Result<(), Box<dyn ::std::error::Error>> {
             info!("mode: ServeAPI");
 
             let pool = ::sqlx::postgres::PgPoolOptions::new()
-                .max_connections(10)
+                .max_connections(90)
                 .connect(&config.postgres_string)
                 .await?;
 

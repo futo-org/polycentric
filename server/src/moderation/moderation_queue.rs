@@ -244,13 +244,15 @@ async fn pull_queue_events(
 
                 // Retrieve the blob bytes for this post (if any), but only
                 // include them in the queue item when we actually have data.
-                let (blob, blob_db_ids) = if post.image.sections.is_empty() {
+                let (blob, blob_db_ids) = if post.image.is_none()
+                    || post.image.as_ref().unwrap().sections.is_empty()
+                {
                     (None, None)
                 } else {
                     let (blob, blob_db_ids) =
                         get_blob(transaction, &event, &post).await?;
 
-                    // Skip if the blob is empty *or* exceeds Azure Content Safety’s 4 MiB limit.
+                    // Skip if the blob is empty *or* exceeds Azure Content Safety's 4 MiB limit.
                     if blob.is_empty() || blob.len() > 4 * 1024 * 1024 {
                         (None, None)
                     } else {
@@ -272,12 +274,17 @@ async fn pull_queue_events(
                     .as_ref()
                     .and_then(|lww| String::from_utf8(lww.value.clone()).ok());
 
-                result_set.push(ModerationQueueItem {
-                    id: row.id,
-                    content: text_content,
-                    blob: None,
-                    blob_db_ids: None,
-                });
+                // Only create queue item if we have valid text content
+                if let Some(content) = text_content {
+                    if !content.trim().is_empty() {
+                        result_set.push(ModerationQueueItem {
+                            id: row.id,
+                            content: Some(content),
+                            blob: None,
+                            blob_db_ids: None,
+                        });
+                    }
+                }
             }
             ct::AVATAR => {
                 // Avatar references blob sections via indices with index_type == BLOB_SECTION

@@ -4,6 +4,7 @@ use crate::{
     moderation::moderation_queue::ModerationQueueItem,
 };
 use async_trait::async_trait;
+use log::debug;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -243,7 +244,50 @@ impl ContentSafety {
         } else {
             let body = response.text().await?;
             let error: DetectionErrorResponse = serde_json::from_str(&body)?;
-            Err(anyhow::anyhow!("Detection error: {:?}", error))
+
+            // Log specific error details for debugging
+            if let Some(error_code) = &error.error.code {
+                debug!(
+                    "Azure Content Safety error: code={}, message={:?}",
+                    error_code, error.error.message
+                );
+
+                // Handle specific error codes that indicate permanent failures
+                match error_code.as_str() {
+                    "InvalidImageFormat" | "InvalidImageSize"
+                    | "NotSupportedImage" => {
+                        // These are permanent failures - don't retry
+                        return Err(anyhow::anyhow!(
+                            "Permanent Azure error: {}",
+                            error_code
+                        ));
+                    }
+                    "InvalidRequest" => {
+                        // Usually means malformed request - log details
+                        debug!(
+                            "Invalid request details: {:?}",
+                            error.error.details
+                        );
+                        return Err(anyhow::anyhow!(
+                            "Invalid request to Azure: {}",
+                            error_code
+                        ));
+                    }
+                    _ => {
+                        // Other errors might be transient
+                        return Err(anyhow::anyhow!(
+                            "Azure error: {} - {}",
+                            error_code,
+                            error.error.message.as_deref().unwrap_or("Unknown")
+                        ));
+                    }
+                }
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Azure error without code: {:?}",
+                    error.error
+                ));
+            }
         }
     }
 }
@@ -300,16 +344,23 @@ impl ModerationTaggingProvider for AzureTagProvider {
             }
         }
 
-        let media_type = match (
-            event.content.is_some()
-                && !event.content.as_ref().unwrap().is_empty(),
-            event.blob.is_some(),
-        ) {
+        // Validate that we have actual content to process
+        let has_text = event.content.is_some()
+            && !event.content.as_ref().unwrap().trim().is_empty();
+        let has_image =
+            event.blob.is_some() && !event.blob.as_ref().unwrap().is_empty();
+
+        if !has_text && !has_image {
+            // No valid content to process - return empty result instead of error
+            return Ok(ModerationTaggingResult { tags: vec![] });
+        }
+
+        let media_type = match (has_text, has_image) {
             (true, false) => MediaType::Text,
             (false, true) => MediaType::Image,
             (true, true) => MediaType::ImageWithText,
             _ => {
-                return Err(anyhow::anyhow!("No content or blob"));
+                return Ok(ModerationTaggingResult { tags: vec![] });
             }
         };
 
