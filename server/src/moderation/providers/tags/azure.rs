@@ -186,6 +186,16 @@ impl ContentSafety {
         match media_type {
             MediaType::Text => {
                 let text = text_content.as_ref().unwrap();
+
+                // Defensive check: never send empty text
+                if text.trim().is_empty() {
+                    warn!("Attempting to send empty text to Azure - this should not happen");
+                    return DetectionRequest::Text {
+                        text: "".to_string(),
+                        blocklist_names: blocklists.clone().unwrap_or_default(),
+                    };
+                }
+
                 debug!("Building text request: text_len={}", text.len());
                 DetectionRequest::Text {
                     text: text.to_string(),
@@ -194,17 +204,22 @@ impl ContentSafety {
             }
             MediaType::Image => {
                 let image_bytes = image_content.as_ref().unwrap();
+
+                // Defensive check: never send empty images
+                if image_bytes.is_empty() {
+                    warn!("Attempting to send empty image to Azure - this should not happen");
+                    return DetectionRequest::Text {
+                        text: "".to_string(),
+                        blocklist_names: blocklists.clone().unwrap_or_default(),
+                    };
+                }
+
                 let base64_content = ::base64::encode(image_bytes);
                 debug!(
                     "Building image request: image_bytes={}, base64_len={}",
                     image_bytes.len(),
                     base64_content.len()
                 );
-
-                // Validate that we have actual image data
-                if image_bytes.is_empty() {
-                    warn!("Attempting to send empty image to Azure");
-                }
 
                 DetectionRequest::Image {
                     image: Image {
@@ -215,14 +230,19 @@ impl ContentSafety {
             MediaType::ImageWithText => {
                 let text = text_content.as_ref().unwrap();
                 let image_bytes = image_content.as_ref().unwrap();
+
+                // Defensive check: never send empty images
+                if image_bytes.is_empty() {
+                    warn!("Attempting to send empty image to Azure - this should not happen");
+                    return DetectionRequest::Text {
+                        text: text.to_string(),
+                        blocklist_names: blocklists.clone().unwrap_or_default(),
+                    };
+                }
+
                 let base64_content = ::base64::encode(image_bytes);
                 debug!("Building image+text request: text_len={}, image_bytes={}, base64_len={}", 
                     text.len(), image_bytes.len(), base64_content.len());
-
-                // Validate that we have actual image data
-                if image_bytes.is_empty() {
-                    warn!("Attempting to send empty image to Azure");
-                }
 
                 DetectionRequest::ImageWithText {
                     image: Image {
