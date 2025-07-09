@@ -247,19 +247,26 @@ async fn pull_queue_events(
 
                 // Retrieve the blob bytes for this post (if any), but only
                 // include them in the queue item when we actually have data.
-                let (blob, blob_db_ids) = if let Some(image_manifest) = post.image.as_ref() {
+                let (blob, blob_db_ids) = if let Some(image_manifest) =
+                    post.image.as_ref()
+                {
                     // Check image dimensions before processing
                     if image_manifest.width < 50 || image_manifest.height < 50 {
                         debug!("Skipping POST event {} - image too small ({}x{} pixels)", 
                             row.id, image_manifest.width, image_manifest.height);
                         (None, None)
-                    } else if image_manifest.width > 2000 || image_manifest.height > 2000 {
+                    } else if image_manifest.width > 2000
+                        || image_manifest.height > 2000
+                    {
                         // Frontend should downscale to 1000px, but allow some buffer for safety
                         debug!("Skipping POST event {} - image too large ({}x{} pixels), frontend should downscale", 
                             row.id, image_manifest.width, image_manifest.height);
                         (None, None)
                     } else if image_manifest.sections.is_empty() {
-                        debug!("Skipping POST event {} - no image sections", row.id);
+                        debug!(
+                            "Skipping POST event {} - no image sections",
+                            row.id
+                        );
                         (None, None)
                     } else {
                         let (blob, blob_db_ids) =
@@ -358,7 +365,9 @@ async fn pull_queue_events(
                             debug!("Skipping AVATAR event {} - image too small ({}x{} pixels)", 
                                 row.id, manifest.width, manifest.height);
                             (None, None)
-                        } else if manifest.width > 2000 || manifest.height > 2000 {
+                        } else if manifest.width > 2000
+                            || manifest.height > 2000
+                        {
                             debug!("Skipping AVATAR event {} - image too large ({}x{} pixels)", 
                                 row.id, manifest.width, manifest.height);
                             (None, None)
@@ -552,38 +561,41 @@ async fn process_event(
     };
 
     let tags = match tagging_result {
-        Some(ref result) => match result {
-            Ok(result) => {
-                debug!(
-                    "Event {}: Tagging successful, {} tags",
-                    event.id,
-                    result.tags.len()
-                );
-                result.tags.clone()
-            }
-            Err(e) => {
-                debug!(
-                    "Tagging error for event: {:?}, error: {:?}",
-                    event.id, e
-                );
-                has_error = true;
-                
-                // Check if this is a permanent error (Azure InvalidRequestBody, etc.)
-                let error_msg = e.to_string().to_lowercase();
-                if error_msg.contains("permanent azure error") || 
-                   error_msg.contains("invalidrequestbody") ||
-                   error_msg.contains("invalidimageformat") ||
-                   error_msg.contains("invalidimagesize") ||
-                   error_msg.contains("notsupportedimage") ||
-                   error_msg.contains("width of given image is") ||
-                   error_msg.contains("height of given image is") {
-                    is_permanent_error = true;
-                    debug!("Event {}: Permanent error detected, will not retry", event.id);
+        Some(ref result) => {
+            match result {
+                Ok(result) => {
+                    debug!(
+                        "Event {}: Tagging successful, {} tags",
+                        event.id,
+                        result.tags.len()
+                    );
+                    result.tags.clone()
                 }
-                
-                Vec::new()
+                Err(e) => {
+                    debug!(
+                        "Tagging error for event: {:?}, error: {:?}",
+                        event.id, e
+                    );
+                    has_error = true;
+
+                    // Check if this is a permanent error (Azure InvalidRequestBody, etc.)
+                    let error_msg = e.to_string().to_lowercase();
+                    if error_msg.contains("permanent azure error")
+                        || error_msg.contains("invalidrequestbody")
+                        || error_msg.contains("invalidimageformat")
+                        || error_msg.contains("invalidimagesize")
+                        || error_msg.contains("notsupportedimage")
+                        || error_msg.contains("width of given image is")
+                        || error_msg.contains("height of given image is")
+                    {
+                        is_permanent_error = true;
+                        debug!("Event {}: Permanent error detected, will not retry", event.id);
+                    }
+
+                    Vec::new()
+                }
             }
-        },
+        }
         None => Vec::new(),
     };
 
@@ -646,7 +658,11 @@ async fn apply_moderation_results(
         let is_permanent_error = result.is_permanent_error;
         let is_csam = result.is_csam;
 
-        let new_moderation_status = match (has_error, is_permanent_error, is_csam) {
+        let new_moderation_status = match (
+            has_error,
+            is_permanent_error,
+            is_csam,
+        ) {
             (false, _, true) => ModerationStatus::FlaggedAndRejected,
             (true, true, _) => {
                 // Permanent errors should be marked as approved to prevent retries
@@ -1638,7 +1654,10 @@ mod tests {
             .fetch_one(&mut *transaction)
             .await?;
 
-        assert_eq!(status_str, "approved", "Permanent errors should be marked as approved to prevent retries");
+        assert_eq!(
+            status_str, "approved",
+            "Permanent errors should be marked as approved to prevent retries"
+        );
 
         Ok(())
     }
