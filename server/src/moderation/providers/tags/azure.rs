@@ -331,8 +331,9 @@ impl ContentSafety {
                             error.error.message.as_deref().unwrap_or("Unknown")
                         );
                         Err(anyhow::anyhow!(
-                            "Permanent Azure error: {}",
-                            error_code
+                            "Permanent Azure error: {} - {}",
+                            error_code,
+                            error.error.message.as_deref().unwrap_or("Unknown")
                         ))
                     }
                     "InvalidRequest" => {
