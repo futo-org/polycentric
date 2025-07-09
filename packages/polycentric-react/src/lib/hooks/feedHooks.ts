@@ -128,7 +128,14 @@ export const useExploreFeed: FeedHook = () => {
     return data.filter((item) => {
       if (!item) return true;
 
+      // Filter out comments (posts that reference other posts)
       const references = item.event.references ?? [];
+      const hasPostReference = references.some((ref) =>
+        ref.referenceType.eq(2),
+      );
+      if (hasPostReference) return false;
+
+      // Filter out blocked topics
       for (const ref of references) {
         try {
           const text = Util.decodeText(ref.reference);
