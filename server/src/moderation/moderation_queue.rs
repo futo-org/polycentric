@@ -77,8 +77,8 @@ async fn get_blob(
     debug!("Getting blob for event");
     let mut logical_clocks = vec![];
     // Check if post has image field (single image support)
-    if let Some(image) = post.image.as_ref() {
-        for range in image.sections.iter() {
+    if let Some(image_manifest) = post.image.as_ref() {
+        for range in image_manifest.sections.iter() {
             let start = range.low;
             let end = range.high;
             for i in start..=end {
@@ -247,36 +247,48 @@ async fn pull_queue_events(
 
                 // Retrieve the blob bytes for this post (if any), but only
                 // include them in the queue item when we actually have data.
-                let (blob, blob_db_ids) = if post
-                    .image
-                    .as_ref()
-                    .map_or(true, |img| img.sections.is_empty())
+                let (blob, blob_db_ids) = if let Some(image_manifest) =
+                    post.image.as_ref()
                 {
-                    (None, None)
-                } else {
-                    let (blob, blob_db_ids) =
-                        get_blob(transaction, &event, &post).await?;
-
-                    // Skip if the blob is empty, too large, or too small for Azure
-                    if blob.is_empty() || blob.len() > 4 * 1024 * 1024 {
-                        debug!("Skipping POST event {} - blob empty or too large ({} bytes)", row.id, blob.len());
+                    // Check image dimensions before processing
+                    if image_manifest.width < 50 || image_manifest.height < 50 {
+                        debug!("Skipping POST event {} - image too small ({}x{} pixels)", 
+                            row.id, image_manifest.width, image_manifest.height);
+                        (None, None)
+                    } else if image_manifest.width > 2000
+                        || image_manifest.height > 2000
+                    {
+                        // Frontend should downscale to 1000px, but allow some buffer for safety
+                        debug!("Skipping POST event {} - image too large ({}x{} pixels), frontend should downscale", 
+                            row.id, image_manifest.width, image_manifest.height);
+                        (None, None)
+                    } else if image_manifest.sections.is_empty() {
+                        debug!(
+                            "Skipping POST event {} - no image sections",
+                            row.id
+                        );
                         (None, None)
                     } else {
-                        // Check if image is too small for Azure (minimum 50px width)
-                        // This is a basic check - we assume most small images are icons/avatars that are too small
-                        if blob.len() < 1000 {
-                            // Very small blobs are likely too small for Azure's 50px minimum
-                            debug!("Skipping POST event {} - blob likely too small for Azure ({} bytes)", row.id, blob.len());
+                        let (blob, blob_db_ids) =
+                            get_blob(transaction, &event, &post).await?;
+
+                        // Skip if the blob is empty or too large for Azure
+                        if blob.is_empty() || blob.len() > 4 * 1024 * 1024 {
+                            debug!("Skipping POST event {} - blob empty or too large ({} bytes)", row.id, blob.len());
                             (None, None)
                         } else {
                             debug!(
-                                "POST event {} has valid blob: {} bytes",
+                                "POST event {} has valid blob: {} bytes ({}x{} pixels)",
                                 row.id,
-                                blob.len()
+                                blob.len(),
+                                image_manifest.width,
+                                image_manifest.height
                             );
                             (Some(blob), Some(blob_db_ids))
                         }
                     }
+                } else {
+                    (None, None)
                 };
 
                 // Only create queue item if we have content or a valid blob
@@ -340,14 +352,26 @@ async fn pull_queue_events(
                 };
 
                 let (blob, blob_db_ids) = if let Some(bundle) = avatar_bundle {
-                    // Find the largest available avatar resolution (prefer 256x256, then 128x128, then 32x32)
-                    let largest_manifest = bundle
+                    // Find the best available avatar resolution (prefer 256x256, then 64x64, never 32x32)
+                    let best_manifest = bundle
                         .image_manifests
                         .iter()
+                        .filter(|manifest| manifest.width >= 64) // Filter out 32x32 and smaller
                         .max_by_key(|manifest| manifest.width);
 
-                    if let Some(manifest) = largest_manifest {
-                        if manifest.process.as_ref().is_some() {
+                    if let Some(manifest) = best_manifest {
+                        // Check image dimensions before processing
+                        if manifest.width < 50 || manifest.height < 50 {
+                            debug!("Skipping AVATAR event {} - image too small ({}x{} pixels)", 
+                                row.id, manifest.width, manifest.height);
+                            (None, None)
+                        } else if manifest.width > 2000
+                            || manifest.height > 2000
+                        {
+                            debug!("Skipping AVATAR event {} - image too large ({}x{} pixels)", 
+                                row.id, manifest.width, manifest.height);
+                            (None, None)
+                        } else if manifest.process.as_ref().is_some() {
                             let logical_clocks: Vec<u64> = manifest
                                 .sections
                                 .iter()
@@ -392,7 +416,7 @@ async fn pull_queue_events(
                         }
                     } else {
                         debug!(
-                            "AVATAR event {} - no image manifests found",
+                            "AVATAR event {} - no suitable image manifests found (only 32x32 or smaller available)",
                             row.id
                         );
                         (None, None)
@@ -435,6 +459,7 @@ async fn pull_queue_events(
 struct ModerationResult {
     event_id: i64,
     has_error: bool,
+    is_permanent_error: bool,
     is_csam: bool,
     tags: Vec<crate::model::moderation_tag::ModerationTag>,
     blob_db_ids: Option<Vec<i64>>,
@@ -521,6 +546,7 @@ async fn process_event(
     };
 
     let mut has_error = false;
+    let mut is_permanent_error = false;
 
     let is_csam = match csam_result {
         Some(ref result) => match result {
@@ -535,42 +561,60 @@ async fn process_event(
     };
 
     let tags = match tagging_result {
-        Some(ref result) => match result {
-            Ok(result) => {
-                debug!(
-                    "Event {}: Tagging successful, {} tags",
-                    event.id,
-                    result.tags.len()
-                );
-                result.tags.clone()
+        Some(ref result) => {
+            match result {
+                Ok(result) => {
+                    debug!(
+                        "Event {}: Tagging successful, {} tags",
+                        event.id,
+                        result.tags.len()
+                    );
+                    result.tags.clone()
+                }
+                Err(e) => {
+                    debug!(
+                        "Tagging error for event: {:?}, error: {:?}",
+                        event.id, e
+                    );
+                    has_error = true;
+
+                    // Check if this is a permanent error (Azure InvalidRequestBody, etc.)
+                    let error_msg = e.to_string().to_lowercase();
+                    if error_msg.contains("permanent azure error")
+                        || error_msg.contains("invalidrequestbody")
+                        || error_msg.contains("invalidimageformat")
+                        || error_msg.contains("invalidimagesize")
+                        || error_msg.contains("notsupportedimage")
+                        || error_msg.contains("width of given image is")
+                        || error_msg.contains("height of given image is")
+                    {
+                        is_permanent_error = true;
+                        debug!("Event {}: Permanent error detected, will not retry", event.id);
+                    }
+
+                    Vec::new()
+                }
             }
-            Err(e) => {
-                debug!(
-                    "Tagging error for event: {:?}, error: {:?}",
-                    event.id, e
-                );
-                has_error = true;
-                Vec::new()
-            }
-        },
+        }
         None => Vec::new(),
     };
 
     debug!(
-        "Event {} processed: has_error={}, is_csam={}, tags_count={}",
+        "Event {} processed: has_error={}, is_permanent_error={}, is_csam={}, tags_count={}",
         event.id,
         has_error,
+        is_permanent_error,
         is_csam,
         tags.len()
     );
     ModerationResult {
         event_id: event.id,
         has_error,
+        is_permanent_error,
         tags: tags.clone(),
         blob_db_ids: event.blob_db_ids.clone(),
         is_csam,
     }
-    // }
 }
 
 async fn process(
@@ -611,12 +655,23 @@ async fn apply_moderation_results(
     for result in results.iter() {
         let event_id = result.event_id;
         let has_error = result.has_error;
+        let is_permanent_error = result.is_permanent_error;
         let is_csam = result.is_csam;
 
-        let new_moderation_status = match (has_error, is_csam) {
-            (false, true) => ModerationStatus::FlaggedAndRejected,
-            (true, _) => ModerationStatus::Error,
-            (false, false) => ModerationStatus::Approved,
+        let new_moderation_status = match (
+            has_error,
+            is_permanent_error,
+            is_csam,
+        ) {
+            (false, _, true) => ModerationStatus::FlaggedAndRejected,
+            (true, true, _) => {
+                // Permanent errors should be marked as approved to prevent retries
+                // but with no tags (empty moderation result)
+                debug!("Event {}: Permanent error, marking as approved to prevent retries", event_id);
+                ModerationStatus::Approved
+            }
+            (true, false, _) => ModerationStatus::Error,
+            (false, _, false) => ModerationStatus::Approved,
         };
 
         match new_moderation_status {
@@ -880,6 +935,7 @@ mod tests {
             ModerationResult {
                 event_id: events[0].id,
                 has_error: false,
+                is_permanent_error: false,
                 is_csam: false,
                 tags: vec![],
                 blob_db_ids: None,
@@ -887,6 +943,7 @@ mod tests {
             ModerationResult {
                 event_id: events[1].id,
                 has_error: false,
+                is_permanent_error: false,
                 is_csam: true,
                 tags: vec![],
                 blob_db_ids: None,
@@ -894,6 +951,7 @@ mod tests {
             ModerationResult {
                 event_id: events[2].id,
                 has_error: true,
+                is_permanent_error: false,
                 is_csam: false,
                 tags: vec![],
                 blob_db_ids: None,
@@ -901,6 +959,7 @@ mod tests {
             ModerationResult {
                 event_id: events[3].id,
                 has_error: false,
+                is_permanent_error: false,
                 is_csam: false,
                 tags: vec![
                     crate::model::moderation_tag::ModerationTag::new(
@@ -918,6 +977,7 @@ mod tests {
             ModerationResult {
                 event_id: events[4].id,
                 has_error: false,
+                is_permanent_error: false,
                 is_csam: false,
                 tags: vec![crate::model::moderation_tag::ModerationTag::new(
                     "anything".to_string(),
@@ -1136,6 +1196,7 @@ mod tests {
         let moderation_results = vec![ModerationResult {
             event_id: events[0].id,
             has_error: false,
+            is_permanent_error: false,
             is_csam: false,
             tags: vec![crate::model::moderation_tag::ModerationTag::new(
                 "sexual".to_string(),
@@ -1244,6 +1305,7 @@ mod tests {
         let moderation_results = vec![ModerationResult {
             event_id: events[0].id,
             has_error: false,
+            is_permanent_error: false,
             is_csam: false,
             tags: vec![
                 crate::model::moderation_tag::ModerationTag::new(
@@ -1532,6 +1594,70 @@ mod tests {
             transaction.commit().await?;
             transaction = pool.begin().await?;
         }
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_permanent_error_handling(pool: PgPool) -> anyhow::Result<()> {
+        let mut transaction = pool.begin().await?;
+        prepare_database(&mut transaction).await?;
+
+        let keypair = polycentric_protocol::test_utils::make_test_keypair();
+        let process = polycentric_protocol::test_utils::make_test_process();
+
+        let mut post = polycentric_protocol::protocol::Post::new();
+        post.content = Some("test".to_string());
+
+        let signed_event =
+            polycentric_protocol::test_utils::make_test_event_with_content(
+                &keypair,
+                &process,
+                52,
+                3,
+                &post.write_to_bytes()?,
+                vec![],
+            );
+
+        crate::ingest::ingest_event_postgres(&mut transaction, &signed_event)
+            .await?;
+
+        transaction.commit().await?;
+        transaction = pool.begin().await?;
+
+        let events = pull_queue_events(&mut transaction).await?;
+        assert_eq!(events.len(), 1);
+
+        // Test permanent error handling
+        let moderation_results = vec![ModerationResult {
+            event_id: events[0].id,
+            has_error: true,
+            is_permanent_error: true, // This should mark it as approved to prevent retries
+            is_csam: false,
+            tags: vec![],
+            blob_db_ids: None,
+        }];
+
+        apply_moderation_results(&mut transaction, &moderation_results).await?;
+        transaction.commit().await?;
+        transaction = pool.begin().await?;
+
+        // Verify the event was marked as approved (not error) to prevent retries
+        let query = "
+            SELECT moderation_status::text
+            FROM events
+            WHERE id = $1
+        ";
+
+        let status_str: String = sqlx::query_scalar(query)
+            .bind(events[0].id)
+            .fetch_one(&mut *transaction)
+            .await?;
+
+        assert_eq!(
+            status_str, "approved",
+            "Permanent errors should be marked as approved to prevent retries"
+        );
 
         Ok(())
     }
