@@ -6,8 +6,15 @@
   "dependencies": {
     "@polycentric/polycentric-core": "*"
   },
+  "devDependencies": {
+    "ts-node": "^10.9.1"
+  },
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "backfill-test": "tsc && node dist/backfill-test.js",
+    "grayjay-test": "tsc && node dist/grayjay-backfill-test.js",
+    "grayjay-quick": "tsc && node dist/grayjay-backfill-test.js --quick",
+    "test:backfill": "ts-node src/run-backfill-test.ts"
   }
 }
