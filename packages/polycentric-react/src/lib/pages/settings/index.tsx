@@ -10,6 +10,7 @@ import { ExportKey } from '../../components/settings/ExportKey';
 import { ForumServerListTable } from '../../components/settings/ForumServerTable';
 import { ModerationTable } from '../../components/settings/ModerationTable';
 import { PrivateKeyDisplay } from '../../components/settings/PrivateKeyDisplay';
+import { PublicKeyDisplay } from '../../components/settings/PublicKeyDisplay';
 import { ServerListTable } from '../../components/settings/ServerTable';
 
 export const SettingsPage: Page = () => {
@@ -30,6 +31,13 @@ export const SettingsPage: Page = () => {
                 This is your private key. Keep it safe.
               </p>
               <PrivateKeyDisplay />
+            </div>
+            <div className="flex flex-col space-y-3">
+              <h2 className="font-medium">Your Public Key</h2>
+              <p className="text-gray-600 text-xs">
+                This is your public key. Copy this to set up forum admin access in your forum server's ADMIN_PUBKEYS environment variable.
+              </p>
+              <PublicKeyDisplay />
             </div>
             <div className="flex flex-col space-y-3">
               <h2 className="font-medium">Backup account login token</h2>

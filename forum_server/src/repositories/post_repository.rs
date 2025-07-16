@@ -315,4 +315,26 @@ pub async fn update_polycentric_pointers(
     let rows_affected = result.rows_affected();
 
     Ok(rows_affected)
+}
+
+/// Gets the thread ID for a specific post.
+pub async fn get_post_thread_id(pool: &PgPool, post_id: Uuid) -> Result<Option<Uuid>, sqlx::Error> {
+    let result = sqlx::query!(
+        r#"SELECT thread_id FROM posts WHERE id = $1"#,
+        post_id
+    )
+    .fetch_optional(pool)
+    .await?;
+    Ok(result.map(|row| row.thread_id))
+}
+
+/// Counts the number of posts remaining in a thread.
+pub async fn count_posts_in_thread(pool: &PgPool, thread_id: Uuid) -> Result<i64, sqlx::Error> {
+    let result = sqlx::query!(
+        r#"SELECT COUNT(*) as count FROM posts WHERE thread_id = $1"#,
+        thread_id
+    )
+    .fetch_one(pool)
+    .await?;
+    Ok(result.count.unwrap_or(0))
 } 

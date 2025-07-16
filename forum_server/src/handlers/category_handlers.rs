@@ -15,9 +15,6 @@ use crate::{
 };
 use serde::Deserialize;
 
-/// Handler to create a new category.
-/// Expects JSON body with name and description.
-/// Requires Admin privileges.
 pub async fn create_category_handler(
     State(state): State<AppState>,
     _admin: AdminUser,
@@ -35,18 +32,15 @@ pub async fn create_category_handler(
     }
 }
 
-/// Handler to get a single category by its ID.
 pub async fn get_category_handler(
     State(state): State<AppState>,
     Path(category_id): Path<Uuid>,
 ) -> Response {
     match category_repository::get_category_by_id(&state.db_pool, category_id).await {
         Ok(Some(category)) => {
-            // Found category, return 200 OK with the category
             (StatusCode::OK, Json(category)).into_response()
         }
         Ok(None) => {
-            // Category not found, return 404 Not Found
             (StatusCode::NOT_FOUND, "Category not found").into_response()
         }
         Err(e) => {
@@ -56,14 +50,12 @@ pub async fn get_category_handler(
     }
 }
 
-/// Handler to list all categories with pagination.
 pub async fn list_categories_handler(
     State(state): State<AppState>,
     Query(pagination): Query<PaginationParams>,
 ) -> Response {
     match category_repository::get_all_categories(&state.db_pool, &pagination).await {
         Ok(categories) => {
-            // Return 200 OK with the list of categories
             (StatusCode::OK, Json(categories)).into_response()
         }
         Err(e) => {
@@ -73,8 +65,6 @@ pub async fn list_categories_handler(
     }
 }
 
-/// Handler to update a category.
-/// Requires Admin privileges.
 pub async fn update_category_handler(
     State(state): State<AppState>,
     _admin: AdminUser,
@@ -97,8 +87,6 @@ pub async fn update_category_handler(
     }
 }
 
-/// Handler to delete a category.
-/// Requires Admin privileges.
 pub async fn delete_category_handler(
     State(state): State<AppState>,
     _admin: AdminUser,

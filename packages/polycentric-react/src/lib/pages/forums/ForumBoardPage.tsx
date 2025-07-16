@@ -23,7 +23,6 @@ import { useParams } from '../../hooks/stackRouterHooks';
 import { useAuthHeaders } from '../../hooks/useAuthHeaders';
 import { useIsAdmin } from '../../hooks/useIsAdmin';
 
-// Define types for Board and Thread
 interface ForumBoard {
   id: string;
   category_id: string;
@@ -40,23 +39,14 @@ interface ForumThread {
   created_by: number[];
 }
 
-// Interface for fetched threads with Uint8Array
 interface FetchedForumThread extends Omit<ForumThread, 'created_by'> {
   created_by: Uint8Array;
 }
 
-// Add interface for the new Thread creation response
 interface CreateThreadResponse {
-  thread: FetchedForumThread; // Use existing Fetched type
-  initial_post_id: string; // Expect UUID as string
+  thread: FetchedForumThread;
+  initial_post_id: string;
 }
-
-// Add a simple CSS override
-// const modalStyleOverride = `
-//   ion-modal.modal-default.show-modal {
-//     pointer-events: auto !important;
-//   }
-// `;
 
 export const ForumBoardPage: React.FC = () => {
   const {
@@ -99,9 +89,7 @@ export const ForumBoardPage: React.FC = () => {
     error: headersError,
   } = useAuthHeaders(serverUrl ?? '');
 
-  // --- Get Polycentric Pointer Data from URL Query Params ---
   const polycentricPointer = useMemo(() => {
-    // Ensure window is defined (for SSR safety, though likely not needed here)
     if (typeof window === 'undefined') {
       return { systemId: undefined, processId: undefined, logSeq: undefined };
     }
@@ -120,24 +108,21 @@ export const ForumBoardPage: React.FC = () => {
       if (logSeqStr) logSeq = Long.fromString(logSeqStr);
     } catch (e) {
       console.error('Error parsing Polycentric pointer query params:', e);
-      // Reset if any part fails parsing
       return { systemId: undefined, processId: undefined, logSeq: undefined };
     }
 
-    // Return undefined for all if any part is missing (require all or nothing)
     if (systemId && processId && logSeq) {
       return { systemId, processId, logSeq };
     } else {
       return { systemId: undefined, processId: undefined, logSeq: undefined };
     }
-  }, []); // Empty dependency array means this runs once on mount
+  }, []);
 
   const {
     systemId: polycentricSystemId,
     processId: polycentricProcessId,
     logSeq: polycentricLogSeq,
   } = polycentricPointer;
-  // --- End Pointer Data ---
 
   const fetchBoardData = useCallback(async () => {
     if (!serverUrl || !boardId) {
@@ -222,7 +207,6 @@ export const ForumBoardPage: React.FC = () => {
       return;
     }
 
-    // Character limit validation (mirror backend constraints)
     if (newThreadTitle.trim().length > 100) {
       setCreateError('Title cannot exceed 100 characters.');
       return;
@@ -237,7 +221,7 @@ export const ForumBoardPage: React.FC = () => {
     setDeleteThreadError(null);
 
     let newForumThreadId: string | null = null;
-    let initialForumPostId: string | null = null; // Variable for OP ID
+    let initialForumPostId: string | null = null;
 
     try {
       const challengeUrl = `https://localhost:8080/forum/auth/challenge`;
@@ -270,7 +254,6 @@ export const ForumBoardPage: React.FC = () => {
         formData.append('image', newThreadImage, newThreadImage.name);
       }
 
-      // Add Polycentric pointers if available (for linking thread itself, if needed later)
       if (polycentricSystemId && polycentricProcessId && polycentricLogSeq) {
         const logSeqValue: Long = polycentricLogSeq;
         formData.append(
@@ -299,17 +282,14 @@ export const ForumBoardPage: React.FC = () => {
         );
       }
 
-      // Expect the new response structure
       const createResponseData: CreateThreadResponse = await createRes.json();
       newForumThreadId = createResponseData.thread.id;
-      initialForumPostId = createResponseData.initial_post_id; // Store initial post ID
+      initialForumPostId = createResponseData.initial_post_id;
 
-      // --- Polycentric Cross-post & Link ---
       if (postToProfile) {
         let polycentricPostPointer: Models.Pointer.Pointer | undefined =
           undefined;
         try {
-          // Construct content for Polycentric post (using newForumThreadId)
           const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${newForumThreadId}`;
           let polycentricContent = '';
           if (polycentricSystemId) {
@@ -318,7 +298,6 @@ export const ForumBoardPage: React.FC = () => {
             polycentricContent = `${newThreadTitle.trim()}\n\n${newThreadBody.trim()}\n\n[View on Forum](${forumLinkPath})`;
           }
 
-          // Create Polycentric post and get pointer
           const signedEventResult =
             await processHandle.post(polycentricContent);
           if (signedEventResult) {
@@ -339,7 +318,6 @@ export const ForumBoardPage: React.FC = () => {
           );
         }
 
-        // --- Link Initial Forum Post to Polycentric Post ---
         if (initialForumPostId && polycentricPostPointer && serverUrl) {
           try {
             console.log(
@@ -354,7 +332,6 @@ export const ForumBoardPage: React.FC = () => {
 
             const linkUrl = `https://localhost:8080/forum/posts/${initialForumPostId}/link-polycentric`;
 
-            // --- Construct the payload correctly ---
             const linkPayload = {
               polycentric_system_id_b64: base64.encode(
                 polycentricPostPointer.system.key,
@@ -363,9 +340,8 @@ export const ForumBoardPage: React.FC = () => {
                 polycentricPostPointer.process.process,
               ),
               polycentric_log_seq:
-                polycentricPostPointer.logicalClock.toNumber(), // Send as number
+                polycentricPostPointer.logicalClock.toNumber(),
             };
-            // --- End Construct Payload ---
 
             console.log(`Attempting PUT request to: ${linkUrl}`);
             console.log('With Payload:', JSON.stringify(linkPayload));
@@ -399,7 +375,6 @@ export const ForumBoardPage: React.FC = () => {
             );
           }
         } else {
-          // Log if linking skipped
           console.log('Skipping linking step for initial post. Conditions:', {
             hasInitialPostId: !!initialForumPostId,
             hasPointer: !!polycentricPostPointer,
@@ -407,9 +382,7 @@ export const ForumBoardPage: React.FC = () => {
           });
         }
       }
-      // --- End Polycentric Cross-post & Link ---
 
-      // Success
       setIsComposing(false);
       setNewThreadTitle('');
       setNewThreadBody('');

@@ -12,18 +12,17 @@ use axum::{
 use serde::Serialize;
 use std::env;
 
-// --- Server Info --- 
 
 #[derive(Serialize)]
 pub struct ServerInfoResponse {
     name: String,
-    #[serde(rename = "imageUrl")] // Match frontend camelCase
+    #[serde(rename = "imageUrl")]
     image_url: Option<String>,
 }
 
 pub async fn get_server_info_handler() -> impl IntoResponse {
     let server_name = env::var("FORUM_SERVER_NAME").unwrap_or_else(|_| "Default Forum Name".to_string());
-    let image_url = env::var("FORUM_SERVER_IMAGE_URL").ok(); // Optional
+    let image_url = env::var("FORUM_SERVER_IMAGE_URL").ok();
 
     let response = ServerInfoResponse {
         name: server_name,

@@ -29,12 +29,8 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use std::collections::HashSet;
 
-// --- Challenge Nonce Storage ---
-
-const CHALLENGE_TTL: Duration = Duration::from_secs(60 * 5); // 5 minutes TTL for a challenge
-const NONCE_LENGTH: usize = 32; // 32 bytes for nonce
-
-// TODO: add a challenge store that can be shared between instances of the server for HA.
+const CHALLENGE_TTL: Duration = Duration::from_secs(60 * 5);
+const NONCE_LENGTH: usize = 32;
 
 #[derive(Debug, Clone)]
 struct ChallengeNonce {
@@ -42,7 +38,6 @@ struct ChallengeNonce {
     expires_at: Instant,
 }
 
-// Using DashMap for concurrent access
 #[derive(Debug, Clone)]
 pub struct ChallengeStore {
     challenges: Arc<DashMap<Uuid, ChallengeNonce>>,
@@ -53,7 +48,6 @@ impl ChallengeStore {
         let store = Self {
             challenges: Arc::new(DashMap::new()),
         };
-        // Start a background task to purge expired challenges periodically
         let store_clone = store.clone();
         tokio::spawn(async move {
             store_clone.purge_expired_periodically().await;
@@ -61,7 +55,6 @@ impl ChallengeStore {
         store
     }
 
-    /// Generates a new challenge, stores it, and returns the ID and nonce.
     pub fn generate(&self) -> (Uuid, Vec<u8>) {
         let challenge_id = Uuid::new_v4();
         let mut nonce = vec![0u8; NONCE_LENGTH];
@@ -77,24 +70,18 @@ impl ChallengeStore {
         (challenge_id, nonce)
     }
 
-    /// Attempts to retrieve and consume a challenge nonce.
-    /// Returns the nonce if valid and not expired, otherwise None.
     pub fn use_challenge(&self, challenge_id: Uuid) -> Option<Vec<u8>> {
-        // `remove_if` atomically removes and returns the item if the condition is met
         self.challenges
             .remove_if(&challenge_id, |_, challenge| {
                 challenge.expires_at > Instant::now()
             })
-            .map(|(_id, challenge)| challenge.nonce) // Return nonce if removed
+            .map(|(_id, challenge)| challenge.nonce)
     }
     
-    /// Removes expired challenges from the store.
     fn purge_expired(&self) {
         self.challenges.retain(|_, challenge| challenge.expires_at > Instant::now());
-        // println!("Purged expired challenges. Remaining: {}", self.challenges.len()); // Optional: for debugging
     }
 
-    /// Background task to periodically purge expired challenges.
     async fn purge_expired_periodically(&self) {
         let mut interval = tokio::time::interval(CHALLENGE_TTL); // Check every CHALLENGE_TTL duration
         loop {
@@ -104,14 +91,11 @@ impl ChallengeStore {
     }
 }
 
-// Default implementation for easy setup in AppState
 impl Default for ChallengeStore {
     fn default() -> Self {
         Self::new()
     }
 }
-
-// --- Auth Endpoints ---
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChallengeResponse {
@@ -119,7 +103,6 @@ pub struct ChallengeResponse {
     pub nonce_base64: String,
 }
 
-/// Handler to generate and return a new authentication challenge.
 pub async fn get_challenge_handler(State(state): State<AppState>) -> Json<ChallengeResponse> {
     let (id, nonce) = state.challenge_store.generate();
     Json(ChallengeResponse {
@@ -127,8 +110,6 @@ pub async fn get_challenge_handler(State(state): State<AppState>) -> Json<Challe
         nonce_base64: base64::encode(&nonce),
     })
 }
-
-// --- Error Types ---
 
 #[derive(Debug, Error, Clone)]
 pub enum AuthError {
@@ -151,7 +132,7 @@ pub enum AuthError {
     VerificationFailed,
     
     #[error("Internal server error during authentication")]
-    InternalError, // Catch-all for unexpected issues
+    InternalError,
 }
 
 impl IntoResponse for AuthError {
@@ -169,14 +150,9 @@ impl IntoResponse for AuthError {
     }
 }
 
-// --- Authenticated User Extractor ---
-
-// This struct will be extracted if authentication is successful.
-// It holds the verified public key bytes.
 #[derive(Debug, Clone)]
 pub struct AuthenticatedUser(pub Vec<u8>);
 
-// --- Constants for Headers ---
 const HEADER_PUBKEY: &str = "X-Polycentric-Pubkey-Base64";
 const HEADER_SIGNATURE: &str = "X-Polycentric-Signature-Base64";
 const HEADER_CHALLENGE_ID: &str = "X-Polycentric-Challenge-ID";
@@ -190,7 +166,6 @@ where
     type Rejection = AuthError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        // Check if already processed
         if let Some(cached_result) = parts.extensions.get::<Result<Self, Self::Rejection>>() {
             tracing::debug!("[Auth Extractor] Using cached AuthenticatedUser result.");
             return cached_result.clone();
@@ -203,7 +178,6 @@ where
         let challenge_store = &app_state.challenge_store;
 
         let result = async {
-            // 1. Extract headers
             let pubkey_b64 = parts.headers.get(HEADER_PUBKEY)
                 .ok_or(AuthError::MissingOrInvalidHeaders)?
                 .to_str().map_err(|_| AuthError::MissingOrInvalidHeaders)?;
@@ -216,46 +190,36 @@ where
                 .ok_or(AuthError::MissingOrInvalidHeaders)?
                 .to_str().map_err(|_| AuthError::MissingOrInvalidHeaders)?;
 
-            // 2. Decode Base64
             let pubkey_bytes = base64::decode(pubkey_b64).map_err(AuthError::InvalidBase64)?;
             let signature_bytes = base64::decode(signature_b64).map_err(AuthError::InvalidBase64)?;
 
-            // 3. Parse Challenge ID
             let challenge_id_uuid = Uuid::parse_str(challenge_id_str)
                 .map_err(|_| AuthError::InvalidOrExpiredChallenge)?; // If malformed, treat as invalid
 
-            // 4. Validate Public Key
             let pubkey_array: &[u8; 32] = pubkey_bytes.as_slice().try_into()
                 .map_err(|_| AuthError::InvalidPublicKey)?;
             let verifying_key = VerifyingKey::from_bytes(pubkey_array)
                 .map_err(|_| AuthError::InvalidPublicKey)?;
 
-            // 5. Validate Signature format (length)
             let signature_array: &[u8; 64] = signature_bytes.as_slice().try_into()
                 .map_err(|_| AuthError::InvalidSignature)?;
             let signature = Signature::from_bytes(signature_array);
 
-            // 6. Use Challenge (Critical: This consumes the challenge)
             let nonce = challenge_store.use_challenge(challenge_id_uuid)
                 .ok_or(AuthError::InvalidOrExpiredChallenge)?;
 
-            // 7. Verify Signature
             verifying_key.verify(&nonce, &signature)
                 .map_err(|_| AuthError::VerificationFailed)?;
 
             Ok(AuthenticatedUser(pubkey_bytes))
         }.await;
 
-        // Cache the result before returning
         parts.extensions.insert(result.clone());
         tracing::debug!("[Auth Extractor] Cached result: {:?}", result.is_ok());
         result
     }
 }
 
-// --- Admin User Extractor ---
-
-// Wrapper struct to signify an admin user
 #[derive(Debug, Clone)]
 pub struct AdminUser(pub AuthenticatedUser);
 
@@ -265,49 +229,37 @@ where
     AppState: FromRef<S>,
     S: Send + Sync,
 {
-    // Use AuthError for rejection, same as AuthenticatedUser
     type Rejection = AuthError; 
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        // 1. Perform standard authentication
         let authenticated_user = AuthenticatedUser::from_request_parts(parts, state).await?;
 
-        // 2. Get AppState to access admin keys
         let app_state = AppState::from_ref(state);
         let admin_keys = &app_state.admin_pubkeys;
 
-        // 3. Check if the authenticated user's key is in the admin set
         if admin_keys.contains(&authenticated_user.0) {
-            // If yes, wrap the AuthenticatedUser in AdminUser and return Ok
             Ok(AdminUser(authenticated_user))
         } else {
-            // If no, return a Forbidden error (using AuthError for consistency)
-            // We might want a more specific variant later, but this works.
-            // Consider adding a `Forbidden` variant to AuthError if needed.
             eprintln!("Admin access denied for pubkey: {}", base64::encode(&authenticated_user.0)); 
-            Err(AuthError::VerificationFailed) // Reusing VerificationFailed might be okay, or add Forbidden
+            Err(AuthError::VerificationFailed)
         }
     }
 }
 
-// --- Check Admin Handler ---
-
-#[derive(Serialize)] // Make sure Serialize is imported (use serde::Serialize;)
+#[derive(Serialize)]
 pub struct CheckAdminResponse {
     #[serde(rename = "isAdmin")]
     is_admin: bool,
 }
 
-/// Checks if the currently authenticated user is an admin.
 pub async fn check_admin_handler(
-    State(state): State<AppState>, // Make sure State is imported (use axum::extract::State;)
-    user: AuthenticatedUser, // Requires standard authentication
-) -> Json<CheckAdminResponse> { // Make sure Json is imported (use axum::response::Json;)
+    State(state): State<AppState>,
+    user: AuthenticatedUser,
+) -> Json<CheckAdminResponse> {
     let is_admin = state.admin_pubkeys.contains(&user.0);
     Json(CheckAdminResponse { is_admin })
 }
 
-// --- Tests for Authenticator ---
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -328,14 +280,13 @@ mod tests {
             .unwrap_or_else(|_| "postgres://test_user:test_password@localhost/test_db_auth".to_string());
         let pool = pool_options.connect_lazy(&test_db_url).expect("Failed to create lazy pool");
         
-        // Create an empty set of admin keys for tests by default
         let admin_pubkeys = Arc::new(HashSet::<Vec<u8>>::new()); 
 
         AppState {
             db_pool: pool,
             image_storage: crate::storage::LocalImageStorage::new(".".into(), "/images".into()),
             challenge_store: ChallengeStore::new(),
-            admin_pubkeys, // Initialize the new field
+            admin_pubkeys,
         }
     }
 

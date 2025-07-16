@@ -9,23 +9,22 @@ use uuid::Uuid;
 use crate::{
     models::Post,
     repositories::{self, thread_repository, post_repository::{self, CreatePostData, UpdatePostData}},
-    utils::PaginationParams, // Import
+    utils::PaginationParams,
     AppState,
     constants::MAX_POST_CONTENT_LENGTH,
 };
 use axum::extract::multipart::MultipartError;
 use multer::Error as MulterError;
 use std::error::Error;
-use crate::auth::{AuthenticatedUser, AdminUser}; // Import AdminUser
+use crate::auth::{AuthenticatedUser, AdminUser};
 use futures_util::stream::StreamExt; 
 use serde::Deserialize;
 use std::path::Path as StdPath; 
 use tokio::fs;
-use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _}; // Import base64 for decoding
-use sqlx::Acquire; // Import Acquire trait for starting transactions
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
+use sqlx::Acquire;
 use tracing::{error, info, warn, debug};
 
-// Moved TempImageField definition before its use
 #[derive(Debug)]
 struct TempImageField {
     filename: Option<String>,
@@ -33,7 +32,6 @@ struct TempImageField {
     data: Vec<u8>,
 }
 
-/// Handler to create a new post with optional image uploads and Polycentric pointer.
 pub async fn create_post_handler(
     State(state): State<AppState>,
     Path(thread_id): Path<Uuid>,
@@ -139,13 +137,11 @@ pub async fn create_post_handler(
         }
     }
 
-    // --- Validation --- 
     let content = match collected_content {
-        Some(c) if !c.trim().is_empty() => c.trim().to_string(), // Trim content
+        Some(c) if !c.trim().is_empty() => c.trim().to_string(),
         _ => return (StatusCode::BAD_REQUEST, "Missing or empty required field: content").into_response(),
     };
 
-    // Enforce character limit for post content
     if content.chars().count() > MAX_POST_CONTENT_LENGTH {
         return (StatusCode::BAD_REQUEST, format!(
             "Content exceeds maximum length of {} characters",
@@ -153,7 +149,6 @@ pub async fn create_post_handler(
         )).into_response();
     }
 
-    // --- Added: Decode pointer fields --- 
     let polycentric_system_id = match collected_poly_system_id_b64 {
         Some(b64) => match BASE64_STANDARD.decode(b64) {
             Ok(bytes) => Some(bytes),
@@ -175,12 +170,10 @@ pub async fn create_post_handler(
         },
         None => None,
     };
-    // Optional: Add validation if pointer fields must appear together
     if polycentric_system_id.is_some() != polycentric_process_id.is_some() || polycentric_system_id.is_some() != polycentric_log_seq.is_some() {
         return (StatusCode::BAD_REQUEST, "Polycentric pointer fields must be provided together or not at all").into_response();
     }
 
-    // Check thread existence
     match thread_repository::get_thread_by_id(&state.db_pool, thread_id).await {
         Ok(Some(_)) => { /* Thread exists, continue */ }
         Ok(None) => return (StatusCode::NOT_FOUND, "Thread not found").into_response(),
@@ -190,7 +183,6 @@ pub async fn create_post_handler(
         }
     }
 
-    // Check quote_of existence if provided
     if let Some(quote_id) = collected_quote_of {
         match post_repository::get_post_by_id(&state.db_pool, quote_id).await {
             Ok(Some(_)) => { /* Quoted post exists */ }
@@ -202,25 +194,21 @@ pub async fn create_post_handler(
         }
     }
 
-    // --- Image Saving --- 
     let mut image_urls: Vec<String> = Vec::new();
     for image_field in collected_images {
-        // Clone filename for logging
         let filename_for_log = image_field.filename.clone();
         match state.image_storage.save_image(
             image_field.data.into(), 
-            image_field.filename, // Pass original owned Option<String>
+            image_field.filename,
         ).await {
             Ok(url) => image_urls.push(url),
             Err(e) => {
-                // Use the cloned filename in the log
                 error!(error = %e, filename = ?filename_for_log, "Failed to save image during post creation");
                 return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to save image").into_response();
             }
         }
     }
 
-    // --- Database Insert within a Transaction --- 
     let mut tx = match state.db_pool.begin().await {
         Ok(tx) => tx,
         Err(e) => {
@@ -229,7 +217,6 @@ pub async fn create_post_handler(
         }
     };
 
-    // --- Updated: Pass pointer fields to CreatePostData --- 
     let repo_post_data = post_repository::CreatePostData {
         author_id,
         content,
@@ -242,7 +229,6 @@ pub async fn create_post_handler(
 
     match post_repository::create_post(&mut tx, thread_id, repo_post_data).await {
         Ok(post) => {
-            // Commit the transaction before returning success
             if let Err(e) = tx.commit().await {
                 error!(error = %e, thread_id = %thread_id, post_id = %post.id, "Failed to commit transaction after creating post");
                 return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to save post").into_response();
@@ -251,18 +237,16 @@ pub async fn create_post_handler(
             (StatusCode::CREATED, Json(post)).into_response()
         }
         Err(e) => {
-            // Log the error. Rollback is implicit on drop.
             error!(error = %e, thread_id = %thread_id, "Failed to create post in DB (transaction rolling back)");
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create post").into_response()
         }
     }
 }
 
-/// Handler to get a single post by its ID.
 pub async fn get_post_handler(
     State(state): State<AppState>,
     Path(post_id): Path<Uuid>,
-) -> Response { // Change return type
+) -> Response {
     match post_repository::get_post_by_id(&state.db_pool, post_id).await {
         Ok(Some(post)) => (StatusCode::OK, Json(post)).into_response(),
         Ok(None) => (StatusCode::NOT_FOUND, "Post not found").into_response(),
@@ -273,16 +257,13 @@ pub async fn get_post_handler(
     }
 }
 
-/// Handler to list all posts within a specific thread with pagination.
 pub async fn list_posts_in_thread_handler(
     State(state): State<AppState>,
     Path(thread_id): Path<Uuid>,
     Query(pagination): Query<PaginationParams>,
-) -> Response { // Change return type
-    // Check if thread exists first
+) -> Response {
     match thread_repository::get_thread_by_id(&state.db_pool, thread_id).await {
         Ok(Some(_)) => {
-             // Thread exists, list posts
             match post_repository::get_posts_by_thread(&state.db_pool, thread_id, &pagination).await {
                 Ok(posts) => (StatusCode::OK, Json(posts)).into_response(),
                 Err(e) => {
@@ -299,23 +280,19 @@ pub async fn list_posts_in_thread_handler(
     }
 }
 
-/// Handler to update a post's content.
 pub async fn update_post_handler(
     State(state): State<AppState>,
     Path(post_id): Path<Uuid>,
     user: AuthenticatedUser,
     Json(payload): Json<UpdatePostPayload>,
-) -> Response { // Change return type
-     // Fetch post first
-     match post_repository::get_post_by_id(&state.db_pool, post_id).await {
+) -> Response {
+    match post_repository::get_post_by_id(&state.db_pool, post_id).await {
         Ok(Some(post_to_update)) => {
-             // Authorization check
             if post_to_update.author_id != user.0 {
                 warn!(post_id = %post_id, user_pubkey = ?user.0, actual_author = ?post_to_update.author_id, "User attempted to update post they did not create");
                 return (StatusCode::FORBIDDEN, "Permission denied").into_response();
             }
 
-            // Validate new content
             let trimmed_content = payload.content.trim();
             if trimmed_content.is_empty() {
                 return (StatusCode::BAD_REQUEST, "Content cannot be empty").into_response();
@@ -327,17 +304,14 @@ pub async fn update_post_handler(
                 )).into_response();
             }
 
-            // Construct update data
             let update_data = UpdatePostData { content: trimmed_content.to_string() };
 
-             // Perform update
             match post_repository::update_post(&state.db_pool, post_id, update_data).await {
                 Ok(Some(updated_post)) => {
                     info!(post_id = %updated_post.id, "Successfully updated post");
                     (StatusCode::OK, Json(updated_post)).into_response()
                 }
                 Ok(None) => {
-                    // Should be rare if author check passed, but handle defensively
                     warn!(post_id = %post_id, user_pubkey = ?user.0, "Post not found during update attempt, despite passing author check");
                     (StatusCode::NOT_FOUND, "Post not found during update").into_response()
                 }
@@ -355,72 +329,119 @@ pub async fn update_post_handler(
     }
 }
 
-/// Handler to delete a post.
 pub async fn delete_post_handler(
     State(state): State<AppState>,
     Path(post_id): Path<Uuid>,
-    user: AuthenticatedUser, // Authenticated user's pubkey is user.0
-) -> Response { 
-    let user_pubkey = user.0; // Extract user's public key
+    admin_user: Option<AdminUser>,
+    auth_user: Option<AuthenticatedUser>,
+) -> Response {
+    let is_admin = admin_user.is_some();
+    let mut requesting_user_pubkey: Option<Vec<u8>> = None;
 
-    // Check authorization: Fetch author ID first
-    match post_repository::get_post_author(&state.db_pool, post_id).await {
-        Ok(Some(author_id)) => {
-            if author_id != user_pubkey {
-                // Log the attempt and return Forbidden
-                warn!(post_id = %post_id, user_pubkey = ?user_pubkey, actual_author = ?author_id, "User attempted to delete post they did not create");
-                return (StatusCode::FORBIDDEN, "Permission denied").into_response();
+    if !is_admin {
+        match auth_user {
+            Some(user) => {
+                requesting_user_pubkey = Some(user.0);
             }
-            // User is authorized, proceed to delete
+            None => {
+                warn!(post_id = %post_id, "Unauthenticated attempt to delete post");
+                return (StatusCode::UNAUTHORIZED, "Authentication required.").into_response();
+            }
         }
+    }
+
+    let author_id = match post_repository::get_post_author(&state.db_pool, post_id).await {
+        Ok(Some(id)) => id,
         Ok(None) => {
-            warn!(post_id = %post_id, user_pubkey = ?user_pubkey, "User attempted to delete non-existent post");
+            warn!(post_id = %post_id, deleted_by_admin = is_admin, user_pubkey = ?requesting_user_pubkey, "Attempted to delete non-existent post");
             return (StatusCode::NOT_FOUND, "Post not found").into_response();
         }
         Err(e) => {
-            error!(error = %e, post_id = %post_id, "Failed to check post author before deletion");
-            return (StatusCode::INTERNAL_SERVER_ERROR, "Database error checking author").into_response();
+            error!(error = %e, post_id = %post_id, "Failed to fetch post author for deletion check");
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Database error fetching author").into_response();
         }
-    }
+    };
 
-    // Proceed with deletion
-    match post_repository::delete_post(&state.db_pool, post_id).await {
-        Ok(rows_affected) if rows_affected == 1 => {
-            info!(post_id = %post_id, deleted_by_user = ?user_pubkey, "Successfully deleted post");
-            (StatusCode::NO_CONTENT).into_response()
+    let can_delete = if is_admin {
+        true
+    } else if let Some(ref pubkey) = requesting_user_pubkey {
+        *pubkey == author_id
+    } else {
+        false
+    };
+
+    if can_delete {
+        let thread_id = match post_repository::get_post_thread_id(&state.db_pool, post_id).await {
+            Ok(Some(id)) => id,
+            Ok(None) => {
+                warn!(post_id = %post_id, "Post not found when trying to get thread ID");
+                return (StatusCode::NOT_FOUND, "Post not found").into_response();
+            }
+            Err(e) => {
+                error!(error = %e, post_id = %post_id, "Failed to get thread ID for post");
+                return (StatusCode::INTERNAL_SERVER_ERROR, "Database error getting thread ID").into_response();
+            }
+        };
+
+        let log_pubkey_ref = requesting_user_pubkey.as_ref();
+        match post_repository::delete_post(&state.db_pool, post_id).await {
+            Ok(rows_affected) if rows_affected == 1 => {
+                info!(post_id = %post_id, thread_id = %thread_id, deleted_by_admin = is_admin, user_pubkey = ?log_pubkey_ref, "Successfully deleted post");
+                
+                match post_repository::count_posts_in_thread(&state.db_pool, thread_id).await {
+                    Ok(0) => {
+                        match thread_repository::delete_thread_with_posts(&state.db_pool, thread_id).await {
+                            Ok(_) => {
+                                info!(thread_id = %thread_id, "Thread was empty after post deletion, thread deleted");
+                                (StatusCode::NO_CONTENT).into_response()
+                            }
+                            Err(e) => {
+                                error!(error = %e, thread_id = %thread_id, "Failed to delete empty thread after post deletion");
+                                (StatusCode::NO_CONTENT).into_response()
+                            }
+                        }
+                    }
+                    Ok(count) => {
+                        info!(thread_id = %thread_id, remaining_posts = count, "Thread still has posts after deletion");
+                        (StatusCode::NO_CONTENT).into_response()
+                    }
+                    Err(e) => {
+                        error!(error = %e, thread_id = %thread_id, "Failed to count posts in thread after deletion");
+                        (StatusCode::NO_CONTENT).into_response()
+                    }
+                }
+            }
+            Ok(_) => {
+                warn!(post_id = %post_id, deleted_by_admin = is_admin, user_pubkey = ?log_pubkey_ref, "Attempted delete, but post not found during delete operation (0 rows affected)");
+                (StatusCode::NOT_FOUND, "Post not found").into_response()
+            }
+            Err(e) => {
+                error!(error = %e, post_id = %post_id, deleted_by_admin = is_admin, user_pubkey = ?log_pubkey_ref, "Failed to delete post from database");
+                (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete post").into_response()
+            }
         }
-        Ok(_) => {
-            // rows_affected was 0, post likely already deleted
-             warn!(post_id = %post_id, deleted_by_user = ?user_pubkey, "Attempted delete, but post not found during delete operation (0 rows affected)");
-            (StatusCode::NOT_FOUND, "Post not found").into_response()
-        }
-        Err(e) => {
-            error!(error = %e, post_id = %post_id, deleted_by_user = ?user_pubkey, "Failed to delete post from database");
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete post").into_response()
-        }
+    } else {
+        warn!(post_id = %post_id, user_pubkey = ?requesting_user_pubkey, actual_author = ?author_id, "User attempted to delete post they did not create");
+        (StatusCode::FORBIDDEN, "Permission denied").into_response()
     }
 }
 
-// --- Constants ---
 const MAX_IMAGES_PER_POST: usize = 5;
 const MAX_IMAGE_SIZE_MB: u64 = 10;
 const MAX_IMAGE_SIZE_BYTES: u64 = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 
-// This struct definition is fine here
 #[derive(Deserialize)]
 pub struct UpdatePostPayload {
     content: String,
 }
 
-// --- New Payload for Linking Polycentric Post --- 
 #[derive(Deserialize)]
 pub struct LinkPolycentricPayload {
     polycentric_system_id_b64: String,
     polycentric_process_id_b64: String,
-    polycentric_log_seq: i64, // Frontend will send as number/string, backend expects i64
+    polycentric_log_seq: i64,
 }
 
-// --- New Handler to Link Polycentric Post --- 
 pub async fn link_polycentric_post_handler(
     State(state): State<AppState>,
     Path(post_id): Path<Uuid>,
@@ -429,7 +450,6 @@ pub async fn link_polycentric_post_handler(
 ) -> Response {
     let user_pubkey = user.0;
 
-    // 1. Verify user is the author of the post
     match post_repository::get_post_author(&state.db_pool, post_id).await {
         Ok(Some(author_id)) => {
             if author_id != user_pubkey {
@@ -447,7 +467,6 @@ pub async fn link_polycentric_post_handler(
         }
     }
 
-    // 2. Decode Base64 IDs
     let system_id = match BASE64_STANDARD.decode(&payload.polycentric_system_id_b64) {
         Ok(id) => id,
         Err(_) => {
@@ -463,7 +482,6 @@ pub async fn link_polycentric_post_handler(
         }
     };
 
-    // 3. Call repository to update the post with pointer details
     match post_repository::update_polycentric_pointers(
         &state.db_pool, 
         post_id, 
@@ -476,7 +494,6 @@ pub async fn link_polycentric_post_handler(
             StatusCode::OK.into_response()
         }
         Ok(_) => {
-            // Should be rare if author check passed, but handle defensively
             warn!(post_id = %post_id, user_pubkey = ?user_pubkey, "Post not found during link attempt, despite passing author check");
             StatusCode::NOT_FOUND.into_response()
         }

@@ -17,10 +17,7 @@ impl LocalImageStorage {
         }
     }
 
-    /// Saves image bytes to a unique filename in the upload directory.
-    /// Returns the publicly accessible URL path.
     pub async fn save_image(&self, file_bytes: Bytes, original_filename: Option<String>) -> Result<String, std::io::Error> {
-        // Generate a unique filename using UUID + original extension
         let extension = original_filename
             .and_then(|name| {
                 Path::new(&name)
@@ -34,19 +31,21 @@ impl LocalImageStorage {
         let unique_filename = format!("{}{}", Uuid::new_v4(), extension);
         let file_path = self.upload_dir.join(&unique_filename);
 
-        // Ensure the directory exists (though main.rs already does this)
         fs::create_dir_all(&self.upload_dir).await?;
         
-        // Write the file
         fs::write(&file_path, file_bytes).await?;
 
-        // Construct the URL path using the new prefix for uploads
-        let upload_url_prefix = "/uploads/images"; // Use the new prefix
+        let upload_url_prefix = "/uploads/images";
         let url_path = format!("{}/{}", upload_url_prefix, unique_filename);
         
         Ok(url_path)
     }
     
-    // Optional: Add a delete method if needed later
-    // pub async fn delete_image(&self, image_url: &str) -> Result<(), std::io::Error> { ... }
+    pub async fn delete_image(&self, image_url: &str) -> Result<(), std::io::Error> {
+        let path = Path::new(image_url);
+        let path = path.strip_prefix(&self.base_url).unwrap_or(path);
+        let file_path = self.upload_dir.join(path);
+        fs::remove_file(&file_path).await?;
+        Ok(())
+    }
 } 

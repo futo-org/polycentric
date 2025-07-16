@@ -1,20 +1,20 @@
 import {
-  closestCenter,
-  DndContext,
-  DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
+    closestCenter,
+    DndContext,
+    DragEndEvent,
+    DragOverlay,
+    DragStartEvent,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
 } from '@dnd-kit/core';
 import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react'; // Using lucide for handle icon
@@ -1492,5 +1492,43 @@ export const AdminPanelPage: React.FC = () => {
   }
   // ... rest of the component (loading states, return statement) ...
 
-  return <div className="space-y-6">{content}</div>;
+  // Handle loading and error states
+  if (overallLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading admin panel...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (overallError) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center max-w-md">
+          <div className="text-red-600 text-lg font-medium mb-2">Error</div>
+          <p className="text-gray-600">{overallError}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center max-w-md">
+          <div className="text-gray-600 text-lg font-medium mb-2">Access Denied</div>
+          <p className="text-gray-500">You don't have admin privileges for this forum server.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 overflow-y-auto max-h-screen pb-8">
+      {content}
+    </div>
+  );
 };

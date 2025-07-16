@@ -7,17 +7,16 @@ import { Link } from '../../components/util/link';
 import { useParams } from '../../hooks/stackRouterHooks';
 import { useServerInfo } from '../../hooks/useServerInfo';
 
-// Define types for Category and Board
 interface ForumCategory {
-  id: string; // Changed to string (UUID)
+  id: string;
   name: string;
   description: string;
   created_at: string;
 }
 
 interface ForumBoard {
-  id: string; // UUID
-  category_id: string; // UUID
+  id: string;
+  category_id: string;
   name: string;
   description: string;
   created_at: string;
@@ -36,7 +35,6 @@ export const ForumCategoryListPage: React.FC = () => {
     ? decodeURIComponent(encodedServerUrl)
     : null;
 
-  // Use the new hook to get server info
   const {
     serverInfo,
     loading: serverInfoLoading,
@@ -53,17 +51,14 @@ export const ForumCategoryListPage: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        // Ensure serverUrl is valid before proceeding
         if (!serverUrl) {
           throw new Error('Cannot fetch data: Server URL is missing.');
         }
 
-        // Ensure serverUrl doesn't end with a slash to avoid double slashes
         const baseUrl = serverUrl.endsWith('/')
           ? serverUrl.slice(0, -1)
           : serverUrl;
 
-        // 1. Fetch Categories using dynamic serverUrl
         const catApiUrl = `${baseUrl}/forum/categories`;
         const catResponse = await fetch(catApiUrl);
         if (!catResponse.ok) {
@@ -74,7 +69,6 @@ export const ForumCategoryListPage: React.FC = () => {
         const fetchedCategories: ForumCategory[] = await catResponse.json();
         setCategories(fetchedCategories);
 
-        // 2. Fetch Boards for each Category using dynamic serverUrl
         const boardPromises = fetchedCategories.map(async (category) => {
           const boardApiUrl = `${baseUrl}/forum/categories/${category.id}/boards`;
           const boardResponse = await fetch(boardApiUrl);
@@ -82,7 +76,7 @@ export const ForumCategoryListPage: React.FC = () => {
             console.error(
               `Failed to fetch boards for category ${category.id}: ${boardResponse.status} ${boardResponse.statusText}`,
             );
-            return { categoryId: category.id, boards: [] }; // Return empty on error for this category
+            return { categoryId: category.id, boards: [] };
           }
           try {
             const fetchedBoards: ForumBoard[] = await boardResponse.json();
@@ -92,7 +86,7 @@ export const ForumCategoryListPage: React.FC = () => {
               `Error parsing JSON for boards in category ${category.id}:`,
               jsonError,
             );
-            return { categoryId: category.id, boards: [] }; // Return empty on JSON error
+            return { categoryId: category.id, boards: [] };
           }
         });
 
@@ -105,7 +99,7 @@ export const ForumCategoryListPage: React.FC = () => {
       } catch (fetchError: any) {
         console.error('Error during data fetch:', fetchError);
         setError(fetchError.message || 'Failed to load forum data.');
-        setCategories([]); // Clear data on error
+        setCategories([]);
         setBoardsByCategory({});
       } finally {
         setLoading(false);
@@ -115,7 +109,6 @@ export const ForumCategoryListPage: React.FC = () => {
     fetchData();
   }, [serverUrl]);
 
-  // Determine the name to display (use fetched name, fallback to URL)
   const displayServerName = serverInfo?.name || serverUrl || '...';
   const displayLoading = loading || serverInfoLoading;
   const displayError = error || serverInfoError;
@@ -140,7 +133,6 @@ export const ForumCategoryListPage: React.FC = () => {
         >
           <div className="p-5 md:p-10 flex flex-col space-y-6">
             {' '}
-            {/* Increased spacing */}
             {displayLoading && <p>Loading forum data...</p>}
             {displayError && (
               <p className="text-red-500">Error: {displayError}</p>
@@ -154,18 +146,15 @@ export const ForumCategoryListPage: React.FC = () => {
               ) : (
                 <ul className="space-y-4">
                   {' '}
-                  {/* Space between categories */}
                   {categories.map((category) => (
                     <li key={category.id} className="border-b pb-4 mb-4">
                       {' '}
-                      {/* Add border and margin */}
                       <h3 className="text-lg font-semibold mb-2">
                         {category.name}
                       </h3>
                       <p className="text-sm text-gray-600 mb-3">
                         {category.description}
                       </p>
-                      {/* List boards within the category */}
                       {boardsByCategory[category.id] &&
                       boardsByCategory[category.id].length > 0 ? (
                         <ul className="list-disc pl-5 space-y-1">

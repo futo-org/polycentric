@@ -7,7 +7,6 @@ import { useForumServers } from '../../hooks/forumServerHooks';
 import { useIsAdmin } from '../../hooks/useIsAdmin';
 import { useServerInfo } from '../../hooks/useServerInfo';
 
-// Component to render each server item
 interface ServerListItemProps {
   serverUrl: string;
 }
@@ -75,7 +74,6 @@ const ServerListItem: React.FC<ServerListItemProps> = ({ serverUrl }) => {
 export const ForumServerListPage: React.FC = () => {
   const { servers } = useForumServers();
 
-  // Convert Set to Array for mapping
   const serverList = Array.from(servers);
 
   return (
