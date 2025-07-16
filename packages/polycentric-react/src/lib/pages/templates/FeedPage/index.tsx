@@ -28,9 +28,7 @@ export const FeedPage = ({
   );
 
   return isMobile ? (
-    <PullToRefresh onRefresh={handleRefresh}>
-      {content}
-    </PullToRefresh>
+    <PullToRefresh onRefresh={handleRefresh}>{content}</PullToRefresh>
   ) : (
     content
   );
