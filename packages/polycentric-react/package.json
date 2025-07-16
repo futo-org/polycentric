@@ -39,16 +39,17 @@
     "@types/react-router-dom": "^5.3.3",
     "darkreader": "^4.9.96",
     "jdenticon": "^3.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.6",
     "react-easy-crop": "^5.0.4",
     "react-medium-image-zoom": "^5.1.10",
+    "react-pull-to-refresh": "^2.0.1",
     "react-qr-code": "^2.0.12",
     "react-router-dom": "^5.3.4",
     "react-virtuoso": "^4.6.2",
     "swiper": "^10.3.1",
     "ua-parser-js": "^1.0.37",
-    "unplugin-fonts": "^1.0.3",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.6"
+    "unplugin-fonts": "^1.0.3"
   },
   "peerDependencies": {
     "@polycentric/polycentric-core": "*",
