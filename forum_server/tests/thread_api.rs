@@ -4,23 +4,26 @@ mod common;
 
 use axum::{
     body::Body,
-    http::{self, Request, StatusCode, HeaderName},
+    http::{self, HeaderName, Request, StatusCode},
 };
+use ed25519_dalek::SigningKey;
 use forum_server::{
     create_router,
-    models::{Thread, Post},
+    models::{Post, Thread},
 };
 use http_body_util::BodyExt;
+use serde_json::json;
 use sqlx::PgPool;
 use tower::ServiceExt;
-use serde_json::json;
 use uuid::Uuid;
-use ed25519_dalek::SigningKey;
 
 // Bring helpers into scope
-use common::helpers::{create_test_app, create_test_category, create_test_board, create_test_thread, create_test_post, generate_test_keypair, get_auth_headers};
+use common::helpers::{
+    create_test_app, create_test_board, create_test_category, create_test_post, create_test_thread,
+    generate_test_keypair, get_auth_headers,
+};
 
-// --- Thread Tests --- 
+// --- Thread Tests ---
 
 #[sqlx::test]
 async fn test_create_thread_success(pool: PgPool) {
@@ -35,7 +38,8 @@ async fn test_create_thread_success(pool: PgPool) {
     let thread_title = "My First Thread";
     let thread_content = "Initial post content for the first thread.";
 
-    let (thread_id, initial_post_id) = create_test_thread(&app, board_id, thread_title, thread_content, &keypair).await;
+    let (thread_id, initial_post_id) =
+        create_test_thread(&app, board_id, thread_title, thread_content, &keypair).await;
 
     let fetch_response = app
         .oneshot(
@@ -49,11 +53,20 @@ async fn test_create_thread_success(pool: PgPool) {
         .unwrap();
 
     assert_eq!(fetch_response.status(), StatusCode::OK);
-    let body = fetch_response.into_body().collect().await.unwrap().to_bytes();
-    let created_thread: Thread = serde_json::from_slice(&body).expect("Failed to deserialize thread");
+    let body = fetch_response
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
+    let created_thread: Thread =
+        serde_json::from_slice(&body).expect("Failed to deserialize thread");
 
     assert_eq!(created_thread.title, thread_title);
-    assert_eq!(created_thread.created_by, keypair.verifying_key().to_bytes().to_vec());
+    assert_eq!(
+        created_thread.created_by,
+        keypair.verifying_key().to_bytes().to_vec()
+    );
     assert_eq!(created_thread.board_id, board_id);
 
     let saved_thread = sqlx::query_as::<_, Thread>("SELECT * FROM threads WHERE id = $1")
@@ -63,7 +76,10 @@ async fn test_create_thread_success(pool: PgPool) {
         .expect("Failed to fetch thread from DB");
     assert_eq!(saved_thread.id, created_thread.id);
     assert_eq!(saved_thread.title, thread_title);
-    assert_eq!(saved_thread.created_by, keypair.verifying_key().to_bytes().to_vec());
+    assert_eq!(
+        saved_thread.created_by,
+        keypair.verifying_key().to_bytes().to_vec()
+    );
 }
 
 #[sqlx::test]
@@ -103,9 +119,18 @@ async fn test_create_thread_invalid_board(pool: PgPool) {
                 .method(http::Method::POST)
                 .uri(format!("/boards/{}/threads", non_existent_board_id))
                 .header(http::header::CONTENT_TYPE, content_type) // Use multipart content type
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
                 .body(Body::from(body_bytes)) // Send byte vector
                 .unwrap(),
         )
@@ -124,7 +149,14 @@ async fn test_get_thread_success(pool: PgPool) {
     let category_id = create_test_category(&app, "Get Thread Cat", &admin_keypair).await;
     let board_id = create_test_board(&app, category_id, "Get Thread Board", &admin_keypair).await;
     let thread_keypair = generate_test_keypair(); // Keypair for thread creator
-    let (thread_id, _initial_post_id) = create_test_thread(&app, board_id, "Test Thread Title", "Initial post content", &thread_keypair).await;
+    let (thread_id, _initial_post_id) = create_test_thread(
+        &app,
+        board_id,
+        "Test Thread Title",
+        "Initial post content",
+        &thread_keypair,
+    )
+    .await;
     let expected_author_id = thread_keypair.verifying_key().to_bytes().to_vec();
 
     let fetch_response = app
@@ -139,7 +171,12 @@ async fn test_get_thread_success(pool: PgPool) {
         .unwrap();
 
     assert_eq!(fetch_response.status(), StatusCode::OK);
-    let fetch_body = fetch_response.into_body().collect().await.unwrap().to_bytes();
+    let fetch_body = fetch_response
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
     let fetched_thread: Thread = serde_json::from_slice(&fetch_body).unwrap();
 
     assert_eq!(fetched_thread.id, thread_id);
@@ -180,9 +217,12 @@ async fn test_list_threads_in_board_pagination(pool: PgPool) {
     let keypair2 = generate_test_keypair();
     let keypair3 = generate_test_keypair();
 
-    let (thread1_id, _initial_post_id) = create_test_thread(&app, board_id, "Thread 1", "Content 1", &keypair1).await;
-    let (thread2_id, _initial_post_id) = create_test_thread(&app, board_id, "Thread 2", "Content 2", &keypair2).await;
-    let (thread3_id, _initial_post_id) = create_test_thread(&app, board_id, "Thread 3", "Content 3", &keypair3).await;
+    let (thread1_id, _initial_post_id) =
+        create_test_thread(&app, board_id, "Thread 1", "Content 1", &keypair1).await;
+    let (thread2_id, _initial_post_id) =
+        create_test_thread(&app, board_id, "Thread 2", "Content 2", &keypair2).await;
+    let (thread3_id, _initial_post_id) =
+        create_test_thread(&app, board_id, "Thread 3", "Content 3", &keypair3).await;
 
     let response_page1 = app
         .clone()
@@ -197,7 +237,12 @@ async fn test_list_threads_in_board_pagination(pool: PgPool) {
         .unwrap();
 
     assert_eq!(response_page1.status(), StatusCode::OK);
-    let body1 = response_page1.into_body().collect().await.unwrap().to_bytes();
+    let body1 = response_page1
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
     let threads_page1: Vec<Thread> = serde_json::from_slice(&body1).unwrap();
 
     assert_eq!(threads_page1.len(), 2);
@@ -217,7 +262,12 @@ async fn test_list_threads_in_board_pagination(pool: PgPool) {
         .unwrap();
 
     assert_eq!(response_page2.status(), StatusCode::OK);
-    let body2 = response_page2.into_body().collect().await.unwrap().to_bytes();
+    let body2 = response_page2
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
     let threads_page2: Vec<Thread> = serde_json::from_slice(&body2).unwrap();
 
     assert_eq!(threads_page2.len(), 1);
@@ -234,7 +284,12 @@ async fn test_list_threads_in_board_pagination(pool: PgPool) {
         .await
         .unwrap();
     assert_eq!(response_default.status(), StatusCode::OK);
-    let body_default = response_default.into_body().collect().await.unwrap().to_bytes();
+    let body_default = response_default
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
     let threads_default: Vec<Thread> = serde_json::from_slice(&body_default).unwrap();
     assert_eq!(threads_default.len(), 3);
 }
@@ -246,12 +301,20 @@ async fn test_update_thread_success(pool: PgPool) {
     let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
     let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
     let category_id = create_test_category(&app, "Update Thread Cat", &admin_keypair).await;
-    let board_id = create_test_board(&app, category_id, "Update Thread Board", &admin_keypair).await;
+    let board_id =
+        create_test_board(&app, category_id, "Update Thread Board", &admin_keypair).await;
     let thread_owner_keypair = generate_test_keypair(); // Keypair for thread creation & update
     let thread_title = "Thread to Update";
     let thread_content = "Original content.";
 
-    let (thread_id, initial_post_id) = create_test_thread(&app, board_id, thread_title, thread_content, &thread_owner_keypair).await;
+    let (thread_id, initial_post_id) = create_test_thread(
+        &app,
+        board_id,
+        thread_title,
+        thread_content,
+        &thread_owner_keypair,
+    )
+    .await;
 
     let updated_title = "Updated Thread Title";
 
@@ -265,10 +328,19 @@ async fn test_update_thread_success(pool: PgPool) {
                 .method(http::Method::PUT)
                 .uri(format!("/threads/{}", thread_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                 // Add auth headers
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
+                // Add auth headers
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
                 .body(Body::from(json!({ "title": updated_title }).to_string()))
                 .unwrap(),
         )
@@ -282,7 +354,10 @@ async fn test_update_thread_success(pool: PgPool) {
     assert_eq!(updated_thread.id, thread_id);
     assert_eq!(updated_thread.title, updated_title);
     assert_eq!(updated_thread.board_id, board_id);
-    assert_eq!(updated_thread.created_by, thread_owner_keypair.verifying_key().to_bytes().to_vec());
+    assert_eq!(
+        updated_thread.created_by,
+        thread_owner_keypair.verifying_key().to_bytes().to_vec()
+    );
 
     let saved_thread = sqlx::query_as::<_, Thread>("SELECT * FROM threads WHERE id = $1")
         .bind(thread_id)
@@ -290,7 +365,10 @@ async fn test_update_thread_success(pool: PgPool) {
         .await
         .unwrap();
     assert_eq!(saved_thread.title, updated_title);
-    assert_eq!(saved_thread.created_by, thread_owner_keypair.verifying_key().to_bytes().to_vec());
+    assert_eq!(
+        saved_thread.created_by,
+        thread_owner_keypair.verifying_key().to_bytes().to_vec()
+    );
 }
 
 #[sqlx::test]
@@ -299,14 +377,28 @@ async fn test_update_thread_unauthorized(pool: PgPool) {
     let admin_keypair = generate_test_keypair();
     let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
     let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
-    let category_id = create_test_category(&app, "Update Unauthorized Thread Cat", &admin_keypair).await;
-    let board_id = create_test_board(&app, category_id, "Update Unauthorized Thread Board", &admin_keypair).await;
+    let category_id =
+        create_test_category(&app, "Update Unauthorized Thread Cat", &admin_keypair).await;
+    let board_id = create_test_board(
+        &app,
+        category_id,
+        "Update Unauthorized Thread Board",
+        &admin_keypair,
+    )
+    .await;
     let thread_owner_keypair = generate_test_keypair(); // Keypair of the thread creator
     let attacker_keypair = generate_test_keypair(); // Different keypair for the attacker
     let thread_title = "Original Thread Title";
     let thread_content = "Content by owner.";
 
-    let (thread_id, initial_post_id) = create_test_thread(&app, board_id, thread_title, thread_content, &thread_owner_keypair).await;
+    let (thread_id, initial_post_id) = create_test_thread(
+        &app,
+        board_id,
+        thread_title,
+        thread_content,
+        &thread_owner_keypair,
+    )
+    .await;
 
     let updated_title = "Attacker Title Update";
 
@@ -320,10 +412,25 @@ async fn test_update_thread_unauthorized(pool: PgPool) {
                 .method(http::Method::PUT)
                 .uri(format!("/threads/{}", thread_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                 // Add attacker's auth headers
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), attacker_auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), attacker_auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), attacker_auth_headers.get("x-polycentric-challenge-id").unwrap())
+                // Add attacker's auth headers
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    attacker_auth_headers
+                        .get("x-polycentric-pubkey-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    attacker_auth_headers
+                        .get("x-polycentric-signature-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    attacker_auth_headers
+                        .get("x-polycentric-challenge-id")
+                        .unwrap(),
+                )
                 .body(Body::from(json!({ "title": updated_title }).to_string()))
                 .unwrap(),
         )
@@ -354,10 +461,19 @@ async fn test_update_thread_not_found(pool: PgPool) {
             Request::builder()
                 .method(http::Method::PUT)
                 .uri(format!("/threads/{}", non_existent_thread_id))
-                 // Add auth headers
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
+                // Add auth headers
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 .body(Body::from(json!({ "title": "n" }).to_string())) // Still need a valid body
                 .unwrap(),
@@ -375,12 +491,20 @@ async fn test_delete_thread_success(pool: PgPool) {
     let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
     let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
     let category_id = create_test_category(&app, "Delete Thread Cat", &admin_keypair).await;
-    let board_id = create_test_board(&app, category_id, "Delete Thread Board", &admin_keypair).await;
+    let board_id =
+        create_test_board(&app, category_id, "Delete Thread Board", &admin_keypair).await;
     let thread_owner_keypair = generate_test_keypair(); // Keypair for thread creation & delete
     let thread_title = "Thread to Delete";
     let thread_content = "This thread will be deleted.";
 
-    let (thread_id, initial_post_id) = create_test_thread(&app, board_id, thread_title, thread_content, &thread_owner_keypair).await;
+    let (thread_id, initial_post_id) = create_test_thread(
+        &app,
+        board_id,
+        thread_title,
+        thread_content,
+        &thread_owner_keypair,
+    )
+    .await;
 
     // Get auth headers using the *same* keypair that created the thread
     let auth_headers = get_auth_headers(&app, &thread_owner_keypair).await;
@@ -391,9 +515,18 @@ async fn test_delete_thread_success(pool: PgPool) {
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/threads/{}", thread_id))
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -416,14 +549,28 @@ async fn test_delete_thread_unauthorized(pool: PgPool) {
     let admin_keypair = generate_test_keypair();
     let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
     let app = create_test_app(pool.clone(), Some(vec![admin_pubkey])).await;
-    let category_id = create_test_category(&app, "Delete Unauthorized Thread Cat", &admin_keypair).await;
-    let board_id = create_test_board(&app, category_id, "Delete Unauthorized Thread Board", &admin_keypair).await;
+    let category_id =
+        create_test_category(&app, "Delete Unauthorized Thread Cat", &admin_keypair).await;
+    let board_id = create_test_board(
+        &app,
+        category_id,
+        "Delete Unauthorized Thread Board",
+        &admin_keypair,
+    )
+    .await;
     let thread_owner_keypair = generate_test_keypair(); // Keypair of the thread creator
     let attacker_keypair = generate_test_keypair(); // Different keypair for the attacker
     let thread_title = "Thread To Delete (Unauth)";
     let thread_content = "Content by owner.";
 
-    let (thread_id, initial_post_id) = create_test_thread(&app, board_id, thread_title, thread_content, &thread_owner_keypair).await;
+    let (thread_id, initial_post_id) = create_test_thread(
+        &app,
+        board_id,
+        thread_title,
+        thread_content,
+        &thread_owner_keypair,
+    )
+    .await;
 
     // Get auth headers using the *attacker's* keypair
     let attacker_auth_headers = get_auth_headers(&app, &attacker_keypair).await;
@@ -434,9 +581,24 @@ async fn test_delete_thread_unauthorized(pool: PgPool) {
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/threads/{}", thread_id))
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), attacker_auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), attacker_auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), attacker_auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    attacker_auth_headers
+                        .get("x-polycentric-pubkey-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    attacker_auth_headers
+                        .get("x-polycentric-signature-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    attacker_auth_headers
+                        .get("x-polycentric-challenge-id")
+                        .unwrap(),
+                )
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -462,15 +624,24 @@ async fn test_delete_thread_not_found(pool: PgPool) {
     let non_existent_id = Uuid::new_v4();
     let keypair = generate_test_keypair(); // Need keypair even for not found
     let auth_headers = get_auth_headers(&app, &keypair).await;
-    
+
     let response = app
         .oneshot(
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/threads/{}", non_existent_id))
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap()) 
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -486,24 +657,40 @@ async fn test_delete_thread_cascade(pool: PgPool) {
     let admin_pubkey = admin_keypair.verifying_key().to_bytes().to_vec();
     let app = create_test_app(pool.clone(), Some(vec![admin_pubkey.clone()])).await;
     let category_id = create_test_category(&app, "Delete Thread Cascade Cat", &admin_keypair).await;
-    let board_id = create_test_board(&app, category_id, "Delete Thread Board", &admin_keypair).await;
+    let board_id =
+        create_test_board(&app, category_id, "Delete Thread Board", &admin_keypair).await;
     let thread_keypair = generate_test_keypair(); // Keypair for thread creator
-    let (thread_id, initial_post_id) = create_test_thread(&app, board_id, "Thread To Delete", "Initial post", &thread_keypair).await;
+    let (thread_id, initial_post_id) = create_test_thread(
+        &app,
+        board_id,
+        "Thread To Delete",
+        "Initial post",
+        &thread_keypair,
+    )
+    .await;
 
     // Verify thread and post exist initially
-    let thread_exists: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM threads WHERE id = $1)")
-        .bind(thread_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-    assert!(thread_exists.unwrap_or(false), "Thread should exist before delete");
+    let thread_exists: Option<bool> =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM threads WHERE id = $1)")
+            .bind(thread_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(
+        thread_exists.unwrap_or(false),
+        "Thread should exist before delete"
+    );
 
-    let post_exists: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE id = $1)")
-        .bind(initial_post_id) // Use initial_post_id
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-    assert!(post_exists.unwrap_or(false), "Initial post should exist before delete");
+    let post_exists: Option<bool> =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE id = $1)")
+            .bind(initial_post_id) // Use initial_post_id
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(
+        post_exists.unwrap_or(false),
+        "Initial post should exist before delete"
+    );
 
     // Get auth headers for delete using the creator's keypair
     let delete_auth_headers = get_auth_headers(&app, &thread_keypair).await;
@@ -515,9 +702,24 @@ async fn test_delete_thread_cascade(pool: PgPool) {
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/threads/{}", thread_id))
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), delete_auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), delete_auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), delete_auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    delete_auth_headers
+                        .get("x-polycentric-pubkey-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    delete_auth_headers
+                        .get("x-polycentric-signature-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    delete_auth_headers
+                        .get("x-polycentric-challenge-id")
+                        .unwrap(),
+                )
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -527,18 +729,26 @@ async fn test_delete_thread_cascade(pool: PgPool) {
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
 
     // Verify thread is gone
-    let thread_exists_after: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM threads WHERE id = $1)")
-        .bind(thread_id)
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-    assert!(!thread_exists_after.unwrap_or(true), "Thread should be deleted");
+    let thread_exists_after: Option<bool> =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM threads WHERE id = $1)")
+            .bind(thread_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(
+        !thread_exists_after.unwrap_or(true),
+        "Thread should be deleted"
+    );
 
     // Verify post is gone (due to cascade)
-    let post_exists_after: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE id = $1)")
-        .bind(initial_post_id) // Use initial_post_id
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-    assert!(!post_exists_after.unwrap_or(true), "Post should be cascade deleted");
+    let post_exists_after: Option<bool> =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM posts WHERE id = $1)")
+            .bind(initial_post_id) // Use initial_post_id
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(
+        !post_exists_after.unwrap_or(true),
+        "Post should be cascade deleted"
+    );
 }

@@ -14,7 +14,7 @@ interface UseAuthHeadersResult {
   headers: AuthHeaders | null;
   loading: boolean;
   error: string | null;
-  fetchHeaders: () => Promise<AuthHeaders | null>; // Function to trigger fetch manually
+  fetchHeaders: () => Promise<AuthHeaders | null>;
 }
 
 /**
@@ -59,7 +59,6 @@ export function useAuthHeaders(
         ? serverUrl.slice(0, -1)
         : serverUrl;
 
-      // 1. Get Challenge
       const challengeUrl = `${baseUrl}/auth/challenge`;
       const challengeResRaw = await fetch(challengeUrl, {
         credentials: 'include',
@@ -95,13 +94,11 @@ export function useAuthHeaders(
       const { challenge_id, nonce_base64 } = challengeData;
       const nonce = base64.decode(nonce_base64);
 
-      // 2. Sign Nonce
       const privateKey = processHandle.processSecret().system;
       if (!privateKey)
         throw new Error('Private key unavailable for signing challenge.');
       const signature = await sign(nonce, privateKey.key);
 
-      // 3. Prepare Headers object
       const pubKey = await Models.PrivateKey.derivePublicKey(privateKey);
       const pubKeyBase64 = base64.encode(pubKey.key);
       const signatureBase64 = base64.encode(signature);
@@ -115,13 +112,13 @@ export function useAuthHeaders(
       setHeaders(preparedHeaders);
       setError(null);
       return preparedHeaders;
-    } catch (fetchError: any) {
+    } catch (fetchError: unknown) {
       console.error(
         `Error preparing auth headers for ${serverUrl}:`,
         fetchError,
       );
       setError(
-        fetchError.message ||
+        (fetchError as Error)?.message ||
           `Failed to prepare auth headers for ${serverUrl}.`,
       );
       setHeaders(null);
@@ -130,12 +127,6 @@ export function useAuthHeaders(
       setLoading(false);
     }
   }, [processHandle, userPublicKeyString, serverUrl]);
-
-  // Optionally fetch headers immediately on mount/change?
-  // For now, we return the fetch function to be called explicitly when needed.
-  // useEffect(() => {
-  //     // fetchHeaders(); // Example: fetch immediately if needed by default
-  // }, [serverUrl, processHandle]); // Dependencies
 
   return { headers, loading, error, fetchHeaders };
 }

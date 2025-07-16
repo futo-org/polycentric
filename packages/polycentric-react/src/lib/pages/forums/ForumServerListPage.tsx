@@ -17,11 +17,7 @@ const ServerListItem: React.FC<ServerListItemProps> = ({ serverUrl }) => {
     loading: serverInfoLoading,
     error: serverInfoError,
   } = useServerInfo(serverUrl);
-  const {
-    isAdmin,
-    loading: adminLoading,
-    error: adminError,
-  } = useIsAdmin(serverUrl);
+  const { isAdmin, loading: adminLoading } = useIsAdmin(serverUrl);
   const encodedServerUrl = encodeURIComponent(serverUrl);
 
   const displayName = serverInfoLoading

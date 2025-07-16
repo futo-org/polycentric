@@ -1,9 +1,7 @@
+use crate::models::Thread;
+use crate::utils::PaginationParams;
 use sqlx::PgPool;
 use uuid::Uuid;
-use crate::models::{Thread, Post};
-use crate::utils::PaginationParams;
-use crate::repositories::post_repository;
-use sqlx::{Acquire, Postgres, Transaction};
 
 // Placeholder for Polycentric ID - replace with actual type if needed
 type PolycentricId = Vec<u8>;
@@ -15,7 +13,7 @@ pub struct CreateThreadData {
     pub content: String,
     #[serde(skip_deserializing)]
     pub created_by: PolycentricId,
-    #[serde(default)] 
+    #[serde(default)]
     pub images: Option<Vec<String>>,
     // Added optional fields for Polycentric pointer
     #[serde(default)]
@@ -23,7 +21,7 @@ pub struct CreateThreadData {
     #[serde(default)]
     pub polycentric_process_id: Option<PolycentricId>,
     #[serde(default)]
-    pub polycentric_log_seq: Option<i64>, 
+    pub polycentric_log_seq: Option<i64>,
     // board_id will come from the path
 }
 
@@ -68,8 +66,9 @@ pub async fn create_thread(
 pub async fn create_thread_with_initial_post(
     pool: &PgPool,
     board_id: Uuid,
-    data: CreateThreadData, 
-) -> Result<CreatedThreadInfo, sqlx::Error> { // Return new struct type
+    data: CreateThreadData,
+) -> Result<CreatedThreadInfo, sqlx::Error> {
+    // Return new struct type
     let mut tx = pool.begin().await?;
 
     // 1. Create the thread
@@ -87,21 +86,21 @@ pub async fn create_thread_with_initial_post(
     .fetch_one(&mut *tx)
     .await?;
 
-    // 2. Create the initial post 
+    // 2. Create the initial post
     let new_post_id = sqlx::query!(
         r#"
         INSERT INTO posts (thread_id, author_id, content) 
         VALUES ($1, $2::BYTEA, $3)
         RETURNING id
         "#,
-        new_thread.id, 
-        &data.created_by, 
-        data.content      
+        new_thread.id,
+        &data.created_by,
+        data.content
     )
     .fetch_one(&mut *tx)
     .await?
-    .id;     
-    
+    .id;
+
     // 3. Insert images for the post if provided
     // ... existing image insert logic ...
 
@@ -116,7 +115,10 @@ pub async fn create_thread_with_initial_post(
 }
 
 /// Fetches a single thread by its ID.
-pub async fn get_thread_by_id(pool: &PgPool, thread_id: Uuid) -> Result<Option<Thread>, sqlx::Error> {
+pub async fn get_thread_by_id(
+    pool: &PgPool,
+    thread_id: Uuid,
+) -> Result<Option<Thread>, sqlx::Error> {
     let thread = sqlx::query_as!(
         Thread,
         r#"
@@ -196,13 +198,13 @@ pub async fn delete_thread(pool: &PgPool, thread_id: Uuid) -> Result<u64, sqlx::
 
 // --- Add missing functions ---
 
-pub async fn get_thread_author(pool: &PgPool, thread_id: Uuid) -> Result<Option<Vec<u8>>, sqlx::Error> {
-    let result = sqlx::query!(
-        r#"SELECT created_by FROM threads WHERE id = $1"#,
-        thread_id
-    )
-    .fetch_optional(pool)
-    .await?;
+pub async fn get_thread_author(
+    pool: &PgPool,
+    thread_id: Uuid,
+) -> Result<Option<Vec<u8>>, sqlx::Error> {
+    let result = sqlx::query!(r#"SELECT created_by FROM threads WHERE id = $1"#, thread_id)
+        .fetch_optional(pool)
+        .await?;
     Ok(result.map(|row| row.created_by))
 }
 
@@ -218,21 +220,15 @@ pub async fn delete_thread_with_posts(pool: &PgPool, thread_id: Uuid) -> Result<
     .await?;
 
     // 2. Delete posts in the thread
-    sqlx::query!(
-        "DELETE FROM posts WHERE thread_id = $1",
-        thread_id
-    )
-    .execute(&mut *tx)
-    .await?;
+    sqlx::query!("DELETE FROM posts WHERE thread_id = $1", thread_id)
+        .execute(&mut *tx)
+        .await?;
 
     // 3. Delete the thread itself
-    let result = sqlx::query!(
-        "DELETE FROM threads WHERE id = $1",
-        thread_id
-    )
-    .execute(&mut *tx)
-    .await?;
+    let result = sqlx::query!("DELETE FROM threads WHERE id = $1", thread_id)
+        .execute(&mut *tx)
+        .await?;
 
     tx.commit().await?;
     Ok(result.rows_affected())
-} 
+}

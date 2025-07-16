@@ -35,7 +35,8 @@ export const SettingsPage: Page = () => {
             <div className="flex flex-col space-y-3">
               <h2 className="font-medium">Your Public Key</h2>
               <p className="text-gray-600 text-xs">
-                This is your public key. Copy this to set up forum admin access in your forum server's ADMIN_PUBKEYS environment variable.
+                This is your public key. Copy this to set up forum admin access
+                in your forum server&apos;s ADMIN_PUBKEYS environment variable.
               </p>
               <PublicKeyDisplay />
             </div>

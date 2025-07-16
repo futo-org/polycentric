@@ -1,10 +1,9 @@
 import { CheckIcon, PencilIcon } from '@heroicons/react/24/outline';
-import { CancelContext } from '@polycentric/polycentric-core'; // Keep for CancelContext
+import { CancelContext } from '@polycentric/polycentric-core';
 import { useState } from 'react';
-import { useForumServers } from '../../../hooks/forumServerHooks'; // Use the new hook
+import { useForumServers } from '../../../hooks/forumServerHooks';
 import { useDebouncedEffect } from '../../../hooks/utilHooks';
 
-// XIcon remains the same
 const XIcon = ({ className }: { className: string }) => {
   return (
     <svg
@@ -24,7 +23,6 @@ const XIcon = ({ className }: { className: string }) => {
   );
 };
 
-// Interfaces remain the same for row structure
 interface ExistingServer {
   kind: 'existingServer';
   server: string;
@@ -35,13 +33,11 @@ interface NewServer {
   close: () => void;
 }
 
-// Rename Row Component
 const ForumServerListTableRow = ({
   params,
 }: {
   params: ExistingServer | NewServer;
 }) => {
-  // Get add/remove functions from the new hook
   const { addServer, removeServer } = useForumServers();
 
   const [inputValue, setInputValue] = useState(
@@ -85,19 +81,13 @@ const ForumServerListTableRow = ({
         urlToCheck = 'https://' + urlToCheck;
       }
 
-      // Use a different validation endpoint for forum servers, e.g., /api/categories
-      // Or just a basic fetch to see if the server responds
-      fetch(`${urlToCheck}/api/categories`) // Example: Check for categories endpoint
+      fetch(`${urlToCheck}/api/categories`)
         .then((res) => {
-          // Check if response is ok (status 200-299)
           if (cancelContext.cancelled() === false && res.ok) {
-            // Check if the response looks like JSON (optional, adjust as needed)
             const contentType = res.headers.get('content-type');
             if (contentType && contentType.indexOf('application/json') !== -1) {
               setIsValidServer(true);
             } else {
-              // If not JSON, maybe still valid? Decide based on forum server behavior.
-              // For now, let's consider any OK response valid.
               setIsValidServer(true);
             }
           } else if (!res.ok) {
@@ -133,7 +123,7 @@ const ForumServerListTableRow = ({
         onClick={() => {
           if (params.kind === 'existingServer') {
             setMutationSubmitted(true);
-            removeServer(params.server); // Use removeServer from hook
+            removeServer(params.server);
           }
         }}
         disabled={mutationSubmitted}
@@ -159,10 +149,8 @@ const ForumServerListTableRow = ({
     addServer(serverUrl);
   };
 
-  // editPostButtons remains largely the same, just ensure handleServerSubmit is called
   const editPostButtons = (
     <>
-      {/* Undo */}
       <button
         onClick={() => {
           if (params.kind === 'existingServer') {
@@ -178,7 +166,6 @@ const ForumServerListTableRow = ({
       >
         <XIcon className="h-5 w-5" />
       </button>
-      {/* Accept */}
       <button
         onClick={handleServerSubmit}
         disabled={
@@ -200,7 +187,6 @@ const ForumServerListTableRow = ({
     </>
   );
 
-  // Row rendering remains the same
   return (
     <tr>
       <td className="px-6 py-3 whitespace-nowrap">
@@ -229,10 +215,8 @@ const ForumServerListTableRow = ({
 // No featured servers for forum servers initially
 // const FEATURED_FORUM_SERVERS = [];
 
-// Rename main component
 export const ForumServerListTable = () => {
-  // Use the forum server hook
-  const { servers, addServer, removeServer } = useForumServers(); // Destructure add/remove for potentially adding featured servers later?
+  const { servers } = useForumServers();
   const [newServer, setNewServer] = useState(false);
 
   return (
@@ -250,7 +234,6 @@ export const ForumServerListTable = () => {
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {[...servers].map((s) => (
-            // Use the renamed row component
             <ForumServerListTableRow
               key={s}
               params={{
@@ -260,7 +243,6 @@ export const ForumServerListTable = () => {
             />
           ))}
           {newServer && (
-            // Use the renamed row component
             <ForumServerListTableRow
               params={{
                 kind: 'newServer',
@@ -269,13 +251,10 @@ export const ForumServerListTable = () => {
             />
           )}
         </tbody>
-        {/* Remove Featured Servers section */}
-        {/* <thead> ... </thead> */}
-        {/* <tbody ... > ... </tbody> */}
         <tfoot>
           <tr>
             <td
-              colSpan={3} // Adjust if needed, though likely still 1 column visually
+              colSpan={3}
               className="px-3 pb-3 pt-2 text-left text-xs font-medium uppercase tracking-wider flex justify-between"
             >
               <button
@@ -283,7 +262,7 @@ export const ForumServerListTable = () => {
                 className="btn btn-primary rounded-full h-[2.25rem] px-3 border bg-white hover:bg-gray-50 text-gray-700 disabled:hover:bg-white disabled:text-gray-500"
                 onClick={() => setNewServer(true)}
               >
-                Add Forum Server {/* Update Button Text */}
+                Add Forum Server
               </button>
             </td>
           </tr>

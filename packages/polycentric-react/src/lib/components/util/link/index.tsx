@@ -117,7 +117,6 @@ const LinkComponent = forwardRef<
         routerLink,
         routerDirection,
         stackRouter,
-        isActive,
         stopPropagation,
         userPassedOnClick,
       ],

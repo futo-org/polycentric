@@ -81,7 +81,7 @@ export const ForumCategoryListPage: React.FC = () => {
           try {
             const fetchedBoards: ForumBoard[] = await boardResponse.json();
             return { categoryId: category.id, boards: fetchedBoards };
-          } catch (jsonError: any) {
+          } catch (jsonError: unknown) {
             console.error(
               `Error parsing JSON for boards in category ${category.id}:`,
               jsonError,
@@ -96,9 +96,13 @@ export const ForumCategoryListPage: React.FC = () => {
           newBoardsByCategory[result.categoryId] = result.boards;
         });
         setBoardsByCategory(newBoardsByCategory);
-      } catch (fetchError: any) {
+      } catch (fetchError: unknown) {
         console.error('Error during data fetch:', fetchError);
-        setError(fetchError.message || 'Failed to load forum data.');
+        setError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : 'Failed to load forum data.',
+        );
         setCategories([]);
         setBoardsByCategory({});
       } finally {

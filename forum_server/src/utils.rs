@@ -16,11 +16,11 @@ impl PaginationParams {
         if self.limit == 0 {
             DEFAULT_PAGE_LIMIT
         } else {
-            self.limit.min(MAX_PAGE_LIMIT).max(1)
+            self.limit.clamp(1, MAX_PAGE_LIMIT)
         }
     }
 
     pub fn offset(&self) -> u64 {
         self.offset
     }
-} 
+}

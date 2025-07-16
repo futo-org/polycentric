@@ -3,19 +3,21 @@ mod common;
 
 use axum::{
     body::Body,
-    http::{self, Request, StatusCode, HeaderName},
+    http::{self, HeaderName, Request, StatusCode},
 };
 use forum_server::{
     models::Category, // Assuming models are public in lib.rs or main.rs
 };
 use http_body_util::BodyExt; // for `collect`
+use serde_json::json; // For creating JSON body easily in tests
 use sqlx::PgPool;
 use tower::ServiceExt; // for `oneshot`
-use serde_json::json; // For creating JSON body easily in tests
 use uuid::Uuid;
 
 // Bring helpers into scope
-use common::helpers::{create_test_app, create_test_category, generate_test_keypair, get_auth_headers};
+use common::helpers::{
+    create_test_app, create_test_category, generate_test_keypair, get_auth_headers,
+};
 
 // Helper function to create the Axum app with a test database connection
 // This assumes you have configured sqlx::test correctly (e.g., DATABASE_URL set)
@@ -63,10 +65,21 @@ async fn test_create_category_unauthorized(pool: PgPool) {
                 .uri("/categories")
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 // Add non-admin auth headers
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
-                .body(Body::from(json!({ "name": category_name, "description": category_desc }).to_string()))
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
+                .body(Body::from(
+                    json!({ "name": category_name, "description": category_desc }).to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -99,8 +112,14 @@ async fn test_get_category_success(pool: PgPool) {
         .unwrap();
 
     assert_eq!(fetch_response.status(), StatusCode::OK);
-    let fetch_body = fetch_response.into_body().collect().await.unwrap().to_bytes();
-    let fetched_category: Category = serde_json::from_slice(&fetch_body).expect("Failed to deserialize fetched category");
+    let fetch_body = fetch_response
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
+    let fetched_category: Category =
+        serde_json::from_slice(&fetch_body).expect("Failed to deserialize fetched category");
     assert_eq!(fetched_category.id, category_id);
     assert_eq!(fetched_category.name, "Fetch Me");
 }
@@ -148,7 +167,12 @@ async fn test_list_categories_pagination(pool: PgPool) {
         .unwrap();
 
     assert_eq!(response_page1.status(), StatusCode::OK);
-    let body1 = response_page1.into_body().collect().await.unwrap().to_bytes();
+    let body1 = response_page1
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
     let categories_page1: Vec<Category> = serde_json::from_slice(&body1).unwrap();
 
     assert_eq!(categories_page1.len(), 2);
@@ -170,7 +194,12 @@ async fn test_list_categories_pagination(pool: PgPool) {
         .unwrap();
 
     assert_eq!(response_page2.status(), StatusCode::OK);
-    let body2 = response_page2.into_body().collect().await.unwrap().to_bytes();
+    let body2 = response_page2
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
     let categories_page2: Vec<Category> = serde_json::from_slice(&body2).unwrap();
 
     assert_eq!(categories_page2.len(), 1);
@@ -189,7 +218,12 @@ async fn test_list_categories_pagination(pool: PgPool) {
         .await
         .unwrap();
     assert_eq!(response_default.status(), StatusCode::OK);
-    let body_default = response_default.into_body().collect().await.unwrap().to_bytes();
+    let body_default = response_default
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
     let categories_default: Vec<Category> = serde_json::from_slice(&body_default).unwrap();
     // Default limit is 25, we created 3, so we should get 3 back
     assert_eq!(categories_default.len(), 3);
@@ -222,13 +256,25 @@ async fn test_update_category_success(pool: PgPool) {
                 .uri(format!("/categories/{}", category_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 // Add admin auth headers
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
-                .body(Body::from(json!({
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
+                .body(Body::from(
+                    json!({
                         "name": updated_name,
                         "description": updated_desc
-                    }).to_string()))
+                    })
+                    .to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -271,13 +317,31 @@ async fn test_update_category_unauthorized(pool: PgPool) {
                 .uri(format!("/categories/{}", category_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 // Use non-admin auth headers
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), non_admin_auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), non_admin_auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), non_admin_auth_headers.get("x-polycentric-challenge-id").unwrap())
-                .body(Body::from(json!({
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    non_admin_auth_headers
+                        .get("x-polycentric-pubkey-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    non_admin_auth_headers
+                        .get("x-polycentric-signature-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    non_admin_auth_headers
+                        .get("x-polycentric-challenge-id")
+                        .unwrap(),
+                )
+                .body(Body::from(
+                    json!({
                         "name": "Fail Update",
                         "description": "Should Fail"
-                    }).to_string()))
+                    })
+                    .to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -302,10 +366,21 @@ async fn test_update_category_not_found(pool: PgPool) {
                 .uri(format!("/categories/{}", non_existent_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
                 // Add admin auth headers (auth passes, but ID is bad)
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
-                .body(Body::from(json!({ "name": "n", "description": "d" }).to_string()))
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
+                .body(Body::from(
+                    json!({ "name": "n", "description": "d" }).to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -333,9 +408,18 @@ async fn test_delete_category_success(pool: PgPool) {
                 .method(http::Method::DELETE)
                 .uri(format!("/categories/{}", category_id))
                 // Add admin auth headers
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -370,9 +454,24 @@ async fn test_delete_category_unauthorized(pool: PgPool) {
                 .method(http::Method::DELETE)
                 .uri(format!("/categories/{}", category_id))
                 // Use non-admin auth headers
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), non_admin_auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), non_admin_auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), non_admin_auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    non_admin_auth_headers
+                        .get("x-polycentric-pubkey-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    non_admin_auth_headers
+                        .get("x-polycentric-signature-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    non_admin_auth_headers
+                        .get("x-polycentric-challenge-id")
+                        .unwrap(),
+                )
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -383,7 +482,10 @@ async fn test_delete_category_unauthorized(pool: PgPool) {
 
     // Verify category still exists
     let result = sqlx::query("SELECT 1 FROM categories WHERE id = $1")
-        .bind(category_id).fetch_optional(&pool).await.unwrap();
+        .bind(category_id)
+        .fetch_optional(&pool)
+        .await
+        .unwrap();
     assert!(result.is_some());
 }
 
@@ -402,9 +504,18 @@ async fn test_delete_category_not_found(pool: PgPool) {
                 .method(http::Method::DELETE)
                 .uri(format!("/categories/{}", non_existent_id))
                 // Add admin auth headers (auth passes, but ID is bad)
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -416,4 +527,4 @@ async fn test_delete_category_not_found(pool: PgPool) {
 
 // TODO: Add tests for error cases (e.g., invalid UUID format in path)
 
-// TODO: Add tests for error cases (e.g., invalid payload, database errors) 
+// TODO: Add tests for error cases (e.g., invalid payload, database errors)

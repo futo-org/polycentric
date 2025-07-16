@@ -1,25 +1,25 @@
 import {
-    closestCenter,
-    DndContext,
-    DragEndEvent,
-    DragOverlay,
-    DragStartEvent,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
+  closestCenter,
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
 } from '@dnd-kit/core';
 import {
-    arrayMove,
-    SortableContext,
-    sortableKeyboardCoordinates,
-    useSortable,
-    verticalListSortingStrategy,
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react'; // Using lucide for handle icon
+import { GripVertical } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
-import { createPortal } from 'react-dom'; // Needed for DragOverlay
+import { createPortal } from 'react-dom';
 import { useParams } from '../../hooks/stackRouterHooks';
 import { useAuthHeaders } from '../../hooks/useAuthHeaders';
 import { useIsAdmin } from '../../hooks/useIsAdmin';
@@ -28,22 +28,21 @@ interface Category {
   id: string;
   name: string;
   description: string;
-  order: number; // Added order
+  order: number;
   boards: Board[];
 }
 
 interface Board {
   id: string;
-  category_id: string; // Keep category_id reference
+  category_id: string;
   name: string;
   description: string;
-  order: number; // Added order
+  order: number;
 }
 
-// Sortable Item component - Now accepts render prop for content
 function SortableItem(props: {
   id: string;
-  children: (listeners: any, attributes: any) => React.ReactNode; // Render prop
+  children: (listeners: object, attributes: object) => React.ReactNode; // Render prop
 }) {
   const {
     attributes,
@@ -57,26 +56,23 @@ function SortableItem(props: {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0 : 1, // Hide original item completely when dragging
-    cursor: 'default', // Set base cursor to default, handle grab on the handle
+    opacity: isDragging ? 0 : 1,
+    cursor: 'default',
   };
 
   return (
-    // Remove listeners/attributes from the main div
     <div ref={setNodeRef} style={style}>
-      {/* Pass listeners/attributes to the children render prop */}
-      {props.children(listeners, attributes)}
+      {props.children(listeners ?? {}, attributes ?? {})}
     </div>
   );
 }
 
-// Drag Handle Component - Now part of the item content
 function DragHandle({
   listeners,
   attributes,
 }: {
-  listeners: any;
-  attributes: any;
+  listeners: object;
+  attributes: object;
 }) {
   return (
     <button
@@ -90,7 +86,6 @@ function DragHandle({
 }
 
 export const AdminPanelPage: React.FC = () => {
-  // Extract wildcard parameter using params['*']
   const params = useParams<{ '*'?: string }>();
   const encodedServerUrl = params['*'];
   const serverUrl = encodedServerUrl
@@ -113,7 +108,6 @@ export const AdminPanelPage: React.FC = () => {
   const [dataError, setDataError] = useState<string | null>(null);
   const [hasLoadedSuccessfully, setHasLoadedSuccessfully] = useState(false);
 
-  // State for Add Category form
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryDesc, setNewCategoryDesc] = useState('');
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -122,7 +116,7 @@ export const AdminPanelPage: React.FC = () => {
   // State for Add Board form
   const [addingBoardToCategoryId, setAddingBoardToCategoryId] = useState<
     string | null
-  >(null); // Track which category form is open
+  >(null);
   const [newBoardName, setNewBoardName] = useState('');
   const [newBoardDesc, setNewBoardDesc] = useState('');
   const [isAddingBoard, setIsAddingBoard] = useState(false);
@@ -141,7 +135,7 @@ export const AdminPanelPage: React.FC = () => {
   );
 
   // State for Edit Board form
-  const [editingBoard, setEditingBoard] = useState<Board | null>(null); // Store the whole board being edited
+  const [editingBoard, setEditingBoard] = useState<Board | null>(null);
   const [editBoardName, setEditBoardName] = useState('');
   const [editBoardDesc, setEditBoardDesc] = useState('');
   const [isSavingBoard, setIsSavingBoard] = useState(false);
@@ -151,7 +145,7 @@ export const AdminPanelPage: React.FC = () => {
   const [editingCategory, setEditingCategory] = useState<Omit<
     Category,
     'boards'
-  > | null>(null); // Store category info without boards
+  > | null>(null);
   const [editCategoryName, setEditCategoryName] = useState('');
   const [editCategoryDesc, setEditCategoryDesc] = useState('');
   const [isSavingCategory, setIsSavingCategory] = useState(false);
@@ -159,9 +153,8 @@ export const AdminPanelPage: React.FC = () => {
     null,
   );
 
-  const [activeId, setActiveId] = useState<string | null>(null); // State for dragged item ID
+  const [activeId, setActiveId] = useState<string | null>(null);
 
-  // Combined loading state - add isSavingCategory
   const overallLoading =
     adminLoading ||
     loadingData ||
@@ -172,7 +165,6 @@ export const AdminPanelPage: React.FC = () => {
     isSavingBoard ||
     isSavingCategory ||
     headersLoading;
-  // Combined error state - add saveCategoryError
   const overallError =
     adminError ||
     dataError ||
@@ -186,16 +178,13 @@ export const AdminPanelPage: React.FC = () => {
 
   // --- dnd-kit Sensors ---
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), // Require slight move before dragging
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
 
-  // Fetch data function (ensure it now fetches and sorts by order)
   const fetchAdminData = useCallback(async () => {
-    // Ensure dependencies are available
-    // Note: Dependencies like serverUrl, isAdmin are accessed directly from component scope
     if (!serverUrl || !isAdmin) {
       setCategories([]);
       setLoadingData(false);
@@ -207,7 +196,6 @@ export const AdminPanelPage: React.FC = () => {
     setDataError(null);
 
     try {
-      // Note: fetchHeaders is stable from its own hook
       const authHeaders = await fetchHeaders();
       if (!authHeaders) {
         console.error('[AdminPanelPage Fetch] Failed to get auth headers.');
@@ -220,7 +208,6 @@ export const AdminPanelPage: React.FC = () => {
         ? serverUrl.slice(0, -1)
         : serverUrl;
 
-      // Fetch all categories (ensure backend sorts by order)
       const catApiUrl = `${baseUrl}/forum/categories`;
       const catResponse = await fetch(catApiUrl, {
         headers: { ...authHeaders },
@@ -234,7 +221,6 @@ export const AdminPanelPage: React.FC = () => {
       const fetchedCategories: Omit<Category, 'boards'>[] =
         await catResponse.json();
 
-      // Fetch boards for each category (ensure backend sorts by order)
       const categoriesWithBoards: Category[] = await Promise.all(
         fetchedCategories.map(async (category) => {
           const boardApiUrl = `${baseUrl}/forum/categories/${category.id}/boards`;
@@ -250,7 +236,6 @@ export const AdminPanelPage: React.FC = () => {
               return { ...category, boards: [] };
             }
             const boards: Board[] = await boardResponse.json();
-            // Manually add category_id back for frontend use if backend doesn't include it in board details
             const boardsWithCatId = boards.map((b) => ({
               ...b,
               category_id: category.id,
@@ -265,21 +250,21 @@ export const AdminPanelPage: React.FC = () => {
           }
         }),
       );
-      // Sort categories by order on the client-side as well
       categoriesWithBoards.sort((a, b) => a.order - b.order);
-      // Sort boards within each category client-side
       categoriesWithBoards.forEach((cat) =>
         cat.boards.sort((a, b) => a.order - b.order),
       );
 
       setCategories(categoriesWithBoards);
       setHasLoadedSuccessfully(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
         '[AdminPanelPage Fetch] ERROR caught in fetchAdminData:',
         error,
       );
-      setDataError(error.message || 'Failed to load admin data');
+      setDataError(
+        error instanceof Error ? error.message : 'Failed to load admin data',
+      );
       setCategories([]);
       setHasLoadedSuccessfully(false);
     } finally {
@@ -287,20 +272,15 @@ export const AdminPanelPage: React.FC = () => {
     }
   }, [serverUrl, isAdmin, fetchHeaders]);
 
-  // Initial fetch effect - Fetch only when we know we are admin
   useEffect(() => {
-    // Only trigger fetch if we have the URL and isAdmin is definitively true
     if (serverUrl && isAdmin === true) {
       fetchAdminData();
     } else {
-      // Clear data if conditions are not met (e.g., logged out, not admin)
       setCategories([]);
       setHasLoadedSuccessfully(false);
     }
-    // Depend explicitly on serverUrl and the boolean value of isAdmin
-  }, [serverUrl, isAdmin, fetchAdminData]); // Keep fetchAdminData dependency for useCallback
+  }, [serverUrl, isAdmin, fetchAdminData]);
 
-  // Handler for adding a new category
   const handleAddCategory = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!serverUrl || !newCategoryName.trim()) {
@@ -347,29 +327,28 @@ export const AdminPanelPage: React.FC = () => {
       setNewCategoryName(''); // Clear form
       setNewCategoryDesc('');
       await fetchAdminData(); // Refetch the list
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error adding category:', error);
-      setAddCategoryError(error.message || 'Failed to add category');
+      setAddCategoryError(
+        error instanceof Error ? error.message : 'Failed to add category',
+      );
     } finally {
       setIsAddingCategory(false);
     }
   };
 
-  // Handler for initiating adding a new board
   const handleShowAddBoardForm = (categoryId: string) => {
-    setAddingBoardToCategoryId(categoryId); // Set the category ID to show the form
-    setNewBoardName(''); // Clear previous input
+    setAddingBoardToCategoryId(categoryId);
+    setNewBoardName('');
     setNewBoardDesc('');
-    setAddBoardError(null); // Clear previous errors
-  };
-
-  // Handler for canceling add board form
-  const handleCancelAddBoard = () => {
-    setAddingBoardToCategoryId(null); // Hide the form
     setAddBoardError(null);
   };
 
-  // Handler for adding a new board
+  const handleCancelAddBoard = () => {
+    setAddingBoardToCategoryId(null);
+    setAddBoardError(null);
+  };
+
   const handleAddBoard = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!serverUrl || !addingBoardToCategoryId || !newBoardName.trim()) {
@@ -389,7 +368,6 @@ export const AdminPanelPage: React.FC = () => {
       const baseUrl = serverUrl.endsWith('/')
         ? serverUrl.slice(0, -1)
         : serverUrl;
-      // Use the category ID in the URL
       const createUrl = `${baseUrl}/forum/categories/${addingBoardToCategoryId}/boards`;
 
       const response = await fetch(createUrl, {
@@ -413,34 +391,31 @@ export const AdminPanelPage: React.FC = () => {
         throw new Error(`Error ${response.status}: ${errorText}`);
       }
 
-      // Success!
-      handleCancelAddBoard(); // Hide form
-      await fetchAdminData(); // Refetch the list
-    } catch (error: any) {
+      handleCancelAddBoard();
+      await fetchAdminData();
+    } catch (error: unknown) {
       console.error('Error adding board:', error);
-      setAddBoardError(error.message || 'Failed to add board');
+      setAddBoardError(
+        error instanceof Error ? error.message : 'Failed to add board',
+      );
     } finally {
       setIsAddingBoard(false);
     }
   };
 
-  // Handler for initiating board edit
   const handleEditBoard = (board: Board) => {
-    setEditingBoard(board); // Set the board to edit
-    setEditBoardName(board.name); // Populate form
+    setEditingBoard(board);
+    setEditBoardName(board.name);
     setEditBoardDesc(board.description);
-    setSaveBoardError(null); // Clear previous errors
-    // Hide other forms if open
+    setSaveBoardError(null);
     setAddingBoardToCategoryId(null);
   };
 
-  // Handler for canceling board edit
   const handleCancelEditBoard = () => {
-    setEditingBoard(null); // Clear editing state
+    setEditingBoard(null);
     setSaveBoardError(null);
   };
 
-  // Handler for saving edited board
   const handleSaveBoard = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!serverUrl || !editingBoard || !editBoardName.trim()) {
@@ -460,10 +435,10 @@ export const AdminPanelPage: React.FC = () => {
       const baseUrl = serverUrl.endsWith('/')
         ? serverUrl.slice(0, -1)
         : serverUrl;
-      const updateUrl = `${baseUrl}/forum/boards/${editingBoard.id}`; // Use editingBoard.id
+      const updateUrl = `${baseUrl}/forum/boards/${editingBoard.id}`;
 
       const response = await fetch(updateUrl, {
-        method: 'PUT', // Use PUT for update
+        method: 'PUT',
         headers: {
           ...authHeaders,
           'Content-Type': 'application/json',
@@ -483,20 +458,19 @@ export const AdminPanelPage: React.FC = () => {
         throw new Error(`Error ${response.status}: ${errorText}`);
       }
 
-      // Success!
-      handleCancelEditBoard(); // Hide form
-      await fetchAdminData(); // Refetch the list
-    } catch (error: any) {
+      handleCancelEditBoard();
+      await fetchAdminData();
+    } catch (error: unknown) {
       console.error('Error saving board:', error);
-      setSaveBoardError(error.message || 'Failed to save board');
+      setSaveBoardError(
+        error instanceof Error ? error.message : 'Failed to save board',
+      );
     } finally {
       setIsSavingBoard(false);
     }
   };
 
-  // Handler for deleting a board
   const handleDeleteBoard = async (boardId: string, boardName: string) => {
-    // Simple confirmation
     if (
       !window.confirm(
         `Are you sure you want to delete the board "${boardName}"? This cannot be undone.`,
@@ -505,8 +479,8 @@ export const AdminPanelPage: React.FC = () => {
       return;
     }
 
-    setDeletingBoardId(boardId); // Indicate deletion is in progress
-    setDeleteBoardError(null); // Clear previous errors
+    setDeletingBoardId(boardId);
+    setDeleteBoardError(null);
 
     try {
       const authHeaders = await fetchHeaders();
@@ -526,7 +500,6 @@ export const AdminPanelPage: React.FC = () => {
       });
 
       if (!response.ok) {
-        // Handle non-204 responses (e.g., 404 Not Found, 401 Unauthorized, 500 Server Error)
         let errorText = `Failed to delete board (Status: ${response.status})`;
         try {
           errorText = (await response.text()) || errorText;
@@ -534,21 +507,21 @@ export const AdminPanelPage: React.FC = () => {
         throw new Error(errorText);
       }
 
-      await fetchAdminData(); // Refetch the list
-    } catch (error: any) {
+      await fetchAdminData();
+    } catch (error: unknown) {
       console.error(`Error deleting board ${boardId}:`, error);
-      setDeleteBoardError(error.message || 'Failed to delete board');
+      setDeleteBoardError(
+        error instanceof Error ? error.message : 'Failed to delete board',
+      );
     } finally {
-      setDeletingBoardId(null); // Reset deletion indicator
+      setDeletingBoardId(null);
     }
   };
 
-  // Handler for deleting a category
   const handleDeleteCategory = async (
     categoryId: string,
     categoryName: string,
   ) => {
-    // Add confirmation, maybe stricter warning about deleting boards too?
     if (
       !window.confirm(
         `Are you sure you want to delete the category "${categoryName}"?\n\nTHIS WILL ALSO DELETE ALL BOARDS WITHIN THIS CATEGORY. This cannot be undone.`,
@@ -557,8 +530,8 @@ export const AdminPanelPage: React.FC = () => {
       return;
     }
 
-    setDeletingCategoryId(categoryId); // Indicate deletion is in progress
-    setDeleteCategoryError(null); // Clear previous errors
+    setDeletingCategoryId(categoryId);
+    setDeleteCategoryError(null);
 
     try {
       const authHeaders = await fetchHeaders();
@@ -585,33 +558,31 @@ export const AdminPanelPage: React.FC = () => {
         throw new Error(errorText);
       }
 
-      await fetchAdminData(); // Refetch the list
-    } catch (error: any) {
+      await fetchAdminData();
+    } catch (error: unknown) {
       console.error(`Error deleting category ${categoryId}:`, error);
-      setDeleteCategoryError(error.message || 'Failed to delete category');
+      setDeleteCategoryError(
+        error instanceof Error ? error.message : 'Failed to delete category',
+      );
     } finally {
-      setDeletingCategoryId(null); // Reset deletion indicator
+      setDeletingCategoryId(null);
     }
   };
 
-  // Handler for initiating category edit
   const handleEditCategory = (category: Omit<Category, 'boards'>) => {
     setEditingCategory(category);
     setEditCategoryName(category.name);
     setEditCategoryDesc(category.description);
     setSaveCategoryError(null);
-    // Hide other forms
     setAddingBoardToCategoryId(null);
     setEditingBoard(null);
   };
 
-  // Handler for canceling category edit
   const handleCancelEditCategory = () => {
     setEditingCategory(null);
     setSaveCategoryError(null);
   };
 
-  // Handler for saving edited category
   const handleSaveCategory = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!serverUrl || !editingCategory || !editCategoryName.trim()) {
@@ -654,25 +625,24 @@ export const AdminPanelPage: React.FC = () => {
         throw new Error(`Error ${response.status}: ${errorText}`);
       }
 
-      // Success!
-      handleCancelEditCategory(); // Hide form
-      await fetchAdminData(); // Refetch the list
-    } catch (error: any) {
+      handleCancelEditCategory();
+      await fetchAdminData();
+    } catch (error: unknown) {
       console.error('Error saving category:', error);
-      setSaveCategoryError(error.message || 'Failed to save category');
+      setSaveCategoryError(
+        error instanceof Error ? error.message : 'Failed to save category',
+      );
     } finally {
       setIsSavingCategory(false);
     }
   };
 
-  // --- Drag Start Handler ---
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id.toString());
   };
 
-  // --- Drag End Handler ---
   const handleDragEnd = (event: DragEndEvent) => {
-    setActiveId(null); // Clear active ID on drag end
+    setActiveId(null);
     const { active, over } = event;
 
     if (!over) {
@@ -683,17 +653,15 @@ export const AdminPanelPage: React.FC = () => {
       return;
     }
 
-    // --- Distinguish between Category and Board Drag ---
     const activeId = active.id.toString();
     const overId = over.id.toString();
 
     const isCategoryDrag = categories.some(
       (cat) => `category-${cat.id}` === activeId,
     );
-    const isBoardDrag = !isCategoryDrag;
 
     setCategories((prevCategories) => {
-      let newCategories = [...prevCategories]; // Start with a copy
+      let newCategories = [...prevCategories];
 
       if (isCategoryDrag) {
         const oldIndex = newCategories.findIndex(
@@ -710,15 +678,11 @@ export const AdminPanelPage: React.FC = () => {
         const orderedCategoryIds = newCategories.map((cat) => cat.id);
         saveCategoryOrder(orderedCategoryIds);
       } else {
-        // Board Drag
-        // Initialize index variables
         let sourceCategoryIndex = -1;
         let sourceBoardIndex = -1;
         let targetCategoryIndex = -1;
         let targetBoardIndex = -1;
 
-        // --- Find target category/board indices ---
-        // 1. Try finding the target board first
         for (let i = 0; i < newCategories.length; i++) {
           const boardIndex = newCategories[i].boards.findIndex(
             (board) => `board-${board.id}` === overId,
@@ -726,31 +690,28 @@ export const AdminPanelPage: React.FC = () => {
           if (boardIndex !== -1) {
             targetCategoryIndex = i;
             targetBoardIndex = boardIndex;
-            break; // Found the board
+            break;
           }
         }
 
-        // 2. If no board was found, check if dropped onto a category container
         if (targetCategoryIndex === -1) {
           if (overId.startsWith('category-')) {
             const catId = overId.replace('category-', '');
             const catIndex = newCategories.findIndex((c) => c.id === catId);
             if (catIndex !== -1) {
               targetCategoryIndex = catIndex;
-              targetBoardIndex = -1; // Dropped onto category, implies end of list
+              targetBoardIndex = -1;
             } else {
             }
           } else {
           }
         }
 
-        // If target still not found, something is wrong
         if (targetCategoryIndex === -1) {
           console.warn('Could not determine target category after checks.');
           return prevCategories;
         }
 
-        // --- Find source category/board indices ---
         for (let i = 0; i < newCategories.length; i++) {
           const boardIndex = newCategories[i].boards.findIndex(
             (board) => `board-${board.id}` === activeId,
@@ -758,7 +719,7 @@ export const AdminPanelPage: React.FC = () => {
           if (boardIndex !== -1) {
             sourceCategoryIndex = i;
             sourceBoardIndex = boardIndex;
-            break; // Found the source board
+            break;
           }
         }
         if (sourceCategoryIndex === -1) {
@@ -766,7 +727,6 @@ export const AdminPanelPage: React.FC = () => {
           return prevCategories;
         }
 
-        // Fetch the board object now that indices are known
         const actualBoardToMove =
           prevCategories[sourceCategoryIndex]?.boards[sourceBoardIndex];
         if (!actualBoardToMove) {
@@ -774,7 +734,6 @@ export const AdminPanelPage: React.FC = () => {
           return prevCategories;
         }
 
-        // Check if dropping within the same category
         if (sourceCategoryIndex === targetCategoryIndex) {
           const categoryToUpdate = { ...newCategories[sourceCategoryIndex] };
           const finalTargetBoardIndex =
@@ -793,9 +752,7 @@ export const AdminPanelPage: React.FC = () => {
           );
           saveBoardOrder(orderedBoardIds);
         } else {
-          // --- Logic for moving board BETWEEN categories ---
           const finalCategories = prevCategories.map((category, index) => {
-            // Source category: filter out the moved board
             if (index === sourceCategoryIndex) {
               const filteredBoards = category.boards.filter(
                 (board) => board.id !== actualBoardToMove.id,
@@ -805,12 +762,11 @@ export const AdminPanelPage: React.FC = () => {
                 boards: filteredBoards,
               };
             }
-            // Target category: insert the moved board (with updated category_id)
             if (index === targetCategoryIndex) {
               const updatedMovedBoard = {
                 ...actualBoardToMove,
                 category_id: category.id,
-              }; // Update category_id
+              };
               const targetIndex =
                 targetBoardIndex === -1
                   ? category.boards.length
@@ -822,11 +778,9 @@ export const AdminPanelPage: React.FC = () => {
                 boards: newBoards,
               };
             }
-            // Other categories remain unchanged
             return category;
           });
 
-          // API Calls
           const sourceBoardIds = finalCategories[
             sourceCategoryIndex
           ].boards.map((board) => board.id);
@@ -849,7 +803,6 @@ export const AdminPanelPage: React.FC = () => {
     });
   };
 
-  // --- API Call Functions for Reordering ---
   const saveCategoryOrder = async (orderedIds: string[]) => {
     if (!serverUrl) return;
     try {
@@ -867,18 +820,14 @@ export const AdminPanelPage: React.FC = () => {
       if (!response.ok) {
         throw new Error(`Failed to save category order: ${response.status}`);
       }
-      // Optional: Refetch data to confirm, or rely on optimistic update
-      // await fetchAdminData();
     } catch (error) {
       console.error('Error saving category order:', error);
-      // TODO: Add user-facing error feedback, maybe revert optimistic update
-      setDataError('Failed to save category order. Please refresh.'); // Simple error
+      setDataError('Failed to save category order. Please refresh.');
     }
   };
 
   const saveBoardOrder = async (orderedIds: string[]) => {
     if (!serverUrl) return;
-    // We assume all IDs belong to the same category here based on handleDragEnd logic
     try {
       const authHeaders = await fetchHeaders();
       if (!authHeaders) throw new Error('No auth headers');
@@ -894,15 +843,12 @@ export const AdminPanelPage: React.FC = () => {
       if (!response.ok) {
         throw new Error(`Failed to save board order: ${response.status}`);
       }
-      // Optional: Refetch data
-      // await fetchAdminData();
     } catch (error) {
       console.error('Error saving board order:', error);
-      setDataError('Failed to save board order. Please refresh.'); // Simple error
+      setDataError('Failed to save board order. Please refresh.');
     }
   };
 
-  // --- API Call Function to Update Board's Category ---
   const updateBoardCategory = async (
     boardId: string,
     targetCategoryId: string,
@@ -923,10 +869,8 @@ export const AdminPanelPage: React.FC = () => {
         ? serverUrl.slice(0, -1)
         : serverUrl;
       const response = await fetch(`${baseUrl}/forum/boards/${boardId}`, {
-        // Use existing PUT endpoint
         method: 'PUT',
         headers: { ...authHeaders, 'Content-Type': 'application/json' },
-        // Send existing name/desc along with the new category_id
         body: JSON.stringify({
           name: boardToUpdate.name,
           description: boardToUpdate.description,
@@ -937,16 +881,12 @@ export const AdminPanelPage: React.FC = () => {
       if (!response.ok) {
         throw new Error(`Failed to update board category: ${response.status}`);
       }
-      // Order updates are handled by saveBoardOrder calls
-      // Optional: Refetch all data if needed, but optimistic update should suffice
-      // await fetchAdminData();
     } catch (error) {
       console.error('Error updating board category:', error);
       setDataError('Failed to update board category. Please refresh.');
     }
   };
 
-  // --- Find Item Data Helper (for DragOverlay) ---
   const findItemData = (id: string | null) => {
     if (!id) return null;
     if (id.startsWith('category-')) {
@@ -961,8 +901,7 @@ export const AdminPanelPage: React.FC = () => {
     return null;
   };
 
-  // --- Rendering Logic ---
-  const activeItemData = findItemData(activeId); // Get data for overlay rendering
+  const activeItemData = findItemData(activeId);
 
   let content;
   if (hasLoadedSuccessfully) {
@@ -976,7 +915,6 @@ export const AdminPanelPage: React.FC = () => {
         <div className="max-w-4xl mx-auto space-y-6">
           <h2 className="text-xl font-semibold">Manage Categories & Boards</h2>
 
-          {/* Add New Category Form */}
           <form
             onSubmit={handleAddCategory}
             className="p-4 border rounded shadow-sm bg-gray-50 space-y-3"
@@ -1029,7 +967,6 @@ export const AdminPanelPage: React.FC = () => {
             </button>
           </form>
 
-          {/* Existing Categories List - Now Sortable */}
           <h2 className="text-xl font-semibold pt-4">Existing Categories</h2>
           {categories.length === 0 && !loadingData ? (
             <p>No categories found.</p>
@@ -1039,7 +976,6 @@ export const AdminPanelPage: React.FC = () => {
               strategy={verticalListSortingStrategy}
             >
               {categories.map((category) => (
-                // Use SortableItem with render prop
                 <SortableItem key={category.id} id={`category-${category.id}`}>
                   {(listeners, attributes) => (
                     <div className="p-4 border rounded shadow-sm space-y-4 bg-white mb-4">
@@ -1102,7 +1038,7 @@ export const AdminPanelPage: React.FC = () => {
                               {isSavingCategory ? 'Saving...' : 'Save Category'}
                             </button>
                             <button
-                              type="button" // Important: prevent form submission
+                              type="button"
                               onClick={handleCancelEditCategory}
                               disabled={isSavingCategory}
                               className="inline-flex justify-center py-1 px-3 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
@@ -1113,7 +1049,6 @@ export const AdminPanelPage: React.FC = () => {
                         </form>
                       ) : (
                         <div className="flex justify-between items-center mb-2">
-                          {/* --- Pass listeners/attrs to DragHandle --- */}
                           <DragHandle
                             listeners={listeners}
                             attributes={attributes}
@@ -1169,14 +1104,10 @@ export const AdminPanelPage: React.FC = () => {
                           </div>
                         </div>
                       )}
-                      {/* Boards Section & Add Board Button - Conditionally Rendered Together */}
                       {!(
                         editingCategory && editingCategory.id === category.id
                       ) && (
                         <>
-                          {' '}
-                          {/* Wrap both sections in a Fragment */}
-                          {/* --- Boards Section --- */}
                           <div>
                             <h4 className="text-md font-semibold mb-2 pl-5">
                               Boards:
@@ -1285,7 +1216,6 @@ export const AdminPanelPage: React.FC = () => {
                                             </form>
                                           ) : (
                                             <>
-                                              {/* --- Pass listeners/attrs to DragHandle for Board --- */}
                                               <DragHandle
                                                 listeners={boardListeners}
                                                 attributes={boardAttributes}
@@ -1340,7 +1270,6 @@ export const AdminPanelPage: React.FC = () => {
                               </SortableContext>
                             )}
                           </div>
-                          {/* --- Add New Board Button & Form --- */}
                           <div className="pl-5 pt-2">
                             {addingBoardToCategoryId === category.id ? (
                               <form
@@ -1348,7 +1277,7 @@ export const AdminPanelPage: React.FC = () => {
                                 className="mt-4 p-3 border-t border-dashed space-y-2"
                               >
                                 <h5 className="font-medium text-sm">
-                                  Add New Board to "{category.name}"
+                                  Add New Board to &quot;{category.name}&quot;
                                 </h5>
                                 <div>
                                   <label
@@ -1404,7 +1333,7 @@ export const AdminPanelPage: React.FC = () => {
                                     {isAddingBoard ? 'Adding...' : 'Save Board'}
                                   </button>
                                   <button
-                                    type="button" // Prevent form submission
+                                    type="button"
                                     onClick={handleCancelAddBoard}
                                     disabled={isAddingBoard}
                                     className="inline-flex justify-center py-1 px-3 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
@@ -1432,9 +1361,8 @@ export const AdminPanelPage: React.FC = () => {
                               </button>
                             )}
                           </div>
-                        </> // Close Fragment
+                        </>
                       )}{' '}
-                      {/* Close the conditional rendering for boards + add board */}
                     </div>
                   )}
                 </SortableItem>
@@ -1443,14 +1371,10 @@ export const AdminPanelPage: React.FC = () => {
           )}
         </div>
 
-        {/* --- Drag Overlay --- */}
         {createPortal(
           <DragOverlay dropAnimation={null}>
-            {' '}
-            {/* Optional: customize animation */}
             {activeId && activeItemData ? (
               activeId.startsWith('category-') ? (
-                // Render Category Overlay Preview
                 <div className="p-4 border rounded shadow-sm space-y-4 bg-white opacity-90">
                   <div className="flex justify-between items-center mb-2">
                     <button className="p-1 text-gray-400 cursor-grabbing touch-none">
@@ -1464,12 +1388,9 @@ export const AdminPanelPage: React.FC = () => {
                         {(activeItemData as Category).description}
                       </p>
                     </div>
-                    {/* Don't render action buttons in overlay */}
                   </div>
-                  {/* Maybe render placeholder for boards? */}
                 </div>
               ) : activeId.startsWith('board-') ? (
-                // Render Board Overlay Preview
                 <li className="flex justify-between items-center group py-1.5 bg-gray-100 rounded px-2 opacity-90 shadow-md">
                   <button className="p-1 text-gray-400 cursor-grabbing touch-none">
                     <GripVertical size={16} />
@@ -1478,21 +1399,17 @@ export const AdminPanelPage: React.FC = () => {
                     <span className="font-medium">
                       {(activeItemData as Board).name}
                     </span>
-                    {/* {(activeItemData as Board).description && <span className="text-sm text-gray-600 ml-2"> - {(activeItemData as Board).description}</span>} */}
                   </div>
-                  {/* Don't render action buttons in overlay */}
                 </li>
               ) : null
             ) : null}
           </DragOverlay>,
-          document.body, // Render overlay in body to avoid parent clipping/styling issues
+          document.body,
         )}
       </DndContext>
     );
   }
-  // ... rest of the component (loading states, return statement) ...
 
-  // Handle loading and error states
   if (overallLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -1519,16 +1436,18 @@ export const AdminPanelPage: React.FC = () => {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="text-center max-w-md">
-          <div className="text-gray-600 text-lg font-medium mb-2">Access Denied</div>
-          <p className="text-gray-500">You don't have admin privileges for this forum server.</p>
+          <div className="text-gray-600 text-lg font-medium mb-2">
+            Access Denied
+          </div>
+          <p className="text-gray-500">
+            You don&apos;t have admin privileges for this forum server.
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 overflow-y-auto max-h-screen pb-8">
-      {content}
-    </div>
+    <div className="space-y-6 overflow-y-auto max-h-screen pb-8">{content}</div>
   );
 };

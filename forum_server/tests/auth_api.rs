@@ -7,14 +7,15 @@ use axum::{
     body::Body,
     http::{self, Request, StatusCode},
 };
-use forum_server::{ // Assuming ChallengeResponse is exported from lib or auth module
-    auth::ChallengeResponse, 
+use base64;
+use forum_server::{
+    // Assuming ChallengeResponse is exported from lib or auth module
+    auth::ChallengeResponse,
 };
 use http_body_util::BodyExt;
 use sqlx::PgPool;
 use tower::ServiceExt;
-use uuid::Uuid;
-use base64; // Use top-level import for 0.13
+use uuid::Uuid; // Use top-level import for 0.13
 
 // Bring helpers into scope
 use common::helpers::create_test_app;
@@ -37,9 +38,8 @@ async fn test_get_challenge_success(pool: PgPool) {
     assert_eq!(response.status(), StatusCode::OK);
 
     let body = response.into_body().collect().await.unwrap().to_bytes();
-    let challenge_resp: ChallengeResponse = 
-        serde_json::from_slice(&body)
-        .expect("Failed to deserialize challenge response");
+    let challenge_resp: ChallengeResponse =
+        serde_json::from_slice(&body).expect("Failed to deserialize challenge response");
 
     // Check UUID validity (parsing is enough)
     assert!(Uuid::parse_str(&challenge_resp.challenge_id.to_string()).is_ok());
@@ -47,7 +47,7 @@ async fn test_get_challenge_success(pool: PgPool) {
     // Check nonce decoding and length
     let nonce_bytes = base64::decode(&challenge_resp.nonce_base64) // Use base64::decode for 0.13
         .expect("Failed to decode base64 nonce");
-    
+
     // Should match NONCE_LENGTH in auth.rs
-    assert_eq!(nonce_bytes.len(), 32, "Decoded nonce length is incorrect"); 
-} 
+    assert_eq!(nonce_bytes.len(), 32, "Decoded nonce length is incorrect");
+}

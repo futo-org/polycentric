@@ -167,9 +167,13 @@ export const ForumBoardPage: React.FC = () => {
       );
 
       setThreads(convertedThreads);
-    } catch (fetchError: any) {
+    } catch (fetchError: unknown) {
       console.error('Error fetching board data:', fetchError);
-      setError(fetchError.message || 'Failed to load board data.');
+      setError(
+        fetchError instanceof Error
+          ? fetchError.message
+          : 'Failed to load board data.',
+      );
       setThreads([]);
     } finally {
       setLoading(false);
@@ -308,7 +312,7 @@ export const ForumBoardPage: React.FC = () => {
             );
             polycentricPostPointer = undefined;
           }
-        } catch (profilePostError) {
+        } catch (profilePostError: unknown) {
           console.error(
             'Failed to post to Polycentric profile:',
             profilePostError,
@@ -320,10 +324,6 @@ export const ForumBoardPage: React.FC = () => {
 
         if (initialForumPostId && polycentricPostPointer && serverUrl) {
           try {
-            console.log(
-              `Linking initial forum post ${initialForumPostId} to Polycentric pointer:`,
-              polycentricPostPointer,
-            );
             const linkHeaders = await fetchHeaders();
             if (!linkHeaders)
               throw new Error(
@@ -343,9 +343,6 @@ export const ForumBoardPage: React.FC = () => {
                 polycentricPostPointer.logicalClock.toNumber(),
             };
 
-            console.log(`Attempting PUT request to: ${linkUrl}`);
-            console.log('With Payload:', JSON.stringify(linkPayload));
-
             const linkRes = await fetch(linkUrl, {
               method: 'PUT',
               headers: {
@@ -363,23 +360,21 @@ export const ForumBoardPage: React.FC = () => {
                 `Failed to link initial post: ${linkRes.status} ${linkRes.statusText}`,
               );
             }
-          } catch (linkError: any) {
+          } catch (linkError: unknown) {
             console.error(
               'Error linking initial forum post to Polycentric post:',
               linkError,
             );
             setCreateError(
-              linkError.message?.includes('Failed to get challenge')
+              linkError instanceof Error &&
+                linkError.message?.includes('Failed to get challenge')
                 ? 'Failed to authenticate request. Please try again.'
-                : linkError.message || 'Failed to link initial post.',
+                : linkError instanceof Error
+                  ? linkError.message
+                  : 'Failed to link initial post.',
             );
           }
         } else {
-          console.log('Skipping linking step for initial post. Conditions:', {
-            hasInitialPostId: !!initialForumPostId,
-            hasPointer: !!polycentricPostPointer,
-            hasServerUrl: !!serverUrl,
-          });
         }
       }
 
@@ -389,13 +384,14 @@ export const ForumBoardPage: React.FC = () => {
       setNewPostImage(undefined);
       setPostToProfile(false);
       await fetchBoardData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating thread:', err);
       setCreateError(
-        err.message?.includes('Failed to get challenge')
+        err instanceof Error && err.message?.includes('Failed to get challenge')
           ? 'Failed to authenticate request. Please try again.'
-          : err.message ||
-              'An unknown error occurred while creating the thread.',
+          : err instanceof Error
+            ? err.message
+            : 'An unknown error occurred while creating the thread.',
       );
     } finally {
       setIsCreatingThread(false);
@@ -455,9 +451,11 @@ export const ForumBoardPage: React.FC = () => {
       }
 
       await fetchBoardData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`Error deleting thread ${threadId}:`, err);
-      setDeleteThreadError(err.message || 'Failed to delete thread.');
+      setDeleteThreadError(
+        err instanceof Error ? err.message : 'Failed to delete thread.',
+      );
     } finally {
       setDeletingThreadId(null);
     }

@@ -1,32 +1,42 @@
+use crate::auth::{check_admin_handler, get_challenge_handler, ChallengeStore};
 use axum::{
     extract::State,
-    routing::{get, post, put, delete},
+    routing::{get, post, put},
     Router,
-    routing::get_service,
 };
 use sqlx::PgPool;
-use tower_http::services::ServeDir;
-use std::path::PathBuf;
-use tower_http::limit::RequestBodyLimitLayer;
-use crate::auth::{ChallengeStore, get_challenge_handler, check_admin_handler};
-use std::sync::Arc;
-use std::sync::RwLock;
 use std::collections::HashSet;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tower_http::limit::RequestBodyLimitLayer;
+use tower_http::services::ServeDir;
 
-pub mod models;
-pub mod handlers;
-pub mod repositories;
-pub mod utils;
-pub mod storage;
 pub mod auth;
 pub mod constants;
+pub mod handlers;
+pub mod models;
+pub mod repositories;
+pub mod storage;
+pub mod utils;
 
 use handlers::{
-    category_handlers::{create_category_handler, get_category_handler, list_categories_handler, update_category_handler, delete_category_handler, reorder_categories_handler},
-    board_handlers::{create_board_handler, get_board_handler, list_boards_in_category_handler, update_board_handler, delete_board_handler, reorder_boards_handler},
-    thread_handlers::{create_thread_handler, get_thread_handler, list_threads_in_board_handler, update_thread_handler, delete_thread_handler},
-    post_handlers::{create_post_handler, get_post_handler, list_posts_in_thread_handler, update_post_handler, delete_post_handler, link_polycentric_post_handler},
+    board_handlers::{
+        create_board_handler, delete_board_handler, get_board_handler,
+        list_boards_in_category_handler, reorder_boards_handler, update_board_handler,
+    },
+    category_handlers::{
+        create_category_handler, delete_category_handler, get_category_handler,
+        list_categories_handler, reorder_categories_handler, update_category_handler,
+    },
     get_server_info_handler,
+    post_handlers::{
+        create_post_handler, delete_post_handler, get_post_handler, link_polycentric_post_handler,
+        list_posts_in_thread_handler, update_post_handler,
+    },
+    thread_handlers::{
+        create_thread_handler, delete_thread_handler, get_thread_handler,
+        list_threads_in_board_handler, update_thread_handler,
+    },
 };
 
 use storage::LocalImageStorage;
@@ -40,9 +50,9 @@ pub struct AppState {
 }
 
 pub fn create_router(
-    db_pool: PgPool, 
-    image_upload_dir: String, 
-    image_base_url: String, 
+    db_pool: PgPool,
+    image_upload_dir: String,
+    image_base_url: String,
     admin_pubkeys: Arc<HashSet<Vec<u8>>>,
 ) -> Router {
     let image_storage = LocalImageStorage::new(image_upload_dir.clone(), image_base_url.clone());
@@ -56,7 +66,7 @@ pub fn create_router(
         admin_pubkeys,
     };
 
-    let static_assets_dir = PathBuf::from("/app/static/images"); 
+    let static_assets_dir = PathBuf::from("/app/static/images");
     let static_asset_service = ServeDir::new(static_assets_dir);
     let static_asset_base_url = "/static/images";
 
@@ -64,9 +74,7 @@ pub fn create_router(
     let user_upload_service = ServeDir::new(user_upload_dir);
     let user_upload_base_url = "/uploads/images";
 
-    let cors = CorsLayer::new()... 
-
-    const MAX_BODY_SIZE: usize = 20 * 1024 * 1024;
+    let max_body_size: usize = 20 * 1024 * 1024;
 
     Router::new()
         .route("/", get(root))
@@ -74,44 +82,70 @@ pub fn create_router(
         .route("/auth/challenge", get(get_challenge_handler))
         .route("/auth/check-admin", get(check_admin_handler))
         // Category routes
-        .route("/categories", post(create_category_handler).get(list_categories_handler))
-        .route("/categories/:id", get(get_category_handler).put(update_category_handler).delete(delete_category_handler))
+        .route(
+            "/categories",
+            post(create_category_handler).get(list_categories_handler),
+        )
+        .route(
+            "/categories/:id",
+            get(get_category_handler)
+                .put(update_category_handler)
+                .delete(delete_category_handler),
+        )
         .route("/categories/reorder", put(reorder_categories_handler))
         // Board routes
-        .route("/categories/:category_id/boards", post(create_board_handler).get(list_boards_in_category_handler))
-        .route("/boards/:board_id", get(get_board_handler).put(update_board_handler).delete(delete_board_handler))
+        .route(
+            "/categories/:category_id/boards",
+            post(create_board_handler).get(list_boards_in_category_handler),
+        )
+        .route(
+            "/boards/:board_id",
+            get(get_board_handler)
+                .put(update_board_handler)
+                .delete(delete_board_handler),
+        )
         .route("/boards/reorder", put(reorder_boards_handler))
         // Thread routes
         .route("/boards/:board_id/threads", post(create_thread_handler))
-        .route("/boards/:board_id/threads", get(list_threads_in_board_handler))
-        .route("/threads/:thread_id", 
+        .route(
+            "/boards/:board_id/threads",
+            get(list_threads_in_board_handler),
+        )
+        .route(
+            "/threads/:thread_id",
             axum::routing::on(axum::routing::MethodFilter::GET, get_thread_handler)
-            .on(axum::routing::MethodFilter::PUT, update_thread_handler)
-            .on(axum::routing::MethodFilter::DELETE, delete_thread_handler)
+                .on(axum::routing::MethodFilter::PUT, update_thread_handler)
+                .on(axum::routing::MethodFilter::DELETE, delete_thread_handler),
         )
         // Post routes
         .route("/threads/:thread_id/posts", post(create_post_handler))
-        .route("/threads/:thread_id/posts", get(list_posts_in_thread_handler))
-        .route("/posts/:post_id", 
-            axum::routing::on(axum::routing::MethodFilter::GET, get_post_handler)
-            .on(axum::routing::MethodFilter::PUT, update_post_handler)
-            .on(axum::routing::MethodFilter::DELETE, delete_post_handler)
+        .route(
+            "/threads/:thread_id/posts",
+            get(list_posts_in_thread_handler),
         )
-        // --- Add route for linking polycentric post --- 
-        .route("/posts/:post_id/link-polycentric", put(link_polycentric_post_handler)) 
+        .route(
+            "/posts/:post_id",
+            axum::routing::on(axum::routing::MethodFilter::GET, get_post_handler)
+                .on(axum::routing::MethodFilter::PUT, update_post_handler)
+                .on(axum::routing::MethodFilter::DELETE, delete_post_handler),
+        )
+        // --- Add route for linking polycentric post ---
+        .route(
+            "/posts/:post_id/link-polycentric",
+            put(link_polycentric_post_handler),
+        )
         // --- End Add route ---
         // Server Info Route (at root)
         .route("/server-info", get(get_server_info_handler))
-
         // --- Static File Serving ---
         // Serve fixed assets (logo) from /app/static under /static/images URL
         .nest_service(static_asset_base_url, static_asset_service)
         // Serve user uploads from IMAGE_UPLOAD_DIR under /uploads/images URL
         .nest_service(user_upload_base_url, user_upload_service)
         .with_state(app_state)
-        .layer(RequestBodyLimitLayer::new(MAX_BODY_SIZE))
+        .layer(RequestBodyLimitLayer::new(max_body_size))
 }
 
 async fn root(State(_state): State<AppState>) -> &'static str {
     "Hello, Forum! Database connected."
-} 
+}

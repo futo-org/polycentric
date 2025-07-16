@@ -100,13 +100,14 @@ export function useServerInfo(
             throw new Error(`Invalid JSON response received from ${baseUrl}`);
           }
         }
-      } catch (fetchError: any) {
+      } catch (fetchError: unknown) {
         console.error(
           `Error fetching server info from ${baseUrl}:`,
           fetchError,
         );
         setError(
-          fetchError.message || `Failed to fetch server info from ${baseUrl}.`,
+          (fetchError as Error)?.message ||
+            `Failed to fetch server info from ${baseUrl}.`,
         );
         setServerInfo(null); // Explicitly set to null on error
       } finally {

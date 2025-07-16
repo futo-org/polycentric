@@ -1,17 +1,16 @@
 // forum_server/src/bin/seed.rs
-use sqlx::postgres::PgPoolOptions;
-use std::env;
 use dotenvy::dotenv;
+use sqlx::postgres::PgPoolOptions;
+use sqlx::Executor;
+use std::env;
 use uuid::Uuid;
-use sqlx::{Executor, Row};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
     println!("[Seed Script] Starting database seeding...");
 
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set for seeding");
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set for seeding");
 
     let pool = PgPoolOptions::new()
         .max_connections(1)
@@ -21,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("[Seed Script] Connected to database.");
 
     println!("[Seed Script] Seeding categories...");
-    
+
     let cat1_name = "General Discussion";
     let cat1_desc = "Talk about anything!";
     pool.execute(sqlx::query(
@@ -44,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .bind(cat2_name)
         .fetch_one(&pool)
         .await?;
-     println!("  - Ensured 'Technical Support' (ID: {})", cat2_id);
+    println!("  - Ensured 'Technical Support' (ID: {})", cat2_id);
 
     println!("[Seed Script] Seeding boards...");
     pool.execute(sqlx::query(

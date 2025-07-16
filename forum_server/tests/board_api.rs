@@ -4,7 +4,7 @@ mod common;
 
 use axum::{
     body::Body,
-    http::{self, Request, StatusCode, HeaderName},
+    http::{self, HeaderName, Request, StatusCode},
     // Router, // Router is unused
 };
 use forum_server::{
@@ -12,14 +12,17 @@ use forum_server::{
     models::{Board, Post}, // Add Post back
 };
 use http_body_util::BodyExt;
+use serde_json::json;
 use sqlx::PgPool;
 use tower::ServiceExt;
-use serde_json::json;
 use uuid::Uuid;
 // use sqlx::Row; // Row is unused
 
 // Bring helpers into scope
-use common::helpers::{create_test_app, create_test_category, create_test_board, create_test_thread, create_test_post, generate_test_keypair, get_auth_headers};
+use common::helpers::{
+    create_test_app, create_test_board, create_test_category, create_test_post, create_test_thread,
+    generate_test_keypair, get_auth_headers,
+};
 
 #[sqlx::test]
 async fn test_create_board_success(pool: PgPool) {
@@ -40,9 +43,18 @@ async fn test_create_board_success(pool: PgPool) {
                 .method(http::Method::POST)
                 .uri(format!("/categories/{}/boards", category_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
                 .body(Body::from(
                     json!({
                         "name": board_name,
@@ -91,10 +103,28 @@ async fn test_create_board_unauthorized(pool: PgPool) {
                 .method(http::Method::POST)
                 .uri(format!("/categories/{}/boards", category_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), non_admin_auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), non_admin_auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), non_admin_auth_headers.get("x-polycentric-challenge-id").unwrap())
-                .body(Body::from(json!({ "name": "Unauthorized Board", "description": "Should Fail" }).to_string()))
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    non_admin_auth_headers
+                        .get("x-polycentric-pubkey-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    non_admin_auth_headers
+                        .get("x-polycentric-signature-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    non_admin_auth_headers
+                        .get("x-polycentric-challenge-id")
+                        .unwrap(),
+                )
+                .body(Body::from(
+                    json!({ "name": "Unauthorized Board", "description": "Should Fail" })
+                        .to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -119,10 +149,21 @@ async fn test_create_board_invalid_category(pool: PgPool) {
                 .method(http::Method::POST)
                 .uri(format!("/categories/{}/boards", non_existent_category_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
-                .body(Body::from(json!({ "name": "Fail Board", "description": "Should fail" }).to_string()))
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
+                .body(Body::from(
+                    json!({ "name": "Fail Board", "description": "Should fail" }).to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -150,16 +191,38 @@ async fn test_get_board_success(pool: PgPool) {
                 .method(http::Method::POST)
                 .uri(format!("/categories/{}/boards", category_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), admin_auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), admin_auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), admin_auth_headers.get("x-polycentric-challenge-id").unwrap())
-                .body(Body::from(json!({ "name": "Board To Get", "description": "Get me!" }).to_string()))
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    admin_auth_headers
+                        .get("x-polycentric-pubkey-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    admin_auth_headers
+                        .get("x-polycentric-signature-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    admin_auth_headers
+                        .get("x-polycentric-challenge-id")
+                        .unwrap(),
+                )
+                .body(Body::from(
+                    json!({ "name": "Board To Get", "description": "Get me!" }).to_string(),
+                ))
                 .unwrap(),
         )
         .await
         .unwrap();
     assert_eq!(create_response.status(), StatusCode::CREATED);
-    let create_body = create_response.into_body().collect().await.unwrap().to_bytes();
+    let create_body = create_response
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
     let created_board: Board = serde_json::from_slice(&create_body).unwrap();
     let board_id = created_board.id;
 
@@ -176,7 +239,12 @@ async fn test_get_board_success(pool: PgPool) {
         .unwrap();
 
     assert_eq!(fetch_response.status(), StatusCode::OK);
-    let fetch_body = fetch_response.into_body().collect().await.unwrap().to_bytes();
+    let fetch_body = fetch_response
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
     let fetched_board: Board = serde_json::from_slice(&fetch_body).unwrap();
 
     assert_eq!(fetched_board.id, board_id);
@@ -216,42 +284,71 @@ async fn test_list_boards_in_category_pagination(pool: PgPool) {
     let board3_id = create_test_board(&app, category_id, "Board 3", &admin_keypair).await;
 
     // Fetch (no auth needed)
-    let response_page1 = app.clone().oneshot(
-        Request::builder()
-            .method(http::Method::GET)
-            .uri(format!("/categories/{}/boards?limit=2", category_id))
-            .body(Body::empty())
-            .unwrap(),
-    ).await.unwrap();
+    let response_page1 = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri(format!("/categories/{}/boards?limit=2", category_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
     assert_eq!(response_page1.status(), StatusCode::OK);
-    let body1 = response_page1.into_body().collect().await.unwrap().to_bytes();
+    let body1 = response_page1
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
     let boards_page1: Vec<Board> = serde_json::from_slice(&body1).unwrap();
     assert_eq!(boards_page1.len(), 2);
     assert_eq!(boards_page1[0].id, board1_id);
     assert_eq!(boards_page1[1].id, board2_id);
 
-    let response_page2 = app.clone().oneshot(
-        Request::builder()
-            .method(http::Method::GET)
-            .uri(format!("/categories/{}/boards?limit=2&offset=2", category_id))
-            .body(Body::empty())
-            .unwrap(),
-    ).await.unwrap();
+    let response_page2 = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri(format!(
+                    "/categories/{}/boards?limit=2&offset=2",
+                    category_id
+                ))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
     assert_eq!(response_page2.status(), StatusCode::OK);
-    let body2 = response_page2.into_body().collect().await.unwrap().to_bytes();
+    let body2 = response_page2
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
     let boards_page2: Vec<Board> = serde_json::from_slice(&body2).unwrap();
     assert_eq!(boards_page2.len(), 1);
     assert_eq!(boards_page2[0].id, board3_id);
 
-    let response_default = app.oneshot(
-        Request::builder()
-            .method(http::Method::GET)
-            .uri(format!("/categories/{}/boards", category_id))
-            .body(Body::empty())
-            .unwrap(),
-    ).await.unwrap();
+    let response_default = app
+        .oneshot(
+            Request::builder()
+                .method(http::Method::GET)
+                .uri(format!("/categories/{}/boards", category_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
     assert_eq!(response_default.status(), StatusCode::OK);
-    let body_default = response_default.into_body().collect().await.unwrap().to_bytes();
+    let body_default = response_default
+        .into_body()
+        .collect()
+        .await
+        .unwrap()
+        .to_bytes();
     let boards_default: Vec<Board> = serde_json::from_slice(&body_default).unwrap();
     assert_eq!(boards_default.len(), 3);
 }
@@ -276,10 +373,21 @@ async fn test_update_board_success(pool: PgPool) {
                 .method(http::Method::PUT)
                 .uri(format!("/boards/{}", board_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
-                .body(Body::from(json!({ "name": updated_name, "description": updated_desc }).to_string()))
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
+                .body(Body::from(
+                    json!({ "name": updated_name, "description": updated_desc }).to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -294,7 +402,10 @@ async fn test_update_board_success(pool: PgPool) {
     assert_eq!(updated_board.description, updated_desc);
     assert_eq!(updated_board.category_id, category_id);
     let saved_board = sqlx::query_as::<_, Board>("SELECT * FROM boards WHERE id = $1")
-        .bind(board_id).fetch_one(&pool).await.unwrap();
+        .bind(board_id)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
     assert_eq!(saved_board.name, updated_name);
     assert_eq!(saved_board.description, updated_desc);
 }
@@ -318,10 +429,27 @@ async fn test_update_board_unauthorized(pool: PgPool) {
                 .method(http::Method::PUT)
                 .uri(format!("/boards/{}", board_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), non_admin_auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), non_admin_auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), non_admin_auth_headers.get("x-polycentric-challenge-id").unwrap())
-                .body(Body::from(json!({ "name": "Fail Update", "description": "Should Fail" }).to_string()))
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    non_admin_auth_headers
+                        .get("x-polycentric-pubkey-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    non_admin_auth_headers
+                        .get("x-polycentric-signature-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    non_admin_auth_headers
+                        .get("x-polycentric-challenge-id")
+                        .unwrap(),
+                )
+                .body(Body::from(
+                    json!({ "name": "Fail Update", "description": "Should Fail" }).to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -345,10 +473,21 @@ async fn test_update_board_not_found(pool: PgPool) {
                 .method(http::Method::PUT)
                 .uri(format!("/boards/{}", non_existent_id))
                 .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
-                .body(Body::from(json!({ "name": "n", "description": "d" }).to_string()))
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
+                .body(Body::from(
+                    json!({ "name": "n", "description": "d" }).to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -373,9 +512,18 @@ async fn test_delete_board_success(pool: PgPool) {
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/boards/{}", board_id))
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -411,9 +559,24 @@ async fn test_delete_board_unauthorized(pool: PgPool) {
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/boards/{}", board_id))
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), non_admin_auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), non_admin_auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), non_admin_auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    non_admin_auth_headers
+                        .get("x-polycentric-pubkey-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    non_admin_auth_headers
+                        .get("x-polycentric-signature-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    non_admin_auth_headers
+                        .get("x-polycentric-challenge-id")
+                        .unwrap(),
+                )
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -424,7 +587,10 @@ async fn test_delete_board_unauthorized(pool: PgPool) {
 
     // Verify board still exists
     let result = sqlx::query("SELECT 1 FROM boards WHERE id = $1")
-        .bind(board_id).fetch_optional(&pool).await.unwrap();
+        .bind(board_id)
+        .fetch_optional(&pool)
+        .await
+        .unwrap();
     assert!(result.is_some());
 }
 
@@ -442,9 +608,18 @@ async fn test_delete_board_not_found(pool: PgPool) {
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/boards/{}", non_existent_id))
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    auth_headers.get("x-polycentric-pubkey-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    auth_headers.get("x-polycentric-signature-base64").unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    auth_headers.get("x-polycentric-challenge-id").unwrap(),
+                )
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -461,9 +636,17 @@ async fn test_delete_board_cascade(pool: PgPool) {
     let app = create_test_app(pool.clone(), Some(vec![admin_pubkey.clone()])).await;
     let admin_auth_headers = get_auth_headers(&app, &admin_keypair).await;
     let category_id = create_test_category(&app, "Cascade Board Cat", &admin_keypair).await;
-    let board_id = create_test_board(&app, category_id, "Cascade Delete Board", &admin_keypair).await;
+    let board_id =
+        create_test_board(&app, category_id, "Cascade Delete Board", &admin_keypair).await;
     let thread_keypair = generate_test_keypair();
-    let (thread_id, initial_post_id) = create_test_thread(&app, board_id, "Thread To Delete", "Content", &thread_keypair).await;
+    let (thread_id, initial_post_id) = create_test_thread(
+        &app,
+        board_id,
+        "Thread To Delete",
+        "Content",
+        &thread_keypair,
+    )
+    .await;
 
     // Verify thread and post exist initially
     let thread_result = sqlx::query!("SELECT id FROM threads WHERE id = $1", thread_id)
@@ -485,9 +668,24 @@ async fn test_delete_board_cascade(pool: PgPool) {
             Request::builder()
                 .method(http::Method::DELETE)
                 .uri(format!("/boards/{}", board_id))
-                .header(HeaderName::from_static("x-polycentric-pubkey-base64"), admin_auth_headers.get("x-polycentric-pubkey-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-signature-base64"), admin_auth_headers.get("x-polycentric-signature-base64").unwrap())
-                .header(HeaderName::from_static("x-polycentric-challenge-id"), admin_auth_headers.get("x-polycentric-challenge-id").unwrap())
+                .header(
+                    HeaderName::from_static("x-polycentric-pubkey-base64"),
+                    admin_auth_headers
+                        .get("x-polycentric-pubkey-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-signature-base64"),
+                    admin_auth_headers
+                        .get("x-polycentric-signature-base64")
+                        .unwrap(),
+                )
+                .header(
+                    HeaderName::from_static("x-polycentric-challenge-id"),
+                    admin_auth_headers
+                        .get("x-polycentric-challenge-id")
+                        .unwrap(),
+                )
                 .body(Body::empty())
                 .unwrap(),
         )

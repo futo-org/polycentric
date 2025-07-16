@@ -58,4 +58,4 @@ export const PublicKeyDisplay = () => {
       </div>
     </div>
   );
-}; 
+};

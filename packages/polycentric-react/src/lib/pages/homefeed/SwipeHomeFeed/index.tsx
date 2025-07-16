@@ -1,4 +1,4 @@
-import { IonHeader, IonMenuToggle, isPlatform } from '@ionic/react';
+import { IonHeader, IonMenuToggle } from '@ionic/react';
 import {
   createContext,
   useCallback,
@@ -361,12 +361,6 @@ export const SwipeHomeFeed = () => {
       feedSwiper.slideTo(topicIndex);
     }
   }, [currentMobileTopic, feedSwiper, topics]);
-
-  const [composeModalOpen, setComposeModalOpen] = useState(false);
-
-  const isMobileNonIOS = useMemo(() => {
-    return isPlatform('mobile') && !isPlatform('ios') && !isPlatform('ipad');
-  }, []);
 
   const MainContent = useMemo(() => {
     if (currentMobileTopic === 'Forums') {

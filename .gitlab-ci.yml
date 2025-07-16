@@ -66,6 +66,13 @@ format-server:
     - cd server
     - cargo-fmt --check
 
+format-forum-server: 
+  stage: format
+  script: 
+    - ./version.sh
+    - cd forum_server
+    - cargo-fmt --check
+
 format-protocol: 
   stage: format
   script: 
@@ -148,6 +155,30 @@ build-server:
     - echo "Test binary built at $TEST_BIN"
     - mv ./$TEST_BIN ../build-artifacts/server-test
     - mv ./target/debug/server ../build-artifacts/server
+  needs: ["check"]
+  artifacts:
+      name: "artifacts"
+      expire_in: 60 mins
+      paths:
+        - ./build-artifacts
+
+build-forum-server:
+  stage: build
+  cache: 
+   - <<: *rust-cache-config
+   - <<: *rust-cache-build-config
+     key: ${CI_COMMIT_REF_SLUG}-rs-build
+  script:
+    - ./version.sh
+    - cd forum_server
+    - echo "Building forum server binary"
+    - cargo build --locked
+    - echo "Building test binary"
+    - cargo test --no-run --frozen --locked &> out.txt
+    - TEST_BIN=`cat out.txt | grep target/debug/deps/forum_server | grep -oP '(?<=\()[^\)]+'` 
+    - echo "Test binary built at $TEST_BIN"
+    - mv ./$TEST_BIN ../build-artifacts/forum-server-test
+    - mv ./target/debug/forum_server ../build-artifacts/forum_server
   needs: ["check"]
   artifacts:
       name: "artifacts"
@@ -274,6 +305,18 @@ lint-server:
     - cd server
     - cargo-clippy --no-deps --locked -- -D warnings
   needs: ["build-server"]
+
+lint-forum-server: 
+  stage: lint
+  cache: 
+    - <<: *rust-cache-config
+    - <<: *rust-cache-build-config
+      key: ${CI_COMMIT_REF_SLUG}-rs-lint
+  script: 
+    - ./version.sh
+    - cd forum_server
+    - cargo-clippy --no-deps --locked -- -D warnings
+  needs: ["build-forum-server"]
 
 lint-core:
   stage: lint

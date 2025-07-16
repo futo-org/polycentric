@@ -1,7 +1,6 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use sqlx::FromRow;
 
 type PolycentricId = Vec<u8>;
 
@@ -67,4 +66,4 @@ pub struct ServerInfo {
     pub name: String,
     pub description: String,
     pub logo_url: Option<String>,
-} 
+}

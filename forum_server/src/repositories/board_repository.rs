@@ -1,8 +1,7 @@
-use sqlx::PgPool;
-use uuid::Uuid;
 use crate::models::Board;
 use crate::utils::PaginationParams;
-use sqlx::Acquire;
+use sqlx::PgPool;
+use uuid::Uuid;
 
 // Input data for creating a new board
 #[derive(serde::Deserialize)]
@@ -164,4 +163,4 @@ pub async fn delete_board(pool: &PgPool, board_id: Uuid) -> Result<u64, sqlx::Er
 
     // Note: Reordering might be desired after deletion, handled separately
     Ok(result.rows_affected())
-} 
+}

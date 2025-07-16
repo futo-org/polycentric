@@ -105,9 +105,13 @@ const PostItem: React.FC<PostItemProps> = ({
   const quotedShortPublicKey = useTextPublicKey(quotedAuthorPublicKey, 10);
 
   // Get profile link for quoted author
-  const quotedAuthorGeneratedLink = quotedAuthorPublicKey
-    ? useSystemLink(quotedAuthorPublicKey)
-    : undefined;
+  const quotedAuthorGeneratedLink = useSystemLink(
+    quotedAuthorPublicKey ??
+      Models.PublicKey.fromProto({
+        key: new Uint8Array(0),
+        keyType: Long.UZERO,
+      }),
+  );
   const [quotedAuthorStableLink, setQuotedAuthorStableLink] = useState<
     string | undefined
   >(undefined);
@@ -380,8 +384,12 @@ export const ForumThreadPage: React.FC = () => {
 
       setPosts(fetchedPosts);
       return fetchedPosts;
-    } catch (fetchError: any) {
-      setError(fetchError.message || 'Failed to load thread data.');
+    } catch (fetchError: unknown) {
+      setError(
+        fetchError instanceof Error
+          ? fetchError.message
+          : 'Failed to load thread data.',
+      );
       setPosts([]);
       throw fetchError;
     } finally {
@@ -480,7 +488,7 @@ export const ForumThreadPage: React.FC = () => {
       if (postToProfile) {
         let polycentricPostPointer: Models.Pointer.Pointer | undefined =
           undefined;
-        try { 
+        try {
           const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${threadId}/${forumPostId}`;
           let polycentricContent = '';
           const replyText = newPostBody.trim();
@@ -506,7 +514,7 @@ export const ForumThreadPage: React.FC = () => {
             );
             polycentricPostPointer = undefined;
           }
-        } catch (profilePostError) {
+        } catch (profilePostError: unknown) {
           console.error(
             'Failed to post reply to Polycentric profile:',
             profilePostError,
@@ -551,15 +559,23 @@ export const ForumThreadPage: React.FC = () => {
                 `Failed to link forum post: ${linkRes.status} ${linkRes.statusText}`,
               );
             }
-          } catch (linkError: any) {
+          } catch (linkError: unknown) {
             console.error(
               'Error linking forum post to Polycentric post:',
               linkError,
             );
             setPostError(
               postError
-                ? `${postError} | Link failed: ${linkError.message}`
-                : `Post created, but failed to link to profile post: ${linkError.message}`,
+                ? `${postError} | Link failed: ${
+                    linkError instanceof Error
+                      ? linkError.message
+                      : 'Unknown error'
+                  }`
+                : `Post created, but failed to link to profile post: ${
+                    linkError instanceof Error
+                      ? linkError.message
+                      : 'Unknown error'
+                  }`,
             );
           }
         }
@@ -571,9 +587,11 @@ export const ForumThreadPage: React.FC = () => {
       setIsComposing(false);
       setPostToProfile(false);
       await fetchThreadData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating post:', err);
-      setPostError(err.message || 'An unknown error occurred.');
+      setPostError(
+        err instanceof Error ? err.message : 'An unknown error occurred.',
+      );
     } finally {
       setIsPosting(false);
     }
@@ -631,7 +649,7 @@ export const ForumThreadPage: React.FC = () => {
             freshPostData.polycentric_log_seq = Long.fromString(
               String(freshPostData.polycentric_log_seq),
             );
-          } catch (e) {
+          } catch (e: unknown) {
             console.error('Error converting log_seq to Long:', e);
             freshPostData.polycentric_log_seq = undefined;
           }
@@ -640,7 +658,10 @@ export const ForumThreadPage: React.FC = () => {
           !(freshPostData.polycentric_log_seq instanceof Long)
         ) {
           try {
-            const seqObj = freshPostData.polycentric_log_seq as any;
+            const seqObj = freshPostData.polycentric_log_seq as {
+              low?: number;
+              high?: number;
+            };
             if (
               typeof seqObj?.low === 'number' &&
               typeof seqObj?.high === 'number'
@@ -653,7 +674,7 @@ export const ForumThreadPage: React.FC = () => {
             } else {
               throw new Error('log_seq object missing low/high properties');
             }
-          } catch (e) {
+          } catch (e: unknown) {
             console.error('Error re-creating log_seq Long from object:', e);
             freshPostData.polycentric_log_seq = undefined;
           }
@@ -679,7 +700,6 @@ export const ForumThreadPage: React.FC = () => {
         freshPostData.polycentric_process_id &&
         freshPostData.polycentric_log_seq
       ) {
-
         polycentricDeleteAttempted = true;
         try {
           if (!processHandle) throw new Error('Process handle unavailable...');
@@ -696,7 +716,7 @@ export const ForumThreadPage: React.FC = () => {
             processToDelete,
             freshPostData.polycentric_log_seq,
           );
-        } catch (polyError: any) {
+        } catch (polyError: unknown) {
           console.error(
             `Polycentric deletion failed for post ${postId}:`,
             polyError,
@@ -704,7 +724,7 @@ export const ForumThreadPage: React.FC = () => {
           polycentricDeleteSuccess = false;
           setDeletePostError(
             `Forum post deleted, but failed to delete corresponding Polycentric post: ${
-              polyError.message || 'Unknown error'
+              polyError instanceof Error ? polyError.message : 'Unknown error'
             }`,
           );
         }
@@ -738,15 +758,27 @@ export const ForumThreadPage: React.FC = () => {
       try {
         const postsAfter = await fetchThreadData();
         if (postsAfter.length === 0) {
-          stackRouter.setRoot(`/forums/${encodeURIComponent(serverUrl ?? '')}/${categoryId}/${boardId}`, 'backwards');
+          stackRouter.setRoot(
+            `/forums/${encodeURIComponent(
+              serverUrl ?? '',
+            )}/${categoryId}/${boardId}`,
+            'backwards',
+          );
         }
-      } catch (fetchErr: any) {
-        stackRouter.setRoot(`/forums/${encodeURIComponent(serverUrl ?? '')}/${categoryId}/${boardId}`, 'backwards');
+      } catch (fetchErr: unknown) {
+        stackRouter.setRoot(
+          `/forums/${encodeURIComponent(
+            serverUrl ?? '',
+          )}/${categoryId}/${boardId}`,
+          'backwards',
+        );
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`Error during deletion process for post ${postId}:`, err);
       if (!polycentricDeleteAttempted || polycentricDeleteSuccess) {
-        setDeletePostError(err.message || 'Failed to delete post.');
+        setDeletePostError(
+          err instanceof Error ? err.message : 'Failed to delete post.',
+        );
       }
     } finally {
       setDeletingPostId(null);

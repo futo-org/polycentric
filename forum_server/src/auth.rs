@@ -1,35 +1,22 @@
+use crate::AppState;
 use axum::{
     async_trait,
-    extract::{FromRequestParts, State, FromRef},
-    http::{header, request::Parts, StatusCode},
-    response::{IntoResponse, Response, Json},
-    RequestPartsExt,
+    extract::{FromRef, FromRequestParts, State},
+    http::{request::Parts, StatusCode},
+    response::{IntoResponse, Json, Response},
 };
-use axum_extra::{
-    extract::TypedHeader,
-    headers::{
-        HeaderMap, HeaderValue, authorization::{Authorization, Bearer},
-    },
-};
-use base64;
-use ed25519_dalek::{Signature, VerifyingKey, Verifier};
+use base64::{engine::general_purpose::STANDARD, Engine};
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use rand::{thread_rng, RngCore};
-use dashmap::DashMap;
-use serde::{Serialize, Deserialize};
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-    time::{Duration, Instant},
-};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
+use std::time::{Duration, Instant};
 use thiserror::Error;
 use uuid::Uuid;
-use crate::AppState;
-use axum::http::HeaderName;
-use sqlx::postgres::PgPoolOptions;
-use sqlx::PgPool;
-use std::collections::HashSet;
 
 const CHALLENGE_TTL: Duration = Duration::from_secs(60 * 5);
+const PURGE_INTERVAL: Duration = Duration::from_secs(60 * 10); // Purge every 10 minutes instead of every 5
 const NONCE_LENGTH: usize = 32;
 
 #[derive(Debug, Clone)]
@@ -40,13 +27,13 @@ struct ChallengeNonce {
 
 #[derive(Debug, Clone)]
 pub struct ChallengeStore {
-    challenges: Arc<DashMap<Uuid, ChallengeNonce>>,
+    challenges: Arc<RwLock<HashMap<Uuid, ChallengeNonce>>>,
 }
 
 impl ChallengeStore {
     pub fn new() -> Self {
         let store = Self {
-            challenges: Arc::new(DashMap::new()),
+            challenges: Arc::new(RwLock::new(HashMap::new())),
         };
         let store_clone = store.clone();
         tokio::spawn(async move {
@@ -65,25 +52,39 @@ impl ChallengeStore {
             expires_at: Instant::now() + CHALLENGE_TTL,
         };
 
-        self.challenges.insert(challenge_id, challenge);
-        
+        let mut challenges = self.challenges.write().unwrap();
+        challenges.insert(challenge_id, challenge);
+
         (challenge_id, nonce)
     }
 
-    pub fn use_challenge(&self, challenge_id: Uuid) -> Option<Vec<u8>> {
-        self.challenges
-            .remove_if(&challenge_id, |_, challenge| {
-                challenge.expires_at > Instant::now()
-            })
-            .map(|(_id, challenge)| challenge.nonce)
+    pub fn get_challenge(&self, challenge_id: Uuid) -> Option<Vec<u8>> {
+        let challenges = self.challenges.read().unwrap();
+
+        challenges
+            .get(&challenge_id)
+            .filter(|entry| entry.expires_at > Instant::now())
+            .map(|entry| entry.nonce.clone())
     }
-    
+
+    pub fn consume_challenge(&self, challenge_id: Uuid) -> bool {
+        let mut challenges = self.challenges.write().unwrap();
+        challenges.remove(&challenge_id).is_some()
+    }
+
     fn purge_expired(&self) {
-        self.challenges.retain(|_, challenge| challenge.expires_at > Instant::now());
+        let mut challenges = self.challenges.write().unwrap();
+        let before_count = challenges.len();
+
+        if before_count > 0 {
+            challenges.retain(|_, challenge| challenge.expires_at > Instant::now());
+        }
+
+        // Silently purge expired challenges
     }
 
     async fn purge_expired_periodically(&self) {
-        let mut interval = tokio::time::interval(CHALLENGE_TTL); // Check every CHALLENGE_TTL duration
+        let mut interval = tokio::time::interval(PURGE_INTERVAL);
         loop {
             interval.tick().await;
             self.purge_expired();
@@ -107,7 +108,7 @@ pub async fn get_challenge_handler(State(state): State<AppState>) -> Json<Challe
     let (id, nonce) = state.challenge_store.generate();
     Json(ChallengeResponse {
         challenge_id: id,
-        nonce_base64: base64::encode(&nonce),
+        nonce_base64: STANDARD.encode(&nonce),
     })
 }
 
@@ -130,7 +131,7 @@ pub enum AuthError {
 
     #[error("Signature verification failed")]
     VerificationFailed,
-    
+
     #[error("Internal server error during authentication")]
     InternalError,
 }
@@ -178,41 +179,65 @@ where
         let challenge_store = &app_state.challenge_store;
 
         let result = async {
-            let pubkey_b64 = parts.headers.get(HEADER_PUBKEY)
+            let pubkey_b64 = parts
+                .headers
+                .get(HEADER_PUBKEY)
                 .ok_or(AuthError::MissingOrInvalidHeaders)?
-                .to_str().map_err(|_| AuthError::MissingOrInvalidHeaders)?;
+                .to_str()
+                .map_err(|_| AuthError::MissingOrInvalidHeaders)?;
 
-            let signature_b64 = parts.headers.get(HEADER_SIGNATURE)
+            let signature_b64 = parts
+                .headers
+                .get(HEADER_SIGNATURE)
                 .ok_or(AuthError::MissingOrInvalidHeaders)?
-                .to_str().map_err(|_| AuthError::MissingOrInvalidHeaders)?;
+                .to_str()
+                .map_err(|_| AuthError::MissingOrInvalidHeaders)?;
 
-            let challenge_id_str = parts.headers.get(HEADER_CHALLENGE_ID)
+            let challenge_id_str = parts
+                .headers
+                .get(HEADER_CHALLENGE_ID)
                 .ok_or(AuthError::MissingOrInvalidHeaders)?
-                .to_str().map_err(|_| AuthError::MissingOrInvalidHeaders)?;
+                .to_str()
+                .map_err(|_| AuthError::MissingOrInvalidHeaders)?;
 
-            let pubkey_bytes = base64::decode(pubkey_b64).map_err(AuthError::InvalidBase64)?;
-            let signature_bytes = base64::decode(signature_b64).map_err(AuthError::InvalidBase64)?;
+            let pubkey_bytes = STANDARD
+                .decode(pubkey_b64)
+                .map_err(|e| AuthError::InvalidBase64(e))?;
+            let signature_bytes = STANDARD
+                .decode(signature_b64)
+                .map_err(|e| AuthError::InvalidBase64(e))?;
 
             let challenge_id_uuid = Uuid::parse_str(challenge_id_str)
-                .map_err(|_| AuthError::InvalidOrExpiredChallenge)?; // If malformed, treat as invalid
+                .map_err(|_| AuthError::InvalidOrExpiredChallenge)?;
 
-            let pubkey_array: &[u8; 32] = pubkey_bytes.as_slice().try_into()
+            let pubkey_array: &[u8; 32] = pubkey_bytes
+                .as_slice()
+                .try_into()
                 .map_err(|_| AuthError::InvalidPublicKey)?;
-            let verifying_key = VerifyingKey::from_bytes(pubkey_array)
-                .map_err(|_| AuthError::InvalidPublicKey)?;
+            let verifying_key =
+                VerifyingKey::from_bytes(pubkey_array).map_err(|_| AuthError::InvalidPublicKey)?;
 
-            let signature_array: &[u8; 64] = signature_bytes.as_slice().try_into()
+            let signature_array: &[u8; 64] = signature_bytes
+                .as_slice()
+                .try_into()
                 .map_err(|_| AuthError::InvalidSignature)?;
             let signature = Signature::from_bytes(signature_array);
 
-            let nonce = challenge_store.use_challenge(challenge_id_uuid)
+            let nonce = challenge_store
+                .get_challenge(challenge_id_uuid)
                 .ok_or(AuthError::InvalidOrExpiredChallenge)?;
 
-            verifying_key.verify(&nonce, &signature)
+            verifying_key
+                .verify(&nonce, &signature)
                 .map_err(|_| AuthError::VerificationFailed)?;
 
+            // Only consume the challenge after successful verification
+            if !challenge_store.consume_challenge(challenge_id_uuid) {
+                return Err(AuthError::InvalidOrExpiredChallenge);
+            }
             Ok(AuthenticatedUser(pubkey_bytes))
-        }.await;
+        }
+        .await;
 
         parts.extensions.insert(result.clone());
         tracing::debug!("[Auth Extractor] Cached result: {:?}", result.is_ok());
@@ -229,7 +254,7 @@ where
     AppState: FromRef<S>,
     S: Send + Sync,
 {
-    type Rejection = AuthError; 
+    type Rejection = AuthError;
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let authenticated_user = AuthenticatedUser::from_request_parts(parts, state).await?;
@@ -240,7 +265,10 @@ where
         if admin_keys.contains(&authenticated_user.0) {
             Ok(AdminUser(authenticated_user))
         } else {
-            eprintln!("Admin access denied for pubkey: {}", base64::encode(&authenticated_user.0)); 
+            eprintln!(
+                "Admin access denied for pubkey: {}",
+                STANDARD.encode(&authenticated_user.0)
+            );
             Err(AuthError::VerificationFailed)
         }
     }
@@ -263,24 +291,27 @@ pub async fn check_admin_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::body::Body;
+    use axum::http::Request;
     use ed25519_dalek::{Signer, SigningKey};
     use rand::rngs::OsRng;
-    use axum::http::Request;
-    use axum::body::Body;
     use sqlx::{Pool, Postgres};
 
     fn generate_keypair() -> SigningKey {
-        let mut csprng = OsRng{};
+        let mut csprng = OsRng {};
         SigningKey::generate(&mut csprng)
     }
 
     async fn setup_test_state() -> AppState {
         let pool_options = sqlx::postgres::PgPoolOptions::new().max_connections(1);
-         let test_db_url = std::env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "postgres://test_user:test_password@localhost/test_db_auth".to_string());
-        let pool = pool_options.connect_lazy(&test_db_url).expect("Failed to create lazy pool");
-        
-        let admin_pubkeys = Arc::new(HashSet::<Vec<u8>>::new()); 
+        let test_db_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://test_user:test_password@localhost/test_db_auth".to_string()
+        });
+        let pool = pool_options
+            .connect_lazy(&test_db_url)
+            .expect("Failed to create lazy pool");
+
+        let admin_pubkeys = Arc::new(HashSet::<Vec<u8>>::new());
 
         AppState {
             db_pool: pool,
@@ -303,10 +334,13 @@ mod tests {
         let signature = keypair.sign(&nonce);
 
         let mut parts = Request::builder()
-            .header(HEADER_PUBKEY, base64::encode(&public_key_bytes))
-            .header(HEADER_SIGNATURE, base64::encode(signature.to_bytes()))
+            .header(HEADER_PUBKEY, STANDARD.encode(&public_key_bytes))
+            .header(HEADER_SIGNATURE, STANDARD.encode(signature.to_bytes()))
             .header(HEADER_CHALLENGE_ID, challenge_id.to_string())
-            .body(Body::empty()).unwrap().into_parts().0;
+            .body(Body::empty())
+            .unwrap()
+            .into_parts()
+            .0;
 
         let result = AuthenticatedUser::from_request_parts(&mut parts, &app_state).await;
 
@@ -314,7 +348,10 @@ mod tests {
         let authenticated_user = result.unwrap();
         assert_eq!(authenticated_user.0, public_key_bytes);
 
-        assert!(app_state.challenge_store.use_challenge(challenge_id).is_none());
+        assert!(app_state
+            .challenge_store
+            .get_challenge(challenge_id)
+            .is_none());
     }
 
     #[tokio::test]
@@ -325,15 +362,18 @@ mod tests {
         let signature = keypair.sign(&nonce);
 
         let mut parts = Request::builder()
-            .header(HEADER_SIGNATURE, base64::encode(signature.to_bytes()))
+            .header(HEADER_SIGNATURE, STANDARD.encode(signature.to_bytes()))
             .header(HEADER_CHALLENGE_ID, challenge_id.to_string())
-            .body(Body::empty()).unwrap().into_parts().0;
+            .body(Body::empty())
+            .unwrap()
+            .into_parts()
+            .0;
 
         let result = AuthenticatedUser::from_request_parts(&mut parts, &app_state).await;
         assert!(matches!(result, Err(AuthError::MissingOrInvalidHeaders)));
     }
 
-     #[tokio::test]
+    #[tokio::test]
     async fn test_auth_extractor_invalid_base64() {
         let app_state = setup_test_state().await;
         let keypair = generate_keypair();
@@ -342,9 +382,12 @@ mod tests {
 
         let mut parts = Request::builder()
             .header(HEADER_PUBKEY, "invalid-base64!")
-            .header(HEADER_SIGNATURE, base64::encode(signature.to_bytes()))
+            .header(HEADER_SIGNATURE, STANDARD.encode(signature.to_bytes()))
             .header(HEADER_CHALLENGE_ID, challenge_id.to_string())
-            .body(Body::empty()).unwrap().into_parts().0;
+            .body(Body::empty())
+            .unwrap()
+            .into_parts()
+            .0;
 
         let result = AuthenticatedUser::from_request_parts(&mut parts, &app_state).await;
         match result {
@@ -362,16 +405,19 @@ mod tests {
         let invalid_pubkey_bytes = vec![1, 2, 3];
 
         let mut parts = Request::builder()
-            .header(HEADER_PUBKEY, base64::encode(&invalid_pubkey_bytes))
-            .header(HEADER_SIGNATURE, base64::encode(signature.to_bytes()))
+            .header(HEADER_PUBKEY, STANDARD.encode(&invalid_pubkey_bytes))
+            .header(HEADER_SIGNATURE, STANDARD.encode(signature.to_bytes()))
             .header(HEADER_CHALLENGE_ID, challenge_id.to_string())
-            .body(Body::empty()).unwrap().into_parts().0;
+            .body(Body::empty())
+            .unwrap()
+            .into_parts()
+            .0;
 
         let result = AuthenticatedUser::from_request_parts(&mut parts, &app_state).await;
         assert!(matches!(result, Err(AuthError::InvalidPublicKey)));
     }
 
-     #[tokio::test]
+    #[tokio::test]
     async fn test_auth_extractor_invalid_signature_format() {
         let app_state = setup_test_state().await;
         let keypair = generate_keypair();
@@ -380,10 +426,13 @@ mod tests {
         let invalid_signature_bytes = vec![4, 5, 6];
 
         let mut parts = Request::builder()
-            .header(HEADER_PUBKEY, base64::encode(public_key.to_bytes()))
-            .header(HEADER_SIGNATURE, base64::encode(&invalid_signature_bytes))
+            .header(HEADER_PUBKEY, STANDARD.encode(public_key.to_bytes()))
+            .header(HEADER_SIGNATURE, STANDARD.encode(&invalid_signature_bytes))
             .header(HEADER_CHALLENGE_ID, challenge_id.to_string())
-            .body(Body::empty()).unwrap().into_parts().0;
+            .body(Body::empty())
+            .unwrap()
+            .into_parts()
+            .0;
 
         let result = AuthenticatedUser::from_request_parts(&mut parts, &app_state).await;
         assert!(matches!(result, Err(AuthError::InvalidSignature)));
@@ -399,16 +448,19 @@ mod tests {
         let wrong_challenge_id = Uuid::new_v4();
 
         let mut parts = Request::builder()
-            .header(HEADER_PUBKEY, base64::encode(public_key.to_bytes()))
-            .header(HEADER_SIGNATURE, base64::encode(signature.to_bytes()))
+            .header(HEADER_PUBKEY, STANDARD.encode(public_key.to_bytes()))
+            .header(HEADER_SIGNATURE, STANDARD.encode(signature.to_bytes()))
             .header(HEADER_CHALLENGE_ID, wrong_challenge_id.to_string())
-            .body(Body::empty()).unwrap().into_parts().0;
+            .body(Body::empty())
+            .unwrap()
+            .into_parts()
+            .0;
 
         let result = AuthenticatedUser::from_request_parts(&mut parts, &app_state).await;
         assert!(matches!(result, Err(AuthError::InvalidOrExpiredChallenge)));
     }
 
-     #[tokio::test]
+    #[tokio::test]
     async fn test_auth_extractor_expired_challenge() {
         let app_state = setup_test_state().await;
         let keypair = generate_keypair();
@@ -416,18 +468,20 @@ mod tests {
         let (challenge_id, nonce) = app_state.challenge_store.generate();
         let signature = keypair.sign(&nonce);
 
-        assert!(app_state.challenge_store.use_challenge(challenge_id).is_some());
+        assert!(app_state.challenge_store.consume_challenge(challenge_id));
 
         let mut parts = Request::builder()
-            .header(HEADER_PUBKEY, base64::encode(public_key.to_bytes()))
-            .header(HEADER_SIGNATURE, base64::encode(signature.to_bytes()))
+            .header(HEADER_PUBKEY, STANDARD.encode(public_key.to_bytes()))
+            .header(HEADER_SIGNATURE, STANDARD.encode(signature.to_bytes()))
             .header(HEADER_CHALLENGE_ID, challenge_id.to_string())
-            .body(Body::empty()).unwrap().into_parts().0;
+            .body(Body::empty())
+            .unwrap()
+            .into_parts()
+            .0;
 
         let result = AuthenticatedUser::from_request_parts(&mut parts, &app_state).await;
         assert!(matches!(result, Err(AuthError::InvalidOrExpiredChallenge)));
     }
-
 
     #[tokio::test]
     async fn test_auth_extractor_verification_failed() {
@@ -440,12 +494,18 @@ mod tests {
         let wrong_signature = keypair.sign(other_data);
 
         let mut parts = Request::builder()
-            .header(HEADER_PUBKEY, base64::encode(public_key.to_bytes()))
-            .header(HEADER_SIGNATURE, base64::encode(wrong_signature.to_bytes()))
+            .header(HEADER_PUBKEY, STANDARD.encode(public_key.to_bytes()))
+            .header(
+                HEADER_SIGNATURE,
+                STANDARD.encode(wrong_signature.to_bytes()),
+            )
             .header(HEADER_CHALLENGE_ID, challenge_id.to_string())
-            .body(Body::empty()).unwrap().into_parts().0;
+            .body(Body::empty())
+            .unwrap()
+            .into_parts()
+            .0;
 
         let result = AuthenticatedUser::from_request_parts(&mut parts, &app_state).await;
         assert!(matches!(result, Err(AuthError::VerificationFailed)));
     }
-} 
+}
