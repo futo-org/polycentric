@@ -104,24 +104,21 @@ export function useObservableWithCache<T>(
 }
 
 const decodeBase64Topic = (topic: string): string => {
-  const looksLikeBase64 = /^[A-Za-z0-9+/]+={0,2}$/.test(topic);
+  const looksLikeBase64 = /^[A-Za-z0-9+/_-]+={0,2}$/.test(topic);
   if (!looksLikeBase64) {
     return topic;
   }
 
   try {
-    // Add padding if necessary so length becomes multiple of 4
-    let padded = topic;
+    let padded = topic.replace(/-/g, '+').replace(/_/g, '/');
     const mod = padded.length % 4;
     if (mod !== 0) padded += '='.repeat(4 - mod);
 
     const binary = atob(padded);
-    // Convert binary string to Uint8Array then to UTF-8 string
-    return new TextDecoder().decode(
-      Uint8Array.from(binary, (c) => c.charCodeAt(0)),
-    );
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   } catch {
-    // If decoding fails, return original topic
     return topic;
   }
 };
@@ -132,10 +129,10 @@ export const useTopicLink = (topic: string | undefined): string | undefined => {
       return undefined;
     }
 
-    let urlTopic = decodeBase64Topic(topic);
+    let urlTopic = normalizeTopic(topic);
     if (urlTopic.startsWith('/')) urlTopic = urlTopic.substring(1);
 
-    return `/t/${urlTopic}`;
+    return `/t/${encodeURIComponent(urlTopic)}`;
   }, [topic]);
 };
 
@@ -148,7 +145,17 @@ export const useTopicDisplayText = (
       return undefined;
     }
 
-    const decodedTopic = decodeBase64Topic(topic);
-    return decodedTopic.replace(urlPrefixRegex, '');
+    const normalized = normalizeTopic(topic);
+    return normalized.replace(urlPrefixRegex, '');
   }, [topic]);
+};
+
+export const normalizeTopic = (rawTopic: string): string => {
+  let topic = decodeBase64Topic(rawTopic);
+  topic = topic.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+  return topic;
+};
+
+export const useNormalizedTopic = (topic?: string): string | undefined => {
+  return useMemo(() => (topic ? normalizeTopic(topic) : undefined), [topic]);
 };

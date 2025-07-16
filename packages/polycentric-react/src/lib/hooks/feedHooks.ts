@@ -15,6 +15,7 @@ import { useProcessHandleManager } from './processHandleManagerHooks';
 import {
   ParsedEvent,
   useIndex,
+  useQueryCRDTSet,
   useQueryCursor,
   useQueryManager,
   useQueryReferenceEventFeed,
@@ -84,6 +85,28 @@ export const useExploreFeed: FeedHook = () => {
   const queryManager = useQueryManager();
   const { moderationLevels } = useModeration();
 
+  const { processHandle } = useProcessHandleManager();
+  const system = useMemo(() => processHandle.system(), [processHandle]);
+
+  const [blockedTopicEvents, advanceBlockedTopics] = useQueryCRDTSet(
+    system,
+    Models.ContentType.ContentTypeBlockTopic,
+    100,
+  );
+
+  // load initial blocked topics
+  useEffect(() => {
+    if (system) {
+      advanceBlockedTopics();
+    }
+  }, [advanceBlockedTopics, system]);
+
+  const blockedTopics = useMemo(() => {
+    return blockedTopicEvents
+      .filter((e) => e.lwwElementSet?.value)
+      .map((e) => Util.decodeText(e.lwwElementSet!.value));
+  }, [blockedTopicEvents]);
+
   const loadCallback = useMemo(
     () =>
       Queries.QueryCursor.makeGetExploreCallback(
@@ -93,7 +116,39 @@ export const useExploreFeed: FeedHook = () => {
     [queryManager.processHandle, moderationLevels],
   );
 
-  return useQueryCursor(loadCallback, decodePost);
+  // Filter out posts referencing blocked topics
+  const [data, advance, nothingFound] = useQueryCursor(
+    loadCallback,
+    decodePost,
+  );
+
+  const blockedSet = useMemo(() => new Set(blockedTopics), [blockedTopics]);
+
+  const filteredData = useMemo(() => {
+    return data.filter((item) => {
+      if (!item) return true;
+
+      // Filter out comments (posts that reference other posts)
+      const references = item.event.references ?? [];
+      const hasPostReference = references.some((ref) =>
+        ref.referenceType.eq(2),
+      );
+      if (hasPostReference) return false;
+
+      // Filter out blocked topics
+      for (const ref of references) {
+        try {
+          const text = Util.decodeText(ref.reference);
+          if (blockedSet.has(text)) return false;
+        } catch (_) {
+          continue;
+        }
+      }
+      return true;
+    });
+  }, [data, blockedSet]);
+
+  return [filteredData, advance, nothingFound];
 };
 
 const makeGetSearchCallbackWithMinQueryLength = (
@@ -471,4 +526,140 @@ export function useLikesFeed(
   }, [loadMore, allLoaded]);
 
   return [posts, advanceOpinions, allLoaded];
+}
+
+export function useRepliesFeed(
+  system: Models.PublicKey.PublicKey,
+  batchSize = 20,
+): [FeedHookData, () => void, boolean] {
+  // We reuse the index hook to iterate over the user\'s own posts in small batches.
+  const [posts, advancePosts, allPostsAttempted] = useIndex<Protocol.Post>(
+    system,
+    Models.ContentType.ContentTypePost,
+    Protocol.Post.decode,
+    batchSize,
+  );
+
+  // Keeps track of which post pointers we\'ve already processed so we don\'t
+  // create duplicate subscriptions.
+  const processedPointers = useRef(new Set<string>());
+
+  // Aggregate list of replies that we\'ve fetched so far.
+  const [replies, setReplies] = useState<FeedHookData>([]);
+
+  // State machine to walk forward through the user\'s posts, one at a time.
+  const [currentPointerIndex, setCurrentPointerIndex] = useState(0);
+
+  // Compute the pointer + reference for the post we\'re currently focusing on.
+  const currentPostPointer = useMemo(() => {
+    if (currentPointerIndex >= posts.length) return undefined;
+    return Models.signedEventToPointer(posts[currentPointerIndex].signedEvent);
+  }, [posts, currentPointerIndex]);
+
+  // Load the first batch of posts when the hook mounts.
+  useEffect(() => {
+    if (posts.length === 0 && !allPostsAttempted) {
+      advancePosts();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const currentReference = useMemo(() => {
+    return currentPostPointer
+      ? Models.pointerToReference(currentPostPointer)
+      : undefined;
+  }, [currentPostPointer]);
+
+  // Hook that streams replies for the current post pointer.
+  const [currentReplies, advanceCurrentReplies, currentNothingFound] =
+    useReferenceFeed(currentReference);
+
+  // Merge replies from the active subscription into the aggregated list.
+  useEffect(() => {
+    if (currentReplies.length === 0) return;
+
+    setReplies((prev) => {
+      // Deduplicate by the SignedEvent binary (logicalClock + process + system hash)
+      const map = new Map<string, FeedItem>();
+      prev.forEach((item) => {
+        if (item) {
+          const key = Models.Pointer.toString(
+            Models.signedEventToPointer(item.signedEvent),
+          );
+          map.set(key, item);
+        }
+      });
+      currentReplies.forEach((item) => {
+        if (item) {
+          const key = Models.Pointer.toString(
+            Models.signedEventToPointer(item.signedEvent),
+          );
+          map.set(key, item);
+        }
+      });
+      // Sort newest first by unixMilliseconds
+      const merged = Array.from(map.values()).sort((a, b) => {
+        if (!a?.event?.unixMilliseconds || !b?.event?.unixMilliseconds)
+          return 0;
+        return (
+          b.event.unixMilliseconds.toNumber() -
+          a.event.unixMilliseconds.toNumber()
+        );
+      });
+      return merged;
+    });
+  }, [currentReplies]);
+
+  // Once we\'ve exhausted replies for the current post, move on to the next.
+  useEffect(() => {
+    if (!currentNothingFound) return;
+
+    // Mark this pointer as processed
+    if (currentPostPointer) {
+      processedPointers.current.add(
+        Models.Pointer.toString(currentPostPointer),
+      );
+    }
+
+    // If there are more posts locally, advance to the next post pointer.
+    if (currentPointerIndex + 1 < posts.length) {
+      setCurrentPointerIndex((idx) => idx + 1);
+      return;
+    }
+
+    // Otherwise, ask the post index to fetch more posts if possible.
+    if (!allPostsAttempted) {
+      advancePosts();
+    }
+  }, [
+    currentNothingFound,
+    currentPostPointer,
+    currentPointerIndex,
+    posts.length,
+    allPostsAttempted,
+    advancePosts,
+  ]);
+
+  // External advance function: first try to advance current replies, otherwise
+  // fall back to advancing the posts index.
+  const advance = useCallback(() => {
+    if (!currentNothingFound) {
+      // Still potentially more replies for the current post.
+      advanceCurrentReplies();
+    } else if (!allPostsAttempted) {
+      // We\'re done with this pointer, but there might be more posts to load.
+      advancePosts();
+    }
+  }, [
+    advanceCurrentReplies,
+    currentNothingFound,
+    allPostsAttempted,
+    advancePosts,
+  ]);
+
+  const nothingFound = useMemo(() => {
+    return replies.length === 0 && allPostsAttempted && currentNothingFound;
+  }, [replies.length, allPostsAttempted, currentNothingFound]);
+
+  return [replies, advance, nothingFound];
 }

@@ -74,13 +74,13 @@ export const publishImageBlob = async (
   maxResY = 1000,
   upscale = false,
 ): Promise<Protocol.ImageManifest> => {
-  const [, width, height] = await resizeImageToWebp(
+  const [resizedBlob, width, height] = await resizeImageToWebp(
     image,
     maxResX,
     maxResY,
     upscale,
   );
-  const newUint8Array = await convertBlobToUint8Array(image);
+  const newUint8Array = await convertBlobToUint8Array(resizedBlob);
 
   const imageRanges = await handle.publishBlob(newUint8Array);
 
