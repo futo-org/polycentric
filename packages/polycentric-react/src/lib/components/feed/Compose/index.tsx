@@ -154,38 +154,41 @@ export const Compose = ({
   };
 
   // Helper function to fetch image from URL
-  const fetchImageFromUrl = async (url: string): Promise<File | null> => {
-    try {
-      const response = await fetch(url, {
-        mode: 'cors',
-        credentials: 'omit', // Don't send cookies to avoid CORS issues
-      });
-      if (!response.ok) {
-        console.warn(
-          `Failed to fetch image from URL: ${response.status} ${response.statusText}`,
-        );
+  const fetchImageFromUrl = useCallback(
+    async (url: string): Promise<File | null> => {
+      try {
+        const response = await fetch(url, {
+          mode: 'cors',
+          credentials: 'omit', // Don't send cookies to avoid CORS issues
+        });
+        if (!response.ok) {
+          console.warn(
+            `Failed to fetch image from URL: ${response.status} ${response.statusText}`,
+          );
+          return null;
+        }
+
+        const blob = await response.blob();
+        if (!blob.type.startsWith('image/')) {
+          console.warn('Fetched content is not an image');
+          return null;
+        }
+
+        // Extract filename from URL or use default
+        const urlParts = url.split('/');
+        const filename = urlParts[urlParts.length - 1] || 'pasted-image.jpg';
+
+        return blobToFile(blob, filename);
+      } catch (error) {
+        console.error('Error fetching image from URL:', error);
         return null;
       }
-
-      const blob = await response.blob();
-      if (!blob.type.startsWith('image/')) {
-        console.warn('Fetched content is not an image');
-        return null;
-      }
-
-      // Extract filename from URL or use default
-      const urlParts = url.split('/');
-      const filename = urlParts[urlParts.length - 1] || 'pasted-image.jpg';
-
-      return blobToFile(blob, filename);
-    } catch (error) {
-      console.error('Error fetching image from URL:', error);
-      return null;
-    }
-  };
+    },
+    [],
+  );
 
   // Helper function to check if string is a valid image URL
-  const isValidImageUrl = (str: string): boolean => {
+  const isValidImageUrl = useCallback((str: string): boolean => {
     try {
       const url = new URL(str);
       const imageExtensions = [
@@ -224,7 +227,7 @@ export const Compose = ({
     } catch {
       return false;
     }
-  };
+  }, []);
 
   const handlePaste = useCallback(
     async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -270,7 +273,7 @@ export const Compose = ({
         return;
       }
     },
-    [],
+    [fetchImageFromUrl, isValidImageUrl],
   );
 
   const post = useCallback(() => {
