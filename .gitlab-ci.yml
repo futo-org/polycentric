@@ -35,10 +35,16 @@ default:
     files:
       - server/Cargo.toml
       - polycentric-protocol/Cargo.toml
-      - forum_server/Cargo.toml
   paths:
     - ${CI_PROJECT_DIR}/.sccache/
     - ${CI_PROJECT_DIR}/.cargo/
+  policy: pull-push
+
+.forum-server-cache-config: &forum-server-cache-config
+  key:
+    files:
+      - forum_server/Cargo.toml
+  paths:
     - ${CI_PROJECT_DIR}/forum_server/.sqlx/
   policy: pull-push
 
@@ -169,6 +175,7 @@ build-forum-server:
   stage: build
   cache: 
    - <<: *rust-cache-config
+   - <<: *forum-server-cache-config
    - <<: *rust-cache-build-config
      key: ${CI_COMMIT_REF_SLUG}-rs-build
   script:
