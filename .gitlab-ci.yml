@@ -179,6 +179,7 @@ build-forum-server:
   variables:
     DATABASE_URL: "postgres://postgres:testing@postgres/forum_db"
     POSTGRES_PASSWORD: "testing"
+    PGPASSWORD: "testing"
   cache: 
    - <<: *rust-cache-config
    - <<: *forum-server-cache-config
