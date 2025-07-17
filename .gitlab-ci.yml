@@ -35,9 +35,11 @@ default:
     files:
       - server/Cargo.toml
       - polycentric-protocol/Cargo.toml
+      - forum_server/Cargo.toml
   paths:
     - ${CI_PROJECT_DIR}/.sccache/
     - ${CI_PROJECT_DIR}/.cargo/
+    - ${CI_PROJECT_DIR}/forum_server/.sqlx/
   policy: pull-push
 
 .rust-cache-build-config: &rust-cache-build-config
@@ -45,6 +47,7 @@ default:
   paths:
     - ${CI_PROJECT_DIR}/server/target
     - ${CI_PROJECT_DIR}/polycentric-protocol/target
+    - ${CI_PROJECT_DIR}/forum_server/target
   policy: pull-push
 
 stages:

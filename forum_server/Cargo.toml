@@ -11,7 +11,7 @@ axum = { version = "0.7.5", features = ["multipart", "macros"] }
 axum-extra = { version = "0.9", features = ["typed-header"] }
 serde = { version = "1.0", features = ["derive"] }
 uuid = { version = "1.8.0", features = ["v4", "serde"] }
-sqlx = { version = "0.7.4", features = [ "runtime-tokio", "postgres", "chrono", "uuid", "json" ] }
+sqlx = { version = "0.7.4", features = [ "runtime-tokio", "postgres", "chrono", "uuid", "json", "offline" ] }
 dotenvy = "0.15.7"
 chrono = { version = "0.4", features = ["serde"] }
 tower-http = { version = "0.5.2", features = ["fs", "trace", "limit", "cors"] }
