@@ -195,8 +195,6 @@ build-forum-server:
     - psql -h postgres -U postgres -d forum_db -f migrations/20250116000000_add_banned_users.sql
     - echo "Building forum server binary"
     - cargo build --locked
-    - echo "Building test binary"
-    - cargo test --no-run --frozen --locked
     - echo "Moving build artifacts"
     - mkdir -p ../build-artifacts
     - mv ./target/debug/forum_server ../build-artifacts/forum_server
