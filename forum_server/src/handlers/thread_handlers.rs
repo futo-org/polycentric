@@ -1,5 +1,5 @@
 use crate::{
-    auth::{AdminUser, AuthenticatedUser},
+    auth::{AdminUser, NonBannedUser},
     constants::{MAX_POST_CONTENT_LENGTH, MAX_THREAD_TITLE_LENGTH},
     repositories::{
         self, board_repository,
@@ -32,10 +32,10 @@ struct TempImageField {
 pub async fn create_thread_handler(
     State(state): State<AppState>,
     Path(board_id): Path<Uuid>,
-    user: AuthenticatedUser,
+    user: NonBannedUser,
     mut multipart: Multipart,
 ) -> Response {
-    let created_by = user.0;
+    let created_by = user.0 .0;
 
     let mut collected_title: Option<String> = None;
     let mut collected_content: Option<String> = None;
@@ -365,7 +365,7 @@ pub async fn list_threads_in_board_handler(
 pub async fn update_thread_handler(
     State(state): State<AppState>,
     Path(thread_id): Path<Uuid>,
-    user: AuthenticatedUser,
+    user: NonBannedUser,
     Json(payload): Json<UpdateThreadPayload>,
 ) -> Response {
     if payload.title.trim().is_empty() {
@@ -384,8 +384,8 @@ pub async fn update_thread_handler(
 
     match thread_repository::get_thread_by_id(&state.db_pool, thread_id).await {
         Ok(Some(thread_to_update)) => {
-            if thread_to_update.created_by != user.0 {
-                warn!(thread_id = %thread_id, user_pubkey = ?user.0, actual_author = ?thread_to_update.created_by, "User attempted to update thread they did not create");
+            if thread_to_update.created_by != user.0 .0 {
+                warn!(thread_id = %thread_id, user_pubkey = ?user.0.0, actual_author = ?thread_to_update.created_by, "User attempted to update thread they did not create");
                 return (
                     StatusCode::FORBIDDEN,
                     "You can only update your own threads.",
@@ -415,7 +415,7 @@ pub async fn update_thread_handler(
             }
         }
         Ok(None) => {
-            warn!(thread_id = %thread_id, user_pubkey = ?user.0, "User attempted to update non-existent thread");
+            warn!(thread_id = %thread_id, user_pubkey = ?user.0.0, "User attempted to update non-existent thread");
             (StatusCode::NOT_FOUND, "Thread not found.").into_response()
         }
         Err(e) => {
@@ -433,7 +433,7 @@ pub async fn delete_thread_handler(
     State(state): State<AppState>,
     Path(thread_id): Path<Uuid>,
     admin_user: Option<AdminUser>,
-    auth_user: Option<AuthenticatedUser>,
+    auth_user: Option<NonBannedUser>,
 ) -> Response {
     let is_admin = admin_user.is_some();
     let mut requesting_user_pubkey: Option<Vec<u8>> = None;
@@ -441,7 +441,7 @@ pub async fn delete_thread_handler(
     if !is_admin {
         match auth_user {
             Some(user) => {
-                requesting_user_pubkey = Some(user.0);
+                requesting_user_pubkey = Some(user.0 .0);
             }
             None => {
                 warn!(thread_id = %thread_id, "Unauthenticated attempt to delete thread");

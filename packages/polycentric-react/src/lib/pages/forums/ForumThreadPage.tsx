@@ -31,6 +31,65 @@ import {
 import { useParams } from '../../hooks/stackRouterHooks';
 import { useAuthHeaders } from '../../hooks/useAuthHeaders';
 import { useIsAdmin } from '../../hooks/useIsAdmin';
+import { useIsBanned } from '../../hooks/useIsBanned';
+
+interface QuotedPostSectionProps {
+  quotedPost: ForumPost;
+}
+
+const QuotedPostSection: React.FC<QuotedPostSectionProps> = ({
+  quotedPost,
+}) => {
+  const quotedAuthorPublicKey = Models.PublicKey.fromProto({
+    key: quotedPost.author_id,
+    keyType: Long.UONE,
+  });
+  const quotedUsernameResult = useUsernameCRDTQuery(quotedAuthorPublicKey);
+  const quotedUsername = quotedUsernameResult || 'User';
+  const quotedShortPublicKey = useTextPublicKey(quotedAuthorPublicKey, 10);
+  const quotedAuthorGeneratedLink = useSystemLink(quotedAuthorPublicKey);
+  const [quotedAuthorStableLink, setQuotedAuthorStableLink] = useState<
+    string | undefined
+  >(undefined);
+
+  // Update the stable link for quoted author when available
+  useEffect(() => {
+    if (
+      quotedAuthorGeneratedLink &&
+      quotedAuthorGeneratedLink !== quotedAuthorStableLink
+    ) {
+      setQuotedAuthorStableLink(quotedAuthorGeneratedLink);
+    } else if (!quotedAuthorGeneratedLink && quotedAuthorStableLink) {
+      setQuotedAuthorStableLink(undefined);
+    }
+  }, [quotedAuthorGeneratedLink, quotedAuthorStableLink]);
+
+  return (
+    <blockquote className="border-l-4 border-gray-300 pl-3 py-2 mb-3 bg-gray-50 rounded-md">
+      <div className="text-sm text-gray-600 mb-1">
+        Quote by{' '}
+        {quotedAuthorStableLink ? (
+          <Link
+            routerLink={quotedAuthorStableLink}
+            className="font-medium hover:underline"
+          >
+            <span>{quotedUsername}</span>
+            {quotedShortPublicKey && (
+              <span className="ml-1 text-xs text-gray-500 font-mono">
+                {quotedShortPublicKey}
+              </span>
+            )}
+          </Link>
+        ) : (
+          <span className="font-medium">{quotedUsername}</span>
+        )}
+      </div>
+      <div className="prose prose-sm max-w-none text-gray-800">
+        <Linkify as="span" className="" content={quotedPost.content} />
+      </div>
+    </blockquote>
+  );
+};
 
 interface ForumThread {
   id: string;
@@ -69,6 +128,7 @@ interface PostItemProps {
   currentUserPubKey: Uint8Array | undefined;
   onDelete: (postId: string) => void;
   isDeleting: boolean;
+  isBanned?: boolean;
 }
 
 const PostItem: React.FC<PostItemProps> = ({
@@ -80,6 +140,7 @@ const PostItem: React.FC<PostItemProps> = ({
   currentUserPubKey,
   onDelete,
   isDeleting,
+  isBanned,
 }) => {
   const authorPublicKey = Models.PublicKey.fromProto({
     key: post.author_id,
@@ -91,40 +152,6 @@ const PostItem: React.FC<PostItemProps> = ({
   const postTime = new Date(post.created_at).toLocaleString();
   const postImage =
     post.images && post.images.length > 0 ? post.images[0] : null;
-
-  const quotedAuthorPublicKey = quotedPost
-    ? Models.PublicKey.fromProto({
-        key: quotedPost.author_id,
-        keyType: Long.UONE,
-      })
-    : undefined;
-  const quotedUsernameResult = useUsernameCRDTQuery(quotedAuthorPublicKey);
-  const quotedUsername = quotedAuthorPublicKey
-    ? quotedUsernameResult || 'User'
-    : '';
-  const quotedShortPublicKey = useTextPublicKey(quotedAuthorPublicKey, 10);
-
-  // Get profile link for quoted author
-  const quotedAuthorGeneratedLink = useSystemLink(
-    quotedAuthorPublicKey ??
-      Models.PublicKey.fromProto({
-        key: new Uint8Array(0),
-        keyType: Long.UZERO,
-      }),
-  );
-  const [quotedAuthorStableLink, setQuotedAuthorStableLink] = useState<
-    string | undefined
-  >(undefined);
-
-  // Update the stable link for quoted author when available
-  useEffect(() => {
-    if (
-      quotedAuthorGeneratedLink &&
-      quotedAuthorGeneratedLink !== quotedAuthorStableLink
-    ) {
-      setQuotedAuthorStableLink(quotedAuthorGeneratedLink);
-    }
-  }, [quotedAuthorGeneratedLink, quotedAuthorStableLink]);
 
   let displayContent = post.content;
   if (quotedPost) {
@@ -184,31 +211,7 @@ const PostItem: React.FC<PostItemProps> = ({
 
       <div className="min-w-0">
         <div className="text-xs text-gray-500 mb-2 text-right">{postTime}</div>
-        {quotedPost && (
-          <blockquote className="border-l-4 border-gray-300 pl-3 py-2 mb-3 bg-gray-50 rounded-md">
-            <div className="text-sm text-gray-600 mb-1">
-              Quote by{' '}
-              {quotedAuthorStableLink ? (
-                <Link
-                  routerLink={quotedAuthorStableLink}
-                  className="font-medium hover:underline"
-                >
-                  <span>{quotedUsername}</span>
-                  {quotedShortPublicKey && (
-                    <span className="ml-1 text-xs text-gray-500 font-mono">
-                      {quotedShortPublicKey}
-                    </span>
-                  )}
-                </Link>
-              ) : (
-                <span className="font-medium">{quotedUsername}</span>
-              )}
-            </div>
-            <div className="prose prose-sm max-w-none text-gray-800">
-              <Linkify as="span" className="" content={quotedPost.content} />
-            </div>
-          </blockquote>
-        )}
+        {quotedPost && <QuotedPostSection quotedPost={quotedPost} />}
         <div className="prose max-w-none mb-3">
           <Linkify as="span" className="" content={displayContent} />
         </div>
@@ -226,7 +229,7 @@ const PostItem: React.FC<PostItemProps> = ({
           </div>
         )}
         <div className="flex justify-end items-center space-x-3 pt-2 border-t border-gray-100 mt-3">
-          {canDelete && (
+          {canDelete && !isBanned && (
             <button
               onClick={() => onDelete(post.id)}
               disabled={isDeleting}
@@ -236,13 +239,16 @@ const PostItem: React.FC<PostItemProps> = ({
               <Trash2 size={16} />
             </button>
           )}
-          <button
-            onClick={() => onQuote(post)}
-            disabled={isDeleting}
-            className="text-sm text-blue-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Quote
-          </button>
+          {!isBanned && (
+            <button
+              onClick={() => onQuote(post)}
+              disabled={isDeleting}
+              className="text-sm text-blue-600 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Quote this post"
+            >
+              Quote
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -294,6 +300,14 @@ export const ForumThreadPage: React.FC = () => {
     loading: headersLoading,
     error: headersError,
   } = useAuthHeaders(serverUrl ?? '');
+
+  const {
+    isBanned,
+    loading: banLoading,
+    error: banError,
+    banReason,
+    bannedAt,
+  } = useIsBanned(serverUrl ?? '');
 
   const quotingAuthorPublicKey = quotingPost
     ? Models.PublicKey.fromProto({
@@ -791,9 +805,12 @@ export const ForumThreadPage: React.FC = () => {
 
   const currentUserPubKey = processHandle?.system()?.key;
 
-  const hooksAreLoading = !!serverUrl && (adminLoading || headersLoading);
+  const hooksAreLoading =
+    !!serverUrl && (adminLoading || headersLoading || banLoading);
   const isBusy = loading || hooksAreLoading || isPosting || !!deletingPostId;
-  const hookErrors = !!serverUrl ? adminError || headersError : null;
+  const hookErrors = !!serverUrl
+    ? adminError || headersError || banError
+    : null;
   const displayError = error || hookErrors || postError || deletePostError;
 
   const replyCharCount = newPostBody.length;
@@ -850,6 +867,7 @@ export const ForumThreadPage: React.FC = () => {
                       currentUserPubKey={currentUserPubKey}
                       onDelete={handleDeletePost}
                       isDeleting={!!deletingPostId}
+                      isBanned={isBanned}
                     />
                   );
                 })}
@@ -858,7 +876,31 @@ export const ForumThreadPage: React.FC = () => {
 
             {!loading && !error && serverUrl && processHandle && (
               <div className="pt-6">
-                {isComposing ? (
+                {isBanned ? (
+                  <div className="border p-4 rounded-md bg-red-50 border-red-200 space-y-3">
+                    <h3 className="text-lg font-semibold text-red-800">
+                      Account Banned
+                    </h3>
+                    <p className="text-red-700">
+                      Your account has been banned from this forum server.
+                      {banReason && (
+                        <span className="block mt-1">
+                          <strong>Reason:</strong> {banReason}
+                        </span>
+                      )}
+                      {bannedAt && (
+                        <span className="block mt-1">
+                          <strong>Banned on:</strong>{' '}
+                          {new Date(bannedAt).toLocaleString()}
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-red-600 text-sm">
+                      You can still read posts but cannot create new posts or
+                      replies.
+                    </p>
+                  </div>
+                ) : isComposing ? (
                   <div className="border p-4 rounded-md bg-gray-50 space-y-3">
                     {quotingPost && (
                       <div className="flex justify-between items-center text-sm text-gray-600 p-2 bg-gray-100 rounded-md">
@@ -985,12 +1027,19 @@ export const ForumThreadPage: React.FC = () => {
                       disabled={
                         isBusy ||
                         adminError !== null ||
+                        banError !== null ||
+                        isBanned ||
                         !processHandle ||
                         !serverUrl
                       }
                       className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={
+                        isBanned
+                          ? 'You are banned from posting'
+                          : 'Post a reply to this thread'
+                      }
                     >
-                      Post Reply
+                      {isBanned ? 'Post Reply (Banned)' : 'Post Reply'}
                     </button>
                   </div>
                 )}

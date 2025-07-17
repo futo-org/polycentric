@@ -1,7 +1,7 @@
 use crate::auth::{check_admin_handler, get_challenge_handler, ChallengeStore};
 use axum::{
     extract::State,
-    routing::{get, post, put},
+    routing::{delete, get, post, put},
     Router,
 };
 use sqlx::PgPool;
@@ -36,6 +36,10 @@ use handlers::{
     thread_handlers::{
         create_thread_handler, delete_thread_handler, get_thread_handler,
         list_threads_in_board_handler, update_thread_handler,
+    },
+    user_handlers::{
+        ban_user_handler, check_ban_status_handler, get_all_users_handler,
+        get_banned_users_handler, unban_user_handler,
     },
 };
 
@@ -135,6 +139,12 @@ pub fn create_router(
             put(link_polycentric_post_handler),
         )
         // --- End Add route ---
+        // User management routes
+        .route("/users", get(get_all_users_handler))
+        .route("/users/banned", get(get_banned_users_handler))
+        .route("/users/ban", post(ban_user_handler))
+        .route("/users/unban/:public_key", delete(unban_user_handler))
+        .route("/users/check-ban", get(check_ban_status_handler))
         // Server Info Route (at root)
         .route("/server-info", get(get_server_info_handler))
         // --- Static File Serving ---

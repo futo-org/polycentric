@@ -1,3 +1,4 @@
+use crate::repositories::user_repository;
 use crate::AppState;
 use axum::{
     async_trait,
@@ -202,10 +203,10 @@ where
 
             let pubkey_bytes = STANDARD
                 .decode(pubkey_b64)
-                .map_err(|e| AuthError::InvalidBase64(e))?;
+                .map_err(AuthError::InvalidBase64)?;
             let signature_bytes = STANDARD
                 .decode(signature_b64)
-                .map_err(|e| AuthError::InvalidBase64(e))?;
+                .map_err(AuthError::InvalidBase64)?;
 
             let challenge_id_uuid = Uuid::parse_str(challenge_id_str)
                 .map_err(|_| AuthError::InvalidOrExpiredChallenge)?;
@@ -248,6 +249,9 @@ where
 #[derive(Debug, Clone)]
 pub struct AdminUser(pub AuthenticatedUser);
 
+#[derive(Debug, Clone)]
+pub struct NonBannedUser(pub AuthenticatedUser);
+
 #[async_trait]
 impl<S> FromRequestParts<S> for AdminUser
 where
@@ -270,6 +274,52 @@ where
                 STANDARD.encode(&authenticated_user.0)
             );
             Err(AuthError::VerificationFailed)
+        }
+    }
+}
+
+#[async_trait]
+impl<S> FromRequestParts<S> for NonBannedUser
+where
+    AppState: FromRef<S>,
+    S: Send + Sync,
+{
+    type Rejection = AuthError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let authenticated_user = AuthenticatedUser::from_request_parts(parts, state).await?;
+
+        let app_state = AppState::from_ref(state);
+
+        // Check if user is banned
+        match user_repository::is_user_banned(&app_state.db_pool, &authenticated_user.0).await {
+            Ok(true) => {
+                // User is banned, get ban details for better error message
+                match user_repository::get_banned_user(&app_state.db_pool, &authenticated_user.0)
+                    .await
+                {
+                    Ok(Some(ban_info)) => {
+                        tracing::warn!(user_pubkey = ?authenticated_user.0, reason = ?ban_info.reason, "Banned user attempted to access forum");
+                        Err(AuthError::VerificationFailed)
+                    }
+                    Ok(None) => {
+                        tracing::warn!(user_pubkey = ?authenticated_user.0, "Banned user attempted to access forum");
+                        Err(AuthError::VerificationFailed)
+                    }
+                    Err(e) => {
+                        tracing::error!(error = %e, "Failed to get ban details");
+                        Err(AuthError::InternalError)
+                    }
+                }
+            }
+            Ok(false) => {
+                // User is not banned
+                Ok(NonBannedUser(authenticated_user))
+            }
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to check ban status");
+                Err(AuthError::InternalError)
+            }
         }
     }
 }

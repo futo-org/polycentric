@@ -27,7 +27,7 @@ export function useAuthHeaders(
   serverUrl: string | undefined,
 ): UseAuthHeadersResult {
   const { processHandle } = useProcessHandleManager();
-  const [headers, setHeaders] = useState<AuthHeaders | null>(null);
+  const [headers] = useState<AuthHeaders | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,14 +45,12 @@ export function useAuthHeaders(
   const fetchHeaders = useCallback(async (): Promise<AuthHeaders | null> => {
     if (!processHandle || !userPublicKeyString || !serverUrl) {
       setError('User not logged in or server URL missing.');
-      setHeaders(null);
       setLoading(false);
       return null;
     }
 
     setLoading(true);
     setError(null);
-    setHeaders(null);
 
     try {
       const baseUrl = serverUrl.endsWith('/')
@@ -109,7 +107,6 @@ export function useAuthHeaders(
         'X-Polycentric-Challenge-ID': challenge_id,
       };
 
-      setHeaders(preparedHeaders);
       setError(null);
       return preparedHeaders;
     } catch (fetchError: unknown) {
@@ -121,7 +118,6 @@ export function useAuthHeaders(
         (fetchError as Error)?.message ||
           `Failed to prepare auth headers for ${serverUrl}.`,
       );
-      setHeaders(null);
       return null;
     } finally {
       setLoading(false);

@@ -22,6 +22,7 @@ import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
 import { useAuthHeaders } from '../../hooks/useAuthHeaders';
 import { useIsAdmin } from '../../hooks/useIsAdmin';
+import { useIsBanned } from '../../hooks/useIsBanned';
 
 interface ForumBoard {
   id: string;
@@ -88,6 +89,14 @@ export const ForumBoardPage: React.FC = () => {
     loading: headersLoading,
     error: headersError,
   } = useAuthHeaders(serverUrl ?? '');
+
+  const {
+    isBanned,
+    loading: banLoading,
+    error: banError,
+    banReason,
+    bannedAt,
+  } = useIsBanned(serverUrl ?? '');
 
   const polycentricPointer = useMemo(() => {
     if (typeof window === 'undefined') {
@@ -191,6 +200,9 @@ export const ForumBoardPage: React.FC = () => {
   }, [fetchBoardData, serverUrl]);
 
   const handleCreateThreadClick = () => {
+    if (isBanned) {
+      return;
+    }
     setIsComposing(true);
     setNewThreadTitle('');
     setNewThreadBody('');
@@ -200,6 +212,11 @@ export const ForumBoardPage: React.FC = () => {
   };
 
   const handleCreateThreadSubmit = async () => {
+    if (isBanned) {
+      setCreateError('You are banned from creating threads.');
+      return;
+    }
+
     if (
       !processHandle ||
       !serverUrl ||
@@ -409,6 +426,11 @@ export const ForumBoardPage: React.FC = () => {
   };
 
   const handleDeleteThread = async (threadId: string, threadTitle: string) => {
+    if (isBanned) {
+      setDeleteThreadError('You are banned from deleting threads.');
+      return;
+    }
+
     if (!serverUrl || typeof fetchHeaders !== 'function') {
       setDeleteThreadError(
         'Cannot delete thread: Missing URL or authentication function.',
@@ -465,11 +487,14 @@ export const ForumBoardPage: React.FC = () => {
 
   const currentUserPubKey = processHandle?.system()?.key;
 
-  const hooksAreLoading = !!serverUrl && (adminLoading || headersLoading);
+  const hooksAreLoading =
+    !!serverUrl && (adminLoading || headersLoading || banLoading);
   const isBusy =
     loading || hooksAreLoading || isCreatingThread || !!deletingThreadId;
 
-  const hookErrors = !!serverUrl ? adminError || headersError : null;
+  const hookErrors = !!serverUrl
+    ? adminError || headersError || banError
+    : null;
   const displayError = error || hookErrors || createError || deleteThreadError;
 
   const titleCharCount = newThreadTitle.length;
@@ -508,13 +533,51 @@ export const ForumBoardPage: React.FC = () => {
 
             {!isComposing && serverUrl && processHandle && (
               <div className="flex justify-end mb-4">
-                <button
-                  onClick={handleCreateThreadClick}
-                  disabled={isBusy || adminError !== null}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Create New Thread
-                </button>
+                {isBanned ? (
+                  <div className="border p-4 rounded-md bg-red-50 border-red-200 space-y-3 w-full">
+                    <h3 className="text-lg font-semibold text-red-800">
+                      Account Banned
+                    </h3>
+                    <p className="text-red-700">
+                      Your account has been banned from this forum server.
+                      {banReason && (
+                        <span className="block mt-1">
+                          <strong>Reason:</strong> {banReason}
+                        </span>
+                      )}
+                      {bannedAt && (
+                        <span className="block mt-1">
+                          <strong>Banned on:</strong>{' '}
+                          {new Date(bannedAt).toLocaleString()}
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-red-600 text-sm">
+                      You can still read threads but cannot create new threads
+                      or posts.
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleCreateThreadClick}
+                    disabled={
+                      isBusy ||
+                      adminError !== null ||
+                      banError !== null ||
+                      isBanned
+                    }
+                    className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={
+                      isBanned
+                        ? 'You are banned from posting'
+                        : 'Create a new thread'
+                    }
+                  >
+                    {isBanned
+                      ? 'Create New Thread (Banned)'
+                      : 'Create New Thread'}
+                  </button>
+                )}
               </div>
             )}
 
@@ -666,7 +729,8 @@ export const ForumBoardPage: React.FC = () => {
                             Buffer.from(thread.created_by),
                           )
                         : false;
-                    const canDelete = !!serverUrl && (isAdmin || isAuthor);
+                    const canDelete =
+                      !!serverUrl && (isAdmin || isAuthor) && !isBanned;
                     const isCurrentlyDeleting = deletingThreadId === thread.id;
                     return (
                       <li

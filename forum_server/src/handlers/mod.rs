@@ -3,6 +3,7 @@ pub mod board_handlers;
 pub mod category_handlers;
 pub mod post_handlers;
 pub mod thread_handlers;
+pub mod user_handlers;
 
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde::Serialize;

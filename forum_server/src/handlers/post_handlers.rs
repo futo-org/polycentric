@@ -1,4 +1,4 @@
-use crate::auth::{AdminUser, AuthenticatedUser};
+use crate::auth::{AdminUser, NonBannedUser};
 use crate::{
     constants::MAX_POST_CONTENT_LENGTH,
     repositories::{
@@ -28,10 +28,10 @@ struct TempImageField {
 pub async fn create_post_handler(
     State(state): State<AppState>,
     Path(thread_id): Path<Uuid>,
-    user: AuthenticatedUser,
+    user: NonBannedUser,
     mut multipart: Multipart,
 ) -> Response {
-    let author_id = user.0;
+    let author_id = user.0 .0;
 
     let mut collected_content: Option<String> = None;
     let mut collected_quote_of: Option<Uuid> = None;
@@ -378,13 +378,13 @@ pub async fn list_posts_in_thread_handler(
 pub async fn update_post_handler(
     State(state): State<AppState>,
     Path(post_id): Path<Uuid>,
-    user: AuthenticatedUser,
+    user: NonBannedUser,
     Json(payload): Json<UpdatePostPayload>,
 ) -> Response {
     match post_repository::get_post_by_id(&state.db_pool, post_id).await {
         Ok(Some(post_to_update)) => {
-            if post_to_update.author_id != user.0 {
-                warn!(post_id = %post_id, user_pubkey = ?user.0, actual_author = ?post_to_update.author_id, "User attempted to update post they did not create");
+            if post_to_update.author_id != user.0 .0 {
+                warn!(post_id = %post_id, user_pubkey = ?user.0.0, actual_author = ?post_to_update.author_id, "User attempted to update post they did not create");
                 return (StatusCode::FORBIDDEN, "Permission denied").into_response();
             }
 
@@ -438,7 +438,7 @@ pub async fn delete_post_handler(
     State(state): State<AppState>,
     Path(post_id): Path<Uuid>,
     admin_user: Option<AdminUser>,
-    auth_user: Option<AuthenticatedUser>,
+    auth_user: Option<NonBannedUser>,
 ) -> Response {
     let is_admin = admin_user.is_some();
     let mut requesting_user_pubkey: Option<Vec<u8>> = None;
@@ -446,7 +446,7 @@ pub async fn delete_post_handler(
     if !is_admin {
         match auth_user {
             Some(user) => {
-                requesting_user_pubkey = Some(user.0);
+                requesting_user_pubkey = Some(user.0 .0);
             }
             None => {
                 warn!(post_id = %post_id, "Unauthenticated attempt to delete post");
@@ -560,10 +560,10 @@ pub struct LinkPolycentricPayload {
 pub async fn link_polycentric_post_handler(
     State(state): State<AppState>,
     Path(post_id): Path<Uuid>,
-    user: AuthenticatedUser,
+    user: NonBannedUser,
     Json(payload): Json<LinkPolycentricPayload>,
 ) -> Response {
-    let user_pubkey = user.0;
+    let user_pubkey = user.0 .0;
 
     match post_repository::get_post_author(&state.db_pool, post_id).await {
         Ok(Some(author_id)) => {
