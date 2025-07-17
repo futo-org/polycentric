@@ -188,9 +188,10 @@ build-forum-server:
     - ./version.sh
     - cd forum_server
     - echo "Setting up database for SQLx compilation"
-    - cargo install sqlx-cli --version 0.7.4 --no-default-features --features rustls,postgres
-    - sqlx database create --database-url $DATABASE_URL || true
-    - sqlx migrate run --database-url $DATABASE_URL
+    - apt-get update && apt-get install -y postgresql-client
+    - createdb -h postgres -U postgres forum_db || true
+    - psql -h postgres -U postgres -d forum_db -f migrations/20250515000001_consolidated_schema.sql
+    - psql -h postgres -U postgres -d forum_db -f migrations/20250116000000_add_banned_users.sql
     - echo "Building forum server binary"
     - cargo build --locked
     - echo "Building test binary"
