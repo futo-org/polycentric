@@ -327,6 +327,13 @@ lint-server:
 
 lint-forum-server: 
   stage: lint
+  services:
+    - name: $POSTGRES_IMAGE
+      alias: postgres
+  variables:
+    DATABASE_URL: "postgres://postgres:testing@postgres/forum_db"
+    POSTGRES_PASSWORD: "testing"
+    PGPASSWORD: "testing"
   cache: 
     - <<: *rust-cache-config
     - <<: *forum-server-cache-config
@@ -335,6 +342,12 @@ lint-forum-server:
   script: 
     - ./version.sh
     - cd forum_server
+    - echo "Setting up database for SQLx compilation"
+    - apt-get update && apt-get install -y postgresql-client
+    - createdb -h postgres -U postgres forum_db || true
+    - psql -h postgres -U postgres -d forum_db -f migrations/20250515000001_consolidated_schema.sql
+    - psql -h postgres -U postgres -d forum_db -f migrations/20250116000000_add_banned_users.sql
+    - echo "Running clippy linting"
     - cargo-clippy --no-deps --locked -- -D warnings
   needs: ["build-forum-server"]
 
