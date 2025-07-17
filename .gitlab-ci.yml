@@ -188,7 +188,7 @@ build-forum-server:
     - ./version.sh
     - cd forum_server
     - echo "Setting up database for SQLx compilation"
-    - cargo install sqlx-cli --no-default-features --features rustls,postgres
+    - cargo install sqlx-cli --version 0.7.4 --no-default-features --features rustls,postgres
     - sqlx database create --database-url $DATABASE_URL || true
     - sqlx migrate run --database-url $DATABASE_URL
     - echo "Building forum server binary"
