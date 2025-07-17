@@ -173,6 +173,12 @@ build-server:
 
 build-forum-server:
   stage: build
+  services:
+    - name: $POSTGRES_IMAGE
+      alias: postgres
+  variables:
+    DATABASE_URL: "postgres://postgres:testing@postgres/forum_db"
+    POSTGRES_PASSWORD: "testing"
   cache: 
    - <<: *rust-cache-config
    - <<: *forum-server-cache-config
@@ -181,6 +187,10 @@ build-forum-server:
   script:
     - ./version.sh
     - cd forum_server
+    - echo "Setting up database for SQLx compilation"
+    - cargo install sqlx-cli --no-default-features --features rustls,postgres
+    - sqlx database create --database-url $DATABASE_URL || true
+    - sqlx migrate run --database-url $DATABASE_URL
     - echo "Building forum server binary"
     - cargo build --locked
     - echo "Building test binary"
@@ -320,6 +330,7 @@ lint-forum-server:
   stage: lint
   cache: 
     - <<: *rust-cache-config
+    - <<: *forum-server-cache-config
     - <<: *rust-cache-build-config
       key: ${CI_COMMIT_REF_SLUG}-rs-lint
   script: 
