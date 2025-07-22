@@ -3,8 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-// Placeholder for Polycentric ID
-type PolycentricId = Vec<u8>;
+use crate::models::PolycentricId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct ForumUser {

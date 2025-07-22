@@ -8,6 +8,7 @@ use crate::{
     utils::PaginationParams,
     AppState,
 };
+use axum::body::Bytes;
 use axum::{
     extract::{Multipart, Path, Query, State},
     http::StatusCode,
@@ -22,7 +23,7 @@ use uuid::Uuid;
 #[derive(Debug)]
 struct TempImageField {
     filename: Option<String>,
-    data: Vec<u8>,
+    data: Bytes,
 }
 
 pub async fn create_post_handler(
@@ -121,10 +122,7 @@ pub async fn create_post_handler(
                                     )
                                         .into_response();
                                 }
-                                collected_images.push(TempImageField {
-                                    filename,
-                                    data: data.to_vec(),
-                                });
+                                collected_images.push(TempImageField { filename, data });
                             }
                             Err(e) => {
                                 return (
@@ -328,7 +326,7 @@ pub async fn create_post_handler(
             let filename_for_log = image_field.filename.clone();
             match state
                 .image_storage
-                .save_image(image_field.data.into(), image_field.filename)
+                .save_image(image_field.data, image_field.filename)
                 .await
             {
                 Ok(url) => image_urls.push(url),

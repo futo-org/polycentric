@@ -7,8 +7,7 @@ use std::collections::HashMap;
 use tracing::debug;
 use uuid::Uuid;
 
-// Placeholder for Polycentric ID
-type PolycentricId = Vec<u8>;
+use crate::models::PolycentricId;
 
 // Input data for creating a new post
 #[derive(serde::Deserialize)]
@@ -42,8 +41,8 @@ struct PostBaseData {
     created_at: chrono::DateTime<chrono::Utc>,
     quote_of: Option<Uuid>,
     // --- Added new fields ---
-    polycentric_system_id: Option<Vec<u8>>,
-    polycentric_process_id: Option<Vec<u8>>,
+    polycentric_system_id: Option<PolycentricId>,
+    polycentric_process_id: Option<PolycentricId>,
     polycentric_log_seq: Option<i64>,
 }
 
@@ -300,7 +299,10 @@ pub async fn delete_post(pool: &PgPool, post_id: Uuid) -> Result<u64, sqlx::Erro
 }
 
 // --- Add missing function ---
-pub async fn get_post_author(pool: &PgPool, post_id: Uuid) -> Result<Option<Vec<u8>>, sqlx::Error> {
+pub async fn get_post_author(
+    pool: &PgPool,
+    post_id: Uuid,
+) -> Result<Option<PolycentricId>, sqlx::Error> {
     let result = sqlx::query!(r#"SELECT author_id FROM posts WHERE id = $1"#, post_id)
         .fetch_optional(pool)
         .await?;
@@ -311,8 +313,8 @@ pub async fn get_post_author(pool: &PgPool, post_id: Uuid) -> Result<Option<Vec<
 pub async fn update_polycentric_pointers(
     pool: &PgPool,
     post_id: Uuid,
-    system_id: Vec<u8>,
-    process_id: Vec<u8>,
+    system_id: PolycentricId,
+    process_id: PolycentricId,
     log_seq: i64,
 ) -> Result<u64, sqlx::Error> {
     let result = sqlx::query!(

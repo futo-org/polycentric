@@ -2,7 +2,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-type PolycentricId = Vec<u8>;
+/// Alias for a Polycentric identifier (public key bytes)
+pub type PolycentricId = Vec<u8>;
 
 /// Represents a top-level category in the forum.
 #[derive(Serialize, Deserialize, Debug, Clone, sqlx::FromRow)]
@@ -55,8 +56,8 @@ pub struct Post {
     pub quote_of: Option<Uuid>,
     #[serde(default)]
     pub images: Vec<PostImage>,
-    pub polycentric_system_id: Option<Vec<u8>>,
-    pub polycentric_process_id: Option<Vec<u8>>,
+    pub polycentric_system_id: Option<PolycentricId>,
+    pub polycentric_process_id: Option<PolycentricId>,
     pub polycentric_log_seq: Option<i64>,
 }
 

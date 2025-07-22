@@ -3,8 +3,7 @@ use crate::utils::PaginationParams;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-// Placeholder for Polycentric ID - replace with actual type if needed
-type PolycentricId = Vec<u8>;
+use crate::models::PolycentricId;
 
 // Input data for creating a new thread
 #[derive(serde::Deserialize)]
@@ -213,7 +212,7 @@ pub async fn delete_thread(pool: &PgPool, thread_id: Uuid) -> Result<u64, sqlx::
 pub async fn get_thread_author(
     pool: &PgPool,
     thread_id: Uuid,
-) -> Result<Option<Vec<u8>>, sqlx::Error> {
+) -> Result<Option<PolycentricId>, sqlx::Error> {
     let result = sqlx::query!(r#"SELECT created_by FROM threads WHERE id = $1"#, thread_id)
         .fetch_optional(pool)
         .await?;
