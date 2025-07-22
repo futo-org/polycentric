@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use forum_server::config::ForumServerConfig;
 use forum_server::create_router;
 
 #[tokio::main]
@@ -74,6 +75,13 @@ async fn main() {
     }
     let admin_pubkeys_arc = Arc::new(admin_pubkeys_set);
 
+    // Load server configuration
+    let server_name =
+        std::env::var("FORUM_SERVER_NAME").unwrap_or_else(|_| "Default Forum Name".to_string());
+    let server_image_url = std::env::var("FORUM_SERVER_IMAGE_URL").ok();
+
+    let config = ForumServerConfig::new(server_name, server_image_url);
+
     // DEBUG: Print loaded admin pubkeys in base64
     println!(
         "Loaded admin pubkeys: {:?}",
@@ -89,6 +97,7 @@ async fn main() {
         image_base_url,
         admin_pubkeys_arc,
         image_uploads_enabled,
+        config,
     );
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));

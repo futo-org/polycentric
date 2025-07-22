@@ -368,6 +368,8 @@ mod tests {
             image_storage: crate::storage::LocalImageStorage::new(".".into(), "/images".into()),
             challenge_store: ChallengeStore::new(),
             admin_pubkeys,
+            image_uploads_enabled: false,
+            config: crate::config::ForumServerConfig::new("Test Forum".into(), None),
         }
     }
 

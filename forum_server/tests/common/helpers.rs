@@ -43,7 +43,17 @@ pub async fn create_test_app(pool: PgPool, admin_keys: Option<Vec<Vec<u8>>>) -> 
     let admin_pubkeys_set: HashSet<Vec<u8>> = admin_keys.unwrap_or_default().into_iter().collect();
     let admin_pubkeys_arc = Arc::new(admin_pubkeys_set);
 
-    create_router(pool, test_upload_dir, test_base_url, admin_pubkeys_arc)
+    // Provide simple server config for tests
+    let config = forum_server::config::ForumServerConfig::new("Test Forum".to_string(), None);
+
+    create_router(
+        pool,
+        test_upload_dir,
+        test_base_url,
+        admin_pubkeys_arc,
+        false, // image uploads disabled in tests by default
+        config,
+    )
 }
 
 // Updated helper to require admin keypair for auth

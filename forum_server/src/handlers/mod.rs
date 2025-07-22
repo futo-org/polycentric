@@ -8,7 +8,6 @@ pub mod user_handlers;
 use crate::AppState;
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::Serialize;
-use std::env;
 
 #[derive(Serialize)]
 pub struct ServerInfoResponse {
@@ -20,13 +19,9 @@ pub struct ServerInfoResponse {
 }
 
 pub async fn get_server_info_handler(State(state): State<AppState>) -> impl IntoResponse {
-    let server_name =
-        env::var("FORUM_SERVER_NAME").unwrap_or_else(|_| "Default Forum Name".to_string());
-    let image_url = env::var("FORUM_SERVER_IMAGE_URL").ok();
-
     let response = ServerInfoResponse {
-        name: server_name,
-        image_url,
+        name: state.config.name.clone(),
+        image_url: state.config.image_url.clone(),
         image_uploads_enabled: state.image_uploads_enabled,
     };
 
