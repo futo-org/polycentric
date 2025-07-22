@@ -278,7 +278,7 @@ export const ForumBoardPage: React.FC = () => {
 
       const formData = new FormData();
       formData.append('title', newThreadTitle.trim());
-      
+
       const urlRegex =
         /https?:\/\/\S+?(?:\.png|\.jpe?g|\.gif|\.webp|\.bmp|\.svg)(?:\?[^\s]*)?/gi;
       const cleanedBody = newThreadBody.replace(urlRegex, '').trim();

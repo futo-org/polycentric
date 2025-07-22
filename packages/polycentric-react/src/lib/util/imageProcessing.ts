@@ -182,7 +182,6 @@ export async function cropImageToBlob(
   width: number,
   height: number,
 ): Promise<Blob> {
-  
   const croppedBitmap = await createImageBitmap(image, x, y, width, height);
 
   const canvas = document.createElement('canvas');
