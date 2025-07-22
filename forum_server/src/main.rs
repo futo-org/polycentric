@@ -28,6 +28,13 @@ async fn main() {
         .await
         .expect("Failed to create image upload directory");
 
+    let image_uploads_enabled = std::env::var("ENABLE_FORUM_IMAGE_UPLOADS")
+        .map(|v| {
+            let v_lower = v.to_lowercase();
+            v_lower == "1" || v_lower == "true" || v_lower == "yes"
+        })
+        .unwrap_or(false);
+
     let admin_pubkeys_str = std::env::var("ADMIN_PUBKEYS")
         .expect("ADMIN_PUBKEYS environment variable must be set (comma-separated base64)");
 
@@ -81,6 +88,7 @@ async fn main() {
         image_upload_dir.clone(),
         image_base_url,
         admin_pubkeys_arc,
+        image_uploads_enabled,
     );
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));

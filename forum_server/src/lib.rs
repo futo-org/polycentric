@@ -51,6 +51,8 @@ pub struct AppState {
     pub image_storage: LocalImageStorage,
     pub challenge_store: ChallengeStore,
     pub admin_pubkeys: Arc<HashSet<Vec<u8>>>,
+    /// Whether binary image uploads to the forum are allowed. Controlled by ENABLE_FORUM_IMAGE_UPLOADS env var.
+    pub image_uploads_enabled: bool,
 }
 
 pub fn create_router(
@@ -58,6 +60,7 @@ pub fn create_router(
     image_upload_dir: String,
     image_base_url: String,
     admin_pubkeys: Arc<HashSet<Vec<u8>>>,
+    image_uploads_enabled: bool,
 ) -> Router {
     let image_storage = LocalImageStorage::new(image_upload_dir.clone(), image_base_url.clone());
 
@@ -68,6 +71,7 @@ pub fn create_router(
         image_storage: image_storage.clone(),
         challenge_store,
         admin_pubkeys,
+        image_uploads_enabled,
     };
 
     let static_assets_dir = PathBuf::from("/app/static/images");

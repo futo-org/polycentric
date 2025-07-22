@@ -165,6 +165,7 @@ services:
             DATABASE_URL: "postgres://postgres:testing@postgres/forum_db"
             RUST_LOG: "forum_server=debug,actix_web=info,sqlx=warn"
             PORT: "3000"
+            ENABLE_FORUM_IMAGE_UPLOADS: false
             IMAGE_UPLOAD_DIR: "/usr/src/forum_server/uploads/images"
             IMAGE_BASE_URL: "/static/images"
             ADMIN_PUBKEYS: "eqtnYandiIQ2ZDRsbOr/SZzwJfzxfllZwyKr8v1ioWc="

@@ -102,7 +102,19 @@ pub async fn create_thread_with_initial_post(
     .id;
 
     // 3. Insert images for the post if provided
-    // ... existing image insert logic ...
+    if let Some(image_urls) = &data.images {
+        if !image_urls.is_empty() {
+            let mut query_builder: sqlx::QueryBuilder<sqlx::Postgres> =
+                sqlx::QueryBuilder::new("INSERT INTO post_images (post_id, image_url) ");
+
+            query_builder.push_values(image_urls.iter(), |mut b, url| {
+                b.push_bind(new_post_id).push_bind(url);
+            });
+
+            let query = query_builder.build();
+            query.execute(&mut *tx).await?;
+        }
+    }
 
     // Commit transaction
     tx.commit().await?;

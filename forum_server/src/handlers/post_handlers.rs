@@ -36,6 +36,7 @@ pub async fn create_post_handler(
     let mut collected_content: Option<String> = None;
     let mut collected_quote_of: Option<Uuid> = None;
     let mut collected_images: Vec<TempImageField> = Vec::new();
+    let mut collected_image_urls: Vec<String> = Vec::new();
     let mut collected_poly_system_id_b64: Option<String> = None;
     let mut collected_poly_process_id_b64: Option<String> = None;
     let mut collected_poly_log_seq_str: Option<String> = None;
@@ -95,7 +96,9 @@ pub async fn create_post_handler(
                         }
                     },
                     "image" => {
-                        if collected_images.len() >= MAX_IMAGES_PER_POST {
+                        if collected_images.len() + collected_image_urls.len()
+                            >= MAX_IMAGES_PER_POST
+                        {
                             return (
                                 StatusCode::BAD_REQUEST,
                                 format!(
@@ -132,6 +135,33 @@ pub async fn create_post_handler(
                             }
                         }
                     }
+                    "image_url" => match field.text().await {
+                        Ok(text) => {
+                            if collected_images.len() + collected_image_urls.len()
+                                >= MAX_IMAGES_PER_POST
+                            {
+                                return (
+                                    StatusCode::BAD_REQUEST,
+                                    format!(
+                                        "Exceeded maximum number of images ({})",
+                                        MAX_IMAGES_PER_POST
+                                    ),
+                                )
+                                    .into_response();
+                            }
+                            let trimmed = text.trim();
+                            if !trimmed.is_empty() {
+                                collected_image_urls.push(trimmed.to_string());
+                            }
+                        }
+                        Err(e) => {
+                            return (
+                                StatusCode::BAD_REQUEST,
+                                format!("Failed to read image_url field: {}", e),
+                            )
+                                .into_response();
+                        }
+                    },
                     "polycentric_system_id" => match field.text().await {
                         Ok(text) => collected_poly_system_id_b64 = Some(text),
                         Err(e) => {
@@ -283,18 +313,30 @@ pub async fn create_post_handler(
         }
     }
 
-    let mut image_urls: Vec<String> = Vec::new();
-    for image_field in collected_images {
-        let filename_for_log = image_field.filename.clone();
-        match state
-            .image_storage
-            .save_image(image_field.data.into(), image_field.filename)
-            .await
-        {
-            Ok(url) => image_urls.push(url),
-            Err(e) => {
-                error!(error = %e, filename = ?filename_for_log, "Failed to save image during post creation");
-                return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to save image").into_response();
+    let mut image_urls: Vec<String> = collected_image_urls.clone();
+
+    if !state.image_uploads_enabled && !collected_images.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            "Forum image uploads are disabled on this server. Please provide image_url fields instead.",
+        )
+            .into_response();
+    }
+
+    if state.image_uploads_enabled {
+        for image_field in collected_images {
+            let filename_for_log = image_field.filename.clone();
+            match state
+                .image_storage
+                .save_image(image_field.data.into(), image_field.filename)
+                .await
+            {
+                Ok(url) => image_urls.push(url),
+                Err(e) => {
+                    error!(error = %e, filename = ?filename_for_log, "Failed to save image during post creation");
+                    return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to save image")
+                        .into_response();
+                }
             }
         }
     }

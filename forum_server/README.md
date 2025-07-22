@@ -254,3 +254,35 @@ Combine this with Caddy/Nginx as described above to provide HTTPS.
 Congratulations – your self-hosted forum is live!
 
 > **Need help?**  Open an issue or join the Polycentric community chat. 
+
+## Image Uploads & Embedding
+
+### Local binary uploads (optional)
+
+The forum can **optionally** accept binary image uploads that are stored on the server’s filesystem and served from `/uploads/images`.
+
+1.  Set `IMAGE_UPLOAD_DIR` and `IMAGE_BASE_URL` as before.
+2.  Set `ENABLE_FORUM_IMAGE_UPLOADS=true` (or `1`/`yes`) **only if you are willing to host user-supplied images and accept the legal/moderation responsibility**.
+
+If the flag is unset/false (the default):
+
+*  The `image` multipart field is **rejected** with HTTP 400.
+*  Clients may instead pass one or more repeatable `image_url` fields containing absolute URLs or data-URLs. These are stored in `post_images` and displayed inline.
+
+### Remote image embedding (recommended)
+
+When uploads are disabled, clients are expected to:
+
+1.  Parse image links in the user’s post body.
+2.  Send each link as an `image_url` field along with the cleaned body.
+
+The link text itself is removed before storage, so forum readers only see the rendered image.
+
+### Cross-posting with Polycentric
+
+Polycentric clients now:
+
+*  Publish attached images as Polycentric blobs (handled & moderated by Polycentric).
+*  Pass the gateway URL back to the forum via `image_url`, so the forum embeds the same blob instead of hosting a copy.
+
+This keeps liability with Polycentric while allowing rich media in the forum. 

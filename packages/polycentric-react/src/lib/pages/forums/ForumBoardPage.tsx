@@ -23,6 +23,11 @@ import { useParams } from '../../hooks/stackRouterHooks';
 import { useAuthHeaders } from '../../hooks/useAuthHeaders';
 import { useIsAdmin } from '../../hooks/useIsAdmin';
 import { useIsBanned } from '../../hooks/useIsBanned';
+import { useServerInfo } from '../../hooks/useServerInfo';
+import {
+  fetchImageFromUrlToFile,
+  publishImageBlob,
+} from '../../util/imageProcessing';
 
 interface ForumBoard {
   id: string;
@@ -78,6 +83,9 @@ export const ForumBoardPage: React.FC = () => {
   const serverUrl = encodedServerUrl
     ? decodeURIComponent(encodedServerUrl)
     : null;
+
+  const { serverInfo } = useServerInfo(serverUrl);
+  const uploadsEnabled = serverInfo?.imageUploadsEnabled ?? false;
 
   const {
     isAdmin,
@@ -270,9 +278,24 @@ export const ForumBoardPage: React.FC = () => {
 
       const formData = new FormData();
       formData.append('title', newThreadTitle.trim());
-      formData.append('content', newThreadBody.trim());
-      if (newThreadImage) {
+      
+      const urlRegex =
+        /https?:\/\/\S+?(?:\.png|\.jpe?g|\.gif|\.webp|\.bmp|\.svg)(?:\?[^\s]*)?/gi;
+      const cleanedBody = newThreadBody.replace(urlRegex, '').trim();
+      formData.append('content', cleanedBody);
+      if (newThreadImage && uploadsEnabled) {
         formData.append('image', newThreadImage, newThreadImage.name);
+      } else if (newThreadImage && !uploadsEnabled) {
+        const fileReader = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(newThreadImage);
+        });
+        formData.append('image_url', fileReader);
+      } else if (!uploadsEnabled) {
+        const matches = newThreadBody.match(urlRegex) || [];
+        matches.forEach((url) => formData.append('image_url', url));
       }
 
       if (polycentricSystemId && polycentricProcessId && polycentricLogSeq) {
@@ -313,14 +336,34 @@ export const ForumBoardPage: React.FC = () => {
         try {
           const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${newForumThreadId}`;
           let polycentricContent = '';
+          let imageBundle;
+
+          const urlRegex =
+            /https?:\/\/\S+?(?:\.png|\.jpe?g|\.gif|\.webp|\.bmp|\.svg)(?:\?[^\s]*)?/gi;
+          const matches = newThreadBody.match(urlRegex) || [];
+
+          if (newThreadImage) {
+            imageBundle = await publishImageBlob(newThreadImage, processHandle);
+          } else if (!newThreadImage) {
+            const firstRemote = matches[0];
+            if (firstRemote) {
+              const remoteFile = await fetchImageFromUrlToFile(firstRemote);
+              if (remoteFile) {
+                imageBundle = await publishImageBlob(remoteFile, processHandle);
+              }
+            }
+          }
+
           if (polycentricSystemId) {
             polycentricContent = `Started new forum thread: ${newThreadTitle.trim()}\n\n[View on Forum](${forumLinkPath})`;
           } else {
-            polycentricContent = `${newThreadTitle.trim()}\n\n${newThreadBody.trim()}\n\n[View on Forum](${forumLinkPath})`;
+            polycentricContent = `${newThreadTitle.trim()}\n\n${cleanedBody}\n\n[View on Forum](${forumLinkPath})`;
           }
 
-          const signedEventResult =
-            await processHandle.post(polycentricContent);
+          const signedEventResult = await processHandle.post(
+            polycentricContent,
+            imageBundle,
+          );
           if (signedEventResult) {
             polycentricPostPointer = signedEventResult;
           } else {
@@ -664,7 +707,7 @@ export const ForumBoardPage: React.FC = () => {
                 </div>
 
                 <div className="flex justify-between items-center pt-2">
-                  <div>
+                  {(uploadsEnabled || postToProfile) && (
                     <button
                       type="button"
                       onClick={() => imageInputRef.current?.click()}
@@ -673,6 +716,8 @@ export const ForumBoardPage: React.FC = () => {
                     >
                       <PhotoIcon className="w-7 h-7" />
                     </button>
+                  )}
+                  {(uploadsEnabled || postToProfile) && (
                     <input
                       type="file"
                       className="hidden"
@@ -686,7 +731,7 @@ export const ForumBoardPage: React.FC = () => {
                         }
                       }}
                     />
-                  </div>
+                  )}
                   <div className="flex space-x-3">
                     <button
                       onClick={handleCancelCompose}

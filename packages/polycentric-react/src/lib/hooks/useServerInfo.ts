@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 interface ServerInfo {
   name: string;
   imageUrl?: string | null; // Optional image URL
+  imageUploadsEnabled?: boolean;
 }
 
 interface UseServerInfoResult {

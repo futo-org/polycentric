@@ -32,6 +32,11 @@ import { useParams } from '../../hooks/stackRouterHooks';
 import { useAuthHeaders } from '../../hooks/useAuthHeaders';
 import { useIsAdmin } from '../../hooks/useIsAdmin';
 import { useIsBanned } from '../../hooks/useIsBanned';
+import { useServerInfo } from '../../hooks/useServerInfo';
+import {
+  fetchImageFromUrlToFile,
+  publishImageBlob,
+} from '../../util/imageProcessing';
 
 interface QuotedPostSectionProps {
   quotedPost: ForumPost;
@@ -52,7 +57,6 @@ const QuotedPostSection: React.FC<QuotedPostSectionProps> = ({
     string | undefined
   >(undefined);
 
-  // Update the stable link for quoted author when available
   useEffect(() => {
     if (
       quotedAuthorGeneratedLink &&
@@ -150,8 +154,7 @@ const PostItem: React.FC<PostItemProps> = ({
   const username = useUsernameCRDTQuery(authorPublicKey) || 'User';
   const shortPublicKey = useTextPublicKey(authorPublicKey, 10);
   const postTime = new Date(post.created_at).toLocaleString();
-  const postImage =
-    post.images && post.images.length > 0 ? post.images[0] : null;
+  const postImages = post.images ?? [];
 
   let displayContent = post.content;
   if (quotedPost) {
@@ -162,6 +165,17 @@ const PostItem: React.FC<PostItemProps> = ({
     if (post.content.startsWith(quotePrefixPattern)) {
       displayContent = post.content.substring(quotePrefixPattern.length);
     }
+  }
+
+  if (postImages.length > 0) {
+    const escapeRegExp = (s: string) =>
+      s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    postImages.forEach((img) => {
+      const escaped = escapeRegExp(img.image_url);
+      const regex = new RegExp(escaped, 'g');
+      displayContent = displayContent.replace(regex, '');
+    });
+    displayContent = displayContent.trim();
   }
 
   const isAuthor =
@@ -215,17 +229,23 @@ const PostItem: React.FC<PostItemProps> = ({
         <div className="prose max-w-none mb-3">
           <Linkify as="span" className="" content={displayContent} />
         </div>
-        {postImage && (
-          <div className="my-3">
-            <img
-              src={
-                serverUrl
-                  ? `${serverUrl}${postImage.image_url}`
-                  : postImage.image_url
-              }
-              alt={`Image for post ${post.id}`}
-              className="max-w-full h-auto rounded-md border border-gray-200"
-            />
+        {postImages.length > 0 && (
+          <div className="my-3 space-y-3">
+            {postImages.map((img) => (
+              <img
+                key={img.id}
+                src={
+                  img.image_url.startsWith('http') ||
+                  img.image_url.startsWith('data:')
+                    ? img.image_url
+                    : serverUrl
+                      ? `${serverUrl}${img.image_url}`
+                      : img.image_url
+                }
+                alt={`Image for post ${post.id}`}
+                className="max-w-full h-auto rounded-md border border-gray-200"
+              />
+            ))}
           </div>
         )}
         <div className="flex justify-end items-center space-x-3 pt-2 border-t border-gray-100 mt-3">
@@ -289,6 +309,9 @@ export const ForumThreadPage: React.FC = () => {
   const serverUrl = encodedServerUrl
     ? decodeURIComponent(encodedServerUrl)
     : null;
+
+  const { serverInfo } = useServerInfo(serverUrl);
+  const uploadsEnabled = serverInfo?.imageUploadsEnabled ?? false;
 
   const {
     isAdmin,
@@ -463,10 +486,27 @@ export const ForumThreadPage: React.FC = () => {
         'X-Polycentric-Challenge-ID': challenge_id,
       };
 
+      const urlRegex =
+        /https?:\/\/\S+?(?:\.png|\.jpe?g|\.gif|\.webp|\.bmp|\.svg)(?:\?[^\s]*)?/gi;
+      const cleanedBody = newPostBody.replace(urlRegex, '').trim();
       const formData = new FormData();
-      formData.append('content', newPostBody.trim());
-      if (newPostImage)
+      formData.append('content', cleanedBody);
+      if (newPostImage && uploadsEnabled) {
         formData.append('image', newPostImage, newPostImage.name);
+      } else if (newPostImage && !uploadsEnabled) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(newPostImage);
+        });
+        formData.append('image_url', dataUrl);
+      } else if (!uploadsEnabled) {
+        const urlRegex =
+          /https?:\/\/\S+?(?:\.png|\.jpe?g|\.gif|\.webp|\.bmp|\.svg)(?:\?[^\s]*)?/gi;
+        const matches = newPostBody.match(urlRegex) || [];
+        matches.forEach((url) => formData.append('image_url', url));
+      }
       if (quotingPost) formData.append('quote_of', quotingPost.id);
       if (polycentricSystemId && polycentricProcessId && polycentricLogSeq) {
         const logSeqValue: Long = polycentricLogSeq;
@@ -497,7 +537,7 @@ export const ForumThreadPage: React.FC = () => {
       }
 
       const newForumPost: ForumPost = await createRes.json();
-      forumPostId = newForumPost.id; // Store the ID
+      forumPostId = newForumPost.id;
 
       if (postToProfile) {
         let polycentricPostPointer: Models.Pointer.Pointer | undefined =
@@ -514,11 +554,32 @@ export const ForumThreadPage: React.FC = () => {
               .join('\n');
             polycentricContent = `${quotedTextFormatted}\n\n${replyText}\n\n${linkText}`;
           } else {
-            polycentricContent = `${replyText}\n\n${linkText}`;
+            polycentricContent = `${cleanedBody}\n\n[View on Forum](${forumLinkPath})`;
           }
 
-          const signedEventResult =
-            await processHandle.post(polycentricContent);
+          let imageBundle;
+          if (newPostImage) {
+            imageBundle = await publishImageBlob(newPostImage, processHandle);
+          } else {
+            const urlRegex =
+              /https?:\/\/\S+?(?:\.png|\.jpe?g|\.gif|\.webp|\.bmp|\.svg)(?:\?[^\s]*)?/gi;
+            const matches = newPostBody.match(urlRegex) || [];
+            const firstRemote = matches[0];
+            if (firstRemote) {
+              const remoteFile = await fetchImageFromUrlToFile(firstRemote);
+              if (remoteFile)
+                imageBundle = await publishImageBlob(remoteFile, processHandle);
+            }
+          }
+
+          if (polycentricSystemId) {
+            polycentricContent = `Replied to a forum thread\n\n[View on Forum](${forumLinkPath})`;
+          }
+
+          const signedEventResult = await processHandle.post(
+            polycentricContent,
+            imageBundle,
+          );
 
           if (signedEventResult) {
             polycentricPostPointer = signedEventResult;
@@ -976,27 +1037,31 @@ export const ForumThreadPage: React.FC = () => {
 
                     <div className="flex justify-between items-center pt-2">
                       <div>
-                        <button
-                          type="button"
-                          onClick={() => imageInputRef.current?.click()}
-                          className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50"
-                          disabled={isBusy || !!newPostImage}
-                        >
-                          <PhotoIcon className="w-7 h-7" />
-                        </button>
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept="image/*"
-                          ref={imageInputRef}
-                          onChange={(e) => {
-                            const { files } = e.target;
-                            if (files !== null && files.length > 0) {
-                              setNewPostImage(files[0]);
-                              e.target.value = '';
-                            }
-                          }}
-                        />
+                        {(uploadsEnabled || postToProfile) && (
+                          <button
+                            type="button"
+                            onClick={() => imageInputRef.current?.click()}
+                            className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                            disabled={isBusy || !!newPostImage}
+                          >
+                            <PhotoIcon className="w-7 h-7" />
+                          </button>
+                        )}
+                        {(uploadsEnabled || postToProfile) && (
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            ref={imageInputRef}
+                            onChange={(e) => {
+                              const { files } = e.target;
+                              if (files !== null && files.length > 0) {
+                                setNewPostImage(files[0]);
+                                e.target.value = '';
+                              }
+                            }}
+                          />
+                        )}
                       </div>
                       <div className="flex space-x-3">
                         <button
