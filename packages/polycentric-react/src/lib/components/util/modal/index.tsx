@@ -1,5 +1,6 @@
+import { App as CapacitorApp } from '@capacitor/app';
 import { Dialog, Transition } from '@headlessui/react';
-import { Fragment } from 'react';
+import { Fragment, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useGestureWall } from '../../../hooks/ionicHooks';
 import { useIsMobile } from '../../../hooks/styleHooks';
@@ -33,6 +34,21 @@ export const Modal = ({
 }): JSX.Element => {
   const isMobile = useIsMobile('md');
   useGestureWall(open);
+
+  // Handle Android hardware back button so it behaves like tapping the "X".
+  // This improves UX on mobile where the default action is to exit the app.
+  useEffect(() => {
+    if (!open) return;
+
+    const handler = CapacitorApp.addListener('backButton', () => {
+      setOpen(false);
+    });
+
+    return () => {
+      // The handler object has a remove method to detach the listener
+      handler.remove();
+    };
+  }, [open, setOpen]);
 
   if (isMobile) {
     const modalContent = (
@@ -75,7 +91,10 @@ export const Modal = ({
               </button>
             </div>
 
-            <div className="flex flex-col flex-grow px-7 overflow-hidden">
+            <div
+              className="flex flex-col flex-grow px-7 overflow-y-auto"
+              data-scrollable
+            >
               {children}
             </div>
           </Transition.Child>

@@ -14,6 +14,12 @@ export const useGestureWall = (enabled = true) => {
         gestureName: 'gesture-wall',
         gesturePriority: 10000,
         onMove: (e: GestureDetail) => {
+          const target = e.event.target as HTMLElement | null;
+
+          if (target?.closest('textarea, input, [data-scrollable]')) {
+            return;
+          }
+
           e.event.preventDefault();
         },
       });
