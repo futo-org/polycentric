@@ -1,6 +1,11 @@
 import { Onboarding } from '../components';
 import { OAuthCallback } from '../components/oauth/callback';
 import { FollowingFeed } from '../pages/following';
+import { AdminPanelPage } from '../pages/forums/admin/AdminPanelPage';
+import { ForumBoardPage } from '../pages/forums/ForumBoardPage';
+import { ForumCategoryListPage } from '../pages/forums/ForumCategoryListPage';
+import { ForumServerListPage } from '../pages/forums/ForumServerListPage';
+import { ForumThreadPage } from '../pages/forums/ForumThreadPage';
 import { HomeFeedPage } from '../pages/homefeed';
 import { PostFeedPage } from '../pages/postfeed';
 import { SearchPage } from '../pages/search';
@@ -20,5 +25,15 @@ export const routes: RouteData = {
   '/settings': { component: SettingsPage },
   '/add-account': { component: Onboarding },
   '/following': { component: FollowingFeed },
+  '/forums': { component: ForumServerListPage },
+  '/forums/:serverUrl': { component: ForumCategoryListPage },
+  '/forums/:serverUrl/:categoryId/:boardId': { component: ForumBoardPage },
+  '/forums/:serverUrl/:categoryId/:boardId/:threadId': {
+    component: ForumThreadPage,
+  },
+  '/forums/:serverUrl/:categoryId/:boardId/:threadId/:postId': {
+    component: ForumThreadPage,
+  },
   '/oauth/callback': { component: OAuthCallback },
+  '/admin/*': { component: AdminPanelPage },
 };

@@ -59,6 +59,14 @@ const ServerListTableRow = ({
         return;
       }
 
+      // Allow localhost without version check
+      const isLocalhost = /^(https?:\/\/)?localhost(:\d+)?$/.test(inputValue);
+      if (isLocalhost) {
+        setIsValidServer(true);
+        setIsValidating(false);
+        return;
+      }
+
       setIsValidating(true);
       setIsValidServer(false);
 

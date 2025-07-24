@@ -28,6 +28,9 @@
   },
   "dependencies": {
     "@borderless/base64": "^1.0.1",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@fontsource-variable/public-sans": "^5.0.9",
     "@fontsource/fragment-mono": "^5.0.5",
     "@fontsource/public-sans": "^5.0.5",
@@ -39,16 +42,18 @@
     "@types/react-router-dom": "^5.3.3",
     "darkreader": "^4.9.96",
     "jdenticon": "^3.2.0",
+    "lucide-react": "^0.503.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.6",
     "react-easy-crop": "^5.0.4",
     "react-medium-image-zoom": "^5.1.10",
+    "react-pull-to-refresh": "^2.0.1",
     "react-qr-code": "^2.0.12",
     "react-router-dom": "^5.3.4",
     "react-virtuoso": "^4.6.2",
     "swiper": "^10.3.1",
     "ua-parser-js": "^1.0.37",
-    "unplugin-fonts": "^1.0.3",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.6"
+    "unplugin-fonts": "^1.0.3"
   },
   "peerDependencies": {
     "@polycentric/polycentric-core": "*",

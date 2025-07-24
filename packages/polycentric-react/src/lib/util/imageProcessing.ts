@@ -74,13 +74,13 @@ export const publishImageBlob = async (
   maxResY = 1000,
   upscale = false,
 ): Promise<Protocol.ImageManifest> => {
-  const [, width, height] = await resizeImageToWebp(
+  const [resizedBlob, width, height] = await resizeImageToWebp(
     image,
     maxResX,
     maxResY,
     upscale,
   );
-  const newUint8Array = await convertBlobToUint8Array(image);
+  const newUint8Array = await convertBlobToUint8Array(resizedBlob);
 
   const imageRanges = await handle.publishBlob(newUint8Array);
 
@@ -137,6 +137,26 @@ export const publishBlobToBackground = async (
   return await handle.setBanner(imageBundle);
 };
 
+export const fetchImageFromUrlToFile = async (
+  url: string,
+): Promise<File | null> => {
+  try {
+    const response = await fetch(url, {
+      mode: 'cors',
+      credentials: 'omit',
+    });
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    if (!blob.type.startsWith('image/')) return null;
+    const urlParts = url.split('/');
+    const filename = urlParts[urlParts.length - 1] || 'pasted-image.jpg';
+    return new File([blob], filename, { type: blob.type });
+  } catch (e) {
+    console.error('fetchImageFromUrlToFile error', e);
+    return null;
+  }
+};
+
 export async function dataURLToBlob(dataURL: string): Promise<Blob> {
   const [header, data] = dataURL.split(',');
   const isBase64 = header.includes(';base64');
@@ -162,7 +182,6 @@ export async function cropImageToBlob(
   width: number,
   height: number,
 ): Promise<Blob> {
-  // let the browser crop when decoding – works in Chrome, Safari, Firefox, Edge
   const croppedBitmap = await createImageBitmap(image, x, y, width, height);
 
   const canvas = document.createElement('canvas');

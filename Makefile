@@ -77,6 +77,7 @@ pretty:
 	./version.sh
 	# Format Rust code
 	cd server && cargo fmt
+	cd forum_server && cargo fmt
 	cd polycentric-protocol && cargo fmt
 
 	# Format TypeScript/JavaScript code
@@ -98,6 +99,9 @@ lint: proto
 		cargo clippy --no-deps -- -D warnings
 
 	cd server && \
+		cargo clippy --no-deps --locked -- -D warnings
+
+	cd forum_server && \
 		cargo clippy --no-deps --locked -- -D warnings
 
 	cd packages/polycentric-core && \

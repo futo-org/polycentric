@@ -10,7 +10,7 @@ export const RightCol = ({
 }: {
   rightCol: ReactNode;
   children: ReactNode;
-  desktopTitle?: string;
+  desktopTitle?: ReactNode;
 }) => {
   const isMobile = useIsMobile();
   return (

@@ -324,15 +324,20 @@ impl ContentSafety {
                 // Handle specific error codes that indicate permanent failures
                 match error_code.as_str() {
                     "InvalidImageFormat" | "InvalidImageSize"
-                    | "NotSupportedImage" => {
-                        // These are permanent failures - don't retry
+                    | "NotSupportedImage" | "InvalidRequestBody" => {
+                        // Permanent failures – do not retry
+                        warn!(
+                            "Permanent Azure error ({}) : {}",
+                            error_code,
+                            error.error.message.as_deref().unwrap_or("Unknown")
+                        );
                         Err(anyhow::anyhow!(
-                            "Permanent Azure error: {}",
-                            error_code
+                            "Permanent Azure error: {} - {}",
+                            error_code,
+                            error.error.message.as_deref().unwrap_or("Unknown")
                         ))
                     }
                     "InvalidRequest" => {
-                        // Usually means malformed request - log details
                         warn!(
                             "Invalid request details: {:?}",
                             error.error.details
@@ -430,11 +435,11 @@ impl ModerationTaggingProvider for AzureTagProvider {
         // Validate that we have actual content to process
         let has_text = event.content.is_some()
             && !event.content.as_ref().unwrap().trim().is_empty();
+
         let has_images = !event.blobs.is_empty()
             && event.blobs.iter().any(|blob| !blob.blob.is_empty());
 
         if !has_text && !has_images {
-            // No valid content to process - return empty result instead of error
             debug!("Skipping event {} - no valid content or blobs", event.id);
             return Ok(ModerationTaggingResult { tags: vec![] });
         }
@@ -457,14 +462,11 @@ impl ModerationTaggingProvider for AzureTagProvider {
             event.id, media_type
         );
 
-        // Handle multiple images by processing each blob separately
-        let blob_inputs = match event.blobs.len() {
-            0 => vec![None],
-            _ => event
-                .blobs
-                .iter()
-                .map(|blob| Some(blob.blob.clone()))
-                .collect(),
+        // Process each image separately (or a single None for text-only)
+        let blob_inputs: Vec<Option<Vec<u8>>> = if event.blobs.is_empty() {
+            vec![None]
+        } else {
+            event.blobs.iter().map(|b| Some(b.blob.clone())).collect()
         };
 
         let mut results: Vec<DetectionResult> = vec![];

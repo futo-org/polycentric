@@ -1,14 +1,18 @@
 import { decode } from '@borderless/base64';
 import { IonContent } from '@ionic/react';
 import { Models, Protocol } from '@polycentric/polycentric-core';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Page } from '../../app/routes';
 import { PostCompose } from '../../components/feed/Compose/PostCompose';
 import { Header } from '../../components/layout/header';
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol';
 import { MobileProfileFeed } from '../../components/profile/mobilefeedprofile';
 import { UserColumn } from '../../components/profile/sidebarprofile/UserColumn';
-import { useAuthorFeed, useLikesFeed } from '../../hooks/feedHooks';
+import {
+  useAuthorFeed,
+  useLikesFeed,
+  useRepliesFeed,
+} from '../../hooks/feedHooks';
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks';
 import { useTextPublicKey, useUsernameCRDTQuery } from '../../hooks/queryHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
@@ -17,7 +21,9 @@ import { useIsMobile } from '../../hooks/styleHooks';
 export const UserFeedPage: Page = () => {
   const { urlInfoString } = useParams<{ urlInfoString: string }>();
   const { processHandle } = useProcessHandleManager();
-  const [currentTab, setCurrentTab] = useState<'posts' | 'likes'>('posts');
+  const [currentTab, setCurrentTab] = useState<'posts' | 'likes' | 'replies'>(
+    'posts',
+  );
 
   const { system } = useMemo(() => {
     const urlInfoBuffer = decode(urlInfoString);
@@ -31,6 +37,7 @@ export const UserFeedPage: Page = () => {
 
   const [posts, advancePosts, allPostsAttempted] = useAuthorFeed(system);
   const [likes, advanceLikes, allLikesLoaded] = useLikesFeed(system);
+  const [replies, advanceReplies, allRepliesLoaded] = useRepliesFeed(system);
 
   const column = useMemo(
     () => <UserColumn system={system} key="usercol" />,
@@ -42,6 +49,20 @@ export const UserFeedPage: Page = () => {
     () => Models.PublicKey.equal(system, processHandle.system()),
     [system, processHandle],
   );
+
+  // Determine which tabs to show based on whose profile is being viewed
+  const tabs = useMemo(
+    () => (isMyProfile ? ['posts', 'likes', 'replies'] : ['posts', 'likes']),
+    [isMyProfile],
+  );
+
+  // If user navigates to someone else's profile while the current tab is
+  // still set to "replies", fall back to "posts" to avoid confusion.
+  useEffect(() => {
+    if (!isMyProfile && currentTab === 'replies') {
+      setCurrentTab('posts');
+    }
+  }, [isMyProfile, currentTab]);
 
   const username = useUsernameCRDTQuery(system);
   const headerText = useMemo(() => {
@@ -64,6 +85,13 @@ export const UserFeedPage: Page = () => {
           advanceFeed: advanceLikes,
           nothingFound: allLikesLoaded && likes.length === 0,
           nothingFoundMessage: 'No liked posts found',
+        };
+      case 'replies':
+        return {
+          data: replies,
+          advanceFeed: advanceReplies,
+          nothingFound: allRepliesLoaded && replies.length === 0,
+          nothingFoundMessage: 'No replies found',
         };
       default:
         return {
@@ -91,10 +119,12 @@ export const UserFeedPage: Page = () => {
             <>
               <div className="border-b border-gray-200">
                 <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-                  {['posts', 'likes'].map((tab) => (
+                  {tabs.map((tab) => (
                     <button
                       key={tab}
-                      onClick={() => setCurrentTab(tab as 'posts' | 'likes')}
+                      onClick={() =>
+                        setCurrentTab(tab as 'posts' | 'likes' | 'replies')
+                      }
                       className={`
                         whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
                         ${

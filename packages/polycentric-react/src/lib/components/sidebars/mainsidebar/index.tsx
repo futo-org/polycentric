@@ -71,6 +71,9 @@ export const MainSidebar = () => {
           <SidebarLink to="/" topicName="Explore">
             Explore
           </SidebarLink>
+          <SidebarLink to="/forums" topicName="Forums">
+            Forums
+          </SidebarLink>
           {/* empty div of same size */}
           <div className="h-5 flex-shrink-0" />
           {isMobile ? <MobileTopicSidebar /> : <DesktopTopicSelector />}

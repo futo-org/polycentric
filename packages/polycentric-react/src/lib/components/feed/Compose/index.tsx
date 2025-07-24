@@ -4,6 +4,17 @@ import { useBlobDisplayURLs } from '../../../hooks/imageHooks';
 import { MentionSuggestions } from '../../util/linkify';
 import { TopicSuggestionBox } from '../TopicSuggestionBox';
 
+/**
+ * Compose component for creating posts with image support.
+ *
+ * Image upload features:
+ * - File upload via file picker
+ * - Paste images directly from clipboard (Ctrl+V/Cmd+V)
+ * - Paste image URLs from clipboard (automatically fetches and converts to file)
+ *
+ * Supported image formats: jpg, jpeg, png, gif, webp, bmp, svg
+ */
+
 // const startsWithSlash = /^\/.*/
 // const hasNonAlphanumeric = /[^a-zA-Z0-9/]/
 
@@ -126,6 +137,7 @@ export const Compose = ({
   const [content, setContent] = useState('');
   const [topic, setTopic] = useState(preSetTopic ?? '');
   const [upload, setUpload] = useState<File[]>([]);
+  const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [mentionState, setMentionState] = useState<{
     active: boolean;
     position: { top: number; left: number };
@@ -136,6 +148,134 @@ export const Compose = ({
   const uploadRef = useRef<HTMLInputElement | null>(null);
 
   const imageUrls = useBlobDisplayURLs(upload);
+
+  // Helper function to convert blob to file
+  const blobToFile = (blob: Blob, filename: string): File => {
+    return new File([blob], filename, { type: blob.type });
+  };
+
+  // Helper function to fetch image from URL
+  const fetchImageFromUrl = useCallback(
+    async (url: string): Promise<File | null> => {
+      try {
+        const response = await fetch(url, {
+          mode: 'cors',
+          credentials: 'omit', // Don't send cookies to avoid CORS issues
+        });
+        if (!response.ok) {
+          console.warn(
+            `Failed to fetch image from URL: ${response.status} ${response.statusText}`,
+          );
+          return null;
+        }
+
+        const blob = await response.blob();
+        if (!blob.type.startsWith('image/')) {
+          console.warn('Fetched content is not an image');
+          return null;
+        }
+
+        // Extract filename from URL or use default
+        const urlParts = url.split('/');
+        const filename = urlParts[urlParts.length - 1] || 'pasted-image.jpg';
+
+        return blobToFile(blob, filename);
+      } catch (error) {
+        console.error('Error fetching image from URL:', error);
+        return null;
+      }
+    },
+    [],
+  );
+
+  // Helper function to check if string is a valid image URL
+  const isValidImageUrl = useCallback((str: string): boolean => {
+    try {
+      const url = new URL(str);
+      const imageExtensions = [
+        '.jpg',
+        '.jpeg',
+        '.png',
+        '.gif',
+        '.webp',
+        '.bmp',
+        '.svg',
+      ];
+      const hasImageExtension = imageExtensions.some((ext) =>
+        url.pathname.toLowerCase().includes(ext),
+      );
+      const hasImageContentType =
+        url.searchParams.get('format')?.includes('image') ||
+        url.pathname.includes('image') ||
+        url.hostname.includes('image');
+
+      // Check for common image hosting domains
+      const imageHostingDomains = [
+        'imgur.com',
+        'i.imgur.com',
+        'images.unsplash.com',
+        'picsum.photos',
+        'via.placeholder.com',
+        'placehold.it',
+        'lorempixel.com',
+        'picsum.photos',
+      ];
+      const isImageHostingDomain = imageHostingDomains.some((domain) =>
+        url.hostname.includes(domain),
+      );
+
+      return hasImageExtension || hasImageContentType || isImageHostingDomain;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const handlePaste = useCallback(
+    async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const clipboardData = e.clipboardData;
+
+      // Check for image data in clipboard
+      if (clipboardData.files.length > 0) {
+        const file = clipboardData.files[0];
+        if (file.type.startsWith('image/')) {
+          e.preventDefault();
+          setUpload((prev) => prev.concat(file));
+          return;
+        }
+      }
+
+      // Check for image items in clipboard
+      for (let i = 0; i < clipboardData.items.length; i++) {
+        const item = clipboardData.items[i];
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            setUpload((prev) => prev.concat(file));
+            return;
+          }
+        }
+      }
+
+      // Check if pasted text is an image URL
+      const pastedText = clipboardData.getData('text');
+      if (pastedText && isValidImageUrl(pastedText)) {
+        e.preventDefault();
+
+        setIsLoadingImage(true);
+        try {
+          const imageFile = await fetchImageFromUrl(pastedText);
+          if (imageFile) {
+            setUpload((prev) => prev.concat(imageFile));
+          }
+        } finally {
+          setIsLoadingImage(false);
+        }
+        return;
+      }
+    },
+    [fetchImageFromUrl, isValidImageUrl],
+  );
 
   const post = useCallback(() => {
     onPost?.(content, upload, topic).then(() => {
@@ -297,6 +437,7 @@ export const Compose = ({
             ref={textRef}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder="What's going on?"
           />
           {mentionState && (
@@ -362,6 +503,13 @@ export const Compose = ({
             </div>
           ))}
         </div>
+        {isLoadingImage && (
+          <div className="p-4">
+            <div className="inline-block text-gray-500 text-sm">
+              Loading image...
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="w-full flex justify-between items-center pt-4">
@@ -417,7 +565,7 @@ export const Compose = ({
         </div>
         <button
           disabled={
-            (!content && !upload) ||
+            (!content && upload.length === 0) ||
             content.length > maxLength ||
             topic.length > maxTopicLength ||
             (postingProgress != null && postingProgress > 0)

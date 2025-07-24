@@ -30,20 +30,46 @@ default:
     - ${CI_PROJECT_DIR}/packages/harbor-web/node_modules/
   policy: pull
 
-.rust-cache-config-protocol: &rust-cache-config-protocol
+.rust-cache-config: &rust-cache-config
   key:
     files:
-      - polycentric-protocol/Cargo.toml
+      - server/Cargo.toml
       - proto/protocol.proto
   paths:
     - ${CI_PROJECT_DIR}/.sccache/
     - ${CI_PROJECT_DIR}/.cargo/
   policy: pull-push
 
+.forum-server-cache-config: &forum-server-cache-config
+  key:
+    files:
+      - forum_server/Cargo.toml
+  paths:
+    - ${CI_PROJECT_DIR}/forum_server/.sqlx/
+  policy: pull-push
+
+.rust-cache-build-config: &rust-cache-build-config
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - ${CI_PROJECT_DIR}/server/target
+    - ${CI_PROJECT_DIR}/polycentric-protocol/target
+    - ${CI_PROJECT_DIR}/forum_server/target
+  policy: pull-push
+
 .rust-cache-config-server: &rust-cache-config-server
   key:
     files:
       - server/Cargo.toml
+      - proto/protocol.proto
+  paths:
+    - ${CI_PROJECT_DIR}/.sccache/
+    - ${CI_PROJECT_DIR}/.cargo/
+  policy: pull-push
+
+.rust-cache-config-protocol: &rust-cache-config-protocol
+  key:
+    files:
+      - polycentric-protocol/Cargo.toml
       - proto/protocol.proto
   paths:
     - ${CI_PROJECT_DIR}/.sccache/
@@ -66,7 +92,6 @@ default:
       - proto/protocol.proto
   paths:
     - ${CI_PROJECT_DIR}/server/target
-    - ${CI_PROJECT_DIR}/polycentric-protocol/target
   policy: pull-push
 
 stages:
@@ -86,6 +111,13 @@ format-server:
   script: 
     - ./version.sh
     - cd server
+    - cargo-fmt --check
+
+format-forum-server: 
+  stage: format
+  script: 
+    - ./version.sh
+    - cd forum_server
     - cargo-fmt --check
 
 format-protocol: 
@@ -135,7 +167,7 @@ format-verifiers:
 build-protocol: 
   stage: build
   cache: 
-    - <<: *rust-cache-config-protocol
+    - <<: *rust-cache-config
     - <<: *rust-cache-build-protocol
   script:
     - ./version.sh
@@ -172,6 +204,40 @@ build-server:
     - echo "Test binary built at $TEST_BIN"
     - mv ./$TEST_BIN ../build-artifacts/server-test
     - mv ./target/debug/server ../build-artifacts/server
+  needs: ["check"]
+  artifacts:
+      name: "artifacts"
+      expire_in: 60 mins
+      paths:
+        - ./build-artifacts
+
+build-forum-server:
+  stage: build
+  services:
+    - name: $POSTGRES_IMAGE
+      alias: postgres
+  variables:
+    DATABASE_URL: "postgres://postgres:testing@postgres/forum_db"
+    POSTGRES_PASSWORD: "testing"
+    PGPASSWORD: "testing"
+  cache: 
+   - <<: *rust-cache-config
+   - <<: *forum-server-cache-config
+   - <<: *rust-cache-build-config
+     key: ${CI_COMMIT_REF_SLUG}-rs-build
+  script:
+    - ./version.sh
+    - cd forum_server
+    - echo "Setting up database for SQLx compilation"
+    - apt-get update && apt-get install -y postgresql-client
+    - createdb -h postgres -U postgres forum_db || true
+    - psql -h postgres -U postgres -d forum_db -f migrations/20250515000001_consolidated_schema.sql
+    - psql -h postgres -U postgres -d forum_db -f migrations/20250116000000_add_banned_users.sql
+    - echo "Building forum server binary"
+    - cargo build --locked
+    - echo "Moving build artifacts"
+    - mkdir -p ../build-artifacts
+    - mv ./target/debug/forum_server ../build-artifacts/forum_server
   needs: ["check"]
   artifacts:
       name: "artifacts"
@@ -280,7 +346,7 @@ build-verifiers:
 lint-protocol: 
   stage: lint
   cache: 
-    - <<: *rust-cache-config-protocol
+    - <<: *rust-cache-config
     - <<: *rust-cache-build-protocol
   script: 
     - ./version.sh
@@ -298,6 +364,32 @@ lint-server:
     - cd server
     - cargo-clippy --no-deps --locked -- -D warnings
   needs: ["build-server"]
+
+lint-forum-server: 
+  stage: lint
+  services:
+    - name: $POSTGRES_IMAGE
+      alias: postgres
+  variables:
+    DATABASE_URL: "postgres://postgres:testing@postgres/forum_db"
+    POSTGRES_PASSWORD: "testing"
+    PGPASSWORD: "testing"
+  cache: 
+    - <<: *rust-cache-config
+    - <<: *forum-server-cache-config
+    - <<: *rust-cache-build-config
+      key: ${CI_COMMIT_REF_SLUG}-rs-lint
+  script: 
+    - ./version.sh
+    - cd forum_server
+    - echo "Setting up database for SQLx compilation"
+    - apt-get update && apt-get install -y postgresql-client
+    - createdb -h postgres -U postgres forum_db || true
+    - psql -h postgres -U postgres -d forum_db -f migrations/20250515000001_consolidated_schema.sql
+    - psql -h postgres -U postgres -d forum_db -f migrations/20250116000000_add_banned_users.sql
+    - echo "Running clippy linting"
+    - cargo-clippy --no-deps --locked -- -D warnings
+  needs: ["build-forum-server"]
 
 lint-core:
   stage: lint
@@ -534,6 +626,34 @@ push-verifiers-image-staging:
       --context "${CI_PROJECT_DIR}"
       --dockerfile "${CI_PROJECT_DIR}/packages/verifiers/Dockerfile"
       --destination "${CI_REGISTRY_IMAGE}/verifiers:stg"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "staging"
+
+push-forum-server-image-master:
+  stage: deploy
+  needs: ["check", "build-forum-server"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/forum_server.dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:master"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+
+push-forum-server-image-staging:
+  stage: deploy
+  needs: ["check", "build-forum-server"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/forum_server.dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:stg"
   rules:
     - if: $CI_COMMIT_BRANCH == "staging"
 

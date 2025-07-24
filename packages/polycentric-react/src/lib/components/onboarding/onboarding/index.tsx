@@ -46,6 +46,45 @@ const OnboardingPanel = ({
 
 const WelcomePanel = ({ nextSlide }: { nextSlide: () => void }) => {
   const { setIsSigningIn } = useContext(SignInContext);
+  const { createHandle, setIsNewAccount } = useOnboardingProcessHandleManager();
+  const stackRouterContext = useContext(StackRouterContext);
+
+  const handleExplore = async () => {
+    // Generate a random private key and username for automatic account creation
+    const privateKey = Models.PrivateKey.random();
+    const randomUsername = `explorer_${Math.random()
+      .toString(36)
+      .substring(2, 8)}`;
+
+    const defaultServers: Array<string> =
+      import.meta.env.VITE_DEFAULT_SERVERS?.split(',') ?? [];
+
+    const processHandle = await createHandle(
+      privateKey,
+      defaultServers,
+      randomUsername,
+    );
+
+    // Set the new account flag
+    setIsNewAccount(true);
+
+    // Navigate to the main app
+    if (stackRouterContext?.history) {
+      stackRouterContext.setRoot('/', 'forwards');
+    }
+
+    // Save private key to credential manager if supported
+    // @ts-ignore
+    if (window.PasswordCredential) {
+      // @ts-ignore
+      const cred = new window.PasswordCredential({
+        name: randomUsername,
+        id: encode(processHandle.system().key),
+        password: encode(privateKey.key),
+      });
+      navigator.credentials.store(cred);
+    }
+  };
 
   return (
     <OnboardingPanel imgSrc={starterURL}>
@@ -60,6 +99,12 @@ const WelcomePanel = ({ nextSlide }: { nextSlide: () => void }) => {
             onClick={nextSlide}
           >
             Create Account (no email necessary)
+          </button>
+          <button
+            className="bg-green-500 text-white border rounded-full md:rounded-md py-2 px-4 font-bold text-lg"
+            onClick={handleExplore}
+          >
+            Explore (auto-create account)
           </button>
           <button
             type="submit"
