@@ -2,6 +2,7 @@ use crate::moderation::providers;
 use futures::stream::{self, StreamExt};
 use log::debug;
 use protobuf::Message;
+use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 use tokio::time::{self, Duration};
@@ -65,30 +66,36 @@ pub struct ModerationQueueItem {
     // database id
     pub id: i64,
     pub content: Option<String>,
-    pub blob: Option<Vec<u8>>,
-    pub blob_db_ids: Option<Vec<i64>>,
+    pub blobs: Vec<BlobData>,
 }
 
-async fn get_blob(
+#[derive(Clone)]
+pub struct BlobData {
+    pub blob: Vec<u8>,
+    pub blob_db_ids: Vec<i64>,
+}
+
+async fn get_blobs(
     transaction: &mut ::sqlx::Transaction<'_, ::sqlx::Postgres>,
     event: &crate::model::event::Event,
     post: &polycentric_protocol::protocol::Post,
-) -> ::anyhow::Result<(Vec<u8>, Vec<i64>)> {
+) -> ::anyhow::Result<Vec<BlobData>> {
     debug!("Getting blob for event");
-    let mut logical_clocks = vec![];
-    // Check if post has image field (single image support)
-    if let Some(image_manifest) = post.image.as_ref() {
-        for range in image_manifest.sections.iter() {
-            let start = range.low;
-            let end = range.high;
-            for i in start..=end {
-                logical_clocks.push(i);
+    let mut logical_clock_sets: Vec<HashSet<u64>> = vec![];
+
+    // Iterate over each image manifest to collect its logical clock range set.
+    for image in post.images.iter() {
+        let mut logical_clocks = HashSet::new();
+        for range in image.sections.iter() {
+            for i in range.low..=range.high {
+                logical_clocks.insert(i);
             }
         }
+        logical_clock_sets.push(logical_clocks);
     }
 
     let query = "
-    SELECT content, id
+    SELECT content, id, logical_clock
     FROM events
     WHERE system_key_type = $1
     AND system_key = $2
@@ -102,12 +109,19 @@ async fn get_blob(
         i64::try_from(crate::model::public_key::get_key_type(system))?;
     let system_key_bytes = crate::model::public_key::get_key_bytes(system);
     let process_bytes = event.process().bytes();
+
+    let mut logical_clocks: Vec<u64> = vec![];
+    for set in logical_clock_sets.iter() {
+        for clock in set.iter() {
+            logical_clocks.push(*clock);
+        }
+    }
     let logical_clock_array: Vec<i64> = logical_clocks
         .into_iter()
         .map(|lc| i64::try_from(lc).unwrap())
         .collect();
 
-    let rows: Vec<(Vec<u8>, i64)> = sqlx::query_as(query)
+    let rows: Vec<(Vec<u8>, i64, i64)> = sqlx::query_as(query)
         .bind(system_key_type)
         .bind(system_key_bytes)
         .bind(process_bytes)
@@ -115,11 +129,29 @@ async fn get_blob(
         .fetch_all(&mut **transaction)
         .await?;
 
-    // concat the sorted event.content() into a single buffer
-    let mut blob = Vec::new();
-    let mut blob_db_ids = Vec::new();
-    for (row, id) in rows.iter() {
+    let mut blobs = vec![
+        BlobData {
+            blob: Vec::new(),
+            blob_db_ids: Vec::new()
+        };
+        logical_clock_sets.len()
+    ];
+
+    for (row, id, logical_clock) in rows.iter() {
+        let mut index = 0;
+        while index < logical_clock_sets.len() {
+            if logical_clock_sets[index].contains(&(*logical_clock as u64)) {
+                break;
+            }
+
+            index += 1;
+        }
+
+        // concat the sorted event.content() into a single buffer
+        let blob = &mut (blobs[index].blob);
         blob.extend_from_slice(row);
+
+        let blob_db_ids = &mut (blobs[index].blob_db_ids);
         blob_db_ids.push(*id);
     }
 
@@ -127,7 +159,7 @@ async fn get_blob(
         "Blob retrieved successfully for event: {:?}",
         event.logical_clock()
     );
-    Ok((blob, blob_db_ids))
+    Ok(blobs)
 }
 
 async fn get_blob_by_logical_clocks(
@@ -239,74 +271,108 @@ async fn pull_queue_events(
 
         match *event.content_type() {
             ct::POST => {
-                // Standard post parsing (existing behaviour)
+                let username: Option<String> = {
+                    use polycentric_protocol::model::known_message_types as kmt;
+                    // Prepare moderation options – we don't filter when fetching the username itself.
+                    let moderation_options =
+                        crate::moderation::ModerationOptions {
+                            filters: None,
+                            mode: crate::config::ModerationMode::Off,
+                        };
+
+                    // Attempt to retrieve the most recent USERNAME event for this author (system).
+                    if let Ok(username_events) =
+                        crate::postgres::select_latest_by_content_type::select(
+                            transaction,
+                            event.system(),
+                            &[kmt::USERNAME],
+                            &moderation_options,
+                        )
+                        .await
+                    {
+                        if let Some(first_event) = username_events.first() {
+                            if let Ok(username_event) =
+                                crate::model::event::from_vec(
+                                    first_event.event(),
+                                )
+                            {
+                                if let Some(lww) = username_event.lww_element()
+                                {
+                                    if let Ok(name_str) =
+                                        String::from_utf8(lww.value.clone())
+                                    {
+                                        Some(name_str)
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                };
+
                 let post =
                     polycentric_protocol::protocol::Post::parse_from_bytes(
                         event.content(),
                     )?;
 
-                // Retrieve the blob bytes for this post (if any), but only
-                // include them in the queue item when we actually have data.
-                let (blob, blob_db_ids) = if let Some(image_manifest) =
-                    post.image.as_ref()
-                {
-                    // Check image dimensions before processing
-                    if image_manifest.width < 50 || image_manifest.height < 50 {
-                        debug!("Skipping POST event {} - image too small ({}x{} pixels)", 
-                            row.id, image_manifest.width, image_manifest.height);
-                        (None, None)
-                    } else if image_manifest.width > 2000
-                        || image_manifest.height > 2000
-                    {
-                        // Frontend should downscale to 1000px, but allow some buffer for safety
-                        debug!("Skipping POST event {} - image too large ({}x{} pixels), frontend should downscale", 
-                            row.id, image_manifest.width, image_manifest.height);
-                        (None, None)
-                    } else if image_manifest.sections.is_empty() {
-                        debug!(
-                            "Skipping POST event {} - no image sections",
-                            row.id
-                        );
-                        (None, None)
-                    } else {
-                        let (blob, blob_db_ids) =
-                            get_blob(transaction, &event, &post).await?;
+                let combined_content: Option<String> =
+                    match (username, post.content.clone()) {
+                        (Some(name), Some(content)) => {
+                            Some(format!("{} said: {}", name, content))
+                        }
+                        (Some(name), None) => Some(format!("{} said:", name)),
+                        (None, content) => content,
+                    };
 
-                        // Skip if the blob is empty or too large for Azure
-                        if blob.is_empty() || blob.len() > 4 * 1024 * 1024 {
-                            debug!("Skipping POST event {} - blob empty or too large ({} bytes)", row.id, blob.len());
-                            (None, None)
+                let blobs = if post.images.is_empty() {
+                    vec![]
+                } else {
+                    let mut valid_blobs = vec![];
+                    let all_blobs =
+                        get_blobs(transaction, &event, &post).await?;
+
+                    for blob_data in all_blobs {
+                        // Skip if the blob is empty *or* exceeds Azure Content Safety's 4 MiB limit.
+                        if blob_data.blob.is_empty()
+                            || blob_data.blob.len() > 4 * 1024 * 1024
+                        {
+                            debug!("Skipping blob in POST event {} - blob empty or too large ({} bytes)", row.id, blob_data.blob.len());
                         } else {
                             debug!(
-                                "POST event {} has valid blob: {} bytes ({}x{} pixels)",
+                                "POST event {} has valid blob: {} bytes",
                                 row.id,
-                                blob.len(),
-                                image_manifest.width,
-                                image_manifest.height
+                                blob_data.blob.len()
                             );
-                            (Some(blob), Some(blob_db_ids))
+                            valid_blobs.push(blob_data);
                         }
                     }
-                } else {
-                    (None, None)
+                    valid_blobs
                 };
 
-                // Only create queue item if we have content or a valid blob
-                let has_content = post.content.is_some()
-                    && !post.content.as_ref().unwrap().trim().is_empty();
-                let has_blob = blob.is_some();
+                // Only create queue item if we have content or valid blobs
+                let has_content = combined_content.is_some()
+                    && !combined_content.as_ref().unwrap().trim().is_empty();
+                let has_blobs = !blobs.is_empty();
 
-                if has_content || has_blob {
-                    debug!("Creating POST queue item: id={}, has_content={}, has_blob={}", row.id, has_content, has_blob);
+                if has_content || has_blobs {
+                    debug!("Creating POST queue item: id={}, has_content={}, has_blobs={}", row.id, has_content, has_blobs);
                     result_set.push(ModerationQueueItem {
                         id: row.id,
-                        content: post.content,
-                        blob,
-                        blob_db_ids,
+                        content: combined_content,
+                        blobs,
                     });
                 } else {
                     debug!(
-                        "Skipping POST event {} - no content or blob",
+                        "Skipping POST event {} - no content or valid blobs",
                         row.id
                     );
                 }
@@ -325,8 +391,7 @@ async fn pull_queue_events(
                         result_set.push(ModerationQueueItem {
                             id: row.id,
                             content: Some(content),
-                            blob: None,
-                            blob_db_ids: None,
+                            blobs: vec![],
                         });
                     } else {
                         debug!("Skipping DESCRIPTION event {} - empty content after trim", row.id);
@@ -336,93 +401,84 @@ async fn pull_queue_events(
                 }
             }
             ct::AVATAR => {
-                // Avatar references blob sections via indices with index_type == BLOB_SECTION
-                // For avatars, we need to get the ImageBundle first to find the largest resolution
-                let avatar_bundle = if let Some(lww) = event.lww_element() {
-                    match polycentric_protocol::protocol::ImageBundle::parse_from_bytes(&lww.value) {
-                        Ok(bundle) => Some(bundle),
-                        Err(e) => {
-                            debug!("Failed to parse avatar bundle for event {}: {}", row.id, e);
-                            None
-                        }
+                // Parse the ImageBundle to get avatar manifests
+                let image_bundle = match polycentric_protocol::protocol::ImageBundle::parse_from_bytes(event.content()) {
+                    Ok(bundle) => bundle,
+                    Err(e) => {
+                        debug!("Failed to parse ImageBundle for AVATAR event {}: {}", row.id, e);
+                        continue;
                     }
-                } else {
-                    debug!("AVATAR event {} has no LWW element", row.id);
-                    None
                 };
 
-                let (blob, blob_db_ids) = if let Some(bundle) = avatar_bundle {
-                    // Find the best available avatar resolution (prefer 256x256, then 64x64, never 32x32)
-                    let best_manifest = bundle
-                        .image_manifests
-                        .iter()
-                        .filter(|manifest| manifest.width >= 64) // Filter out 32x32 and smaller
-                        .max_by_key(|manifest| manifest.width);
+                // Find the largest available resolution, skipping 32x32
+                let mut largest_manifest: Option<
+                    &polycentric_protocol::protocol::ImageManifest,
+                > = None;
+                let mut largest_size = 0u64;
 
-                    if let Some(manifest) = best_manifest {
-                        // Check image dimensions before processing
-                        if manifest.width < 50 || manifest.height < 50 {
-                            debug!("Skipping AVATAR event {} - image too small ({}x{} pixels)", 
-                                row.id, manifest.width, manifest.height);
-                            (None, None)
-                        } else if manifest.width > 2000
-                            || manifest.height > 2000
-                        {
-                            debug!("Skipping AVATAR event {} - image too large ({}x{} pixels)", 
-                                row.id, manifest.width, manifest.height);
-                            (None, None)
-                        } else if manifest.process.as_ref().is_some() {
-                            let logical_clocks: Vec<u64> = manifest
-                                .sections
-                                .iter()
-                                .flat_map(|range| range.low..=range.high)
-                                .collect();
+                for manifest in image_bundle.image_manifests.iter() {
+                    // Skip 32x32 avatars as they're too small for Azure
+                    if manifest.width == 32 && manifest.height == 32 {
+                        debug!(
+                            "Skipping 32x32 avatar in AVATAR event {}",
+                            row.id
+                        );
+                        continue;
+                    }
 
-                            if logical_clocks.is_empty() {
-                                debug!("AVATAR event {} - no logical clocks in manifest", row.id);
+                    let size = manifest.width * manifest.height;
+                    if size > largest_size {
+                        largest_size = size;
+                        largest_manifest = Some(manifest);
+                    }
+                }
+
+                let (blob, blob_db_ids) = if let Some(manifest) =
+                    largest_manifest
+                {
+                    if manifest.process.as_ref().is_some() {
+                        let logical_clocks: Vec<u64> = manifest
+                            .sections
+                            .iter()
+                            .flat_map(|range| range.low..=range.high)
+                            .collect();
+
+                        if logical_clocks.is_empty() {
+                            debug!("AVATAR event {} - no logical clocks in manifest", row.id);
+                            (None, None)
+                        } else {
+                            let (blob, blob_db_ids) =
+                                get_blob_by_logical_clocks(
+                                    transaction,
+                                    &event,
+                                    &logical_clocks,
+                                )
+                                .await?;
+
+                            // Skip if the blob is empty or exceeds 4 MiB.
+                            if blob.is_empty() || blob.len() > 4 * 1024 * 1024 {
+                                debug!("Skipping AVATAR event {} - blob empty or too large ({} bytes)", row.id, blob.len());
                                 (None, None)
                             } else {
-                                let (blob, blob_db_ids) =
-                                    get_blob_by_logical_clocks(
-                                        transaction,
-                                        &event,
-                                        &logical_clocks,
-                                    )
-                                    .await?;
-
-                                // Skip if the blob is empty or too large for Azure
-                                if blob.is_empty()
-                                    || blob.len() > 4 * 1024 * 1024
-                                {
-                                    debug!("Skipping AVATAR event {} - blob empty or too large ({} bytes)", row.id, blob.len());
-                                    (None, None)
-                                } else {
-                                    debug!(
-                                        "AVATAR event {} has valid blob: {} bytes ({}x{} resolution)",
-                                        row.id,
-                                        blob.len(),
-                                        manifest.width,
-                                        manifest.height
-                                    );
-                                    (Some(blob), Some(blob_db_ids))
-                                }
+                                debug!(
+                                    "AVATAR event {} has valid blob: {}x{} resolution, {} bytes",
+                                    row.id,
+                                    manifest.width,
+                                    manifest.height,
+                                    blob.len()
+                                );
+                                (Some(blob), Some(blob_db_ids))
                             }
-                        } else {
-                            debug!(
-                                "AVATAR event {} - manifest has no process",
-                                row.id
-                            );
-                            (None, None)
                         }
                     } else {
                         debug!(
-                            "AVATAR event {} - no suitable image manifests found (only 32x32 or smaller available)",
+                            "AVATAR event {} - manifest has no process",
                             row.id
                         );
                         (None, None)
                     }
                 } else {
-                    debug!("AVATAR event {} - no valid avatar bundle", row.id);
+                    debug!("AVATAR event {} - no valid manifest found (all may be 32x32)", row.id);
                     (None, None)
                 };
 
@@ -432,8 +488,10 @@ async fn pull_queue_events(
                     result_set.push(ModerationQueueItem {
                         id: row.id,
                         content: None,
-                        blob,
-                        blob_db_ids,
+                        blobs: vec![BlobData {
+                            blob: blob.unwrap(),
+                            blob_db_ids: blob_db_ids.unwrap(),
+                        }],
                     });
                 } else {
                     debug!("Skipping AVATAR event {} - no valid blob", row.id);
@@ -444,8 +502,7 @@ async fn pull_queue_events(
                 result_set.push(ModerationQueueItem {
                     id: row.id,
                     content: None,
-                    blob: None,
-                    blob_db_ids: None,
+                    blobs: vec![],
                 });
             }
         }
@@ -493,15 +550,15 @@ async fn process_event(
     csam_request_rate_limiter: &RateLimiter,
 ) -> ModerationResult {
     debug!(
-        "Processing event: {:?}, has_content={}, has_blob={}",
+        "Processing event: {:?}, has_content={}, has_blobs={}",
         event.id,
         event.content.is_some(),
-        event.blob.is_some()
+        !event.blobs.is_empty()
     );
 
     // Acquire a permit from the rate limiter
 
-    let should_csam = event.blob.is_some() && csam.is_some();
+    let should_csam = !event.blobs.is_empty() && csam.is_some();
 
     // It's written like this so we can do a join if we need to do both
     // Can't join on None
@@ -561,39 +618,37 @@ async fn process_event(
     };
 
     let tags = match tagging_result {
-        Some(ref result) => {
-            match result {
-                Ok(result) => {
-                    debug!(
-                        "Event {}: Tagging successful, {} tags",
-                        event.id,
-                        result.tags.len()
-                    );
-                    result.tags.clone()
-                }
-                Err(e) => {
-                    debug!(
-                        "Tagging error for event: {:?}, error: {:?}",
-                        event.id, e
-                    );
-                    has_error = true;
+        Some(ref result) => match result {
+            Ok(result) => {
+                debug!(
+                    "Event {}: Tagging successful, {} tags",
+                    event.id,
+                    result.tags.len()
+                );
+                result.tags.clone()
+            }
+            Err(e) => {
+                debug!(
+                    "Tagging error for event: {:?}, error: {:?}",
+                    event.id, e
+                );
+                has_error = true;
 
-                    // Check if this is a permanent error (Azure InvalidRequestBody, etc.)
-                    let error_msg = e.to_string().to_lowercase();
-                    if error_msg.contains("permanent azure error")
-                        || error_msg.contains("invalidrequestbody")
-                        || error_msg.contains("invalidimageformat")
-                        || error_msg.contains("invalidimagesize")
-                        || error_msg.contains("notsupportedimage")
-                        || error_msg.contains("width of given image is")
-                        || error_msg.contains("height of given image is")
-                    {
-                        is_permanent_error = true;
-                        debug!("Event {}: Permanent error detected, will not retry", event.id);
-                    }
-
-                    Vec::new()
+                // Check if this is a permanent error (Azure InvalidRequestBody, etc.)
+                let error_msg = e.to_string().to_lowercase();
+                if error_msg.contains("permanent azure error")
+                    || error_msg.contains("invalidrequestbody")
+                    || error_msg.contains("invalidimageformat")
+                    || error_msg.contains("invalidimagesize")
+                    || error_msg.contains("notsupportedimage")
+                    || error_msg.contains("width of given image is")
+                    || error_msg.contains("height of given image is")
+                {
+                    is_permanent_error = true;
+                    debug!("Event {}: Permanent error detected, will not retry", event.id);
                 }
+
+                Vec::new()
             }
         }
         None => Vec::new(),
@@ -607,12 +662,17 @@ async fn process_event(
         is_csam,
         tags.len()
     );
+
+    let mut blob_db_ids: Vec<i64> = vec![];
+    for blob_data in event.blobs.iter() {
+        blob_db_ids.extend(blob_data.blob_db_ids.iter());
+    }
     ModerationResult {
         event_id: event.id,
         has_error,
         is_permanent_error,
         tags: tags.clone(),
-        blob_db_ids: event.blob_db_ids.clone(),
+        blob_db_ids: Some(blob_db_ids),
         is_csam,
     }
 }

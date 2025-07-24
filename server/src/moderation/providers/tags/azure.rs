@@ -1,4 +1,5 @@
 use super::interface::{ModerationTaggingProvider, ModerationTaggingResult};
+
 use crate::{
     config::Config, model::moderation_tag::ModerationTag,
     moderation::moderation_queue::ModerationQueueItem,
@@ -324,9 +325,9 @@ impl ContentSafety {
                 match error_code.as_str() {
                     "InvalidImageFormat" | "InvalidImageSize"
                     | "NotSupportedImage" | "InvalidRequestBody" => {
-                        // These are permanent failures - don't retry
+                        // Permanent failures – do not retry
                         warn!(
-                            "Permanent Azure error ({}): {}",
+                            "Permanent Azure error ({}) : {}",
                             error_code,
                             error.error.message.as_deref().unwrap_or("Unknown")
                         );
@@ -411,12 +412,12 @@ impl ModerationTaggingProvider for AzureTagProvider {
         let detector = self.content_safety.as_ref().unwrap();
 
         // Log event details for debugging
-        debug!("Processing moderation event: id={}, has_content={}, has_blob={}, content_len={}, blob_len={}", 
+        debug!("Processing moderation event: id={}, has_content={}, has_blobs={}, content_len={}, blobs_count={}", 
             event.id,
             event.content.is_some(),
-            event.blob.is_some(),
+            !event.blobs.is_empty(),
             event.content.as_ref().map(|c| c.len()).unwrap_or(0),
-            event.blob.as_ref().map(|b| b.len()).unwrap_or(0)
+            event.blobs.len()
         );
 
         // Guard: Azure returns 400 for text longer than 10 000 characters.
@@ -434,16 +435,16 @@ impl ModerationTaggingProvider for AzureTagProvider {
         // Validate that we have actual content to process
         let has_text = event.content.is_some()
             && !event.content.as_ref().unwrap().trim().is_empty();
-        let has_image =
-            event.blob.is_some() && !event.blob.as_ref().unwrap().is_empty();
 
-        if !has_text && !has_image {
-            // No valid content to process - return empty result instead of error
-            debug!("Skipping event {} - no valid content or blob", event.id);
+        let has_images = !event.blobs.is_empty()
+            && event.blobs.iter().any(|blob| !blob.blob.is_empty());
+
+        if !has_text && !has_images {
+            debug!("Skipping event {} - no valid content or blobs", event.id);
             return Ok(ModerationTaggingResult { tags: vec![] });
         }
 
-        let media_type = match (has_text, has_image) {
+        let media_type = match (has_text, has_images) {
             (true, false) => MediaType::Text,
             (false, true) => MediaType::Image,
             (true, true) => MediaType::ImageWithText,
@@ -461,68 +462,101 @@ impl ModerationTaggingProvider for AzureTagProvider {
             event.id, media_type
         );
 
-        let result = detector
-            .detect(media_type, &event.content, &event.blob, true, &None)
-            .await;
+        // Process each image separately (or a single None for text-only)
+        let blob_inputs: Vec<Option<Vec<u8>>> = if event.blobs.is_empty() {
+            vec![None]
+        } else {
+            event
+                .blobs
+                .iter()
+                .map(|b| Some(b.blob.clone()))
+                .collect()
+        };
 
-        // Always return ok, error is handled in the moderation queue
-        match result {
-            Ok(result) => {
-                debug!("Azure processing successful for event {}", event.id);
-                let hate_result = result
-                    .categories_analysis
-                    .iter()
-                    .find(|category| category.category == Category::Hate);
-                let sexual_result = result
-                    .categories_analysis
-                    .iter()
-                    .find(|category| category.category == Category::Sexual);
-                let violence_result = result
-                    .categories_analysis
-                    .iter()
-                    .find(|category| category.category == Category::Violence);
-                let self_harm_result = result
-                    .categories_analysis
-                    .iter()
-                    .find(|category| category.category == Category::SelfHarm);
+        let mut results: Vec<DetectionResult> = vec![];
+        for blob in blob_inputs {
+            let result = detector
+                .detect(media_type, &event.content, &blob, true, &None)
+                .await;
 
-                let (hate_level, sexual_level, violence_level, self_harm_level) =
-                    match (
-                        hate_result,
-                        sexual_result,
-                        violence_result,
-                        self_harm_result,
-                    ) {
-                        (
-                            Some(hate),
-                            Some(sexual),
-                            Some(violence),
-                            Some(self_harm),
-                        ) => (
-                            hate.severity as i16 / 2,
-                            sexual.severity as i16 / 2,
-                            violence.severity as i16 / 2,
-                            self_harm.severity as i16 / 2,
-                        ),
-                        _ => (0, 0, 0, 0),
-                    };
-
-                let tags = vec![
-                    ModerationTag::new("hate".to_string(), hate_level),
-                    ModerationTag::new("sexual".to_string(), sexual_level),
-                    ModerationTag::new(
-                        "violence".to_string(),
-                        cmp::max(violence_level, self_harm_level),
-                    ),
-                ];
-
-                Ok(ModerationTaggingResult { tags })
-            }
-
-            Err(e) => {
-                error!("Azure processing failed for event {}: {}", event.id, e);
-                Err(anyhow::anyhow!("Error detecting content: {}", e))
+            match result {
+                Ok(res) => results.push(res),
+                Err(e) => {
+                    error!(
+                        "Azure processing failed for event {}: {}",
+                        event.id, e
+                    );
+                    return Err(anyhow::anyhow!(
+                        "Error detecting content: {}",
+                        e
+                    ));
+                }
             }
         }
+
+        // Combine results from all images by taking the maximum severity for each category
+        let mut max_hate_level = 0;
+        let mut max_sexual_level = 0;
+        let mut max_violence_level = 0;
+        let mut max_self_harm_level = 0;
+
+        for result in results {
+            let hate_result = result
+                .categories_analysis
+                .iter()
+                .find(|category| category.category == Category::Hate);
+            let sexual_result = result
+                .categories_analysis
+                .iter()
+                .find(|category| category.category == Category::Sexual);
+            let violence_result = result
+                .categories_analysis
+                .iter()
+                .find(|category| category.category == Category::Violence);
+            let self_harm_result = result
+                .categories_analysis
+                .iter()
+                .find(|category| category.category == Category::SelfHarm);
+
+            let (hate_level, sexual_level, violence_level, self_harm_level) =
+                match (
+                    hate_result,
+                    sexual_result,
+                    violence_result,
+                    self_harm_result,
+                ) {
+                    (
+                        Some(hate),
+                        Some(sexual),
+                        Some(violence),
+                        Some(self_harm),
+                    ) => (
+                        hate.severity as i16 / 2,
+                        sexual.severity as i16 / 2,
+                        violence.severity as i16 / 2,
+                        self_harm.severity as i16 / 2,
+                    ),
+                    _ => (0, 0, 0, 0),
+                };
+
+            max_hate_level = cmp::max(max_hate_level, hate_level);
+            max_sexual_level = cmp::max(max_sexual_level, sexual_level);
+            max_violence_level = cmp::max(max_violence_level, violence_level);
+            max_self_harm_level =
+                cmp::max(max_self_harm_level, self_harm_level);
+        }
+
+        debug!("Azure processing successful for event {}", event.id);
+
+        let tags = vec![
+            ModerationTag::new("hate".to_string(), max_hate_level),
+            ModerationTag::new("sexual".to_string(), max_sexual_level),
+            ModerationTag::new(
+                "violence".to_string(),
+                cmp::max(max_violence_level, max_self_harm_level),
+            ),
+        ];
+
+        Ok(ModerationTaggingResult { tags })
     }
 }

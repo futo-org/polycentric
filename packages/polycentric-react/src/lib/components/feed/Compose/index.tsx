@@ -1,6 +1,6 @@
 import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { useCallback, useRef, useState } from 'react';
-import { useBlobDisplayURL } from '../../../hooks/imageHooks';
+import { useBlobDisplayURLs } from '../../../hooks/imageHooks';
 import { MentionSuggestions } from '../../util/linkify';
 import { TopicSuggestionBox } from '../TopicSuggestionBox';
 
@@ -122,7 +122,7 @@ export const Compose = ({
   maxTopicLength = 100,
   postingProgress,
 }: {
-  onPost: (content: string, upload?: File, topic?: string) => Promise<boolean>;
+  onPost: (content: string, upload: File[], topic?: string) => Promise<boolean>;
   preSetTopic?: string;
   hideTopic?: boolean;
   topicDisabled?: boolean;
@@ -136,7 +136,7 @@ export const Compose = ({
 }) => {
   const [content, setContent] = useState('');
   const [topic, setTopic] = useState(preSetTopic ?? '');
-  const [upload, setUpload] = useState<File | undefined>();
+  const [upload, setUpload] = useState<File[]>([]);
   const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [mentionState, setMentionState] = useState<{
     active: boolean;
@@ -146,7 +146,8 @@ export const Compose = ({
   } | null>(null);
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const uploadRef = useRef<HTMLInputElement | null>(null);
-  const imageUrl = useBlobDisplayURL(upload);
+
+  const imageUrls = useBlobDisplayURLs(upload);
 
   // Helper function to convert blob to file
   const blobToFile = (blob: Blob, filename: string): File => {
@@ -238,7 +239,7 @@ export const Compose = ({
         const file = clipboardData.files[0];
         if (file.type.startsWith('image/')) {
           e.preventDefault();
-          setUpload(file);
+          setUpload((prev) => prev.concat(file));
           return;
         }
       }
@@ -250,7 +251,7 @@ export const Compose = ({
           e.preventDefault();
           const file = item.getAsFile();
           if (file) {
-            setUpload(file);
+            setUpload((prev) => prev.concat(file));
             return;
           }
         }
@@ -265,7 +266,7 @@ export const Compose = ({
         try {
           const imageFile = await fetchImageFromUrl(pastedText);
           if (imageFile) {
-            setUpload(imageFile);
+            setUpload((prev) => prev.concat(imageFile));
           }
         } finally {
           setIsLoadingImage(false);
@@ -279,7 +280,7 @@ export const Compose = ({
   const post = useCallback(() => {
     onPost?.(content, upload, topic).then(() => {
       setContent('');
-      setUpload(undefined);
+      setUpload([]);
       if (textRef.current)
         textRef.current.style.height = `${minTextboxHeightPx}px`;
     });
@@ -484,27 +485,27 @@ export const Compose = ({
             </div>
           )}
         </div>
-        {upload && (
-          <div>
-            <div className="p-4 inline-block relative">
-              <img
-                className="max-h-[20rem] max-w-[20rem] rounded-sm inline-block border-gray-1000 border"
-                src={imageUrl}
-              />
-              <button
-                className="absolute top-5 right-5 "
-                onClick={() => setUpload(undefined)}
-              >
-                <XCircleIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
-              </button>
+        <div className="grid gap-1 grid-cols-2 max-h-[20rem] max-w-[20rem]">
+          {upload.map((file, index) => (
+            <div key={file.name} className="m-0 p-0">
+              <div className="inline-block relative m-0 p-0">
+                <img
+                  className="max-h-[10rem] max-w-[10rem] rounded-sm inline-block border-gray-1000 border"
+                  src={imageUrls[index]}
+                />
+                <button
+                  className="absolute top-5 right-5 "
+                  onClick={() => setUpload(upload.filter((u) => u !== file))}
+                >
+                  <XCircleIcon className="w-9 h-9 text-gray-300 hover:text-gray-400" />
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          ))}
+        </div>
         {isLoadingImage && (
           <div className="p-4">
-            <div className="inline-block text-gray-500 text-sm">
-              Loading image...
-            </div>
+            <div className="inline-block text-gray-500 text-sm">Loading image...</div>
           </div>
         )}
       </div>
@@ -519,15 +520,28 @@ export const Compose = ({
           </button>
           <input
             type="file"
+            multiple
             className="hidden"
             name="img"
             accept="image/*"
             ref={uploadRef}
             onChange={(e) => {
+              const IMAGE_UPLOAD_LIMIT = 4;
               const { files } = e.target;
-              if (files !== null && files.length > 0) {
-                setUpload(files[0]);
+              if (files === null) return;
+
+              const fileList = Array.from(files).filter(
+                (file) => !upload.includes(file),
+              );
+
+              if (fileList.length === 0) return;
+
+              if (fileList.length + upload.length > IMAGE_UPLOAD_LIMIT) {
+                alert('You can only attach a maximum of 4 images');
+                return;
               }
+
+              setUpload(upload.concat(fileList));
             }}
           />
           {/* Character counter */}
@@ -549,7 +563,7 @@ export const Compose = ({
         </div>
         <button
           disabled={
-            (!content && !upload) ||
+            (!content && upload.length === 0) ||
             content.length > maxLength ||
             topic.length > maxTopicLength ||
             (postingProgress != null && postingProgress > 0)

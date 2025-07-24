@@ -34,7 +34,9 @@ default:
   key:
     files:
       - server/Cargo.toml
+      - forum_server/Cargo.toml
       - polycentric-protocol/Cargo.toml
+      - proto/protocol.proto
   paths:
     - ${CI_PROJECT_DIR}/.sccache/
     - ${CI_PROJECT_DIR}/.cargo/
@@ -54,6 +56,44 @@ default:
     - ${CI_PROJECT_DIR}/server/target
     - ${CI_PROJECT_DIR}/polycentric-protocol/target
     - ${CI_PROJECT_DIR}/forum_server/target
+  policy: pull-push
+
+.rust-cache-config-server: &rust-cache-config-server
+  key:
+    files:
+      - server/Cargo.toml
+      - proto/protocol.proto
+  paths:
+    - ${CI_PROJECT_DIR}/.sccache/
+    - ${CI_PROJECT_DIR}/.cargo/
+  policy: pull-push
+
+.rust-cache-config-protocol: &rust-cache-config-protocol
+  key:
+    files:
+      - polycentric-protocol/Cargo.toml
+      - proto/protocol.proto
+  paths:
+    - ${CI_PROJECT_DIR}/.sccache/
+    - ${CI_PROJECT_DIR}/.cargo/
+  policy: pull-push
+
+.rust-cache-build-protocol: &rust-cache-build-protocol
+  key:
+    files:
+      - polycentric-protocol/Cargo.toml
+      - proto/protocol.proto
+  paths:
+    - ${CI_PROJECT_DIR}/polycentric-protocol/target
+  policy: pull-push
+
+.rust-cache-build-server: &rust-cache-build-server
+  key:
+    files:
+      - server/Cargo.toml
+      - proto/protocol.proto
+  paths:
+    - ${CI_PROJECT_DIR}/server/target
   policy: pull-push
 
 stages:
@@ -129,12 +169,13 @@ format-verifiers:
 build-protocol: 
   stage: build
   cache: 
-   - <<: *rust-cache-config
-   - <<: *rust-cache-build-config
-     key: ${CI_COMMIT_REF_SLUG}-rs-build
+    - <<: *rust-cache-config
+    - <<: *rust-cache-build-protocol
   script:
     - ./version.sh
     - cd polycentric-protocol
+    - echo "Starting sccache server"
+    - /opt/sccache/sccache --start-server || true
     - echo "Building protocol binary"
     - cargo build
     - echo "Running protocol tests"
@@ -149,13 +190,14 @@ build-protocol:
 build-server: 
   stage: build
   cache: 
-   - <<: *rust-cache-config
-   - <<: *rust-cache-build-config
-     key: ${CI_COMMIT_REF_SLUG}-rs-build
+    - <<: *rust-cache-config-server
+    - <<: *rust-cache-build-server
   script:
     - ./version.sh
     - mkdir build-artifacts
     - cd server
+    - echo "Starting sccache server"
+    - /opt/sccache/sccache --start-server || true
     - echo "Building server binary"
     - cargo build --locked
     - echo "Building test binary"
@@ -208,12 +250,13 @@ build-forum-server:
 build-server-release: 
   stage: build
   cache: 
-    - <<: *rust-cache-config
-    - <<: *rust-cache-build-config
-      key: ${CI_COMMIT_REF_SLUG}-rs-build-release
+    - <<: *rust-cache-config-server
+    - <<: *rust-cache-build-server
   script: 
     - ./version.sh
     - cd server
+    - echo "Starting sccache server"
+    - /opt/sccache/sccache --start-server || true
     - cargo build --release
   needs: ["build-server"]
   artifacts:
@@ -221,6 +264,7 @@ build-server-release:
       expire_in: 60 mins
       paths:
         - ./server/target/release/server
+        - ./server/target/release/health_probe
 
 build-core:
   stage: build
@@ -305,8 +349,7 @@ lint-protocol:
   stage: lint
   cache: 
     - <<: *rust-cache-config
-    - <<: *rust-cache-build-config
-      key: ${CI_COMMIT_REF_SLUG}-rs-lint
+    - <<: *rust-cache-build-protocol
   script: 
     - ./version.sh
     - cd polycentric-protocol
@@ -316,9 +359,8 @@ lint-protocol:
 lint-server: 
   stage: lint
   cache: 
-    - <<: *rust-cache-config
-    - <<: *rust-cache-build-config
-      key: ${CI_COMMIT_REF_SLUG}-rs-lint
+    - <<: *rust-cache-config-server
+    - <<: *rust-cache-build-server
   script: 
     - ./version.sh
     - cd server
