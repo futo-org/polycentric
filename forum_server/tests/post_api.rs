@@ -1323,15 +1323,13 @@ async fn test_create_post_too_many_images(pool: PgPool) {
     .await;
 
     let post_content = "This post has too many images!";
-    let max_images = 5; // Should match constant in handler
+    let max_images = 4;
 
     // Get auth headers
     let auth_headers = get_auth_headers(&app, &post_keypair).await;
 
     let boundary = generate_boundary();
     let mut body_bytes = Vec::new();
-
-    // REMOVED author_id field
 
     // Add text fields
     body_bytes.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());

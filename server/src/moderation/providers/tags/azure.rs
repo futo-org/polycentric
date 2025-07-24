@@ -466,11 +466,7 @@ impl ModerationTaggingProvider for AzureTagProvider {
         let blob_inputs: Vec<Option<Vec<u8>>> = if event.blobs.is_empty() {
             vec![None]
         } else {
-            event
-                .blobs
-                .iter()
-                .map(|b| Some(b.blob.clone()))
-                .collect()
+            event.blobs.iter().map(|b| Some(b.blob.clone())).collect()
         };
 
         let mut results: Vec<DetectionResult> = vec![];

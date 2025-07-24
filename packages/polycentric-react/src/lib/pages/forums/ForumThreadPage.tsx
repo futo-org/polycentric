@@ -1,7 +1,7 @@
 import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { IonContent, IonTextarea } from '@ionic/react';
 import { sign } from '@noble/ed25519';
-import { Models } from '@polycentric/polycentric-core';
+import { Models, Protocol } from '@polycentric/polycentric-core';
 import { base64 } from '@scure/base';
 import { Buffer } from 'buffer';
 import Long from 'long';
@@ -557,9 +557,13 @@ export const ForumThreadPage: React.FC = () => {
             polycentricContent = `${cleanedBody}\n\n[View on Forum](${forumLinkPath})`;
           }
 
-          let imageBundle;
+          const imageBundles: Protocol.ImageManifest[] = [];
           if (newPostImage) {
-            imageBundle = await publishImageBlob(newPostImage, processHandle);
+            const manifest = await publishImageBlob(
+              newPostImage,
+              processHandle,
+            );
+            if (manifest) imageBundles.push(manifest);
           } else {
             const urlRegex =
               /https?:\/\/\S+?(?:\.png|\.jpe?g|\.gif|\.webp|\.bmp|\.svg)(?:\?[^\s]*)?/gi;
@@ -567,8 +571,13 @@ export const ForumThreadPage: React.FC = () => {
             const firstRemote = matches[0];
             if (firstRemote) {
               const remoteFile = await fetchImageFromUrlToFile(firstRemote);
-              if (remoteFile)
-                imageBundle = await publishImageBlob(remoteFile, processHandle);
+              if (remoteFile) {
+                const manifest = await publishImageBlob(
+                  remoteFile,
+                  processHandle,
+                );
+                if (manifest) imageBundles.push(manifest);
+              }
             }
           }
 
@@ -578,7 +587,7 @@ export const ForumThreadPage: React.FC = () => {
 
           const signedEventResult = await processHandle.post(
             polycentricContent,
-            imageBundle,
+            imageBundles,
           );
 
           if (signedEventResult) {

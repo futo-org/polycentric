@@ -1,7 +1,7 @@
 import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { IonContent } from '@ionic/react';
 import { sign } from '@noble/ed25519';
-import { Models } from '@polycentric/polycentric-core';
+import { Models, Protocol } from '@polycentric/polycentric-core';
 import { base64 } from '@scure/base';
 import { Buffer } from 'buffer';
 import Long from 'long';
@@ -336,20 +336,28 @@ export const ForumBoardPage: React.FC = () => {
         try {
           const forumLinkPath = `/forums/${encodedServerUrl}/${categoryId}/${boardId}/${newForumThreadId}`;
           let polycentricContent = '';
-          let imageBundle;
+          const imageBundles: Protocol.ImageManifest[] = [];
 
           const urlRegex =
             /https?:\/\/\S+?(?:\.png|\.jpe?g|\.gif|\.webp|\.bmp|\.svg)(?:\?[^\s]*)?/gi;
           const matches = newThreadBody.match(urlRegex) || [];
 
           if (newThreadImage) {
-            imageBundle = await publishImageBlob(newThreadImage, processHandle);
+            const manifest = await publishImageBlob(
+              newThreadImage,
+              processHandle,
+            );
+            if (manifest) imageBundles.push(manifest);
           } else if (!newThreadImage) {
             const firstRemote = matches[0];
             if (firstRemote) {
               const remoteFile = await fetchImageFromUrlToFile(firstRemote);
               if (remoteFile) {
-                imageBundle = await publishImageBlob(remoteFile, processHandle);
+                const manifest = await publishImageBlob(
+                  remoteFile,
+                  processHandle,
+                );
+                if (manifest) imageBundles.push(manifest);
               }
             }
           }
@@ -362,7 +370,7 @@ export const ForumBoardPage: React.FC = () => {
 
           const signedEventResult = await processHandle.post(
             polycentricContent,
-            imageBundle,
+            imageBundles,
           );
           if (signedEventResult) {
             polycentricPostPointer = signedEventResult;

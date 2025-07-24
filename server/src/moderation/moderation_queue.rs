@@ -618,37 +618,39 @@ async fn process_event(
     };
 
     let tags = match tagging_result {
-        Some(ref result) => match result {
-            Ok(result) => {
-                debug!(
-                    "Event {}: Tagging successful, {} tags",
-                    event.id,
-                    result.tags.len()
-                );
-                result.tags.clone()
-            }
-            Err(e) => {
-                debug!(
-                    "Tagging error for event: {:?}, error: {:?}",
-                    event.id, e
-                );
-                has_error = true;
-
-                // Check if this is a permanent error (Azure InvalidRequestBody, etc.)
-                let error_msg = e.to_string().to_lowercase();
-                if error_msg.contains("permanent azure error")
-                    || error_msg.contains("invalidrequestbody")
-                    || error_msg.contains("invalidimageformat")
-                    || error_msg.contains("invalidimagesize")
-                    || error_msg.contains("notsupportedimage")
-                    || error_msg.contains("width of given image is")
-                    || error_msg.contains("height of given image is")
-                {
-                    is_permanent_error = true;
-                    debug!("Event {}: Permanent error detected, will not retry", event.id);
+        Some(ref result) => {
+            match result {
+                Ok(result) => {
+                    debug!(
+                        "Event {}: Tagging successful, {} tags",
+                        event.id,
+                        result.tags.len()
+                    );
+                    result.tags.clone()
                 }
+                Err(e) => {
+                    debug!(
+                        "Tagging error for event: {:?}, error: {:?}",
+                        event.id, e
+                    );
+                    has_error = true;
 
-                Vec::new()
+                    // Check if this is a permanent error (Azure InvalidRequestBody, etc.)
+                    let error_msg = e.to_string().to_lowercase();
+                    if error_msg.contains("permanent azure error")
+                        || error_msg.contains("invalidrequestbody")
+                        || error_msg.contains("invalidimageformat")
+                        || error_msg.contains("invalidimagesize")
+                        || error_msg.contains("notsupportedimage")
+                        || error_msg.contains("width of given image is")
+                        || error_msg.contains("height of given image is")
+                    {
+                        is_permanent_error = true;
+                        debug!("Event {}: Permanent error detected, will not retry", event.id);
+                    }
+
+                    Vec::new()
+                }
             }
         }
         None => Vec::new(),

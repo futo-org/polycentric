@@ -20,7 +20,7 @@ use serde::Deserialize;
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
-const MAX_IMAGES_PER_POST: usize = 5;
+const MAX_IMAGES_PER_POST: usize = 4;
 const MAX_IMAGE_SIZE_MB: u64 = 10;
 const MAX_IMAGE_SIZE_BYTES: u64 = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 

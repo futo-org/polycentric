@@ -22,10 +22,10 @@ BEGIN
 
     -- version 7
     uuid_bytes := set_byte(uuid_bytes, 6,
-                  (get_byte(uuid_bytes, 6) & 15) | 0x70);
+                  (get_byte(uuid_bytes, 6) & 15) | 112);
     -- RFC-4122 variant
     uuid_bytes := set_byte(uuid_bytes, 8,
-                  (get_byte(uuid_bytes, 8) & 63) | 0x80);
+                  (get_byte(uuid_bytes, 8) & 63) | 128);
 
     RETURN encode(uuid_bytes, 'hex')::uuid;
 END;

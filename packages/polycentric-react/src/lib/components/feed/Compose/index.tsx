@@ -505,7 +505,9 @@ export const Compose = ({
         </div>
         {isLoadingImage && (
           <div className="p-4">
-            <div className="inline-block text-gray-500 text-sm">Loading image...</div>
+            <div className="inline-block text-gray-500 text-sm">
+              Loading image...
+            </div>
           </div>
         )}
       </div>
