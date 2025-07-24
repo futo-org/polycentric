@@ -629,6 +629,34 @@ push-verifiers-image-staging:
   rules:
     - if: $CI_COMMIT_BRANCH == "staging"
 
+push-forum-server-image-master:
+  stage: deploy
+  needs: ["check", "build-forum-server"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/forum_server.dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:master"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+
+push-forum-server-image-staging:
+  stage: deploy
+  needs: ["check", "build-forum-server"]
+  image:
+    name: gcr.io/kaniko-project/executor:v1.14.0-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/forum_server.dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:stg"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "staging"
+
     # - ./version.sh
     # - echo "{\"auths\":{\"$DO_OCI_REGISTRY\":{\"username\":\"doadmin\",\"password\":\"$CI_DO_OCI_TOKEN\"}}}" > /kaniko/.docker/config.json
     # - /kaniko/executor --context "${CI_PROJECT_DIR}" --dockerfile "${CI_PROJECT_DIR}/server.dockerfile" --destination $DO_OCI_REGISTRY/$CI_PROJECT_DIR:$VERSION
