@@ -34,8 +34,6 @@ default:
   key:
     files:
       - server/Cargo.toml
-      - forum_server/Cargo.toml
-      - polycentric-protocol/Cargo.toml
       - proto/protocol.proto
   paths:
     - ${CI_PROJECT_DIR}/.sccache/
