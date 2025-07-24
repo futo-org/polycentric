@@ -81,16 +81,13 @@ async fn get_blobs(
     post: &polycentric_protocol::protocol::Post,
 ) -> ::anyhow::Result<Vec<BlobData>> {
     debug!("Getting blob for event");
-
     let mut logical_clock_sets: Vec<HashSet<u64>> = vec![];
 
-    // Check if post has images field (multiple image support)
+    // Iterate over each image manifest to collect its logical clock range set.
     for image in post.images.iter() {
         let mut logical_clocks = HashSet::new();
         for range in image.sections.iter() {
-            let start = range.low;
-            let end = range.high;
-            for i in start..=end {
+            for i in range.low..=range.high {
                 logical_clocks.insert(i);
             }
         }
@@ -519,6 +516,7 @@ async fn pull_queue_events(
 struct ModerationResult {
     event_id: i64,
     has_error: bool,
+    is_permanent_error: bool,
     is_csam: bool,
     tags: Vec<crate::model::moderation_tag::ModerationTag>,
     blob_db_ids: Option<Vec<i64>>,
@@ -605,6 +603,7 @@ async fn process_event(
     };
 
     let mut has_error = false;
+    let mut is_permanent_error = false;
 
     let is_csam = match csam_result {
         Some(ref result) => match result {
@@ -619,31 +618,49 @@ async fn process_event(
     };
 
     let tags = match tagging_result {
-        Some(ref result) => match result {
-            Ok(result) => {
-                debug!(
-                    "Event {}: Tagging successful, {} tags",
-                    event.id,
-                    result.tags.len()
-                );
-                result.tags.clone()
+        Some(ref result) => {
+            match result {
+                Ok(result) => {
+                    debug!(
+                        "Event {}: Tagging successful, {} tags",
+                        event.id,
+                        result.tags.len()
+                    );
+                    result.tags.clone()
+                }
+                Err(e) => {
+                    debug!(
+                        "Tagging error for event: {:?}, error: {:?}",
+                        event.id, e
+                    );
+                    has_error = true;
+
+                    // Check if this is a permanent error (Azure InvalidRequestBody, etc.)
+                    let error_msg = e.to_string().to_lowercase();
+                    if error_msg.contains("permanent azure error")
+                        || error_msg.contains("invalidrequestbody")
+                        || error_msg.contains("invalidimageformat")
+                        || error_msg.contains("invalidimagesize")
+                        || error_msg.contains("notsupportedimage")
+                        || error_msg.contains("width of given image is")
+                        || error_msg.contains("height of given image is")
+                    {
+                        is_permanent_error = true;
+                        debug!("Event {}: Permanent error detected, will not retry", event.id);
+                    }
+
+                    Vec::new()
+                }
             }
-            Err(e) => {
-                debug!(
-                    "Tagging error for event: {:?}, error: {:?}",
-                    event.id, e
-                );
-                has_error = true;
-                Vec::new()
-            }
-        },
+        }
         None => Vec::new(),
     };
 
     debug!(
-        "Event {} processed: has_error={}, is_csam={}, tags_count={}",
+        "Event {} processed: has_error={}, is_permanent_error={}, is_csam={}, tags_count={}",
         event.id,
         has_error,
+        is_permanent_error,
         is_csam,
         tags.len()
     );
@@ -655,11 +672,11 @@ async fn process_event(
     ModerationResult {
         event_id: event.id,
         has_error,
+        is_permanent_error,
         tags: tags.clone(),
         blob_db_ids: Some(blob_db_ids),
         is_csam,
     }
-    // }
 }
 
 async fn process(
@@ -700,12 +717,23 @@ async fn apply_moderation_results(
     for result in results.iter() {
         let event_id = result.event_id;
         let has_error = result.has_error;
+        let is_permanent_error = result.is_permanent_error;
         let is_csam = result.is_csam;
 
-        let new_moderation_status = match (has_error, is_csam) {
-            (false, true) => ModerationStatus::FlaggedAndRejected,
-            (true, _) => ModerationStatus::Error,
-            (false, false) => ModerationStatus::Approved,
+        let new_moderation_status = match (
+            has_error,
+            is_permanent_error,
+            is_csam,
+        ) {
+            (false, _, true) => ModerationStatus::FlaggedAndRejected,
+            (true, true, _) => {
+                // Permanent errors should be marked as approved to prevent retries
+                // but with no tags (empty moderation result)
+                debug!("Event {}: Permanent error, marking as approved to prevent retries", event_id);
+                ModerationStatus::Approved
+            }
+            (true, false, _) => ModerationStatus::Error,
+            (false, _, false) => ModerationStatus::Approved,
         };
 
         match new_moderation_status {
@@ -969,6 +997,7 @@ mod tests {
             ModerationResult {
                 event_id: events[0].id,
                 has_error: false,
+                is_permanent_error: false,
                 is_csam: false,
                 tags: vec![],
                 blob_db_ids: None,
@@ -976,6 +1005,7 @@ mod tests {
             ModerationResult {
                 event_id: events[1].id,
                 has_error: false,
+                is_permanent_error: false,
                 is_csam: true,
                 tags: vec![],
                 blob_db_ids: None,
@@ -983,6 +1013,7 @@ mod tests {
             ModerationResult {
                 event_id: events[2].id,
                 has_error: true,
+                is_permanent_error: false,
                 is_csam: false,
                 tags: vec![],
                 blob_db_ids: None,
@@ -990,6 +1021,7 @@ mod tests {
             ModerationResult {
                 event_id: events[3].id,
                 has_error: false,
+                is_permanent_error: false,
                 is_csam: false,
                 tags: vec![
                     crate::model::moderation_tag::ModerationTag::new(
@@ -1007,6 +1039,7 @@ mod tests {
             ModerationResult {
                 event_id: events[4].id,
                 has_error: false,
+                is_permanent_error: false,
                 is_csam: false,
                 tags: vec![crate::model::moderation_tag::ModerationTag::new(
                     "anything".to_string(),
@@ -1225,6 +1258,7 @@ mod tests {
         let moderation_results = vec![ModerationResult {
             event_id: events[0].id,
             has_error: false,
+            is_permanent_error: false,
             is_csam: false,
             tags: vec![crate::model::moderation_tag::ModerationTag::new(
                 "sexual".to_string(),
@@ -1333,6 +1367,7 @@ mod tests {
         let moderation_results = vec![ModerationResult {
             event_id: events[0].id,
             has_error: false,
+            is_permanent_error: false,
             is_csam: false,
             tags: vec![
                 crate::model::moderation_tag::ModerationTag::new(
@@ -1621,6 +1656,70 @@ mod tests {
             transaction.commit().await?;
             transaction = pool.begin().await?;
         }
+
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_permanent_error_handling(pool: PgPool) -> anyhow::Result<()> {
+        let mut transaction = pool.begin().await?;
+        prepare_database(&mut transaction).await?;
+
+        let keypair = polycentric_protocol::test_utils::make_test_keypair();
+        let process = polycentric_protocol::test_utils::make_test_process();
+
+        let mut post = polycentric_protocol::protocol::Post::new();
+        post.content = Some("test".to_string());
+
+        let signed_event =
+            polycentric_protocol::test_utils::make_test_event_with_content(
+                &keypair,
+                &process,
+                52,
+                3,
+                &post.write_to_bytes()?,
+                vec![],
+            );
+
+        crate::ingest::ingest_event_postgres(&mut transaction, &signed_event)
+            .await?;
+
+        transaction.commit().await?;
+        transaction = pool.begin().await?;
+
+        let events = pull_queue_events(&mut transaction).await?;
+        assert_eq!(events.len(), 1);
+
+        // Test permanent error handling
+        let moderation_results = vec![ModerationResult {
+            event_id: events[0].id,
+            has_error: true,
+            is_permanent_error: true, // This should mark it as approved to prevent retries
+            is_csam: false,
+            tags: vec![],
+            blob_db_ids: None,
+        }];
+
+        apply_moderation_results(&mut transaction, &moderation_results).await?;
+        transaction.commit().await?;
+        transaction = pool.begin().await?;
+
+        // Verify the event was marked as approved (not error) to prevent retries
+        let query = "
+            SELECT moderation_status::text
+            FROM events
+            WHERE id = $1
+        ";
+
+        let status_str: String = sqlx::query_scalar(query)
+            .bind(events[0].id)
+            .fetch_one(&mut *transaction)
+            .await?;
+
+        assert_eq!(
+            status_str, "approved",
+            "Permanent errors should be marked as approved to prevent retries"
+        );
 
         Ok(())
     }

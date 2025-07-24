@@ -343,7 +343,7 @@ const ClaimCircle: React.FC<{
           process={process}
           logicalClock={logicalClock}
           system={system}
-          vouches={vouches}
+          vouches={vouches?.filter(Boolean) as Models.Event.Event[]}
           isMyProfile={isMyProfile}
           hasVouchedInThisSession={hasVouchedInThisSession}
           setHasVouchedInThisSession={setHasVouchedInThisSession}

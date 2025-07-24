@@ -2,8 +2,81 @@
     debug
 }
 
+# New block for forum server proxy
 localhost:8080 {
-    reverse_proxy http://varnish:80
+    # --- Add CORS Headers (Applies to matched handlers below) ---
+    # Note: These headers are applied by Caddy, including to successful OPTIONS responses
+    header {
+        # Allow requests from your typical frontend development origin
+        Access-Control-Allow-Origin "https://localhost:3000" # Adjust port if your frontend uses a different one
+        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        # Allow headers needed by your app and the useIsAdmin hook
+        Access-Control-Allow-Headers "Content-Type, X-Polycentric-Pubkey-Base64, X-Polycentric-Signature-Base64, X-Polycentric-Challenge-ID, Origin, Accept"
+        Access-Control-Allow-Credentials true
+        # Add Vary header is important for caching proxies
+        Vary "Origin"
+    }
+    # --- End CORS Headers ---
+
+    # --- Handle Preflight OPTIONS Requests --- 
+    # Respond immediately to OPTIONS requests for paths that need CORS preflight
+    # This prevents the OPTIONS request from hitting the backend which returns 405
+    @options_preflight method OPTIONS
+    @preflight_paths path /forum/* /auth/* /server-info /uploads/images/*
+    handle @options_preflight {
+        handle @preflight_paths {
+            # Respond 200 OK to the OPTIONS request
+            # The headers defined above will be automatically added by Caddy
+            respond 200
+        }
+        # Fallback for OPTIONS requests to other paths (if any)
+        handle {
+            # Default handling (likely reverse_proxy or file_server depending on your setup)
+            # For now, just let it fall through to later handlers
+        }
+    }
+    # --- End Preflight Handling ---
+
+    # --- Handle Actual Requests (GET, POST, etc.) --- 
+
+    # Handle forum API requests (excluding OPTIONS)
+    @forum_api path /forum/*
+    handle @forum_api {
+        uri strip_prefix /forum
+        reverse_proxy forum_server:3000
+    }
+
+    # Handle authentication requests (excluding OPTIONS)
+    @forum_auth path /auth/*
+    handle @forum_auth {
+        # No prefix stripping needed, backend expects /auth/*
+        reverse_proxy forum_server:3000
+    }
+
+    # Handle forum static images
+    @forum_static path /static/images/*
+    handle @forum_static {
+        # Don't strip prefix, backend serves from /static/images
+        reverse_proxy forum_server:3000
+    }
+
+    # Handle server info requests (excluding OPTIONS)
+    @forum_server_info path /server-info
+    handle @forum_server_info {
+        reverse_proxy forum_server:3000
+    }
+
+    # Handle forum user uploads
+    @forum_uploads path /uploads/images/*
+    handle @forum_uploads {
+        # Don't strip prefix, backend serves from /uploads/images
+        reverse_proxy forum_server:3000
+    }
+
+    # Fallback: Handle everything else via Varnish
+    handle {
+        reverse_proxy http://varnish:80
+    }
 }
 
 # Add a new subdomain for verifiers

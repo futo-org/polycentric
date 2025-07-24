@@ -110,18 +110,15 @@ const decodeBase64Topic = (topic: string): string => {
   }
 
   try {
-    // Add padding if necessary so length becomes multiple of 4
     let padded = topic.replace(/-/g, '+').replace(/_/g, '/');
     const mod = padded.length % 4;
     if (mod !== 0) padded += '='.repeat(4 - mod);
 
     const binary = atob(padded);
-    // Convert binary string to Uint8Array then to UTF-8 string
-    return new TextDecoder().decode(
-      Uint8Array.from(binary, (c) => c.charCodeAt(0)),
-    );
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   } catch {
-    // If decoding fails, return original topic
     return topic;
   }
 };

@@ -7,14 +7,11 @@ import { routes } from '../../../app/routes';
 import { StackElementPathContext } from './StackElementPathContext';
 
 const getUrlComponent = (url: string) => {
-  const path = Object.keys(routes).find((path) => {
-    const match = matchPath(url, {
-      path,
-      exact: true,
-    });
-    if (match) return true;
+  const path = Object.keys(routes).find((pathKey) => {
+    const exact = !pathKey.includes('*');
+    const match = matchPath(url, { path: pathKey, exact });
+    return !!match;
   });
-
   return path ? routes[path].component : null;
 };
 
@@ -28,8 +25,15 @@ export const MemoryRoutedComponent = ({
   }, [routerLink]);
 
   if (!Component) {
-    console.error('No component found for routerLink', routerLink);
-    return null;
+    console.error(
+      '[MemoryRoutedComponent] No component found for routerLink',
+      routerLink,
+    );
+    return (
+      <IonPage>
+        <div>404 - Component Not Found for {routerLink}</div>
+      </IonPage>
+    );
   }
 
   return (
@@ -79,13 +83,18 @@ const LinkComponent = forwardRef<
 
     const onClick: React.MouseEventHandler<HTMLAnchorElement> = useCallback(
       (e) => {
-        e.preventDefault();
-
-        if (stopPropagation) e.stopPropagation();
-        if (!routerLink) return;
+        if (stopPropagation) {
+          e.stopPropagation();
+        }
+        if (!routerLink) {
+          userPassedOnClick?.(e);
+          return;
+        }
 
         userPassedOnClick?.(e);
-        if (isActive) return;
+        if (e.defaultPrevented) {
+          return;
+        }
 
         switch (routerDirection) {
           case 'root':
@@ -98,14 +107,16 @@ const LinkComponent = forwardRef<
             stackRouter.pop();
             break;
           default:
-            console.error('Invalid routerDirection', routerDirection);
+            console.error(
+              '[Link onClick] Invalid routerDirection',
+              routerDirection,
+            );
         }
       },
       [
         routerLink,
         routerDirection,
         stackRouter,
-        isActive,
         stopPropagation,
         userPassedOnClick,
       ],
