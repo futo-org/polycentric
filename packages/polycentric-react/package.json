@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@borderless/base64": "^1.0.1",
+    "@capacitor/app": "^5.0.6",
     "@fontsource-variable/public-sans": "^5.0.9",
     "@fontsource/fragment-mono": "^5.0.5",
     "@fontsource/public-sans": "^5.0.5",
