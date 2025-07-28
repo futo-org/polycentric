@@ -22,19 +22,36 @@ async fn main() {
 
     println!("Database connection pool established.");
 
-    let image_upload_dir = std::env::var("IMAGE_UPLOAD_DIR").expect("IMAGE_UPLOAD_DIR must be set");
-    let image_base_url = std::env::var("IMAGE_BASE_URL").expect("IMAGE_BASE_URL must be set");
-
-    tokio::fs::create_dir_all(&image_upload_dir)
-        .await
-        .expect("Failed to create image upload directory");
-
+    // Determine whether image uploads are enabled *before* we fetch the related
+    // environment variables so we don’t require them when uploads are disabled.
     let image_uploads_enabled = std::env::var("ENABLE_FORUM_IMAGE_UPLOADS")
         .map(|v| {
             let v_lower = v.to_lowercase();
             v_lower == "1" || v_lower == "true" || v_lower == "yes"
         })
         .unwrap_or(false);
+
+    let image_upload_dir = if image_uploads_enabled {
+        std::env::var("IMAGE_UPLOAD_DIR")
+            .expect("IMAGE_UPLOAD_DIR must be set when ENABLE_FORUM_IMAGE_UPLOADS is enabled")
+    } else {
+        std::env::var("IMAGE_UPLOAD_DIR").unwrap_or_else(|_| "/tmp/forum_server_uploads".into())
+    };
+
+    let image_base_url = if image_uploads_enabled {
+        std::env::var("IMAGE_BASE_URL")
+            .expect("IMAGE_BASE_URL must be set when ENABLE_FORUM_IMAGE_UPLOADS is enabled")
+    } else {
+        std::env::var("IMAGE_BASE_URL").unwrap_or_else(|_| "/uploads/images".into())
+    };
+
+    if image_uploads_enabled {
+        tokio::fs::create_dir_all(&image_upload_dir)
+            .await
+            .expect("Failed to create image upload directory");
+    } else {
+        println!("Forum image uploads are disabled; skipping image directory setup.");
+    }
 
     let admin_pubkeys_str = std::env::var("ADMIN_PUBKEYS")
         .expect("ADMIN_PUBKEYS environment variable must be set (comma-separated base64)");
