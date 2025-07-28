@@ -638,8 +638,8 @@ push-forum-server-image-master:
   script:
     - /kaniko/executor
       --context "${CI_PROJECT_DIR}"
-      --dockerfile "${CI_PROJECT_DIR}/forum_server.dockerfile"
-      --destination "${CI_REGISTRY_IMAGE}:master"
+      --dockerfile "${CI_PROJECT_DIR}/forum/forum_server.dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}/forum:master"
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
 
@@ -653,7 +653,7 @@ push-forum-server-image-staging:
     - /kaniko/executor
       --context "${CI_PROJECT_DIR}"
       --dockerfile "${CI_PROJECT_DIR}/forum_server.dockerfile"
-      --destination "${CI_REGISTRY_IMAGE}:stg"
+      --destination "${CI_REGISTRY_IMAGE}/forum:stg"
   rules:
     - if: $CI_COMMIT_BRANCH == "staging"
 
