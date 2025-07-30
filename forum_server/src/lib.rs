@@ -1,6 +1,7 @@
 use crate::auth::{check_admin_handler, get_challenge_handler, ChallengeStore};
 use axum::{
     extract::State,
+    http::Method,
     routing::{delete, get, post, put},
     Router,
 };
@@ -8,6 +9,7 @@ use sqlx::PgPool;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tower_http::cors::{Any, CorsLayer};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::services::ServeDir;
 
@@ -86,6 +88,18 @@ pub fn create_router(
 
     let max_body_size: usize = 20 * 1024 * 1024;
 
+    // Add CORS layer allowing cross-origin requests
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+        .allow_headers(Any);
+
     Router::new()
         .route("/", get(root))
         // Auth routes
@@ -160,6 +174,7 @@ pub fn create_router(
         .nest_service(user_upload_base_url, user_upload_service)
         .with_state(app_state)
         .layer(RequestBodyLimitLayer::new(max_body_size))
+        .layer(cors)
 }
 
 async fn root(State(_state): State<AppState>) -> &'static str {
