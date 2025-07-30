@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use axum::Router;
 use forum_server::config::ForumServerConfig;
 use forum_server::create_router;
 
@@ -108,7 +109,7 @@ async fn main() {
             .collect::<Vec<_>>()
     );
 
-    let app = create_router(
+    let api_router = create_router(
         db_pool,
         image_upload_dir.clone(),
         image_base_url,
@@ -116,6 +117,10 @@ async fn main() {
         image_uploads_enabled,
         config,
     );
+
+    let app = Router::new()
+        .nest("/api", api_router.clone())
+        .merge(api_router);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     println!("Listening on {}", addr);
