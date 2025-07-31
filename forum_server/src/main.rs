@@ -1,9 +1,10 @@
 use base64::{engine::general_purpose::STANDARD, Engine};
 use dotenvy::dotenv;
 use sqlx::postgres::PgPoolOptions;
+use sqlx::Row;
 use std::collections::HashSet;
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::Arc; // For simple scalar query
 
 use axum::Router;
 use forum_server::config::ForumServerConfig;
@@ -22,6 +23,27 @@ async fn main() {
         .expect("Failed to create database pool.");
 
     println!("Database connection pool established.");
+
+    // --------------------------------------------------------------------
+    // Check if the database needs to be seeded
+    // --------------------------------------------------------------------
+    match sqlx::query("SELECT COUNT(*) as count FROM categories")
+        .fetch_one(&db_pool)
+        .await
+    {
+        Ok(row) => {
+            let count: i64 = row.get::<i64, _>("count");
+            if count == 0 {
+                println!("No categories detected – running database seeder...");
+                if let Err(e) = forum_server::seeder::seed_database(&db_pool).await {
+                    eprintln!("Failed to seed database: {:?}", e);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to query category count: {:?}", e);
+        }
+    }
 
     // Determine whether image uploads are enabled *before* we fetch the related
     // environment variables so we don’t require them when uploads are disabled.

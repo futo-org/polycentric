@@ -18,6 +18,7 @@ pub mod constants;
 pub mod handlers;
 pub mod models;
 pub mod repositories;
+pub mod seeder;
 pub mod storage;
 pub mod utils;
 
