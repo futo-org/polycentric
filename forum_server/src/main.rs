@@ -142,6 +142,7 @@ async fn main() {
 
     let app = Router::new()
         .nest("/api", api_router.clone())
+        .nest("/forum", api_router.clone())
         .merge(api_router);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
