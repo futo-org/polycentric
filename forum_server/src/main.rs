@@ -24,6 +24,28 @@ async fn main() {
 
     println!("Database connection pool established.");
 
+    // Ensure critical columns exist (backward-compat for older DBs)
+    if let Err(e) = sqlx::query(
+        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS \"order\" INTEGER NOT NULL DEFAULT 0;",
+    )
+    .execute(&db_pool)
+    .await
+    {
+        eprintln!(
+            "Warning: could not add 'order' column to categories: {:?}",
+            e
+        );
+    }
+
+    if let Err(e) = sqlx::query(
+        "ALTER TABLE boards ADD COLUMN IF NOT EXISTS \"order\" INTEGER NOT NULL DEFAULT 0;",
+    )
+    .execute(&db_pool)
+    .await
+    {
+        eprintln!("Warning: could not add 'order' column to boards: {:?}", e);
+    }
+
     // --------------------------------------------------------------------
     // Check if the database needs to be seeded
     // --------------------------------------------------------------------
