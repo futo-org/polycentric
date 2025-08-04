@@ -58,9 +58,7 @@ export function useAuthHeaders(
         : serverUrl;
 
       const challengeUrl = `${baseUrl}/auth/challenge`;
-      const challengeResRaw = await fetch(challengeUrl, {
-        credentials: 'include',
-      });
+      const challengeResRaw = await fetch(challengeUrl);
       if (!challengeResRaw.ok)
         throw new Error(
           `Auth header prep failed (challenge @ ${serverUrl}): ${challengeResRaw.status} ${challengeResRaw.statusText}`,
