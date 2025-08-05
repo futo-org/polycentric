@@ -24,7 +24,10 @@ async fn main() {
 
     println!("Database connection pool established.");
 
-    // Ensure critical columns exist (backward-compat for older DBs)
+    if let Err(e) = sqlx::migrate!("./migrations").run(&db_pool).await {
+        eprintln!("Failed to run database migrations: {:?}", e);
+    }
+
     if let Err(e) = sqlx::query(
         "ALTER TABLE categories ADD COLUMN IF NOT EXISTS \"order\" INTEGER NOT NULL DEFAULT 0;",
     )
