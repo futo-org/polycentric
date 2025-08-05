@@ -310,6 +310,13 @@ export const ForumThreadPage: React.FC = () => {
     ? decodeURIComponent(encodedServerUrl)
     : null;
 
+  // Base URL without trailing slash, used for API calls to the forum server
+  const baseUrl = serverUrl
+    ? serverUrl.endsWith('/')
+      ? serverUrl.slice(0, -1)
+      : serverUrl
+    : '';
+
   const { serverInfo } = useServerInfo(serverUrl);
   const uploadsEnabled = serverInfo?.imageUploadsEnabled ?? false;
 
@@ -466,7 +473,7 @@ export const ForumThreadPage: React.FC = () => {
     let forumPostId: string | null = null;
 
     try {
-      const challengeUrl = `https://localhost:8080/forum/auth/challenge`;
+      const challengeUrl = `${baseUrl}/forum/auth/challenge`;
       const challengeRes = await fetch(challengeUrl);
       if (!challengeRes.ok)
         throw new Error(`Challenge fetch failed: ${challengeRes.statusText}`);
@@ -521,7 +528,7 @@ export const ForumThreadPage: React.FC = () => {
         formData.append('polycentric_log_seq', logSeqValue.toString());
       }
 
-      const createPostUrl = `https://localhost:8080/forum/threads/${threadId}/posts`;
+      const createPostUrl = `${baseUrl}/forum/threads/${threadId}/posts`;
       const createRes = await fetch(createPostUrl, {
         method: 'POST',
         headers: headers,
@@ -615,7 +622,7 @@ export const ForumThreadPage: React.FC = () => {
                 'Authentication headers unavailable for linking.',
               );
 
-            const linkUrl = `https://localhost:8080/forum/posts/${forumPostId}/link-polycentric`;
+            const linkUrl = `${baseUrl}/forum/posts/${forumPostId}/link-polycentric`;
             const linkPayload = {
               polycentric_system_id_b64: base64.encode(
                 polycentricPostPointer.system.key,
@@ -710,7 +717,7 @@ export const ForumThreadPage: React.FC = () => {
     let polycentricDeleteSuccess = true;
     let freshPostData: ForumPost | null = null;
     try {
-      const freshDataUrl = `https://localhost:8080/forum/posts/${postId}`;
+      const freshDataUrl = `${baseUrl}/forum/posts/${postId}`;
       const freshDataRes = await fetch(freshDataUrl);
       if (!freshDataRes.ok) {
         const errorText = await freshDataRes.text();
@@ -818,7 +825,7 @@ export const ForumThreadPage: React.FC = () => {
       if (!authHeaders) {
         throw new Error('Could not get authentication headers to delete post.');
       }
-      const deleteUrl = `https://localhost:8080/forum/posts/${postId}`;
+      const deleteUrl = `${baseUrl}/forum/posts/${postId}`;
       const response = await fetch(deleteUrl, {
         method: 'DELETE',
         headers: { ...authHeaders },
