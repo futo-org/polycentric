@@ -92,6 +92,7 @@ pub fn create_router(
     // Add CORS layer allowing cross-origin requests
     let cors = CorsLayer::new()
         .allow_origin(Any)
+        .allow_credentials(true)
         .allow_methods([
             Method::GET,
             Method::POST,
