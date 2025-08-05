@@ -84,6 +84,13 @@ export const ForumBoardPage: React.FC = () => {
     ? decodeURIComponent(encodedServerUrl)
     : null;
 
+  // Base URL without trailing slash, used for API calls
+  const baseUrl = serverUrl
+    ? serverUrl.endsWith('/')
+      ? serverUrl.slice(0, -1)
+      : serverUrl
+    : '';
+
   const { serverInfo } = useServerInfo(serverUrl);
   const uploadsEnabled = serverInfo?.imageUploadsEnabled ?? false;
 
@@ -152,7 +159,7 @@ export const ForumBoardPage: React.FC = () => {
     setError(null);
     setDeleteThreadError(null);
     try {
-      const boardApiUrl = `https://localhost:8080/forum/boards/${boardId}`;
+      const boardApiUrl = `${baseUrl}/forum/boards/${boardId}`;
       const boardResponse = await fetch(boardApiUrl);
       if (!boardResponse.ok) {
         console.error(
@@ -165,7 +172,7 @@ export const ForumBoardPage: React.FC = () => {
       const fetchedBoard: ForumBoard = await boardResponse.json();
       setBoard(fetchedBoard);
 
-      const threadsApiUrl = `https://localhost:8080/forum/boards/${boardId}/threads`;
+      const threadsApiUrl = `${baseUrl}/forum/boards/${boardId}/threads`;
       const threadsResponse = await fetch(threadsApiUrl);
 
       if (!threadsResponse.ok) {
@@ -195,7 +202,7 @@ export const ForumBoardPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [serverUrl, boardId]);
+  }, [serverUrl, boardId, baseUrl]);
 
   useEffect(() => {
     if (serverUrl) {
@@ -253,7 +260,7 @@ export const ForumBoardPage: React.FC = () => {
     let initialForumPostId: string | null = null;
 
     try {
-      const challengeUrl = `https://localhost:8080/forum/auth/challenge`;
+      const challengeUrl = `${baseUrl}/forum/auth/challenge`;
       const challengeRes = await fetch(challengeUrl);
       if (!challengeRes.ok) {
         throw new Error(`Failed to get challenge: ${challengeRes.statusText}`);
@@ -311,7 +318,7 @@ export const ForumBoardPage: React.FC = () => {
         formData.append('polycentric_log_seq', logSeqValue.toString());
       }
 
-      const createThreadUrl = `https://localhost:8080/forum/boards/${boardId}/threads`;
+      const createThreadUrl = `${baseUrl}/forum/boards/${boardId}/threads`;
       const createRes = await fetch(createThreadUrl, {
         method: 'POST',
         headers: headers,
@@ -398,7 +405,7 @@ export const ForumBoardPage: React.FC = () => {
                 'Authentication headers unavailable for linking.',
               );
 
-            const linkUrl = `https://localhost:8080/forum/posts/${initialForumPostId}/link-polycentric`;
+            const linkUrl = `${baseUrl}/forum/posts/${initialForumPostId}/link-polycentric`;
 
             const linkPayload = {
               polycentric_system_id_b64: base64.encode(
@@ -508,7 +515,7 @@ export const ForumBoardPage: React.FC = () => {
         );
       }
 
-      const deleteUrl = `https://localhost:8080/forum/threads/${threadId}`;
+      const deleteUrl = `${baseUrl}/forum/threads/${threadId}`;
       const response = await fetch(deleteUrl, {
         method: 'DELETE',
         headers: { ...authHeaders },

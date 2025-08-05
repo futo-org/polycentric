@@ -1,5 +1,7 @@
 import { useState } from 'react';
 
+const DEFAULT_FORUM_SERVERS = ['https://forum.polycentric.io'];
+
 const FORUM_SERVERS_STORAGE_KEY = 'polycentric_forum_servers';
 
 // Helper function to get servers from Local Storage
@@ -34,9 +36,14 @@ const storeForumServers = (servers: Set<string>): void => {
 
 export const useForumServers = () => {
   // Initialize from localStorage synchronously to avoid flash-of-empty
-  const [servers, setServers] = useState<Set<string>>(() =>
-    getStoredForumServers(),
-  );
+  const [servers, setServers] = useState<Set<string>>(() => {
+    const initial = getStoredForumServers();
+    // Ensure default servers are included
+    DEFAULT_FORUM_SERVERS.forEach((s) => initial.add(s));
+    // Persist back to localStorage in case defaults were missing
+    storeForumServers(initial);
+    return initial;
+  });
 
   const addServer = (serverUrl: string) => {
     let urlToAdd = serverUrl.trim();
