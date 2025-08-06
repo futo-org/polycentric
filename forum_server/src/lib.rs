@@ -9,7 +9,7 @@ use sqlx::PgPool;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::services::ServeDir;
 
@@ -89,9 +89,21 @@ pub fn create_router(
 
     let max_body_size: usize = 20 * 1024 * 1024;
 
-    // Add CORS layer allowing cross-origin requests
+    let default_origins = "https://polycentric.io,https://staging-web.polycentric.io,https://web.polycentric.io,https://app.polycentric.io";
+
+    let allowed_origins_str =
+        std::env::var("CORS_ALLOWED_ORIGINS").unwrap_or_else(|_| default_origins.to_string());
+
+    let allowed_origins: Vec<String> = allowed_origins_str
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
     let cors = CorsLayer::new()
-        .allow_origin(Any)
+        .allow_origin(AllowOrigin::list(
+            allowed_origins.iter().map(|origin| origin.parse().unwrap()),
+        ))
         .allow_credentials(true)
         .allow_methods([
             Method::GET,
