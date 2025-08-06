@@ -9,7 +9,7 @@ use sqlx::PgPool;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tower_http::cors::{AllowOrigin, Any, CorsLayer};
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::services::ServeDir;
 
