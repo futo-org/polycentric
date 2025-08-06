@@ -100,7 +100,15 @@ pub fn create_router(
             Method::DELETE,
             Method::OPTIONS,
         ])
-        .allow_headers(Any);
+        .allow_headers([
+            axum::http::header::ORIGIN,
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::ACCEPT,
+            axum::http::header::AUTHORIZATION,
+            axum::http::header::HeaderName::from_static("x-polycentric-pubkey-base64"),
+            axum::http::header::HeaderName::from_static("x-polycentric-signature-base64"),
+            axum::http::header::HeaderName::from_static("x-polycentric-challenge-id"),
+        ]);
 
     Router::new()
         .route("/", get(root))
