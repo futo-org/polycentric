@@ -37,6 +37,9 @@ WORKDIR /usr/local/bin
 # Copy the built binary from the builder stage
 COPY --from=builder /usr/src/forum_server/target/release/forum_server .
 
+# Copy static assets used by the server (served under /static/images)
+COPY forum_server/static /app/static
+
 # Expose the port the app runs on (update if needed)
 EXPOSE 3000
 
