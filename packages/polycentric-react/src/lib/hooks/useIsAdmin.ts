@@ -35,7 +35,9 @@ export function useIsAdmin(serverUrl: string): UseIsAdminResult {
   const userPublicKeyString = useMemo(() => {
     if (!processHandle) return undefined;
     try {
-      const pubKey = processHandle.system().key;
+      const system = processHandle.system();
+      if (!system) return undefined;
+      const pubKey = system.key;
       return base64.encode(pubKey);
     } catch (e) {
       console.error('Error getting public key for admin check:', e);
