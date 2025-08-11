@@ -17,6 +17,9 @@ COPY forum_server/.sqlx ./.sqlx
 # Copy the source code from the correct subpath
 COPY forum_server/src ./src
 
+# Copy the migrations directory
+COPY forum_server/migrations ./migrations
+
 # We also need the polycentric-protocol dependency
 COPY polycentric-protocol /usr/src/polycentric-protocol
 
