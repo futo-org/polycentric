@@ -104,7 +104,10 @@ const TopicSearchResults = ({ query }: { query?: string }) => {
 
   // load blocked topics
   const { processHandle } = useProcessHandleManager();
-  const system = useMemo(() => processHandle.system(), [processHandle]);
+  const system = useMemo(
+    () => (processHandle ? processHandle.system() : undefined),
+    [processHandle],
+  );
 
   const [blockedEvents, advanceBlocked] = useQueryCRDTSet(
     system,
@@ -323,9 +326,9 @@ const TopicSwipeSelect = ({
 
 export const SwipeHomeFeed = () => {
   const { processHandle } = useProcessHandleManager();
-  const { system } = processHandle;
+  const system = processHandle ? processHandle.system() : undefined;
   const [followingEvents, advanceFollowing] = useQueryCRDTSet(
-    system(),
+    system,
     Models.ContentType.ContentTypeFollow,
     50,
   );

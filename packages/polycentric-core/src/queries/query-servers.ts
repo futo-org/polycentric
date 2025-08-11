@@ -1,12 +1,12 @@
 import * as RXJS from 'rxjs';
 
-import * as ProcessHandle from '../process-handle';
 import * as Models from '../models';
-import * as QueryIndex from './query-index';
-import * as QueryCRDTSet from './query-crdt-set';
-import { UnregisterCallback, DuplicatedCallbackError } from './shared';
+import * as ProcessHandle from '../process-handle';
 import * as Util from '../util';
 import { Box, OnceFlag } from '../util';
+import * as QueryCRDTSet from './query-crdt-set';
+import * as QueryIndex from './query-index';
+import { DuplicatedCallbackError, UnregisterCallback } from './shared';
 
 export type Callback = (servers: ReadonlySet<string>) => void;
 
