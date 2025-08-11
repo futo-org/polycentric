@@ -158,7 +158,9 @@ const SearchArea = ({
           <button
             key={searchTypeName}
             className={`font-medium text-md p-2 rounded-full text-black dark:text-white ${
-              searchTypeName === searchType ? 'bg-gray-200 dark:bg-gray-600' : ''
+              searchTypeName === searchType
+                ? 'bg-gray-200 dark:bg-gray-600'
+                : ''
             }`}
             onClick={() => setSearchType(searchTypeName as 'topics' | 'posts')}
           >
@@ -261,7 +263,9 @@ const TopicSwipeSelect = ({
               {topics.map((topic) => (
                 <SwiperSlide key={topic}>
                   <div className="flex h-full justify-center items-center">
-                    <h1 className="text-2xl text-black dark:text-white">{topic}</h1>
+                    <h1 className="text-2xl text-black dark:text-white">
+                      {topic}
+                    </h1>
                   </div>
                 </SwiperSlide>
               ))}
@@ -282,7 +286,9 @@ const TopicSwipeSelect = ({
             leave="transition-all duration-200"
             leaveFrom="h-screen w-screen forcezerotopleft rounded-0 border-transparent"
             leaveTo="h-12 w-64 rounded-0 border-gray-200 dark:border-gray-600 rounded-[1.5rem]"
-            className={'fixed z-20 bg-white dark:bg-gray-900 overflow-clip ease-in-out'}
+            className={
+              'fixed z-20 bg-white dark:bg-gray-900 overflow-clip ease-in-out'
+            }
           >
             {/* <div className="fixed top-0 left-0  w-screen h-screen"></div> */}
           </Transition.Child>
@@ -345,7 +351,9 @@ export const SwipeHomeFeed = () => {
     ];
   }, [joinedTopicEvents]);
 
-  const { topic: currentTopic, setTopic: setCurrentTopic } = useContext(MobileSwipeTopicContext);
+  const { topic: currentTopic, setTopic: setCurrentTopic } = useContext(
+    MobileSwipeTopicContext,
+  );
 
   useEffect(() => {
     if (currentTopic && headerSwiper && feedSwiper) {
