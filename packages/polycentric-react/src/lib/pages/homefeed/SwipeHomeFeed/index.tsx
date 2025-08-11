@@ -345,21 +345,20 @@ export const SwipeHomeFeed = () => {
     ];
   }, [joinedTopicEvents]);
 
-  const { topic: currentTopic } = useContext(MobileSwipeTopicContext);
+  const { topic: currentTopic, setTopic: setCurrentTopic } = useContext(MobileSwipeTopicContext);
 
   useEffect(() => {
-    if (currentTopic && headerSwiper) {
+    if (currentTopic && headerSwiper && feedSwiper) {
       const index = swipeTopics.indexOf(currentTopic);
       if (index !== -1 && index !== headerSwiper.activeIndex) {
         const currentIndex = headerSwiper.activeIndex;
         const indexDistance = Math.abs(index - currentIndex);
         const transitionDurationMS = indexDistance > 1 ? 1000 : 500;
         headerSwiper.slideTo(index, transitionDurationMS);
+        feedSwiper.slideTo(index, transitionDurationMS);
       }
     }
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTopic]);
+  }, [currentTopic, headerSwiper, feedSwiper, swipeTopics]);
 
   const handleSlideChange = useCallback(
     (swiper: SwyperType) => {
@@ -372,8 +371,14 @@ export const SwipeHomeFeed = () => {
       if (swiper.activeIndex === swipeTopics.length - 1) {
         swiper.allowSlideNext = false;
       }
+
+      // Update the context when the slide changes
+      const newTopic = swipeTopics[swiper.activeIndex];
+      if (newTopic && newTopic !== currentTopic) {
+        setCurrentTopic(newTopic);
+      }
     },
-    [swipeTopics],
+    [swipeTopics, currentTopic, setCurrentTopic],
   );
 
   useEffect(() => {

@@ -30,12 +30,19 @@ export const SidebarLink = ({
     <IonMenuToggle className="contents">
       {isMobile ? (
         <Link
-          onClick={() => setTopic(topicName)}
+          onClick={() => {
+            // For Forums, navigate to the forums page instead of setting it as a topic
+            if (topicName === 'Forums') {
+              // Don't set topic, let the router handle navigation
+              return;
+            }
+            setTopic(topicName);
+          }}
           className={`rounded p-2 mb-2 hover:bg-gray-200 transition-colors duration-200 text-left ${
             isCurrentTopic ? 'bg-gray-100' : ''
           } ${className}`}
           style={style}
-          routerLink="/"
+          routerLink={topicName === 'Forums' ? '/forums' : '/'}
           routerDirection="root"
         >
           {children}
