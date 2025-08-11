@@ -74,11 +74,13 @@ export const ForumServerListPage: React.FC = () => {
 
   return (
     <>
-      <Header canHaveBackButton={false}>Forums</Header>
+      <Header canHaveBackButton={true}>Forums</Header>
       <IonContent>
         <RightCol rightCol={<div />} desktopTitle="Forums">
           <div className="p-5 md:p-10 flex flex-col space-y-4">
-            <h2 className="text-lg font-medium">Connected Forum Servers</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-medium">Connected Forum Servers</h2>
+            </div>
             {serverList.length === 0 ? (
               <p className="text-gray-500">
                 No forum servers added yet. You can add them in the Settings
