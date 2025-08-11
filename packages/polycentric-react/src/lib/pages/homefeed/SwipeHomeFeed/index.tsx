@@ -1,4 +1,4 @@
-import { IonHeader, IonMenuToggle } from '@ionic/react';
+import { IonContent, IonHeader, IonMenuToggle, isPlatform } from '@ionic/react';
 import {
   createContext,
   useCallback,
@@ -18,7 +18,7 @@ import { Models, Util } from '@polycentric/polycentric-core';
 import { Controller } from 'swiper/modules';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { MobileSwipeTopicContext } from '../../../app/contexts';
-import { Feed } from '../../../components';
+import { Feed, PopupComposeFullscreen } from '../../../components';
 import { Link } from '../../../components/util/link';
 import { useSearchPostsFeed } from '../../../hooks/feedHooks';
 import { useGestureWall } from '../../../hooks/ionicHooks';
@@ -33,7 +33,6 @@ import {
   useTopicLink,
 } from '../../../hooks/utilHooks';
 import { numberTo4Chars } from '../../../util/etc';
-import { ForumServerListPage } from '../../forums/ForumServerListPage';
 import { ExploreFeed } from './ExploreFeed';
 import { FollowingFeed } from './FollowingFeed';
 import { TopicFeed } from './TopicFeed';
@@ -45,7 +44,7 @@ const MenuIcon = () => (
     viewBox="0 0 24 24"
     strokeWidth={1.5}
     stroke="currentColor"
-    className="w-8 h-8 text-black"
+    className="w-8 h-8 text-black dark:text-white"
   >
     <path
       strokeLinecap="round"
@@ -81,16 +80,16 @@ const TopicSearchResultsItem = ({
   const { close } = useContext(PopupSearchMenuContext);
   return (
     <Link
-      className="flex space-x-3 items-center w-full p-1 rounded-[1.75rem] hover:bg-gray-100 transition-colors duration-200 ease-in-out cursor-pointer"
+      className="flex space-x-3 items-center w-full p-1 rounded-[1.75rem] hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 ease-in-out cursor-pointer"
       key={topic.key}
       routerLink={topicLink}
       routerDirection="forward"
       onClick={close}
     >
-      <div className="bg-gray-100 h-12 w-12 text-sm rounded-full flex justify-center items-center">
+      <div className="bg-gray-100 dark:bg-gray-700 h-12 w-12 text-sm rounded-full flex justify-center items-center text-black dark:text-white">
         {numberTo4Chars(topic.value)}
       </div>
-      <div className="text-lg">{displayText}</div>
+      <div className="text-lg text-black dark:text-white">{displayText}</div>
     </Link>
   );
 };
@@ -104,10 +103,7 @@ const TopicSearchResults = ({ query }: { query?: string }) => {
 
   // load blocked topics
   const { processHandle } = useProcessHandleManager();
-  const system = useMemo(
-    () => (processHandle ? processHandle.system() : undefined),
-    [processHandle],
-  );
+  const system = useMemo(() => processHandle.system(), [processHandle]);
 
   const [blockedEvents, advanceBlocked] = useQueryCRDTSet(
     system,
@@ -161,8 +157,8 @@ const SearchArea = ({
         {searchTypeNames.map((searchTypeName) => (
           <button
             key={searchTypeName}
-            className={`font-medium text-md p-2 rounded-full ${
-              searchTypeName === searchType ? 'bg-gray-200' : ''
+            className={`font-medium text-md p-2 rounded-full text-black dark:text-white ${
+              searchTypeName === searchType ? 'bg-gray-200 dark:bg-gray-600' : ''
             }`}
             onClick={() => setSearchType(searchTypeName as 'topics' | 'posts')}
           >
@@ -224,7 +220,7 @@ const TopicSwipeSelect = ({
       <div className="relative w-64 h-12">
         {/* Turn this into  */}
         <div
-          className="absolute top-0 left-0 w-64 h-12 text-center border rounded-full z-30 overflow-clip"
+          className="absolute top-0 left-0 w-64 h-12 text-center border border-gray-200 dark:border-gray-600 rounded-full z-30 overflow-clip"
           ref={expandPageRef}
           onClick={(e) => {
             if (expanded === false) {
@@ -238,7 +234,7 @@ const TopicSwipeSelect = ({
           {expanded ? (
             <input
               type="text"
-              className="w-full h-full outline-none pl-6  text-2xl"
+              className="w-full h-full outline-none pl-6 text-2xl bg-transparent text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
               autoFocus
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search..."
@@ -265,7 +261,7 @@ const TopicSwipeSelect = ({
               {topics.map((topic) => (
                 <SwiperSlide key={topic}>
                   <div className="flex h-full justify-center items-center">
-                    <h1 className="text-2xl text-black">{topic}</h1>
+                    <h1 className="text-2xl text-black dark:text-white">{topic}</h1>
                   </div>
                 </SwiperSlide>
               ))}
@@ -281,12 +277,12 @@ const TopicSwipeSelect = ({
               left: `${expandPageAbsolutePositon.x}px`,
             }}
             enter="transition-all duration-200"
-            enterFrom="h-12 w-64 rounded-[1.5rem] border-gray-200"
+            enterFrom="h-12 w-64 rounded-[1.5rem] border-gray-200 dark:border-gray-600"
             enterTo="h-screen w-screen forcezerotopleft rounded-0 border-0 border-transparent"
             leave="transition-all duration-200"
             leaveFrom="h-screen w-screen forcezerotopleft rounded-0 border-transparent"
-            leaveTo="h-12 w-64 rounded-0 border-gray-200 rounded-[1.5rem]"
-            className={'fixed z-20 bg-white overflow-clip ease-in-out'}
+            leaveTo="h-12 w-64 rounded-0 border-gray-200 dark:border-gray-600 rounded-[1.5rem]"
+            className={'fixed z-20 bg-white dark:bg-gray-900 overflow-clip ease-in-out'}
           >
             {/* <div className="fixed top-0 left-0  w-screen h-screen"></div> */}
           </Transition.Child>
@@ -304,14 +300,14 @@ const TopicSwipeSelect = ({
           >
             <div className="h-20 w-[22.2rem] m-auto flex items-center justify-end">
               <button
-                className="w-12 h-12 border rounded-full relative bg-white pointer-events-auto"
+                className="w-12 h-12 border border-gray-300 dark:border-gray-600 rounded-full relative bg-white dark:bg-gray-800 pointer-events-auto"
                 onClick={closeCallback}
               >
-                <div className="absolute w-[1px] h-8 left-1/2 top-2 bg-gray-400 transform rotate-45"></div>
-                <div className="absolute w-[1px] h-8 left-1/2 top-2  bg-gray-400 transform -rotate-45"></div>
+                <div className="absolute w-[1px] h-8 left-1/2 top-2 bg-gray-400 dark:bg-gray-300 transform rotate-45"></div>
+                <div className="absolute w-[1px] h-8 left-1/2 top-2 bg-gray-400 dark:bg-gray-300 transform -rotate-45"></div>
               </button>
             </div>
-            <div className="fixed w-full top-[4.5rem] h-[100dvh] bg-white overflow-y-auto pointer-events-auto">
+            <div className="fixed w-full top-[4.5rem] h-[100dvh] bg-white dark:bg-gray-900 overflow-y-auto pointer-events-auto">
               <SearchArea
                 realTimeQuery={searchQuery}
                 enterPressedQuery={activeSearchQuery}
@@ -325,92 +321,133 @@ const TopicSwipeSelect = ({
 };
 
 export const SwipeHomeFeed = () => {
-  const { processHandle } = useProcessHandleManager();
-  const system = processHandle ? processHandle.system() : undefined;
-  const [followingEvents, advanceFollowing] = useQueryCRDTSet(
-    system,
-    Models.ContentType.ContentTypeFollow,
-    50,
-  );
   const [headerSwiper, setHeaderSwiper] = useState<SwyperType>();
   const [feedSwiper, setFeedSwiper] = useState<SwyperType>();
-  const { topic: currentMobileTopic, setTopic: setCurrentMobileTopic } =
-    useContext(MobileSwipeTopicContext);
+  const { processHandle } = useProcessHandleManager();
+
+  const [joinedTopicEvents, advance] = useQueryCRDTSet(
+    processHandle.system(),
+    Models.ContentType.ContentTypeJoinTopic,
+    30,
+  );
 
   useEffect(() => {
-    advanceFollowing();
-  }, [advanceFollowing]);
+    advance();
+  }, [advance]);
 
-  const followingTopics = useMemo(() => {
-    return Util.filterUndefined(
-      followingEvents.map((event) => event.lwwElementSet?.value),
-    ).map((value) => Util.decodeText(value));
-  }, [followingEvents]);
+  const swipeTopics = useMemo(() => {
+    return [
+      'Explore',
+      'Following',
+      ...Util.filterUndefined(
+        joinedTopicEvents.map((event) => event.lwwElementSet?.value),
+      ).map((value) => Util.decodeText(value)),
+    ];
+  }, [joinedTopicEvents]);
 
-  const topics = useMemo(() => {
-    return ['Following', 'Explore', ...followingTopics];
-  }, [followingTopics]);
+  const { topic: currentTopic } = useContext(MobileSwipeTopicContext);
+
+  useEffect(() => {
+    if (currentTopic && headerSwiper) {
+      const index = swipeTopics.indexOf(currentTopic);
+      if (index !== -1 && index !== headerSwiper.activeIndex) {
+        const currentIndex = headerSwiper.activeIndex;
+        const indexDistance = Math.abs(index - currentIndex);
+        const transitionDurationMS = indexDistance > 1 ? 1000 : 500;
+        headerSwiper.slideTo(index, transitionDurationMS);
+      }
+    }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTopic]);
 
   const handleSlideChange = useCallback(
     (swiper: SwyperType) => {
-      setCurrentMobileTopic(topics[swiper.activeIndex]);
+      swiper.allowSlidePrev = true;
+      swiper.allowSlideNext = true;
+
+      if (swiper.activeIndex === 0) {
+        swiper.allowSlidePrev = false;
+      }
+      if (swiper.activeIndex === swipeTopics.length - 1) {
+        swiper.allowSlideNext = false;
+      }
     },
-    [setCurrentMobileTopic, topics],
+    [swipeTopics],
   );
 
   useEffect(() => {
-    const topicIndex = topics.indexOf(currentMobileTopic);
-    if (topicIndex !== -1 && feedSwiper && !feedSwiper.destroyed) {
-      feedSwiper.slideTo(topicIndex);
-    }
-  }, [currentMobileTopic, feedSwiper, topics]);
+    if (headerSwiper) handleSlideChange(headerSwiper);
+    if (feedSwiper) handleSlideChange(feedSwiper);
+  }, [headerSwiper, feedSwiper, handleSlideChange]);
 
-  const MainContent = useMemo(() => {
-    if (currentMobileTopic === 'Forums') {
-      return <ForumServerListPage />;
-    }
-    return (
-      <Swiper
-        modules={[Controller]}
-        onSwiper={setFeedSwiper}
-        controller={{ control: headerSwiper }}
-        onSlideChange={handleSlideChange}
-        className="h-full"
-      >
-        <SwiperSlide>
-          <FollowingFeed />
-        </SwiperSlide>
-        <SwiperSlide>
-          <ExploreFeed />
-        </SwiperSlide>
-        {followingTopics.map((topic) => (
-          <SwiperSlide key={topic}>
-            <TopicFeed topic={topic} />
-          </SwiperSlide>
-        ))}
-      </Swiper>
-    );
-  }, [currentMobileTopic, headerSwiper, followingTopics, handleSlideChange]);
+  const [composeModalOpen, setComposeModalOpen] = useState(false);
+
+  const isMobileNonIOS = useMemo(() => {
+    return isPlatform('mobile') && !isPlatform('ios') && !isPlatform('ipad');
+  }, []);
 
   return (
     <>
-      <IonHeader className="flex justify-center p-2 items-center">
-        <IonMenuToggle>
-          <MenuIcon />
-        </IonMenuToggle>
-        <div className="flex-grow">
+      <IonHeader className="">
+        <div className="flex items-center justify-between bg-white h-20 border-b">
+          <IonMenuToggle>
+            <div className="p-3">
+              <MenuIcon />
+            </div>
+          </IonMenuToggle>
           <TopicSwipeSelect
-            topics={topics}
             feedSwiper={feedSwiper}
             setHeaderSwiper={setHeaderSwiper}
+            topics={swipeTopics}
             handleSlideChange={handleSlideChange}
           />
+          <div className="p-3">
+            <div className="w-8 h-8"></div>
+          </div>
         </div>
-        <Link routerLink="/compose">
-          <PencilSquareIcon className="w-8 h-8 text-black" />
-        </Link>
       </IonHeader>
-      {MainContent}
+      <IonContent className="h-[calc(100dvh-5rem)]">
+        <Swiper
+          // h-full should work here but it doesn't
+          className="w-full h-full"
+          modules={[Controller]}
+          onSwiper={setFeedSwiper}
+          controller={{ control: headerSwiper }}
+          edgeSwipeDetection={true}
+          edgeSwipeThreshold={50}
+          onSlideChange={handleSlideChange}
+          cssMode={isMobileNonIOS}
+        >
+          {swipeTopics.map((topic) => (
+            <SwiperSlide key={topic} style={{ overflow: 'auto' }}>
+              {topic === 'Explore' ? (
+                <ExploreFeed />
+              ) : topic === 'Following' ? (
+                <FollowingFeed />
+              ) : (
+                <TopicFeed topic={topic} />
+              )}
+            </SwiperSlide>
+          ))}
+        </Swiper>
+        <button
+          onClick={() => setComposeModalOpen(true)}
+          className="fixed bottom-4 right-4 w-16 h-16 bg-blue-500 rounded-full flex justify-center items-center z-10"
+        >
+          <PencilSquareIcon className="w-8 h-8 text-white" />
+        </button>
+        <PopupComposeFullscreen
+          open={composeModalOpen}
+          setOpen={setComposeModalOpen}
+          preSetTopic={
+            swipeTopics[feedSwiper?.activeIndex ?? 0] !== 'Explore' &&
+            swipeTopics[feedSwiper?.activeIndex ?? 0] !== 'Following'
+              ? swipeTopics[feedSwiper?.activeIndex ?? 0]
+              : undefined
+          }
+        />
+      </IonContent>
     </>
   );
 };
