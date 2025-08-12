@@ -80,13 +80,13 @@ const TopicSearchResultsItem = ({
   const { close } = useContext(PopupSearchMenuContext);
   return (
     <Link
-      className="flex space-x-3 items-center w-full p-1 rounded-[1.75rem] hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 ease-in-out cursor-pointer"
+      className="flex space-x-3 items-center w-full p-1 rounded-[1.75rem] hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors duration-200 ease-in-out cursor-pointer"
       key={topic.key}
       routerLink={topicLink}
       routerDirection="forward"
       onClick={close}
     >
-      <div className="bg-gray-100 dark:bg-gray-700 h-12 w-12 text-sm rounded-full flex justify-center items-center text-black dark:text-white">
+      <div className="bg-gray-100 dark:bg-zinc-700 h-12 w-12 text-sm rounded-full flex justify-center items-center text-black dark:text-white">
         {numberTo4Chars(topic.value)}
       </div>
       <div className="text-lg text-black dark:text-white">{displayText}</div>
@@ -158,7 +158,7 @@ const SearchArea = ({
           <button
             key={searchTypeName}
             className={`font-medium text-md p-2 rounded-full text-black dark:text-white ${
-              searchTypeName === searchType ? 'bg-gray-200 dark:bg-gray-600' : ''
+              searchTypeName === searchType ? 'bg-gray-200 dark:bg-zinc-600' : ''
             }`}
             onClick={() => setSearchType(searchTypeName as 'topics' | 'posts')}
           >
@@ -282,7 +282,7 @@ const TopicSwipeSelect = ({
             leave="transition-all duration-200"
             leaveFrom="h-screen w-screen forcezerotopleft rounded-0 border-transparent"
             leaveTo="h-12 w-64 rounded-0 border-gray-200 rounded-[1.5rem]"
-            className={'fixed z-20 bg-white dark:bg-gray-900 overflow-clip ease-in-out'}
+            className={'fixed z-20 bg-white dark:bg-zinc-900 overflow-clip ease-in-out'}
           >
             {/* <div className="fixed top-0 left-0  w-screen h-screen"></div> */}
           </Transition.Child>
@@ -300,14 +300,14 @@ const TopicSwipeSelect = ({
           >
             <div className="h-20 w-[22.2rem] m-auto flex items-center justify-end">
               <button
-                className="w-12 h-12 border border-gray-300 dark:border-gray-600 rounded-full relative bg-white dark:bg-gray-800 pointer-events-auto"
+                className="w-12 h-12 border border-gray-300 dark:border-zinc-600 rounded-full relative bg-white dark:bg-zinc-800 pointer-events-auto"
                 onClick={closeCallback}
               >
-                <div className="absolute w-[1px] h-8 left-1/2 top-2 bg-gray-400 dark:bg-gray-300 transform rotate-45"></div>
-                <div className="absolute w-[1px] h-8 left-1/2 top-2 bg-gray-400 dark:bg-gray-300 transform -rotate-45"></div>
+                <div className="absolute w-[1px] h-8 left-1/2 top-2 bg-gray-400 dark:bg-zinc-300 transform rotate-45"></div>
+                <div className="absolute w-[1px] h-8 left-1/2 top-2 bg-gray-400 dark:bg-zinc-300 transform -rotate-45"></div>
               </button>
             </div>
-            <div className="fixed w-full top-[4.5rem] h-[100dvh] bg-white dark:bg-gray-900 overflow-y-auto pointer-events-auto">
+            <div className="fixed w-full top-[4.5rem] h-[100dvh] bg-white dark:bg-zinc-900 overflow-y-auto pointer-events-auto">
               <SearchArea
                 realTimeQuery={searchQuery}
                 enterPressedQuery={activeSearchQuery}
@@ -415,7 +415,7 @@ export const SwipeHomeFeed = () => {
   return (
     <>
       <IonHeader className="">
-        <div className="flex items-center justify-between bg-white dark:bg-gray-900 h-20 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between bg-white dark:bg-zinc-900 h-20 border-b border-gray-200 dark:border-zinc-700">
           <IonMenuToggle>
             <div className="p-3">
               <MenuIcon />
