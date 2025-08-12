@@ -342,59 +342,52 @@ export const SwipeHomeFeed = () => {
   }, [advance]);
 
   const swipeTopics = useMemo(() => {
-    const topics = [
+    return [
       'Explore',
       'Following',
       ...Util.filterUndefined(
         joinedTopicEvents.map((event) => event.lwwElementSet?.value),
       ).map((value) => Util.decodeText(value)),
     ];
-    console.log('swipeTopics updated:', {
-      topics,
-      joinedTopicEventsCount: joinedTopicEvents.length
-    });
-    return topics;
   }, [joinedTopicEvents]);
 
   const { topic: currentTopic, setTopic: setCurrentTopic } = useContext(
     MobileSwipeTopicContext,
   );
 
+  // Ensure we have a valid topic, default to 'Explore' if not set
+  const validTopic = useMemo(() => {
+    if (!currentTopic || !swipeTopics.includes(currentTopic)) {
+      return 'Explore';
+    }
+    return currentTopic;
+  }, [currentTopic, swipeTopics]);
+
+  // Track if swipers are ready
+  const [swipersReady, setSwipersReady] = useState(false);
+
   useEffect(() => {
-    if (currentTopic && headerSwiper && feedSwiper) {
-      const index = swipeTopics.indexOf(currentTopic);
-      console.log('Topic change effect:', {
-        currentTopic,
-        index,
-        headerSwiperActiveIndex: headerSwiper.activeIndex,
-        feedSwiperActiveIndex: feedSwiper.activeIndex,
-        swipeTopics
-      });
-      
+    if (headerSwiper && feedSwiper) {
+      setSwipersReady(true);
+    }
+  }, [headerSwiper, feedSwiper]);
+
+  useEffect(() => {
+    if (validTopic && swipersReady && headerSwiper && feedSwiper) {
+      const index = swipeTopics.indexOf(validTopic);
       if (index !== -1 && index !== headerSwiper.activeIndex) {
         const currentIndex = headerSwiper.activeIndex;
         const indexDistance = Math.abs(index - currentIndex);
         const transitionDurationMS = indexDistance > 1 ? 1000 : 500;
-        console.log('Moving swipers to index:', index, 'with duration:', transitionDurationMS);
         headerSwiper.slideTo(index, transitionDurationMS);
         feedSwiper.slideTo(index, transitionDurationMS);
       }
-    } else {
-      console.log('Swiper not ready:', {
-        currentTopic,
-        headerSwiper: !!headerSwiper,
-        feedSwiper: !!feedSwiper
-      });
     }
-  }, [currentTopic, headerSwiper, feedSwiper, swipeTopics]);
+  }, [validTopic, swipersReady, headerSwiper, feedSwiper, swipeTopics]);
 
   const handleSlideChange = useCallback(
     (swiper: SwyperType) => {
-      console.log('handleSlideChange called:', {
-        swiperActiveIndex: swiper.activeIndex,
-        swipeTopics,
-        currentTopic
-      });
+      if (!swiper || swiper.destroyed) return;
       
       swiper.allowSlidePrev = true;
       swiper.allowSlideNext = true;
@@ -409,7 +402,6 @@ export const SwipeHomeFeed = () => {
       // Update the context when the slide changes
       const newTopic = swipeTopics[swiper.activeIndex];
       if (newTopic && newTopic !== currentTopic) {
-        console.log('Setting new topic:', newTopic, 'from slide change');
         setCurrentTopic(newTopic);
       }
     },
@@ -421,18 +413,22 @@ export const SwipeHomeFeed = () => {
     if (feedSwiper) handleSlideChange(feedSwiper);
   }, [headerSwiper, feedSwiper, handleSlideChange]);
 
-  // Ensure proper initialization when swipers are ready
+  // Initialize swipers to correct position when they become ready
   useEffect(() => {
-    if (headerSwiper && feedSwiper && currentTopic) {
-      console.log('Initializing swipers with current topic:', currentTopic);
-      const index = swipeTopics.indexOf(currentTopic);
+    if (swipersReady && validTopic && headerSwiper && feedSwiper) {
+      const index = swipeTopics.indexOf(validTopic);
       if (index !== -1) {
-        console.log('Setting initial swiper positions to index:', index);
-        headerSwiper.slideTo(index, 0);
-        feedSwiper.slideTo(index, 0);
+        // Use a small delay to ensure swipers are fully initialized
+        const timer = setTimeout(() => {
+          if (headerSwiper && feedSwiper && !headerSwiper.destroyed && !feedSwiper.destroyed) {
+            headerSwiper.slideTo(index, 0);
+            feedSwiper.slideTo(index, 0);
+          }
+        }, 100);
+        return () => clearTimeout(timer);
       }
     }
-  }, [headerSwiper, feedSwiper, currentTopic, swipeTopics]);
+  }, [swipersReady, validTopic, headerSwiper, feedSwiper, swipeTopics]);
 
   const [composeModalOpen, setComposeModalOpen] = useState(false);
 
