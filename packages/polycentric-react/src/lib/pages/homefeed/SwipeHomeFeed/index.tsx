@@ -1,12 +1,11 @@
 import { IonContent, IonHeader, IonMenuToggle, isPlatform } from '@ionic/react';
 import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useState
 } from 'react';
 import { Swiper as SwyperType } from 'swiper';
 import 'swiper/css';
@@ -21,16 +20,15 @@ import { MobileSwipeTopicContext } from '../../../app/contexts';
 import { Feed, PopupComposeFullscreen } from '../../../components';
 import { Link } from '../../../components/util/link';
 import { useSearchPostsFeed } from '../../../hooks/feedHooks';
-import { useGestureWall } from '../../../hooks/ionicHooks';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import {
-  useQueryCRDTSet,
-  useQueryTopStringReferences,
+    useQueryCRDTSet,
+    useQueryTopStringReferences,
 } from '../../../hooks/queryHooks';
 import {
-  normalizeTopic as normalizeTopicString,
-  useTopicDisplayText,
-  useTopicLink,
+    normalizeTopic as normalizeTopicString,
+    useTopicDisplayText,
+    useTopicLink,
 } from '../../../hooks/utilHooks';
 import { numberTo4Chars } from '../../../util/etc';
 import { ExploreFeed } from './ExploreFeed';
@@ -189,171 +187,126 @@ const TopicSwipeSelect = ({
   setHeaderSwiper: (swiper: SwyperType) => void;
   handleSlideChange: (swiper: SwyperType) => void;
 }) => {
-  const expandPageRef = useRef<HTMLDivElement>(null);
-  const [expandPageAbsolutePositon, setExpandPageAbsolutePosition] = useState({
-    x: 0,
-    y: 0,
-  });
-  const [expanded, setExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeSearchQuery, setActiveSearchQuery] = useState('');
+  const [enterPressedQuery, setEnterPressedQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [headerSwiper, setHeaderSwiperState] = useState<SwyperType | undefined>(
+    undefined,
+  );
 
-  const searchBoxRef = useRef<HTMLInputElement>(null);
+  const { close } = useContext(PopupSearchMenuContext);
 
-  // useeffect to blur on document scroll
-  useEffect(() => {
-    const listener = () => searchBoxRef.current?.blur();
-    document.addEventListener('scroll', listener);
-    return () => {
-      document.removeEventListener('scroll', listener);
-    };
-  }, [expanded]);
+  const handleHeaderSwiper = (swiper: SwyperType) => {
+    setHeaderSwiperState(swiper);
+    setHeaderSwiper(swiper);
+  };
 
-  const closeCallback = useCallback(() => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      setEnterPressedQuery(searchQuery);
+    }
+  };
+
+  const handleSearchClick = () => {
+    setIsSearchOpen(true);
+  };
+
+  const handleClose = () => {
+    setIsSearchOpen(false);
     setSearchQuery('');
-    setActiveSearchQuery('');
-    setExpanded(false);
-  }, []);
-
-  useGestureWall(expanded);
+    setEnterPressedQuery('');
+    close();
+  };
 
   return (
-    <PopupSearchMenuContext.Provider value={{ close: closeCallback }}>
-      <div className="relative w-64 h-12">
-        {/* Turn this into  */}
-        <div
-          className="absolute top-0 left-0 w-64 h-12 text-center border border-gray-200 dark:border-gray-600 rounded-full z-30 overflow-clip"
-          ref={expandPageRef}
-          onClick={(e) => {
-            if (expanded === false) {
-              setExpandPageAbsolutePosition(
-                e.currentTarget.getBoundingClientRect(),
-              );
-              setExpanded(true);
-            }
-          }}
-        >
-          {expanded ? (
-            <input
-              type="text"
-              className="w-full h-full outline-none pl-6 text-2xl bg-transparent text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-              autoFocus
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
-              value={searchQuery}
-              ref={searchBoxRef}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  setActiveSearchQuery(searchQuery);
-                }
-              }}
-              onBlur={() => {
-                setActiveSearchQuery(searchQuery);
-              }}
-            />
-          ) : (
-            <Swiper
-              modules={[Controller]}
-              onSwiper={setHeaderSwiper}
-              className="h-12 w-64"
-              controller={{ control: feedSwiper }}
-              allowSlidePrev={false}
-              onSlideChange={handleSlideChange}
-            >
-              {topics.map((topic) => (
-                <SwiperSlide key={topic}>
-                  <div className="flex h-full justify-center items-center">
-                    <h1 className="text-2xl text-black dark:text-white">
-                      {topic}
-                    </h1>
-                  </div>
-                </SwiperSlide>
-              ))}
-            </Swiper>
-          )}
+    <div className="flex-1 flex justify-center">
+      <div className="relative">
+        <div className="border border-gray-200 dark:border-gray-600 rounded-full h-12 w-64 flex items-center">
+          <input
+            type="text"
+            placeholder="Search topics..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onClick={handleSearchClick}
+            className="w-full h-full outline-none pl-6 text-2xl bg-transparent text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+          />
         </div>
-        {/* pop up thing that expands to whole screen */}
-        <Transition show={expanded}>
-          <Transition.Child
-            as="div"
+        <Swiper
+          className="absolute top-0 left-0 w-64 h-12"
+          modules={[Controller]}
+          onSwiper={handleHeaderSwiper}
+          controller={{ control: feedSwiper }}
+          edgeSwipeDetection={true}
+          edgeSwipeThreshold={50}
+          onSlideChange={handleSlideChange}
+          cssMode={false}
+        >
+          {topics.map((topic) => (
+            <SwiperSlide key={topic}>
+              <div className="w-full h-full flex items-center justify-center">
+                <h1 className="text-2xl text-black dark:text-white">{topic}</h1>
+              </div>
+            </SwiperSlide>
+          ))}
+        </Swiper>
+      </div>
+
+      <Transition
+        show={isSearchOpen}
+        enter="transition-all duration-300 ease-out"
+        enterFrom="h-12 w-64 rounded-[1.5rem] border-gray-200 dark:border-gray-600"
+        enterTo="h-[100dvh] w-full rounded-0 border-gray-200 dark:border-gray-600"
+        leave="transition-all duration-300 ease-in"
+        leaveFrom="h-[100dvh] w-full rounded-0 border-gray-200 dark:border-gray-600"
+        leaveTo="h-12 w-64 rounded-0 border-gray-200 dark:border-gray-600 rounded-[1.5rem]"
+        className={'fixed z-20 bg-white dark:bg-gray-900 overflow-clip ease-in-out'}
+        style={{
+          top: '4.5rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+        }}
+      >
+        <div className="relative w-full h-full">
+          <button
+            onClick={handleClose}
+            className="w-12 h-12 border border-gray-300 dark:border-gray-600 rounded-full relative bg-white dark:bg-gray-800 pointer-events-auto"
             style={{
-              top: `${expandPageAbsolutePositon.y}px`,
-              left: `${expandPageAbsolutePositon.x}px`,
+              position: 'absolute',
+              top: '1rem',
+              right: '1rem',
+              zIndex: 30,
             }}
-            enter="transition-all duration-200"
-            enterFrom="h-12 w-64 rounded-[1.5rem] border-gray-200 dark:border-gray-600"
-            enterTo="h-screen w-screen forcezerotopleft rounded-0 border-0 border-transparent"
-            leave="transition-all duration-200"
-            leaveFrom="h-screen w-screen forcezerotopleft rounded-0 border-transparent"
-            leaveTo="h-12 w-64 rounded-0 border-gray-200 dark:border-gray-600 rounded-[1.5rem]"
-            className={
-              'fixed z-20 bg-white dark:bg-gray-900 overflow-clip ease-in-out'
-            }
           >
-            {/* <div className="fixed top-0 left-0  w-screen h-screen"></div> */}
-          </Transition.Child>
-          <Transition.Child
-            as="div"
-            enter="transition-all ease-in duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="transition-all ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-            // no pointer events so we can click through to the search bar
-            // we reenable pointer events on x button
-            className="fixed top-0 left-0 w-full z-30 pointer-events-none"
-          >
-            <div className="h-20 w-[22.2rem] m-auto flex items-center justify-end">
-              <button
-                className="w-12 h-12 border border-gray-300 dark:border-gray-600 rounded-full relative bg-white dark:bg-gray-800 pointer-events-auto"
-                onClick={closeCallback}
-              >
-                <div className="absolute w-[1px] h-8 left-1/2 top-2 bg-gray-400 dark:bg-gray-300 transform rotate-45"></div>
-                <div className="absolute w-[1px] h-8 left-1/2 top-2 bg-gray-400 dark:bg-gray-300 transform -rotate-45"></div>
-              </button>
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-6 h-0.5 bg-gray-400 dark:bg-gray-300 transform rotate-45 absolute"></div>
+              <div className="w-6 h-0.5 bg-gray-400 dark:bg-gray-300 transform -rotate-45 absolute"></div>
             </div>
-            <div className="fixed w-full top-[4.5rem] h-[100dvh] bg-white dark:bg-gray-900 overflow-y-auto pointer-events-auto">
+          </button>
+          <div className="fixed w-full top-[4.5rem] h-[100dvh] bg-white dark:bg-gray-900 overflow-y-auto pointer-events-auto">
+            <div className="flex justify-center pt-8">
               <SearchArea
                 realTimeQuery={searchQuery}
-                enterPressedQuery={activeSearchQuery}
+                enterPressedQuery={enterPressedQuery}
               />
             </div>
-          </Transition.Child>
-        </Transition>
-      </div>
-    </PopupSearchMenuContext.Provider>
+          </div>
+        </div>
+      </Transition>
+    </div>
   );
 };
 
 export const SwipeHomeFeed = () => {
-  const [headerSwiper, setHeaderSwiper] = useState<SwyperType>();
-  const [feedSwiper, setFeedSwiper] = useState<SwyperType>();
-  const { processHandle } = useProcessHandleManager();
-
-  const [joinedTopicEvents, advance] = useQueryCRDTSet(
-    processHandle.system(),
-    Models.ContentType.ContentTypeJoinTopic,
-    30,
+  const { topic: currentTopic, setTopic: setCurrentTopic } = useContext(MobileSwipeTopicContext);
+  const [headerSwiper, setHeaderSwiper] = useState<SwyperType | undefined>(
+    undefined,
+  );
+  const [feedSwiper, setFeedSwiper] = useState<SwyperType | undefined>(
+    undefined,
   );
 
-  useEffect(() => {
-    advance();
-  }, [advance]);
-
-  const swipeTopics = useMemo(() => {
-    return [
-      'Explore',
-      'Following',
-      ...Util.filterUndefined(
-        joinedTopicEvents.map((event) => event.lwwElementSet?.value),
-      ).map((value) => Util.decodeText(value)),
-    ];
-  }, [joinedTopicEvents]);
-
-  const { topic: currentTopic, setTopic: setCurrentTopic } = useContext(
-    MobileSwipeTopicContext,
-  );
+  const swipeTopics = ['Explore', 'Following'];
 
   // Ensure we have a valid topic, default to 'Explore' if not set
   const validTopic = useMemo(() => {
@@ -439,7 +392,7 @@ export const SwipeHomeFeed = () => {
   return (
     <>
       <IonHeader className="">
-        <div className="flex items-center justify-between bg-white h-20 border-b">
+        <div className="flex items-center justify-between bg-white dark:bg-gray-900 h-20 border-b border-gray-200 dark:border-gray-700">
           <IonMenuToggle>
             <div className="p-3">
               <MenuIcon />
