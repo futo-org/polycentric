@@ -80,13 +80,13 @@ const TopicSearchResultsItem = ({
   const { close } = useContext(PopupSearchMenuContext);
   return (
     <Link
-      className="flex space-x-3 items-center w-full p-1 rounded-[1.75rem] hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 ease-in-out cursor-pointer"
+      className="flex space-x-3 items-center w-full p-1 rounded-[1.75rem] hover:bg-gray-100 dark:hover:bg-zinc-700 transition-colors duration-200 ease-in-out cursor-pointer"
       key={topic.key}
       routerLink={topicLink}
       routerDirection="forward"
       onClick={close}
     >
-      <div className="bg-gray-100 dark:bg-gray-700 h-12 w-12 text-sm rounded-full flex justify-center items-center text-black dark:text-white">
+      <div className="bg-gray-100 dark:bg-zinc-700 h-12 w-12 text-sm rounded-full flex justify-center items-center text-black dark:text-white">
         {numberTo4Chars(topic.value)}
       </div>
       <div className="text-lg text-black dark:text-white">{displayText}</div>
@@ -159,7 +159,7 @@ const SearchArea = ({
             key={searchTypeName}
             className={`font-medium text-md p-2 rounded-full text-black dark:text-white ${
               searchTypeName === searchType
-                ? 'bg-gray-200 dark:bg-gray-600'
+                ? 'bg-gray-200 dark:bg-zinc-600'
                 : ''
             }`}
             onClick={() => setSearchType(searchTypeName as 'topics' | 'posts')}
@@ -236,7 +236,7 @@ const TopicSwipeSelect = ({
           {expanded ? (
             <input
               type="text"
-              className="w-full h-full outline-none pl-6 text-2xl bg-transparent text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              className="w-full h-full outline-none pl-6 text-2xl text-black dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
               autoFocus
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search..."
@@ -281,13 +281,13 @@ const TopicSwipeSelect = ({
               left: `${expandPageAbsolutePositon.x}px`,
             }}
             enter="transition-all duration-200"
-            enterFrom="h-12 w-64 rounded-[1.5rem] border-gray-200 dark:border-gray-600"
+            enterFrom="h-12 w-64 rounded-[1.5rem] border-gray-200"
             enterTo="h-screen w-screen forcezerotopleft rounded-0 border-0 border-transparent"
             leave="transition-all duration-200"
             leaveFrom="h-screen w-screen forcezerotopleft rounded-0 border-transparent"
-            leaveTo="h-12 w-64 rounded-0 border-gray-200 dark:border-gray-600 rounded-[1.5rem]"
+            leaveTo="h-12 w-64 rounded-0 border-gray-200 rounded-[1.5rem]"
             className={
-              'fixed z-20 bg-white dark:bg-gray-900 overflow-clip ease-in-out'
+              'fixed z-20 bg-white dark:bg-zinc-900 overflow-clip ease-in-out'
             }
           >
             {/* <div className="fixed top-0 left-0  w-screen h-screen"></div> */}
@@ -306,14 +306,14 @@ const TopicSwipeSelect = ({
           >
             <div className="h-20 w-[22.2rem] m-auto flex items-center justify-end">
               <button
-                className="w-12 h-12 border border-gray-300 dark:border-gray-600 rounded-full relative bg-white dark:bg-gray-800 pointer-events-auto"
+                className="w-12 h-12 border border-gray-300 dark:border-zinc-600 rounded-full relative bg-white dark:bg-zinc-800 pointer-events-auto"
                 onClick={closeCallback}
               >
-                <div className="absolute w-[1px] h-8 left-1/2 top-2 bg-gray-400 dark:bg-gray-300 transform rotate-45"></div>
-                <div className="absolute w-[1px] h-8 left-1/2 top-2 bg-gray-400 dark:bg-gray-300 transform -rotate-45"></div>
+                <div className="absolute w-[1px] h-8 left-1/2 top-2 bg-gray-400 dark:bg-zinc-300 transform rotate-45"></div>
+                <div className="absolute w-[1px] h-8 left-1/2 top-2 bg-gray-400 dark:bg-zinc-300 transform -rotate-45"></div>
               </button>
             </div>
-            <div className="fixed w-full top-[4.5rem] h-[100dvh] bg-white dark:bg-gray-900 overflow-y-auto pointer-events-auto">
+            <div className="fixed w-full top-[4.5rem] h-[100dvh] bg-white dark:bg-zinc-900 overflow-y-auto pointer-events-auto">
               <SearchArea
                 realTimeQuery={searchQuery}
                 enterPressedQuery={activeSearchQuery}
@@ -327,37 +327,38 @@ const TopicSwipeSelect = ({
 };
 
 export const SwipeHomeFeed = () => {
-  const [headerSwiper, setHeaderSwiper] = useState<SwyperType>();
-  const [feedSwiper, setFeedSwiper] = useState<SwyperType>();
-  const { processHandle } = useProcessHandleManager();
-
-  const [joinedTopicEvents, advance] = useQueryCRDTSet(
-    processHandle.system(),
-    Models.ContentType.ContentTypeJoinTopic,
-    30,
-  );
-
-  useEffect(() => {
-    advance();
-  }, [advance]);
-
-  const swipeTopics = useMemo(() => {
-    return [
-      'Explore',
-      'Following',
-      ...Util.filterUndefined(
-        joinedTopicEvents.map((event) => event.lwwElementSet?.value),
-      ).map((value) => Util.decodeText(value)),
-    ];
-  }, [joinedTopicEvents]);
-
   const { topic: currentTopic, setTopic: setCurrentTopic } = useContext(
     MobileSwipeTopicContext,
   );
+  const [headerSwiper, setHeaderSwiper] = useState<SwyperType | undefined>(
+    undefined,
+  );
+  const [feedSwiper, setFeedSwiper] = useState<SwyperType | undefined>(
+    undefined,
+  );
+
+  const swipeTopics = useMemo(() => ['Explore', 'Following'], []);
+
+  // Ensure we have a valid topic, default to 'Explore' if not set
+  const validTopic = useMemo(() => {
+    if (!currentTopic || !swipeTopics.includes(currentTopic)) {
+      return 'Explore';
+    }
+    return currentTopic;
+  }, [currentTopic, swipeTopics]);
+
+  // Track if swipers are ready
+  const [swipersReady, setSwipersReady] = useState(false);
 
   useEffect(() => {
-    if (currentTopic && headerSwiper && feedSwiper) {
-      const index = swipeTopics.indexOf(currentTopic);
+    if (headerSwiper && feedSwiper) {
+      setSwipersReady(true);
+    }
+  }, [headerSwiper, feedSwiper]);
+
+  useEffect(() => {
+    if (validTopic && swipersReady && headerSwiper && feedSwiper) {
+      const index = swipeTopics.indexOf(validTopic);
       if (index !== -1 && index !== headerSwiper.activeIndex) {
         const currentIndex = headerSwiper.activeIndex;
         const indexDistance = Math.abs(index - currentIndex);
@@ -366,10 +367,12 @@ export const SwipeHomeFeed = () => {
         feedSwiper.slideTo(index, transitionDurationMS);
       }
     }
-  }, [currentTopic, headerSwiper, feedSwiper, swipeTopics]);
+  }, [validTopic, swipersReady, headerSwiper, feedSwiper, swipeTopics]);
 
   const handleSlideChange = useCallback(
     (swiper: SwyperType) => {
+      if (!swiper || swiper.destroyed) return;
+
       swiper.allowSlidePrev = true;
       swiper.allowSlideNext = true;
 
@@ -394,6 +397,28 @@ export const SwipeHomeFeed = () => {
     if (feedSwiper) handleSlideChange(feedSwiper);
   }, [headerSwiper, feedSwiper, handleSlideChange]);
 
+  // Initialize swipers to correct position when they become ready
+  useEffect(() => {
+    if (swipersReady && validTopic && headerSwiper && feedSwiper) {
+      const index = swipeTopics.indexOf(validTopic);
+      if (index !== -1) {
+        // Use a small delay to ensure swipers are fully initialized
+        const timer = setTimeout(() => {
+          if (
+            headerSwiper &&
+            feedSwiper &&
+            !headerSwiper.destroyed &&
+            !feedSwiper.destroyed
+          ) {
+            headerSwiper.slideTo(index, 0);
+            feedSwiper.slideTo(index, 0);
+          }
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [swipersReady, validTopic, headerSwiper, feedSwiper, swipeTopics]);
+
   const [composeModalOpen, setComposeModalOpen] = useState(false);
 
   const isMobileNonIOS = useMemo(() => {
@@ -403,7 +428,7 @@ export const SwipeHomeFeed = () => {
   return (
     <>
       <IonHeader className="">
-        <div className="flex items-center justify-between bg-white h-20 border-b">
+        <div className="flex items-center justify-between bg-white dark:bg-zinc-900 h-20 border-b border-gray-200 dark:border-zinc-700">
           <IonMenuToggle>
             <div className="p-3">
               <MenuIcon />
