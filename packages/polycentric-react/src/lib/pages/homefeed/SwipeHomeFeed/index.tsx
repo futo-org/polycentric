@@ -342,13 +342,18 @@ export const SwipeHomeFeed = () => {
   }, [advance]);
 
   const swipeTopics = useMemo(() => {
-    return [
+    const topics = [
       'Explore',
       'Following',
       ...Util.filterUndefined(
         joinedTopicEvents.map((event) => event.lwwElementSet?.value),
       ).map((value) => Util.decodeText(value)),
     ];
+    console.log('swipeTopics updated:', {
+      topics,
+      joinedTopicEventsCount: joinedTopicEvents.length
+    });
+    return topics;
   }, [joinedTopicEvents]);
 
   const { topic: currentTopic, setTopic: setCurrentTopic } = useContext(
@@ -358,18 +363,39 @@ export const SwipeHomeFeed = () => {
   useEffect(() => {
     if (currentTopic && headerSwiper && feedSwiper) {
       const index = swipeTopics.indexOf(currentTopic);
+      console.log('Topic change effect:', {
+        currentTopic,
+        index,
+        headerSwiperActiveIndex: headerSwiper.activeIndex,
+        feedSwiperActiveIndex: feedSwiper.activeIndex,
+        swipeTopics
+      });
+      
       if (index !== -1 && index !== headerSwiper.activeIndex) {
         const currentIndex = headerSwiper.activeIndex;
         const indexDistance = Math.abs(index - currentIndex);
         const transitionDurationMS = indexDistance > 1 ? 1000 : 500;
+        console.log('Moving swipers to index:', index, 'with duration:', transitionDurationMS);
         headerSwiper.slideTo(index, transitionDurationMS);
         feedSwiper.slideTo(index, transitionDurationMS);
       }
+    } else {
+      console.log('Swiper not ready:', {
+        currentTopic,
+        headerSwiper: !!headerSwiper,
+        feedSwiper: !!feedSwiper
+      });
     }
   }, [currentTopic, headerSwiper, feedSwiper, swipeTopics]);
 
   const handleSlideChange = useCallback(
     (swiper: SwyperType) => {
+      console.log('handleSlideChange called:', {
+        swiperActiveIndex: swiper.activeIndex,
+        swipeTopics,
+        currentTopic
+      });
+      
       swiper.allowSlidePrev = true;
       swiper.allowSlideNext = true;
 
@@ -383,6 +409,7 @@ export const SwipeHomeFeed = () => {
       // Update the context when the slide changes
       const newTopic = swipeTopics[swiper.activeIndex];
       if (newTopic && newTopic !== currentTopic) {
+        console.log('Setting new topic:', newTopic, 'from slide change');
         setCurrentTopic(newTopic);
       }
     },
@@ -393,6 +420,19 @@ export const SwipeHomeFeed = () => {
     if (headerSwiper) handleSlideChange(headerSwiper);
     if (feedSwiper) handleSlideChange(feedSwiper);
   }, [headerSwiper, feedSwiper, handleSlideChange]);
+
+  // Ensure proper initialization when swipers are ready
+  useEffect(() => {
+    if (headerSwiper && feedSwiper && currentTopic) {
+      console.log('Initializing swipers with current topic:', currentTopic);
+      const index = swipeTopics.indexOf(currentTopic);
+      if (index !== -1) {
+        console.log('Setting initial swiper positions to index:', index);
+        headerSwiper.slideTo(index, 0);
+        feedSwiper.slideTo(index, 0);
+      }
+    }
+  }, [headerSwiper, feedSwiper, currentTopic, swipeTopics]);
 
   const [composeModalOpen, setComposeModalOpen] = useState(false);
 
