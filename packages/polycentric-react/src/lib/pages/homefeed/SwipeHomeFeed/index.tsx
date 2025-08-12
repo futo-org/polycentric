@@ -1,11 +1,11 @@
 import { IonContent, IonHeader, IonMenuToggle, isPlatform } from '@ionic/react';
 import {
-    createContext,
-    useCallback,
-    useContext,
-    useEffect,
-    useMemo,
-    useState
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
 } from 'react';
 import { Swiper as SwyperType } from 'swiper';
 import 'swiper/css';
@@ -22,13 +22,13 @@ import { Link } from '../../../components/util/link';
 import { useSearchPostsFeed } from '../../../hooks/feedHooks';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import {
-    useQueryCRDTSet,
-    useQueryTopStringReferences,
+  useQueryCRDTSet,
+  useQueryTopStringReferences,
 } from '../../../hooks/queryHooks';
 import {
-    normalizeTopic as normalizeTopicString,
-    useTopicDisplayText,
-    useTopicLink,
+  normalizeTopic as normalizeTopicString,
+  useTopicDisplayText,
+  useTopicLink,
 } from '../../../hooks/utilHooks';
 import { numberTo4Chars } from '../../../util/etc';
 import { ExploreFeed } from './ExploreFeed';
@@ -260,7 +260,9 @@ const TopicSwipeSelect = ({
         leave="transition-all duration-300 ease-in"
         leaveFrom="h-[100dvh] w-full rounded-0 border-gray-200 dark:border-gray-600"
         leaveTo="h-12 w-64 rounded-0 border-gray-200 dark:border-gray-600 rounded-[1.5rem]"
-        className={'fixed z-20 bg-white dark:bg-gray-900 overflow-clip ease-in-out'}
+        className={
+          'fixed z-20 bg-white dark:bg-gray-900 overflow-clip ease-in-out'
+        }
         style={{
           top: '4.5rem',
           left: '50%',
@@ -298,7 +300,9 @@ const TopicSwipeSelect = ({
 };
 
 export const SwipeHomeFeed = () => {
-  const { topic: currentTopic, setTopic: setCurrentTopic } = useContext(MobileSwipeTopicContext);
+  const { topic: currentTopic, setTopic: setCurrentTopic } = useContext(
+    MobileSwipeTopicContext,
+  );
   const [headerSwiper, setHeaderSwiper] = useState<SwyperType | undefined>(
     undefined,
   );
@@ -341,7 +345,7 @@ export const SwipeHomeFeed = () => {
   const handleSlideChange = useCallback(
     (swiper: SwyperType) => {
       if (!swiper || swiper.destroyed) return;
-      
+
       swiper.allowSlidePrev = true;
       swiper.allowSlideNext = true;
 
@@ -373,7 +377,12 @@ export const SwipeHomeFeed = () => {
       if (index !== -1) {
         // Use a small delay to ensure swipers are fully initialized
         const timer = setTimeout(() => {
-          if (headerSwiper && feedSwiper && !headerSwiper.destroyed && !feedSwiper.destroyed) {
+          if (
+            headerSwiper &&
+            feedSwiper &&
+            !headerSwiper.destroyed &&
+            !feedSwiper.destroyed
+          ) {
             headerSwiper.slideTo(index, 0);
             feedSwiper.slideTo(index, 0);
           }

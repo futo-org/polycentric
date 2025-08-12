@@ -34,9 +34,9 @@ export const Header = ({
       'bg-white px-4 border-b text-black flex items-center justify-between';
 
     const BackButton = canHaveBackButton ? (
-      <Link 
-        routerDirection={routerDirection} 
-        routerLink={canGoBack ? undefined : "/"} 
+      <Link
+        routerDirection={routerDirection}
+        routerLink={canGoBack ? undefined : '/'}
         className="p-1"
       >
         <ChevronLeftIcon className="h-6 w-6" />
