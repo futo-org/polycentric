@@ -39,7 +39,10 @@ export function createExportBundleUrl(urlInfoBytes: Uint8Array): CompressionResu
     const compressedSize = compressedUrl.length;
     const compressionRatio = originalSize / compressedSize;
     
-    console.log(`Export bundle compressed: ${originalSize} → ${compressedSize} chars (${compressionRatio.toFixed(2)}x smaller)`);
+    // Log compression info for debugging in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Export bundle compressed: ${originalSize} → ${compressedSize} chars (${compressionRatio.toFixed(2)}x smaller)`);
+    }
     
     // Only use compression if it actually saves space
     if (compressedSize < originalSize) {

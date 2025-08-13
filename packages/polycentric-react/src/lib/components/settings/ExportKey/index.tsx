@@ -9,7 +9,6 @@ import { createExportBundleUrl, type CompressionResult } from '../../../util/com
 export const ExportKey = () => {
   const [bundleString, setBundleString] = useState<string | undefined>();
   const [compressionInfo, setCompressionInfo] = useState<CompressionResult | undefined>();
-  const [qrError, setQrError] = useState<string | undefined>();
   const { processHandle } = useProcessHandleManager();
   const username = useUsernameCRDTQuery(processHandle.system());
 
@@ -86,9 +85,6 @@ This is a backup of your Polycentric account. Keep it safe and secure. If you lo
   // Component for robust QR code generation with fallback
   const RobustQRCode = ({ value }: { value: string }) => {
     const [error, setError] = useState<string | undefined>();
-
-    // Try different error correction levels if one fails
-    const errorCorrectionLevels = ['L', 'M', 'Q', 'H'] as const;
     
     const renderQRCode = () => {
       // For now, we'll use the default QR code component
