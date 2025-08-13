@@ -29,6 +29,7 @@ We've implemented automatic compression support that is **fully compatible with 
 ### Compression Logic (Grayjay Compatible)
 
 1. **Export Process (matches Grayjay exactly):**
+
    - Create URLInfo protocol buffer bytes
    - Check if resulting `polycentric://` URL exceeds 2000 characters
    - If yes, compress the raw URLInfo bytes using GZIP
@@ -59,12 +60,18 @@ We've implemented automatic compression support that is **fully compatible with 
 ### For Developers
 
 ```typescript
-import { createExportBundleUrl, parseImportBundleUrl, tryDecompressUrlInfo } from '@polycentric/polycentric-react';
+import {
+  createExportBundleUrl,
+  parseImportBundleUrl,
+  tryDecompressUrlInfo,
+} from '@polycentric/polycentric-react';
 
 // Create export URL with automatic compression (Grayjay-compatible)
 const urlInfoBytes = Protocol.URLInfo.encode(urlInfo).finish();
 const result = createExportBundleUrl(urlInfoBytes);
-console.log(`URL: ${result.url}, Compressed: ${result.isCompressed}, Ratio: ${result.compressionRatio}`);
+console.log(
+  `URL: ${result.url}, Compressed: ${result.isCompressed}, Ratio: ${result.compressionRatio}`,
+);
 
 // Parse import URL with automatic decompression (Grayjay-compatible)
 try {

@@ -4,11 +4,16 @@ import QRCode from 'react-qr-code';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import { useUsernameCRDTQuery } from '../../../hooks/queryHooks';
 import { useIsMobile } from '../../../hooks/styleHooks';
-import { createExportBundleUrl, type CompressionResult } from '../../../util/compression';
+import {
+  createExportBundleUrl,
+  type CompressionResult,
+} from '../../../util/compression';
 
 export const ExportKey = () => {
   const [bundleString, setBundleString] = useState<string | undefined>();
-  const [compressionInfo, setCompressionInfo] = useState<CompressionResult | undefined>();
+  const [compressionInfo, setCompressionInfo] = useState<
+    CompressionResult | undefined
+  >();
   const { processHandle } = useProcessHandleManager();
   const username = useUsernameCRDTQuery(processHandle.system());
 
@@ -25,7 +30,7 @@ export const ExportKey = () => {
 
       // Create URLInfo bytes for compression (Grayjay-compatible approach)
       const urlInfoBytes = Protocol.URLInfo.encode(urlInfo).finish();
-      
+
       // Apply compression if needed using Grayjay-compatible method
       const result = createExportBundleUrl(urlInfoBytes);
       setCompressionInfo(result);
@@ -85,7 +90,7 @@ This is a backup of your Polycentric account. Keep it safe and secure. If you lo
   // Component for robust QR code generation with fallback
   const RobustQRCode = ({ value }: { value: string }) => {
     const [error, setError] = useState<string | undefined>();
-    
+
     const renderQRCode = () => {
       // For now, we'll use the default QR code component
       // In a more robust implementation, we'd try different error correction levels
@@ -100,9 +105,7 @@ This is a backup of your Polycentric account. Keep it safe and secure. If you lo
     if (error) {
       return (
         <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-yellow-800 text-sm">
-            {error}
-          </p>
+          <p className="text-yellow-800 text-sm">{error}</p>
         </div>
       );
     }
@@ -132,8 +135,9 @@ This is a backup of your Polycentric account. Keep it safe and secure. If you lo
             <RobustQRCode value={bundleString} />
             {compressionInfo?.isCompressed && (
               <p className="text-xs text-gray-600 mt-2">
-                Data compressed: {compressionInfo.originalSize} → {compressionInfo.compressedSize} chars 
-                ({compressionInfo.compressionRatio?.toFixed(1)}x smaller)
+                Data compressed: {compressionInfo.originalSize} →{' '}
+                {compressionInfo.compressedSize} chars (
+                {compressionInfo.compressionRatio?.toFixed(1)}x smaller)
               </p>
             )}
           </div>

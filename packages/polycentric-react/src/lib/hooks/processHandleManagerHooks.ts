@@ -1,19 +1,22 @@
 import {
-    CancelContext,
-    MetaStore,
-    Models,
-    ProcessHandle,
-    Protocol,
-    Store,
+  CancelContext,
+  MetaStore,
+  Models,
+  ProcessHandle,
+  Protocol,
+  Store,
 } from '@polycentric/polycentric-core';
 import {
-    createContext,
-    useCallback,
-    useContext,
-    useEffect,
-    useState,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
 } from 'react';
-import { parseImportBundleUrl, tryDecompressUrlInfo } from '../util/compression';
+import {
+  parseImportBundleUrl,
+  tryDecompressUrlInfo,
+} from '../util/compression';
 
 type BaseProcessHandleManagerHookReturn = {
   processHandle: ProcessHandle.ProcessHandle | null | undefined;
@@ -140,7 +143,7 @@ export function useProcessHandleManagerBaseComponentHook(
 
         // Use Grayjay-compatible parsing: try normal parsing first, then decompression
         const urlInfoBytes = parseImportBundleUrl(bundle);
-        
+
         let urlInfo: Protocol.URLInfo;
         try {
           // Try to parse as regular data first (matching Grayjay's approach)
@@ -150,7 +153,7 @@ export function useProcessHandleManagerBaseComponentHook(
           const decompressedBytes = tryDecompressUrlInfo(urlInfoBytes);
           urlInfo = Protocol.URLInfo.decode(decompressedBytes);
         }
-        
+
         exportBundle = Models.URLInfo.getExportBundle(urlInfo);
 
         const privateKeyBuffer: Uint8Array | undefined =
@@ -165,7 +168,9 @@ export function useProcessHandleManagerBaseComponentHook(
         privateKeyModel = Models.PrivateKey.fromProto(privateKeyProto);
       } catch (e) {
         if (e instanceof Error && e.message.includes('parse URL data')) {
-          throw new Error('Failed to parse profile data. The backup key may be corrupted or compressed in an unsupported format.');
+          throw new Error(
+            'Failed to parse profile data. The backup key may be corrupted or compressed in an unsupported format.',
+          );
         }
         throw new Error('Invalid identity string');
       }
@@ -302,4 +307,3 @@ export function useOnboardingProcessHandleManager(): BaseProcessHandleManagerHoo
   // No filtering, process handle may be undefined
   return useContext(BaseProcessHandleManagerContext);
 }
-

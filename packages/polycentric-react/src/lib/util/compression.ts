@@ -17,11 +17,13 @@ export interface CompressionResult {
  * Creates export bundle URL with compression if needed - compatible with Grayjay approach
  * This matches Grayjay's compression strategy: compress the URLInfo bytes, not the URL string
  */
-export function createExportBundleUrl(urlInfoBytes: Uint8Array): CompressionResult {
+export function createExportBundleUrl(
+  urlInfoBytes: Uint8Array,
+): CompressionResult {
   // Create the original URL first to check size
   const originalUrl = `polycentric://${encodeUrl(urlInfoBytes)}`;
   const originalSize = originalUrl.length;
-  
+
   if (originalSize <= COMPRESSION_THRESHOLD) {
     return {
       url: originalUrl,
@@ -33,17 +35,22 @@ export function createExportBundleUrl(urlInfoBytes: Uint8Array): CompressionResu
   try {
     // Compress the raw URLInfo bytes (matching Grayjay's approach)
     const compressed = gzipSync(urlInfoBytes, { level: 9 });
-    
+
     // Create URL with compressed data
     const compressedUrl = `polycentric://${encodeUrl(compressed)}`;
     const compressedSize = compressedUrl.length;
     const compressionRatio = originalSize / compressedSize;
-    
+
     // Log compression info for debugging in development
     if (process.env.NODE_ENV === 'development') {
-      console.log(`Export bundle compressed: ${originalSize} → ${compressedSize} chars (${compressionRatio.toFixed(2)}x smaller)`);
+      // eslint-disable-next-line no-console
+      console.log(
+        `Export bundle compressed: ${originalSize} → ${compressedSize} chars (${compressionRatio.toFixed(
+          2,
+        )}x smaller)`,
+      );
     }
-    
+
     // Only use compression if it actually saves space
     if (compressedSize < originalSize) {
       return {
@@ -81,7 +88,7 @@ export function parseImportBundleUrl(url: string): Uint8Array {
 
   const bundleWithoutPrefix = url.replace('polycentric://', '');
   const data = decode(bundleWithoutPrefix);
-  
+
   // Return the data as-is first - if the caller fails to parse it as URLInfo,
   // they should try decompression. This matches Grayjay's two-step approach.
   return data;
@@ -95,7 +102,9 @@ export function tryDecompressUrlInfo(data: Uint8Array): Uint8Array {
   try {
     return gunzipSync(data);
   } catch (error) {
-    throw new Error('Failed to decompress URLInfo data - may be corrupted or invalid format');
+    throw new Error(
+      'Failed to decompress URLInfo data - may be corrupted or invalid format',
+    );
   }
 }
 
@@ -104,11 +113,16 @@ export function tryDecompressUrlInfo(data: Uint8Array): Uint8Array {
  */
 export function compressIfNeeded(data: string): CompressionResult {
   // For backward compatibility, but recommend using createExportBundleUrl instead
-  console.warn('compressIfNeeded is deprecated, use createExportBundleUrl for new code');
-  
+  console.warn(
+    'compressIfNeeded is deprecated, use createExportBundleUrl for new code',
+  );
+
   const originalSize = data.length;
-  
-  if (originalSize <= COMPRESSION_THRESHOLD || !data.startsWith('polycentric://')) {
+
+  if (
+    originalSize <= COMPRESSION_THRESHOLD ||
+    !data.startsWith('polycentric://')
+  ) {
     return {
       url: data,
       isCompressed: false,
@@ -133,8 +147,10 @@ export function compressIfNeeded(data: string): CompressionResult {
 
 export function decompressIfNeeded(data: string): string {
   // For backward compatibility, but recommend using parseImportBundleUrl instead
-  console.warn('decompressIfNeeded is deprecated, use parseImportBundleUrl for new code');
-  
+  console.warn(
+    'decompressIfNeeded is deprecated, use parseImportBundleUrl for new code',
+  );
+
   if (!data.startsWith('polycentric://')) {
     return data;
   }
@@ -144,6 +160,8 @@ export function decompressIfNeeded(data: string): string {
     parseImportBundleUrl(data);
     return data; // If no exception, data is valid as-is
   } catch (error) {
-    throw new Error('Failed to decompress profile data. The data may be corrupted.');
+    throw new Error(
+      'Failed to decompress profile data. The data may be corrupted.',
+    );
   }
 }
