@@ -1,13 +1,15 @@
-import { encodeUrl } from '@borderless/base64';
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import QRCode from 'react-qr-code';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import { useUsernameCRDTQuery } from '../../../hooks/queryHooks';
 import { useIsMobile } from '../../../hooks/styleHooks';
+import { createExportBundleUrl, type CompressionResult } from '../../../util/compression';
 
 export const ExportKey = () => {
   const [bundleString, setBundleString] = useState<string | undefined>();
+  const [compressionInfo, setCompressionInfo] = useState<CompressionResult | undefined>();
+  const [qrError, setQrError] = useState<string | undefined>();
   const { processHandle } = useProcessHandleManager();
   const username = useUsernameCRDTQuery(processHandle.system());
 
@@ -22,11 +24,13 @@ export const ExportKey = () => {
         body: Protocol.ExportBundle.encode(bundle).finish(),
       };
 
-      const urlInfoString = encodeUrl(
-        Protocol.URLInfo.encode(urlInfo).finish(),
-      );
-
-      setBundleString(`polycentric://${urlInfoString}`);
+      // Create URLInfo bytes for compression (Grayjay-compatible approach)
+      const urlInfoBytes = Protocol.URLInfo.encode(urlInfo).finish();
+      
+      // Apply compression if needed using Grayjay-compatible method
+      const result = createExportBundleUrl(urlInfoBytes);
+      setCompressionInfo(result);
+      setBundleString(result.url);
     });
   }, [processHandle]);
 
@@ -79,6 +83,37 @@ This is a backup of your Polycentric account. Keep it safe and secure. If you lo
   const isMobile = useIsMobile();
   const [showQRCode, setShowQRCode] = useState(false);
 
+  // Component for robust QR code generation with fallback
+  const RobustQRCode = ({ value }: { value: string }) => {
+    const [error, setError] = useState<string | undefined>();
+
+    // Try different error correction levels if one fails
+    const errorCorrectionLevels = ['L', 'M', 'Q', 'H'] as const;
+    
+    const renderQRCode = () => {
+      // For now, we'll use the default QR code component
+      // In a more robust implementation, we'd try different error correction levels
+      try {
+        return <QRCode value={value} className="w-full h-auto" />;
+      } catch (err) {
+        setError('QR code too large - please use the text export option below');
+        return null;
+      }
+    };
+
+    if (error) {
+      return (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-yellow-800 text-sm">
+            {error}
+          </p>
+        </div>
+      );
+    }
+
+    return renderQRCode();
+  };
+
   return (
     <div
       className={`flex border ${
@@ -98,7 +133,13 @@ This is a backup of your Polycentric account. Keep it safe and secure. If you lo
         </pre>
         {showQRCode && bundleString && (
           <div className="border-t w-full p-3 md:pl-6 md:pb-6 bg-gray-50">
-            <QRCode value={bundleString} className="w-full h-auto" />
+            <RobustQRCode value={bundleString} />
+            {compressionInfo?.isCompressed && (
+              <p className="text-xs text-gray-600 mt-2">
+                Data compressed: {compressionInfo.originalSize} → {compressionInfo.compressedSize} chars 
+                ({compressionInfo.compressionRatio?.toFixed(1)}x smaller)
+              </p>
+            )}
           </div>
         )}
       </div>

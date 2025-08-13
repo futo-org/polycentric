@@ -2,17 +2,17 @@ import { encode } from '@borderless/base64';
 import { isPlatform } from '@ionic/react';
 import { Models } from '@polycentric/polycentric-core';
 import {
-  createContext,
-  Dispatch,
-  InputHTMLAttributes,
-  ReactNode,
-  SetStateAction,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
+    createContext,
+    Dispatch,
+    InputHTMLAttributes,
+    ReactNode,
+    SetStateAction,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
 } from 'react';
 import starterURL from '../../../../graphics/onboarding/starter.svg';
 import { StackRouterContext } from '../../../app/contexts';
@@ -497,11 +497,11 @@ const CredsPanelSignIn = () => {
       <GenCredsPanelItem
         title="What's your Polycentric backup key?"
         value={backupKey}
-        placeholder="polycentric://"
-        onChange={(e) => {
-          if (backupKeyError) setBackupKeyError(null);
-          setBackupKey(e.target.value);
-        }}
+                  placeholder="polycentric://"
+          onChange={(e) => {
+            if (backupKeyError) setBackupKeyError(null);
+            setBackupKey(e.target.value);
+          }}
       />
       <div>
         <button
