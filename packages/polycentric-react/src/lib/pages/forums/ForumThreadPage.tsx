@@ -89,7 +89,11 @@ const QuotedPostSection: React.FC<QuotedPostSectionProps> = ({
         )}
       </div>
       <div className="prose prose-sm max-w-none text-gray-800 break-words">
-        <Linkify as="span" className="break-words" content={quotedPost.content} />
+        <Linkify
+          as="span"
+          className="break-words"
+          content={quotedPost.content}
+        />
       </div>
     </blockquote>
   );
@@ -224,7 +228,9 @@ const PostItem: React.FC<PostItemProps> = ({
       </div>
 
       <div className="min-w-0">
-        <div className="text-xs text-gray-500 mb-2 text-right break-words">{postTime}</div>
+        <div className="text-xs text-gray-500 mb-2 text-right break-words">
+          {postTime}
+        </div>
         {quotedPost && <QuotedPostSection quotedPost={quotedPost} />}
         <div className="prose max-w-none mb-3 break-words">
           <Linkify as="span" className="break-words" content={displayContent} />
@@ -910,7 +916,9 @@ export const ForumThreadPage: React.FC = () => {
           rightCol={<div />}
           desktopTitle={
             <div className="flex items-center justify-between">
-              <span className="break-words flex-1 min-w-0 mr-4">{threadTitle}</span>
+              <span className="break-words flex-1 min-w-0 mr-4">
+                {threadTitle}
+              </span>
               <AddServerButton serverUrl={serverUrl} />
             </div>
           }
@@ -1025,7 +1033,9 @@ export const ForumThreadPage: React.FC = () => {
                     )}
 
                     {postError && (
-                      <p className="text-red-500 text-sm break-words">Error: {postError}</p>
+                      <p className="text-red-500 text-sm break-words">
+                        Error: {postError}
+                      </p>
                     )}
 
                     <div className="flex items-center space-x-2 mt-2">

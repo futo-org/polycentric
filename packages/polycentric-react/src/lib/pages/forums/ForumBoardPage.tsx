@@ -577,7 +577,9 @@ export const ForumBoardPage: React.FC = () => {
           rightCol={<div />}
           desktopTitle={
             <div className="flex items-center justify-between">
-              <span className="break-words flex-1 min-w-0 mr-4">{boardName}</span>
+              <span className="break-words flex-1 min-w-0 mr-4">
+                {boardName}
+              </span>
               <AddServerButton serverUrl={serverUrl} />
             </div>
           }
@@ -660,7 +662,12 @@ export const ForumBoardPage: React.FC = () => {
                   />
                 </div>
                 <div className="flex justify-between items-center text-sm mt-1">
-                  <span className={`${getCountClass(titleCharCount, 100)} break-words`}>
+                  <span
+                    className={`${getCountClass(
+                      titleCharCount,
+                      100,
+                    )} break-words`}
+                  >
                     {titleCharCount}/100
                   </span>
                 </div>
@@ -682,7 +689,12 @@ export const ForumBoardPage: React.FC = () => {
                   />
                 </div>
                 <div className="flex justify-between items-center text-sm mt-1">
-                  <span className={`${getCountClass(bodyCharCount, 10000)} break-words`}>
+                  <span
+                    className={`${getCountClass(
+                      bodyCharCount,
+                      10000,
+                    )} break-words`}
+                  >
                     {bodyCharCount}/10000
                   </span>
                 </div>

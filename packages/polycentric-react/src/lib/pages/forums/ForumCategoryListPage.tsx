@@ -137,7 +137,9 @@ export const ForumCategoryListPage: React.FC = () => {
         >
           <div className="p-5 md:p-10 flex flex-col space-y-6">
             {' '}
-            {displayLoading && <p className="break-words">Loading forum data...</p>}
+            {displayLoading && (
+              <p className="break-words">Loading forum data...</p>
+            )}
             {displayError && (
               <p className="text-red-500 break-words">Error: {displayError}</p>
             )}

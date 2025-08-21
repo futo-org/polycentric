@@ -249,7 +249,9 @@ export function UserManagement({
             Banned Users ({(bannedUsers ?? []).length})
           </h3>
           {(bannedUsers ?? []).length === 0 ? (
-            <p className="text-gray-500 break-words">No users are currently banned.</p>
+            <p className="text-gray-500 break-words">
+              No users are currently banned.
+            </p>
           ) : (
             <div className="space-y-3">
               {(bannedUsers ?? []).map((bannedUser) => (
