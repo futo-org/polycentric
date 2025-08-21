@@ -577,14 +577,14 @@ export const ForumBoardPage: React.FC = () => {
           rightCol={<div />}
           desktopTitle={
             <div className="flex items-center justify-between">
-              <span>{boardName}</span>
+              <span className="break-words flex-1 min-w-0 mr-4">{boardName}</span>
               <AddServerButton serverUrl={serverUrl} />
             </div>
           }
         >
           <div className="p-5 md:p-10 flex flex-col space-y-4">
             {displayError && (
-              <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded mb-4">
+              <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded mb-4 break-words">
                 Error: {displayError}
               </div>
             )}
@@ -593,24 +593,24 @@ export const ForumBoardPage: React.FC = () => {
               <div className="flex justify-end mb-4">
                 {isBanned ? (
                   <div className="border p-4 rounded-md bg-red-50 border-red-200 space-y-3 w-full">
-                    <h3 className="text-lg font-semibold text-red-800">
+                    <h3 className="text-lg font-semibold text-red-800 break-words">
                       Account Banned
                     </h3>
-                    <p className="text-red-700">
+                    <p className="text-red-700 break-words">
                       Your account has been banned from this forum server.
                       {banReason && (
-                        <span className="block mt-1">
+                        <span className="block mt-1 break-words">
                           <strong>Reason:</strong> {banReason}
                         </span>
                       )}
                       {bannedAt && (
-                        <span className="block mt-1">
+                        <span className="block mt-1 break-words">
                           <strong>Banned on:</strong>{' '}
                           {new Date(bannedAt).toLocaleString()}
                         </span>
                       )}
                     </p>
-                    <p className="text-red-600 text-sm">
+                    <p className="text-red-600 text-sm break-words">
                       You can still read threads but cannot create new threads
                       or posts.
                     </p>
@@ -660,7 +660,7 @@ export const ForumBoardPage: React.FC = () => {
                   />
                 </div>
                 <div className="flex justify-between items-center text-sm mt-1">
-                  <span className={getCountClass(titleCharCount, 100)}>
+                  <span className={`${getCountClass(titleCharCount, 100)} break-words`}>
                     {titleCharCount}/100
                   </span>
                 </div>
@@ -682,7 +682,7 @@ export const ForumBoardPage: React.FC = () => {
                   />
                 </div>
                 <div className="flex justify-between items-center text-sm mt-1">
-                  <span className={getCountClass(bodyCharCount, 10000)}>
+                  <span className={`${getCountClass(bodyCharCount, 10000)} break-words`}>
                     {bodyCharCount}/10000
                   </span>
                 </div>
@@ -773,11 +773,11 @@ export const ForumBoardPage: React.FC = () => {
               </div>
             )}
 
-            {loading && <p>Loading threads...</p>}
+            {loading && <p className="break-words">Loading threads...</p>}
             {!loading &&
               !error &&
               (threads.length === 0 ? (
-                <p className="text-gray-500">
+                <p className="text-gray-500 break-words">
                   No threads found in this board yet.
                 </p>
               ) : (
@@ -795,16 +795,16 @@ export const ForumBoardPage: React.FC = () => {
                     return (
                       <li
                         key={thread.id}
-                        className="border rounded-md hover:bg-gray-50 transition-colors flex justify-between items-center"
+                        className="border rounded-md hover:bg-gray-50 transition-colors flex justify-between items-center min-w-0"
                       >
                         <Link
                           routerLink={`/forums/${encodedServerUrl}/${categoryId}/${boardId}/${thread.id}`}
-                          className="block group p-3 flex-grow"
+                          className="block group p-3 flex-grow min-w-0"
                         >
-                          <h4 className="font-semibold text-blue-700 group-hover:underline">
+                          <h4 className="font-semibold text-blue-700 group-hover:underline break-words">
                             {thread.title}
                           </h4>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-500 break-words">
                             Created:{' '}
                             {new Date(thread.created_at).toLocaleString()}
                           </p>

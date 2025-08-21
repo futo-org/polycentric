@@ -70,7 +70,7 @@ const QuotedPostSection: React.FC<QuotedPostSectionProps> = ({
 
   return (
     <blockquote className="border-l-4 border-gray-300 pl-3 py-2 mb-3 bg-gray-50 rounded-md">
-      <div className="text-sm text-gray-600 mb-1">
+      <div className="text-sm text-gray-600 mb-1 break-words">
         Quote by{' '}
         {quotedAuthorStableLink ? (
           <Link
@@ -88,8 +88,8 @@ const QuotedPostSection: React.FC<QuotedPostSectionProps> = ({
           <span className="font-medium">{quotedUsername}</span>
         )}
       </div>
-      <div className="prose prose-sm max-w-none text-gray-800">
-        <Linkify as="span" className="" content={quotedPost.content} />
+      <div className="prose prose-sm max-w-none text-gray-800 break-words">
+        <Linkify as="span" className="break-words" content={quotedPost.content} />
       </div>
     </blockquote>
   );
@@ -224,10 +224,10 @@ const PostItem: React.FC<PostItemProps> = ({
       </div>
 
       <div className="min-w-0">
-        <div className="text-xs text-gray-500 mb-2 text-right">{postTime}</div>
+        <div className="text-xs text-gray-500 mb-2 text-right break-words">{postTime}</div>
         {quotedPost && <QuotedPostSection quotedPost={quotedPost} />}
-        <div className="prose max-w-none mb-3">
-          <Linkify as="span" className="" content={displayContent} />
+        <div className="prose max-w-none mb-3 break-words">
+          <Linkify as="span" className="break-words" content={displayContent} />
         </div>
         {postImages.length > 0 && (
           <div className="my-3 space-y-3">
@@ -910,14 +910,14 @@ export const ForumThreadPage: React.FC = () => {
           rightCol={<div />}
           desktopTitle={
             <div className="flex items-center justify-between">
-              <span>{threadTitle}</span>
+              <span className="break-words flex-1 min-w-0 mr-4">{threadTitle}</span>
               <AddServerButton serverUrl={serverUrl} />
             </div>
           }
         >
           <div className="p-5 md:p-10 flex flex-col space-y-4">
             {displayError && (
-              <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded mb-4">
+              <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded mb-4 break-words">
                 Error: {displayError}
               </div>
             )}
@@ -955,24 +955,24 @@ export const ForumThreadPage: React.FC = () => {
               <div className="pt-6">
                 {isBanned ? (
                   <div className="border p-4 rounded-md bg-red-50 border-red-200 space-y-3">
-                    <h3 className="text-lg font-semibold text-red-800">
+                    <h3 className="text-lg font-semibold text-red-800 break-words">
                       Account Banned
                     </h3>
-                    <p className="text-red-700">
+                    <p className="text-red-700 break-words">
                       Your account has been banned from this forum server.
                       {banReason && (
-                        <span className="block mt-1">
+                        <span className="block mt-1 break-words">
                           <strong>Reason:</strong> {banReason}
                         </span>
                       )}
                       {bannedAt && (
-                        <span className="block mt-1">
+                        <span className="block mt-1 break-words">
                           <strong>Banned on:</strong>{' '}
                           {new Date(bannedAt).toLocaleString()}
                         </span>
                       )}
                     </p>
-                    <p className="text-red-600 text-sm">
+                    <p className="text-red-600 text-sm break-words">
                       You can still read posts but cannot create new posts or
                       replies.
                     </p>
@@ -981,7 +981,7 @@ export const ForumThreadPage: React.FC = () => {
                   <div className="border p-4 rounded-md bg-gray-50 space-y-3">
                     {quotingPost && (
                       <div className="flex justify-between items-center text-sm text-gray-600 p-2 bg-gray-100 rounded-md">
-                        <span>
+                        <span className="break-words flex-1 min-w-0 mr-2">
                           Quoting post by{' '}
                           <span className="font-medium">
                             {quotingUsernameDisplay}
@@ -989,7 +989,7 @@ export const ForumThreadPage: React.FC = () => {
                         </span>
                         <button
                           onClick={() => setQuotingPost(null)}
-                          className="p-0.5 rounded-full hover:bg-gray-300"
+                          className="p-0.5 rounded-full hover:bg-gray-300 flex-shrink-0"
                           title="Remove quote"
                           disabled={isBusy}
                         >
@@ -1025,7 +1025,7 @@ export const ForumThreadPage: React.FC = () => {
                     )}
 
                     {postError && (
-                      <p className="text-red-500 text-sm">Error: {postError}</p>
+                      <p className="text-red-500 text-sm break-words">Error: {postError}</p>
                     )}
 
                     <div className="flex items-center space-x-2 mt-2">

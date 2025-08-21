@@ -130,21 +130,21 @@ export const ForumCategoryListPage: React.FC = () => {
           rightCol={<div />}
           desktopTitle={
             <div className="flex items-center justify-between">
-              <span>{`Categories on ${displayServerName}`}</span>
+              <span className="break-words flex-1 min-w-0 mr-4">{`Categories on ${displayServerName}`}</span>
               <AddServerButton serverUrl={serverUrl} />
             </div>
           }
         >
           <div className="p-5 md:p-10 flex flex-col space-y-6">
             {' '}
-            {displayLoading && <p>Loading forum data...</p>}
+            {displayLoading && <p className="break-words">Loading forum data...</p>}
             {displayError && (
-              <p className="text-red-500">Error: {displayError}</p>
+              <p className="text-red-500 break-words">Error: {displayError}</p>
             )}
             {!displayLoading &&
               !displayError &&
               (categories.length === 0 ? (
-                <p className="text-gray-500">
+                <p className="text-gray-500 break-words">
                   No categories found on this server.
                 </p>
               ) : (
@@ -153,10 +153,10 @@ export const ForumCategoryListPage: React.FC = () => {
                   {categories.map((category) => (
                     <li key={category.id} className="border-b pb-4 mb-4">
                       {' '}
-                      <h3 className="text-lg font-semibold mb-2">
+                      <h3 className="text-lg font-semibold mb-2 break-words">
                         {category.name}
                       </h3>
-                      <p className="text-sm text-gray-600 mb-3">
+                      <p className="text-sm text-gray-600 mb-3 break-words">
                         {category.description}
                       </p>
                       {boardsByCategory[category.id] &&
@@ -166,18 +166,18 @@ export const ForumCategoryListPage: React.FC = () => {
                             <li key={board.id}>
                               <Link
                                 routerLink={`/forums/${encodedServerUrl}/${category.id}/${board.id}`}
-                                className="text-blue-600 hover:underline"
+                                className="text-blue-600 hover:underline break-words"
                               >
                                 {board.name}
                               </Link>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-gray-500 break-words">
                                 {board.description}
                               </p>
                             </li>
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-sm text-gray-400 italic pl-5">
+                        <p className="text-sm text-gray-400 italic pl-5 break-words">
                           No boards in this category yet.
                         </p>
                       )}

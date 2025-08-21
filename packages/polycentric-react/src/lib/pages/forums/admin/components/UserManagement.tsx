@@ -41,18 +41,18 @@ const BannedUserItem: React.FC<BannedUserItemProps> = ({
             className="h-10 w-10 rounded-full border"
           />
           <div className="min-w-0">
-            <div className="font-medium text-gray-900 truncate">
+            <div className="font-medium text-gray-900 break-words">
               {username || shortKey}
             </div>
-            <div className="text-xs text-gray-500 font-mono truncate">
+            <div className="text-xs text-gray-500 font-mono break-words">
               {shortKey}
             </div>
             {bannedUser.reason && (
-              <div className="text-sm text-gray-600 mb-2">
+              <div className="text-sm text-gray-600 mb-2 break-words">
                 Reason: {bannedUser.reason}
               </div>
             )}
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 break-words">
               Banned on: {new Date(bannedUser.created_at).toLocaleString()}
             </div>
           </div>
@@ -119,16 +119,16 @@ const UserItem: React.FC<UserItemProps> = ({
             className="h-10 w-10 rounded-full border"
           />
           <div className="min-w-0">
-            <div className="font-medium text-gray-900 truncate">
+            <div className="font-medium text-gray-900 break-words">
               {username || shortKey}
             </div>
-            <div className="text-xs text-gray-500 font-mono truncate">
+            <div className="text-xs text-gray-500 font-mono break-words">
               {shortKey}
             </div>
-            <div className="text-sm text-gray-600 mb-2">
+            <div className="text-sm text-gray-600 mb-2 break-words">
               Posts: {user.total_posts} | Threads: {user.total_threads}
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 break-words">
               First post:{' '}
               {user.first_post_at
                 ? new Date(user.first_post_at).toLocaleDateString()
@@ -214,7 +214,7 @@ export function UserManagement({
       <div className="flex justify-center items-center py-8">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading users...</p>
+          <p className="mt-2 text-gray-600 break-words">Loading users...</p>
         </div>
       </div>
     );
@@ -222,7 +222,7 @@ export function UserManagement({
 
   if (usersError) {
     return (
-      <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+      <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded break-words">
         Error: {usersError}
       </div>
     );
@@ -236,7 +236,7 @@ export function UserManagement({
       </h2>
 
       {banError && (
-        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded mb-4">
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded mb-4 break-words">
           Error: {banError}
         </div>
       )}
@@ -249,7 +249,7 @@ export function UserManagement({
             Banned Users ({(bannedUsers ?? []).length})
           </h3>
           {(bannedUsers ?? []).length === 0 ? (
-            <p className="text-gray-500">No users are currently banned.</p>
+            <p className="text-gray-500 break-words">No users are currently banned.</p>
           ) : (
             <div className="space-y-3">
               {(bannedUsers ?? []).map((bannedUser) => (
@@ -272,7 +272,7 @@ export function UserManagement({
           All Users ({users.length})
         </h3>
         {users.length === 0 ? (
-          <p className="text-gray-500">No users found.</p>
+          <p className="text-gray-500 break-words">No users found.</p>
         ) : (
           <div className="space-y-3">
             {users.map((user) => (

@@ -48,7 +48,7 @@ const ServerListItem: React.FC<ServerListItemProps> = ({ serverUrl }) => {
         )}
         <Link
           routerLink={`/forums/${encodedServerUrl}`}
-          className="text-blue-600 hover:underline truncate flex-grow"
+          className="text-blue-600 hover:underline break-words flex-grow min-w-0"
           title={serverUrl}
         >
           {displayName}
@@ -82,7 +82,7 @@ export const ForumServerListPage: React.FC = () => {
               <h2 className="text-lg font-medium">Connected Forum Servers</h2>
             </div>
             {serverList.length === 0 ? (
-              <p className="text-gray-500">
+              <p className="text-gray-500 break-words">
                 No forum servers added yet. You can add them in the Settings
                 page.
               </p>
