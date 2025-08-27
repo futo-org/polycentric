@@ -37,3 +37,11 @@ packages/verifiers/certs
 docker-compose.live*
 .env
 state
+
+# Rust
+**/target/
+**/*.rs.bk
+*.pdb
+
+# DM Server specific
+dm_server/.env

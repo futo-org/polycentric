@@ -1,0 +1,246 @@
+use std::sync::Arc;
+use sqlx::PgPool;
+use uuid::Uuid;
+use ed25519_dalek::{SigningKey, VerifyingKey};
+use rand::rngs::OsRng;
+use serde_json;
+use base64;
+
+use dm_server::{
+    config::Config,
+    db::DatabaseManager,
+    handlers::{AppState, auth::{AuthRequest, ChallengeResponse, ChallengeBody}},
+    models::PolycentricIdentity,
+    crypto::DMCrypto,
+};
+
+/// Test utilities and common setup
+pub struct TestSetup {
+    pub db: Arc<DatabaseManager>,
+    pub config: Arc<Config>,
+    pub app_state: AppState,
+    pub pool: PgPool,
+}
+
+impl TestSetup {
+    pub async fn new() -> Self {
+        // Use test database
+        let database_url = std::env::var("TEST_DATABASE_URL")
+            .unwrap_or_else(|_| "postgresql://postgres:password@localhost:5432/dm_server_test".to_string());
+
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(50)  // Increased for concurrent tests
+            .min_connections(5)
+            .acquire_timeout(std::time::Duration::from_secs(30))
+            .idle_timeout(Some(std::time::Duration::from_secs(60)))
+            .connect(&database_url)
+            .await
+            .expect("Failed to connect to test database");
+
+        // Run migrations
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .expect("Failed to run migrations");
+
+        let config = Arc::new(Config {
+            database_url,
+            server_port: 0, // Test port
+            websocket_port: 0, // Test port
+            challenge_key: "test-challenge-key".to_string(),
+            max_message_size: 1024 * 1024,
+            message_retention_days: 30,
+            max_connections_per_user: 5,
+            cleanup_interval_seconds: 3600,
+            ping_interval_seconds: 30,
+            connection_timeout_seconds: 300,
+            log_level: "debug".to_string(),
+        });
+
+        let db = Arc::new(DatabaseManager::new(pool.clone()));
+
+        let app_state = AppState {
+            db: db.clone(),
+            config: config.clone(),
+        };
+
+        Self {
+            db,
+            config,
+            app_state,
+            pool,
+        }
+    }
+
+    /// Clean up the database between tests
+    pub async fn cleanup(&self) {
+        let _ = sqlx::query("TRUNCATE TABLE dm_messages, user_x25519_keys, active_connections, message_delivery")
+            .execute(&self.pool)
+            .await;
+    }
+}
+
+/// Test identity for creating test users
+pub struct TestIdentity {
+    pub signing_key: SigningKey,
+    pub verifying_key: VerifyingKey,
+    pub polycentric_identity: PolycentricIdentity,
+    pub x25519_private_key: Vec<u8>,
+    pub x25519_public_key: Vec<u8>,
+}
+
+impl TestIdentity {
+    pub fn new() -> Self {
+        let signing_key = SigningKey::generate(&mut OsRng);
+        let verifying_key = signing_key.verifying_key();
+
+        let polycentric_identity = PolycentricIdentity::new(
+            1, // Ed25519 key type
+            verifying_key.to_bytes().to_vec(),
+        );
+
+        // Generate X25519 keypair
+        let (x25519_secret, x25519_public) = DMCrypto::generate_x25519_keypair();
+        let x25519_private_key = DMCrypto::x25519_secret_to_bytes(&x25519_secret).to_vec();
+        let x25519_public_key = x25519_public.to_bytes().to_vec();
+
+        Self {
+            signing_key,
+            verifying_key,
+            polycentric_identity,
+            x25519_private_key,
+            x25519_public_key,
+        }
+    }
+
+    /// Sign data with this identity's private key
+    pub fn sign_data(&self, data: &[u8]) -> Vec<u8> {
+        DMCrypto::sign_data(&self.signing_key, data)
+    }
+
+    /// Register X25519 key (returns signature)
+    pub fn sign_x25519_key(&self) -> Vec<u8> {
+        self.sign_data(&self.x25519_public_key)
+    }
+}
+
+/// Helper for creating authentication headers
+pub struct AuthHelper;
+
+impl AuthHelper {
+    pub async fn create_auth_header(
+        identity: &TestIdentity,
+        challenge_key: &str,
+    ) -> String {
+        // Generate a fresh challenge
+        let challenge = DMCrypto::generate_challenge();
+        let created_on = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+
+        // Create challenge body using proper struct
+        let challenge_body = ChallengeBody {
+            challenge: challenge.to_vec(),
+            created_on,
+        };
+
+        // Serialize and create HMAC
+        let body_bytes = serde_json::to_vec(&challenge_body).unwrap();
+        let hmac = hmac_sha256::HMAC::mac(body_bytes.clone(), challenge_key.as_bytes()).to_vec();
+
+        // Create challenge response using proper struct
+        let challenge_response = ChallengeResponse {
+            body: body_bytes,
+            hmac,
+        };
+
+        // Sign the challenge with the identity's private key
+        let signature = identity.sign_data(&challenge);
+
+        // Create the complete auth request using proper struct
+        let auth_request = AuthRequest {
+            challenge_response,
+            identity: identity.polycentric_identity.clone(),
+            signature,
+        };
+
+        // Encode to base64 for the Authorization header
+        let auth_bytes = serde_json::to_vec(&auth_request).unwrap();
+        let auth_b64 = base64::encode(&auth_bytes);
+        
+        // Debug: Print the generated auth header (first 100 chars)
+        let header = format!("Bearer {}", auth_b64);
+        println!("Generated auth header (first 100 chars): {}", &header[..std::cmp::min(100, header.len())]);
+        println!("Challenge length: {}, Auth request serialized length: {}", challenge.len(), auth_bytes.len());
+        
+        header
+    }
+}
+
+/// Message creation helpers
+pub struct MessageHelper;
+
+impl MessageHelper {
+    pub fn create_test_message(
+        sender: &TestIdentity,
+        recipient: &TestIdentity,
+        content: &str,
+    ) -> (String, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) {
+        let message_id = format!("test_msg_{}", Uuid::new_v4());
+        
+        // Generate ephemeral keypair
+        let (ephemeral_secret, ephemeral_public) = DMCrypto::generate_ephemeral_keypair();
+        let ephemeral_public_bytes = ephemeral_public.to_bytes().to_vec();
+        
+        // Encrypt message
+        let content_bytes = content.as_bytes();
+        let recipient_x25519_key = DMCrypto::x25519_public_from_bytes(&recipient.x25519_public_key).unwrap();
+        
+        let (encrypted, nonce) = DMCrypto::encrypt_message(
+            content_bytes,
+            ephemeral_secret,
+            &recipient_x25519_key,
+        ).unwrap();
+
+        // Create message for signing (exclude timestamp to avoid timing issues)
+        let message_for_signing = serde_json::json!({
+            "message_id": message_id,
+            "sender": {
+                "key_type": sender.polycentric_identity.key_type,
+                "key_bytes": sender.polycentric_identity.key_bytes,
+            },
+            "recipient": {
+                "key_type": recipient.polycentric_identity.key_type,
+                "key_bytes": recipient.polycentric_identity.key_bytes,
+            },
+            "ephemeral_public_key": ephemeral_public_bytes,
+            "encrypted_content": encrypted,
+            "nonce": nonce,
+        });
+
+        let message_bytes = serde_json::to_vec(&message_for_signing).unwrap();
+        let signature = sender.sign_data(&message_bytes);
+
+        (message_id, ephemeral_public_bytes, encrypted, nonce, signature)
+    }
+
+    pub fn decrypt_test_message(
+        recipient: &TestIdentity,
+        ephemeral_public_key: &[u8],
+        encrypted_content: &[u8],
+        nonce: &[u8],
+    ) -> Result<String, anyhow::Error> {
+        let recipient_secret = DMCrypto::x25519_secret_from_bytes(&recipient.x25519_private_key)?;
+        let ephemeral_public = DMCrypto::x25519_public_from_bytes(ephemeral_public_key)?;
+        
+        let decrypted = DMCrypto::decrypt_message(
+            encrypted_content,
+            nonce,
+            &recipient_secret,
+            &ephemeral_public,
+        )?;
+
+        Ok(String::from_utf8(decrypted)?)
+    }
+}

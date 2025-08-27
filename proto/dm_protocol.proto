@@ -1,0 +1,177 @@
+syntax = "proto3";
+
+package dm;
+
+// Import the main protocol for PublicKey type
+import "protocol.proto";
+
+// DM-specific message types
+message EncryptedDMMessage {
+    // Sender's identity public key
+    userpackage.PublicKey sender = 1;
+    
+    // Recipient's identity public key  
+    userpackage.PublicKey recipient = 2;
+    
+    // Sender's ephemeral X25519 public key for this message
+    bytes ephemeral_public_key = 3;
+    
+    // Encrypted message content (ChaCha20Poly1305)
+    bytes encrypted_content = 4;
+    
+    // Nonce for encryption
+    bytes nonce = 5;
+    
+    // Timestamp when message was created
+    uint64 timestamp = 6;
+    
+    // Unique message ID
+    string message_id = 7;
+    
+    // Optional: reply to message ID
+    optional string reply_to = 8;
+}
+
+// Plain text message content (before encryption)
+message DMMessageContent {
+    // Message types
+    enum MessageType {
+        TEXT = 0;
+        IMAGE = 1;
+        FILE = 2;
+        TYPING_INDICATOR = 3;
+        READ_RECEIPT = 4;
+    }
+    
+    MessageType message_type = 1;
+    
+    // Text content for TEXT messages
+    optional string text = 2;
+    
+    // File/image metadata
+    optional FileAttachment file = 3;
+    
+    // Typing indicator data
+    optional TypingIndicator typing = 4;
+    
+    // Read receipt data
+    optional ReadReceipt read_receipt = 5;
+}
+
+message FileAttachment {
+    string filename = 1;
+    string mime_type = 2;
+    uint64 size_bytes = 3;
+    // File content would be sent separately via file upload API
+    string file_id = 4;
+}
+
+message TypingIndicator {
+    bool is_typing = 1;
+}
+
+message ReadReceipt {
+    string message_id = 1;
+    uint64 read_timestamp = 2;
+}
+
+// Client key exchange for establishing DM capability
+message DMKeyExchange {
+    // Client's identity public key
+    userpackage.PublicKey identity_key = 1;
+    
+    // Client's X25519 public key for receiving DMs
+    bytes x25519_public_key = 2;
+    
+    // Signature of the X25519 key by the identity key
+    bytes signature = 3;
+    
+    // Timestamp of key exchange
+    uint64 timestamp = 4;
+}
+
+// WebSocket message types
+message WSMessage {
+    enum MessageType {
+        DM_MESSAGE = 0;
+        TYPING_INDICATOR = 1;
+        READ_RECEIPT = 2;
+        CONNECTION_ACK = 3;
+        ERROR = 4;
+        PING = 5;
+        PONG = 6;
+    }
+    
+    MessageType message_type = 1;
+    
+    // For DM_MESSAGE type
+    optional EncryptedDMMessage dm_message = 2;
+    
+    // For TYPING_INDICATOR type  
+    optional TypingIndicator typing = 3;
+    
+    // For READ_RECEIPT type
+    optional ReadReceipt read_receipt = 4;
+    
+    // For ERROR type
+    optional string error_message = 5;
+    
+    // Message ID for acknowledgments
+    optional string message_id = 6;
+}
+
+// REST API messages
+message SendDMRequest {
+    EncryptedDMMessage message = 1;
+    // Signature by sender's identity key of the entire message
+    bytes signature = 2;
+}
+
+message SendDMResponse {
+    bool success = 1;
+    optional string error = 2;
+    optional string message_id = 3;
+}
+
+message GetDMHistoryRequest {
+    userpackage.PublicKey other_party = 1;
+    optional string cursor = 2;  // For pagination
+    optional uint32 limit = 3;   // Max messages to return
+}
+
+message GetDMHistoryResponse {
+    repeated EncryptedDMMessage messages = 1;
+    optional string next_cursor = 2;
+    bool has_more = 3;
+}
+
+message RegisterX25519KeyRequest {
+    DMKeyExchange key_exchange = 1;
+}
+
+message RegisterX25519KeyResponse {
+    bool success = 1;
+    optional string error = 2;
+}
+
+message GetX25519KeyRequest {
+    userpackage.PublicKey identity_key = 1;
+}
+
+message GetX25519KeyResponse {
+    bool found = 1;
+    optional bytes x25519_public_key = 2;
+    optional uint64 timestamp = 3;
+}
+
+// Challenge-response authentication for WebSocket connections
+message WSAuthChallenge {
+    bytes challenge = 1;
+    uint64 created_on = 2;
+}
+
+message WSAuthResponse {
+    userpackage.PublicKey identity_key = 1;
+    bytes signature = 2;  // Signature of challenge by identity key
+    bytes challenge = 3;  // Echo back the challenge
+}
