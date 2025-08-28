@@ -1,4 +1,5 @@
 import * as Core from '@polycentric/polycentric-core';
+import Long from 'long';
 
 export interface DMServerConfig {
   httpUrl: string;

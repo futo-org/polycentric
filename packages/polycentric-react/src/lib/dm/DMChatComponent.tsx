@@ -1,27 +1,26 @@
 import * as Core from '@polycentric/polycentric-core';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DMMessageContent } from './DMClient';
+import { getDMServerConfig } from './dmServerConfig';
 import { useDMClient } from './useDMClient';
 
 export interface DMChatComponentProps {
-  otherParty: Core.Models.PublicKey.PublicKey;
+  otherParty?: Core.Models.PublicKey.PublicKey;
   otherPartyName?: string;
-  dmServerConfig: {
-    httpUrl: string;
-    websocketUrl: string;
-  };
   className?: string;
 }
 
 export const DMChatComponent: React.FC<DMChatComponentProps> = ({
   otherParty,
   otherPartyName,
-  dmServerConfig,
   className = '',
 }) => {
   const [messageText, setMessageText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Memoize the config to prevent infinite re-renders
+  const dmConfig = useMemo(() => getDMServerConfig(), []);
   
   const {
     client,
@@ -35,7 +34,7 @@ export const DMChatComponent: React.FC<DMChatComponentProps> = ({
     connectWebSocket,
     clearError,
   } = useDMClient({
-    config: dmServerConfig,
+    config: dmConfig,
     autoConnect: true,
   });
 
@@ -54,7 +53,7 @@ export const DMChatComponent: React.FC<DMChatComponentProps> = ({
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!messageText.trim() || !client || isLoading) {
+    if (!messageText.trim() || !client || isLoading || !otherParty) {
       return;
     }
 
@@ -135,7 +134,7 @@ export const DMChatComponent: React.FC<DMChatComponentProps> = ({
           <div
             key={message.messageId}
             className={`message ${
-              message.sender.key.toString() === otherParty.key.toString() ? 'received' : 'sent'
+              message.sender.key.toString() === otherParty?.key.toString() ? 'received' : 'sent'
             }`}
           >
             <div className="message-content">
@@ -156,25 +155,27 @@ export const DMChatComponent: React.FC<DMChatComponentProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSendMessage} className="dm-chat-input">
-        <input
-          type="text"
-          value={messageText}
-          onChange={(e) => setMessageText(e.target.value)}
-          placeholder="Type a message..."
-          disabled={isLoading || !isConnected}
-          className="message-input"
-        />
-        <button
-          type="submit"
-          disabled={!messageText.trim() || isLoading || !isConnected}
-          className="send-button"
-        >
-          {isLoading ? '...' : 'Send'}
-        </button>
-      </form>
+      {otherParty && (
+        <form onSubmit={handleSendMessage} className="dm-chat-input">
+          <input
+            type="text"
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            placeholder="Type a message..."
+            disabled={isLoading || !isConnected}
+            className="message-input"
+          />
+          <button
+            type="submit"
+            disabled={!messageText.trim() || isLoading || !isConnected}
+            className="send-button"
+          >
+            {isLoading ? '...' : 'Send'}
+          </button>
+        </form>
+      )}
 
-      <style jsx>{`
+      <style>{`
         .dm-chat {
           display: flex;
           flex-direction: column;

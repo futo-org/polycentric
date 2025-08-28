@@ -31,8 +31,8 @@ export const SidebarLink = ({
       {isMobile ? (
         <Link
           onClick={() => {
-            // For Forums, navigate to the forums page instead of setting it as a topic
-            if (topicName === 'Forums') {
+            // For Forums and Direct Messages, navigate to their respective pages instead of setting it as a topic
+            if (topicName === 'Forums' || topicName === 'Direct Messages') {
               // Don't set topic, let the router handle navigation
               return;
             }
@@ -42,7 +42,7 @@ export const SidebarLink = ({
             isCurrentTopic ? 'bg-gray-100' : ''
           } ${className}`}
           style={style}
-          routerLink={topicName === 'Forums' ? '/forums' : '/'}
+          routerLink={topicName === 'Forums' ? '/forums' : topicName === 'Direct Messages' ? '/dm' : '/'}
           routerDirection="root"
         >
           {children}
@@ -77,6 +77,9 @@ export const MainSidebar = () => {
           </SidebarLink>
           <SidebarLink to="/" topicName="Explore">
             Explore
+          </SidebarLink>
+          <SidebarLink to="/dm" topicName="Direct Messages">
+            Direct Messages
           </SidebarLink>
           <SidebarLink to="/forums" topicName="Forums">
             Forums

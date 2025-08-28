@@ -1,5 +1,6 @@
 import { Onboarding } from '../components';
 import { OAuthCallback } from '../components/oauth/callback';
+import { DMPage } from '../pages/dm';
 import { FollowingFeed } from '../pages/following';
 import { AdminPanelPage } from '../pages/forums/admin/AdminPanelPage';
 import { ForumBoardPage } from '../pages/forums/ForumBoardPage';
@@ -25,6 +26,7 @@ export const routes: RouteData = {
   '/settings': { component: SettingsPage },
   '/add-account': { component: Onboarding },
   '/following': { component: FollowingFeed },
+  '/dm': { component: DMPage },
   '/forums': { component: ForumServerListPage },
   '/forums/:serverUrl': { component: ForumCategoryListPage },
   '/forums/:serverUrl/:categoryId/:boardId': { component: ForumBoardPage },

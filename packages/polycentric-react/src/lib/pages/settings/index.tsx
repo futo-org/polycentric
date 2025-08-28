@@ -6,6 +6,7 @@ import { AppInfoTable } from '../../components/settings/AppInfoTable';
 import { BlockedTopicsTable } from '../../components/settings/BlockedTopicsTable/BlockedTopicsTable';
 import { DarkModeSelector } from '../../components/settings/DarkModeSelector';
 import { DeleteAccount } from '../../components/settings/DeleteAccount';
+import { DMServerSettings } from '../../components/settings/DMServerSettings';
 import { ExportKey } from '../../components/settings/ExportKey';
 import { ForumServerListTable } from '../../components/settings/ForumServerTable';
 import { ModerationTable } from '../../components/settings/ModerationTable';
@@ -24,6 +25,7 @@ export const SettingsPage: Page = () => {
               <h2 className="font-medium">Edit Servers</h2>
               <ServerListTable />
               <ForumServerListTable />
+              <DMServerSettings />
             </div>
             <div className="flex flex-col space-y-3">
               <h2 className="font-medium">Your Private Key</h2>
