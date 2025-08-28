@@ -48,7 +48,7 @@ impl DatabaseManager {
         &self,
         identity: &PolycentricIdentity,
     ) -> Result<Option<UserX25519Key>> {
-                let row = sqlx::query_as::<_, UserX25519Key>(
+        let row = sqlx::query_as::<_, UserX25519Key>(
             r#"
             SELECT identity_key_type, identity_key_bytes, x25519_public_key, signature, created_at, updated_at
             FROM user_x25519_keys 
@@ -193,11 +193,7 @@ impl DatabaseManager {
     }
 
     /// Mark a message as read
-    pub async fn mark_message_read(
-        &self,
-        message_id: &str,
-        read_at: DateTime<Utc>,
-    ) -> Result<()> {
+    pub async fn mark_message_read(&self, message_id: &str, read_at: DateTime<Utc>) -> Result<()> {
         sqlx::query(
             r#"
             UPDATE dm_messages
@@ -362,13 +358,11 @@ impl DatabaseManager {
                 let key_type: Option<i64> = row.get("other_key_type");
                 let key_bytes: Option<Vec<u8>> = row.get("other_key_bytes");
                 let last_message_at: Option<DateTime<Utc>> = row.get("last_message_at");
-                
-                if let (Some(key_type), Some(key_bytes), Some(last_message_at)) = 
-                    (key_type, key_bytes, last_message_at) {
-                    let identity = PolycentricIdentity::new(
-                        key_type as u64,
-                        key_bytes,
-                    );
+
+                if let (Some(key_type), Some(key_bytes), Some(last_message_at)) =
+                    (key_type, key_bytes, last_message_at)
+                {
+                    let identity = PolycentricIdentity::new(key_type as u64, key_bytes);
                     Some((identity, last_message_at))
                 } else {
                     None

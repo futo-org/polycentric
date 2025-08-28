@@ -42,7 +42,13 @@ export const SidebarLink = ({
             isCurrentTopic ? 'bg-gray-100' : ''
           } ${className}`}
           style={style}
-          routerLink={topicName === 'Forums' ? '/forums' : topicName === 'Direct Messages' ? '/dm' : '/'}
+          routerLink={
+            topicName === 'Forums'
+              ? '/forums'
+              : topicName === 'Direct Messages'
+                ? '/dm'
+                : '/'
+          }
           routerDirection="root"
         >
           {children}

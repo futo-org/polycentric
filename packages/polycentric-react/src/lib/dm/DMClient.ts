@@ -73,7 +73,10 @@ export class DMClient {
   private messageHandlers: ((message: EncryptedMessage) => void)[] = [];
   private connectionHandlers: ((connected: boolean) => void)[] = [];
 
-  constructor(config: DMServerConfig, processHandle: Core.ProcessHandle.ProcessHandle) {
+  constructor(
+    config: DMServerConfig,
+    processHandle: Core.ProcessHandle.ProcessHandle,
+  ) {
     this.config = config;
     this.processHandle = processHandle;
   }
@@ -91,12 +94,12 @@ export class DMClient {
 
     // Register with the server
     const authHeader = await this.createAuthHeader();
-    
+
     const response = await fetch(`${this.config.httpUrl}/register_key`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authHeader,
+        Authorization: authHeader,
       },
       body: JSON.stringify({
         x25519_public_key: Array.from(keyPair.publicKey),
@@ -117,7 +120,9 @@ export class DMClient {
   /**
    * Get another user's X25519 public key
    */
-  async getUserKey(identity: Core.Models.PublicKey.PublicKey): Promise<Uint8Array | null> {
+  async getUserKey(
+    identity: Core.Models.PublicKey.PublicKey,
+  ): Promise<Uint8Array | null> {
     const response = await fetch(`${this.config.httpUrl}/get_key`, {
       method: 'POST',
       headers: {
@@ -148,10 +153,12 @@ export class DMClient {
   async sendMessage(
     recipient: Core.Models.PublicKey.PublicKey,
     content: DMMessageContent,
-    replyTo?: string
+    replyTo?: string,
   ): Promise<string> {
     if (!this.x25519KeyPair) {
-      throw new Error('X25519 keypair not generated. Call generateAndRegisterKeys() first.');
+      throw new Error(
+        'X25519 keypair not generated. Call generateAndRegisterKeys() first.',
+      );
     }
 
     // Get recipient's public key
@@ -168,11 +175,11 @@ export class DMClient {
     const { encrypted, nonce } = await this.encryptMessage(
       messageBytes,
       ephemeralKeyPair.privateKey,
-      recipientKey
+      recipientKey,
     );
 
     const messageId = this.generateMessageId();
-    
+
     // Create message object for signing
     const messageForSigning = {
       message_id: messageId,
@@ -192,17 +199,19 @@ export class DMClient {
     };
 
     // Sign the message
-    const messageBytes2 = new TextEncoder().encode(JSON.stringify(messageForSigning));
+    const messageBytes2 = new TextEncoder().encode(
+      JSON.stringify(messageForSigning),
+    );
     const signature = await this.signData(messageBytes2);
 
     // Send to server
     const authHeader = await this.createAuthHeader();
-    
+
     const response = await fetch(`${this.config.httpUrl}/send`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authHeader,
+        Authorization: authHeader,
       },
       body: JSON.stringify({
         recipient: {
@@ -236,19 +245,25 @@ export class DMClient {
   async getHistory(
     otherParty: Core.Models.PublicKey.PublicKey,
     cursor?: string,
-    limit?: number
-  ): Promise<{ messages: DecryptedMessage[]; nextCursor?: string; hasMore: boolean }> {
+    limit?: number,
+  ): Promise<{
+    messages: DecryptedMessage[];
+    nextCursor?: string;
+    hasMore: boolean;
+  }> {
     if (!this.x25519KeyPair) {
-      throw new Error('X25519 keypair not generated. Call generateAndRegisterKeys() first.');
+      throw new Error(
+        'X25519 keypair not generated. Call generateAndRegisterKeys() first.',
+      );
     }
 
     const authHeader = await this.createAuthHeader();
-    
+
     const response = await fetch(`${this.config.httpUrl}/history`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authHeader,
+        Authorization: authHeader,
       },
       body: JSON.stringify({
         other_party: {
@@ -265,7 +280,7 @@ export class DMClient {
     }
 
     const result = await response.json();
-    
+
     // Decrypt messages
     const decryptedMessages: DecryptedMessage[] = [];
     for (const encMsg of result.messages) {
@@ -352,32 +367,34 @@ export class DMClient {
     // For now, returning a placeholder - implement with actual X25519 generation
     const privateKey = new Uint8Array(32);
     crypto.getRandomValues(privateKey);
-    
+
     // This is a placeholder - implement actual X25519 public key derivation
     const publicKey = new Uint8Array(32);
     crypto.getRandomValues(publicKey);
-    
+
     return { privateKey, publicKey };
   }
 
   private async encryptMessage(
     message: Uint8Array,
     ephemeralPrivateKey: Uint8Array,
-    recipientPublicKey: Uint8Array
+    recipientPublicKey: Uint8Array,
   ): Promise<{ encrypted: Uint8Array; nonce: Uint8Array }> {
     // Implement X25519 ECDH + ChaCha20Poly1305 encryption
     // This is a placeholder - implement actual encryption
     const nonce = new Uint8Array(24);
     crypto.getRandomValues(nonce);
-    
+
     // Placeholder encryption
     const encrypted = new Uint8Array(message.length + 16); // + auth tag
     encrypted.set(message);
-    
+
     return { encrypted, nonce };
   }
 
-  private async decryptMessage(encryptedMsg: EncryptedMessage): Promise<DecryptedMessage> {
+  private async decryptMessage(
+    encryptedMsg: EncryptedMessage,
+  ): Promise<DecryptedMessage> {
     if (!this.x25519KeyPair) {
       throw new Error('No X25519 keypair available for decryption');
     }
@@ -385,9 +402,11 @@ export class DMClient {
     // Implement X25519 ECDH + ChaCha20Poly1305 decryption
     // This is a placeholder - implement actual decryption
     const decrypted = encryptedMsg.encryptedContent.slice(0, -16); // Remove auth tag
-    
-    const content: DMMessageContent = JSON.parse(new TextDecoder().decode(decrypted));
-    
+
+    const content: DMMessageContent = JSON.parse(
+      new TextDecoder().decode(decrypted),
+    );
+
     return {
       messageId: encryptedMsg.messageId,
       sender: encryptedMsg.sender,
@@ -401,7 +420,7 @@ export class DMClient {
     // Use the process handle to sign data
     return await Core.Models.PrivateKey.sign(
       this.processHandle.processSecret().system,
-      data
+      data,
     );
   }
 
@@ -411,13 +430,13 @@ export class DMClient {
     if (!challengeResponse.ok) {
       throw new Error('Failed to get challenge');
     }
-    
+
     const challengeData = await challengeResponse.json();
-    
+
     // Sign the challenge
     const challenge = new Uint8Array(challengeData.body);
     const signature = await this.signData(challenge);
-    
+
     const authRequest: AuthRequest = {
       challengeResponse: challengeData,
       identity: this.processHandle.system(),
@@ -435,20 +454,22 @@ export class DMClient {
   private handleWebSocketMessage(data: string): void {
     try {
       const message = JSON.parse(data);
-      
+
       if (message.type === 'dm_message') {
         const encryptedMsg: EncryptedMessage = {
           messageId: message.message.message_id,
           sender: this.parsePublicKey(message.message.sender),
           recipient: this.parsePublicKey(message.message.recipient),
-          ephemeralPublicKey: new Uint8Array(message.message.ephemeral_public_key),
+          ephemeralPublicKey: new Uint8Array(
+            message.message.ephemeral_public_key,
+          ),
           encryptedContent: new Uint8Array(message.message.encrypted_content),
           nonce: new Uint8Array(message.message.nonce),
           timestamp: new Date(message.message.timestamp),
           replyTo: message.message.reply_to,
         };
-        
-        this.messageHandlers.forEach(handler => handler(encryptedMsg));
+
+        this.messageHandlers.forEach((handler) => handler(encryptedMsg));
       }
     } catch (error) {
       console.error('Failed to handle WebSocket message:', error);
@@ -463,7 +484,7 @@ export class DMClient {
   }
 
   private notifyConnectionHandlers(connected: boolean): void {
-    this.connectionHandlers.forEach(handler => handler(connected));
+    this.connectionHandlers.forEach((handler) => handler(connected));
   }
 
   private generateMessageId(): string {

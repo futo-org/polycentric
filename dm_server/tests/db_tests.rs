@@ -1,9 +1,9 @@
 use chrono::Utc;
-use uuid::Uuid;
 use serial_test::serial;
+use uuid::Uuid;
 
 mod common;
-use common::{TestSetup, TestIdentity};
+use common::{TestIdentity, TestSetup};
 
 #[tokio::test]
 #[serial]
@@ -15,15 +15,21 @@ async fn test_register_and_get_x25519_key() {
     let signature = identity.sign_x25519_key();
 
     // Register key
-    let result = setup.db.register_x25519_key(
-        &identity.polycentric_identity,
-        &identity.x25519_public_key,
-        &signature,
-    ).await;
+    let result = setup
+        .db
+        .register_x25519_key(
+            &identity.polycentric_identity,
+            &identity.x25519_public_key,
+            &signature,
+        )
+        .await;
     assert!(result.is_ok());
 
     // Get key
-    let retrieved = setup.db.get_x25519_key(&identity.polycentric_identity).await;
+    let retrieved = setup
+        .db
+        .get_x25519_key(&identity.polycentric_identity)
+        .await;
     assert!(retrieved.is_ok());
 
     let key_data = retrieved.unwrap();
@@ -32,8 +38,14 @@ async fn test_register_and_get_x25519_key() {
     let key_data = key_data.unwrap();
     assert_eq!(key_data.x25519_public_key, identity.x25519_public_key);
     assert_eq!(key_data.signature, signature);
-    assert_eq!(key_data.identity_key_type, identity.polycentric_identity.key_type as i64);
-    assert_eq!(key_data.identity_key_bytes, identity.polycentric_identity.key_bytes);
+    assert_eq!(
+        key_data.identity_key_type,
+        identity.polycentric_identity.key_type as i64
+    );
+    assert_eq!(
+        key_data.identity_key_bytes,
+        identity.polycentric_identity.key_bytes
+    );
 }
 
 #[tokio::test]
@@ -46,11 +58,15 @@ async fn test_update_x25519_key() {
     let signature1 = identity.sign_x25519_key();
 
     // Register initial key
-    setup.db.register_x25519_key(
-        &identity.polycentric_identity,
-        &identity.x25519_public_key,
-        &signature1,
-    ).await.unwrap();
+    setup
+        .db
+        .register_x25519_key(
+            &identity.polycentric_identity,
+            &identity.x25519_public_key,
+            &signature1,
+        )
+        .await
+        .unwrap();
 
     // Generate new key
     let identity2 = TestIdentity::new();
@@ -58,14 +74,19 @@ async fn test_update_x25519_key() {
     let signature2 = identity.sign_data(&new_x25519_key);
 
     // Update key
-    setup.db.register_x25519_key(
-        &identity.polycentric_identity,
-        &new_x25519_key,
-        &signature2,
-    ).await.unwrap();
+    setup
+        .db
+        .register_x25519_key(&identity.polycentric_identity, &new_x25519_key, &signature2)
+        .await
+        .unwrap();
 
     // Verify update
-    let retrieved = setup.db.get_x25519_key(&identity.polycentric_identity).await.unwrap().unwrap();
+    let retrieved = setup
+        .db
+        .get_x25519_key(&identity.polycentric_identity)
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(retrieved.x25519_public_key, new_x25519_key);
     assert_eq!(retrieved.signature, signature2);
 }
@@ -77,7 +98,10 @@ async fn test_get_nonexistent_key() {
     setup.cleanup().await;
 
     let identity = TestIdentity::new();
-    let result = setup.db.get_x25519_key(&identity.polycentric_identity).await;
+    let result = setup
+        .db
+        .get_x25519_key(&identity.polycentric_identity)
+        .await;
     assert!(result.is_ok());
     assert!(result.unwrap().is_none());
 }
@@ -98,25 +122,32 @@ async fn test_store_and_retrieve_message() {
     let timestamp = Utc::now();
 
     // Store message
-    let result = setup.db.store_message(
-        message_id,
-        &sender.polycentric_identity,
-        &recipient.polycentric_identity,
-        &ephemeral_key,
-        &encrypted_content,
-        &nonce,
-        timestamp,
-        None,
-    ).await;
+    let result = setup
+        .db
+        .store_message(
+            message_id,
+            &sender.polycentric_identity,
+            &recipient.polycentric_identity,
+            &ephemeral_key,
+            &encrypted_content,
+            &nonce,
+            timestamp,
+            None,
+        )
+        .await;
     assert!(result.is_ok());
 
     // Get message history
-    let messages = setup.db.get_dm_history(
-        &sender.polycentric_identity,
-        &recipient.polycentric_identity,
-        None,
-        10,
-    ).await.unwrap();
+    let messages = setup
+        .db
+        .get_dm_history(
+            &sender.polycentric_identity,
+            &recipient.polycentric_identity,
+            None,
+            10,
+        )
+        .await
+        .unwrap();
 
     assert_eq!(messages.len(), 1);
     let message = &messages[0];
@@ -139,37 +170,49 @@ async fn test_message_history_pagination() {
     for i in 0..5 {
         let message_id = format!("test_message_{}", i);
         let timestamp = Utc::now() - chrono::Duration::seconds(i);
-        
-        setup.db.store_message(
-            &message_id,
-            &sender.polycentric_identity,
-            &recipient.polycentric_identity,
-            &vec![1u8; 32],
-            &vec![2u8; 100],
-            &vec![3u8; 12],
-            timestamp,
-            None,
-        ).await.unwrap();
+
+        setup
+            .db
+            .store_message(
+                &message_id,
+                &sender.polycentric_identity,
+                &recipient.polycentric_identity,
+                &vec![1u8; 32],
+                &vec![2u8; 100],
+                &vec![3u8; 12],
+                timestamp,
+                None,
+            )
+            .await
+            .unwrap();
     }
 
     // Get first page (limit 3)
-    let messages = setup.db.get_dm_history(
-        &sender.polycentric_identity,
-        &recipient.polycentric_identity,
-        None,
-        3,
-    ).await.unwrap();
+    let messages = setup
+        .db
+        .get_dm_history(
+            &sender.polycentric_identity,
+            &recipient.polycentric_identity,
+            None,
+            3,
+        )
+        .await
+        .unwrap();
 
     assert_eq!(messages.len(), 3);
 
     // Get next page using cursor
     let cursor = messages.last().unwrap().created_at.to_rfc3339();
-    let next_messages = setup.db.get_dm_history(
-        &sender.polycentric_identity,
-        &recipient.polycentric_identity,
-        Some(&cursor),
-        3,
-    ).await.unwrap();
+    let next_messages = setup
+        .db
+        .get_dm_history(
+            &sender.polycentric_identity,
+            &recipient.polycentric_identity,
+            Some(&cursor),
+            3,
+        )
+        .await
+        .unwrap();
 
     assert_eq!(next_messages.len(), 2);
 }
@@ -184,43 +227,59 @@ async fn test_bidirectional_message_history() {
     let user2 = TestIdentity::new();
 
     // User1 sends to User2
-    setup.db.store_message(
-        "msg1",
-        &user1.polycentric_identity,
-        &user2.polycentric_identity,
-        &vec![1u8; 32],
-        &vec![2u8; 100],
-        &vec![3u8; 12],
-        Utc::now() - chrono::Duration::seconds(2),
-        None,
-    ).await.unwrap();
+    setup
+        .db
+        .store_message(
+            "msg1",
+            &user1.polycentric_identity,
+            &user2.polycentric_identity,
+            &vec![1u8; 32],
+            &vec![2u8; 100],
+            &vec![3u8; 12],
+            Utc::now() - chrono::Duration::seconds(2),
+            None,
+        )
+        .await
+        .unwrap();
 
     // User2 sends to User1
-    setup.db.store_message(
-        "msg2",
-        &user2.polycentric_identity,
-        &user1.polycentric_identity,
-        &vec![1u8; 32],
-        &vec![2u8; 100],
-        &vec![3u8; 12],
-        Utc::now() - chrono::Duration::seconds(1),
-        None,
-    ).await.unwrap();
+    setup
+        .db
+        .store_message(
+            "msg2",
+            &user2.polycentric_identity,
+            &user1.polycentric_identity,
+            &vec![1u8; 32],
+            &vec![2u8; 100],
+            &vec![3u8; 12],
+            Utc::now() - chrono::Duration::seconds(1),
+            None,
+        )
+        .await
+        .unwrap();
 
     // Both users should see both messages
-    let messages1 = setup.db.get_dm_history(
-        &user1.polycentric_identity,
-        &user2.polycentric_identity,
-        None,
-        10,
-    ).await.unwrap();
+    let messages1 = setup
+        .db
+        .get_dm_history(
+            &user1.polycentric_identity,
+            &user2.polycentric_identity,
+            None,
+            10,
+        )
+        .await
+        .unwrap();
 
-    let messages2 = setup.db.get_dm_history(
-        &user2.polycentric_identity,
-        &user1.polycentric_identity,
-        None,
-        10,
-    ).await.unwrap();
+    let messages2 = setup
+        .db
+        .get_dm_history(
+            &user2.polycentric_identity,
+            &user1.polycentric_identity,
+            None,
+            10,
+        )
+        .await
+        .unwrap();
 
     assert_eq!(messages1.len(), 2);
     assert_eq!(messages2.len(), 2);
@@ -241,32 +300,48 @@ async fn test_message_delivery_tracking() {
     let timestamp = Utc::now();
 
     // Store message
-    setup.db.store_message(
-        message_id,
-        &sender.polycentric_identity,
-        &recipient.polycentric_identity,
-        &vec![1u8; 32],
-        &vec![2u8; 100],
-        &vec![3u8; 12],
-        timestamp,
-        None,
-    ).await.unwrap();
+    setup
+        .db
+        .store_message(
+            message_id,
+            &sender.polycentric_identity,
+            &recipient.polycentric_identity,
+            &vec![1u8; 32],
+            &vec![2u8; 100],
+            &vec![3u8; 12],
+            timestamp,
+            None,
+        )
+        .await
+        .unwrap();
 
     // Mark as delivered
     let delivered_at = Utc::now();
-    setup.db.mark_message_delivered(message_id, delivered_at).await.unwrap();
+    setup
+        .db
+        .mark_message_delivered(message_id, delivered_at)
+        .await
+        .unwrap();
 
     // Mark as read
     let read_at = Utc::now();
-    setup.db.mark_message_read(message_id, read_at).await.unwrap();
+    setup
+        .db
+        .mark_message_read(message_id, read_at)
+        .await
+        .unwrap();
 
     // Verify status
-    let messages = setup.db.get_dm_history(
-        &sender.polycentric_identity,
-        &recipient.polycentric_identity,
-        None,
-        10,
-    ).await.unwrap();
+    let messages = setup
+        .db
+        .get_dm_history(
+            &sender.polycentric_identity,
+            &recipient.polycentric_identity,
+            None,
+            10,
+        )
+        .await
+        .unwrap();
 
     assert_eq!(messages.len(), 1);
     let message = &messages[0];
@@ -284,26 +359,45 @@ async fn test_connection_management() {
     let connection_id = Uuid::new_v4();
 
     // Register connection
-    setup.db.register_connection(
-        connection_id,
-        &identity.polycentric_identity,
-        Some("test-user-agent"),
-    ).await.unwrap();
+    setup
+        .db
+        .register_connection(
+            connection_id,
+            &identity.polycentric_identity,
+            Some("test-user-agent"),
+        )
+        .await
+        .unwrap();
 
     // Get user connections
-    let connections = setup.db.get_user_connections(&identity.polycentric_identity).await.unwrap();
+    let connections = setup
+        .db
+        .get_user_connections(&identity.polycentric_identity)
+        .await
+        .unwrap();
     assert_eq!(connections.len(), 1);
     assert_eq!(connections[0].connection_id, connection_id);
-    assert_eq!(connections[0].user_agent, Some("test-user-agent".to_string()));
+    assert_eq!(
+        connections[0].user_agent,
+        Some("test-user-agent".to_string())
+    );
 
     // Update ping
-    setup.db.update_connection_ping(connection_id).await.unwrap();
+    setup
+        .db
+        .update_connection_ping(connection_id)
+        .await
+        .unwrap();
 
     // Remove connection
     setup.db.remove_connection(connection_id).await.unwrap();
 
     // Verify removal
-    let connections = setup.db.get_user_connections(&identity.polycentric_identity).await.unwrap();
+    let connections = setup
+        .db
+        .get_user_connections(&identity.polycentric_identity)
+        .await
+        .unwrap();
     assert_eq!(connections.len(), 0);
 }
 
@@ -320,38 +414,55 @@ async fn test_conversation_list() {
     let base_time = Utc::now();
 
     // User1 <-> User3 (older) - store this first
-    setup.db.store_message(
-        "msg2",
-        &user1.polycentric_identity,
-        &user3.polycentric_identity,
-        &vec![1u8; 32],
-        &vec![2u8; 100],
-        &vec![3u8; 12],
-        base_time - chrono::Duration::hours(1),
-        None,
-    ).await.unwrap();
+    setup
+        .db
+        .store_message(
+            "msg2",
+            &user1.polycentric_identity,
+            &user3.polycentric_identity,
+            &vec![1u8; 32],
+            &vec![2u8; 100],
+            &vec![3u8; 12],
+            base_time - chrono::Duration::hours(1),
+            None,
+        )
+        .await
+        .unwrap();
 
     // User1 <-> User2 (most recent) - store this second
-    setup.db.store_message(
-        "msg1",
-        &user1.polycentric_identity,
-        &user2.polycentric_identity,
-        &vec![1u8; 32],
-        &vec![2u8; 100],
-        &vec![3u8; 12],
-        base_time,
-        None,
-    ).await.unwrap();
+    setup
+        .db
+        .store_message(
+            "msg1",
+            &user1.polycentric_identity,
+            &user2.polycentric_identity,
+            &vec![1u8; 32],
+            &vec![2u8; 100],
+            &vec![3u8; 12],
+            base_time,
+            None,
+        )
+        .await
+        .unwrap();
 
     // Get conversation list for user1
-    let conversations = setup.db.get_conversation_list(&user1.polycentric_identity, 10).await.unwrap();
+    let conversations = setup
+        .db
+        .get_conversation_list(&user1.polycentric_identity, 10)
+        .await
+        .unwrap();
 
     assert_eq!(conversations.len(), 2);
-    
 
     // Should be ordered by most recent
-    assert_eq!(conversations[0].0.key_bytes, user2.polycentric_identity.key_bytes);
-    assert_eq!(conversations[1].0.key_bytes, user3.polycentric_identity.key_bytes);
+    assert_eq!(
+        conversations[0].0.key_bytes,
+        user2.polycentric_identity.key_bytes
+    );
+    assert_eq!(
+        conversations[1].0.key_bytes,
+        user3.polycentric_identity.key_bytes
+    );
 }
 
 #[tokio::test]
@@ -370,16 +481,20 @@ async fn test_message_exists() {
     assert!(!exists);
 
     // Store message
-    setup.db.store_message(
-        message_id,
-        &sender.polycentric_identity,
-        &recipient.polycentric_identity,
-        &vec![1u8; 32],
-        &vec![2u8; 100],
-        &vec![3u8; 12],
-        Utc::now(),
-        None,
-    ).await.unwrap();
+    setup
+        .db
+        .store_message(
+            message_id,
+            &sender.polycentric_identity,
+            &recipient.polycentric_identity,
+            &vec![1u8; 32],
+            &vec![2u8; 100],
+            &vec![3u8; 12],
+            Utc::now(),
+            None,
+        )
+        .await
+        .unwrap();
 
     // Check existing message
     let exists = setup.db.message_exists(message_id).await.unwrap();
@@ -396,7 +511,11 @@ async fn test_cleanup_operations() {
     let connection_id = Uuid::new_v4();
 
     // Create old connection
-    setup.db.register_connection(connection_id, &identity.polycentric_identity, None).await.unwrap();
+    setup
+        .db
+        .register_connection(connection_id, &identity.polycentric_identity, None)
+        .await
+        .unwrap();
 
     // Manually set old ping time
     sqlx::query!(
@@ -409,6 +528,10 @@ async fn test_cleanup_operations() {
     assert_eq!(cleaned, 1);
 
     // Verify connection was removed
-    let connections = setup.db.get_user_connections(&identity.polycentric_identity).await.unwrap();
+    let connections = setup
+        .db
+        .get_user_connections(&identity.polycentric_identity)
+        .await
+        .unwrap();
     assert_eq!(connections.len(), 0);
 }

@@ -4,9 +4,9 @@ use axum::{
 };
 use std::collections::HashMap;
 
+use super::{auth::AuthError, AppState};
 use crate::crypto::DMCrypto;
 use crate::models::*;
-use super::{AppState, auth::AuthError};
 
 /// Register a user's X25519 public key for DM encryption
 pub async fn register_x25519_key(
@@ -15,11 +15,10 @@ pub async fn register_x25519_key(
     Json(request): Json<RegisterX25519KeyRequest>,
 ) -> Result<Json<RegisterX25519KeyResponse>, AuthError> {
     // Verify the signature of the X25519 key
-    let verifying_key = identity.verifying_key()
-        .map_err(|e| {
-            log::error!("Invalid identity key: {}", e);
-            AuthError::InternalError
-        })?;
+    let verifying_key = identity.verifying_key().map_err(|e| {
+        log::error!("Invalid identity key: {}", e);
+        AuthError::InternalError
+    })?;
 
     if let Err(e) = DMCrypto::verify_signature(
         &verifying_key,
@@ -40,11 +39,11 @@ pub async fn register_x25519_key(
     }
 
     // Store the key in database
-    match state.db.register_x25519_key(
-        &identity,
-        &request.x25519_public_key,
-        &request.signature,
-    ).await {
+    match state
+        .db
+        .register_x25519_key(&identity, &request.x25519_public_key, &request.signature)
+        .await
+    {
         Ok(()) => {
             log::info!("Registered X25519 key for identity: {:?}", identity);
             let response = RegisterX25519KeyResponse {
@@ -104,7 +103,8 @@ pub async fn get_conversations(
     Query(params): Query<HashMap<String, String>>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<serde_json::Value>>, AuthError> {
-    let limit = params.get("limit")
+    let limit = params
+        .get("limit")
         .and_then(|s| s.parse().ok())
         .unwrap_or(50)
         .min(100); // Max 100 conversations

@@ -27,7 +27,7 @@ export const DMServerSettings = () => {
   const [dmServer, setDmServer] = useState(() => {
     return getDMServerUrl();
   });
-  
+
   const [inputValue, setInputValue] = useState(dmServer);
   const [isEditing, setIsEditing] = useState(false);
   const [isValidServer, setIsValidServer] = useState(false);

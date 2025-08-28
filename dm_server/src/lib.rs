@@ -11,5 +11,5 @@ pub mod protos {
 }
 
 // Re-export commonly used types
-pub use models::*;
 pub use crypto::*;
+pub use models::*;

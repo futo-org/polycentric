@@ -3,11 +3,9 @@ use serde_json;
 use serial_test::serial;
 
 mod common;
-use common::{TestSetup, TestIdentity, AuthHelper, MessageHelper, AxumTestHelper};
+use common::{AuthHelper, AxumTestHelper, MessageHelper, TestIdentity, TestSetup};
 
 use dm_server::models::*;
-
-
 
 #[tokio::test]
 #[serial]
@@ -31,7 +29,8 @@ async fn test_register_x25519_key_api() {
         "/register_key",
         &serde_json::to_string(&request_body).unwrap(),
         Some(&auth_header),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
 
@@ -40,9 +39,16 @@ async fn test_register_x25519_key_api() {
     assert!(response.error.is_none());
 
     // Verify key was stored
-    let stored_key = setup.db.get_x25519_key(&identity.polycentric_identity).await.unwrap();
+    let stored_key = setup
+        .db
+        .get_x25519_key(&identity.polycentric_identity)
+        .await
+        .unwrap();
     assert!(stored_key.is_some());
-    assert_eq!(stored_key.unwrap().x25519_public_key, identity.x25519_public_key);
+    assert_eq!(
+        stored_key.unwrap().x25519_public_key,
+        identity.x25519_public_key
+    );
 }
 
 #[tokio::test]
@@ -67,7 +73,8 @@ async fn test_register_key_invalid_signature() {
         "/register_key",
         &serde_json::to_string(&request_body).unwrap(),
         Some(&auth_header),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED); // Should be unauthorized due to invalid signature
 }
@@ -82,11 +89,15 @@ async fn test_get_x25519_key_api() {
     let signature = identity.sign_x25519_key();
 
     // First register the key
-    setup.db.register_x25519_key(
-        &identity.polycentric_identity,
-        &identity.x25519_public_key,
-        &signature,
-    ).await.unwrap();
+    setup
+        .db
+        .register_x25519_key(
+            &identity.polycentric_identity,
+            &identity.x25519_public_key,
+            &signature,
+        )
+        .await
+        .unwrap();
 
     let router = setup.create_test_router();
 
@@ -99,13 +110,17 @@ async fn test_get_x25519_key_api() {
         "/get_key",
         &serde_json::to_string(&request_body).unwrap(),
         None,
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
 
     let response: GetX25519KeyResponse = serde_json::from_str(&body).unwrap();
     assert!(response.found);
-    assert_eq!(response.x25519_public_key.unwrap(), identity.x25519_public_key);
+    assert_eq!(
+        response.x25519_public_key.unwrap(),
+        identity.x25519_public_key
+    );
     assert!(response.timestamp.is_some());
 }
 
@@ -127,7 +142,8 @@ async fn test_get_nonexistent_key_api() {
         "/get_key",
         &serde_json::to_string(&request_body).unwrap(),
         None,
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
 
@@ -142,7 +158,7 @@ async fn test_get_nonexistent_key_api() {
 async fn test_send_dm_api() {
     // Initialize logger to see auth errors
     let _ = env_logger::builder().is_test(true).try_init();
-    
+
     let setup = TestSetup::new().await;
     setup.cleanup().await;
 
@@ -153,22 +169,30 @@ async fn test_send_dm_api() {
     let sender_signature = sender.sign_x25519_key();
     let recipient_signature = recipient.sign_x25519_key();
 
-    setup.db.register_x25519_key(
-        &sender.polycentric_identity,
-        &sender.x25519_public_key,
-        &sender_signature,
-    ).await.unwrap();
+    setup
+        .db
+        .register_x25519_key(
+            &sender.polycentric_identity,
+            &sender.x25519_public_key,
+            &sender_signature,
+        )
+        .await
+        .unwrap();
 
-    setup.db.register_x25519_key(
-        &recipient.polycentric_identity,
-        &recipient.x25519_public_key,
-        &recipient_signature,
-    ).await.unwrap();
+    setup
+        .db
+        .register_x25519_key(
+            &recipient.polycentric_identity,
+            &recipient.x25519_public_key,
+            &recipient_signature,
+        )
+        .await
+        .unwrap();
 
     let auth_header = AuthHelper::create_auth_header(&sender, &setup.config.challenge_key).await;
     let router = setup.create_test_router();
 
-    let (message_id, ephemeral_public_key, encrypted_content, nonce, signature) = 
+    let (message_id, ephemeral_public_key, encrypted_content, nonce, signature) =
         MessageHelper::create_test_message(&sender, &recipient, "Hello, this is a test message!");
 
     let request_body = SendDMRequest {
@@ -186,7 +210,8 @@ async fn test_send_dm_api() {
         "/send",
         &serde_json::to_string(&request_body).unwrap(),
         Some(&auth_header),
-    ).await;
+    )
+    .await;
 
     if status != StatusCode::OK {
         println!("Response status: {:?}", status);
@@ -215,16 +240,20 @@ async fn test_send_dm_to_unregistered_user() {
 
     // Only register sender's key
     let sender_signature = sender.sign_x25519_key();
-    setup.db.register_x25519_key(
-        &sender.polycentric_identity,
-        &sender.x25519_public_key,
-        &sender_signature,
-    ).await.unwrap();
+    setup
+        .db
+        .register_x25519_key(
+            &sender.polycentric_identity,
+            &sender.x25519_public_key,
+            &sender_signature,
+        )
+        .await
+        .unwrap();
 
     let auth_header = AuthHelper::create_auth_header(&sender, &setup.config.challenge_key).await;
     let router = setup.create_test_router();
 
-    let (message_id, ephemeral_public_key, encrypted_content, nonce, signature) = 
+    let (message_id, ephemeral_public_key, encrypted_content, nonce, signature) =
         MessageHelper::create_test_message(&sender, &recipient, "Hello!");
 
     let request_body = SendDMRequest {
@@ -242,7 +271,8 @@ async fn test_send_dm_to_unregistered_user() {
         "/send",
         &serde_json::to_string(&request_body).unwrap(),
         Some(&auth_header),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
 
@@ -264,17 +294,51 @@ async fn test_get_dm_history_api() {
     // Register both users
     let sig1 = user1.sign_x25519_key();
     let sig2 = user2.sign_x25519_key();
-    setup.db.register_x25519_key(&user1.polycentric_identity, &user1.x25519_public_key, &sig1).await.unwrap();
-    setup.db.register_x25519_key(&user2.polycentric_identity, &user2.x25519_public_key, &sig2).await.unwrap();
+    setup
+        .db
+        .register_x25519_key(&user1.polycentric_identity, &user1.x25519_public_key, &sig1)
+        .await
+        .unwrap();
+    setup
+        .db
+        .register_x25519_key(&user2.polycentric_identity, &user2.x25519_public_key, &sig2)
+        .await
+        .unwrap();
 
     // Store some messages
-    let (msg_id1, eph_key1, enc_content1, nonce1, _) = MessageHelper::create_test_message(&user1, &user2, "Message 1");
-    let (msg_id2, eph_key2, enc_content2, nonce2, _) = MessageHelper::create_test_message(&user2, &user1, "Message 2");
+    let (msg_id1, eph_key1, enc_content1, nonce1, _) =
+        MessageHelper::create_test_message(&user1, &user2, "Message 1");
+    let (msg_id2, eph_key2, enc_content2, nonce2, _) =
+        MessageHelper::create_test_message(&user2, &user1, "Message 2");
 
-    setup.db.store_message(&msg_id1, &user1.polycentric_identity, &user2.polycentric_identity, 
-        &eph_key1, &enc_content1, &nonce1, chrono::Utc::now() - chrono::Duration::seconds(2), None).await.unwrap();
-    setup.db.store_message(&msg_id2, &user2.polycentric_identity, &user1.polycentric_identity, 
-        &eph_key2, &enc_content2, &nonce2, chrono::Utc::now() - chrono::Duration::seconds(1), None).await.unwrap();
+    setup
+        .db
+        .store_message(
+            &msg_id1,
+            &user1.polycentric_identity,
+            &user2.polycentric_identity,
+            &eph_key1,
+            &enc_content1,
+            &nonce1,
+            chrono::Utc::now() - chrono::Duration::seconds(2),
+            None,
+        )
+        .await
+        .unwrap();
+    setup
+        .db
+        .store_message(
+            &msg_id2,
+            &user2.polycentric_identity,
+            &user1.polycentric_identity,
+            &eph_key2,
+            &enc_content2,
+            &nonce2,
+            chrono::Utc::now() - chrono::Duration::seconds(1),
+            None,
+        )
+        .await
+        .unwrap();
 
     let auth_header = AuthHelper::create_auth_header(&user1, &setup.config.challenge_key).await;
     let router = setup.create_test_router();
@@ -290,7 +354,8 @@ async fn test_get_dm_history_api() {
         "/history",
         &serde_json::to_string(&request_body).unwrap(),
         Some(&auth_header),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
 
@@ -312,13 +377,29 @@ async fn test_send_dm_duplicate_message_id() {
     // Register both users
     let sender_signature = sender.sign_x25519_key();
     let recipient_signature = recipient.sign_x25519_key();
-    setup.db.register_x25519_key(&sender.polycentric_identity, &sender.x25519_public_key, &sender_signature).await.unwrap();
-    setup.db.register_x25519_key(&recipient.polycentric_identity, &recipient.x25519_public_key, &recipient_signature).await.unwrap();
+    setup
+        .db
+        .register_x25519_key(
+            &sender.polycentric_identity,
+            &sender.x25519_public_key,
+            &sender_signature,
+        )
+        .await
+        .unwrap();
+    setup
+        .db
+        .register_x25519_key(
+            &recipient.polycentric_identity,
+            &recipient.x25519_public_key,
+            &recipient_signature,
+        )
+        .await
+        .unwrap();
 
     let auth_header = AuthHelper::create_auth_header(&sender, &setup.config.challenge_key).await;
     let router = setup.create_test_router();
 
-    let (message_id, ephemeral_public_key, encrypted_content, nonce, signature) = 
+    let (message_id, ephemeral_public_key, encrypted_content, nonce, signature) =
         MessageHelper::create_test_message(&sender, &recipient, "Test message");
 
     let request_body = SendDMRequest {
@@ -337,7 +418,8 @@ async fn test_send_dm_duplicate_message_id() {
         "/send",
         &serde_json::to_string(&request_body).unwrap(),
         Some(&auth_header),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status1, StatusCode::OK);
 
@@ -347,7 +429,8 @@ async fn test_send_dm_duplicate_message_id() {
         "/send",
         &serde_json::to_string(&request_body).unwrap(),
         Some(&auth_header),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status2, StatusCode::OK);
 
@@ -369,8 +452,24 @@ async fn test_send_dm_invalid_sizes() {
     // Register both users
     let sender_signature = sender.sign_x25519_key();
     let recipient_signature = recipient.sign_x25519_key();
-    setup.db.register_x25519_key(&sender.polycentric_identity, &sender.x25519_public_key, &sender_signature).await.unwrap();
-    setup.db.register_x25519_key(&recipient.polycentric_identity, &recipient.x25519_public_key, &recipient_signature).await.unwrap();
+    setup
+        .db
+        .register_x25519_key(
+            &sender.polycentric_identity,
+            &sender.x25519_public_key,
+            &sender_signature,
+        )
+        .await
+        .unwrap();
+    setup
+        .db
+        .register_x25519_key(
+            &recipient.polycentric_identity,
+            &recipient.x25519_public_key,
+            &recipient_signature,
+        )
+        .await
+        .unwrap();
 
     let auth_header = AuthHelper::create_auth_header(&sender, &setup.config.challenge_key).await;
     let router = setup.create_test_router();
@@ -391,7 +490,8 @@ async fn test_send_dm_invalid_sizes() {
         "/send",
         &serde_json::to_string(&request_body).unwrap(),
         Some(&&auth_header),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let response: SendDMResponse = serde_json::from_str(&body).unwrap();
@@ -414,7 +514,8 @@ async fn test_send_dm_invalid_sizes() {
         "/send",
         &serde_json::to_string(&request_body).unwrap(),
         Some(&auth_header),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::OK);
     let response: SendDMResponse = serde_json::from_str(&body).unwrap();
@@ -441,7 +542,8 @@ async fn test_unauthorized_requests() {
         "/register_key",
         &serde_json::to_string(&request_body).unwrap(),
         None,
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED); // No auth header
 
@@ -451,7 +553,8 @@ async fn test_unauthorized_requests() {
         "/register_key",
         &serde_json::to_string(&request_body).unwrap(),
         Some(&"Bearer invalid"),
-    ).await;
+    )
+    .await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED); // Invalid auth
 }
@@ -467,26 +570,49 @@ async fn test_get_conversations_api() {
     let user3 = TestIdentity::new();
 
     // Store some messages to create conversations
-    let (msg_id1, eph_key1, enc_content1, nonce1, _) = MessageHelper::create_test_message(&user1, &user2, "Message 1");
-    let (msg_id2, eph_key2, enc_content2, nonce2, _) = MessageHelper::create_test_message(&user1, &user3, "Message 2");
+    let (msg_id1, eph_key1, enc_content1, nonce1, _) =
+        MessageHelper::create_test_message(&user1, &user2, "Message 1");
+    let (msg_id2, eph_key2, enc_content2, nonce2, _) =
+        MessageHelper::create_test_message(&user1, &user3, "Message 2");
 
     // Ensure proper timestamps: user3 gets older timestamp, user2 gets newer timestamp
     let now = chrono::Utc::now();
     let one_hour_ago = now - chrono::Duration::hours(1);
 
-    setup.db.store_message(&msg_id2, &user1.polycentric_identity, &user3.polycentric_identity, 
-        &eph_key2, &enc_content2, &nonce2, one_hour_ago, None).await.unwrap();
-    setup.db.store_message(&msg_id1, &user1.polycentric_identity, &user2.polycentric_identity, 
-        &eph_key1, &enc_content1, &nonce1, now, None).await.unwrap();
+    setup
+        .db
+        .store_message(
+            &msg_id2,
+            &user1.polycentric_identity,
+            &user3.polycentric_identity,
+            &eph_key2,
+            &enc_content2,
+            &nonce2,
+            one_hour_ago,
+            None,
+        )
+        .await
+        .unwrap();
+    setup
+        .db
+        .store_message(
+            &msg_id1,
+            &user1.polycentric_identity,
+            &user2.polycentric_identity,
+            &eph_key1,
+            &enc_content1,
+            &nonce1,
+            now,
+            None,
+        )
+        .await
+        .unwrap();
 
     let auth_header = AuthHelper::create_auth_header(&user1, &setup.config.challenge_key).await;
     let router = setup.create_test_router();
 
-    let (status, body) = AxumTestHelper::get(
-        &router,
-        "/conversations?limit=10",
-        Some(&auth_header),
-    ).await;
+    let (status, body) =
+        AxumTestHelper::get(&router, "/conversations?limit=10", Some(&auth_header)).await;
 
     assert_eq!(status, StatusCode::OK);
 
@@ -494,11 +620,17 @@ async fn test_get_conversations_api() {
     let conversations = body.as_array().unwrap();
     assert_eq!(conversations.len(), 2);
 
-
-
     // Should be ordered by most recent
     let first_identity = &conversations[0]["identity"];
-    assert_eq!(first_identity["key_bytes"], serde_json::Value::Array(
-        user2.polycentric_identity.key_bytes.iter().map(|&b| serde_json::Value::from(b)).collect()
-    ));
+    assert_eq!(
+        first_identity["key_bytes"],
+        serde_json::Value::Array(
+            user2
+                .polycentric_identity
+                .key_bytes
+                .iter()
+                .map(|&b| serde_json::Value::from(b))
+                .collect()
+        )
+    );
 }

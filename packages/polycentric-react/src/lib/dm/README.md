@@ -12,7 +12,7 @@ import { useProcessHandleManager } from '@polycentric/polycentric-react';
 
 function MyDMComponent() {
   const { processHandle } = useProcessHandleManager();
-  
+
   const dmConfig = {
     httpUrl: 'http://localhost:8080',
     websocketUrl: 'ws://localhost:8081',
@@ -34,7 +34,10 @@ function MyDMComponent() {
 ### Advanced Usage with Hook
 
 ```tsx
-import { useDMClient, DMMessageContent } from '@polycentric/polycentric-react/lib/dm';
+import {
+  useDMClient,
+  DMMessageContent,
+} from '@polycentric/polycentric-react/lib/dm';
 
 function CustomDMInterface() {
   const {
@@ -58,16 +61,12 @@ function CustomDMInterface() {
       type: 'text',
       text,
     };
-    
+
     await sendMessage(otherUserPublicKey, content);
   };
 
   // Custom UI implementation
-  return (
-    <div>
-      {/* Your custom chat UI */}
-    </div>
-  );
+  return <div>{/* Your custom chat UI */}</div>;
 }
 ```
 
@@ -132,7 +131,7 @@ The DM client requires configuration pointing to your DM server:
 
 ```tsx
 interface DMServerConfig {
-  httpUrl: string;      // HTTP API endpoint
+  httpUrl: string; // HTTP API endpoint
   websocketUrl: string; // WebSocket endpoint for real-time messaging
 }
 ```

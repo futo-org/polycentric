@@ -46,7 +46,11 @@ impl WebSocketManager {
             .or_insert_with(Vec::new)
             .push(connection_id);
 
-        log::info!("Registered WebSocket connection {} for identity {:?}", connection_id, identity);
+        log::info!(
+            "Registered WebSocket connection {} for identity {:?}",
+            connection_id,
+            identity
+        );
     }
 
     /// Unregister a WebSocket connection
@@ -69,7 +73,7 @@ impl WebSocketManager {
         let user_connections = self.user_connections.read().await;
         if let Some(connection_ids) = user_connections.get(identity) {
             let connections = self.connections.read().await;
-            
+
             let message_json = match serde_json::to_string(&message) {
                 Ok(json) => json,
                 Err(e) => {
@@ -81,7 +85,11 @@ impl WebSocketManager {
             for &connection_id in connection_ids {
                 if let Some(sender) = connections.get(&connection_id) {
                     if let Err(e) = sender.send(Message::Text(message_json.clone())) {
-                        log::warn!("Failed to send message to connection {}: {}", connection_id, e);
+                        log::warn!(
+                            "Failed to send message to connection {}: {}",
+                            connection_id,
+                            e
+                        );
                     }
                 }
             }
@@ -101,7 +109,11 @@ impl WebSocketManager {
             };
 
             if let Err(e) = sender.send(Message::Text(message_json)) {
-                log::warn!("Failed to send message to connection {}: {}", connection_id, e);
+                log::warn!(
+                    "Failed to send message to connection {}: {}",
+                    connection_id,
+                    e
+                );
             }
         }
     }
@@ -109,7 +121,7 @@ impl WebSocketManager {
     /// Broadcast a message to all connections
     pub async fn broadcast(&self, message: WSMessage) {
         let connections = self.connections.read().await;
-        
+
         let message_json = match serde_json::to_string(&message) {
             Ok(json) => json,
             Err(e) => {

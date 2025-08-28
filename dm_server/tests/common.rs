@@ -1,25 +1,29 @@
-use std::sync::Arc;
-use sqlx::PgPool;
-use uuid::Uuid;
+use axum::{
+    body::Body,
+    http::{Request, StatusCode},
+    routing::{get, post},
+    Router,
+};
+use base64;
 use ed25519_dalek::{SigningKey, VerifyingKey};
+use http_body_util::BodyExt;
 use rand::rngs::OsRng;
 use serde_json;
-use base64;
-use axum::{
-    http::{Request, StatusCode},
-    body::Body,
-    Router,
-    routing::{get, post},
-};
+use sqlx::PgPool;
+use std::sync::Arc;
 use tower::ServiceExt;
-use http_body_util::BodyExt;
+use uuid::Uuid;
 
 use dm_server::{
     config::Config,
-    db::DatabaseManager,
-    handlers::{AppState, auth::{AuthRequest, ChallengeResponse, ChallengeBody}, auth, keys, dm},
-    models::PolycentricIdentity,
     crypto::DMCrypto,
+    db::DatabaseManager,
+    handlers::{
+        auth,
+        auth::{AuthRequest, ChallengeBody, ChallengeResponse},
+        dm, keys, AppState,
+    },
+    models::PolycentricIdentity,
 };
 
 /// Test utilities and common setup
@@ -33,11 +37,12 @@ pub struct TestSetup {
 impl TestSetup {
     pub async fn new() -> Self {
         // Use test database
-        let database_url = std::env::var("TEST_DATABASE_URL")
-            .unwrap_or_else(|_| "postgresql://postgres:password@localhost:5432/dm_server_test".to_string());
+        let database_url = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
+            "postgresql://postgres:password@localhost:5432/dm_server_test".to_string()
+        });
 
         let pool = sqlx::postgres::PgPoolOptions::new()
-            .max_connections(50)  // Increased for concurrent tests
+            .max_connections(50) // Increased for concurrent tests
             .min_connections(5)
             .acquire_timeout(std::time::Duration::from_secs(30))
             .idle_timeout(Some(std::time::Duration::from_secs(60)))
@@ -53,7 +58,7 @@ impl TestSetup {
 
         let config = Arc::new(Config {
             database_url,
-            server_port: 0, // Test port
+            server_port: 0,    // Test port
             websocket_port: 0, // Test port
             challenge_key: "test-challenge-key".to_string(),
             max_message_size: 1024 * 1024,
@@ -82,15 +87,17 @@ impl TestSetup {
 
     /// Clean up the database between tests
     pub async fn cleanup(&self) {
-        let _ = sqlx::query("TRUNCATE TABLE dm_messages, user_x25519_keys, active_connections, message_delivery")
-            .execute(&self.pool)
-            .await;
+        let _ = sqlx::query(
+            "TRUNCATE TABLE dm_messages, user_x25519_keys, active_connections, message_delivery",
+        )
+        .execute(&self.pool)
+        .await;
     }
 
     /// Create a test router for Axum testing
     pub fn create_test_router(&self) -> Router {
-        use tower_http::cors::{CorsLayer, Any};
         use axum::http::Method;
+        use tower_http::cors::{Any, CorsLayer};
 
         let cors = CorsLayer::new()
             .allow_origin(Any)
@@ -166,10 +173,7 @@ impl TestIdentity {
 pub struct AuthHelper;
 
 impl AuthHelper {
-    pub async fn create_auth_header(
-        identity: &TestIdentity,
-        challenge_key: &str,
-    ) -> String {
+    pub async fn create_auth_header(identity: &TestIdentity, challenge_key: &str) -> String {
         // Generate a fresh challenge
         let challenge = DMCrypto::generate_challenge();
         let created_on = std::time::SystemTime::now()
@@ -206,12 +210,19 @@ impl AuthHelper {
         // Encode to base64 for the Authorization header
         let auth_bytes = serde_json::to_vec(&auth_request).unwrap();
         let auth_b64 = base64::encode(&auth_bytes);
-        
+
         // Debug: Print the generated auth header (first 100 chars)
         let header = format!("Bearer {}", auth_b64);
-        println!("Generated auth header (first 100 chars): {}", &header[..std::cmp::min(100, header.len())]);
-        println!("Challenge length: {}, Auth request serialized length: {}", challenge.len(), auth_bytes.len());
-        
+        println!(
+            "Generated auth header (first 100 chars): {}",
+            &header[..std::cmp::min(100, header.len())]
+        );
+        println!(
+            "Challenge length: {}, Auth request serialized length: {}",
+            challenge.len(),
+            auth_bytes.len()
+        );
+
         header
     }
 }
@@ -226,20 +237,19 @@ impl MessageHelper {
         content: &str,
     ) -> (String, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>) {
         let message_id = format!("test_msg_{}", Uuid::new_v4());
-        
+
         // Generate ephemeral keypair
         let (ephemeral_secret, ephemeral_public) = DMCrypto::generate_ephemeral_keypair();
         let ephemeral_public_bytes = ephemeral_public.to_bytes().to_vec();
-        
+
         // Encrypt message
         let content_bytes = content.as_bytes();
-        let recipient_x25519_key = DMCrypto::x25519_public_from_bytes(&recipient.x25519_public_key).unwrap();
-        
-        let (encrypted, nonce) = DMCrypto::encrypt_message(
-            content_bytes,
-            ephemeral_secret,
-            &recipient_x25519_key,
-        ).unwrap();
+        let recipient_x25519_key =
+            DMCrypto::x25519_public_from_bytes(&recipient.x25519_public_key).unwrap();
+
+        let (encrypted, nonce) =
+            DMCrypto::encrypt_message(content_bytes, ephemeral_secret, &recipient_x25519_key)
+                .unwrap();
 
         // Create message for signing (exclude timestamp to avoid timing issues)
         let message_for_signing = serde_json::json!({
@@ -260,7 +270,13 @@ impl MessageHelper {
         let message_bytes = serde_json::to_vec(&message_for_signing).unwrap();
         let signature = sender.sign_data(&message_bytes);
 
-        (message_id, ephemeral_public_bytes, encrypted, nonce, signature)
+        (
+            message_id,
+            ephemeral_public_bytes,
+            encrypted,
+            nonce,
+            signature,
+        )
     }
 
     pub fn decrypt_test_message(
@@ -271,7 +287,7 @@ impl MessageHelper {
     ) -> Result<String, anyhow::Error> {
         let recipient_secret = DMCrypto::x25519_secret_from_bytes(&recipient.x25519_private_key)?;
         let ephemeral_public = DMCrypto::x25519_public_from_bytes(ephemeral_public_key)?;
-        
+
         let decrypted = DMCrypto::decrypt_message(
             encrypted_content,
             nonce,
@@ -307,7 +323,7 @@ impl AxumTestHelper {
         let status = response.status();
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
-        
+
         (status, body_str)
     }
 
@@ -332,7 +348,7 @@ impl AxumTestHelper {
         let status = response.status();
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let body_str = String::from_utf8(body.to_vec()).unwrap();
-        
+
         (status, body_str)
     }
 
@@ -348,7 +364,7 @@ impl AxumTestHelper {
         } else {
             format!("{}?{}", path, query)
         };
-        
+
         Self::get(router, &full_path, auth_header).await
     }
 }

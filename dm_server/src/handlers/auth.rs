@@ -9,9 +9,9 @@ use hmac_sha256::HMAC;
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use super::AppState;
 use crate::crypto::DMCrypto;
 use crate::models::PolycentricIdentity;
-use super::AppState;
 
 /// Challenge response structure similar to Harbor
 #[derive(Debug, Serialize, Deserialize)]
@@ -48,11 +48,10 @@ pub async fn get_challenge(
         created_on,
     };
 
-    let body_bytes = serde_json::to_vec(&body)
-        .map_err(|e| {
-            log::error!("Failed to serialize challenge body: {}", e);
-            AuthError::InternalError
-        })?;
+    let body_bytes = serde_json::to_vec(&body).map_err(|e| {
+        log::error!("Failed to serialize challenge body: {}", e);
+        AuthError::InternalError
+    })?;
 
     let hmac = HMAC::mac(body_bytes.clone(), state.config.challenge_key.as_bytes()).to_vec();
 
@@ -65,43 +64,45 @@ pub async fn get_challenge(
 }
 
 /// Verify authentication with challenge-response
-pub fn verify_auth(
-    auth_request: &AuthRequest,
-    challenge_key: &str,
-) -> Result<()> {
+pub fn verify_auth(auth_request: &AuthRequest, challenge_key: &str) -> Result<()> {
     // Verify HMAC
     let expected_hmac = HMAC::mac(
         auth_request.challenge_response.body.clone(),
         challenge_key.as_bytes(),
-    ).to_vec();
+    )
+    .to_vec();
 
     if !constant_time_eq::constant_time_eq(&expected_hmac, &auth_request.challenge_response.hmac) {
         return Err(anyhow!("Invalid HMAC"));
     }
 
     // Parse challenge body
-    let challenge_body: ChallengeBody = serde_json::from_slice(&auth_request.challenge_response.body)
-        .map_err(|e| anyhow!("Invalid challenge body: {}", e))?;
+    let challenge_body: ChallengeBody =
+        serde_json::from_slice(&auth_request.challenge_response.body)
+            .map_err(|e| anyhow!("Invalid challenge body: {}", e))?;
 
     // Check challenge age (max 5 minutes)
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_millis() as u64;
-    
+
     if now - challenge_body.created_on > 300_000 {
         return Err(anyhow!("Challenge expired"));
     }
 
     // Verify signature
-    let verifying_key = auth_request.identity.verifying_key()
+    let verifying_key = auth_request
+        .identity
+        .verifying_key()
         .map_err(|e| anyhow!("Invalid identity key: {}", e))?;
 
     DMCrypto::verify_signature(
         &verifying_key,
         &challenge_body.challenge,
         &auth_request.signature,
-    ).map_err(|e| anyhow!("Signature verification failed: {}", e))?;
+    )
+    .map_err(|e| anyhow!("Signature verification failed: {}", e))?;
 
     Ok(())
 }
@@ -112,14 +113,15 @@ pub fn extract_auth_identity(
     challenge_key: &str,
 ) -> Result<PolycentricIdentity> {
     // Auth header format: "Bearer <base64-encoded-auth-request>"
-    let token = auth_header.strip_prefix("Bearer ")
+    let token = auth_header
+        .strip_prefix("Bearer ")
         .ok_or_else(|| anyhow!("Invalid authorization header format"))?;
 
-    let auth_bytes = base64::decode(token)
-        .map_err(|e| anyhow!("Invalid base64 encoding: {}", e))?;
+    let auth_bytes =
+        base64::decode(token).map_err(|e| anyhow!("Invalid base64 encoding: {}", e))?;
 
-    let auth_request: AuthRequest = serde_json::from_slice(&auth_bytes)
-        .map_err(|e| anyhow!("Invalid auth request: {}", e))?;
+    let auth_request: AuthRequest =
+        serde_json::from_slice(&auth_bytes).map_err(|e| anyhow!("Invalid auth request: {}", e))?;
 
     verify_auth(&auth_request, challenge_key)?;
 
@@ -137,7 +139,7 @@ where
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let app_state = AppState::from_ref(state);
-        
+
         let auth_header = parts
             .headers
             .get("authorization")
@@ -165,9 +167,11 @@ impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
             AuthError::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized"),
-            AuthError::InternalError => (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error"),
+            AuthError::InternalError => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error")
+            }
         };
-        
+
         (status, message).into_response()
     }
 }

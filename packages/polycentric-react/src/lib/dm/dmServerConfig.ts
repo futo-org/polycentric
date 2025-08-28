@@ -8,21 +8,24 @@ const DEFAULT_DM_SERVER = 'http://dm_server:8080';
  */
 export function getDMServerConfig(): DMServerConfig {
   const serverUrl = localStorage.getItem(DM_SERVER_KEY) || DEFAULT_DM_SERVER;
-  
+
   // Ensure URL has proper protocol
   let httpUrl = serverUrl;
   if (!httpUrl.startsWith('http://') && !httpUrl.startsWith('https://')) {
     httpUrl = `https://${httpUrl}`;
   }
-  
+
   // Remove trailing slash
   if (httpUrl.endsWith('/')) {
     httpUrl = httpUrl.slice(0, -1);
   }
-  
+
   // Convert HTTP URL to WebSocket URL
-  const websocketUrl = httpUrl.replace(/^https?:/, httpUrl.startsWith('https:') ? 'wss:' : 'ws:');
-  
+  const websocketUrl = httpUrl.replace(
+    /^https?:/,
+    httpUrl.startsWith('https:') ? 'wss:' : 'ws:',
+  );
+
   return {
     httpUrl,
     websocketUrl,

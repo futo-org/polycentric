@@ -16,15 +16,15 @@ export const DMPage: Page = () => {
 
   const handleStartConversation = () => {
     if (!publicKeyInput.trim()) return;
-    
+
     try {
       let publicKey: Core.Models.PublicKey.PublicKey;
       const input = publicKeyInput.trim();
-      
+
       try {
         // First try parsing as a full PublicKey string (protobuf format)
         publicKey = Core.Models.PublicKey.fromString(
-          input as Core.Models.PublicKey.PublicKeyString
+          input as Core.Models.PublicKey.PublicKeyString,
         );
       } catch {
         // If that fails, assume it's raw Ed25519 key bytes in base64
@@ -34,18 +34,18 @@ export const DMPage: Page = () => {
         for (let i = 0; i < binaryString.length; i++) {
           keyBytes[i] = binaryString.charCodeAt(i);
         }
-        
+
         if (keyBytes.length !== 32) {
           throw new Error('Ed25519 public key must be 32 bytes');
         }
-        
+
         // Create PublicKey with Ed25519 key type (1)
         publicKey = Core.Models.PublicKey.fromProto({
           keyType: Long.fromNumber(1), // Ed25519 key type
           key: keyBytes,
         });
       }
-      
+
       setSelectedContact({
         publicKey,
         name: input, // Use the input as name for now
@@ -53,22 +53,29 @@ export const DMPage: Page = () => {
       setPublicKeyInput('');
     } catch (error) {
       console.error('Invalid public key:', error);
-      alert('Invalid public key format. Please provide either a full PublicKey string or raw Ed25519 key bytes in base64.');
+      alert(
+        'Invalid public key format. Please provide either a full PublicKey string or raw Ed25519 key bytes in base64.',
+      );
     }
   };
 
   const renderStartConversation = () => (
     <div className="flex flex-col items-center justify-center h-full p-8 space-y-6">
       <div className="text-center space-y-2">
-        <h2 className="text-2xl font-semibold text-gray-900">Start a Conversation</h2>
+        <h2 className="text-2xl font-semibold text-gray-900">
+          Start a Conversation
+        </h2>
         <p className="text-gray-600">
           Enter a public key to start a direct message conversation
         </p>
       </div>
-      
+
       <div className="w-full max-w-md space-y-4">
         <div className="space-y-2">
-          <label htmlFor="publicKey" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="publicKey"
+            className="block text-sm font-medium text-gray-700"
+          >
             Public Key
           </label>
           <input
@@ -80,7 +87,7 @@ export const DMPage: Page = () => {
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
-        
+
         <button
           onClick={handleStartConversation}
           disabled={!publicKeyInput.trim()}
@@ -89,7 +96,7 @@ export const DMPage: Page = () => {
           Start Conversation
         </button>
       </div>
-      
+
       {selectedContact && (
         <div className="mt-4 p-4 bg-gray-50 rounded-md">
           <p className="text-sm text-gray-600">
@@ -128,7 +135,7 @@ export const DMPage: Page = () => {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <DMChatComponent 
+                  <DMChatComponent
                     otherParty={selectedContact.publicKey}
                     otherPartyName={selectedContact.name}
                   />

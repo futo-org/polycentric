@@ -1,7 +1,13 @@
 import * as Core from '@polycentric/polycentric-core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useProcessHandleManager } from '../hooks/processHandleManagerHooks';
-import { DecryptedMessage, DMClient, DMMessageContent, DMServerConfig, EncryptedMessage } from './DMClient';
+import {
+  DecryptedMessage,
+  DMClient,
+  DMMessageContent,
+  DMServerConfig,
+  EncryptedMessage,
+} from './DMClient';
 
 export interface UseDMClientOptions {
   config: DMServerConfig;
@@ -14,11 +20,18 @@ export interface UseDMClientReturn {
   isRegistered: boolean;
   messages: DecryptedMessage[];
   error: string | null;
-  
+
   // Actions
   registerKeys: () => Promise<void>;
-  sendMessage: (recipient: Core.Models.PublicKey.PublicKey, content: DMMessageContent, replyTo?: string) => Promise<string>;
-  loadHistory: (otherParty: Core.Models.PublicKey.PublicKey, cursor?: string) => Promise<void>;
+  sendMessage: (
+    recipient: Core.Models.PublicKey.PublicKey,
+    content: DMMessageContent,
+    replyTo?: string,
+  ) => Promise<string>;
+  loadHistory: (
+    otherParty: Core.Models.PublicKey.PublicKey,
+    cursor?: string,
+  ) => Promise<void>;
   connectWebSocket: () => Promise<void>;
   disconnectWebSocket: () => void;
   clearError: () => void;
@@ -40,17 +53,17 @@ export function useDMClient(options: UseDMClientOptions): UseDMClientReturn {
   useEffect(() => {
     if (processHandle) {
       const dmClient = new DMClient(options.config, processHandle);
-      
+
       // Set up message handler
       dmClient.onMessage((encryptedMsg: EncryptedMessage) => {
         handleIncomingMessage(encryptedMsg, dmClient);
       });
-      
+
       // Set up connection handler
       dmClient.onConnectionChange(setIsConnected);
-      
+
       setClient(dmClient);
-      
+
       if (options.autoConnect) {
         // Auto-register keys and connect
         registerKeysAndConnect(dmClient);
@@ -58,26 +71,32 @@ export function useDMClient(options: UseDMClientOptions): UseDMClientReturn {
     }
   }, [processHandle, options.config, options.autoConnect]);
 
-  const handleIncomingMessage = useCallback(async (encryptedMsg: EncryptedMessage, dmClient: DMClient) => {
-    try {
-      // Decrypt the message
-      const decrypted = await decryptMessage(encryptedMsg, dmClient);
-      
-      // Add to messages list
-      setMessages(prev => {
-        const newMessages = [...prev, decrypted].sort((a, b) => 
-          a.timestamp.getTime() - b.timestamp.getTime()
-        );
-        messagesRef.current = newMessages;
-        return newMessages;
-      });
-    } catch (err) {
-      console.error('Failed to decrypt incoming message:', err);
-      setError('Failed to decrypt incoming message');
-    }
-  }, []);
+  const handleIncomingMessage = useCallback(
+    async (encryptedMsg: EncryptedMessage, dmClient: DMClient) => {
+      try {
+        // Decrypt the message
+        const decrypted = await decryptMessage(encryptedMsg, dmClient);
 
-  const decryptMessage = async (encryptedMsg: EncryptedMessage, dmClient: DMClient): Promise<DecryptedMessage> => {
+        // Add to messages list
+        setMessages((prev) => {
+          const newMessages = [...prev, decrypted].sort(
+            (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+          );
+          messagesRef.current = newMessages;
+          return newMessages;
+        });
+      } catch (err) {
+        console.error('Failed to decrypt incoming message:', err);
+        setError('Failed to decrypt incoming message');
+      }
+    },
+    [],
+  );
+
+  const decryptMessage = async (
+    encryptedMsg: EncryptedMessage,
+    dmClient: DMClient,
+  ): Promise<DecryptedMessage> => {
     // This would use the DMClient's decryption method
     // For now, we'll assume the client handles this internally
     return {
@@ -93,13 +112,15 @@ export function useDMClient(options: UseDMClientOptions): UseDMClientReturn {
     try {
       await dmClient.generateAndRegisterKeys();
       setIsRegistered(true);
-      
+
       if (options.autoConnect) {
         await dmClient.connectWebSocket();
       }
     } catch (err) {
       console.error('Failed to register keys or connect:', err);
-      setError(err instanceof Error ? err.message : 'Failed to initialize DM client');
+      setError(
+        err instanceof Error ? err.message : 'Failed to initialize DM client',
+      );
     }
   };
 
@@ -119,80 +140,86 @@ export function useDMClient(options: UseDMClientOptions): UseDMClientReturn {
     }
   }, [client]);
 
-  const sendMessage = useCallback(async (
-    recipient: Core.Models.PublicKey.PublicKey,
-    content: DMMessageContent,
-    replyTo?: string
-  ): Promise<string> => {
-    if (!client) {
-      throw new Error('Client not initialized');
-    }
-
-    try {
-      setError(null);
-      const messageId = await client.sendMessage(recipient, content, replyTo);
-      
-      // Add to local messages immediately for optimistic UI
-      const newMessage: DecryptedMessage = {
-        messageId,
-        sender: processHandle!.system(),
-        content,
-        timestamp: new Date(),
-        replyTo,
-      };
-      
-      setMessages(prev => {
-        const newMessages = [...prev, newMessage].sort((a, b) => 
-          a.timestamp.getTime() - b.timestamp.getTime()
-        );
-        messagesRef.current = newMessages;
-        return newMessages;
-      });
-      
-      return messageId;
-    } catch (err) {
-      console.error('Failed to send message:', err);
-      setError(err instanceof Error ? err.message : 'Failed to send message');
-      throw err;
-    }
-  }, [client, processHandle]);
-
-  const loadHistory = useCallback(async (
-    otherParty: Core.Models.PublicKey.PublicKey,
-    cursor?: string
-  ) => {
-    if (!client) {
-      setError('Client not initialized');
-      return;
-    }
-
-    try {
-      setError(null);
-      const history = await client.getHistory(otherParty, cursor);
-      
-      if (cursor) {
-        // Append to existing messages
-        setMessages(prev => {
-          const combined = [...prev, ...history.messages];
-          const unique = combined.filter((msg, index, arr) => 
-            arr.findIndex(m => m.messageId === msg.messageId) === index
-          );
-          const sorted = unique.sort((a, b) => 
-            a.timestamp.getTime() - b.timestamp.getTime()
-          );
-          messagesRef.current = sorted;
-          return sorted;
-        });
-      } else {
-        // Replace messages
-        setMessages(history.messages);
-        messagesRef.current = history.messages;
+  const sendMessage = useCallback(
+    async (
+      recipient: Core.Models.PublicKey.PublicKey,
+      content: DMMessageContent,
+      replyTo?: string,
+    ): Promise<string> => {
+      if (!client) {
+        throw new Error('Client not initialized');
       }
-    } catch (err) {
-      console.error('Failed to load history:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load message history');
-    }
-  }, [client]);
+
+      try {
+        setError(null);
+        const messageId = await client.sendMessage(recipient, content, replyTo);
+
+        // Add to local messages immediately for optimistic UI
+        const newMessage: DecryptedMessage = {
+          messageId,
+          sender: processHandle!.system(),
+          content,
+          timestamp: new Date(),
+          replyTo,
+        };
+
+        setMessages((prev) => {
+          const newMessages = [...prev, newMessage].sort(
+            (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+          );
+          messagesRef.current = newMessages;
+          return newMessages;
+        });
+
+        return messageId;
+      } catch (err) {
+        console.error('Failed to send message:', err);
+        setError(err instanceof Error ? err.message : 'Failed to send message');
+        throw err;
+      }
+    },
+    [client, processHandle],
+  );
+
+  const loadHistory = useCallback(
+    async (otherParty: Core.Models.PublicKey.PublicKey, cursor?: string) => {
+      if (!client) {
+        setError('Client not initialized');
+        return;
+      }
+
+      try {
+        setError(null);
+        const history = await client.getHistory(otherParty, cursor);
+
+        if (cursor) {
+          // Append to existing messages
+          setMessages((prev) => {
+            const combined = [...prev, ...history.messages];
+            const unique = combined.filter(
+              (msg, index, arr) =>
+                arr.findIndex((m) => m.messageId === msg.messageId) === index,
+            );
+            const sorted = unique.sort(
+              (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+            );
+            messagesRef.current = sorted;
+            return sorted;
+          });
+        } else {
+          // Replace messages
+          setMessages(history.messages);
+          messagesRef.current = history.messages;
+        }
+      } catch (err) {
+        console.error('Failed to load history:', err);
+        setError(
+          err instanceof Error ? err.message : 'Failed to load message history',
+        );
+      }
+    },
+    [client],
+  );
 
   const connectWebSocket = useCallback(async () => {
     if (!client) {
@@ -205,7 +232,11 @@ export function useDMClient(options: UseDMClientOptions): UseDMClientReturn {
       await client.connectWebSocket();
     } catch (err) {
       console.error('Failed to connect WebSocket:', err);
-      setError(err instanceof Error ? err.message : 'Failed to connect to real-time messaging');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to connect to real-time messaging',
+      );
     }
   }, [client]);
 

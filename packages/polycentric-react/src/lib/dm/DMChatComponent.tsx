@@ -18,10 +18,10 @@ export const DMChatComponent: React.FC<DMChatComponentProps> = ({
   const [messageText, setMessageText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   // Memoize the config to prevent infinite re-renders
   const dmConfig = useMemo(() => getDMServerConfig(), []);
-  
+
   const {
     client,
     isConnected,
@@ -52,7 +52,7 @@ export const DMChatComponent: React.FC<DMChatComponentProps> = ({
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!messageText.trim() || !client || isLoading || !otherParty) {
       return;
     }
@@ -129,18 +129,18 @@ export const DMChatComponent: React.FC<DMChatComponentProps> = ({
             <p>No messages yet. Start the conversation!</p>
           </div>
         )}
-        
+
         {messages.map((message) => (
           <div
             key={message.messageId}
             className={`message ${
-              message.sender.key.toString() === otherParty?.key.toString() ? 'received' : 'sent'
+              message.sender.key.toString() === otherParty?.key.toString()
+                ? 'received'
+                : 'sent'
             }`}
           >
             <div className="message-content">
-              {message.content.type === 'text' && (
-                <p>{message.content.text}</p>
-              )}
+              {message.content.type === 'text' && <p>{message.content.text}</p>}
               {message.content.type === 'file' && (
                 <div className="file-message">
                   <span>📎 {message.content.file?.filename}</span>

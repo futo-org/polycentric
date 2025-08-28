@@ -1,17 +1,19 @@
-use std::sync::Arc;
-use tokio::net::TcpListener;
 use axum::{
     http::Method,
     routing::{get, post},
     Router,
 };
-use tower_http::cors::{CorsLayer, Any};
+use std::sync::Arc;
+use tokio::net::TcpListener;
+use tower_http::cors::{Any, CorsLayer};
 
 use dm_server::{
     config::Config,
     db::DatabaseManager,
     handlers::{auth, dm, keys, AppState},
-    websocket::{connection::handle_websocket_connection, manager::run_websocket_manager, WebSocketManager},
+    websocket::{
+        connection::handle_websocket_connection, manager::run_websocket_manager, WebSocketManager,
+    },
 };
 
 #[tokio::main]
@@ -56,7 +58,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ws_manager_clone,
             db_clone,
             config_clone.challenge_key.clone(),
-        ).await;
+        )
+        .await;
     });
 
     // Start WebSocket manager background task
@@ -70,7 +73,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             db_clone,
             cleanup_interval,
             connection_timeout,
-        ).await;
+        )
+        .await;
     });
 
     // Start message cleanup task
@@ -97,9 +101,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.server_port))
         .await
         .expect("Failed to bind HTTP server");
-    
+
     log::info!("HTTP server listening on port {}", config.server_port);
-    axum::serve(listener, routes).await.expect("HTTP server failed");
+    axum::serve(listener, routes)
+        .await
+        .expect("HTTP server failed");
 
     Ok(())
 }
@@ -130,8 +136,6 @@ async fn health_handler() -> axum::Json<serde_json::Value> {
     axum::Json(serde_json::json!({"status": "ok"}))
 }
 
-
-
 async fn start_websocket_server(
     port: u16,
     ws_manager: WebSocketManager,
@@ -146,7 +150,7 @@ async fn start_websocket_server(
 
     while let Ok((stream, addr)) = listener.accept().await {
         log::debug!("New WebSocket connection from {}", addr);
-        
+
         let ws_manager = ws_manager.clone();
         let db = db.clone();
         let challenge_key = challenge_key.clone();

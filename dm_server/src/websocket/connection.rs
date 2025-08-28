@@ -11,8 +11,8 @@ use uuid::Uuid;
 use crate::crypto::DMCrypto;
 use crate::db::DatabaseManager;
 
-use crate::models::{PolycentricIdentity, WSMessage, WSAuthChallenge, WSAuthResponse};
 use super::{WebSocket, WebSocketManager};
+use crate::models::{PolycentricIdentity, WSAuthChallenge, WSAuthResponse, WSMessage};
 
 const PING_INTERVAL: Duration = Duration::from_secs(30);
 const PONG_TIMEOUT: Duration = Duration::from_secs(10);
@@ -58,19 +58,27 @@ pub async fn handle_websocket_connection(
     }
 
     // Wait for authentication response
-    let identity = match timeout(AUTH_TIMEOUT, authenticate_connection(
-        &mut ws_receiver,
-        &challenge,
-        &challenge_key,
-    )).await {
+    let identity = match timeout(
+        AUTH_TIMEOUT,
+        authenticate_connection(&mut ws_receiver, &challenge, &challenge_key),
+    )
+    .await
+    {
         Ok(Ok(identity)) => identity,
         Ok(Err(e)) => {
-            log::warn!("Authentication failed for connection {}: {}", connection_id, e);
-            let _ = ws_sender.send(Message::Text(
-                serde_json::to_string(&WSMessage::Error {
-                    message: "Authentication failed".to_string(),
-                }).unwrap_or_default()
-            )).await;
+            log::warn!(
+                "Authentication failed for connection {}: {}",
+                connection_id,
+                e
+            );
+            let _ = ws_sender
+                .send(Message::Text(
+                    serde_json::to_string(&WSMessage::Error {
+                        message: "Authentication failed".to_string(),
+                    })
+                    .unwrap_or_default(),
+                ))
+                .await;
             return;
         }
         Err(_) => {
@@ -79,7 +87,11 @@ pub async fn handle_websocket_connection(
         }
     };
 
-    log::info!("WebSocket connection {} authenticated as {:?}", connection_id, identity);
+    log::info!(
+        "WebSocket connection {} authenticated as {:?}",
+        connection_id,
+        identity
+    );
 
     // Register connection in database
     if let Err(e) = db.register_connection(connection_id, &identity, None).await {
@@ -88,7 +100,9 @@ pub async fn handle_websocket_connection(
     }
 
     // Register with WebSocket manager
-    ws_manager.register_connection(connection_id, identity.clone(), tx.clone()).await;
+    ws_manager
+        .register_connection(connection_id, identity.clone(), tx.clone())
+        .await;
 
     // Send connection acknowledgment
     let ack_msg = WSMessage::ConnectionAck {
@@ -121,7 +135,7 @@ pub async fn handle_websocket_connection(
     // Task to handle incoming messages and ping/pong
     let incoming_task = tokio::spawn(async move {
         let mut ping_interval = interval(PING_INTERVAL);
-        
+
         loop {
             tokio::select! {
                 msg = ws_receiver.next() => {
@@ -172,7 +186,7 @@ pub async fn handle_websocket_connection(
     if let Err(e) = db.remove_connection(connection_id).await {
         log::error!("Failed to remove connection from database: {}", e);
     }
-    
+
     log::info!("WebSocket connection {} cleaned up", connection_id);
 }
 
@@ -192,7 +206,9 @@ async fn authenticate_connection(
         }
 
         // Verify the signature
-        let verifying_key = auth_response.identity.verifying_key()
+        let verifying_key = auth_response
+            .identity
+            .verifying_key()
             .map_err(|e| anyhow::anyhow!("Invalid identity key: {}", e))?;
 
         DMCrypto::verify_signature(&verifying_key, challenge, &auth_response.signature)
@@ -210,18 +226,33 @@ async fn handle_websocket_message(
     sender_identity: &PolycentricIdentity,
     _ws_manager: &WebSocketManager,
 ) -> anyhow::Result<()> {
-    let message: WSMessage = serde_json::from_str(text)
-        .map_err(|e| anyhow::anyhow!("Invalid message format: {}", e))?;
+    let message: WSMessage =
+        serde_json::from_str(text).map_err(|e| anyhow::anyhow!("Invalid message format: {}", e))?;
 
     match message {
-        WSMessage::TypingIndicator { sender: _, is_typing } => {
+        WSMessage::TypingIndicator {
+            sender: _,
+            is_typing,
+        } => {
             // For typing indicators, we would typically need to know the recipient
             // This might require a separate message format or including recipient in the message
-            log::debug!("Received typing indicator from {:?}: {}", sender_identity, is_typing);
+            log::debug!(
+                "Received typing indicator from {:?}: {}",
+                sender_identity,
+                is_typing
+            );
         }
-        WSMessage::ReadReceipt { message_id, reader: _, read_timestamp: _ } => {
+        WSMessage::ReadReceipt {
+            message_id,
+            reader: _,
+            read_timestamp: _,
+        } => {
             // Handle read receipt
-            log::debug!("Received read receipt from {:?} for message {}", sender_identity, message_id);
+            log::debug!(
+                "Received read receipt from {:?} for message {}",
+                sender_identity,
+                message_id
+            );
         }
         WSMessage::Pong => {
             log::debug!("Received pong from {:?}", sender_identity);
@@ -242,22 +273,29 @@ async fn deliver_pending_messages(
 ) -> anyhow::Result<()> {
     // Get messages since the user was last online (simplified - using last 24 hours)
     let since = Utc::now() - chrono::Duration::hours(24);
-    
+
     let messages = db.get_undelivered_messages(identity, since).await?;
-    
+
     for message in messages {
         let dm_response = crate::models::DMMessageResponse::from(message.clone());
         let ws_message = WSMessage::DMMessage {
             message: dm_response,
         };
-        
+
         ws_manager.send_to_user(identity, ws_message).await;
-        
+
         // Mark as delivered
-        if let Err(e) = db.mark_message_delivered(&message.message_id, Utc::now()).await {
-            log::error!("Failed to mark message {} as delivered: {}", message.message_id, e);
+        if let Err(e) = db
+            .mark_message_delivered(&message.message_id, Utc::now())
+            .await
+        {
+            log::error!(
+                "Failed to mark message {} as delivered: {}",
+                message.message_id,
+                e
+            );
         }
     }
-    
+
     Ok(())
 }

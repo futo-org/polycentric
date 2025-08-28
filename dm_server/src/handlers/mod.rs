@@ -2,8 +2,8 @@ pub mod auth;
 pub mod dm;
 pub mod keys;
 
-use std::sync::Arc;
 use axum::extract::FromRef;
+use std::sync::Arc;
 
 use crate::config::Config;
 use crate::db::DatabaseManager;

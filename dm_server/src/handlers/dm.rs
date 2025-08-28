@@ -1,12 +1,9 @@
+use axum::{extract::State, Json};
 use chrono::Utc;
-use axum::{
-    extract::State,
-    Json,
-};
 
+use super::{auth::AuthError, AppState};
 use crate::crypto::DMCrypto;
 use crate::models::*;
-use super::{AppState, auth::AuthError};
 
 /// Send a direct message
 pub async fn send_dm(
@@ -54,7 +51,7 @@ pub async fn send_dm(
             };
             return Ok(Json(response));
         }
-        Ok(false) => {}, // Continue
+        Ok(false) => {} // Continue
         Err(e) => {
             log::error!("Failed to check message existence: {}", e);
             let response = SendDMResponse {
@@ -80,7 +77,8 @@ pub async fn send_dm(
         "ephemeral_public_key": request.ephemeral_public_key,
         "encrypted_content": request.encrypted_content,
         "nonce": request.nonce,
-    })).map_err(|e| {
+    }))
+    .map_err(|e| {
         log::error!("Failed to serialize message for verification: {}", e);
         AuthError::InternalError
     })?;
@@ -97,7 +95,7 @@ pub async fn send_dm(
 
     // Check that recipient has registered an X25519 key
     match state.db.get_x25519_key(&request.recipient).await {
-        Ok(Some(_)) => {}, // Recipient is ready to receive DMs
+        Ok(Some(_)) => {} // Recipient is ready to receive DMs
         Ok(None) => {
             let response = SendDMResponse {
                 success: false,
@@ -119,16 +117,20 @@ pub async fn send_dm(
 
     // Store the message
     let message_timestamp = Utc::now();
-    match state.db.store_message(
-        &request.message_id,
-        &sender,
-        &request.recipient,
-        &request.ephemeral_public_key,
-        &request.encrypted_content,
-        &request.nonce,
-        message_timestamp,
-        request.reply_to.as_deref(),
-    ).await {
+    match state
+        .db
+        .store_message(
+            &request.message_id,
+            &sender,
+            &request.recipient,
+            &request.ephemeral_public_key,
+            &request.encrypted_content,
+            &request.nonce,
+            message_timestamp,
+            request.reply_to.as_deref(),
+        )
+        .await
+    {
         Ok(_) => {
             log::info!("Stored DM from {:?} to {:?}", sender, request.recipient);
 
@@ -162,12 +164,16 @@ pub async fn get_dm_history(
 ) -> Result<Json<GetDMHistoryResponse>, AuthError> {
     let limit = request.limit.unwrap_or(50).min(100); // Max 100 messages
 
-    match state.db.get_dm_history(
-        &requester,
-        &request.other_party,
-        request.cursor.as_deref(),
-        limit,
-    ).await {
+    match state
+        .db
+        .get_dm_history(
+            &requester,
+            &request.other_party,
+            request.cursor.as_deref(),
+            limit,
+        )
+        .await
+    {
         Ok(messages) => {
             let has_more = messages.len() >= limit as usize;
             let next_cursor = if has_more {
@@ -176,10 +182,8 @@ pub async fn get_dm_history(
                 None
             };
 
-            let messages: Vec<DMMessageResponse> = messages
-                .into_iter()
-                .map(|msg| msg.into())
-                .collect();
+            let messages: Vec<DMMessageResponse> =
+                messages.into_iter().map(|msg| msg.into()).collect();
 
             let response = GetDMHistoryResponse {
                 messages,
@@ -211,7 +215,11 @@ pub async fn mark_messages_read(
     let mut success_count = 0;
 
     for message_id in message_ids {
-        match state.db.mark_message_read(&message_id, read_timestamp).await {
+        match state
+            .db
+            .mark_message_read(&message_id, read_timestamp)
+            .await
+        {
             Ok(()) => success_count += 1,
             Err(e) => {
                 log::warn!("Failed to mark message {} as read: {}", message_id, e);

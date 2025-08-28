@@ -89,7 +89,10 @@ pub struct PolycentricIdentity {
 
 impl PolycentricIdentity {
     pub fn new(key_type: u64, key_bytes: Vec<u8>) -> Self {
-        Self { key_type, key_bytes }
+        Self {
+            key_type,
+            key_bytes,
+        }
     }
 
     /// Convert from polycentric-protocol PublicKey
@@ -101,7 +104,9 @@ impl PolycentricIdentity {
     }
 
     /// Convert to polycentric-protocol PublicKey
-    pub fn to_polycentric_key(&self) -> anyhow::Result<polycentric_protocol::model::public_key::PublicKey> {
+    pub fn to_polycentric_key(
+        &self,
+    ) -> anyhow::Result<polycentric_protocol::model::public_key::PublicKey> {
         polycentric_protocol::model::public_key::from_type_and_bytes(self.key_type, &self.key_bytes)
     }
 
@@ -110,7 +115,7 @@ impl PolycentricIdentity {
         if self.key_type != 1 {
             return Err(anyhow::anyhow!("Unsupported key type: {}", self.key_type));
         }
-        
+
         crate::crypto::DMCrypto::verifying_key_from_bytes(&self.key_bytes)
     }
 }
@@ -165,7 +170,10 @@ impl From<DMMessage> for DMMessageResponse {
         Self {
             message_id: msg.message_id,
             sender: PolycentricIdentity::new(msg.sender_key_type as u64, msg.sender_key_bytes),
-            recipient: PolycentricIdentity::new(msg.recipient_key_type as u64, msg.recipient_key_bytes),
+            recipient: PolycentricIdentity::new(
+                msg.recipient_key_type as u64,
+                msg.recipient_key_bytes,
+            ),
             ephemeral_public_key: msg.ephemeral_public_key,
             encrypted_content: msg.encrypted_content,
             nonce: msg.nonce,
@@ -204,9 +212,7 @@ pub struct GetX25519KeyResponse {
 #[serde(tag = "type")]
 pub enum WSMessage {
     #[serde(rename = "dm_message")]
-    DMMessage {
-        message: DMMessageResponse,
-    },
+    DMMessage { message: DMMessageResponse },
     #[serde(rename = "typing_indicator")]
     TypingIndicator {
         sender: PolycentricIdentity,
@@ -219,13 +225,9 @@ pub enum WSMessage {
         read_timestamp: DateTime<Utc>,
     },
     #[serde(rename = "connection_ack")]
-    ConnectionAck {
-        connection_id: String,
-    },
+    ConnectionAck { connection_id: String },
     #[serde(rename = "error")]
-    Error {
-        message: String,
-    },
+    Error { message: String },
     #[serde(rename = "ping")]
     Ping,
     #[serde(rename = "pong")]
