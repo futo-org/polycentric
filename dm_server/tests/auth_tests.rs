@@ -1,10 +1,8 @@
 
-use warp::test::request;
-use warp::Filter;
+use axum::http::StatusCode;
 
 mod common;
-use common::{TestSetup, TestIdentity, AuthHelper};
-
+use common::{TestSetup, TestIdentity, AuthHelper, AxumTestHelper};
 use dm_server::handlers::auth;
 
 #[tokio::test]
@@ -12,28 +10,19 @@ async fn test_get_challenge() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
 
-    // Create challenge endpoint
-    let challenge_route = warp::path("challenge")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::any().map(move || setup.app_state.clone()))
-        .and_then(auth::get_challenge);
+    let router = setup.create_test_router();
 
     // Test getting a challenge
-    let response = request()
-        .method("GET")
-        .path("/challenge")
-        .reply(&challenge_route)
-        .await;
+    let (status, body) = AxumTestHelper::get(&router, "/challenge", None).await;
 
-    assert_eq!(response.status(), 200);
+    assert_eq!(status, StatusCode::OK);
 
-    let body: serde_json::Value = serde_json::from_slice(response.body()).unwrap();
-    assert!(body.get("body").is_some());
-    assert!(body.get("hmac").is_some());
+    let response: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert!(response.get("body").is_some());
+    assert!(response.get("hmac").is_some());
 
     // Verify challenge structure
-    let challenge_body_bytes = body.get("body").unwrap().as_array().unwrap();
+    let challenge_body_bytes = response.get("body").unwrap().as_array().unwrap();
     let challenge_body: serde_json::Value = serde_json::from_slice(
         &challenge_body_bytes.iter().map(|v| v.as_u64().unwrap() as u8).collect::<Vec<u8>>()
     ).unwrap();

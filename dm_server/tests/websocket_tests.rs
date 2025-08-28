@@ -2,6 +2,7 @@
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
+use serial_test::serial;
 
 mod common;
 use common::TestIdentity;
@@ -10,6 +11,7 @@ use dm_server::websocket::WebSocketManager;
 use dm_server::models::{WSMessage, DMMessageResponse};
 
 #[tokio::test]
+#[serial]
 async fn test_websocket_manager_registration() {
     let ws_manager = WebSocketManager::new();
     let identity = TestIdentity::new();
@@ -43,6 +45,7 @@ async fn test_websocket_manager_registration() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_websocket_manager_multiple_connections() {
     let ws_manager = WebSocketManager::new();
     let identity = TestIdentity::new();
@@ -90,6 +93,7 @@ async fn test_websocket_manager_multiple_connections() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_websocket_message_sending() {
     let ws_manager = WebSocketManager::new();
     let identity = TestIdentity::new();
@@ -129,6 +133,7 @@ async fn test_websocket_message_sending() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_websocket_send_to_specific_connection() {
     let ws_manager = WebSocketManager::new();
     let identity = TestIdentity::new();
@@ -163,6 +168,7 @@ async fn test_websocket_send_to_specific_connection() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_websocket_broadcast() {
     let ws_manager = WebSocketManager::new();
     let identity1 = TestIdentity::new();
@@ -212,6 +218,7 @@ async fn test_websocket_broadcast() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_websocket_manager_stats() {
     let ws_manager = WebSocketManager::new();
     let identity1 = TestIdentity::new();
@@ -243,6 +250,7 @@ async fn test_websocket_manager_stats() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_websocket_dm_message() {
     let ws_manager = WebSocketManager::new();
     let recipient = TestIdentity::new();
@@ -297,6 +305,7 @@ async fn test_websocket_dm_message() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_websocket_typing_indicator() {
     let ws_manager = WebSocketManager::new();
     let user = TestIdentity::new();
@@ -338,6 +347,7 @@ async fn test_websocket_typing_indicator() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_websocket_read_receipt() {
     let ws_manager = WebSocketManager::new();
     let user = TestIdentity::new();
@@ -380,6 +390,7 @@ async fn test_websocket_read_receipt() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_websocket_error_message() {
     let ws_manager = WebSocketManager::new();
     let user = TestIdentity::new();

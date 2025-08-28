@@ -1,6 +1,11 @@
 use std::sync::Arc;
 use tokio::net::TcpListener;
-use warp::Filter;
+use axum::{
+    http::Method,
+    routing::{get, post},
+    Router,
+};
+use tower_http::cors::{CorsLayer, Any};
 
 use dm_server::{
     config::Config,
@@ -89,108 +94,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     // Start HTTP server
-    warp::serve(routes)
-        .run(([0, 0, 0, 0], config.server_port))
-        .await;
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", config.server_port))
+        .await
+        .expect("Failed to bind HTTP server");
+    
+    log::info!("HTTP server listening on port {}", config.server_port);
+    axum::serve(listener, routes).await.expect("HTTP server failed");
 
     Ok(())
 }
 
-fn create_routes(
-    state: AppState,
-) -> impl Filter<Extract = impl warp::Reply> + Clone {
-    let cors = warp::cors()
-        .allow_any_origin()
-        .allow_headers(vec!["content-type", "authorization"])
-        .allow_methods(&[warp::http::Method::GET, warp::http::Method::POST]);
+fn create_routes(state: AppState) -> Router {
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_headers([
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::AUTHORIZATION,
+        ])
+        .allow_methods([Method::GET, Method::POST]);
 
-    // Health check
-    let health = warp::path("health")
-        .and(warp::path::end())
-        .map(|| warp::reply::json(&serde_json::json!({"status": "ok"})));
-
-    // Authentication challenge
-    let challenge = warp::path("challenge")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(with_state(state.clone()))
-        .and_then(auth::get_challenge);
-
-    // X25519 key registration
-    let register_key = warp::path("register_key")
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(auth::with_auth(state.clone()))
-        .and(warp::body::json())
-        .and(with_state(state.clone()))
-        .and_then(keys::register_x25519_key);
-
-    // Get X25519 key
-    let get_key = warp::path("get_key")
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(warp::body::json())
-        .and(with_state(state.clone()))
-        .and_then(keys::get_x25519_key);
-
-    // Send DM
-    let send_dm = warp::path("send")
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(auth::with_auth(state.clone()))
-        .and(warp::body::json())
-        .and(with_state(state.clone()))
-        .and_then(dm::send_dm);
-
-    // Get DM history
-    let get_history = warp::path("history")
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(auth::with_auth(state.clone()))
-        .and(warp::body::json())
-        .and(with_state(state.clone()))
-        .and_then(dm::get_dm_history);
-
-    // Get conversations
-    let get_conversations = warp::path("conversations")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(auth::with_auth(state.clone()))
-        .and(warp::query::<std::collections::HashMap<String, String>>())
-        .and(with_state(state.clone()))
-        .and_then(|identity, query: std::collections::HashMap<String, String>, state| {
-            let limit = query.get("limit").and_then(|s| s.parse().ok());
-            keys::get_conversations(identity, limit, state)
-        });
-
-    // Mark messages as read
-    let mark_read = warp::path("mark_read")
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(auth::with_auth(state.clone()))
-        .and(warp::body::json())
-        .and(with_state(state.clone()))
-        .and_then(|identity, message_ids: Vec<String>, state| {
-            dm::mark_messages_read(identity, message_ids, state)
-        });
-
-    health
-        .or(challenge)
-        .or(register_key)
-        .or(get_key)
-        .or(send_dm)
-        .or(get_history)
-        .or(get_conversations)
-        .or(mark_read)
-        .with(cors)
-        .recover(auth::handle_auth_error)
+    Router::new()
+        .route("/health", get(health_handler))
+        .route("/challenge", get(auth::get_challenge))
+        .route("/register_key", post(keys::register_x25519_key))
+        .route("/get_key", post(keys::get_x25519_key))
+        .route("/send", post(dm::send_dm))
+        .route("/history", post(dm::get_dm_history))
+        .route("/conversations", get(keys::get_conversations))
+        .route("/mark_read", post(dm::mark_messages_read))
+        .layer(cors)
+        .with_state(state)
 }
 
-fn with_state(
-    state: AppState,
-) -> impl Filter<Extract = (AppState,), Error = std::convert::Infallible> + Clone {
-    warp::any().map(move || state.clone())
+async fn health_handler() -> axum::Json<serde_json::Value> {
+    axum::Json(serde_json::json!({"status": "ok"}))
 }
+
+
 
 async fn start_websocket_server(
     port: u16,

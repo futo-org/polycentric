@@ -1,5 +1,8 @@
 use chrono::Utc;
-use warp::Reply;
+use axum::{
+    extract::State,
+    Json,
+};
 
 use crate::crypto::DMCrypto;
 use crate::models::*;
@@ -8,9 +11,9 @@ use super::{AppState, auth::AuthError};
 /// Send a direct message
 pub async fn send_dm(
     sender: PolycentricIdentity,
-    request: SendDMRequest,
-    state: AppState,
-) -> Result<impl Reply, warp::Rejection> {
+    State(state): State<AppState>,
+    Json(request): Json<SendDMRequest>,
+) -> Result<Json<SendDMResponse>, AuthError> {
     // Validate message size
     if request.encrypted_content.len() > state.config.max_message_size {
         let response = SendDMResponse {
@@ -18,7 +21,7 @@ pub async fn send_dm(
             error: Some("Message too large".to_string()),
             message_id: None,
         };
-        return Ok(warp::reply::json(&response));
+        return Ok(Json(response));
     }
 
     // Validate ephemeral key length
@@ -28,7 +31,7 @@ pub async fn send_dm(
             error: Some("Invalid ephemeral key length".to_string()),
             message_id: None,
         };
-        return Ok(warp::reply::json(&response));
+        return Ok(Json(response));
     }
 
     // Validate nonce length
@@ -38,7 +41,7 @@ pub async fn send_dm(
             error: Some("Invalid nonce length".to_string()),
             message_id: None,
         };
-        return Ok(warp::reply::json(&response));
+        return Ok(Json(response));
     }
 
     // Check if message ID already exists (prevent duplicates)
@@ -49,7 +52,7 @@ pub async fn send_dm(
                 error: Some("Message ID already exists".to_string()),
                 message_id: None,
             };
-            return Ok(warp::reply::json(&response));
+            return Ok(Json(response));
         }
         Ok(false) => {}, // Continue
         Err(e) => {
@@ -59,7 +62,7 @@ pub async fn send_dm(
                 error: Some("Database error".to_string()),
                 message_id: None,
             };
-            return Ok(warp::reply::json(&response));
+            return Ok(Json(response));
         }
     }
 
@@ -79,17 +82,17 @@ pub async fn send_dm(
         "nonce": request.nonce,
     })).map_err(|e| {
         log::error!("Failed to serialize message for verification: {}", e);
-        warp::reject::custom(AuthError)
+        AuthError::InternalError
     })?;
 
     let verifying_key = sender.verifying_key().map_err(|e| {
         log::error!("Invalid sender key: {}", e);
-        warp::reject::custom(AuthError)
+        AuthError::InternalError
     })?;
 
     if let Err(e) = DMCrypto::verify_signature(&verifying_key, &message_data, &request.signature) {
         log::warn!("Message signature verification failed: {}", e);
-        return Err(warp::reject::custom(AuthError));
+        return Err(AuthError::InternalError);
     }
 
     // Check that recipient has registered an X25519 key
@@ -101,7 +104,7 @@ pub async fn send_dm(
                 error: Some("Recipient has not registered for DMs".to_string()),
                 message_id: None,
             };
-            return Ok(warp::reply::json(&response));
+            return Ok(Json(response));
         }
         Err(e) => {
             log::error!("Failed to check recipient key: {}", e);
@@ -110,7 +113,7 @@ pub async fn send_dm(
                 error: Some("Database error".to_string()),
                 message_id: None,
             };
-            return Ok(warp::reply::json(&response));
+            return Ok(Json(response));
         }
     }
 
@@ -137,7 +140,7 @@ pub async fn send_dm(
                 error: None,
                 message_id: Some(request.message_id),
             };
-            Ok(warp::reply::json(&response))
+            Ok(Json(response))
         }
         Err(e) => {
             log::error!("Failed to store message: {}", e);
@@ -146,7 +149,7 @@ pub async fn send_dm(
                 error: Some("Failed to store message".to_string()),
                 message_id: None,
             };
-            Ok(warp::reply::json(&response))
+            Ok(Json(response))
         }
     }
 }
@@ -154,9 +157,9 @@ pub async fn send_dm(
 /// Get DM history with another user
 pub async fn get_dm_history(
     requester: PolycentricIdentity,
-    request: GetDMHistoryRequest,
-    state: AppState,
-) -> Result<impl Reply, warp::Rejection> {
+    State(state): State<AppState>,
+    Json(request): Json<GetDMHistoryRequest>,
+) -> Result<Json<GetDMHistoryResponse>, AuthError> {
     let limit = request.limit.unwrap_or(50).min(100); // Max 100 messages
 
     match state.db.get_dm_history(
@@ -184,7 +187,7 @@ pub async fn get_dm_history(
                 has_more,
             };
 
-            Ok(warp::reply::json(&response))
+            Ok(Json(response))
         }
         Err(e) => {
             log::error!("Failed to get DM history: {}", e);
@@ -193,7 +196,7 @@ pub async fn get_dm_history(
                 next_cursor: None,
                 has_more: false,
             };
-            Ok(warp::reply::json(&error_response))
+            Ok(Json(error_response))
         }
     }
 }
@@ -201,9 +204,9 @@ pub async fn get_dm_history(
 /// Mark messages as read
 pub async fn mark_messages_read(
     _requester: PolycentricIdentity,
-    message_ids: Vec<String>,
-    state: AppState,
-) -> Result<impl Reply, warp::Rejection> {
+    State(state): State<AppState>,
+    Json(message_ids): Json<Vec<String>>,
+) -> Result<Json<serde_json::Value>, AuthError> {
     let read_timestamp = Utc::now();
     let mut success_count = 0;
 
@@ -221,5 +224,5 @@ pub async fn mark_messages_read(
         "marked_count": success_count
     });
 
-    Ok(warp::reply::json(&response))
+    Ok(Json(response))
 }

@@ -1,6 +1,8 @@
 
 
 
+use serial_test::serial;
+
 mod common;
 use common::{TestSetup, TestIdentity, MessageHelper};
 
@@ -11,6 +13,7 @@ use dm_server::{
 
 /// Integration tests that test the full flow from message sending to WebSocket delivery
 #[tokio::test]
+#[serial]
 async fn test_full_message_flow() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -73,6 +76,7 @@ async fn test_full_message_flow() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_websocket_message_delivery() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -126,6 +130,7 @@ async fn test_websocket_message_delivery() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_user_registration_and_messaging_flow() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -225,6 +230,7 @@ async fn test_user_registration_and_messaging_flow() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_message_delivery_tracking() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -275,6 +281,7 @@ async fn test_message_delivery_tracking() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_undelivered_messages_retrieval() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -322,6 +329,7 @@ async fn test_undelivered_messages_retrieval() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_multiple_device_connections() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -380,6 +388,7 @@ async fn test_multiple_device_connections() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_connection_cleanup() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -406,6 +415,7 @@ async fn test_connection_cleanup() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_message_pagination() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;

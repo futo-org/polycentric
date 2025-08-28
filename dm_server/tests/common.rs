@@ -5,11 +5,19 @@ use ed25519_dalek::{SigningKey, VerifyingKey};
 use rand::rngs::OsRng;
 use serde_json;
 use base64;
+use axum::{
+    http::{Request, StatusCode},
+    body::Body,
+    Router,
+    routing::{get, post},
+};
+use tower::ServiceExt;
+use http_body_util::BodyExt;
 
 use dm_server::{
     config::Config,
     db::DatabaseManager,
-    handlers::{AppState, auth::{AuthRequest, ChallengeResponse, ChallengeBody}},
+    handlers::{AppState, auth::{AuthRequest, ChallengeResponse, ChallengeBody}, auth, keys, dm},
     models::PolycentricIdentity,
     crypto::DMCrypto,
 };
@@ -78,6 +86,36 @@ impl TestSetup {
             .execute(&self.pool)
             .await;
     }
+
+    /// Create a test router for Axum testing
+    pub fn create_test_router(&self) -> Router {
+        use tower_http::cors::{CorsLayer, Any};
+        use axum::http::Method;
+
+        let cors = CorsLayer::new()
+            .allow_origin(Any)
+            .allow_headers([
+                axum::http::header::CONTENT_TYPE,
+                axum::http::header::AUTHORIZATION,
+            ])
+            .allow_methods([Method::GET, Method::POST]);
+
+        Router::new()
+            .route("/health", get(health_handler))
+            .route("/challenge", get(auth::get_challenge))
+            .route("/register_key", post(keys::register_x25519_key))
+            .route("/get_key", post(keys::get_x25519_key))
+            .route("/send", post(dm::send_dm))
+            .route("/history", post(dm::get_dm_history))
+            .route("/conversations", get(keys::get_conversations))
+            .route("/mark_read", post(dm::mark_messages_read))
+            .layer(cors)
+            .with_state(self.app_state.clone())
+    }
+}
+
+async fn health_handler() -> axum::Json<serde_json::Value> {
+    axum::Json(serde_json::json!({"status": "ok"}))
 }
 
 /// Test identity for creating test users
@@ -242,5 +280,75 @@ impl MessageHelper {
         )?;
 
         Ok(String::from_utf8(decrypted)?)
+    }
+}
+
+/// Helper functions for Axum testing
+pub struct AxumTestHelper;
+
+impl AxumTestHelper {
+    /// Make a GET request
+    pub async fn get(
+        router: &Router,
+        path: &str,
+        auth_header: Option<&str>,
+    ) -> (StatusCode, String) {
+        let mut request = Request::builder()
+            .method("GET")
+            .uri(path)
+            .header("content-type", "application/json");
+
+        if let Some(auth) = auth_header {
+            request = request.header("authorization", auth);
+        }
+
+        let request = request.body(Body::empty()).unwrap();
+        let response = router.clone().oneshot(request).await.unwrap();
+        let status = response.status();
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        
+        (status, body_str)
+    }
+
+    /// Make a POST request
+    pub async fn post(
+        router: &Router,
+        path: &str,
+        body: &str,
+        auth_header: Option<&str>,
+    ) -> (StatusCode, String) {
+        let mut request = Request::builder()
+            .method("POST")
+            .uri(path)
+            .header("content-type", "application/json");
+
+        if let Some(auth) = auth_header {
+            request = request.header("authorization", auth);
+        }
+
+        let request = request.body(Body::from(body.to_string())).unwrap();
+        let response = router.clone().oneshot(request).await.unwrap();
+        let status = response.status();
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+        
+        (status, body_str)
+    }
+
+    /// Make a GET request with query parameters
+    pub async fn get_with_query(
+        router: &Router,
+        path: &str,
+        query: &str,
+        auth_header: Option<&str>,
+    ) -> (StatusCode, String) {
+        let full_path = if query.is_empty() {
+            path.to_string()
+        } else {
+            format!("{}?{}", path, query)
+        };
+        
+        Self::get(router, &full_path, auth_header).await
     }
 }

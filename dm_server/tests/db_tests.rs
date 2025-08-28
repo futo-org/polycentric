@@ -1,10 +1,12 @@
 use chrono::Utc;
 use uuid::Uuid;
+use serial_test::serial;
 
 mod common;
 use common::{TestSetup, TestIdentity};
 
 #[tokio::test]
+#[serial]
 async fn test_register_and_get_x25519_key() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -35,6 +37,7 @@ async fn test_register_and_get_x25519_key() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_update_x25519_key() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -68,6 +71,7 @@ async fn test_update_x25519_key() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_get_nonexistent_key() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -79,6 +83,7 @@ async fn test_get_nonexistent_key() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_store_and_retrieve_message() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -122,6 +127,7 @@ async fn test_store_and_retrieve_message() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_message_history_pagination() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -169,6 +175,7 @@ async fn test_message_history_pagination() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_bidirectional_message_history() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -222,6 +229,7 @@ async fn test_bidirectional_message_history() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_message_delivery_tracking() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -267,6 +275,7 @@ async fn test_message_delivery_tracking() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_connection_management() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -299,6 +308,7 @@ async fn test_connection_management() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_conversation_list() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -345,6 +355,7 @@ async fn test_conversation_list() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_message_exists() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -376,6 +387,7 @@ async fn test_message_exists() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_cleanup_operations() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;

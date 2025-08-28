@@ -1,8 +1,13 @@
 use anyhow::{anyhow, Result};
+use axum::{
+    async_trait,
+    extract::{FromRef, FromRequestParts, State},
+    http::{request::Parts, StatusCode},
+    response::{IntoResponse, Json, Response},
+};
 use hmac_sha256::HMAC;
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
-use warp::{Filter, Reply};
 
 use crate::crypto::DMCrypto;
 use crate::models::PolycentricIdentity;
@@ -30,8 +35,8 @@ pub struct AuthRequest {
 
 /// Generate a challenge for authentication
 pub async fn get_challenge(
-    state: AppState,
-) -> Result<impl Reply, warp::Rejection> {
+    State(state): State<AppState>,
+) -> Result<Json<ChallengeResponse>, AuthError> {
     let challenge = DMCrypto::generate_challenge();
     let created_on = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -46,7 +51,7 @@ pub async fn get_challenge(
     let body_bytes = serde_json::to_vec(&body)
         .map_err(|e| {
             log::error!("Failed to serialize challenge body: {}", e);
-            warp::reject::custom(InternalError)
+            AuthError::InternalError
         })?;
 
     let hmac = HMAC::mac(body_bytes.clone(), state.config.challenge_key.as_bytes()).to_vec();
@@ -56,7 +61,7 @@ pub async fn get_challenge(
         hmac,
     };
 
-    Ok(warp::reply::json(&response))
+    Ok(Json(response))
 }
 
 /// Verify authentication with challenge-response
@@ -121,50 +126,48 @@ pub fn extract_auth_identity(
     Ok(auth_request.identity)
 }
 
-/// Warp filter to extract authenticated identity
-pub fn with_auth(
-    state: AppState,
-) -> impl warp::Filter<Extract = (PolycentricIdentity,), Error = warp::Rejection> + Clone {
-    warp::header::<String>("authorization")
-        .and_then(move |auth_header: String| {
-            let state = state.clone();
-            async move {
-                match extract_auth_identity(&auth_header, &state.config.challenge_key) {
-                    Ok(identity) => Ok(identity),
-                    Err(e) => {
-                        log::warn!("Authentication failed: {}", e);
-                        Err(warp::reject::custom(AuthError))
-                    }
-                }
+/// Axum extractor for authenticated identity
+#[async_trait]
+impl<S> FromRequestParts<S> for PolycentricIdentity
+where
+    AppState: FromRef<S>,
+    S: Send + Sync,
+{
+    type Rejection = AuthError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        let app_state = AppState::from_ref(state);
+        
+        let auth_header = parts
+            .headers
+            .get("authorization")
+            .and_then(|header| header.to_str().ok())
+            .ok_or(AuthError::Unauthorized)?;
+
+        match extract_auth_identity(auth_header, &app_state.config.challenge_key) {
+            Ok(identity) => Ok(identity),
+            Err(e) => {
+                log::warn!("Authentication failed: {}", e);
+                Err(AuthError::Unauthorized)
             }
-        })
+        }
+    }
 }
 
-/// Custom error types for warp rejections
+/// Custom error types for Axum
 #[derive(Debug)]
-pub struct AuthError;
-impl warp::reject::Reject for AuthError {}
+pub enum AuthError {
+    Unauthorized,
+    InternalError,
+}
 
-#[derive(Debug)]
-pub struct InternalError;
-impl warp::reject::Reject for InternalError {}
-
-/// Handle authentication errors
-pub async fn handle_auth_error(err: warp::Rejection) -> Result<impl Reply, std::convert::Infallible> {
-    if err.find::<AuthError>().is_some() {
-        Ok(warp::reply::with_status(
-            "Unauthorized",
-            warp::http::StatusCode::UNAUTHORIZED,
-        ))
-    } else if err.find::<InternalError>().is_some() {
-        Ok(warp::reply::with_status(
-            "Internal Server Error",
-            warp::http::StatusCode::INTERNAL_SERVER_ERROR,
-        ))
-    } else {
-        Ok(warp::reply::with_status(
-            "Bad Request",
-            warp::http::StatusCode::BAD_REQUEST,
-        ))
+impl IntoResponse for AuthError {
+    fn into_response(self) -> Response {
+        let (status, message) = match self {
+            AuthError::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized"),
+            AuthError::InternalError => (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error"),
+        };
+        
+        (status, message).into_response()
     }
 }

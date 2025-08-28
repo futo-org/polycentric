@@ -1,87 +1,16 @@
-use warp::test::request;
-use warp::Filter;
+use axum::http::StatusCode;
 use serde_json;
+use serial_test::serial;
 
 mod common;
-use common::{TestSetup, TestIdentity, AuthHelper, MessageHelper};
+use common::{TestSetup, TestIdentity, AuthHelper, MessageHelper, AxumTestHelper};
 
-use dm_server::handlers::{auth, keys, dm, AppState};
 use dm_server::models::*;
 
-fn create_test_routes(app_state: AppState) -> impl Filter<Extract = impl warp::Reply> + Clone {
-    let cors = warp::cors()
-        .allow_any_origin()
-        .allow_headers(vec!["content-type", "authorization"])
-        .allow_methods(&[warp::http::Method::GET, warp::http::Method::POST]);
 
-    let app_state_clone = app_state.clone();
-    let with_state = warp::any().map(move || app_state_clone.clone());
-
-    // Challenge endpoint
-    let challenge = warp::path("challenge")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(with_state.clone())
-        .and_then(auth::get_challenge);
-
-    // Register key endpoint
-    let register_key = warp::path("register_key")
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(auth::with_auth(app_state.clone()))
-        .and(warp::body::json())
-        .and(with_state.clone())
-        .and_then(keys::register_x25519_key);
-
-    // Get key endpoint
-    let get_key = warp::path("get_key")
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(warp::body::json())
-        .and(with_state.clone())
-        .and_then(keys::get_x25519_key);
-
-    // Send DM endpoint
-    let send_dm = warp::path("send")
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(auth::with_auth(app_state.clone()))
-        .and(warp::body::json())
-        .and(with_state.clone())
-        .and_then(dm::send_dm);
-
-    // Get history endpoint
-    let get_history = warp::path("history")
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(auth::with_auth(app_state.clone()))
-        .and(warp::body::json())
-        .and(with_state.clone())
-        .and_then(dm::get_dm_history);
-
-    // Get conversations endpoint
-    let get_conversations = warp::path("conversations")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(auth::with_auth(app_state.clone()))
-        .and(warp::query::<std::collections::HashMap<String, String>>())
-        .and(with_state.clone())
-        .and_then(|identity, query: std::collections::HashMap<String, String>, state| {
-            let limit = query.get("limit").and_then(|s| s.parse().ok());
-            keys::get_conversations(identity, limit, state)
-        });
-
-    challenge
-        .or(register_key)
-        .or(get_key)
-        .or(send_dm)
-        .or(get_history)
-        .or(get_conversations)
-        .with(cors)
-        .recover(auth::handle_auth_error)
-}
 
 #[tokio::test]
+#[serial]
 async fn test_register_x25519_key_api() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -90,27 +19,25 @@ async fn test_register_x25519_key_api() {
     let signature = identity.sign_x25519_key();
     let auth_header = AuthHelper::create_auth_header(&identity, &setup.config.challenge_key).await;
 
-    let routes = create_test_routes(setup.app_state.clone());
+    let router = setup.create_test_router();
 
     let request_body = RegisterX25519KeyRequest {
         x25519_public_key: identity.x25519_public_key.clone(),
         signature,
     };
 
-    let response = request()
-        .method("POST")
-        .path("/register_key")
-        .header("authorization", auth_header)
-        .header("content-type", "application/json")
-        .json(&request_body)
-        .reply(&routes)
-        .await;
+    let (status, body) = AxumTestHelper::post(
+        &router,
+        "/register_key",
+        &serde_json::to_string(&request_body).unwrap(),
+        Some(&auth_header),
+    ).await;
 
-    assert_eq!(response.status(), 200);
+    assert_eq!(status, StatusCode::OK);
 
-    let body: RegisterX25519KeyResponse = serde_json::from_slice(response.body()).unwrap();
-    assert!(body.success);
-    assert!(body.error.is_none());
+    let response: RegisterX25519KeyResponse = serde_json::from_str(&body).unwrap();
+    assert!(response.success);
+    assert!(response.error.is_none());
 
     // Verify key was stored
     let stored_key = setup.db.get_x25519_key(&identity.polycentric_identity).await.unwrap();
@@ -119,6 +46,7 @@ async fn test_register_x25519_key_api() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_register_key_invalid_signature() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -127,26 +55,25 @@ async fn test_register_key_invalid_signature() {
     let wrong_signature = vec![0u8; 64]; // Wrong signature
     let auth_header = AuthHelper::create_auth_header(&identity, &setup.config.challenge_key).await;
 
-    let routes = create_test_routes(setup.app_state.clone());
+    let router = setup.create_test_router();
 
     let request_body = RegisterX25519KeyRequest {
         x25519_public_key: identity.x25519_public_key.clone(),
         signature: wrong_signature,
     };
 
-    let response = request()
-        .method("POST")
-        .path("/register_key")
-        .header("authorization", auth_header)
-        .header("content-type", "application/json")
-        .json(&request_body)
-        .reply(&routes)
-        .await;
+    let (status, _body) = AxumTestHelper::post(
+        &router,
+        "/register_key",
+        &serde_json::to_string(&request_body).unwrap(),
+        Some(&auth_header),
+    ).await;
 
-    assert_eq!(response.status(), 401); // Should be unauthorized due to invalid signature
+    assert_eq!(status, StatusCode::UNAUTHORIZED); // Should be unauthorized due to invalid signature
 }
 
 #[tokio::test]
+#[serial]
 async fn test_get_x25519_key_api() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -161,57 +88,57 @@ async fn test_get_x25519_key_api() {
         &signature,
     ).await.unwrap();
 
-    let routes = create_test_routes(setup.app_state.clone());
+    let router = setup.create_test_router();
 
     let request_body = GetX25519KeyRequest {
         identity: identity.polycentric_identity.clone(),
     };
 
-    let response = request()
-        .method("POST")
-        .path("/get_key")
-        .header("content-type", "application/json")
-        .json(&request_body)
-        .reply(&routes)
-        .await;
+    let (status, body) = AxumTestHelper::post(
+        &router,
+        "/get_key",
+        &serde_json::to_string(&request_body).unwrap(),
+        None,
+    ).await;
 
-    assert_eq!(response.status(), 200);
+    assert_eq!(status, StatusCode::OK);
 
-    let body: GetX25519KeyResponse = serde_json::from_slice(response.body()).unwrap();
-    assert!(body.found);
-    assert_eq!(body.x25519_public_key.unwrap(), identity.x25519_public_key);
-    assert!(body.timestamp.is_some());
+    let response: GetX25519KeyResponse = serde_json::from_str(&body).unwrap();
+    assert!(response.found);
+    assert_eq!(response.x25519_public_key.unwrap(), identity.x25519_public_key);
+    assert!(response.timestamp.is_some());
 }
 
 #[tokio::test]
+#[serial]
 async fn test_get_nonexistent_key_api() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
 
     let identity = TestIdentity::new();
-    let routes = create_test_routes(setup.app_state.clone());
+    let router = setup.create_test_router();
 
     let request_body = GetX25519KeyRequest {
         identity: identity.polycentric_identity.clone(),
     };
 
-    let response = request()
-        .method("POST")
-        .path("/get_key")
-        .header("content-type", "application/json")
-        .json(&request_body)
-        .reply(&routes)
-        .await;
+    let (status, body) = AxumTestHelper::post(
+        &router,
+        "/get_key",
+        &serde_json::to_string(&request_body).unwrap(),
+        None,
+    ).await;
 
-    assert_eq!(response.status(), 200);
+    assert_eq!(status, StatusCode::OK);
 
-    let body: GetX25519KeyResponse = serde_json::from_slice(response.body()).unwrap();
-    assert!(!body.found);
-    assert!(body.x25519_public_key.is_none());
-    assert!(body.timestamp.is_none());
+    let response: GetX25519KeyResponse = serde_json::from_str(&body).unwrap();
+    assert!(!response.found);
+    assert!(response.x25519_public_key.is_none());
+    assert!(response.timestamp.is_none());
 }
 
 #[tokio::test]
+#[serial]
 async fn test_send_dm_api() {
     // Initialize logger to see auth errors
     let _ = env_logger::builder().is_test(true).try_init();
@@ -239,7 +166,7 @@ async fn test_send_dm_api() {
     ).await.unwrap();
 
     let auth_header = AuthHelper::create_auth_header(&sender, &setup.config.challenge_key).await;
-    let routes = create_test_routes(setup.app_state.clone());
+    let router = setup.create_test_router();
 
     let (message_id, ephemeral_public_key, encrypted_content, nonce, signature) = 
         MessageHelper::create_test_message(&sender, &recipient, "Hello, this is a test message!");
@@ -254,25 +181,23 @@ async fn test_send_dm_api() {
         signature,
     };
 
-    let response = request()
-        .method("POST")
-        .path("/send")
-        .header("authorization", auth_header)
-        .header("content-type", "application/json")
-        .json(&request_body)
-        .reply(&routes)
-        .await;
+    let (status, body) = AxumTestHelper::post(
+        &router,
+        "/send",
+        &serde_json::to_string(&request_body).unwrap(),
+        Some(&auth_header),
+    ).await;
 
-    if response.status() != 200 {
-        println!("Response status: {}", response.status());
-        println!("Response body: {}", String::from_utf8_lossy(response.body()));
+    if status != StatusCode::OK {
+        println!("Response status: {:?}", status);
+        println!("Response body: {}", body);
     }
-    assert_eq!(response.status(), 200);
+    assert_eq!(status, StatusCode::OK);
 
-    let body: SendDMResponse = serde_json::from_slice(response.body()).unwrap();
-    assert!(body.success);
-    assert!(body.error.is_none());
-    assert_eq!(body.message_id.unwrap(), message_id);
+    let response: SendDMResponse = serde_json::from_str(&body).unwrap();
+    assert!(response.success);
+    assert!(response.error.is_none());
+    assert_eq!(response.message_id.unwrap(), message_id);
 
     // Verify message was stored
     let exists = setup.db.message_exists(&message_id).await.unwrap();
@@ -280,6 +205,7 @@ async fn test_send_dm_api() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_send_dm_to_unregistered_user() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -296,7 +222,7 @@ async fn test_send_dm_to_unregistered_user() {
     ).await.unwrap();
 
     let auth_header = AuthHelper::create_auth_header(&sender, &setup.config.challenge_key).await;
-    let routes = create_test_routes(setup.app_state.clone());
+    let router = setup.create_test_router();
 
     let (message_id, ephemeral_public_key, encrypted_content, nonce, signature) = 
         MessageHelper::create_test_message(&sender, &recipient, "Hello!");
@@ -311,24 +237,23 @@ async fn test_send_dm_to_unregistered_user() {
         signature,
     };
 
-    let response = request()
-        .method("POST")
-        .path("/send")
-        .header("authorization", auth_header)
-        .header("content-type", "application/json")
-        .json(&request_body)
-        .reply(&routes)
-        .await;
+    let (status, body) = AxumTestHelper::post(
+        &router,
+        "/send",
+        &serde_json::to_string(&request_body).unwrap(),
+        Some(&auth_header),
+    ).await;
 
-    assert_eq!(response.status(), 200);
+    assert_eq!(status, StatusCode::OK);
 
-    let body: SendDMResponse = serde_json::from_slice(response.body()).unwrap();
-    assert!(!body.success);
-    assert!(body.error.is_some());
-    assert!(body.error.unwrap().contains("not registered for DMs"));
+    let response: SendDMResponse = serde_json::from_str(&body).unwrap();
+    assert!(!response.success);
+    assert!(response.error.is_some());
+    assert!(response.error.unwrap().contains("not registered for DMs"));
 }
 
 #[tokio::test]
+#[serial]
 async fn test_get_dm_history_api() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -352,7 +277,7 @@ async fn test_get_dm_history_api() {
         &eph_key2, &enc_content2, &nonce2, chrono::Utc::now() - chrono::Duration::seconds(1), None).await.unwrap();
 
     let auth_header = AuthHelper::create_auth_header(&user1, &setup.config.challenge_key).await;
-    let routes = create_test_routes(setup.app_state.clone());
+    let router = setup.create_test_router();
 
     let request_body = GetDMHistoryRequest {
         other_party: user2.polycentric_identity.clone(),
@@ -360,24 +285,23 @@ async fn test_get_dm_history_api() {
         limit: Some(10),
     };
 
-    let response = request()
-        .method("POST")
-        .path("/history")
-        .header("authorization", auth_header)
-        .header("content-type", "application/json")
-        .json(&request_body)
-        .reply(&routes)
-        .await;
+    let (status, body) = AxumTestHelper::post(
+        &router,
+        "/history",
+        &serde_json::to_string(&request_body).unwrap(),
+        Some(&auth_header),
+    ).await;
 
-    assert_eq!(response.status(), 200);
+    assert_eq!(status, StatusCode::OK);
 
-    let body: GetDMHistoryResponse = serde_json::from_slice(response.body()).unwrap();
-    assert_eq!(body.messages.len(), 2);
-    assert!(!body.has_more);
-    assert!(body.next_cursor.is_none());
+    let response: GetDMHistoryResponse = serde_json::from_str(&body).unwrap();
+    assert_eq!(response.messages.len(), 2);
+    assert!(!response.has_more);
+    assert!(response.next_cursor.is_none());
 }
 
 #[tokio::test]
+#[serial]
 async fn test_send_dm_duplicate_message_id() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -392,7 +316,7 @@ async fn test_send_dm_duplicate_message_id() {
     setup.db.register_x25519_key(&recipient.polycentric_identity, &recipient.x25519_public_key, &recipient_signature).await.unwrap();
 
     let auth_header = AuthHelper::create_auth_header(&sender, &setup.config.challenge_key).await;
-    let routes = create_test_routes(setup.app_state.clone());
+    let router = setup.create_test_router();
 
     let (message_id, ephemeral_public_key, encrypted_content, nonce, signature) = 
         MessageHelper::create_test_message(&sender, &recipient, "Test message");
@@ -408,36 +332,33 @@ async fn test_send_dm_duplicate_message_id() {
     };
 
     // Send first message
-    let response1 = request()
-        .method("POST")
-        .path("/send")
-        .header("authorization", &auth_header)
-        .header("content-type", "application/json")
-        .json(&request_body)
-        .reply(&routes)
-        .await;
+    let (status1, _body1) = AxumTestHelper::post(
+        &router,
+        "/send",
+        &serde_json::to_string(&request_body).unwrap(),
+        Some(&auth_header),
+    ).await;
 
-    assert_eq!(response1.status(), 200);
+    assert_eq!(status1, StatusCode::OK);
 
     // Try to send same message again
-    let response2 = request()
-        .method("POST")
-        .path("/send")
-        .header("authorization", auth_header)
-        .header("content-type", "application/json")
-        .json(&request_body)
-        .reply(&routes)
-        .await;
+    let (status2, body2) = AxumTestHelper::post(
+        &router,
+        "/send",
+        &serde_json::to_string(&request_body).unwrap(),
+        Some(&auth_header),
+    ).await;
 
-    assert_eq!(response2.status(), 200);
+    assert_eq!(status2, StatusCode::OK);
 
-    let body: SendDMResponse = serde_json::from_slice(response2.body()).unwrap();
-    assert!(!body.success);
-    assert!(body.error.is_some());
-    assert!(body.error.unwrap().contains("already exists"));
+    let response: SendDMResponse = serde_json::from_str(&body2).unwrap();
+    assert!(!response.success);
+    assert!(response.error.is_some());
+    assert!(response.error.unwrap().contains("already exists"));
 }
 
 #[tokio::test]
+#[serial]
 async fn test_send_dm_invalid_sizes() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -452,7 +373,7 @@ async fn test_send_dm_invalid_sizes() {
     setup.db.register_x25519_key(&recipient.polycentric_identity, &recipient.x25519_public_key, &recipient_signature).await.unwrap();
 
     let auth_header = AuthHelper::create_auth_header(&sender, &setup.config.challenge_key).await;
-    let routes = create_test_routes(setup.app_state.clone());
+    let router = setup.create_test_router();
 
     // Test invalid ephemeral key length
     let request_body = SendDMRequest {
@@ -465,19 +386,17 @@ async fn test_send_dm_invalid_sizes() {
         signature: vec![3u8; 64],
     };
 
-    let response = request()
-        .method("POST")
-        .path("/send")
-        .header("authorization", &auth_header)
-        .header("content-type", "application/json")
-        .json(&request_body)
-        .reply(&routes)
-        .await;
+    let (status, body) = AxumTestHelper::post(
+        &router,
+        "/send",
+        &serde_json::to_string(&request_body).unwrap(),
+        Some(&&auth_header),
+    ).await;
 
-    assert_eq!(response.status(), 200);
-    let body: SendDMResponse = serde_json::from_slice(response.body()).unwrap();
-    assert!(!body.success);
-    assert!(body.error.unwrap().contains("ephemeral key length"));
+    assert_eq!(status, StatusCode::OK);
+    let response: SendDMResponse = serde_json::from_str(&body).unwrap();
+    assert!(!response.success);
+    assert!(response.error.unwrap().contains("ephemeral key length"));
 
     // Test invalid nonce length
     let request_body = SendDMRequest {
@@ -490,27 +409,26 @@ async fn test_send_dm_invalid_sizes() {
         signature: vec![3u8; 64],
     };
 
-    let response = request()
-        .method("POST")
-        .path("/send")
-        .header("authorization", auth_header)
-        .header("content-type", "application/json")
-        .json(&request_body)
-        .reply(&routes)
-        .await;
+    let (status, body) = AxumTestHelper::post(
+        &router,
+        "/send",
+        &serde_json::to_string(&request_body).unwrap(),
+        Some(&auth_header),
+    ).await;
 
-    assert_eq!(response.status(), 200);
-    let body: SendDMResponse = serde_json::from_slice(response.body()).unwrap();
-    assert!(!body.success);
-    assert!(body.error.unwrap().contains("nonce length"));
+    assert_eq!(status, StatusCode::OK);
+    let response: SendDMResponse = serde_json::from_str(&body).unwrap();
+    assert!(!response.success);
+    assert!(response.error.unwrap().contains("nonce length"));
 }
 
 #[tokio::test]
+#[serial]
 async fn test_unauthorized_requests() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
 
-    let routes = create_test_routes(setup.app_state.clone());
+    let router = setup.create_test_router();
 
     // Test unauthorized register key
     let request_body = RegisterX25519KeyRequest {
@@ -518,30 +436,28 @@ async fn test_unauthorized_requests() {
         signature: vec![1u8; 64],
     };
 
-    let response = request()
-        .method("POST")
-        .path("/register_key")
-        .header("content-type", "application/json")
-        .json(&request_body)
-        .reply(&routes)
-        .await;
+    let (status, _body) = AxumTestHelper::post(
+        &router,
+        "/register_key",
+        &serde_json::to_string(&request_body).unwrap(),
+        None,
+    ).await;
 
-    assert_eq!(response.status(), 400); // No auth header
+    assert_eq!(status, StatusCode::UNAUTHORIZED); // No auth header
 
     // Test with invalid auth header
-    let response = request()
-        .method("POST")
-        .path("/register_key")
-        .header("authorization", "Bearer invalid")
-        .header("content-type", "application/json")
-        .json(&request_body)
-        .reply(&routes)
-        .await;
+    let (status, _body) = AxumTestHelper::post(
+        &router,
+        "/register_key",
+        &serde_json::to_string(&request_body).unwrap(),
+        Some(&"Bearer invalid"),
+    ).await;
 
-    assert_eq!(response.status(), 401); // Invalid auth
+    assert_eq!(status, StatusCode::UNAUTHORIZED); // Invalid auth
 }
 
 #[tokio::test]
+#[serial]
 async fn test_get_conversations_api() {
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -564,18 +480,17 @@ async fn test_get_conversations_api() {
         &eph_key1, &enc_content1, &nonce1, now, None).await.unwrap();
 
     let auth_header = AuthHelper::create_auth_header(&user1, &setup.config.challenge_key).await;
-    let routes = create_test_routes(setup.app_state.clone());
+    let router = setup.create_test_router();
 
-    let response = request()
-        .method("GET")
-        .path("/conversations?limit=10")
-        .header("authorization", auth_header)
-        .reply(&routes)
-        .await;
+    let (status, body) = AxumTestHelper::get(
+        &router,
+        "/conversations?limit=10",
+        Some(&auth_header),
+    ).await;
 
-    assert_eq!(response.status(), 200);
+    assert_eq!(status, StatusCode::OK);
 
-    let body: serde_json::Value = serde_json::from_slice(response.body()).unwrap();
+    let body: serde_json::Value = serde_json::from_str(&body).unwrap();
     let conversations = body.as_array().unwrap();
     assert_eq!(conversations.len(), 2);
 
