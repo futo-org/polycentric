@@ -1,4 +1,5 @@
 use envconfig::Envconfig;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 #[derive(Envconfig, Debug, Clone, Serialize, Deserialize)]
@@ -37,8 +38,5 @@ pub struct Config {
     pub log_level: String,
 }
 
-impl Config {
-    pub fn from_env() -> Result<Self, envconfig::Error> {
-        Self::init_from_env()
-    }
-}
+pub static CONFIG: Lazy<Config> =
+    Lazy::new(|| Config::init_from_env().expect("Failed to parse env"));

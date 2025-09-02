@@ -1,17 +1,17 @@
 use anyhow::{anyhow, Result};
 use axum::{
-    async_trait,
-    extract::{FromRef, FromRequestParts, State},
+    extract::{FromRequestParts, State},
     http::{request::Parts, StatusCode},
     response::{IntoResponse, Json, Response},
 };
 use hmac_sha256::HMAC;
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
+use tracing as log;
 
 use super::AppState;
-use crate::crypto::DMCrypto;
 use crate::models::PolycentricIdentity;
+use crate::{config::CONFIG, crypto::DMCrypto};
 
 /// Challenge response structure similar to Harbor
 #[derive(Debug, Serialize, Deserialize)]
@@ -35,7 +35,7 @@ pub struct AuthRequest {
 
 /// Generate a challenge for authentication
 pub async fn get_challenge(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
 ) -> Result<Json<ChallengeResponse>, AuthError> {
     let challenge = DMCrypto::generate_challenge();
     let created_on = SystemTime::now()
@@ -53,7 +53,7 @@ pub async fn get_challenge(
         AuthError::InternalError
     })?;
 
-    let hmac = HMAC::mac(body_bytes.clone(), state.config.challenge_key.as_bytes()).to_vec();
+    let hmac = HMAC::mac(body_bytes.clone(), CONFIG.challenge_key.as_bytes()).to_vec();
 
     let response = ChallengeResponse {
         body: body_bytes,
@@ -128,25 +128,20 @@ pub fn extract_auth_identity(
     Ok(auth_request.identity)
 }
 
-/// Axum extractor for authenticated identity
-#[async_trait]
 impl<S> FromRequestParts<S> for PolycentricIdentity
 where
-    AppState: FromRef<S>,
     S: Send + Sync,
 {
     type Rejection = AuthError;
 
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let app_state = AppState::from_ref(state);
-
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         let auth_header = parts
             .headers
             .get("authorization")
             .and_then(|header| header.to_str().ok())
             .ok_or(AuthError::Unauthorized)?;
 
-        match extract_auth_identity(auth_header, &app_state.config.challenge_key) {
+        match extract_auth_identity(auth_header, &CONFIG.challenge_key) {
             Ok(identity) => Ok(identity),
             Err(e) => {
                 log::warn!("Authentication failed: {}", e);

@@ -1,5 +1,6 @@
 pub mod connection;
 pub mod manager;
+use tracing as log;
 
 use serde_json;
 use std::collections::HashMap;

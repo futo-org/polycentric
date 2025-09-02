@@ -1,7 +1,9 @@
 use axum::{extract::State, Json};
 use chrono::Utc;
+use tracing as log;
 
 use super::{auth::AuthError, AppState};
+use crate::config::CONFIG;
 use crate::crypto::DMCrypto;
 use crate::models::*;
 
@@ -12,7 +14,7 @@ pub async fn send_dm(
     Json(request): Json<SendDMRequest>,
 ) -> Result<Json<SendDMResponse>, AuthError> {
     // Validate message size
-    if request.encrypted_content.len() > state.config.max_message_size {
+    if request.encrypted_content.len() > CONFIG.max_message_size {
         let response = SendDMResponse {
             success: false,
             error: Some("Message too large".to_string()),
@@ -79,7 +81,7 @@ pub async fn send_dm(
         "nonce": request.nonce,
     }))
     .map_err(|e| {
-        log::error!("Failed to serialize message for verification: {}", e);
+        log::error!("Failed to serialize message for veriication: {}", e);
         AuthError::InternalError
     })?;
 

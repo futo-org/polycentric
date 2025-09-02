@@ -1,24 +1,20 @@
 use std::sync::Arc;
 use tokio::time::{interval, Duration};
+use tracing as log;
 
 use super::WebSocketManager;
-use crate::db::DatabaseManager;
+use crate::{config::CONFIG, db::DatabaseManager};
 
 /// Background task to manage WebSocket connections
-pub async fn run_websocket_manager(
-    ws_manager: WebSocketManager,
-    db: Arc<DatabaseManager>,
-    cleanup_interval_seconds: u64,
-    connection_timeout_seconds: u64,
-) {
-    let mut cleanup_interval = interval(Duration::from_secs(cleanup_interval_seconds));
+pub async fn run_websocket_manager(ws_manager: WebSocketManager, db: Arc<DatabaseManager>) {
+    let mut cleanup_interval = interval(Duration::from_secs(CONFIG.cleanup_interval_seconds));
 
     loop {
         cleanup_interval.tick().await;
 
         // Clean up stale connections in database
         match db
-            .cleanup_stale_connections(connection_timeout_seconds as i64)
+            .cleanup_stale_connections(CONFIG.connection_timeout_seconds as i64)
             .await
         {
             Ok(count) => {

@@ -6,8 +6,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
 use tokio::time::{interval, timeout};
 use tokio_tungstenite::tungstenite::Message;
+use tracing as log;
 use uuid::Uuid;
 
+use crate::config::CONFIG;
 use crate::crypto::DMCrypto;
 use crate::db::DatabaseManager;
 
@@ -15,7 +17,7 @@ use super::{WebSocket, WebSocketManager};
 use crate::models::{PolycentricIdentity, WSAuthChallenge, WSAuthResponse, WSMessage};
 
 const PING_INTERVAL: Duration = Duration::from_secs(30);
-const PONG_TIMEOUT: Duration = Duration::from_secs(10);
+const _PONG_TIMEOUT: Duration = Duration::from_secs(10);
 const AUTH_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Handle a new WebSocket connection
@@ -23,7 +25,6 @@ pub async fn handle_websocket_connection(
     websocket: WebSocket,
     ws_manager: WebSocketManager,
     db: Arc<DatabaseManager>,
-    challenge_key: String,
 ) {
     let connection_id = Uuid::new_v4();
     log::info!("New WebSocket connection: {}", connection_id);
@@ -60,7 +61,7 @@ pub async fn handle_websocket_connection(
     // Wait for authentication response
     let identity = match timeout(
         AUTH_TIMEOUT,
-        authenticate_connection(&mut ws_receiver, &challenge, &challenge_key),
+        authenticate_connection(&mut ws_receiver, &challenge),
     )
     .await
     {
@@ -194,7 +195,6 @@ pub async fn handle_websocket_connection(
 async fn authenticate_connection(
     ws_receiver: &mut futures::stream::SplitStream<WebSocket>,
     challenge: &[u8],
-    _challenge_key: &str,
 ) -> anyhow::Result<PolycentricIdentity> {
     if let Some(Ok(Message::Text(text))) = ws_receiver.next().await {
         let auth_response: WSAuthResponse = serde_json::from_str(&text)

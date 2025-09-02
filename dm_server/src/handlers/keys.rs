@@ -3,6 +3,7 @@ use axum::{
     Json,
 };
 use std::collections::HashMap;
+use tracing as log;
 
 use super::{auth::AuthError, AppState};
 use crate::crypto::DMCrypto;
