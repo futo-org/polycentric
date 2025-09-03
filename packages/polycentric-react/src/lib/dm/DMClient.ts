@@ -518,10 +518,12 @@ export class DMClient {
     return { privateKey, publicKey };
   }
 
-  private async ed25519ToX25519PrivateKey(ed25519PublicKey: Uint8Array): Promise<Uint8Array> {
+  private async ed25519ToX25519PrivateKey(
+    ed25519PublicKey: Uint8Array,
+  ): Promise<Uint8Array> {
     // Convert Ed25519 public key to X25519 private key equivalent
     // This is a deterministic conversion for key derivation purposes
-    
+
     // Use HKDF to derive a deterministic X25519 private key from Ed25519 public key
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
@@ -663,7 +665,7 @@ export class DMClient {
       console.error('Encryption failed:', error);
       console.error('Message length:', message.length);
       console.error('Recipient public key length:', recipientPublicKey.length);
-      throw error
+      throw error;
     }
   }
 
@@ -675,31 +677,33 @@ export class DMClient {
     }
 
     // Check if we're using the right keys
-    const amISender = this.processHandle.system().key.toString() === encryptedMsg.sender.key.toString();
-    const amIRecipient = this.processHandle.system().key.toString() === encryptedMsg.recipient.key.toString();
+    const amISender =
+      this.processHandle.system().key.toString() ===
+      encryptedMsg.sender.key.toString();
+    const amIRecipient =
+      this.processHandle.system().key.toString() ===
+      encryptedMsg.recipient.key.toString();
 
     // For decryption, we need to use X25519 keys (not Ed25519 keys)
     // The sender's X25519 public key is stored in ephemeral_public_key field
     // The recipient's X25519 public key needs to be derived from their Ed25519 key
-    
+
     let otherPartyX25519Key: Uint8Array;
-    
+
     if (amISender) {
       // We sent this message - we need the recipient's X25519 public key
       // We can derive this from their Ed25519 public key
       otherPartyX25519Key = x25519.getPublicKey(
-        await this.ed25519ToX25519PrivateKey(encryptedMsg.recipient.key)
+        await this.ed25519ToX25519PrivateKey(encryptedMsg.recipient.key),
       );
     } else {
       // We received this message - use the sender's X25519 public key from ephemeral_public_key
       otherPartyX25519Key = encryptedMsg.ephemeralPublicKey;
     }
-    
 
-    
     const sharedSecret = x25519.getSharedSecret(
       this.x25519KeyPair.privateKey,
-      otherPartyX25519Key
+      otherPartyX25519Key,
     );
 
     // Use HKDF to derive decryption key from shared secret
@@ -771,7 +775,7 @@ export class DMClient {
       } else {
         // AES-GCM uses 12-byte nonce
         const aesNonce = encryptedMsg.nonce.slice(0, 12);
-        
+
         decrypted = await crypto.subtle.decrypt(
           {
             name: 'AES-GCM',

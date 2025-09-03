@@ -3,7 +3,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getDMServerConfig } from '../../dm/dmServerConfig';
 import { useDMClient } from '../../dm/useDMClient';
 import { useAvatar } from '../../hooks/imageHooks';
-import { useSystemLink, useTextPublicKey, useUsernameCRDTQuery } from '../../hooks/queryHooks';
+import {
+  useSystemLink,
+  useTextPublicKey,
+  useUsernameCRDTQuery,
+} from '../../hooks/queryHooks';
 import { DMMessageContent, DecryptedMessage } from '../../types/dm';
 import { ProfilePicture } from '../profile/ProfilePicture';
 import { Link } from '../util/link';
@@ -15,7 +19,9 @@ export interface DMChatComponentProps {
 }
 
 // Component to display user information with username and avatar
-const UserDisplay: React.FC<{ publicKey: Core.Models.PublicKey.PublicKey }> = ({ publicKey }) => {
+const UserDisplay: React.FC<{ publicKey: Core.Models.PublicKey.PublicKey }> = ({
+  publicKey,
+}) => {
   const username = useUsernameCRDTQuery(publicKey) || 'User';
   const shortPublicKey = useTextPublicKey(publicKey, 10);
   const avatarUrl = useAvatar(publicKey);
@@ -50,14 +56,15 @@ const UserDisplay: React.FC<{ publicKey: Core.Models.PublicKey.PublicKey }> = ({
 };
 
 // Component for individual messages to avoid hooks in map
-const MessageItem: React.FC<{ 
-  message: DecryptedMessage; 
+const MessageItem: React.FC<{
+  message: DecryptedMessage;
   otherParty?: Core.Models.PublicKey.PublicKey;
 }> = ({ message, otherParty }) => {
   const username = useUsernameCRDTQuery(message.sender) || 'User';
   const avatarUrl = useAvatar(message.sender);
-  const isReceived = message.sender.key.toString() === otherParty?.key.toString();
-  
+  const isReceived =
+    message.sender.key.toString() === otherParty?.key.toString();
+
   return (
     <div
       key={message.messageId}
@@ -70,9 +77,7 @@ const MessageItem: React.FC<{
             alt={`${username}'s profile picture`}
             className="w-6 h-6 rounded-full"
           />
-          <span className="text-xs text-gray-600 font-medium">
-            {username}
-          </span>
+          <span className="text-xs text-gray-600 font-medium">{username}</span>
         </div>
       </div>
       <div className="message-content">
@@ -202,7 +207,9 @@ export const DMChatComponent: React.FC<DMChatComponentProps> = ({
           {otherParty && <UserDisplay publicKey={otherParty} />}
           <div className="flex items-center space-x-2">
             {isConnected && <span className="status-indicator online">●</span>}
-            {!isConnected && <span className="status-indicator offline">○</span>}
+            {!isConnected && (
+              <span className="status-indicator offline">○</span>
+            )}
           </div>
         </div>
       </div>
@@ -215,7 +222,11 @@ export const DMChatComponent: React.FC<DMChatComponentProps> = ({
         )}
 
         {messages.map((message) => (
-          <MessageItem key={message.messageId} message={message} otherParty={otherParty} />
+          <MessageItem
+            key={message.messageId}
+            message={message}
+            otherParty={otherParty}
+          />
         ))}
         <div ref={messagesEndRef} />
       </div>

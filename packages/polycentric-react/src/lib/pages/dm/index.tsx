@@ -3,7 +3,11 @@ import * as Core from '@polycentric/polycentric-core';
 import Long from 'long';
 import { useEffect, useMemo, useState } from 'react';
 import { Page } from '../../app/routes';
-import { ConversationList, DMChatComponent, type Conversation } from '../../components/dm';
+import {
+  ConversationList,
+  DMChatComponent,
+  type Conversation,
+} from '../../components/dm';
 import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
 import { ProfilePicture } from '../../components/profile/ProfilePicture';
@@ -11,10 +15,16 @@ import { Link } from '../../components/util/link';
 import { getDMServerConfig } from '../../dm/dmServerConfig';
 import { useDMClient } from '../../dm/useDMClient';
 import { useAvatar } from '../../hooks/imageHooks';
-import { useSystemLink, useTextPublicKey, useUsernameCRDTQuery } from '../../hooks/queryHooks';
+import {
+  useSystemLink,
+  useTextPublicKey,
+  useUsernameCRDTQuery,
+} from '../../hooks/queryHooks';
 
 // Component to display user information with username and avatar
-const UserDisplay: React.FC<{ publicKey: Core.Models.PublicKey.PublicKey }> = ({ publicKey }) => {
+const UserDisplay: React.FC<{ publicKey: Core.Models.PublicKey.PublicKey }> = ({
+  publicKey,
+}) => {
   const username = useUsernameCRDTQuery(publicKey) || 'User';
   const shortPublicKey = useTextPublicKey(publicKey, 10);
   const avatarUrl = useAvatar(publicKey);
@@ -169,47 +179,50 @@ export const DMPage: Page = () => {
         </div>
 
         {/* Preview of the user when a valid public key is entered */}
-        {publicKeyInput.trim() && (() => {
-          try {
-            let previewPublicKey: Core.Models.PublicKey.PublicKey;
-            const input = publicKeyInput.trim();
-            
+        {publicKeyInput.trim() &&
+          (() => {
             try {
-              previewPublicKey = Core.Models.PublicKey.fromString(
-                input as Core.Models.PublicKey.PublicKeyString,
+              let previewPublicKey: Core.Models.PublicKey.PublicKey;
+              const input = publicKeyInput.trim();
+
+              try {
+                previewPublicKey = Core.Models.PublicKey.fromString(
+                  input as Core.Models.PublicKey.PublicKeyString,
+                );
+              } catch {
+                const keyBytesBase64 = input.replace(/[^A-Za-z0-9+/=]/g, '');
+                const binaryString = atob(keyBytesBase64);
+                const keyBytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                  keyBytes[i] = binaryString.charCodeAt(i);
+                }
+
+                if (keyBytes.length === 32) {
+                  previewPublicKey = Core.Models.PublicKey.fromProto({
+                    keyType: Long.fromNumber(1),
+                    key: keyBytes,
+                  });
+                } else {
+                  return null;
+                }
+              }
+
+              return (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-sm text-blue-800 mb-2">Preview:</p>
+                  <UserDisplay publicKey={previewPublicKey} />
+                </div>
               );
             } catch {
-              const keyBytesBase64 = input.replace(/[^A-Za-z0-9+/=]/g, '');
-              const binaryString = atob(keyBytesBase64);
-              const keyBytes = new Uint8Array(binaryString.length);
-              for (let i = 0; i < binaryString.length; i++) {
-                keyBytes[i] = binaryString.charCodeAt(i);
-              }
-              
-              if (keyBytes.length === 32) {
-                previewPublicKey = Core.Models.PublicKey.fromProto({
-                  keyType: Long.fromNumber(1),
-                  key: keyBytes,
-                });
-              } else {
-                return null;
-              }
+              return (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-sm text-red-800">
+                    Invalid public key format
+                  </p>
+                </div>
+              );
             }
-            
-            return (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm text-blue-800 mb-2">Preview:</p>
-                <UserDisplay publicKey={previewPublicKey} />
-              </div>
-            );
-          } catch {
-            return (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                <p className="text-sm text-red-800">Invalid public key format</p>
-              </div>
-            );
-          }
-        })()}
+          })()}
 
         <button
           onClick={handleStartConversation}
@@ -307,9 +320,7 @@ export const DMPage: Page = () => {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <DMChatComponent
-                    otherParty={selectedContact.publicKey}
-                  />
+                  <DMChatComponent otherParty={selectedContact.publicKey} />
                 </div>
               </div>
             ) : showNewConversation ? (

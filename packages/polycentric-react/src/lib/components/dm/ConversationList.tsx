@@ -1,12 +1,14 @@
 import * as Core from '@polycentric/polycentric-core';
 import React from 'react';
 import { useAvatar } from '../../hooks/imageHooks';
-import { useSystemLink, useTextPublicKey, useUsernameCRDTQuery } from '../../hooks/queryHooks';
+import {
+  useSystemLink,
+  useTextPublicKey,
+  useUsernameCRDTQuery,
+} from '../../hooks/queryHooks';
 import { Conversation } from '../../types/dm';
 import { ProfilePicture } from '../profile/ProfilePicture';
 import { Link } from '../util/link';
-
-
 
 export interface ConversationListProps {
   conversations: Conversation[];
@@ -16,7 +18,9 @@ export interface ConversationListProps {
 }
 
 // Component to display user information with username and avatar
-const UserDisplay: React.FC<{ publicKey: Core.Models.PublicKey.PublicKey }> = ({ publicKey }) => {
+const UserDisplay: React.FC<{ publicKey: Core.Models.PublicKey.PublicKey }> = ({
+  publicKey,
+}) => {
   const username = useUsernameCRDTQuery(publicKey) || 'User';
   const shortPublicKey = useTextPublicKey(publicKey, 10);
   const avatarUrl = useAvatar(publicKey);
@@ -39,7 +43,9 @@ const UserDisplay: React.FC<{ publicKey: Core.Models.PublicKey.PublicKey }> = ({
               {username}
             </Link>
           ) : (
-            <span className="font-medium text-gray-900 truncate">{username}</span>
+            <span className="font-medium text-gray-900 truncate">
+              {username}
+            </span>
           )}
           {shortPublicKey && (
             <span className="text-xs text-gray-500 font-mono flex-shrink-0">
@@ -75,8 +81,6 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       return 'Just now';
     }
   };
-
-
 
   return (
     <div className={`conversation-list ${className}`}>
@@ -117,7 +121,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               className="conversation-item hover:bg-gray-50 cursor-pointer transition-colors"
             >
               <UserDisplay publicKey={conversation.otherParty} />
-              
+
               <div className="conversation-content flex-1 min-w-0">
                 <div className="conversation-header flex justify-between items-start mb-1">
                   {conversation.lastMessage && (
@@ -129,9 +133,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
 
                 {conversation.lastMessage ? (
                   <div className="conversation-preview">
-                    <p className="text-sm text-gray-600">
-                      📄 Message
-                    </p>
+                    <p className="text-sm text-gray-600">📄 Message</p>
                   </div>
                 ) : (
                   <div className="conversation-preview">
