@@ -84,10 +84,13 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             >
               <div className="conversation-avatar">
                 <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
-                  {conversation.otherParty.key.toString().substring(0, 2).toUpperCase()}
+                  {conversation.otherParty.key
+                    .toString()
+                    .substring(0, 2)
+                    .toUpperCase()}
                 </div>
               </div>
-              
+
               <div className="conversation-content">
                 <div className="conversation-header">
                   <h4 className="conversation-name font-medium text-gray-900">
@@ -99,19 +102,20 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                     </span>
                   )}
                 </div>
-                
+
                 {conversation.lastMessage ? (
                   <div className="conversation-preview">
                     <p className="text-sm text-gray-600">
-                      {conversation.lastMessage.content.type === 'text' 
+                      {conversation.lastMessage.content.type === 'text'
                         ? truncateText(conversation.lastMessage.content.text)
-                        : '📎 File'
-                      }
+                        : '📎 File'}
                     </p>
                   </div>
                 ) : (
                   <div className="conversation-preview">
-                    <p className="text-sm text-gray-400 italic">No messages yet</p>
+                    <p className="text-sm text-gray-400 italic">
+                      No messages yet
+                    </p>
                   </div>
                 )}
               </div>
@@ -119,7 +123,9 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               {conversation.unreadCount > 0 && (
                 <div className="unread-badge">
                   <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
-                    {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
+                    {conversation.unreadCount > 99
+                      ? '99+'
+                      : conversation.unreadCount}
                   </span>
                 </div>
               )}

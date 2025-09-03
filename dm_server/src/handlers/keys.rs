@@ -144,14 +144,20 @@ pub async fn get_detailed_conversations(
         .unwrap_or(50)
         .min(100); // Max 100 conversations
 
-    match state.db.get_detailed_conversation_list(&identity, limit).await {
+    match state
+        .db
+        .get_detailed_conversation_list(&identity, limit)
+        .await
+    {
         Ok(conversations) => {
             let response = GetConversationsResponse { conversations };
             Ok(Json(response))
         }
         Err(e) => {
             log::error!("Failed to get detailed conversation list: {}", e);
-            let empty_response = GetConversationsResponse { conversations: vec![] };
+            let empty_response = GetConversationsResponse {
+                conversations: vec![],
+            };
             Ok(Json(empty_response))
         }
     }

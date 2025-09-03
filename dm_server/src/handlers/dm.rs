@@ -67,31 +67,31 @@ pub async fn send_dm(
 
     // Verify signature - use concatenated byte format to match client
     // Format: [message_id_bytes][sender_key_type][sender_key_bytes][recipient_key_type][recipient_key_bytes][ephemeral_key][encrypted_content][nonce]
-    
+
     let message_id_bytes = request.message_id.as_bytes();
     let mut message_data = Vec::new();
-    
+
     // Add message_id bytes
     message_data.extend_from_slice(message_id_bytes);
-    
+
     // Add sender key_type (u64, little-endian)
     message_data.extend_from_slice(&sender.key_type.to_le_bytes());
-    
+
     // Add sender key_bytes
     message_data.extend_from_slice(&sender.key_bytes);
-    
+
     // Add recipient key_type (u64, little-endian)
     message_data.extend_from_slice(&request.recipient.key_type.to_le_bytes());
-    
+
     // Add recipient key_bytes
     message_data.extend_from_slice(&request.recipient.key_bytes);
-    
+
     // Add ephemeral public key
     message_data.extend_from_slice(&request.ephemeral_public_key);
-    
+
     // Add encrypted content
     message_data.extend_from_slice(&request.encrypted_content);
-    
+
     // Add nonce
     message_data.extend_from_slice(&request.nonce);
 

@@ -1,9 +1,9 @@
+use aes_gcm::{Aes256Gcm, Nonce as AesNonce};
 use anyhow::{anyhow, Result};
 use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit},
     ChaCha20Poly1305, Nonce,
 };
-use aes_gcm::{Aes256Gcm, Nonce as AesNonce};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use x25519_dalek::{EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret};

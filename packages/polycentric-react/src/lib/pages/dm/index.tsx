@@ -44,7 +44,7 @@ export const DMPage: Page = () => {
 
   const loadConversations = async () => {
     if (!client) return;
-    
+
     setIsLoadingConversations(true);
     try {
       const result = await getAllConversations();
@@ -155,7 +155,9 @@ export const DMPage: Page = () => {
     </div>
   );
 
-  const handleSelectConversation = (otherParty: Core.Models.PublicKey.PublicKey) => {
+  const handleSelectConversation = (
+    otherParty: Core.Models.PublicKey.PublicKey,
+  ) => {
     setSelectedContact({
       publicKey: otherParty,
       name: otherParty.key.toString().substring(0, 16) + '...',
@@ -236,7 +238,9 @@ export const DMPage: Page = () => {
               <div className="h-full flex flex-col">
                 <div className="border-b p-4 bg-gray-50">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-medium text-gray-900">New Conversation</h3>
+                    <h3 className="font-medium text-gray-900">
+                      New Conversation
+                    </h3>
                     <button
                       onClick={handleBackToConversations}
                       className="text-gray-500 hover:text-gray-700 text-sm"
@@ -245,9 +249,7 @@ export const DMPage: Page = () => {
                     </button>
                   </div>
                 </div>
-                <div className="flex-1 p-4">
-                  {renderStartConversation()}
-                </div>
+                <div className="flex-1 p-4">{renderStartConversation()}</div>
               </div>
             ) : (
               <ConversationList

@@ -107,9 +107,11 @@ fn create_routes(state: AppState) -> Router {
         .route("/send", post(dm::send_dm))
         .route("/history", post(dm::get_dm_history))
         .route("/conversations", get(keys::get_conversations))
-        .route("/conversations/detailed", get(keys::get_detailed_conversations))
+        .route(
+            "/conversations/detailed",
+            get(keys::get_detailed_conversations),
+        )
         .route("/mark_read", post(dm::mark_messages_read))
-
         .with_state(state)
         .layer(
             TraceLayer::new(StatusInRangeAsFailures::new(400..=599).into_make_classifier())
@@ -137,8 +139,6 @@ fn create_routes(state: AppState) -> Router {
 async fn health_handler() -> axum::Json<serde_json::Value> {
     axum::Json(serde_json::json!({"status": "ok"}))
 }
-
-
 
 async fn start_websocket_server(ws_manager: WebSocketManager, db: Arc<DatabaseManager>) {
     let listener = TcpListener::bind(format!("0.0.0.0:{}", CONFIG.websocket_port))

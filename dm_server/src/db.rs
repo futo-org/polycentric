@@ -448,15 +448,33 @@ impl DatabaseManager {
                 let created_at: Option<DateTime<Utc>> = row.get("created_at");
                 let is_from_other: Option<bool> = row.get("is_from_other");
 
-                if let (Some(key_type), Some(key_bytes), Some(message_id), Some(sender_key_type), 
-                        Some(sender_key_bytes), Some(encrypted_content), Some(nonce), 
-                        Some(encryption_algorithm), Some(created_at), Some(is_from_other)) = 
-                    (key_type, key_bytes, message_id, sender_key_type, sender_key_bytes, 
-                     encrypted_content, nonce, encryption_algorithm, created_at, is_from_other) {
-                    
+                if let (
+                    Some(key_type),
+                    Some(key_bytes),
+                    Some(message_id),
+                    Some(sender_key_type),
+                    Some(sender_key_bytes),
+                    Some(encrypted_content),
+                    Some(nonce),
+                    Some(encryption_algorithm),
+                    Some(created_at),
+                    Some(is_from_other),
+                ) = (
+                    key_type,
+                    key_bytes,
+                    message_id,
+                    sender_key_type,
+                    sender_key_bytes,
+                    encrypted_content,
+                    nonce,
+                    encryption_algorithm,
+                    created_at,
+                    is_from_other,
+                ) {
                     let other_identity = PolycentricIdentity::new(key_type as u64, key_bytes);
-                    let sender_identity = PolycentricIdentity::new(sender_key_type as u64, sender_key_bytes);
-                    
+                    let sender_identity =
+                        PolycentricIdentity::new(sender_key_type as u64, sender_key_bytes);
+
                     let last_message = if is_from_other {
                         Some(LastMessageInfo {
                             message_id,
