@@ -1,22 +1,16 @@
-export { DMChatComponent } from './DMChatComponent';
+// Core DM client and utilities
 export { DMClient } from './DMClient';
-export {
-  clearDMServerUrl,
-  getDMServerConfig,
-  getDMServerUrl,
-  setDMServerUrl,
-} from './dmServerConfig';
+export { getDMServerConfig } from './dmServerConfig';
 export { useDMClient } from './useDMClient';
 
+// Types
 export type {
-  AuthChallenge,
-  AuthRequest,
-  DecryptedMessage,
-  DMMessageContent,
-  DMServerConfig,
-  EncryptedMessage,
+    AuthChallenge,
+    AuthRequest, DecryptedMessage, DMMessageContent,
+    EncryptedMessage, X25519KeyPair
 } from './DMClient';
 
-export type { UseDMClientOptions, UseDMClientReturn } from './useDMClient';
+// Components (re-exported from components/dm)
+export { ConversationList, DMChatComponent } from '../components/dm';
+export type { Conversation } from '../types/dm';
 
-export type { DMChatComponentProps } from './DMChatComponent';

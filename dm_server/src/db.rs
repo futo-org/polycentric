@@ -130,7 +130,7 @@ impl DatabaseManager {
                 (sender_key_type = $3 AND sender_key_bytes = $4 AND recipient_key_type = $1 AND recipient_key_bytes = $2)
             )
             AND ($5::timestamptz IS NULL OR created_at < $5)
-            ORDER BY created_at DESC
+            ORDER BY created_at ASC
             LIMIT $6
             "#,
         )

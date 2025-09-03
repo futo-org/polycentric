@@ -1,12 +1,12 @@
 import * as Core from '@polycentric/polycentric-core';
 import React from 'react';
-import { DecryptedMessage } from './DMClient';
+import { useAvatar } from '../../hooks/imageHooks';
+import { useSystemLink, useTextPublicKey, useUsernameCRDTQuery } from '../../hooks/queryHooks';
+import { Conversation } from '../../types/dm';
+import { ProfilePicture } from '../profile/ProfilePicture';
+import { Link } from '../util/link';
 
-export interface Conversation {
-  otherParty: Core.Models.PublicKey.PublicKey;
-  lastMessage?: DecryptedMessage;
-  unreadCount: number;
-}
+
 
 export interface ConversationListProps {
   conversations: Conversation[];
@@ -14,6 +14,43 @@ export interface ConversationListProps {
   onStartNewConversation: () => void;
   className?: string;
 }
+
+// Component to display user information with username and avatar
+const UserDisplay: React.FC<{ publicKey: Core.Models.PublicKey.PublicKey }> = ({ publicKey }) => {
+  const username = useUsernameCRDTQuery(publicKey) || 'User';
+  const shortPublicKey = useTextPublicKey(publicKey, 10);
+  const avatarUrl = useAvatar(publicKey);
+  const userLink = useSystemLink(publicKey);
+
+  return (
+    <div className="flex items-center space-x-3">
+      <ProfilePicture
+        src={avatarUrl}
+        alt={`${username}'s profile picture`}
+        className="w-10 h-10 rounded-full"
+      />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center space-x-2">
+          {userLink ? (
+            <Link
+              routerLink={userLink}
+              className="font-medium text-gray-900 hover:underline truncate"
+            >
+              {username}
+            </Link>
+          ) : (
+            <span className="font-medium text-gray-900 truncate">{username}</span>
+          )}
+          {shortPublicKey && (
+            <span className="text-xs text-gray-500 font-mono flex-shrink-0">
+              {shortPublicKey}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const ConversationList: React.FC<ConversationListProps> = ({
   conversations,
@@ -39,10 +76,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     }
   };
 
-  const truncateText = (text: string, maxLength: number = 50) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
-  };
+
 
   return (
     <div className={`conversation-list ${className}`}>
@@ -82,22 +116,12 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               onClick={() => onSelectConversation(conversation.otherParty)}
               className="conversation-item hover:bg-gray-50 cursor-pointer transition-colors"
             >
-              <div className="conversation-avatar">
-                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
-                  {conversation.otherParty.key
-                    .toString()
-                    .substring(0, 2)
-                    .toUpperCase()}
-                </div>
-              </div>
-
-              <div className="conversation-content">
-                <div className="conversation-header">
-                  <h4 className="conversation-name font-medium text-gray-900">
-                    {conversation.otherParty.key.toString().substring(0, 16)}...
-                  </h4>
+              <UserDisplay publicKey={conversation.otherParty} />
+              
+              <div className="conversation-content flex-1 min-w-0">
+                <div className="conversation-header flex justify-between items-start mb-1">
                   {conversation.lastMessage && (
-                    <span className="conversation-time text-sm text-gray-500">
+                    <span className="conversation-time text-sm text-gray-500 flex-shrink-0">
                       {formatTimestamp(conversation.lastMessage.timestamp)}
                     </span>
                   )}
@@ -106,9 +130,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 {conversation.lastMessage ? (
                   <div className="conversation-preview">
                     <p className="text-sm text-gray-600">
-                      {conversation.lastMessage.content.type === 'text'
-                        ? truncateText(conversation.lastMessage.content.text)
-                        : '📎 File'}
+                      📄 Message
                     </p>
                   </div>
                 ) : (

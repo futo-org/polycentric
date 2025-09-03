@@ -1,14 +1,96 @@
 import * as Core from '@polycentric/polycentric-core';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { DMMessageContent } from './DMClient';
-import { getDMServerConfig } from './dmServerConfig';
-import { useDMClient } from './useDMClient';
+import { getDMServerConfig } from '../../dm/dmServerConfig';
+import { useDMClient } from '../../dm/useDMClient';
+import { useAvatar } from '../../hooks/imageHooks';
+import { useSystemLink, useTextPublicKey, useUsernameCRDTQuery } from '../../hooks/queryHooks';
+import { DMMessageContent, DecryptedMessage } from '../../types/dm';
+import { ProfilePicture } from '../profile/ProfilePicture';
+import { Link } from '../util/link';
 
 export interface DMChatComponentProps {
   otherParty?: Core.Models.PublicKey.PublicKey;
   otherPartyName?: string;
   className?: string;
 }
+
+// Component to display user information with username and avatar
+const UserDisplay: React.FC<{ publicKey: Core.Models.PublicKey.PublicKey }> = ({ publicKey }) => {
+  const username = useUsernameCRDTQuery(publicKey) || 'User';
+  const shortPublicKey = useTextPublicKey(publicKey, 10);
+  const avatarUrl = useAvatar(publicKey);
+  const userLink = useSystemLink(publicKey);
+
+  return (
+    <div className="flex items-center space-x-3">
+      <ProfilePicture
+        src={avatarUrl}
+        alt={`${username}'s profile picture`}
+        className="w-8 h-8 rounded-full"
+      />
+      <div className="flex items-center space-x-2">
+        {userLink ? (
+          <Link
+            routerLink={userLink}
+            className="font-medium text-gray-900 hover:underline"
+          >
+            {username}
+          </Link>
+        ) : (
+          <span className="font-medium text-gray-900">{username}</span>
+        )}
+        {shortPublicKey && (
+          <span className="text-xs text-gray-500 font-mono">
+            {shortPublicKey}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Component for individual messages to avoid hooks in map
+const MessageItem: React.FC<{ 
+  message: DecryptedMessage; 
+  otherParty?: Core.Models.PublicKey.PublicKey;
+}> = ({ message, otherParty }) => {
+  const username = useUsernameCRDTQuery(message.sender) || 'User';
+  const avatarUrl = useAvatar(message.sender);
+  const isReceived = message.sender.key.toString() === otherParty?.key.toString();
+  
+  return (
+    <div
+      key={message.messageId}
+      className={`message ${isReceived ? 'received' : 'sent'}`}
+    >
+      <div className="message-header">
+        <div className="flex items-center space-x-2 mb-1">
+          <ProfilePicture
+            src={avatarUrl}
+            alt={`${username}'s profile picture`}
+            className="w-6 h-6 rounded-full"
+          />
+          <span className="text-xs text-gray-600 font-medium">
+            {username}
+          </span>
+        </div>
+      </div>
+      <div className="message-content">
+        {message.content.type === 'text' && message.content.text && (
+          <p>{message.content.text}</p>
+        )}
+        {message.content.type === 'file' && (
+          <div className="file-message">
+            <span>📎 {message.content.file?.filename}</span>
+          </div>
+        )}
+      </div>
+      <div className="message-timestamp">
+        {message.timestamp.toLocaleTimeString()}
+      </div>
+    </div>
+  );
+};
 
 export const DMChatComponent: React.FC<DMChatComponentProps> = ({
   otherParty,
@@ -116,11 +198,13 @@ export const DMChatComponent: React.FC<DMChatComponentProps> = ({
   return (
     <div className={`dm-chat ${className}`}>
       <div className="dm-chat-header">
-        <h3>
-          Chat with {otherPartyName || 'User'}
-          {isConnected && <span className="status-indicator online">●</span>}
-          {!isConnected && <span className="status-indicator offline">○</span>}
-        </h3>
+        <div className="flex items-center justify-between">
+          {otherParty && <UserDisplay publicKey={otherParty} />}
+          <div className="flex items-center space-x-2">
+            {isConnected && <span className="status-indicator online">●</span>}
+            {!isConnected && <span className="status-indicator offline">○</span>}
+          </div>
+        </div>
       </div>
 
       <div className="dm-chat-messages">
@@ -131,26 +215,7 @@ export const DMChatComponent: React.FC<DMChatComponentProps> = ({
         )}
 
         {messages.map((message) => (
-          <div
-            key={message.messageId}
-            className={`message ${
-              message.sender.key.toString() === otherParty?.key.toString()
-                ? 'received'
-                : 'sent'
-            }`}
-          >
-            <div className="message-content">
-              {message.content.type === 'text' && <p>{message.content.text}</p>}
-              {message.content.type === 'file' && (
-                <div className="file-message">
-                  <span>📎 {message.content.file?.filename}</span>
-                </div>
-              )}
-            </div>
-            <div className="message-timestamp">
-              {message.timestamp.toLocaleTimeString()}
-            </div>
-          </div>
+          <MessageItem key={message.messageId} message={message} otherParty={otherParty} />
         ))}
         <div ref={messagesEndRef} />
       </div>

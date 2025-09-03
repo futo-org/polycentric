@@ -3,12 +3,50 @@ import * as Core from '@polycentric/polycentric-core';
 import Long from 'long';
 import { useEffect, useMemo, useState } from 'react';
 import { Page } from '../../app/routes';
+import { ConversationList, DMChatComponent, type Conversation } from '../../components/dm';
 import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
-import { Conversation, ConversationList } from '../../dm/ConversationList';
-import { DMChatComponent } from '../../dm/DMChatComponent';
+import { ProfilePicture } from '../../components/profile/ProfilePicture';
+import { Link } from '../../components/util/link';
 import { getDMServerConfig } from '../../dm/dmServerConfig';
 import { useDMClient } from '../../dm/useDMClient';
+import { useAvatar } from '../../hooks/imageHooks';
+import { useSystemLink, useTextPublicKey, useUsernameCRDTQuery } from '../../hooks/queryHooks';
+
+// Component to display user information with username and avatar
+const UserDisplay: React.FC<{ publicKey: Core.Models.PublicKey.PublicKey }> = ({ publicKey }) => {
+  const username = useUsernameCRDTQuery(publicKey) || 'User';
+  const shortPublicKey = useTextPublicKey(publicKey, 10);
+  const avatarUrl = useAvatar(publicKey);
+  const userLink = useSystemLink(publicKey);
+
+  return (
+    <div className="flex items-center space-x-3">
+      <ProfilePicture
+        src={avatarUrl}
+        alt={`${username}'s profile picture`}
+        className="w-8 h-8 rounded-full"
+      />
+      <div className="flex items-center space-x-2">
+        {userLink ? (
+          <Link
+            routerLink={userLink}
+            className="font-medium text-gray-900 hover:underline"
+          >
+            {username}
+          </Link>
+        ) : (
+          <span className="font-medium text-gray-900">{username}</span>
+        )}
+        {shortPublicKey && (
+          <span className="text-xs text-gray-500 font-mono">
+            {shortPublicKey}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export const DMPage: Page = () => {
   const [selectedContact, setSelectedContact] = useState<{
@@ -130,6 +168,49 @@ export const DMPage: Page = () => {
           />
         </div>
 
+        {/* Preview of the user when a valid public key is entered */}
+        {publicKeyInput.trim() && (() => {
+          try {
+            let previewPublicKey: Core.Models.PublicKey.PublicKey;
+            const input = publicKeyInput.trim();
+            
+            try {
+              previewPublicKey = Core.Models.PublicKey.fromString(
+                input as Core.Models.PublicKey.PublicKeyString,
+              );
+            } catch {
+              const keyBytesBase64 = input.replace(/[^A-Za-z0-9+/=]/g, '');
+              const binaryString = atob(keyBytesBase64);
+              const keyBytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                keyBytes[i] = binaryString.charCodeAt(i);
+              }
+              
+              if (keyBytes.length === 32) {
+                previewPublicKey = Core.Models.PublicKey.fromProto({
+                  keyType: Long.fromNumber(1),
+                  key: keyBytes,
+                });
+              } else {
+                return null;
+              }
+            }
+            
+            return (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <p className="text-sm text-blue-800 mb-2">Preview:</p>
+                <UserDisplay publicKey={previewPublicKey} />
+              </div>
+            );
+          } catch {
+            return (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-800">Invalid public key format</p>
+              </div>
+            );
+          }
+        })()}
+
         <button
           onClick={handleStartConversation}
           disabled={!publicKeyInput.trim()}
@@ -216,9 +297,7 @@ export const DMPage: Page = () => {
               <div className="h-full flex flex-col">
                 <div className="border-b p-4 bg-gray-50">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-medium text-gray-900">
-                      {selectedContact.name || 'Direct Message'}
-                    </h3>
+                    <UserDisplay publicKey={selectedContact.publicKey} />
                     <button
                       onClick={handleBackToConversations}
                       className="text-gray-500 hover:text-gray-700 text-sm"
@@ -230,7 +309,6 @@ export const DMPage: Page = () => {
                 <div className="flex-1">
                   <DMChatComponent
                     otherParty={selectedContact.publicKey}
-                    otherPartyName={selectedContact.name}
                   />
                 </div>
               </div>

@@ -172,15 +172,11 @@ export class DMClient {
       throw new Error('Recipient has not registered for DMs');
     }
 
-    // Generate ephemeral keypair
-    const ephemeralKeyPair = await this.generateX25519KeyPair();
-
     // Encrypt the message content
     const messageBytes = new TextEncoder().encode(JSON.stringify(content));
 
     const { encrypted, nonce, algorithm } = await this.encryptMessage(
       messageBytes,
-      ephemeralKeyPair.privateKey,
       recipientKey,
     );
 
@@ -198,7 +194,7 @@ export class DMClient {
         key_type: recipient.keyType.toNumber(),
         key_bytes: Array.from(recipient.key),
       },
-      ephemeral_public_key: Array.from(ephemeralKeyPair.publicKey),
+      ephemeral_public_key: Array.from(this.x25519KeyPair!.publicKey),
       encrypted_content: Array.from(encrypted),
       nonce: Array.from(nonce),
       // Note: timestamp and reply_to are NOT included in signature (server excludes them)
@@ -221,7 +217,7 @@ export class DMClient {
       this.processHandle.system().key.length +
       8 +
       recipient.key.length +
-      ephemeralKeyPair.publicKey.length +
+      this.x25519KeyPair!.publicKey.length +
       encrypted.length +
       nonce.length;
 
@@ -255,9 +251,9 @@ export class DMClient {
     messageBytes2.set(recipient.key, offset);
     offset += recipient.key.length;
 
-    // Write ephemeral public key
-    messageBytes2.set(ephemeralKeyPair.publicKey, offset);
-    offset += ephemeralKeyPair.publicKey.length;
+    // Write ephemeral public key (now using our persistent X25519 public key)
+    messageBytes2.set(this.x25519KeyPair!.publicKey, offset);
+    offset += this.x25519KeyPair!.publicKey.length;
 
     // Write encrypted content
     messageBytes2.set(encrypted, offset);
@@ -276,7 +272,7 @@ export class DMClient {
         key_type: recipient.keyType.toNumber(),
         key_bytes: Array.from(recipient.key),
       },
-      ephemeral_public_key: Array.from(ephemeralKeyPair.publicKey),
+      ephemeral_public_key: Array.from(this.x25519KeyPair!.publicKey),
       encrypted_content: Array.from(encrypted),
       nonce: Array.from(nonce),
       encryption_algorithm: algorithm, // Add the encryption algorithm
@@ -348,9 +344,9 @@ export class DMClient {
         ? {
             messageId: conv.last_message.message_id,
             sender: this.parsePublicKey(conv.last_message.sender),
-            content: conv.last_message.content,
             timestamp: new Date(conv.last_message.timestamp),
-            replyTo: conv.last_message.reply_to,
+            // Note: We don't have decrypted content here, only encrypted_content
+            // The actual message content will be decrypted when viewing the conversation
           }
         : undefined,
       unreadCount: conv.unread_count || 0,
@@ -522,24 +518,44 @@ export class DMClient {
     return { privateKey, publicKey };
   }
 
+  private async ed25519ToX25519PrivateKey(ed25519PublicKey: Uint8Array): Promise<Uint8Array> {
+    // Convert Ed25519 public key to X25519 private key equivalent
+    // This is a deterministic conversion for key derivation purposes
+    
+    // Use HKDF to derive a deterministic X25519 private key from Ed25519 public key
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw',
+      ed25519PublicKey,
+      { name: 'HKDF' },
+      false,
+      ['deriveBits'],
+    );
+
+    const derivedBytes = await crypto.subtle.deriveBits(
+      {
+        name: 'HKDF',
+        salt: new TextEncoder().encode('polycentric-ed25519-to-x25519'),
+        info: new TextEncoder().encode('dm-encryption-key'),
+        hash: 'SHA-256',
+      },
+      keyMaterial,
+      256, // 32 bytes for X25519 private key
+    );
+
+    return new Uint8Array(derivedBytes);
+  }
+
   private async encryptMessage(
     message: Uint8Array,
-    ephemeralPrivateKey: Uint8Array,
     recipientPublicKey: Uint8Array,
   ): Promise<{ encrypted: Uint8Array; nonce: Uint8Array; algorithm: string }> {
     // Validate inputs
-    if (!message || !ephemeralPrivateKey || !recipientPublicKey) {
+    if (!message || !recipientPublicKey) {
       throw new Error('All parameters must be valid Uint8Arrays');
     }
 
     if (message.length === 0) {
       throw new Error('Message cannot be empty');
-    }
-
-    if (ephemeralPrivateKey.length !== 32) {
-      throw new Error(
-        `Ephemeral private key must be 32 bytes, got ${ephemeralPrivateKey.length}`,
-      );
     }
 
     if (recipientPublicKey.length !== 32) {
@@ -553,9 +569,10 @@ export class DMClient {
     crypto.getRandomValues(nonce);
 
     try {
-      // Perform X25519 ECDH key exchange
+      // Use our persistent X25519 keypair for encryption
+      // This allows us to decrypt our own sent messages later
       const sharedSecret = x25519.getSharedSecret(
-        ephemeralPrivateKey,
+        this.x25519KeyPair!.privateKey,
         recipientPublicKey,
       );
 
@@ -593,7 +610,7 @@ export class DMClient {
           false,
           ['encrypt'],
         );
-        algorithmName = 'ChaCha20-Poly1305';
+        algorithmName = 'ChaCha20Poly1305'; // Match database format (no hyphens)
       } catch (error) {
         // Fallback to AES-GCM (more widely supported)
         encryptionKey = await crypto.subtle.deriveKey(
@@ -608,15 +625,15 @@ export class DMClient {
           false,
           ['encrypt'],
         );
-        algorithmName = 'Aes256Gcm';
+        algorithmName = 'Aes256Gcm'; // Match database format
       }
 
       // Encrypt the message using the available algorithm
       let encrypted;
-      if (algorithmName === 'ChaCha20-Poly1305') {
+      if (algorithmName === 'ChaCha20Poly1305') {
         encrypted = await crypto.subtle.encrypt(
           {
-            name: 'ChaCha20-Poly1305',
+            name: 'ChaCha20-Poly1305', // WebCrypto API still uses hyphens
             iv: nonce,
           },
           encryptionKey,
@@ -627,7 +644,7 @@ export class DMClient {
         const aesNonce = nonce.slice(0, 12); // AES-GCM uses 12-byte nonce
         encrypted = await crypto.subtle.encrypt(
           {
-            name: 'AES-GCM',
+            name: 'AES-GCM', // WebCrypto API still uses hyphens
             iv: aesNonce,
           },
           encryptionKey,
@@ -645,12 +662,8 @@ export class DMClient {
     } catch (error) {
       console.error('Encryption failed:', error);
       console.error('Message length:', message.length);
-      console.error(
-        'Ephemeral private key length:',
-        ephemeralPrivateKey.length,
-      );
       console.error('Recipient public key length:', recipientPublicKey.length);
-      throw error;
+      throw error
     }
   }
 
@@ -661,12 +674,32 @@ export class DMClient {
       throw new Error('No X25519 keypair available for decryption');
     }
 
-    // CRITICAL: Check if we're using the right keys
+    // Check if we're using the right keys
+    const amISender = this.processHandle.system().key.toString() === encryptedMsg.sender.key.toString();
+    const amIRecipient = this.processHandle.system().key.toString() === encryptedMsg.recipient.key.toString();
 
-    // Perform X25519 ECDH key exchange with sender's ephemeral key
+    // For decryption, we need to use X25519 keys (not Ed25519 keys)
+    // The sender's X25519 public key is stored in ephemeral_public_key field
+    // The recipient's X25519 public key needs to be derived from their Ed25519 key
+    
+    let otherPartyX25519Key: Uint8Array;
+    
+    if (amISender) {
+      // We sent this message - we need the recipient's X25519 public key
+      // We can derive this from their Ed25519 public key
+      otherPartyX25519Key = x25519.getPublicKey(
+        await this.ed25519ToX25519PrivateKey(encryptedMsg.recipient.key)
+      );
+    } else {
+      // We received this message - use the sender's X25519 public key from ephemeral_public_key
+      otherPartyX25519Key = encryptedMsg.ephemeralPublicKey;
+    }
+    
+
+    
     const sharedSecret = x25519.getSharedSecret(
       this.x25519KeyPair.privateKey,
-      encryptedMsg.ephemeralPublicKey,
+      otherPartyX25519Key
     );
 
     // Use HKDF to derive decryption key from shared secret
@@ -685,7 +718,7 @@ export class DMClient {
     let algorithmName: string;
 
     try {
-      if (algorithm === 'ChaCha20-Poly1305') {
+      if (algorithm === 'ChaCha20Poly1305') {
         // Use ChaCha20-Poly1305
         decryptionKey = await crypto.subtle.deriveKey(
           {
@@ -738,6 +771,7 @@ export class DMClient {
       } else {
         // AES-GCM uses 12-byte nonce
         const aesNonce = encryptedMsg.nonce.slice(0, 12);
+        
         decrypted = await crypto.subtle.decrypt(
           {
             name: 'AES-GCM',
