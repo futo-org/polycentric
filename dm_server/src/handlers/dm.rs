@@ -65,25 +65,35 @@ pub async fn send_dm(
         }
     }
 
-    // Verify signature - sender must sign the message data (excluding timestamp to avoid timing issues)
-    let message_data = serde_json::to_vec(&serde_json::json!({
-        "message_id": request.message_id,
-        "sender": {
-            "key_type": sender.key_type,
-            "key_bytes": sender.key_bytes,
-        },
-        "recipient": {
-            "key_type": request.recipient.key_type,
-            "key_bytes": request.recipient.key_bytes,
-        },
-        "ephemeral_public_key": request.ephemeral_public_key,
-        "encrypted_content": request.encrypted_content,
-        "nonce": request.nonce,
-    }))
-    .map_err(|e| {
-        log::error!("Failed to serialize message for veriication: {}", e);
-        AuthError::InternalError
-    })?;
+    // Verify signature - use concatenated byte format to match client
+    // Format: [message_id_bytes][sender_key_type][sender_key_bytes][recipient_key_type][recipient_key_bytes][ephemeral_key][encrypted_content][nonce]
+    
+    let message_id_bytes = request.message_id.as_bytes();
+    let mut message_data = Vec::new();
+    
+    // Add message_id bytes
+    message_data.extend_from_slice(message_id_bytes);
+    
+    // Add sender key_type (u64, little-endian)
+    message_data.extend_from_slice(&sender.key_type.to_le_bytes());
+    
+    // Add sender key_bytes
+    message_data.extend_from_slice(&sender.key_bytes);
+    
+    // Add recipient key_type (u64, little-endian)
+    message_data.extend_from_slice(&request.recipient.key_type.to_le_bytes());
+    
+    // Add recipient key_bytes
+    message_data.extend_from_slice(&request.recipient.key_bytes);
+    
+    // Add ephemeral public key
+    message_data.extend_from_slice(&request.ephemeral_public_key);
+    
+    // Add encrypted content
+    message_data.extend_from_slice(&request.encrypted_content);
+    
+    // Add nonce
+    message_data.extend_from_slice(&request.nonce);
 
     let verifying_key = sender.verifying_key().map_err(|e| {
         log::error!("Invalid sender key: {}", e);
@@ -128,6 +138,7 @@ pub async fn send_dm(
             &request.ephemeral_public_key,
             &request.encrypted_content,
             &request.nonce,
+            request.encryption_algorithm.as_deref(),
             message_timestamp,
             request.reply_to.as_deref(),
         )

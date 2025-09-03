@@ -131,3 +131,28 @@ pub async fn get_conversations(
         }
     }
 }
+
+/// Get detailed conversation list with last message and unread count
+pub async fn get_detailed_conversations(
+    identity: PolycentricIdentity,
+    Query(params): Query<HashMap<String, String>>,
+    State(state): State<AppState>,
+) -> Result<Json<GetConversationsResponse>, AuthError> {
+    let limit = params
+        .get("limit")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(50)
+        .min(100); // Max 100 conversations
+
+    match state.db.get_detailed_conversation_list(&identity, limit).await {
+        Ok(conversations) => {
+            let response = GetConversationsResponse { conversations };
+            Ok(Json(response))
+        }
+        Err(e) => {
+            log::error!("Failed to get detailed conversation list: {}", e);
+            let empty_response = GetConversationsResponse { conversations: vec![] };
+            Ok(Json(empty_response))
+        }
+    }
+}

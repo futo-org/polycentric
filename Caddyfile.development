@@ -11,7 +11,7 @@ localhost:8080 {
         Access-Control-Allow-Origin "https://localhost:3000" # Adjust port if your frontend uses a different one
         Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
         # Allow headers needed by your app and the useIsAdmin hook
-        Access-Control-Allow-Headers "Content-Type, X-Polycentric-Pubkey-Base64, X-Polycentric-Signature-Base64, X-Polycentric-Challenge-ID, Origin, Accept"
+        Access-Control-Allow-Headers "Content-Type, X-Polycentric-Pubkey-Base64, X-Polycentric-Signature-Base64, X-Polycentric-Challenge-ID, Origin, Accept, Authorization"
         Access-Control-Allow-Credentials true
         # Add Vary header is important for caching proxies
         Vary "Origin"
@@ -22,7 +22,7 @@ localhost:8080 {
     # Respond immediately to OPTIONS requests for paths that need CORS preflight
     # This prevents the OPTIONS request from hitting the backend which returns 405
     @options_preflight method OPTIONS
-    @preflight_paths path /forum/* /auth/* /server-info /uploads/images/*
+    @preflight_paths path /forum/* /auth/* /server-info /uploads/images/* /dm/*
     handle @options_preflight {
         handle @preflight_paths {
             # Respond 200 OK to the OPTIONS request
@@ -73,11 +73,27 @@ localhost:8080 {
         reverse_proxy forum_server:3000
     }
 
+    # Handle DM server API requests
+    @dm_api path /dm/*
+    handle @dm_api {
+        uri strip_prefix /dm
+        reverse_proxy dm_server:8080
+    }
+
+    # Handle DM WebSocket connections
+    @dm_websocket path /dm-ws
+    handle @dm_websocket {
+        uri strip_prefix /dm-ws
+        reverse_proxy dm_server:8080
+    }
+
     # Fallback: Handle everything else via Varnish
     handle {
         reverse_proxy http://varnish:80
     }
 }
+
+
 
 # Add a new subdomain for verifiers
 verifier.localhost:8080 {

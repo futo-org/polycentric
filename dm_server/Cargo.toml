@@ -29,6 +29,7 @@ rand = "0.8"
 constant_time_eq = "0.3.0"
 polycentric-protocol = { path = "../polycentric-protocol", features = ["sqlx"] }
 chacha20poly1305 = "0.10.1"
+aes-gcm = "0.10.3"
 
 [dev-dependencies]
 tokio-test = "0.4"

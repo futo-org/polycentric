@@ -72,6 +72,7 @@ impl DatabaseManager {
         ephemeral_public_key: &[u8],
         encrypted_content: &[u8],
         nonce: &[u8],
+        encryption_algorithm: Option<&str>,
         message_timestamp: DateTime<Utc>,
         reply_to: Option<&str>,
     ) -> Result<Uuid> {
@@ -79,9 +80,9 @@ impl DatabaseManager {
             r#"
             INSERT INTO dm_messages (
                 message_id, sender_key_type, sender_key_bytes, recipient_key_type, recipient_key_bytes,
-                ephemeral_public_key, encrypted_content, nonce, message_timestamp, reply_to_message_id
+                ephemeral_public_key, encrypted_content, nonce, encryption_algorithm, message_timestamp, reply_to_message_id
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING id
             "#,
         )
@@ -93,6 +94,7 @@ impl DatabaseManager {
         .bind(ephemeral_public_key)
         .bind(encrypted_content)
         .bind(nonce)
+        .bind(encryption_algorithm.unwrap_or("ChaCha20Poly1305")) // Default to ChaCha20-Poly1305 for backward compatibility
         .bind(message_timestamp)
         .bind(reply_to)
         .fetch_one(&self.pool)
@@ -119,7 +121,7 @@ impl DatabaseManager {
         let messages = sqlx::query_as::<_, DMMessage>(
             r#"
             SELECT id, message_id, sender_key_type, sender_key_bytes, recipient_key_type, recipient_key_bytes,
-                   ephemeral_public_key, encrypted_content, nonce, created_at, message_timestamp,
+                   ephemeral_public_key, encrypted_content, nonce, encryption_algorithm, created_at, message_timestamp,
                    reply_to_message_id, delivered_at, read_at
             FROM dm_messages
             WHERE (
@@ -153,7 +155,7 @@ impl DatabaseManager {
         let messages = sqlx::query_as::<_, DMMessage>(
             r#"
             SELECT id, message_id, sender_key_type, sender_key_bytes, recipient_key_type, recipient_key_bytes,
-                   ephemeral_public_key, encrypted_content, nonce, created_at, message_timestamp,
+                   ephemeral_public_key, encrypted_content, nonce, encryption_algorithm, created_at, message_timestamp,
                    reply_to_message_id, delivered_at, read_at
             FROM dm_messages
             WHERE recipient_key_type = $1 AND recipient_key_bytes = $2
@@ -333,6 +335,7 @@ impl DatabaseManager {
                         WHEN sender_key_type = $1 AND sender_key_bytes = $2 
                         THEN recipient_key_bytes 
                         ELSE sender_key_bytes 
+                    END as other_key_type
                     END as other_key_bytes,
                     MAX(created_at) as last_message_at
                 FROM dm_messages
@@ -364,6 +367,115 @@ impl DatabaseManager {
                 {
                     let identity = PolycentricIdentity::new(key_type as u64, key_bytes);
                     Some((identity, last_message_at))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        Ok(conversations)
+    }
+
+    /// Get detailed conversation list with last message and unread count
+    pub async fn get_detailed_conversation_list(
+        &self,
+        user: &PolycentricIdentity,
+        limit: u32,
+    ) -> Result<Vec<ConversationSummary>> {
+        let rows = sqlx::query(
+            r#"
+            SELECT DISTINCT ON (
+                CASE 
+                    WHEN sender_key_type = $1 AND sender_key_bytes = $2 
+                    THEN recipient_key_type 
+                    ELSE sender_key_type 
+                END,
+                CASE 
+                    WHEN sender_key_type = $1 AND sender_key_bytes = $2 
+                    THEN recipient_key_bytes 
+                    ELSE sender_key_bytes 
+                END
+            )
+                CASE 
+                    WHEN sender_key_type = $1 AND sender_key_bytes = $2 
+                    THEN recipient_key_type 
+                    ELSE sender_key_type 
+                END as conversation_key_type,
+                CASE 
+                    WHEN sender_key_type = $1 AND sender_key_bytes = $2 
+                    THEN recipient_key_bytes 
+                    ELSE sender_key_bytes 
+                END as conversation_key_bytes,
+                message_id,
+                sender_key_type,
+                sender_key_bytes,
+                encrypted_content,
+                nonce,
+                encryption_algorithm,
+                created_at,
+                CASE 
+                    WHEN sender_key_type = $1 AND sender_key_bytes = $2 
+                    THEN false 
+                    ELSE true 
+                END as is_from_other
+            FROM dm_messages
+            WHERE sender_key_type = $1 AND sender_key_bytes = $2
+               OR recipient_key_type = $1 AND recipient_key_bytes = $2
+            ORDER BY 
+                conversation_key_type, 
+                conversation_key_bytes, 
+                created_at DESC
+            LIMIT $3
+            "#,
+        )
+        .bind(user.key_type as i64)
+        .bind(&user.key_bytes)
+        .bind(limit as i64)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let conversations = rows
+            .into_iter()
+            .filter_map(|row| {
+                let key_type: Option<i64> = row.get("conversation_key_type");
+                let key_bytes: Option<Vec<u8>> = row.get("conversation_key_bytes");
+                let message_id: Option<String> = row.get("message_id");
+                let sender_key_type: Option<i64> = row.get("sender_key_type");
+                let sender_key_bytes: Option<Vec<u8>> = row.get("sender_key_bytes");
+                let encrypted_content: Option<Vec<u8>> = row.get("encrypted_content");
+                let nonce: Option<Vec<u8>> = row.get("nonce");
+                let encryption_algorithm: Option<String> = row.get("encryption_algorithm");
+                let created_at: Option<DateTime<Utc>> = row.get("created_at");
+                let is_from_other: Option<bool> = row.get("is_from_other");
+
+                if let (Some(key_type), Some(key_bytes), Some(message_id), Some(sender_key_type), 
+                        Some(sender_key_bytes), Some(encrypted_content), Some(nonce), 
+                        Some(encryption_algorithm), Some(created_at), Some(is_from_other)) = 
+                    (key_type, key_bytes, message_id, sender_key_type, sender_key_bytes, 
+                     encrypted_content, nonce, encryption_algorithm, created_at, is_from_other) {
+                    
+                    let other_identity = PolycentricIdentity::new(key_type as u64, key_bytes);
+                    let sender_identity = PolycentricIdentity::new(sender_key_type as u64, sender_key_bytes);
+                    
+                    let last_message = if is_from_other {
+                        Some(LastMessageInfo {
+                            message_id,
+                            sender: sender_identity,
+                            encrypted_content,
+                            nonce,
+                            encryption_algorithm: encryption_algorithm.clone(),
+                            timestamp: created_at,
+                        })
+                    } else {
+                        None
+                    };
+
+                    Some(ConversationSummary {
+                        other_party: other_identity,
+                        last_message,
+                        last_activity: created_at,
+                        unread_count: 0, // TODO: Implement unread count
+                    })
                 } else {
                     None
                 }

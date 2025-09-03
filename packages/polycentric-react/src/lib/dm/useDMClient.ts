@@ -8,6 +8,7 @@ import {
   DMServerConfig,
   EncryptedMessage,
 } from './DMClient';
+import { refreshDMServerConfig } from './dmServerConfig';
 
 export interface UseDMClientOptions {
   config: DMServerConfig;
@@ -32,6 +33,13 @@ export interface UseDMClientReturn {
     otherParty: Core.Models.PublicKey.PublicKey,
     cursor?: string,
   ) => Promise<void>;
+  getAllConversations: () => Promise<{
+    conversations: Array<{
+      otherParty: Core.Models.PublicKey.PublicKey;
+      lastMessage?: DecryptedMessage;
+      unreadCount: number;
+    }>;
+  }>;
   connectWebSocket: () => Promise<void>;
   disconnectWebSocket: () => void;
   clearError: () => void;
@@ -52,7 +60,9 @@ export function useDMClient(options: UseDMClientOptions): UseDMClientReturn {
   // Initialize client when process handle is available
   useEffect(() => {
     if (processHandle) {
-      const dmClient = new DMClient(options.config, processHandle);
+      // Force refresh configuration to ensure we have the latest URLs
+      const freshConfig = refreshDMServerConfig();
+      const dmClient = new DMClient(freshConfig, processHandle);
 
       // Set up message handler
       dmClient.onMessage((encryptedMsg: EncryptedMessage) => {
@@ -251,6 +261,13 @@ export function useDMClient(options: UseDMClientOptions): UseDMClientReturn {
     setError(null);
   }, []);
 
+  const getAllConversations = useCallback(async () => {
+    if (!client) {
+      throw new Error('Client not initialized');
+    }
+    return await client.getAllConversations();
+  }, [client]);
+
   return {
     client,
     isConnected,
@@ -260,6 +277,7 @@ export function useDMClient(options: UseDMClientOptions): UseDMClientReturn {
     registerKeys,
     sendMessage,
     loadHistory,
+    getAllConversations,
     connectWebSocket,
     disconnectWebSocket,
     clearError,

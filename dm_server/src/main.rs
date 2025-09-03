@@ -1,6 +1,5 @@
 use axum::{
     extract::{MatchedPath, Request},
-    http::Method,
     routing::{get, post},
     Router,
 };
@@ -8,7 +7,6 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::{
     classify::StatusInRangeAsFailures,
-    cors::{Any, CorsLayer},
     trace::{DefaultOnFailure, DefaultOnResponse, TraceLayer},
 };
 use tracing::{self as log, info_span, Level};
@@ -101,14 +99,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn create_routes(state: AppState) -> Router {
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_headers([
-            axum::http::header::CONTENT_TYPE,
-            axum::http::header::AUTHORIZATION,
-        ])
-        .allow_methods([Method::GET, Method::POST]);
-
     Router::new()
         .route("/health", get(health_handler))
         .route("/challenge", get(auth::get_challenge))
@@ -117,8 +107,9 @@ fn create_routes(state: AppState) -> Router {
         .route("/send", post(dm::send_dm))
         .route("/history", post(dm::get_dm_history))
         .route("/conversations", get(keys::get_conversations))
+        .route("/conversations/detailed", get(keys::get_detailed_conversations))
         .route("/mark_read", post(dm::mark_messages_read))
-        .layer(cors)
+
         .with_state(state)
         .layer(
             TraceLayer::new(StatusInRangeAsFailures::new(400..=599).into_make_classifier())
@@ -146,6 +137,8 @@ fn create_routes(state: AppState) -> Router {
 async fn health_handler() -> axum::Json<serde_json::Value> {
     axum::Json(serde_json::json!({"status": "ok"}))
 }
+
+
 
 async fn start_websocket_server(ws_manager: WebSocketManager, db: Arc<DatabaseManager>) {
     let listener = TcpListener::bind(format!("0.0.0.0:{}", CONFIG.websocket_port))

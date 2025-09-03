@@ -26,6 +26,7 @@ pub struct DMMessage {
     pub ephemeral_public_key: Vec<u8>,
     pub encrypted_content: Vec<u8>,
     pub nonce: Vec<u8>,
+    pub encryption_algorithm: String, // 'ChaCha20Poly1305' or 'Aes256Gcm'
     pub created_at: DateTime<Utc>,
     pub message_timestamp: DateTime<Utc>,
     pub reply_to_message_id: Option<String>,
@@ -127,6 +128,7 @@ pub struct SendDMRequest {
     pub ephemeral_public_key: Vec<u8>,
     pub encrypted_content: Vec<u8>,
     pub nonce: Vec<u8>,
+    pub encryption_algorithm: Option<String>, // 'ChaCha20Poly1305' or 'Aes256Gcm', optional for backward compatibility
     pub message_id: String,
     pub reply_to: Option<String>,
     pub signature: Vec<u8>, // Signature by sender's identity key
@@ -161,6 +163,7 @@ pub struct DMMessageResponse {
     pub ephemeral_public_key: Vec<u8>,
     pub encrypted_content: Vec<u8>,
     pub nonce: Vec<u8>,
+    pub encryption_algorithm: String, // 'ChaCha20Poly1305' or 'Aes256Gcm'
     pub timestamp: DateTime<Utc>,
     pub reply_to: Option<String>,
 }
@@ -177,6 +180,7 @@ impl From<DMMessage> for DMMessageResponse {
             ephemeral_public_key: msg.ephemeral_public_key,
             encrypted_content: msg.encrypted_content,
             nonce: msg.nonce,
+            encryption_algorithm: msg.encryption_algorithm,
             timestamp: msg.message_timestamp,
             reply_to: msg.reply_to_message_id,
         }
@@ -246,4 +250,30 @@ pub struct WSAuthResponse {
     pub identity: PolycentricIdentity,
     pub signature: Vec<u8>,
     pub challenge: Vec<u8>,
+}
+
+/// Information about the last message in a conversation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LastMessageInfo {
+    pub message_id: String,
+    pub sender: PolycentricIdentity,
+    pub encrypted_content: Vec<u8>,
+    pub nonce: Vec<u8>,
+    pub encryption_algorithm: String,
+    pub timestamp: DateTime<Utc>,
+}
+
+/// Summary of a conversation for the conversation list
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConversationSummary {
+    pub other_party: PolycentricIdentity,
+    pub last_message: Option<LastMessageInfo>,
+    pub last_activity: DateTime<Utc>,
+    pub unread_count: u32,
+}
+
+/// Response for getting conversations
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GetConversationsResponse {
+    pub conversations: Vec<ConversationSummary>,
 }

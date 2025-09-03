@@ -3,9 +3,16 @@ use chacha20poly1305::{
     aead::{Aead, AeadCore, KeyInit},
     ChaCha20Poly1305, Nonce,
 };
+use aes_gcm::{Aes256Gcm, Nonce as AesNonce};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use x25519_dalek::{EphemeralSecret, PublicKey as X25519PublicKey, StaticSecret};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum EncryptionAlgorithm {
+    ChaCha20Poly1305,
+    Aes256Gcm,
+}
 
 /// Encryption utilities for end-to-end encrypted direct messages
 pub struct DMCrypto;
@@ -44,12 +51,13 @@ impl DMCrypto {
             .map_err(|e| anyhow!("Signature verification failed: {}", e))
     }
 
-    /// Encrypt a message using X25519 ECDH + ChaCha20Poly1305
+    /// Encrypt a message using X25519 ECDH + ChaCha20Poly1305 or AES-GCM
     ///
     /// # Arguments
     /// * `message` - Plain text message to encrypt
     /// * `ephemeral_secret` - Sender's ephemeral private key
     /// * `recipient_public` - Recipient's X25519 public key
+    /// * `algorithm` - Encryption algorithm to use
     ///
     /// # Returns
     /// * `(encrypted_data, nonce)` - The encrypted message and nonce used
@@ -57,32 +65,53 @@ impl DMCrypto {
         message: &[u8],
         ephemeral_secret: EphemeralSecret,
         recipient_public: &X25519PublicKey,
+        algorithm: EncryptionAlgorithm,
     ) -> Result<(Vec<u8>, Vec<u8>)> {
         // Perform ECDH to get shared secret
         let shared_secret = ephemeral_secret.diffie_hellman(recipient_public);
 
-        // Use the shared secret as encryption key
-        let cipher = ChaCha20Poly1305::new_from_slice(shared_secret.as_bytes())
-            .map_err(|e| anyhow!("Failed to create cipher: {}", e))?;
+        match algorithm {
+            EncryptionAlgorithm::ChaCha20Poly1305 => {
+                // Use ChaCha20-Poly1305
+                let cipher = ChaCha20Poly1305::new_from_slice(shared_secret.as_bytes())
+                    .map_err(|e| anyhow!("Failed to create ChaCha20-Poly1305 cipher: {}", e))?;
 
-        // Generate a random nonce
-        let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+                // Generate a random nonce
+                let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
 
-        // Encrypt the message
-        let encrypted = cipher
-            .encrypt(&nonce, message)
-            .map_err(|e| anyhow!("Encryption failed: {}", e))?;
+                // Encrypt the message
+                let encrypted = cipher
+                    .encrypt(&nonce, message)
+                    .map_err(|e| anyhow!("ChaCha20-Poly1305 encryption failed: {}", e))?;
 
-        Ok((encrypted, nonce.to_vec()))
+                Ok((encrypted, nonce.to_vec()))
+            }
+            EncryptionAlgorithm::Aes256Gcm => {
+                // Use AES-256-GCM
+                let cipher = Aes256Gcm::new_from_slice(shared_secret.as_bytes())
+                    .map_err(|e| anyhow!("Failed to create AES-256-GCM cipher: {}", e))?;
+
+                // Generate a random nonce (AES-GCM uses 12 bytes)
+                let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+
+                // Encrypt the message
+                let encrypted = cipher
+                    .encrypt(&nonce, message)
+                    .map_err(|e| anyhow!("AES-256-GCM encryption failed: {}", e))?;
+
+                Ok((encrypted, nonce.to_vec()))
+            }
+        }
     }
 
-    /// Decrypt a message using X25519 ECDH + ChaCha20Poly1305
+    /// Decrypt a message using X25519 ECDH + ChaCha20Poly1305 or AES-GCM
     ///
     /// # Arguments
     /// * `encrypted_data` - The encrypted message
     /// * `nonce` - The nonce used for encryption
     /// * `recipient_secret` - Recipient's X25519 private key
     /// * `ephemeral_public` - Sender's ephemeral public key
+    /// * `algorithm` - Encryption algorithm used
     ///
     /// # Returns
     /// * Decrypted plain text message
@@ -91,23 +120,43 @@ impl DMCrypto {
         nonce: &[u8],
         recipient_secret: &StaticSecret,
         ephemeral_public: &X25519PublicKey,
+        algorithm: EncryptionAlgorithm,
     ) -> Result<Vec<u8>> {
         // Perform ECDH to get shared secret
         let shared_secret = recipient_secret.diffie_hellman(ephemeral_public);
 
-        // Use the shared secret as decryption key
-        let cipher = ChaCha20Poly1305::new_from_slice(shared_secret.as_bytes())
-            .map_err(|e| anyhow!("Failed to create cipher: {}", e))?;
+        match algorithm {
+            EncryptionAlgorithm::ChaCha20Poly1305 => {
+                // Use ChaCha20-Poly1305
+                let cipher = ChaCha20Poly1305::new_from_slice(shared_secret.as_bytes())
+                    .map_err(|e| anyhow!("Failed to create ChaCha20-Poly1305 cipher: {}", e))?;
 
-        // Convert nonce
-        let nonce = Nonce::from_slice(nonce);
+                // Convert nonce
+                let nonce = Nonce::from_slice(nonce);
 
-        // Decrypt the message
-        let decrypted = cipher
-            .decrypt(nonce, encrypted_data)
-            .map_err(|e| anyhow!("Decryption failed: {}", e))?;
+                // Decrypt the message
+                let decrypted = cipher
+                    .decrypt(nonce, encrypted_data)
+                    .map_err(|e| anyhow!("ChaCha20-Poly1305 decryption failed: {}", e))?;
 
-        Ok(decrypted)
+                Ok(decrypted)
+            }
+            EncryptionAlgorithm::Aes256Gcm => {
+                // Use AES-256-GCM
+                let cipher = Aes256Gcm::new_from_slice(shared_secret.as_bytes())
+                    .map_err(|e| anyhow!("Failed to create AES-256-GCM cipher: {}", e))?;
+
+                // Convert nonce (AES-GCM uses 12 bytes)
+                let nonce = AesNonce::from_slice(nonce);
+
+                // Decrypt the message
+                let decrypted = cipher
+                    .decrypt(nonce, encrypted_data)
+                    .map_err(|e| anyhow!("AES-256-GCM decryption failed: {}", e))?;
+
+                Ok(decrypted)
+            }
+        }
     }
 
     /// Generate a random challenge for authentication

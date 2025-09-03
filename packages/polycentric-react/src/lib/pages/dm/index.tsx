@@ -1,11 +1,14 @@
 import { IonContent } from '@ionic/react';
 import * as Core from '@polycentric/polycentric-core';
-import { useState } from 'react';
+import Long from 'long';
+import { useEffect, useMemo, useState } from 'react';
 import { Page } from '../../app/routes';
 import { Header } from '../../components/layout/header';
 import { RightCol } from '../../components/layout/rightcol';
+import { Conversation, ConversationList } from '../../dm/ConversationList';
 import { DMChatComponent } from '../../dm/DMChatComponent';
-import Long from 'long';
+import { getDMServerConfig } from '../../dm/dmServerConfig';
+import { useDMClient } from '../../dm/useDMClient';
 
 export const DMPage: Page = () => {
   const [selectedContact, setSelectedContact] = useState<{
@@ -13,6 +16,45 @@ export const DMPage: Page = () => {
     name?: string;
   } | null>(null);
   const [publicKeyInput, setPublicKeyInput] = useState('');
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [showNewConversation, setShowNewConversation] = useState(false);
+
+  // Memoize the config to prevent infinite re-renders
+  const dmConfig = useMemo(() => getDMServerConfig(), []);
+
+  const {
+    client,
+    isConnected,
+    isRegistered,
+    registerKeys,
+    connectWebSocket,
+    getAllConversations,
+  } = useDMClient({
+    config: dmConfig,
+    autoConnect: true,
+  });
+
+  // Load conversations when component mounts
+  useEffect(() => {
+    if (isRegistered && client) {
+      loadConversations();
+    }
+  }, [isRegistered, client]);
+
+  const loadConversations = async () => {
+    if (!client) return;
+    
+    setIsLoadingConversations(true);
+    try {
+      const result = await getAllConversations();
+      setConversations(result.conversations);
+    } catch (error) {
+      console.error('Failed to load conversations:', error);
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  };
 
   const handleStartConversation = () => {
     if (!publicKeyInput.trim()) return;
@@ -113,6 +155,55 @@ export const DMPage: Page = () => {
     </div>
   );
 
+  const handleSelectConversation = (otherParty: Core.Models.PublicKey.PublicKey) => {
+    setSelectedContact({
+      publicKey: otherParty,
+      name: otherParty.key.toString().substring(0, 16) + '...',
+    });
+    setShowNewConversation(false);
+  };
+
+  const handleStartNewConversation = () => {
+    setShowNewConversation(true);
+    setSelectedContact(null);
+  };
+
+  const handleBackToConversations = () => {
+    setSelectedContact(null);
+    setShowNewConversation(false);
+    loadConversations(); // Refresh conversations
+  };
+
+  if (!isRegistered) {
+    return (
+      <>
+        <Header canHaveBackButton={false}>Direct Messages</Header>
+        <IonContent>
+          <RightCol rightCol={<div />} desktopTitle="Direct Messages">
+            <div className="h-full flex items-center justify-center">
+              <div className="text-center">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Setting up secure messaging...
+                </h3>
+                <p className="text-gray-600">
+                  Generating encryption keys for secure direct messages.
+                </p>
+                <div className="mt-4">
+                  <button
+                    onClick={registerKeys}
+                    className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors"
+                  >
+                    Setup Keys
+                  </button>
+                </div>
+              </div>
+            </div>
+          </RightCol>
+        </IonContent>
+      </>
+    );
+  }
+
   return (
     <>
       <Header canHaveBackButton={false}>Direct Messages</Header>
@@ -127,10 +218,10 @@ export const DMPage: Page = () => {
                       {selectedContact.name || 'Direct Message'}
                     </h3>
                     <button
-                      onClick={() => setSelectedContact(null)}
+                      onClick={handleBackToConversations}
                       className="text-gray-500 hover:text-gray-700 text-sm"
                     >
-                      Back to contacts
+                      Back to conversations
                     </button>
                   </div>
                 </div>
@@ -141,8 +232,30 @@ export const DMPage: Page = () => {
                   />
                 </div>
               </div>
+            ) : showNewConversation ? (
+              <div className="h-full flex flex-col">
+                <div className="border-b p-4 bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-medium text-gray-900">New Conversation</h3>
+                    <button
+                      onClick={handleBackToConversations}
+                      className="text-gray-500 hover:text-gray-700 text-sm"
+                    >
+                      Back to conversations
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 p-4">
+                  {renderStartConversation()}
+                </div>
+              </div>
             ) : (
-              renderStartConversation()
+              <ConversationList
+                conversations={conversations}
+                onSelectConversation={handleSelectConversation}
+                onStartNewConversation={handleStartNewConversation}
+                className="h-full"
+              />
             )}
           </div>
         </RightCol>

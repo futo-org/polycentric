@@ -1,7 +1,7 @@
 import { DMServerConfig } from './DMClient';
 
 const DM_SERVER_KEY = 'polycentric-dm-server';
-const DEFAULT_DM_SERVER = 'http://dm_server:8080';
+const DEFAULT_DM_SERVER = 'https://localhost:8080/dm';
 
 /**
  * Get the DM server configuration from localStorage
@@ -20,11 +20,17 @@ export function getDMServerConfig(): DMServerConfig {
     httpUrl = httpUrl.slice(0, -1);
   }
 
-  // Convert HTTP URL to WebSocket URL
-  const websocketUrl = httpUrl.replace(
-    /^https?:/,
-    httpUrl.startsWith('https:') ? 'wss:' : 'ws:',
-  );
+  // For development, use the integrated WebSocket endpoint
+  let websocketUrl;
+  if (httpUrl.includes('localhost:8080/dm')) {
+    websocketUrl = 'wss://localhost:8080/dm-ws';
+  } else {
+    // Convert HTTP URL to WebSocket URL for production
+    websocketUrl = httpUrl.replace(
+      /^https?:/,
+      httpUrl.startsWith('https:') ? 'wss:' : 'ws:',
+    );
+  }
 
   return {
     httpUrl,
@@ -51,4 +57,12 @@ export function getDMServerUrl(): string {
  */
 export function clearDMServerUrl(): void {
   localStorage.removeItem(DM_SERVER_KEY);
+}
+
+/**
+ * Force refresh the DM server configuration (clears cache and returns new config)
+ */
+export function refreshDMServerConfig(): DMServerConfig {
+  localStorage.removeItem(DM_SERVER_KEY);
+  return getDMServerConfig();
 }
