@@ -236,13 +236,23 @@ mod tests {
         let (ephemeral_secret, ephemeral_public) = DMCrypto::generate_ephemeral_keypair();
 
         // Encrypt message
-        let (encrypted, nonce) =
-            DMCrypto::encrypt_message(message, ephemeral_secret, &recipient_public).unwrap();
+        let (encrypted, nonce) = DMCrypto::encrypt_message(
+            message,
+            ephemeral_secret,
+            &recipient_public,
+            EncryptionAlgorithm::ChaCha20Poly1305,
+        )
+        .unwrap();
 
         // Decrypt message
-        let decrypted =
-            DMCrypto::decrypt_message(&encrypted, &nonce, &recipient_secret, &ephemeral_public)
-                .unwrap();
+        let decrypted = DMCrypto::decrypt_message(
+            &encrypted,
+            &nonce,
+            &recipient_secret,
+            &ephemeral_public,
+            EncryptionAlgorithm::ChaCha20Poly1305,
+        )
+        .unwrap();
 
         assert_eq!(message, decrypted.as_slice());
     }

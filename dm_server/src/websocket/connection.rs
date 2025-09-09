@@ -299,3 +299,150 @@ async fn deliver_pending_messages(
 
     Ok(())
 }
+
+/// Handle a new WebSocket connection from axum
+pub async fn handle_axum_websocket_connection(
+    websocket: axum::extract::ws::WebSocket,
+    ws_manager: WebSocketManager,
+    _db: Arc<DatabaseManager>,
+) {
+    let connection_id = Uuid::new_v4();
+    log::info!("New axum WebSocket connection: {}", connection_id);
+
+    let (mut ws_sender, mut ws_receiver) = websocket.split();
+    let (tx, mut rx) = mpsc::unbounded_channel();
+
+    // Authentication challenge
+    let challenge = DMCrypto::generate_challenge();
+    let created_on = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+
+    let auth_challenge = WSAuthChallenge {
+        challenge: challenge.to_vec(),
+        created_on,
+    };
+
+    // Send connection ack with challenge
+    if let Ok(challenge_json) = serde_json::to_string(&auth_challenge) {
+        if let Err(e) = ws_sender
+            .send(axum::extract::ws::Message::Text(challenge_json.into()))
+            .await
+        {
+            log::error!("Failed to send challenge: {}", e);
+            return;
+        }
+    }
+
+    // Start ping task
+    let mut ping_interval = interval(PING_INTERVAL);
+    let mut authenticated = false;
+    let mut _user_identity: Option<PolycentricIdentity> = None;
+
+    loop {
+        tokio::select! {
+            // Handle incoming messages
+            msg = ws_receiver.next() => {
+                match msg {
+                    Some(Ok(axum::extract::ws::Message::Text(text))) => {
+                        if !authenticated {
+                            // Try to authenticate
+                            if let Ok(auth_response) = serde_json::from_str::<WSAuthResponse>(&text) {
+                                // Verify the challenge matches
+                                if auth_response.challenge == challenge {
+                                    // Verify the signature
+                                    if let Ok(verifying_key) = auth_response.identity.verifying_key() {
+                                        if DMCrypto::verify_signature(&verifying_key, &challenge, &auth_response.signature).is_ok() {
+                                            authenticated = true;
+                                            _user_identity = Some(auth_response.identity.clone());
+                                            log::info!("WebSocket connection {} authenticated for user: {:?}", connection_id, auth_response.identity);
+
+                                            // Register user with manager
+                                            ws_manager.register_connection(connection_id, auth_response.identity, tx.clone()).await;
+                                        } else {
+                                            log::warn!("Signature verification failed for connection {}", connection_id);
+                                            break;
+                                        }
+                                    } else {
+                                        log::warn!("Invalid identity key for connection {}", connection_id);
+                                        break;
+                                    }
+                                } else {
+                                    log::warn!("Challenge mismatch for connection {}", connection_id);
+                                    break;
+                                }
+                            } else {
+                                log::warn!("Invalid auth response format from connection {}", connection_id);
+                                break;
+                            }
+                        } else {
+                            // Handle regular messages after authentication
+                            if let Ok(ws_msg) = serde_json::from_str::<WSMessage>(&text) {
+                                match ws_msg {
+                                    WSMessage::Pong => {
+                                        // Handle pong
+                                    }
+                                    _ => {
+                                        log::debug!("Received message from connection {}: {:?}", connection_id, ws_msg);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Some(Ok(axum::extract::ws::Message::Close(_))) => {
+                        log::info!("WebSocket connection {} closed", connection_id);
+                        break;
+                    }
+                    Some(Err(e)) => {
+                        log::error!("WebSocket error for connection {}: {}", connection_id, e);
+                        break;
+                    }
+                    None => {
+                        log::info!("WebSocket connection {} disconnected", connection_id);
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+
+            // Handle outgoing messages
+            msg = rx.recv() => {
+                match msg {
+                    Some(msg) => {
+                        let axum_msg = match msg {
+                            Message::Text(text) => axum::extract::ws::Message::Text(text.into()),
+                            Message::Binary(data) => axum::extract::ws::Message::Binary(data.into()),
+                            Message::Ping(data) => axum::extract::ws::Message::Ping(data.into()),
+                            Message::Pong(data) => axum::extract::ws::Message::Pong(data.into()),
+                            Message::Close(_) => continue, // Skip close frames for now
+                            Message::Frame(_) => continue, // Skip raw frames
+                        };
+
+                        if let Err(e) = ws_sender.send(axum_msg).await {
+                            log::error!("Failed to send message to connection {}: {}", connection_id, e);
+                            break;
+                        }
+                    }
+                    None => {
+                        log::info!("Connection {} sender dropped", connection_id);
+                        break;
+                    }
+                }
+            }
+
+            // Send ping
+            _ = ping_interval.tick() => {
+                if let Err(e) = ws_sender.send(axum::extract::ws::Message::Ping(vec![].into())).await {
+                    log::error!("Failed to send ping to connection {}: {}", connection_id, e);
+                    break;
+                }
+            }
+        }
+    }
+
+    // Cleanup
+    ws_manager.unregister_connection(connection_id).await;
+
+    log::info!("WebSocket connection {} cleaned up", connection_id);
+}

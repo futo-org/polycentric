@@ -157,7 +157,7 @@ async fn test_get_nonexistent_key_api() {
 #[serial]
 async fn test_send_dm_api() {
     // Initialize logger to see auth errors
-    let _ = env_logger::builder().is_test(true).try_init();
+    let _ = tracing_subscriber::fmt::try_init();
 
     let setup = TestSetup::new().await;
     setup.cleanup().await;
@@ -200,6 +200,7 @@ async fn test_send_dm_api() {
         ephemeral_public_key,
         encrypted_content,
         nonce,
+        encryption_algorithm: Some("ChaCha20Poly1305".to_string()),
         message_id: message_id.clone(),
         reply_to: None,
         signature,
@@ -261,6 +262,7 @@ async fn test_send_dm_to_unregistered_user() {
         ephemeral_public_key,
         encrypted_content,
         nonce,
+        encryption_algorithm: Some("ChaCha20Poly1305".to_string()),
         message_id,
         reply_to: None,
         signature,
@@ -320,6 +322,7 @@ async fn test_get_dm_history_api() {
             &eph_key1,
             &enc_content1,
             &nonce1,
+            Some("ChaCha20Poly1305"),
             chrono::Utc::now() - chrono::Duration::seconds(2),
             None,
         )
@@ -334,6 +337,7 @@ async fn test_get_dm_history_api() {
             &eph_key2,
             &enc_content2,
             &nonce2,
+            Some("ChaCha20Poly1305"),
             chrono::Utc::now() - chrono::Duration::seconds(1),
             None,
         )
@@ -407,6 +411,7 @@ async fn test_send_dm_duplicate_message_id() {
         ephemeral_public_key: ephemeral_public_key.clone(),
         encrypted_content: encrypted_content.clone(),
         nonce: nonce.clone(),
+        encryption_algorithm: Some("ChaCha20Poly1305".to_string()),
         message_id: message_id.clone(),
         reply_to: None,
         signature: signature.clone(),
@@ -480,6 +485,7 @@ async fn test_send_dm_invalid_sizes() {
         ephemeral_public_key: vec![0u8; 16], // Wrong length
         encrypted_content: vec![1u8; 100],
         nonce: vec![2u8; 24],
+        encryption_algorithm: Some("ChaCha20Poly1305".to_string()),
         message_id: "test_msg".to_string(),
         reply_to: None,
         signature: vec![3u8; 64],
@@ -504,6 +510,7 @@ async fn test_send_dm_invalid_sizes() {
         ephemeral_public_key: vec![0u8; 32],
         encrypted_content: vec![1u8; 100],
         nonce: vec![2u8; 16], // Wrong length
+        encryption_algorithm: Some("ChaCha20Poly1305".to_string()),
         message_id: "test_msg2".to_string(),
         reply_to: None,
         signature: vec![3u8; 64],
@@ -588,6 +595,7 @@ async fn test_get_conversations_api() {
             &eph_key2,
             &enc_content2,
             &nonce2,
+            Some("ChaCha20Poly1305"),
             one_hour_ago,
             None,
         )
@@ -602,6 +610,7 @@ async fn test_get_conversations_api() {
             &eph_key1,
             &enc_content1,
             &nonce1,
+            Some("ChaCha20Poly1305"),
             now,
             None,
         )

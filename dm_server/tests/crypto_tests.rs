@@ -66,8 +66,13 @@ fn test_message_encryption_decryption() {
     let (ephemeral_secret, ephemeral_public) = DMCrypto::generate_ephemeral_keypair();
 
     // Encrypt message
-    let (encrypted, nonce) =
-        DMCrypto::encrypt_message(message, ephemeral_secret, &recipient_public).unwrap();
+    let (encrypted, nonce) = DMCrypto::encrypt_message(
+        message,
+        ephemeral_secret,
+        &recipient_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    )
+    .unwrap();
 
     // Verify encrypted data
     assert_ne!(encrypted, message); // Should be different from original
@@ -75,9 +80,14 @@ fn test_message_encryption_decryption() {
     assert!(encrypted.len() > message.len()); // Should include auth tag
 
     // Decrypt message
-    let decrypted =
-        DMCrypto::decrypt_message(&encrypted, &nonce, &recipient_secret, &ephemeral_public)
-            .unwrap();
+    let decrypted = DMCrypto::decrypt_message(
+        &encrypted,
+        &nonce,
+        &recipient_secret,
+        &ephemeral_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    )
+    .unwrap();
 
     // Verify decryption
     assert_eq!(decrypted, message);
@@ -95,12 +105,22 @@ fn test_encryption_with_different_keys_fails() {
     let (ephemeral_secret, ephemeral_public) = DMCrypto::generate_ephemeral_keypair();
 
     // Encrypt for recipient 1
-    let (encrypted, nonce) =
-        DMCrypto::encrypt_message(message, ephemeral_secret, &recipient_public1).unwrap();
+    let (encrypted, nonce) = DMCrypto::encrypt_message(
+        message,
+        ephemeral_secret,
+        &recipient_public1,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    )
+    .unwrap();
 
     // Try to decrypt with recipient 2's key (should fail)
-    let result =
-        DMCrypto::decrypt_message(&encrypted, &nonce, &recipient_secret2, &ephemeral_public);
+    let result = DMCrypto::decrypt_message(
+        &encrypted,
+        &nonce,
+        &recipient_secret2,
+        &ephemeral_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    );
 
     assert!(result.is_err());
 }
@@ -113,8 +133,13 @@ fn test_encryption_with_wrong_nonce_fails() {
     let (ephemeral_secret, ephemeral_public) = DMCrypto::generate_ephemeral_keypair();
 
     // Encrypt message
-    let (encrypted, _nonce) =
-        DMCrypto::encrypt_message(message, ephemeral_secret, &recipient_public).unwrap();
+    let (encrypted, _nonce) = DMCrypto::encrypt_message(
+        message,
+        ephemeral_secret,
+        &recipient_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    )
+    .unwrap();
 
     // Try to decrypt with wrong nonce
     let wrong_nonce = vec![0u8; 12];
@@ -123,6 +148,7 @@ fn test_encryption_with_wrong_nonce_fails() {
         &wrong_nonce,
         &recipient_secret,
         &ephemeral_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
     );
 
     assert!(result.is_err());
@@ -206,27 +232,47 @@ fn test_cross_key_encryption() {
 
     // Alice encrypts for Bob
     let (alice_ephemeral_secret, alice_ephemeral_public) = DMCrypto::generate_ephemeral_keypair();
-    let (encrypted1, nonce1) =
-        DMCrypto::encrypt_message(message, alice_ephemeral_secret, &bob_public).unwrap();
+    let (encrypted1, nonce1) = DMCrypto::encrypt_message(
+        message,
+        alice_ephemeral_secret,
+        &bob_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    )
+    .unwrap();
 
     // Bob encrypts for Alice (same message)
     let (bob_ephemeral_secret, bob_ephemeral_public) = DMCrypto::generate_ephemeral_keypair();
-    let (encrypted2, nonce2) =
-        DMCrypto::encrypt_message(message, bob_ephemeral_secret, &alice_public).unwrap();
+    let (encrypted2, nonce2) = DMCrypto::encrypt_message(
+        message,
+        bob_ephemeral_secret,
+        &alice_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    )
+    .unwrap();
 
     // Ciphertexts should be different
     assert_ne!(encrypted1, encrypted2);
     assert_ne!(nonce1, nonce2);
 
     // Bob can decrypt Alice's message
-    let decrypted1 =
-        DMCrypto::decrypt_message(&encrypted1, &nonce1, &bob_secret, &alice_ephemeral_public)
-            .unwrap();
+    let decrypted1 = DMCrypto::decrypt_message(
+        &encrypted1,
+        &nonce1,
+        &bob_secret,
+        &alice_ephemeral_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    )
+    .unwrap();
 
     // Alice can decrypt Bob's message
-    let decrypted2 =
-        DMCrypto::decrypt_message(&encrypted2, &nonce2, &alice_secret, &bob_ephemeral_public)
-            .unwrap();
+    let decrypted2 = DMCrypto::decrypt_message(
+        &encrypted2,
+        &nonce2,
+        &alice_secret,
+        &bob_ephemeral_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    )
+    .unwrap();
 
     // Both should decrypt to the original message
     assert_eq!(decrypted1, message);
@@ -249,16 +295,26 @@ fn test_complete_message_encryption_flow() {
     let (ephemeral_secret, ephemeral_public) = DMCrypto::generate_ephemeral_keypair();
 
     // 2. Alice encrypts the message using Bob's public key
-    let (encrypted_data, nonce) =
-        DMCrypto::encrypt_message(original_message.as_bytes(), ephemeral_secret, &bob_public)
-            .unwrap();
+    let (encrypted_data, nonce) = DMCrypto::encrypt_message(
+        original_message.as_bytes(),
+        ephemeral_secret,
+        &bob_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    )
+    .unwrap();
 
     // 3. Alice sends: encrypted_data, nonce, ephemeral_public
     // (In real system, this would go through the server)
 
     // 4. Bob receives and decrypts the message
-    let decrypted_data =
-        DMCrypto::decrypt_message(&encrypted_data, &nonce, &bob_secret, &ephemeral_public).unwrap();
+    let decrypted_data = DMCrypto::decrypt_message(
+        &encrypted_data,
+        &nonce,
+        &bob_secret,
+        &ephemeral_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    )
+    .unwrap();
 
     let decrypted_message = String::from_utf8(decrypted_data).unwrap();
 
@@ -280,18 +336,32 @@ fn test_encryption_security() {
 
     // Alice encrypts for Bob
     let (ephemeral_secret, ephemeral_public) = DMCrypto::generate_ephemeral_keypair();
-    let (encrypted_data, nonce) =
-        DMCrypto::encrypt_message(secret_message.as_bytes(), ephemeral_secret, &bob_public)
-            .unwrap();
+    let (encrypted_data, nonce) = DMCrypto::encrypt_message(
+        secret_message.as_bytes(),
+        ephemeral_secret,
+        &bob_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    )
+    .unwrap();
 
     // Bob can decrypt
-    let bob_result =
-        DMCrypto::decrypt_message(&encrypted_data, &nonce, &bob_secret, &ephemeral_public);
+    let bob_result = DMCrypto::decrypt_message(
+        &encrypted_data,
+        &nonce,
+        &bob_secret,
+        &ephemeral_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    );
     assert!(bob_result.is_ok());
 
     // Eve cannot decrypt (should fail)
-    let eve_result =
-        DMCrypto::decrypt_message(&encrypted_data, &nonce, &eve_secret, &ephemeral_public);
+    let eve_result = DMCrypto::decrypt_message(
+        &encrypted_data,
+        &nonce,
+        &eve_secret,
+        &ephemeral_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    );
     assert!(eve_result.is_err());
 
     println!("✅ SUCCESS: Encryption is secure - only intended recipient can decrypt!");
@@ -319,14 +389,23 @@ fn test_key_persistence() {
     let (ephemeral_secret, ephemeral_public) = DMCrypto::generate_ephemeral_keypair();
 
     // Encrypt with recovered public key
-    let (encrypted, nonce) =
-        DMCrypto::encrypt_message(test_message.as_bytes(), ephemeral_secret, &recovered_public)
-            .unwrap();
+    let (encrypted, nonce) = DMCrypto::encrypt_message(
+        test_message.as_bytes(),
+        ephemeral_secret,
+        &recovered_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    )
+    .unwrap();
 
     // Decrypt with recovered secret key
-    let decrypted =
-        DMCrypto::decrypt_message(&encrypted, &nonce, &recovered_secret, &ephemeral_public)
-            .unwrap();
+    let decrypted = DMCrypto::decrypt_message(
+        &encrypted,
+        &nonce,
+        &recovered_secret,
+        &ephemeral_public,
+        dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+    )
+    .unwrap();
 
     assert_eq!(test_message.as_bytes(), decrypted);
     println!("✅ SUCCESS: Keys can be stored and recovered from database!");

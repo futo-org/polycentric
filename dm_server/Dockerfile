@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
 RUN cargo install cargo-watch --version=8.5.3
 
 # Install sqlx-cli for database migrations
-RUN cargo install sqlx-cli --no-default-features --features postgres
+# RUN cargo install sqlx-cli --no-default-features --features postgres
 
 # Copy polycentric-protocol dependency
 COPY polycentric-protocol /usr/src/polycentric-protocol

@@ -56,6 +56,7 @@ async fn test_full_message_flow() {
             &ephemeral_key,
             &encrypted_content,
             &nonce,
+            Some("ChaCha20Poly1305"),
             message_timestamp,
             None,
         )
@@ -111,6 +112,7 @@ async fn test_websocket_message_delivery() {
         ephemeral_public_key: vec![1u8; 32],
         encrypted_content: vec![2u8; 100],
         nonce: vec![3u8; 24],
+        encryption_algorithm: "ChaCha20Poly1305".to_string(),
         timestamp: chrono::Utc::now(),
         reply_to: None,
     };
@@ -188,6 +190,7 @@ async fn test_user_registration_and_messaging_flow() {
             &eph_key1,
             &enc_content1,
             &nonce1,
+            Some("ChaCha20Poly1305"),
             chrono::Utc::now(),
             None,
         )
@@ -207,6 +210,7 @@ async fn test_user_registration_and_messaging_flow() {
             &eph_key2,
             &enc_content2,
             &nonce2,
+            Some("ChaCha20Poly1305"),
             chrono::Utc::now() + chrono::Duration::seconds(1),
             Some(&msg1_id), // Reply to Alice's message
         )
@@ -308,6 +312,7 @@ async fn test_message_delivery_tracking() {
             &eph_key,
             &enc_content,
             &nonce,
+            Some("ChaCha20Poly1305"),
             chrono::Utc::now(),
             None,
         )
@@ -394,6 +399,7 @@ async fn test_undelivered_messages_retrieval() {
                 &eph_key,
                 &enc_content,
                 &nonce,
+                Some("ChaCha20Poly1305"),
                 base_time + chrono::Duration::seconds(i),
                 None,
             )
@@ -531,10 +537,13 @@ async fn test_connection_cleanup() {
         .unwrap();
 
     // Manually set old ping time
-    sqlx::query!(
-        "UPDATE active_connections SET last_ping = NOW() - INTERVAL '1 hour' WHERE connection_id = $1",
-        connection_id
-    ).execute(&setup.pool).await.unwrap();
+    sqlx::query(
+        "UPDATE active_connections SET last_ping = NOW() - INTERVAL '1 hour' WHERE connection_id = $1"
+    )
+    .bind(connection_id)
+    .execute(&setup.pool)
+    .await
+    .unwrap();
 
     // Run cleanup (5 minute timeout)
     let cleaned = setup.db.cleanup_stale_connections(300).await.unwrap();
@@ -593,6 +602,7 @@ async fn test_message_pagination() {
                 &eph_key,
                 &enc_content,
                 &nonce,
+                Some("ChaCha20Poly1305"),
                 base_time + chrono::Duration::seconds(i),
                 None,
             )

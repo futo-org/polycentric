@@ -1,7 +1,7 @@
 import type { DMServerConfig } from '../types/dm';
 
 const DM_SERVER_KEY = 'polycentric-dm-server';
-const DEFAULT_DM_SERVER = 'https://localhost:8080/dm';
+const DEFAULT_DM_SERVER = 'http://localhost:8088';
 
 /**
  * Get the DM server configuration from localStorage
@@ -22,8 +22,8 @@ export function getDMServerConfig(): DMServerConfig {
 
   // For development, use the integrated WebSocket endpoint
   let websocketUrl;
-  if (httpUrl.includes('localhost:8080/dm')) {
-    websocketUrl = 'wss://localhost:8080/dm-ws';
+  if (httpUrl.includes('localhost:8088')) {
+    websocketUrl = 'ws://localhost:8088/dm-ws';
   } else {
     // Convert HTTP URL to WebSocket URL for production
     websocketUrl = httpUrl.replace(

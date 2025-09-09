@@ -131,6 +131,7 @@ async fn test_store_and_retrieve_message() {
             &ephemeral_key,
             &encrypted_content,
             &nonce,
+            Some("ChaCha20Poly1305"),
             timestamp,
             None,
         )
@@ -180,6 +181,7 @@ async fn test_message_history_pagination() {
                 &vec![1u8; 32],
                 &vec![2u8; 100],
                 &vec![3u8; 12],
+                Some("ChaCha20Poly1305"),
                 timestamp,
                 None,
             )
@@ -236,6 +238,7 @@ async fn test_bidirectional_message_history() {
             &vec![1u8; 32],
             &vec![2u8; 100],
             &vec![3u8; 12],
+            Some("ChaCha20Poly1305"),
             Utc::now() - chrono::Duration::seconds(2),
             None,
         )
@@ -252,6 +255,7 @@ async fn test_bidirectional_message_history() {
             &vec![1u8; 32],
             &vec![2u8; 100],
             &vec![3u8; 12],
+            Some("ChaCha20Poly1305"),
             Utc::now() - chrono::Duration::seconds(1),
             None,
         )
@@ -309,6 +313,7 @@ async fn test_message_delivery_tracking() {
             &vec![1u8; 32],
             &vec![2u8; 100],
             &vec![3u8; 12],
+            Some("ChaCha20Poly1305"),
             timestamp,
             None,
         )
@@ -423,6 +428,7 @@ async fn test_conversation_list() {
             &vec![1u8; 32],
             &vec![2u8; 100],
             &vec![3u8; 12],
+            Some("ChaCha20Poly1305"),
             base_time - chrono::Duration::hours(1),
             None,
         )
@@ -439,6 +445,7 @@ async fn test_conversation_list() {
             &vec![1u8; 32],
             &vec![2u8; 100],
             &vec![3u8; 12],
+            Some("ChaCha20Poly1305"),
             base_time,
             None,
         )
@@ -490,6 +497,7 @@ async fn test_message_exists() {
             &vec![1u8; 32],
             &vec![2u8; 100],
             &vec![3u8; 12],
+            Some("ChaCha20Poly1305"),
             Utc::now(),
             None,
         )
@@ -518,10 +526,13 @@ async fn test_cleanup_operations() {
         .unwrap();
 
     // Manually set old ping time
-    sqlx::query!(
-        "UPDATE active_connections SET last_ping = NOW() - INTERVAL '1 hour' WHERE connection_id = $1",
-        connection_id
-    ).execute(&setup.pool).await.unwrap();
+    sqlx::query(
+        "UPDATE active_connections SET last_ping = NOW() - INTERVAL '1 hour' WHERE connection_id = $1"
+    )
+    .bind(connection_id)
+    .execute(&setup.pool)
+    .await
+    .unwrap();
 
     // Cleanup stale connections (5 minute timeout)
     let cleaned = setup.db.cleanup_stale_connections(300).await.unwrap();

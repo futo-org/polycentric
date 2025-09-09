@@ -1,5 +1,5 @@
 use axum::{
-    extract::{MatchedPath, Request},
+    extract::{MatchedPath, Request, WebSocketUpgrade},
     routing::{get, post},
     Router,
 };
@@ -7,6 +7,7 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::{
     classify::StatusInRangeAsFailures,
+    cors::{Any, CorsLayer},
     trace::{DefaultOnFailure, DefaultOnResponse, TraceLayer},
 };
 use tracing::{self as log, info_span, Level};
@@ -17,7 +18,9 @@ use dm_server::{
     db::DatabaseManager,
     handlers::{auth, dm, keys, AppState},
     websocket::{
-        connection::handle_websocket_connection, manager::run_websocket_manager, WebSocketManager,
+        connection::{handle_axum_websocket_connection, handle_websocket_connection},
+        manager::run_websocket_manager,
+        WebSocketManager,
     },
 };
 
@@ -99,6 +102,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn create_routes(state: AppState) -> Router {
+    let cors = CorsLayer::new()
+        .allow_origin([
+            "http://localhost:3000"
+                .parse::<axum::http::HeaderValue>()
+                .unwrap(),
+            "https://localhost:3000"
+                .parse::<axum::http::HeaderValue>()
+                .unwrap(),
+            "http://localhost:8080"
+                .parse::<axum::http::HeaderValue>()
+                .unwrap(),
+            "https://localhost:8080"
+                .parse::<axum::http::HeaderValue>()
+                .unwrap(),
+            "http://localhost:8088"
+                .parse::<axum::http::HeaderValue>()
+                .unwrap(),
+            "https://localhost:8088"
+                .parse::<axum::http::HeaderValue>()
+                .unwrap(),
+        ])
+        .allow_methods([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::PUT,
+            axum::http::Method::DELETE,
+            axum::http::Method::OPTIONS,
+        ])
+        .allow_headers([
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::AUTHORIZATION,
+            axum::http::header::ACCEPT,
+        ])
+        .allow_credentials(true);
+
     Router::new()
         .route("/health", get(health_handler))
         .route("/challenge", get(auth::get_challenge))
@@ -112,7 +150,9 @@ fn create_routes(state: AppState) -> Router {
             get(keys::get_detailed_conversations),
         )
         .route("/mark_read", post(dm::mark_messages_read))
+        .route("/dm-ws", get(websocket_handler))
         .with_state(state)
+        .layer(cors)
         .layer(
             TraceLayer::new(StatusInRangeAsFailures::new(400..=599).into_make_classifier())
                 .make_span_with(|req: &Request<_>| {
@@ -138,6 +178,18 @@ fn create_routes(state: AppState) -> Router {
 
 async fn health_handler() -> axum::Json<serde_json::Value> {
     axum::Json(serde_json::json!({"status": "ok"}))
+}
+
+async fn websocket_handler(
+    ws: WebSocketUpgrade,
+    axum::extract::State(state): axum::extract::State<AppState>,
+) -> axum::response::Response {
+    ws.on_upgrade(|socket| async move {
+        // For now, we'll use a simple WebSocket manager instance
+        // In production, you'd want to use the shared WebSocket manager
+        let ws_manager = WebSocketManager::new();
+        handle_axum_websocket_connection(socket, ws_manager, state.db).await;
+    })
 }
 
 async fn start_websocket_server(ws_manager: WebSocketManager, db: Arc<DatabaseManager>) {

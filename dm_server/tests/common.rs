@@ -72,10 +72,7 @@ impl TestSetup {
 
         let db = Arc::new(DatabaseManager::new(pool.clone()));
 
-        let app_state = AppState {
-            db: db.clone(),
-            config: config.clone(),
-        };
+        let app_state = AppState { db: db.clone() };
 
         Self {
             db,
@@ -247,9 +244,13 @@ impl MessageHelper {
         let recipient_x25519_key =
             DMCrypto::x25519_public_from_bytes(&recipient.x25519_public_key).unwrap();
 
-        let (encrypted, nonce) =
-            DMCrypto::encrypt_message(content_bytes, ephemeral_secret, &recipient_x25519_key)
-                .unwrap();
+        let (encrypted, nonce) = DMCrypto::encrypt_message(
+            content_bytes,
+            ephemeral_secret,
+            &recipient_x25519_key,
+            dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
+        )
+        .unwrap();
 
         // Create message for signing (exclude timestamp to avoid timing issues)
         let message_for_signing = serde_json::json!({
@@ -293,6 +294,7 @@ impl MessageHelper {
             nonce,
             &recipient_secret,
             &ephemeral_public,
+            dm_server::crypto::EncryptionAlgorithm::ChaCha20Poly1305,
         )?;
 
         Ok(String::from_utf8(decrypted)?)

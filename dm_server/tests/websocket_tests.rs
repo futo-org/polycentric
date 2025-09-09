@@ -287,6 +287,7 @@ async fn test_websocket_dm_message() {
         ephemeral_public_key: vec![1u8; 32],
         encrypted_content: vec![2u8; 100],
         nonce: vec![3u8; 24],
+        encryption_algorithm: "ChaCha20Poly1305".to_string(),
         timestamp: chrono::Utc::now(),
         reply_to: None,
     };
