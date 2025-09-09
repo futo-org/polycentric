@@ -1,4 +1,4 @@
-import { DMServerConfig } from './DMClient';
+import type { DMServerConfig } from '../types/dm';
 
 const DM_SERVER_KEY = 'polycentric-dm-server';
 const DEFAULT_DM_SERVER = 'https://localhost:8080/dm';
@@ -35,6 +35,7 @@ export function getDMServerConfig(): DMServerConfig {
   return {
     httpUrl,
     websocketUrl,
+    maxMessageSize: 1024 * 1024, // 1MB default
   };
 }
 

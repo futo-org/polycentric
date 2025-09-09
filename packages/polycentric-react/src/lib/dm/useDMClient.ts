@@ -1,13 +1,13 @@
 import * as Core from '@polycentric/polycentric-core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useProcessHandleManager } from '../hooks/processHandleManagerHooks';
-import {
+import type {
   DecryptedMessage,
-  DMClient,
   DMMessageContent,
   DMServerConfig,
   EncryptedMessage,
-} from './DMClient';
+} from '../types/dm';
+import { DMClient } from './DMClient';
 import { refreshDMServerConfig } from './dmServerConfig';
 
 export interface UseDMClientOptions {

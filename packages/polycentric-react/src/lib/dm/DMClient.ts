@@ -1,54 +1,13 @@
 import { x25519 } from '@noble/curves/ed25519.js';
 import * as Core from '@polycentric/polycentric-core';
 import Long from 'long';
-
-export interface DMServerConfig {
-  httpUrl: string;
-  websocketUrl: string;
-}
-
-export interface X25519KeyPair {
-  publicKey: Uint8Array;
-  privateKey: Uint8Array;
-}
-
-export interface EncryptedMessage {
-  messageId: string;
-  sender: Core.Models.PublicKey.PublicKey;
-  recipient: Core.Models.PublicKey.PublicKey;
-  ephemeralPublicKey: Uint8Array;
-  encryptedContent: Uint8Array;
-  nonce: Uint8Array;
-  encryptionAlgorithm: string; // 'ChaCha20-Poly1305' or 'AES-GCM'
-  timestamp: Date;
-  replyTo?: string;
-}
-
-export interface DecryptedMessage {
-  messageId: string;
-  sender: Core.Models.PublicKey.PublicKey;
-  content: DMMessageContent;
-  timestamp: Date;
-  replyTo?: string;
-}
-
-export interface DMMessageContent {
-  type: 'text' | 'image' | 'file' | 'typing' | 'read_receipt';
-  text?: string;
-  file?: {
-    filename: string;
-    mimeType: string;
-    sizeBytes: number;
-    fileId: string;
-  };
-  typing?: {
-    isTyping: boolean;
-  };
-  readReceipt?: {
-    messageId: string;
-    readTimestamp: Date;
-  };
-}
+import type {
+  DecryptedMessage,
+  DMMessageContent,
+  DMServerConfig,
+  EncryptedMessage,
+  X25519KeyPair,
+} from '../types/dm';
 
 export interface AuthChallenge {
   challenge: Uint8Array;
