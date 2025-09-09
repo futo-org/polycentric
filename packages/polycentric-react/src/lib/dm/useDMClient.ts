@@ -45,9 +45,6 @@ export interface UseDMClientReturn {
   clearError: () => void;
 }
 
-/**
- * React hook for managing DM client functionality
- */
 export function useDMClient(options: UseDMClientOptions): UseDMClientReturn {
   const { processHandle } = useProcessHandleManager();
   const [client, setClient] = useState<DMClient | null>(null);
@@ -57,29 +54,23 @@ export function useDMClient(options: UseDMClientOptions): UseDMClientReturn {
   const [error, setError] = useState<string | null>(null);
   const messagesRef = useRef<DecryptedMessage[]>([]);
 
-  // Initialize client when process handle is available
-  useEffect(() => {
-    if (processHandle) {
-      // Force refresh configuration to ensure we have the latest URLs
-      const freshConfig = refreshDMServerConfig();
-      const dmClient = new DMClient(freshConfig, processHandle);
-
-      // Set up message handler
-      dmClient.onMessage((encryptedMsg: EncryptedMessage) => {
-        handleIncomingMessage(encryptedMsg, dmClient);
-      });
-
-      // Set up connection handler
-      dmClient.onConnectionChange(setIsConnected);
-
-      setClient(dmClient);
-
-      if (options.autoConnect) {
-        // Auto-register keys and connect
-        registerKeysAndConnect(dmClient);
-      }
+  const decryptMessage = async (
+    encryptedMsg: EncryptedMessage,
+    dmClient: DMClient,
+  ): Promise<DecryptedMessage> => {
+    try {
+      return await dmClient.decryptMessage(encryptedMsg);
+    } catch (error) {
+      console.error('Failed to decrypt message:', error);
+      return {
+        messageId: encryptedMsg.messageId,
+        sender: encryptedMsg.sender,
+        content: { type: 'text', text: 'Failed to decrypt message' },
+        timestamp: encryptedMsg.timestamp,
+        replyTo: encryptedMsg.replyTo,
+      };
     }
-  }, [processHandle, options.config, options.autoConnect]);
+  };
 
   const handleIncomingMessage = useCallback(
     async (encryptedMsg: EncryptedMessage, dmClient: DMClient) => {
@@ -103,36 +94,50 @@ export function useDMClient(options: UseDMClientOptions): UseDMClientReturn {
     [],
   );
 
-  const decryptMessage = async (
-    encryptedMsg: EncryptedMessage,
-    dmClient: DMClient,
-  ): Promise<DecryptedMessage> => {
-    // This would use the DMClient's decryption method
-    // For now, we'll assume the client handles this internally
-    return {
-      messageId: encryptedMsg.messageId,
-      sender: encryptedMsg.sender,
-      content: { type: 'text', text: 'Encrypted message' }, // Placeholder
-      timestamp: encryptedMsg.timestamp,
-      replyTo: encryptedMsg.replyTo,
-    };
-  };
+  // Initialize client when process handle is available
+  useEffect(() => {
+    if (processHandle) {
+      // Force refresh configuration to ensure we have the latest URLs
+      const freshConfig = refreshDMServerConfig();
+      const dmClient = new DMClient(freshConfig, processHandle);
 
-  const registerKeysAndConnect = async (dmClient: DMClient) => {
-    try {
-      await dmClient.generateAndRegisterKeys();
-      setIsRegistered(true);
+      // Set up message handler
+      dmClient.onMessage((encryptedMsg: EncryptedMessage) => {
+        handleIncomingMessage(encryptedMsg, dmClient);
+      });
+
+      // Set up connection handler
+      dmClient.onConnectionChange(setIsConnected);
+
+      setClient(dmClient);
 
       if (options.autoConnect) {
-        await dmClient.connectWebSocket();
+        // Auto-register keys and connect
+        (async () => {
+          try {
+            await dmClient.generateAndRegisterKeys();
+            setIsRegistered(true);
+
+            if (options.autoConnect) {
+              await dmClient.connectWebSocket();
+            }
+          } catch (err) {
+            console.error('Failed to register keys or connect:', err);
+            setError(
+              err instanceof Error
+                ? err.message
+                : 'Failed to initialize DM client',
+            );
+          }
+        })();
       }
-    } catch (err) {
-      console.error('Failed to register keys or connect:', err);
-      setError(
-        err instanceof Error ? err.message : 'Failed to initialize DM client',
-      );
     }
-  };
+  }, [
+    processHandle,
+    options.config,
+    options.autoConnect,
+    handleIncomingMessage,
+  ]);
 
   const registerKeys = useCallback(async () => {
     if (!client) {

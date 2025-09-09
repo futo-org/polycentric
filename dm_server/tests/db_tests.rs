@@ -124,17 +124,17 @@ async fn test_store_and_retrieve_message() {
     // Store message
     let result = setup
         .db
-        .store_message(
+        .store_message(dm_server::db::StoreMessageParams {
             message_id,
-            &sender.polycentric_identity,
-            &recipient.polycentric_identity,
-            &ephemeral_key,
-            &encrypted_content,
-            &nonce,
-            Some("ChaCha20Poly1305"),
-            timestamp,
-            None,
-        )
+            sender: &sender.polycentric_identity,
+            recipient: &recipient.polycentric_identity,
+            ephemeral_public_key: &ephemeral_key,
+            encrypted_content: &encrypted_content,
+            nonce: &nonce,
+            encryption_algorithm: Some("ChaCha20Poly1305"),
+            message_timestamp: timestamp,
+            reply_to: None,
+        })
         .await;
     assert!(result.is_ok());
 
@@ -174,17 +174,17 @@ async fn test_message_history_pagination() {
 
         setup
             .db
-            .store_message(
-                &message_id,
-                &sender.polycentric_identity,
-                &recipient.polycentric_identity,
-                &vec![1u8; 32],
-                &vec![2u8; 100],
-                &vec![3u8; 12],
-                Some("ChaCha20Poly1305"),
-                timestamp,
-                None,
-            )
+            .store_message(dm_server::db::StoreMessageParams {
+                message_id: &message_id,
+                sender: &sender.polycentric_identity,
+                recipient: &recipient.polycentric_identity,
+                ephemeral_public_key: &vec![1u8; 32],
+                encrypted_content: &vec![2u8; 100],
+                nonce: &vec![3u8; 12],
+                encryption_algorithm: Some("ChaCha20Poly1305"),
+                message_timestamp: timestamp,
+                reply_to: None,
+            })
             .await
             .unwrap();
     }
@@ -231,34 +231,34 @@ async fn test_bidirectional_message_history() {
     // User1 sends to User2
     setup
         .db
-        .store_message(
-            "msg1",
-            &user1.polycentric_identity,
-            &user2.polycentric_identity,
-            &vec![1u8; 32],
-            &vec![2u8; 100],
-            &vec![3u8; 12],
-            Some("ChaCha20Poly1305"),
-            Utc::now() - chrono::Duration::seconds(2),
-            None,
-        )
+        .store_message(dm_server::db::StoreMessageParams {
+            message_id: "msg1",
+            sender: &user1.polycentric_identity,
+            recipient: &user2.polycentric_identity,
+            ephemeral_public_key: &vec![1u8; 32],
+            encrypted_content: &vec![2u8; 100],
+            nonce: &vec![3u8; 12],
+            encryption_algorithm: Some("ChaCha20Poly1305"),
+            message_timestamp: Utc::now() - chrono::Duration::seconds(2),
+            reply_to: None,
+        })
         .await
         .unwrap();
 
     // User2 sends to User1
     setup
         .db
-        .store_message(
-            "msg2",
-            &user2.polycentric_identity,
-            &user1.polycentric_identity,
-            &vec![1u8; 32],
-            &vec![2u8; 100],
-            &vec![3u8; 12],
-            Some("ChaCha20Poly1305"),
-            Utc::now() - chrono::Duration::seconds(1),
-            None,
-        )
+        .store_message(dm_server::db::StoreMessageParams {
+            message_id: "msg2",
+            sender: &user2.polycentric_identity,
+            recipient: &user1.polycentric_identity,
+            ephemeral_public_key: &vec![1u8; 32],
+            encrypted_content: &vec![2u8; 100],
+            nonce: &vec![3u8; 12],
+            encryption_algorithm: Some("ChaCha20Poly1305"),
+            message_timestamp: Utc::now() - chrono::Duration::seconds(1),
+            reply_to: None,
+        })
         .await
         .unwrap();
 
@@ -306,17 +306,17 @@ async fn test_message_delivery_tracking() {
     // Store message
     setup
         .db
-        .store_message(
+        .store_message(dm_server::db::StoreMessageParams {
             message_id,
-            &sender.polycentric_identity,
-            &recipient.polycentric_identity,
-            &vec![1u8; 32],
-            &vec![2u8; 100],
-            &vec![3u8; 12],
-            Some("ChaCha20Poly1305"),
-            timestamp,
-            None,
-        )
+            sender: &sender.polycentric_identity,
+            recipient: &recipient.polycentric_identity,
+            ephemeral_public_key: &vec![1u8; 32],
+            encrypted_content: &vec![2u8; 100],
+            nonce: &vec![3u8; 12],
+            encryption_algorithm: Some("ChaCha20Poly1305"),
+            message_timestamp: timestamp,
+            reply_to: None,
+        })
         .await
         .unwrap();
 
@@ -421,34 +421,34 @@ async fn test_conversation_list() {
     // User1 <-> User3 (older) - store this first
     setup
         .db
-        .store_message(
-            "msg2",
-            &user1.polycentric_identity,
-            &user3.polycentric_identity,
-            &vec![1u8; 32],
-            &vec![2u8; 100],
-            &vec![3u8; 12],
-            Some("ChaCha20Poly1305"),
-            base_time - chrono::Duration::hours(1),
-            None,
-        )
+        .store_message(dm_server::db::StoreMessageParams {
+            message_id: "msg2",
+            sender: &user1.polycentric_identity,
+            recipient: &user3.polycentric_identity,
+            ephemeral_public_key: &vec![1u8; 32],
+            encrypted_content: &vec![2u8; 100],
+            nonce: &vec![3u8; 12],
+            encryption_algorithm: Some("ChaCha20Poly1305"),
+            message_timestamp: base_time - chrono::Duration::hours(1),
+            reply_to: None,
+        })
         .await
         .unwrap();
 
     // User1 <-> User2 (most recent) - store this second
     setup
         .db
-        .store_message(
-            "msg1",
-            &user1.polycentric_identity,
-            &user2.polycentric_identity,
-            &vec![1u8; 32],
-            &vec![2u8; 100],
-            &vec![3u8; 12],
-            Some("ChaCha20Poly1305"),
-            base_time,
-            None,
-        )
+        .store_message(dm_server::db::StoreMessageParams {
+            message_id: "msg1",
+            sender: &user1.polycentric_identity,
+            recipient: &user2.polycentric_identity,
+            ephemeral_public_key: &vec![1u8; 32],
+            encrypted_content: &vec![2u8; 100],
+            nonce: &vec![3u8; 12],
+            encryption_algorithm: Some("ChaCha20Poly1305"),
+            message_timestamp: base_time,
+            reply_to: None,
+        })
         .await
         .unwrap();
 
@@ -490,17 +490,17 @@ async fn test_message_exists() {
     // Store message
     setup
         .db
-        .store_message(
+        .store_message(dm_server::db::StoreMessageParams {
             message_id,
-            &sender.polycentric_identity,
-            &recipient.polycentric_identity,
-            &vec![1u8; 32],
-            &vec![2u8; 100],
-            &vec![3u8; 12],
-            Some("ChaCha20Poly1305"),
-            Utc::now(),
-            None,
-        )
+            sender: &sender.polycentric_identity,
+            recipient: &recipient.polycentric_identity,
+            ephemeral_public_key: &vec![1u8; 32],
+            encrypted_content: &vec![2u8; 100],
+            nonce: &vec![3u8; 12],
+            encryption_algorithm: Some("ChaCha20Poly1305"),
+            message_timestamp: Utc::now(),
+            reply_to: None,
+        })
         .await
         .unwrap();
 

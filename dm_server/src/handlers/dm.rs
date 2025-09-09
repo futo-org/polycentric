@@ -131,17 +131,17 @@ pub async fn send_dm(
     let message_timestamp = Utc::now();
     match state
         .db
-        .store_message(
-            &request.message_id,
-            &sender,
-            &request.recipient,
-            &request.ephemeral_public_key,
-            &request.encrypted_content,
-            &request.nonce,
-            request.encryption_algorithm.as_deref(),
+        .store_message(crate::db::StoreMessageParams {
+            message_id: &request.message_id,
+            sender: &sender,
+            recipient: &request.recipient,
+            ephemeral_public_key: &request.ephemeral_public_key,
+            encrypted_content: &request.encrypted_content,
+            nonce: &request.nonce,
+            encryption_algorithm: request.encryption_algorithm.as_deref(),
             message_timestamp,
-            request.reply_to.as_deref(),
-        )
+            reply_to: request.reply_to.as_deref(),
+        })
         .await
     {
         Ok(_) => {

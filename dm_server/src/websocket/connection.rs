@@ -9,7 +9,6 @@ use tokio_tungstenite::tungstenite::Message;
 use tracing as log;
 use uuid::Uuid;
 
-use crate::config::CONFIG;
 use crate::crypto::DMCrypto;
 use crate::db::DatabaseManager;
 

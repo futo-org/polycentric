@@ -21,6 +21,12 @@ pub struct WebSocketManager {
     user_connections: Arc<RwLock<HashMap<PolycentricIdentity, Vec<Uuid>>>>,
 }
 
+impl Default for WebSocketManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WebSocketManager {
     pub fn new() -> Self {
         Self {

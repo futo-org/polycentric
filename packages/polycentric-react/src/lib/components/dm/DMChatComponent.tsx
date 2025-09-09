@@ -99,7 +99,8 @@ const MessageItem: React.FC<{
 
 export const DMChatComponent: React.FC<DMChatComponentProps> = ({
   otherParty,
-  otherPartyName,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  otherPartyName: _otherPartyName,
   className = '',
 }) => {
   const [messageText, setMessageText] = useState('');
@@ -127,10 +128,10 @@ export const DMChatComponent: React.FC<DMChatComponentProps> = ({
 
   // Load message history when component mounts
   useEffect(() => {
-    if (isRegistered && otherParty) {
+    if (isRegistered && otherParty && client) {
       loadHistory(otherParty);
     }
-  }, [isRegistered, otherParty, loadHistory]);
+  }, [isRegistered, otherParty, client, loadHistory]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -238,12 +239,12 @@ export const DMChatComponent: React.FC<DMChatComponentProps> = ({
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
             placeholder="Type a message..."
-            disabled={isLoading || !isConnected}
+            disabled={isLoading}
             className="message-input"
           />
           <button
             type="submit"
-            disabled={!messageText.trim() || isLoading || !isConnected}
+            disabled={!messageText.trim() || isLoading}
             className="send-button"
           >
             {isLoading ? '...' : 'Send'}

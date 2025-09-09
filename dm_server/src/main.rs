@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::{
     classify::StatusInRangeAsFailures,
-    cors::{Any, CorsLayer},
+    cors::CorsLayer,
     trace::{DefaultOnFailure, DefaultOnResponse, TraceLayer},
 };
 use tracing::{self as log, info_span, Level};

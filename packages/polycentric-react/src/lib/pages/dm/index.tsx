@@ -21,7 +21,6 @@ import {
   useUsernameCRDTQuery,
 } from '../../hooks/queryHooks';
 
-// Component to display user information with username and avatar
 const UserDisplay: React.FC<{ publicKey: Core.Models.PublicKey.PublicKey }> = ({
   publicKey,
 }) => {
@@ -65,17 +64,19 @@ export const DMPage: Page = () => {
   } | null>(null);
   const [publicKeyInput, setPublicKeyInput] = useState('');
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [showNewConversation, setShowNewConversation] = useState(false);
 
-  // Memoize the config to prevent infinite re-renders
   const dmConfig = useMemo(() => getDMServerConfig(), []);
 
   const {
     client,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     isConnected,
     isRegistered,
     registerKeys,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     connectWebSocket,
     getAllConversations,
   } = useDMClient({
@@ -83,26 +84,25 @@ export const DMPage: Page = () => {
     autoConnect: true,
   });
 
-  // Load conversations when component mounts
   useEffect(() => {
+    const loadConversations = async () => {
+      if (!client) return;
+
+      setIsLoadingConversations(true);
+      try {
+        const result = await getAllConversations();
+        setConversations(result.conversations);
+      } catch (error) {
+        console.error('Failed to load conversations:', error);
+      } finally {
+        setIsLoadingConversations(false);
+      }
+    };
+
     if (isRegistered && client) {
       loadConversations();
     }
-  }, [isRegistered, client]);
-
-  const loadConversations = async () => {
-    if (!client) return;
-
-    setIsLoadingConversations(true);
-    try {
-      const result = await getAllConversations();
-      setConversations(result.conversations);
-    } catch (error) {
-      console.error('Failed to load conversations:', error);
-    } finally {
-      setIsLoadingConversations(false);
-    }
-  };
+  }, [isRegistered, client, getAllConversations]);
 
   const handleStartConversation = () => {
     if (!publicKeyInput.trim()) return;
@@ -112,13 +112,11 @@ export const DMPage: Page = () => {
       const input = publicKeyInput.trim();
 
       try {
-        // First try parsing as a full PublicKey string (protobuf format)
         publicKey = Core.Models.PublicKey.fromString(
           input as Core.Models.PublicKey.PublicKeyString,
         );
       } catch {
-        // If that fails, assume it's raw Ed25519 key bytes in base64
-        const keyBytesBase64 = input.replace(/[^A-Za-z0-9+/=]/g, ''); // Clean input
+        const keyBytesBase64 = input.replace(/[^A-Za-z0-9+/=]/g, '');
         const binaryString = atob(keyBytesBase64);
         const keyBytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
@@ -129,16 +127,15 @@ export const DMPage: Page = () => {
           throw new Error('Ed25519 public key must be 32 bytes');
         }
 
-        // Create PublicKey with Ed25519 key type (1)
         publicKey = Core.Models.PublicKey.fromProto({
-          keyType: Long.fromNumber(1), // Ed25519 key type
+          keyType: Long.fromNumber(1),
           key: keyBytes,
         });
       }
 
       setSelectedContact({
         publicKey,
-        name: input, // Use the input as name for now
+        name: input,
       });
       setPublicKeyInput('');
     } catch (error) {
@@ -267,7 +264,6 @@ export const DMPage: Page = () => {
   const handleBackToConversations = () => {
     setSelectedContact(null);
     setShowNewConversation(false);
-    loadConversations(); // Refresh conversations
   };
 
   if (!isRegistered) {

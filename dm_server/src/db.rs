@@ -5,6 +5,20 @@ use uuid::Uuid;
 
 use crate::models::*;
 
+/// Parameters for storing a DM message
+#[derive(Debug)]
+pub struct StoreMessageParams<'a> {
+    pub message_id: &'a str,
+    pub sender: &'a PolycentricIdentity,
+    pub recipient: &'a PolycentricIdentity,
+    pub ephemeral_public_key: &'a [u8],
+    pub encrypted_content: &'a [u8],
+    pub nonce: &'a [u8],
+    pub encryption_algorithm: Option<&'a str>,
+    pub message_timestamp: DateTime<Utc>,
+    pub reply_to: Option<&'a str>,
+}
+
 /// Database operations for the DM server
 pub struct DatabaseManager {
     pool: PgPool,
@@ -64,18 +78,7 @@ impl DatabaseManager {
     }
 
     /// Store an encrypted DM message
-    pub async fn store_message(
-        &self,
-        message_id: &str,
-        sender: &PolycentricIdentity,
-        recipient: &PolycentricIdentity,
-        ephemeral_public_key: &[u8],
-        encrypted_content: &[u8],
-        nonce: &[u8],
-        encryption_algorithm: Option<&str>,
-        message_timestamp: DateTime<Utc>,
-        reply_to: Option<&str>,
-    ) -> Result<Uuid> {
+    pub async fn store_message(&self, params: StoreMessageParams<'_>) -> Result<Uuid> {
         let row = sqlx::query(
             r#"
             INSERT INTO dm_messages (
@@ -86,17 +89,17 @@ impl DatabaseManager {
             RETURNING id
             "#,
         )
-        .bind(message_id)
-        .bind(sender.key_type as i64)
-        .bind(&sender.key_bytes)
-        .bind(recipient.key_type as i64)
-        .bind(&recipient.key_bytes)
-        .bind(ephemeral_public_key)
-        .bind(encrypted_content)
-        .bind(nonce)
-        .bind(encryption_algorithm.unwrap_or("ChaCha20Poly1305")) // Default to ChaCha20-Poly1305 for backward compatibility
-        .bind(message_timestamp)
-        .bind(reply_to)
+        .bind(params.message_id)
+        .bind(params.sender.key_type as i64)
+        .bind(&params.sender.key_bytes)
+        .bind(params.recipient.key_type as i64)
+        .bind(&params.recipient.key_bytes)
+        .bind(params.ephemeral_public_key)
+        .bind(params.encrypted_content)
+        .bind(params.nonce)
+        .bind(params.encryption_algorithm.unwrap_or("ChaCha20Poly1305")) // Default to ChaCha20-Poly1305 for backward compatibility
+        .bind(params.message_timestamp)
+        .bind(params.reply_to)
         .fetch_one(&self.pool)
         .await?;
 
