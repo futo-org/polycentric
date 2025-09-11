@@ -58,9 +58,9 @@ impl TestSetup {
 
         let config = Arc::new(Config {
             database_url,
-            server_port: 0,    // Test port
-            websocket_port: 0, // Test port
-            challenge_key: "test-challenge-key".to_string(),
+            server_port: 0,                                       // Test port
+            websocket_port: 0,                                    // Test port
+            challenge_key: "change-me-in-production".to_string(), // Use same as default CONFIG
             max_message_size: 1024 * 1024,
             message_retention_days: 30,
             max_connections_per_user: 5,
@@ -252,24 +252,36 @@ impl MessageHelper {
         )
         .unwrap();
 
-        // Create message for signing (exclude timestamp to avoid timing issues)
-        let message_for_signing = serde_json::json!({
-            "message_id": message_id,
-            "sender": {
-                "key_type": sender.polycentric_identity.key_type,
-                "key_bytes": sender.polycentric_identity.key_bytes,
-            },
-            "recipient": {
-                "key_type": recipient.polycentric_identity.key_type,
-                "key_bytes": recipient.polycentric_identity.key_bytes,
-            },
-            "ephemeral_public_key": ephemeral_public_bytes,
-            "encrypted_content": encrypted,
-            "nonce": nonce,
-        });
+        // Create message for signing using the same format as the handler
+        // Format: [message_id_bytes][sender_key_type][sender_key_bytes][recipient_key_type][recipient_key_bytes][ephemeral_key][encrypted_content][nonce]
+        let message_id_bytes = message_id.as_bytes();
+        let mut message_data = Vec::new();
 
-        let message_bytes = serde_json::to_vec(&message_for_signing).unwrap();
-        let signature = sender.sign_data(&message_bytes);
+        // Add message_id bytes
+        message_data.extend_from_slice(message_id_bytes);
+
+        // Add sender key_type (u64, little-endian)
+        message_data.extend_from_slice(&sender.polycentric_identity.key_type.to_le_bytes());
+
+        // Add sender key_bytes
+        message_data.extend_from_slice(&sender.polycentric_identity.key_bytes);
+
+        // Add recipient key_type (u64, little-endian)
+        message_data.extend_from_slice(&recipient.polycentric_identity.key_type.to_le_bytes());
+
+        // Add recipient key_bytes
+        message_data.extend_from_slice(&recipient.polycentric_identity.key_bytes);
+
+        // Add ephemeral public key
+        message_data.extend_from_slice(&ephemeral_public_bytes);
+
+        // Add encrypted content
+        message_data.extend_from_slice(&encrypted);
+
+        // Add nonce
+        message_data.extend_from_slice(&nonce);
+
+        let signature = sender.sign_data(&message_data);
 
         (
             message_id,

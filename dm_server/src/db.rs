@@ -133,7 +133,7 @@ impl DatabaseManager {
                 (sender_key_type = $3 AND sender_key_bytes = $4 AND recipient_key_type = $1 AND recipient_key_bytes = $2)
             )
             AND ($5::timestamptz IS NULL OR created_at < $5)
-            ORDER BY created_at ASC
+            ORDER BY created_at DESC
             LIMIT $6
             "#,
         )
@@ -338,7 +338,6 @@ impl DatabaseManager {
                         WHEN sender_key_type = $1 AND sender_key_bytes = $2 
                         THEN recipient_key_bytes 
                         ELSE sender_key_bytes 
-                    END as other_key_type
                     END as other_key_bytes,
                     MAX(created_at) as last_message_at
                 FROM dm_messages
