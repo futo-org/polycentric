@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE active_connections\n            SET last_ping = NOW()\n            WHERE connection_id = $1\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ca2a38f9f19867cc7656392b00aeb522d066c36f3b581828cd600085bc00c3af"
+}

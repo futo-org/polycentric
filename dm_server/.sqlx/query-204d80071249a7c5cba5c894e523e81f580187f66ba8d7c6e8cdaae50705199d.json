@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT identity_key_type, identity_key_bytes, x25519_public_key, signature, created_at, updated_at\n            FROM user_x25519_keys \n            WHERE identity_key_type = $1 AND identity_key_bytes = $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "identity_key_type",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "identity_key_bytes",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 2,
+        "name": "x25519_public_key",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 3,
+        "name": "signature",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Bytea"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "204d80071249a7c5cba5c894e523e81f580187f66ba8d7c6e8cdaae50705199d"
+}

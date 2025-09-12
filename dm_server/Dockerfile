@@ -8,12 +8,6 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install cargo-watch for development
-RUN cargo install cargo-watch --version=8.5.3
-
-# Install sqlx-cli for database migrations
-# RUN cargo install sqlx-cli --no-default-features --features postgres
-
 # Copy polycentric-protocol dependency
 COPY polycentric-protocol /usr/src/polycentric-protocol
 COPY proto /usr/src/proto
@@ -21,10 +15,17 @@ COPY proto /usr/src/proto
 # Copy DM server Cargo files first for better caching
 COPY dm_server/Cargo.toml dm_server/Cargo.lock ./
 
+# Copy DM server sqlx prepared statements
+COPY dm_server/.sqlx ./.sqlx
+
 # Copy DM server source code
 COPY dm_server/src ./src
 COPY dm_server/build.rs ./
 COPY dm_server/migrations ./migrations
+
+# Ensure SQLX_OFFLINE is set to use pre-generated data (if applicable)
+# Make sure sqlx-data.json is present in your source or generated before this step
+ENV SQLX_OFFLINE=true
 
 # Build the application for production
 RUN cargo build --release

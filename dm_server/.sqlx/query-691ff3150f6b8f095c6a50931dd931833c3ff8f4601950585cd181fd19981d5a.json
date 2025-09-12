@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO user_x25519_keys (identity_key_type, identity_key_bytes, x25519_public_key, signature)\n            VALUES ($1, $2, $3, $4)\n            ON CONFLICT (identity_key_type, identity_key_bytes)\n            DO UPDATE SET \n                x25519_public_key = EXCLUDED.x25519_public_key,\n                signature = EXCLUDED.signature,\n                updated_at = NOW()\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Bytea",
+        "Bytea",
+        "Bytea"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "691ff3150f6b8f095c6a50931dd931833c3ff8f4601950585cd181fd19981d5a"
+}

@@ -1,0 +1,111 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id, message_id, sender_key_type, sender_key_bytes, recipient_key_type, recipient_key_bytes,\n                   ephemeral_public_key, encrypted_content, nonce, encryption_algorithm, created_at, message_timestamp,\n                   reply_to_message_id, delivered_at, read_at\n            FROM dm_messages\n            WHERE (\n                (sender_key_type = $1 AND sender_key_bytes = $2 AND recipient_key_type = $3 AND recipient_key_bytes = $4)\n                OR\n                (sender_key_type = $3 AND sender_key_bytes = $4 AND recipient_key_type = $1 AND recipient_key_bytes = $2)\n            )\n            AND ($5::timestamptz IS NULL OR created_at < $5)\n            ORDER BY created_at ASC\n            LIMIT $6\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "message_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "sender_key_type",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "sender_key_bytes",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 4,
+        "name": "recipient_key_type",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "recipient_key_bytes",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 6,
+        "name": "ephemeral_public_key",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 7,
+        "name": "encrypted_content",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 8,
+        "name": "nonce",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 9,
+        "name": "encryption_algorithm",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "message_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "reply_to_message_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "delivered_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "read_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Bytea",
+        "Int8",
+        "Bytea",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "6d7d199881796916d96058746cc8b104d6dfd3ef3a751f6ea84c0babec2302a4"
+}

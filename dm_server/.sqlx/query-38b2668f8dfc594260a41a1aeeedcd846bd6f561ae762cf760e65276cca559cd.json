@@ -1,0 +1,78 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT DISTINCT ON (\n                CASE \n                    WHEN sender_key_type = $1 AND sender_key_bytes = $2 \n                    THEN recipient_key_type \n                    ELSE sender_key_type \n                END,\n                CASE \n                    WHEN sender_key_type = $1 AND sender_key_bytes = $2 \n                    THEN recipient_key_bytes \n                    ELSE sender_key_bytes \n                END\n            )\n                CASE \n                    WHEN sender_key_type = $1 AND sender_key_bytes = $2 \n                    THEN recipient_key_type \n                    ELSE sender_key_type \n                END as conversation_key_type,\n                CASE \n                    WHEN sender_key_type = $1 AND sender_key_bytes = $2 \n                    THEN recipient_key_bytes \n                    ELSE sender_key_bytes \n                END as conversation_key_bytes,\n                message_id,\n                sender_key_type,\n                sender_key_bytes,\n                encrypted_content,\n                nonce,\n                encryption_algorithm,\n                created_at,\n                CASE \n                    WHEN sender_key_type = $1 AND sender_key_bytes = $2 \n                    THEN false \n                    ELSE true \n                END as is_from_other\n            FROM dm_messages\n            WHERE sender_key_type = $1 AND sender_key_bytes = $2\n               OR recipient_key_type = $1 AND recipient_key_bytes = $2\n            ORDER BY \n                conversation_key_type, \n                conversation_key_bytes, \n                created_at DESC\n            LIMIT $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "conversation_key_type",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "conversation_key_bytes",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 2,
+        "name": "message_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "sender_key_type",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 4,
+        "name": "sender_key_bytes",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 5,
+        "name": "encrypted_content",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 6,
+        "name": "nonce",
+        "type_info": "Bytea"
+      },
+      {
+        "ordinal": 7,
+        "name": "encryption_algorithm",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "is_from_other",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Bytea",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "38b2668f8dfc594260a41a1aeeedcd846bd6f561ae762cf760e65276cca559cd"
+}

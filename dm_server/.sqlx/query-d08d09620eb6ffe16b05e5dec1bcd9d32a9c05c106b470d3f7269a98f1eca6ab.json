@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE dm_messages\n            SET delivered_at = $2\n            WHERE message_id = $1 AND delivered_at IS NULL\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d08d09620eb6ffe16b05e5dec1bcd9d32a9c05c106b470d3f7269a98f1eca6ab"
+}
