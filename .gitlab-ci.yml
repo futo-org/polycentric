@@ -171,6 +171,7 @@ build-server-release:
       expire_in: 60 mins
       paths:
         - ./server/target/release/server
+        - ./server/target/release/health_probe
 
 build-core:
   stage: build
