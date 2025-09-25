@@ -1,3 +1,7 @@
+/**
+ * @fileoverview User column with data fetching and state management.
+ */
+
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import { useCallback, useMemo, useState } from 'react';
 import { useAvatar, useBackground } from '../../../../hooks/imageHooks';
@@ -14,6 +18,7 @@ import {
 } from '../../../../util/imageProcessing';
 import { PureSidebarProfile } from '../PureSidebarProfile';
 
+// User column with follow/block actions and edit capabilities
 export const UserColumn = ({
   system,
 }: {

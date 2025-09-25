@@ -1,9 +1,14 @@
+/**
+ * @fileoverview Following feed page with post composition and infinite scroll.
+ */
+
 import { IonContent } from '@ionic/react';
 import { useMemo } from 'react';
 import { PostCompose } from '../../components/feed/Compose/PostCompose';
 import { InfiniteScrollWithRightCol } from '../../components/layout/infinitescrollwithrightcol';
 import { useFollowingFeed } from '../../hooks/feedHooks';
 
+// Following feed page with post composition and infinite scroll
 export const FollowingFeed = () => {
   const [data, advanceFeed, nothingFound] = useFollowingFeed();
   const composeComponent = useMemo(

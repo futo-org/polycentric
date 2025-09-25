@@ -1,5 +1,10 @@
+/**
+ * @fileoverview Animated spin loader with circular elements and color gradients.
+ */
+
 import './animation.css';
 
+// Circular spinner elements with color gradients and rotation
 const CircleSpinners = ({
   n,
   radius,
@@ -64,6 +69,7 @@ const CircleSpinners = ({
   return <>{obj}</>;
 };
 
+// Main spin loader component with configurable circle count
 export const SpinLoader = ({ n = 6 }: { n?: number }) => {
   return (
     <div className="relative" style={{ height: '200px', width: '200px' }}>

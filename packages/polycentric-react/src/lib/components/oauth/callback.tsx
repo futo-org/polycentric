@@ -1,8 +1,13 @@
+/**
+ * @fileoverview OAuth callback handler for social media claim verification.
+ */
+
 import * as Core from '@polycentric/polycentric-core';
 import Long from 'long';
 import { useEffect, useState } from 'react';
 import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks';
 
+// Extended error interface for API responses
 interface APIError extends Error {
   response?: {
     extendedMessage?: string;
@@ -10,6 +15,7 @@ interface APIError extends Error {
   };
 }
 
+// OAuth callback component for processing social media authentication
 export function OAuthCallback() {
   const [username, setUsername] = useState<string | null>(null);
   const [permanentToken, setPermanentToken] = useState<string | null>(null);
@@ -87,6 +93,7 @@ export function OAuthCallback() {
     processOAuth();
   }, [processHandle]);
 
+  // Process OAuth verification and create claim
   const handleConfirm = async () => {
     if (!username || !permanentToken || !processHandle) {
       setError('Missing necessary information to complete verification.');

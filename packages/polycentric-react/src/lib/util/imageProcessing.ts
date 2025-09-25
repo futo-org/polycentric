@@ -1,8 +1,21 @@
+/**
+ * @fileoverview Image processing utilities for avatar and background image handling with resolution management.
+ *
+ * Key Design Decisions:
+ * - Multi-resolution avatar generation for responsive display across different screen sizes
+ * - WebP/PNG conversion with canvas-based resizing for optimal file sizes
+ * - Blob-to-Uint8Array conversion for Polycentric protocol compatibility
+ * - Image manifest creation with metadata for distributed storage
+ * - Canvas-based cropping with browser-native createImageBitmap for performance
+ */
+
 import { ProcessHandle, Protocol } from '@polycentric/polycentric-core';
 import Long from 'long';
 
+// Avatar resolution configuration for responsive display
 export const avatarResolutions = { lg: 256, md: 128, sm: 32 };
 
+// Convert blob to Uint8Array for Polycentric protocol compatibility
 export const convertBlobToUint8Array = async (
   blob: Blob,
 ): Promise<Uint8Array> => {
@@ -11,6 +24,7 @@ export const convertBlobToUint8Array = async (
   return uint8Array;
 };
 
+// Canvas-based image resizing with aspect ratio preservation and upscale control
 export async function resizeImageToWebp(
   image: Blob,
   maxResX = 1000,
@@ -67,6 +81,7 @@ export async function resizeImageToWebp(
   }
 }
 
+// Publish image blob with resizing and manifest creation for distributed storage
 export const publishImageBlob = async (
   image: Blob,
   handle: ProcessHandle.ProcessHandle,
@@ -96,6 +111,7 @@ export const publishImageBlob = async (
   return imageManifest;
 };
 
+// Multi-resolution avatar publishing with responsive image bundle creation
 export const publishBlobToAvatar = async (
   blob: Blob,
   handle: ProcessHandle.ProcessHandle,
@@ -122,6 +138,7 @@ export const publishBlobToAvatar = async (
   return await handle.setAvatar(imageBundle);
 };
 
+// Background image publishing with single resolution for banner display
 export const publishBlobToBackground = async (
   blob: Blob,
   handle: ProcessHandle.ProcessHandle,
@@ -137,6 +154,7 @@ export const publishBlobToBackground = async (
   return await handle.setBanner(imageBundle);
 };
 
+// Data URL to blob conversion with MIME type detection and base64/URL decoding
 export async function dataURLToBlob(dataURL: string): Promise<Blob> {
   const [header, data] = dataURL.split(',');
   const isBase64 = header.includes(';base64');
@@ -155,6 +173,7 @@ export async function dataURLToBlob(dataURL: string): Promise<Blob> {
   return new Blob([ia], { type: mimeString });
 }
 
+// Browser-native image cropping with createImageBitmap for optimal performance
 export async function cropImageToBlob(
   image: Blob,
   x: number,

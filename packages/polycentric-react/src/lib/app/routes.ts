@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Centralized route configuration for the application.
+ */
+
 import { Onboarding } from '../components';
 import { OAuthCallback } from '../components/oauth/callback';
 import { FollowingFeed } from '../pages/following';

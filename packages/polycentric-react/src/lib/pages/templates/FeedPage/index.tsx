@@ -1,9 +1,14 @@
+/**
+ * @fileoverview Reusable feed page template with pull-to-refresh and infinite scroll.
+ */
+
 import { ReactElement } from 'react';
 import PullToRefresh from 'react-pull-to-refresh';
 import { InfiniteScrollWithRightCol } from '../../../components/layout/infinitescrollwithrightcol';
 import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks';
 import { useIsMobile } from '../../../hooks/styleHooks';
 
+// Reusable feed page template with pull-to-refresh and infinite scroll
 export const FeedPage = ({
   data,
   advanceFeed,

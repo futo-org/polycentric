@@ -1,7 +1,11 @@
+/**
+ * @fileoverview React Context definitions. Separated for HMR support.
+ */
+
 import { createContext, Dispatch, SetStateAction } from 'react';
 import { StackRouterContextType } from '../hooks/stackRouterHooks';
 
-// separate file for HMR
+// Navigation stack management with error-throwing defaults to ensure provider usage
 export const StackRouterContext = createContext<StackRouterContextType>({
   history: [],
   currentPath: '',
@@ -28,11 +32,13 @@ export const StackRouterContext = createContext<StackRouterContextType>({
   },
 });
 
+// Mobile swipe navigation topic state
 export const MobileSwipeTopicContext = createContext<{
   topic: string;
   setTopic: (topic: string) => void;
 }>({ topic: 'Explore', setTopic: () => {} });
 
+// Content moderation settings and tag visibility
 export const ModerationContext = createContext<{
   moderationLevels: Record<string, number> | undefined;
   setModerationLevels: Dispatch<

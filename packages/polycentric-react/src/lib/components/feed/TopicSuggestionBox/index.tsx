@@ -1,9 +1,14 @@
+/**
+ * @fileoverview Topic suggestion component with hierarchical search.
+ */
+
 import { useEffect, useState } from 'react';
 
 type InfiniteMap = {
   [key: string]: InfiniteMap | Record<string, never>;
 };
 
+// Recursive topic matching with hierarchical search
 const getRelevantTopics = (
   query: string,
   topics: InfiniteMap,
@@ -29,6 +34,7 @@ const getRelevantTopics = (
   });
 };
 
+// Individual topic suggestion pill component
 const TopicSuggestionBoxPill = ({
   topics,
   path,
@@ -73,6 +79,7 @@ const TopicSuggestionBoxPill = ({
   </>
 );
 
+// Main topic suggestion component with depth-first search
 export const TopicSuggestionBox = ({
   topics,
   query,

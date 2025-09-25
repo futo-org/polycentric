@@ -1,3 +1,14 @@
+/**
+ * @fileoverview Complex feed management hooks with content type separation, moderation filtering, and CRDT synchronization.
+ *
+ * Key Design Decisions:
+ * - Separate hooks for each content type (posts, claims, vouches) to maintain independent synchronization
+ * - Moderation filtering applied at query level to reduce unnecessary data processing
+ * - CRDT-based blocked topic filtering with real-time updates
+ * - AsyncLock prevents race conditions during concurrent feed operations
+ * - Content type separation allows for different pagination strategies per type
+ */
+
 import {
   APIMethods,
   CancelContext,
@@ -34,8 +45,10 @@ export type FeedHook = (
   ...args: any[]
 ) => [FeedHookData, FeedHookAdvanceFn, boolean?];
 
+// Post decoder utility for event content parsing
 const decodePost = (e: Models.Event.Event) => Protocol.Post.decode(e.content);
 
+// Author feed with separate content type synchronization for independent pagination
 export const useAuthorFeed: FeedHook = (system: Models.PublicKey.PublicKey) => {
   // Keep separate hooks for each content type
   const [posts, advancePosts] = useIndex(
@@ -81,6 +94,7 @@ export const useAuthorFeed: FeedHook = (system: Models.PublicKey.PublicKey) => {
   return [allItems, advance, false];
 };
 
+// Explore feed with moderation filtering and blocked topic management
 export const useExploreFeed: FeedHook = () => {
   const queryManager = useQueryManager();
   const { moderationLevels } = useModeration();
@@ -151,6 +165,7 @@ export const useExploreFeed: FeedHook = () => {
   return [filteredData, advance, nothingFound];
 };
 
+// Search callback factory with minimum query length validation to prevent excessive API calls
 const makeGetSearchCallbackWithMinQueryLength = (
   searchQuery: string,
   searchType: APIMethods.SearchType,
@@ -163,6 +178,7 @@ const makeGetSearchCallbackWithMinQueryLength = (
   return Queries.QueryCursor.makeGetSearchCallback(searchQuery, searchType);
 };
 
+// Search posts feed with debounced query validation to optimize API usage
 export const useSearchPostsFeed: FeedHook = (searchQuery: string) => {
   const loadCallback = useMemo(() => {
     return makeGetSearchCallbackWithMinQueryLength(
@@ -182,6 +198,7 @@ const commentFeedRequestEvents = {
 };
 const emptyArray: [] = [];
 
+// Reference feed for comments and replies with post reference filtering
 export const useReferenceFeed = (
   reference?: Protocol.Reference,
   extraByteReferences?: Uint8Array[],
@@ -196,6 +213,7 @@ export const useReferenceFeed = (
   );
 };
 
+// Topic feed with alternate topic representations for comprehensive topic matching
 export const useTopicFeed = (
   topic: string,
   alternateTopicRepresentations?: string[],
@@ -213,6 +231,7 @@ export const useTopicFeed = (
   return useReferenceFeed(reference, extraByteReferences);
 };
 
+// Comment feed with backwards chain traversal and duplicate prevention
 export const useCommentFeed = (
   post?: Models.SignedEvent.SignedEvent,
 ): [FeedItem[], () => void, boolean, number] => {
@@ -334,6 +353,7 @@ export const useCommentFeed = (
   return [all, advance, true, prependCount];
 };
 
+// Following feed with AsyncLock to prevent race conditions during concurrent operations
 export function useFollowingFeed(
   batchSize = 10,
 ): [FeedItem[], () => void, boolean] {
@@ -430,6 +450,7 @@ export function useFollowingFeed(
   return [state, advance, nothingFound];
 }
 
+// Likes feed with opinion processing and pointer validation to handle malformed references
 export function useLikesFeed(
   system: Models.PublicKey.PublicKey,
 ): [FeedHookData, () => Promise<void>, boolean] {
@@ -528,6 +549,7 @@ export function useLikesFeed(
   return [posts, advanceOpinions, allLoaded];
 }
 
+// Replies feed with state machine for post iteration and deduplication by pointer hash
 export function useRepliesFeed(
   system: Models.PublicKey.PublicKey,
   batchSize = 20,

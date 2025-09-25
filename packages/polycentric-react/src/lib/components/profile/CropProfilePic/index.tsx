@@ -1,7 +1,12 @@
+/**
+ * @fileoverview Profile picture cropping components with zoom controls.
+ */
+
 import { useCallback, useRef, useState } from 'react';
 import Cropper, { Area } from 'react-easy-crop';
 import { Modal } from '../../util/modal';
 
+// Profile picture cropper with zoom slider and save functionality
 export const CropProfilePic = ({
   src,
   aspect = 1,
@@ -81,6 +86,7 @@ export const CropProfilePic = ({
   );
 };
 
+// Modal wrapper for profile picture cropping
 export const CropProfilePicModal = ({
   src,
   aspect = 1,

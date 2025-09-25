@@ -13,11 +13,13 @@ import { TopicSuggestionBox } from '../TopicSuggestionBox';
  * - Paste image URLs from clipboard (automatically fetches and converts to file)
  *
  * Supported image formats: jpg, jpeg, png, gif, webp, bmp, svg
+ * @fileoverview Post composition component with image upload and mention support.
  */
 
 // const startsWithSlash = /^\/.*/
 // const hasNonAlphanumeric = /[^a-zA-Z0-9/]/
 
+// Topic input with character limit
 const TopicBox = ({
   topic,
   setTopic,
@@ -109,6 +111,7 @@ const TopicBox = ({
   );
 };
 
+// Main compose component with image upload, mentions, and topic support
 export const Compose = ({
   preSetTopic,
   hideTopic,

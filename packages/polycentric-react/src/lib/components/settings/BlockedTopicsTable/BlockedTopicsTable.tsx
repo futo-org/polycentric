@@ -1,8 +1,13 @@
+/**
+ * @fileoverview Blocked topics table with unblock functionality.
+ */
+
 import { Models, Util } from '@polycentric/polycentric-core';
 import { useMemo } from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 import { useQueryCRDTSet } from '../../../hooks/queryHooks';
 
+// Blocked topics list with unblock actions and CRDT queries
 export const BlockedTopicsTable = () => {
   const { processHandle } = useProcessHandleManager();
   const system = useMemo(() => processHandle.system(), [processHandle]);

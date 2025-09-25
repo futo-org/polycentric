@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Mobile topic sidebar with swipe-to-leave functionality.
+ */
+
 import { MinusIcon } from '@heroicons/react/24/outline';
 import {
   IonItem,
@@ -15,6 +19,7 @@ import { useTopicDisplayText } from '../../../../../hooks/utilHooks';
 import { Link } from '../../../../util/link';
 import './itemsliding.css';
 
+// Mobile topic item with swipe-to-leave and current topic highlighting
 const MobileTopicSidebarItem = ({ topic }: { topic: string }) => {
   const ionSlidingRef = useRef<HTMLIonItemSlidingElement>(null);
 
@@ -67,6 +72,7 @@ const MobileTopicSidebarItem = ({ topic }: { topic: string }) => {
   );
 };
 
+// Mobile topic sidebar with joined topics and swipe interactions
 export const MobileTopicSidebar = () => {
   const { processHandle } = useProcessHandleManager();
   const system = useMemo(() => processHandle.system(), [processHandle]);

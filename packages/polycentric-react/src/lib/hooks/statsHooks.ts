@@ -1,10 +1,21 @@
+/**
+ * @fileoverview Post statistics hooks with opinion tracking and local action management.
+ *
+ * Key Design Decisions:
+ * - Opinion-based statistics (likes/dislikes) with CRDT synchronization
+ * - Local action tracking to provide immediate UI feedback before server sync
+ * - Reference-based queries for efficient post relationship traversal
+ * - Cancel context pattern for preventing race conditions in opinion updates
+ * - Separate hooks for global stats vs. user-specific opinion states
+ */
+
 import { CancelContext, Models, Util } from '@polycentric/polycentric-core';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { publishImageBlob } from '../util/imageProcessing';
 import { useProcessHandleManager } from './processHandleManagerHooks';
 import { useQueryOpinion, useQueryPointerReferences } from './queryHooks';
 
-// Declare explicitly so they don't cause a useEffect rerender
+// Post statistics request configuration to prevent useEffect re-renders
 const postStatsRequestEvents = {
   fromType: Models.ContentType.ContentTypePost,
   countLwwElementReferences: [],
@@ -28,6 +39,7 @@ const postStatReferences = [
   },
 ];
 
+// Post statistics hook with opinion counting and reference aggregation
 export const usePostStats = (pointer: Models.Pointer.Pointer) => {
   const out = useQueryPointerReferences(
     pointer,
@@ -65,6 +77,7 @@ export const usePostStats = (pointer: Models.Pointer.Pointer) => {
   return counts;
 };
 
+// Post statistics with local action tracking for immediate UI feedback
 export function usePostStatsWithLocalActions(pointer: Models.Pointer.Pointer) {
   const { processHandle } = useProcessHandleManager();
 

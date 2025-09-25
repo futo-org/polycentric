@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Video embedding component with platform-specific players and third-party consent.
+ */
+
 import { Fragment, useMemo, useState } from 'react';
 import {
   lbryURIRegex,
@@ -6,6 +10,7 @@ import {
   youtubeURLRegex,
 } from '../platformRegex';
 
+// Generic iframe embed component for video platforms
 const IframeEmbed = ({
   src,
   ...rest
@@ -22,6 +27,7 @@ const IframeEmbed = ({
   );
 };
 
+// YouTube-specific embed with privacy controls
 const YoutubeEmbed = ({ id }: { id: string }) => {
   return (
     <IframeEmbed
@@ -32,6 +38,7 @@ const YoutubeEmbed = ({ id }: { id: string }) => {
   );
 };
 
+// Direct video embed for MP4 files
 const VideoEmbed = ({
   src,
   ...rest
@@ -39,6 +46,7 @@ const VideoEmbed = ({
   return <video className="aspect-video" src={src} controls {...rest} />;
 };
 
+// Third-party consent container with privacy policy acceptance
 const TopFeedVideoContainer = ({
   children,
   platformName,
@@ -96,6 +104,7 @@ const getLbryEmbedUrl = (uri: string) => {
   return `https://lbry.tv/$/embed/${escapeHtmlProperty(encodedUri)}`;
 };
 
+// Main video component with platform detection and appropriate player selection
 export const TopFeedVideo = ({ topic }: { topic: string }) => {
   const { player, platformName } = useMemo(() => {
     let player: React.ReactNode | undefined = <></>;

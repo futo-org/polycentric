@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Text linkification with mentions, topics, URLs, and quotes.
+ */
+
 /* eslint-disable react/prop-types */
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import React, { forwardRef, useEffect, useMemo } from 'react';
@@ -22,6 +26,7 @@ interface SuggestionPopup {
   onSelect: (username: string) => void;
 }
 
+// Mention suggestions popup with keyboard navigation
 export const MentionSuggestions = ({ query, onSelect }: SuggestionPopup) => {
   const { processHandle } = useProcessHandleManager();
   const [selectedIndex, setSelectedIndex] = React.useState(0);
@@ -108,6 +113,7 @@ export const MentionSuggestions = ({ query, onSelect }: SuggestionPopup) => {
   );
 };
 
+// Individual mention suggestion item with username display
 const MentionSuggestionItem = ({
   system,
   onSelect,
@@ -141,6 +147,7 @@ const MentionSuggestionItem = ({
   );
 };
 
+// Mention link component with profile navigation
 const MentionLink = React.memo(
   ({
     value,
@@ -195,6 +202,7 @@ export interface LinkifyProps {
   onContentChange?: (newContent: string) => void;
 }
 
+// Main linkify component with text parsing and link rendering
 export const Linkify = React.memo(
   forwardRef<HTMLDivElement, LinkifyProps>(
     ({ as, className, content, stopPropagation }, ref) => {

@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Account switcher component for managing multiple accounts.
+ */
+
 import { Menu } from '@headlessui/react';
 import { IonMenuToggle } from '@ionic/react';
 import { MetaStore, Models } from '@polycentric/polycentric-core';
@@ -13,6 +17,7 @@ import { CircleExpandMenuReverse } from '../../util/circleexpandmenu';
 import { Link } from '../../util/link';
 import { ProfilePicture } from '../ProfilePicture';
 
+// Expand/collapse arrow icon
 const UpArrowIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -30,6 +35,7 @@ const UpArrowIcon = () => (
   </svg>
 );
 
+// Individual account item with switch/signout actions
 const AccountSwitcherItem = ({
   storeInfo,
   setSubMenuExpanded,
@@ -73,6 +79,7 @@ const AccountSwitcherItem = ({
   );
 };
 
+// Main account switcher with expandable account list and menu actions
 export const AccountSwitcher = () => {
   const [expanded, setExpanded] = useState(false);
   const [subMenuExpanded, setSubMenuExpanded] = useState(false);

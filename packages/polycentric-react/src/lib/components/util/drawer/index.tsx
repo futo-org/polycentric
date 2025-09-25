@@ -1,6 +1,11 @@
+/**
+ * @fileoverview Ionic drawer component with configurable side and type.
+ */
+
 import { IonMenu } from '@ionic/react';
 import './style.css';
 
+// Ionic drawer with configurable side, type, and content styling
 export const Drawer = ({
   children,
   side = 'left',

@@ -1,8 +1,13 @@
+/**
+ * @fileoverview Following list components for managing followed users.
+ */
+
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import { useEffect, useMemo } from 'react';
 import { useQueryCRDTSet } from '../../../hooks/queryHooks';
 import { AccountListModal } from '../AccountList';
 
+// Following list modal with CRDT query and system conversion
 const OpenFollowingList = ({
   system,
   open,
@@ -43,6 +48,7 @@ const OpenFollowingList = ({
   );
 };
 
+// Conditional following list component that only renders when open
 export const FollowingList = ({
   system,
   open,

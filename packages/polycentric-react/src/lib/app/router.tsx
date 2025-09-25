@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Main router component using Ionic React Router.
+ */
+
 import { IonNav, IonPage, IonRouterOutlet } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import { Route } from 'react-router-dom';
@@ -11,7 +15,7 @@ import { SettingsPage } from '../pages/settings';
 import { TopicFeedPage } from '../pages/topicfeed';
 import { UserFeedPage } from '../pages/userfeed';
 
-// Wrap OAuthCallback in IonPage
+// OAuth callback requires IonPage wrapper for proper navigation
 const OAuthCallbackPage: React.FC = () => (
   <IonPage>
     <OAuthCallback />

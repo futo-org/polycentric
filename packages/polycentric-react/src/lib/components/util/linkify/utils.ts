@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Linkify utilities for text parsing and URL generation.
+ */
+
 import { Models } from '@polycentric/polycentric-core';
 
 // match URLs that don't start with a slash
@@ -18,6 +22,7 @@ export interface LinkifyItem {
   trailingSpace?: string;
 }
 
+// Parse text content and extract linkable items with regex matching
 export const linkify = (
   content: string,
   regex: RegExp,
@@ -46,6 +51,7 @@ export const linkify = (
   });
 };
 
+// Generate external URLs for social media claims
 export const getAccountUrl = (
   type: Long,
   value: string,

@@ -1,8 +1,13 @@
+/**
+ * @fileoverview Profile background input with cropping functionality.
+ */
+
 import { useEffect, useRef, useState } from 'react';
 import { useBlobDisplayURL } from '../../../../../hooks/imageHooks';
 import { cropImageToBlob } from '../../../../../util/imageProcessing';
 import { CropProfilePicModal } from '../../../CropProfilePic';
 
+// Hook to track previous value for comparison
 function usePrevious<T>(value: T): T | undefined {
   const ref = useRef<T>();
   useEffect(() => {
@@ -11,6 +16,7 @@ function usePrevious<T>(value: T): T | undefined {
   return ref.current;
 }
 
+// Background input with file upload and rectangular cropping
 export const ProfileBackgroundInput = ({
   title,
   hint,

@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Server management table with validation and editing capabilities.
+ */
+
 import { CheckIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { CancelContext } from '@polycentric/polycentric-core';
 import { useState } from 'react';
@@ -5,6 +9,7 @@ import { useProcessHandleManager } from '../../../hooks/processHandleManagerHook
 import { useQueryServers } from '../../../hooks/queryHooks';
 import { useDebouncedEffect } from '../../../hooks/utilHooks';
 
+// X icon component for cancel/delete actions
 const XIcon = ({ className }: { className: string }) => {
   return (
     <svg
@@ -34,6 +39,7 @@ interface NewServer {
   close: () => void;
 }
 
+// Server table row with inline editing and validation
 const ServerListTableRow = ({
   params,
 }: {
@@ -208,6 +214,7 @@ const ServerListTableRow = ({
 
 const FEATURED_SERVERS = ['https://serv2.polycentric.io'];
 
+// Main server management table with featured servers
 export const ServerListTable = () => {
   const { processHandle } = useProcessHandleManager();
   const [newServer, setNewServer] = useState(false);

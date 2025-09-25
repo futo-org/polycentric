@@ -1,6 +1,11 @@
+/**
+ * @fileoverview Account deletion component with confirmation and data cleanup.
+ */
+
 import React from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 
+// Account deletion with confirmation dialog and complete data cleanup
 export const DeleteAccount: React.FC = () => {
   const { processHandle, metaStore, clearProcessHandle, activeStore } =
     useProcessHandleManager();

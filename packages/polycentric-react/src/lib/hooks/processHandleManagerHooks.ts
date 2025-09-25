@@ -1,3 +1,15 @@
+/**
+ * @fileoverview Core process handle management with account switching, creation, and persistence.
+ *
+ * Key Design Decisions:
+ * - Process handle lifecycle management with async initialization and cleanup
+ * - Account switching with store isolation and state preservation
+ * - Export bundle support for account backup and restoration
+ * - MetaStore integration for persistent account management
+ * - Context-based dependency injection for process handle access
+ * - New account detection for onboarding flow management
+ */
+
 import { decode } from '@borderless/base64';
 import {
   CancelContext,
@@ -43,6 +55,7 @@ interface UseProcessHandleManagerState {
   processHandle: ProcessHandle.ProcessHandle | null | undefined;
 }
 
+// Base process handle manager hook with account lifecycle management
 export function useProcessHandleManagerBaseComponentHook(
   metaStore: MetaStore.IMetaStore,
 ): BaseProcessHandleManagerHookReturn {
@@ -94,6 +107,7 @@ export function useProcessHandleManagerBaseComponentHook(
     await changeHandle(undefined);
   }, [changeHandle]);
 
+  // Create new process handle with private key, servers, and username
   const createHandle = useCallback(
     async (
       privateKey: Models.PrivateKey.PrivateKey,
@@ -128,6 +142,7 @@ export function useProcessHandleManagerBaseComponentHook(
     [metaStore],
   );
 
+  // Create process handle from export bundle for account restoration
   const createHandleFromExportBundle = useCallback(
     async (bundle: string) => {
       let privateKeyModel: Models.PrivateKey.PrivateKey;

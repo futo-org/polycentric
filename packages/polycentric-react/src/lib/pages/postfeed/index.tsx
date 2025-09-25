@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Individual post feed page with comment display and user profile sidebar.
+ */
+
 import { decode } from '@borderless/base64';
 import { IonContent } from '@ionic/react';
 import { Models, Protocol } from '@polycentric/polycentric-core';
@@ -11,6 +15,7 @@ import { useProcessHandleManager } from '../../hooks/processHandleManagerHooks';
 import { useQueryPost } from '../../hooks/queryHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
 
+// Individual post feed page with comment display and user profile sidebar
 export const PostFeedPage: Page = () => {
   const { urlInfoString } = useParams<{ urlInfoString: string }>();
   const { processHandle } = useProcessHandleManager();

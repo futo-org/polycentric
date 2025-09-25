@@ -1,8 +1,13 @@
+/**
+ * @fileoverview Right column layout with search and footer.
+ */
+
 import { ReactNode } from 'react';
 import { useIsMobile } from '../../../hooks/styleHooks';
 import { SearchBox } from '../../search/searchbox';
 import { FooterLinks } from '../footerlinks';
 
+// Desktop right column with search and responsive layout
 export const RightCol = ({
   children,
   rightCol,

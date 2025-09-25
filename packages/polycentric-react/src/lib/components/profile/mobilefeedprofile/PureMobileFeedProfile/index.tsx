@@ -1,7 +1,11 @@
+/**
+ * @fileoverview Pure mobile feed profile display component.
+ */
+
 import { ArrowUpOnSquareIcon } from '@heroicons/react/24/outline';
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import Long from 'long';
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { ClaimGrid } from '../../ClaimGrid';
 import {
@@ -11,6 +15,7 @@ import {
 import { FollowingList } from '../../FollowingList';
 import { PureSidebarProfileData } from '../../sidebarprofile/PureSidebarProfile';
 
+// Mobile profile display with background, avatar, and action buttons
 export const PureMobileFeedProfile = ({
   profile,
   follow,

@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Account list components for displaying user accounts.
+ */
+
 import { Models } from '@polycentric/polycentric-core';
 import { useMemo } from 'react';
 import { Virtuoso } from 'react-virtuoso';
@@ -11,6 +15,7 @@ import { Link } from '../../util/link';
 import { Modal } from '../../util/modal';
 import { ProfilePicture } from '../ProfilePicture';
 
+// Individual account item with avatar, name, and description
 const AccountListItem = ({
   system,
   onClick,
@@ -59,6 +64,7 @@ const AccountListItem = ({
   );
 };
 
+// Virtualized list of accounts with infinite scroll
 export const AccountList = ({
   systems,
   advance,
@@ -84,6 +90,7 @@ export const AccountList = ({
   );
 };
 
+// Modal wrapper for account list with title and close functionality
 export const AccountListModal = ({
   title,
   systems,

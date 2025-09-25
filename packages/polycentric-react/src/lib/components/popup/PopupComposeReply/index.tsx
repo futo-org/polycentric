@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Popup compose reply components for modal comment creation.
+ */
+
 import { useCallback } from 'react';
 import { useIsMobile } from '../../../hooks/styleHooks';
 import { Compose } from '../../feed/Compose';
@@ -9,6 +13,7 @@ interface PopupComposeReplyProfile {
   avatarURL?: string;
 }
 
+// Reply compose with post context display and thread visualization
 export const PopupComposeReply = ({
   main,
   sub,
@@ -110,6 +115,7 @@ export const PopupComposeReply = ({
   );
 };
 
+// Fullscreen modal reply compose with auto-close on success
 export const PopupComposeReplyFullscreen = ({
   main,
   sub,

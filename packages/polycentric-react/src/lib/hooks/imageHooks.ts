@@ -1,3 +1,14 @@
+/**
+ * @fileoverview Image processing hooks with blob caching, manifest handling, and avatar generation.
+ *
+ * Key Design Decisions:
+ * - Blob URL caching with reference counting to prevent memory leaks
+ * - SHA-1 hashing for blob deduplication and cache key generation
+ * - Image manifest processing with section-based blob reconstruction
+ * - Avatar generation with jdenticon for consistent user identification
+ * - Observable-based caching for efficient image loading and processing
+ */
+
 import { Models, Protocol, Queries } from '@polycentric/polycentric-core';
 import { toSvg } from 'jdenticon';
 import Long from 'long';
@@ -10,7 +21,7 @@ import { ObservableCacheItem, useObservableWithCache } from './utilHooks';
 
 const blobURLCache = new Map<string, { url: string; count: number }>();
 
-// Simple hash function for blobs
+// SHA-1 hash function for blob deduplication and cache key generation
 const hashBlob = async (blob: Blob): Promise<string> => {
   const buffer = await blob.arrayBuffer();
   const digest = await crypto.subtle.digest('SHA-1', buffer);
@@ -22,6 +33,7 @@ const hashBlob = async (blob: Blob): Promise<string> => {
   return hashHex;
 };
 
+// Blob URL management with reference counting to prevent memory leaks
 export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
   const [blobURL, setBlobURL] = useState<string | undefined>(undefined);
 
@@ -69,6 +81,7 @@ export const useBlobDisplayURL = (blob?: Blob): string | undefined => {
   return blobURL;
 };
 
+// Image manifest processing with section-based blob reconstruction
 export const useImageManifestDisplayURL = (
   system?: Models.PublicKey.PublicKey,
   manifest?: Protocol.ImageManifest | null,
@@ -99,6 +112,7 @@ export const useImageManifestDisplayURL = (
   return imageURL;
 };
 
+// Observable blob to URL conversion with automatic cleanup
 function observableBlobToURL(blob: Blob): RXJS.Observable<string> {
   return new RXJS.Observable((subscriber) => {
     const url = URL.createObjectURL(blob);
@@ -109,6 +123,7 @@ function observableBlobToURL(blob: Blob): RXJS.Observable<string> {
   });
 }
 
+// Generate jdenticon avatar blob from system public key
 function observableSystemToBlob(
   system: Models.PublicKey.PublicKey,
 ): RXJS.Observable<Blob> {
@@ -121,6 +136,7 @@ function observableSystemToBlob(
   });
 }
 
+// Observable avatar with resolution-based manifest selection and fallback to jdenticon
 const observableAvatar = (
   queryManager: Queries.QueryManager.QueryManager,
   system: Readonly<Models.PublicKey.PublicKey>,
@@ -176,6 +192,7 @@ const observableAvatar = (
 
 const useAvatarCache: Map<string, ObservableCacheItem<string>> = new Map();
 
+// Avatar hook with observable caching and resolution-based manifest selection
 export const useAvatar = (
   system: Readonly<Models.PublicKey.PublicKey>,
   size: keyof typeof avatarResolutions = 'lg',

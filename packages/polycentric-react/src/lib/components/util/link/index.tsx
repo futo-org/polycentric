@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Custom link component with stack-based navigation and route matching.
+ */
+
 import { RouterDirection } from '@ionic/core';
 import { IonPage } from '@ionic/react';
 import React, { forwardRef, useCallback, useContext, useMemo } from 'react';
@@ -6,6 +10,7 @@ import { StackRouterContext } from '../../../app/contexts';
 import { routes } from '../../../app/routes';
 import { StackElementPathContext } from './StackElementPathContext';
 
+// Route matching utility to find component for URL
 const getUrlComponent = (url: string) => {
   const path = Object.keys(routes).find((path) => {
     const match = matchPath(url, {
@@ -18,6 +23,7 @@ const getUrlComponent = (url: string) => {
   return path ? routes[path].component : null;
 };
 
+// Component wrapper for memory-based routing with stack context
 export const MemoryRoutedComponent = ({
   routerLink,
 }: {
@@ -52,6 +58,7 @@ interface LinkProps {
   presentHref?: boolean;
 }
 
+// Custom link component with stack navigation and active state management
 const LinkComponent = forwardRef<
   HTMLAnchorElement,
   LinkProps & React.HTMLAttributes<HTMLAnchorElement>

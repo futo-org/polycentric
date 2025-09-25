@@ -1,6 +1,11 @@
+/**
+ * @fileoverview Dark mode selector with localStorage persistence.
+ */
+
 import { useState } from 'react';
 import { setupDarkMode } from './setupDarkMode';
 
+// Dark mode selector with on/off/auto options and localStorage persistence
 export const DarkModeSelector = () => {
   const [darkMode, setDarkMode] = useState(
     localStorage.getItem('darkMode') || 'auto',

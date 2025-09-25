@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Profile editing components with validation and state management.
+ */
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useBlobDisplayURL } from '../../../../hooks/imageHooks';
 import { Profile } from '../../../../types/profile';
@@ -13,6 +17,7 @@ export interface EditProfileActions {
   changeBackground: (blob: Blob) => Promise<unknown>;
 }
 
+// Profile editing form with validation and change tracking
 const InnerPureEditProfile = ({
   profile,
   actions,
@@ -191,6 +196,7 @@ const InnerPureEditProfile = ({
   );
 };
 
+// Modal wrapper for profile editing with title management
 export const PureEditProfile = ({
   profile,
   actions,

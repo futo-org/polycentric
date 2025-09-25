@@ -1,9 +1,14 @@
+/**
+ * @fileoverview Responsive modal component with mobile slide-up and desktop overlay animations.
+ */
+
 import { App as CapacitorApp } from '@capacitor/app';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useGestureWall } from '../../../hooks/ionicHooks';
 import { useIsMobile } from '../../../hooks/styleHooks';
+// Close icon component for modal header
 const XIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -19,6 +24,7 @@ const XIcon = () => (
   </svg>
 );
 
+// Responsive modal with mobile slide-up and desktop overlay animations
 export const Modal = ({
   children,
   setOpen,

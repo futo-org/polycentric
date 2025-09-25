@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Mobile header component with back button navigation.
+ */
+
 import { IonHeader, IonTitle, RouterDirection, isPlatform } from '@ionic/react';
 
 import { ChevronLeftIcon } from '@heroicons/react/24/outline';
@@ -5,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useIsMobile } from '../../../hooks/styleHooks';
 import { Link } from '../../util/link';
 
+// Mobile header with platform-specific styling and back navigation
 export const Header = ({
   children,
   canHaveBackButton = true,

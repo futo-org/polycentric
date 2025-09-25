@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Settings page with account management, server configuration, and moderation controls.
+ */
+
 import { IonContent } from '@ionic/react';
 import { Page } from '../../app/routes';
 import { Header } from '../../components/layout/header';
@@ -11,6 +15,7 @@ import { ModerationTable } from '../../components/settings/ModerationTable';
 import { PrivateKeyDisplay } from '../../components/settings/PrivateKeyDisplay';
 import { ServerListTable } from '../../components/settings/ServerTable';
 
+// Settings page with account management, server configuration, and moderation controls
 export const SettingsPage: Page = () => {
   return (
     <>

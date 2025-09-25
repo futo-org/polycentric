@@ -1,8 +1,13 @@
+/**
+ * @fileoverview Application information table with storage and version details.
+ */
+
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import { PersistenceDriver, Version } from '@polycentric/polycentric-core';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { usePersistenceDriver } from '../../../hooks/persistenceDriverHooks';
 
+// Table row component for app info display
 const AppInfoTableRow = ({
   field,
   value,
@@ -25,6 +30,7 @@ const AppInfoTableRow = ({
   );
 };
 
+// Convert bytes to human-readable storage format
 function byteAmountToString(bytes: number) {
   // b, kb, mb, gb
   const units = ['B', 'KB', 'MB', 'GB'];
@@ -37,6 +43,7 @@ function byteAmountToString(bytes: number) {
   return `${bytes.toFixed(2)} TB`;
 }
 
+// Expandable app information table with storage and version details
 export const AppInfoTable = () => {
   const persistenceDriver = usePersistenceDriver();
 

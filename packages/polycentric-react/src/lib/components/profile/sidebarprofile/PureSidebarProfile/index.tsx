@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Pure sidebar profile display component.
+ */
+
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import Long from 'long';
 import { useMemo, useState } from 'react';
@@ -24,6 +28,7 @@ export interface PureSidebarProfileData {
   system: Models.PublicKey.PublicKey;
 }
 
+// Sidebar profile display with centered layout and action buttons
 export const PureSidebarProfile = ({
   profile,
   follow,
