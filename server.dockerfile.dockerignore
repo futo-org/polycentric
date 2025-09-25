@@ -1,2 +1,3 @@
 *
 !./server/target/release/server
+!./server/target/release/health_probe
