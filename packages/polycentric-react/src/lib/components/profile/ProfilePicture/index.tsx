@@ -1,3 +1,8 @@
+/**
+ * @fileoverview Profile picture component with fallback styling.
+ */
+
+// Profile picture with rounded styling and fallback background
 export const ProfilePicture = ({
   src,
   alt,

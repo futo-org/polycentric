@@ -1,9 +1,14 @@
+/**
+ * @fileoverview Profile avatar input with cropping functionality.
+ */
+
 import { useEffect, useRef, useState } from 'react';
 import { useBlobDisplayURL } from '../../../../../hooks/imageHooks';
 import { cropImageToBlob } from '../../../../../util/imageProcessing';
 import { CropProfilePicModal } from '../../../CropProfilePic';
 import { ProfilePicture } from '../../../ProfilePicture';
 
+// Hook to track previous value for comparison
 function usePrevious<T>(value: T): T | undefined {
   const ref = useRef<T>();
   useEffect(() => {
@@ -12,6 +17,7 @@ function usePrevious<T>(value: T): T | undefined {
   return ref.current;
 }
 
+// Avatar input with file upload and circular cropping
 export const ProfileAvatarInput = ({
   title,
   hint,

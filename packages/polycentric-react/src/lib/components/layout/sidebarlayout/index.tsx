@@ -1,8 +1,13 @@
+/**
+ * @fileoverview Main layout component with responsive sidebar.
+ */
+
 import { ReactNode } from 'react';
 import { useIsMobile } from '../../../hooks/styleHooks';
 import { MainSidebar } from '../../sidebars/mainsidebar';
 import { Drawer } from '../../util/drawer';
 
+// Responsive layout with mobile drawer and desktop sidebar
 export const SidebarLayout = ({ children }: { children: ReactNode }) => {
   const isMobile = useIsMobile();
 

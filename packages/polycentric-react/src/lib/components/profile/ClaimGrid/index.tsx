@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Claim grid components for displaying and managing user claims.
+ */
+
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import Long from 'long';
 import React, { useMemo, useState } from 'react';
@@ -38,6 +42,7 @@ import {
 import { MakeClaim } from '../../claims/MakeClaim';
 import { getAccountUrl } from '../../util/linkify/utils';
 
+// Map claim types to icons and colors
 const getIconFromClaimType = (
   type: Long,
 ): [React.ReactNode | undefined, string] => {
@@ -254,6 +259,7 @@ const getIconFromClaimType = (
   }
 };
 
+// Vouch avatar display with username overlay
 export const VouchedBy: React.FC<{ system: Models.PublicKey.PublicKey }> = ({
   system,
 }) => {
@@ -288,6 +294,7 @@ export const VouchedBy: React.FC<{ system: Models.PublicKey.PublicKey }> = ({
   );
 };
 
+// Interactive claim circle with expand/collapse and vouch functionality
 const ClaimCircle: React.FC<{
   claim: {
     field: { value: string };
@@ -552,6 +559,7 @@ const ClaimCircle: React.FC<{
   );
 };
 
+// Grid layout for claims with grouping and management
 export const ClaimGrid: React.FC<{
   system: Models.PublicKey.PublicKey;
   claims: {

@@ -1,3 +1,7 @@
+/**
+ * @fileoverview User onboarding flow with account creation and persistence setup.
+ */
+
 import { encode } from '@borderless/base64';
 import { isPlatform } from '@ionic/react';
 import { Models } from '@polycentric/polycentric-core';
@@ -23,6 +27,7 @@ import { publishBlobToAvatar } from '../../../util/imageProcessing';
 import { ProfileAvatarInput } from '../../profile/edit/inputs/ProfileAvatarInput';
 import { Carousel } from '../../util/carousel';
 
+// Responsive panel wrapper for onboarding screens
 const OnboardingPanel = ({
   children,
   imgSrc,
@@ -44,6 +49,7 @@ const OnboardingPanel = ({
   </div>
 );
 
+// Welcome screen with account creation options
 const WelcomePanel = ({ nextSlide }: { nextSlide: () => void }) => {
   const { setIsSigningIn } = useContext(SignInContext);
   const { createHandle, setIsNewAccount } = useOnboardingProcessHandleManager();
@@ -126,6 +132,7 @@ const WelcomePanel = ({ nextSlide }: { nextSlide: () => void }) => {
   );
 };
 
+// Notification permission request for Chromium browsers
 const RequestNotificationsPanel = ({
   nextSlide,
 }: {
@@ -200,6 +207,7 @@ const RequestNotificationsPanel = ({
   );
 };
 
+// Storage persistence request for non-Chromium browsers
 const RequestPersistencePanel = ({ nextSlide }: { nextSlide: () => void }) => {
   const [state, setState] = useState<
     'init' | 'persist_call_failed' | 'persisted'
@@ -255,6 +263,7 @@ const RequestPersistencePanel = ({ nextSlide }: { nextSlide: () => void }) => {
   );
 };
 
+// Input component with copy functionality and overflow detection
 const GenCredsPanelItem = ({
   title,
   hint,
@@ -352,6 +361,7 @@ const GenCredsPanelItem = ({
   );
 };
 
+// Account creation form with avatar and credentials
 const CredsPanelSignUp = () => {
   const [avatar, setAvatar] = useState<Blob>();
   const [privateKey] = useState(Models.PrivateKey.random());
@@ -457,6 +467,7 @@ const CredsPanelSignUp = () => {
   );
 };
 
+// Sign-in form with backup key validation
 const CredsPanelSignIn = () => {
   const { createHandleFromExportBundle } = useOnboardingProcessHandleManager();
   const [backupKey, setBackupKey] = useState<string>('');
@@ -529,6 +540,7 @@ const CredsPanelSignIn = () => {
   );
 };
 
+// Credentials panel with sign-up/sign-in toggle
 const CredsPanel = ({}: { nextSlide: () => void }) => {
   const { isSigningIn, setIsSigningIn } = useContext(SignInContext);
 
@@ -549,6 +561,7 @@ const CredsPanel = ({}: { nextSlide: () => void }) => {
   );
 };
 
+// Back navigation button for onboarding flow
 const OnboardingBackButton = () => {
   const history = useContext(StackRouterContext)?.history;
   return (
@@ -567,12 +580,13 @@ const OnboardingBackButton = () => {
   );
 };
 
-// This is a hack for now
+// Context for managing sign-in/sign-up state
 const SignInContext = createContext<{
   isSigningIn: boolean;
   setIsSigningIn: Dispatch<SetStateAction<boolean>>;
 }>({ isSigningIn: false, setIsSigningIn: () => {} });
 
+// Main onboarding component with persistence detection and carousel flow
 export const Onboarding = () => {
   useThemeColor('#0096E6');
   useGestureWall();

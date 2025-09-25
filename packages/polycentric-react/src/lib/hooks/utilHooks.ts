@@ -1,6 +1,18 @@
+/**
+ * @fileoverview Utility hooks for debouncing, caching, and observable management.
+ *
+ * Key Design Decisions:
+ * - Debounced effects to prevent excessive API calls and improve performance
+ * - Observable caching with timeout-based cleanup to prevent memory leaks
+ * - Generation-based cache invalidation to handle concurrent subscriptions
+ * - Callback-based state management for efficient observable subscriptions
+ * - Automatic cleanup with timeout fallbacks for abandoned subscriptions
+ */
+
 import { useEffect, useMemo, useState } from 'react';
 import * as RXJS from 'rxjs';
 
+// Debounced effect hook to prevent excessive function calls
 export const useDebouncedEffect = (
   effect: () => void,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -22,6 +34,7 @@ export type ObservableCacheItem<T> = {
   generation: number;
 };
 
+// Observable caching hook with timeout-based cleanup and generation tracking
 export function useObservableWithCache<T>(
   cache: Map<string, ObservableCacheItem<T>>,
   cacheKey: string,
@@ -103,6 +116,7 @@ export function useObservableWithCache<T>(
   return state;
 }
 
+// Base64 topic decoding with URL-safe character handling
 const decodeBase64Topic = (topic: string): string => {
   const looksLikeBase64 = /^[A-Za-z0-9+/_-]+={0,2}$/.test(topic);
   if (!looksLikeBase64) {
@@ -123,6 +137,7 @@ const decodeBase64Topic = (topic: string): string => {
   }
 };
 
+// Topic link generation with URL encoding and normalization
 export const useTopicLink = (topic: string | undefined): string | undefined => {
   return useMemo(() => {
     if (!topic) {
@@ -137,6 +152,7 @@ export const useTopicLink = (topic: string | undefined): string | undefined => {
 };
 
 const urlPrefixRegex = /^((http[s]?:\/\/)?(www\.)?)/;
+// Topic display text with URL prefix removal and normalization
 export const useTopicDisplayText = (
   topic: string | undefined,
 ): string | undefined => {

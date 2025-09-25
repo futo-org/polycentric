@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Desktop topic search component with dropdown results and join status.
+ */
+
 import { Menu } from '@headlessui/react';
 import { Models, Util } from '@polycentric/polycentric-core';
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -14,6 +18,7 @@ import {
 import { numberTo4Chars } from '../../../../../util/etc';
 import { Link } from '../../../../util/link';
 
+// Individual topic search result with join status and post count
 const TopicSearchItem = ({
   topic,
 }: {
@@ -55,6 +60,7 @@ group hover:bg-gray-100 transition-colors duration-200 cursor-pointer max-w-full
   );
 };
 
+// Desktop topic search with dropdown menu and focus management
 export const DesktopTopicSearch = ({
   onFocusChange,
 }: {

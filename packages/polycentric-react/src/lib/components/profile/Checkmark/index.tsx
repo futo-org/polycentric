@@ -1,5 +1,10 @@
+/**
+ * @fileoverview Verification checkmark component with vouch display.
+ */
+
 import { useState } from 'react';
 
+// Checkmark icon SVG component
 const CheckIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -23,6 +28,7 @@ export type VouchedByState = {
   link: string;
 };
 
+// Expandable verification checkmark with vouch avatars
 export const Checkmark = ({
   vouchPeople,
 }: {

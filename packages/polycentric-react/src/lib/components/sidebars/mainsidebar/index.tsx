@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Main sidebar component with responsive navigation and topic selection.
+ */
+
 import { IonMenuToggle } from '@ionic/react';
 import { useContext, useMemo } from 'react';
 import polycentricIcon from '../../../../graphics/icons/favicon.ico';
@@ -8,6 +12,7 @@ import { Link } from '../../util/link';
 import { DesktopTopicSelector } from './desktop/DesktopTopicSelector';
 import { MobileTopicSidebar } from './mobile/MobileTopicSidebar';
 
+// Responsive sidebar link with mobile topic context and desktop routing
 export const SidebarLink = ({
   to,
   children,
@@ -55,6 +60,7 @@ export const SidebarLink = ({
   );
 };
 
+// Main sidebar with navigation links and responsive topic selection
 export const MainSidebar = () => {
   const isMobile = useIsMobile();
 

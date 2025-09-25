@@ -1,3 +1,14 @@
+/**
+ * @fileoverview Stack-based navigation router with session storage persistence and platform-specific behaviors.
+ *
+ * Key Design Decisions:
+ * - Stack-based navigation with history management for mobile-like navigation experience
+ * - Session storage persistence to restore navigation state across page reloads
+ * - Platform-specific navigation behaviors (iOS swipe gestures, desktop history API)
+ * - Memory-based component routing to avoid full page reloads
+ * - Navigation type detection to handle reload vs. navigation scenarios
+ */
+
 import { isPlatform } from '@ionic/react';
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { matchPath } from 'react-router-dom';
@@ -22,13 +33,14 @@ export interface StackRouterContextType {
   canGoBack: () => boolean;
 }
 
+// Save navigation stack to session storage for persistence across page reloads
 function saveStackRouterInfo(history: string[], currentIndex: number): void {
   // save in session storage, which is, in most cases, restored with ctrl+shift+t
   sessionStorage.setItem('stackRouterHistory', JSON.stringify(history));
   sessionStorage.setItem('stackRouterIndex', currentIndex.toString());
 }
 
-// Loads but also adds this current page we've just navigated to
+// Initialize stack router with session storage restoration and navigation type detection
 function getInitialStackRouterInfo(currentPath: string): {
   index: number;
   history: string[];
@@ -62,6 +74,7 @@ const initialStackRouterInfo = getInitialStackRouterInfo(getFullPath());
 
 type PushType = 'push' | 'setRoot';
 
+// Main stack router hook with platform-specific navigation and memory-based routing
 export const useStackRouter = (
   ionNavRef: React.RefObject<HTMLIonNavElement>,
 ) => {

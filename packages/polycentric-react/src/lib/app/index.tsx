@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Main application entry point and core app structure.
+ */
+
 import {
   ArrowUpOnSquareIcon,
   EllipsisVerticalIcon,
@@ -45,10 +49,13 @@ import {
   StackRouterContext,
 } from './contexts';
 
+// Initialize Ionic React with default configuration
 setupIonicReact({});
+
+// Initialize dark mode support
 setupDarkMode();
 
-// Currently, Polycentric can only be used while signed in
+// Main app component for authenticated users
 const SignedinApp = ({
   processHandle,
 }: {
@@ -223,6 +230,7 @@ const SignedinApp = ({
   );
 };
 
+// App component after meta store initialization
 const LoadedMetastoreApp = ({
   metaStore,
 }: {
@@ -249,6 +257,7 @@ const LoadedMetastoreApp = ({
   }
 };
 
+// PWA installation prompt for mobile browsers and desktop Safari
 const AddToHomeScreenBarrier = ({
   children,
 }: {
@@ -310,6 +319,7 @@ const AddToHomeScreenBarrier = ({
   );
 };
 
+// Root application component with meta store initialization
 export const App = ({
   persistenceDriver,
 }: {

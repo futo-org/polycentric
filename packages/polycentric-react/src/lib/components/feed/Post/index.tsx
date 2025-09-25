@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Post display component with sync status and moderation support.
+ */
+
 import { Models, Protocol, Util } from '@polycentric/polycentric-core';
 import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { FeedItem } from '../../../hooks/feedHooks';
@@ -38,6 +42,7 @@ interface LoadedPostProps {
   moderationTags?: Array<{ name: string; level: number }>;
 }
 
+// Post component with loaded data and moderation tags
 const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
   (
     { data, doesLink, autoExpand, syncStatus, isMyProfile, moderationTags },
@@ -281,11 +286,13 @@ const LoadedPost = forwardRef<HTMLDivElement, LoadedPostProps>(
 );
 LoadedPost.displayName = 'LoadedPost';
 
+// Placeholder for unloaded posts
 const UnloadedPost = forwardRef<HTMLDivElement>((_, ref) => {
   return <PurePost ref={ref} main={undefined} />;
 });
 UnloadedPost.displayName = 'UnloadedPost';
 
+// Main post component with sync status tracking
 export const Post = forwardRef<HTMLDivElement, PostProps>(
   ({ data, doesLink, autoExpand }, ref) => {
     const { processHandle } = useProcessHandleManager();

@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Topic feed page with video embedding, topic management, and platform-specific handling.
+ */
+
 import {
   EyeSlashIcon as EyeSlashIconOutlined,
   PencilSquareIcon,
@@ -24,6 +28,7 @@ import { normalizeTopic } from '../../hooks/utilHooks';
 import { TopFeedVideo } from './TopFeedVideo';
 import { shittyTestIfYoutubeIDRegex, youtubeURLRegex } from './platformRegex';
 
+// URL validation utility for topic processing
 function isValidURL(str: string) {
   try {
     new URL(str);
@@ -36,6 +41,7 @@ function isValidURL(str: string) {
 const wwwDotRegex = /^www\./;
 const httpsRegex = /^http(?:s|):\/\//;
 
+// Topic feed page with video embedding, topic management, and platform-specific handling
 export const TopicFeedPage: Page = () => {
   const params = useParams<{ 0: string }>();
   const escapedTopic = params[0];

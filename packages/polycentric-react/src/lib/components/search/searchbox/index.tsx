@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Search box component with debounced preview results.
+ */
+
 import { ArrowRightIcon } from '@heroicons/react/24/solid';
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from '../../../hooks/stackRouterHooks';
@@ -9,6 +13,7 @@ interface ResultsPreview {
   topics: string[];
 }
 
+// Debounce hook to delay value updates
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
@@ -23,6 +28,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+// Search input with debounced preview and keyboard navigation
 export const SearchBox = ({
   getResultsPreview,
   debounceMs = 200,

@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Mobile swipe home feed with topic navigation, search, and compose functionality.
+ */
+
 import { IonContent, IonHeader, IonMenuToggle, isPlatform } from '@ionic/react';
 import {
   createContext,
@@ -37,6 +41,7 @@ import { ExploreFeed } from './ExploreFeed';
 import { FollowingFeed } from './FollowingFeed';
 import { TopicFeed } from './TopicFeed';
 
+// Hamburger menu icon component
 const MenuIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -54,12 +59,14 @@ const MenuIcon = () => (
   </svg>
 );
 
+// Search menu context for popup state management
 const PopupSearchMenuContext = createContext<{
   close: () => void;
 }>({
   close: () => {},
 });
 
+// Post search results component with feed display
 const PostSearchResults = ({ query }: { query: string }) => {
   const [data, advanceFeed, nothingFound] = useSearchPostsFeed(query);
 
@@ -70,6 +77,7 @@ const PostSearchResults = ({ query }: { query: string }) => {
 
 const searchTypeNames = ['topics', 'posts'];
 
+// Individual topic search result item with link navigation
 const TopicSearchResultsItem = ({
   topic,
 }: {
@@ -94,6 +102,7 @@ const TopicSearchResultsItem = ({
   );
 };
 
+// Topic search results with blocked topic filtering
 const TopicSearchResults = ({ query }: { query?: string }) => {
   const hookOptions = useMemo(() => {
     return { query, minQueryChars: 3 };
@@ -142,6 +151,7 @@ const TopicSearchResults = ({ query }: { query?: string }) => {
   );
 };
 
+// Search area with topic/post toggle and conditional result rendering
 const SearchArea = ({
   realTimeQuery,
   enterPressedQuery,
@@ -176,6 +186,7 @@ const SearchArea = ({
   );
 };
 
+// Topic swipe selector with expandable search and gesture wall integration
 const TopicSwipeSelect = ({
   topics,
   feedSwiper,
@@ -320,6 +331,7 @@ const TopicSwipeSelect = ({
   );
 };
 
+// Main mobile swipe home feed with topic navigation and compose functionality
 export const SwipeHomeFeed = () => {
   const [headerSwiper, setHeaderSwiper] = useState<SwyperType>();
   const [feedSwiper, setFeedSwiper] = useState<SwyperType>();

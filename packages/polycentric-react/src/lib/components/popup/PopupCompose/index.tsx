@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Popup compose components for modal post creation.
+ */
+
 import { Models, Util } from '@polycentric/polycentric-core';
 import { useCallback } from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
@@ -5,6 +9,7 @@ import { publishImageBlob } from '../../../util/imageProcessing';
 import { Compose } from '../../feed/Compose';
 import { Modal } from '../../util/modal';
 
+// Popup compose component with constrained dimensions
 export const PopupCompose = ({
   onPost,
   preSetTopic,
@@ -30,6 +35,7 @@ export const PopupCompose = ({
   );
 };
 
+// Fullscreen modal compose with post handling
 export const PopupComposeFullscreen = ({
   open,
   setOpen,

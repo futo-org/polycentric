@@ -1,7 +1,12 @@
+/**
+ * @fileoverview Moderation settings table with content filtering controls.
+ */
+
 import { Switch } from '@headlessui/react';
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from 'react';
 import { useModeration } from '../../../hooks/moderationHooks';
 
+// Custom range slider with descriptions and visual feedback
 const FancySlider = ({
   min = 0,
   max,
@@ -83,6 +88,7 @@ const categories = [
   },
 ];
 
+// Moderation settings with content filtering levels and tag visibility
 export const ModerationTable = () => {
   const [levels, setLevels] = useState<Record<string, number> | undefined>(
     () => {

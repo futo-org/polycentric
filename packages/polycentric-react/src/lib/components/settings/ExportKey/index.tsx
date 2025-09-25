@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Account backup key export with QR code and download functionality.
+ */
+
 import { encodeUrl } from '@borderless/base64';
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -6,6 +10,7 @@ import { useProcessHandleManager } from '../../../hooks/processHandleManagerHook
 import { useUsernameCRDTQuery } from '../../../hooks/queryHooks';
 import { useIsMobile } from '../../../hooks/styleHooks';
 
+// Account backup export with QR code and platform-specific actions
 export const ExportKey = () => {
   const [bundleString, setBundleString] = useState<string | undefined>();
   const { processHandle } = useProcessHandleManager();

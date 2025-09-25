@@ -1,7 +1,12 @@
+/**
+ * @fileoverview Private key display component with copy functionality.
+ */
+
 import { encode } from '@borderless/base64';
 import { useCallback, useRef, useState } from 'react';
 import { useProcessHandleManager } from '../../../hooks/processHandleManagerHooks';
 
+// Private key display with text selection and copy functionality
 export const PrivateKeyDisplay = () => {
   const { processHandle } = useProcessHandleManager();
   const [copied, setCopied] = useState(false);

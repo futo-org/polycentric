@@ -1,9 +1,14 @@
+/**
+ * @fileoverview Swiper-based carousel component with navigation controls and slide progression.
+ */
+
 import { useEffect, useRef, useState } from 'react';
 
 import 'swiper/css';
 import { Swiper, SwiperRef, SwiperSlide } from 'swiper/react';
 import { useIsMobile } from '../../../hooks/styleHooks';
 
+// Left navigation arrow icon
 const LeftArrow = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -21,6 +26,7 @@ const LeftArrow = () => (
   </svg>
 );
 
+// Right navigation arrow icon
 const RightArrow = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -41,6 +47,7 @@ const RightArrow = () => (
 // Assumes that components will just modify application setting state so no direct state sharing is needed between components
 // Takes in an array of component types that take in a nextSlide function
 
+// Swiper carousel with progressive slide unlocking and navigation controls
 export const Carousel = ({
   childComponents,
   className,

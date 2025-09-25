@@ -1,3 +1,14 @@
+/**
+ * @fileoverview Styling utility hooks for responsive design, color generation, and theme management.
+ *
+ * Key Design Decisions:
+ * - Hash-based color generation for consistent user identification
+ * - Tailwind breakpoint detection with responsive design support
+ * - Mobile detection with configurable breakpoint thresholds
+ * - Theme color extraction with CSS custom property integration
+ * - Layout effect usage for immediate breakpoint updates
+ */
+
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 
 const tailwindColors = [
@@ -20,6 +31,7 @@ const tailwindColors = [
   'red-300',
 ];
 
+// Hash function for consistent color generation from text input
 const hashCode = (str: string) => {
   let hash = 0;
   if (str.length === 0) return hash;
@@ -31,6 +43,7 @@ const hashCode = (str: string) => {
   return hash;
 };
 
+// Random color generation with hash-based selection for consistent user colors
 export const useRandomColor = (text: string) => {
   const color = useMemo(() => {
     // hash the text
@@ -68,6 +81,7 @@ function getBreakpoint(width: number) {
   return breakpoint;
 }
 
+// Tailwind breakpoint detection with resize listener for responsive design
 export const useTailwindBreakpoint = () => {
   const [breakpoint, setBreakpoint] = useState(
     getBreakpoint(window.innerWidth),
@@ -86,6 +100,7 @@ export const useTailwindBreakpoint = () => {
   return breakpoint;
 };
 
+// Breakpoint comparison hook for responsive design logic
 export const useIsAtLeastTailwindBreakpoint = (breakpoint: string) => {
   const currentBreakpoint = useTailwindBreakpoint();
 
@@ -95,10 +110,12 @@ export const useIsAtLeastTailwindBreakpoint = (breakpoint: string) => {
   );
 };
 
+// Mobile detection hook with configurable breakpoint threshold
 export const useIsMobile = (breakpoint = 'lg') => {
   return useIsAtLeastTailwindBreakpoint(breakpoint) === false;
 };
 
+// Theme color management with meta tag integration for browser UI theming
 export const useThemeColor = (color: string) => {
   const originalColor = useMemo(
     () =>

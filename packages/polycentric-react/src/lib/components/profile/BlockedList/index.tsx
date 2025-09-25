@@ -1,8 +1,13 @@
+/**
+ * @fileoverview Blocked list components for managing blocked users.
+ */
+
 import { Models, Protocol } from '@polycentric/polycentric-core';
 import { useEffect, useMemo } from 'react';
 import { useQueryCRDTSet } from '../../../hooks/queryHooks';
 import { AccountListModal } from '../AccountList';
 
+// Blocked list modal with CRDT query and system conversion
 const OpenBlockedList = ({
   system,
   open,
@@ -43,6 +48,7 @@ const OpenBlockedList = ({
   );
 };
 
+// Conditional blocked list component that only renders when open
 export const BlockedList = ({
   system,
   open,

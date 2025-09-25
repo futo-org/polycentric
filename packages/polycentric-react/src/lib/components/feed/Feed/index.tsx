@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Virtualized feed component for displaying posts.
+ */
+
 import { encode } from '@borderless/base64';
 import { ReactElement, useCallback, useEffect, useMemo, useState } from 'react';
 import { Virtuoso } from 'react-virtuoso';
@@ -5,6 +9,7 @@ import { FeedHookAdvanceFn, FeedHookData } from '../../../hooks/feedHooks';
 import { SpinLoader } from '../../util/SpinLoader';
 import { Post } from '../Post';
 
+// Virtualized feed with loading states and infinite scroll
 export const Feed = ({
   data,
   advanceFeed,

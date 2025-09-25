@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Expandable circular menu with reverse positioning and menu items.
+ */
+
 import { Menu } from '@headlessui/react';
 import { IonMenuToggle } from '@ionic/react';
 import { useEffect } from 'react';
@@ -5,6 +9,7 @@ import { Link } from '../link';
 
 /* Because headless ui is stupid and Menu doesn't supply an onchange event, we must take its open prop, pass it to an interior component, and use useEffect there */
 
+// Interior menu component with open state tracking and menu item rendering
 const CircleExpandMenuInteriorReverse = ({
   open,
   onIsOpenChange,
@@ -85,6 +90,7 @@ const CircleExpandMenuInteriorReverse = ({
   );
 };
 
+// Main expandable menu with reverse positioning and three-dot button
 export const CircleExpandMenuReverse = ({
   title,
   onIsOpenChange,

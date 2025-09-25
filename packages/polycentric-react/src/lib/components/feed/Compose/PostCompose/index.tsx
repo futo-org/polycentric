@@ -1,9 +1,14 @@
+/**
+ * @fileoverview Post composition wrapper with progress tracking.
+ */
+
 import { Models, Util } from '@polycentric/polycentric-core';
 import { useCallback, useState } from 'react';
 import { Compose } from '..';
 import { useProcessHandleManager } from '../../../../hooks/processHandleManagerHooks';
 import { publishImageBlob } from '../../../../util/imageProcessing';
 
+// Post composition with image processing and progress bar
 export const PostCompose = ({ preSetTopic }: { preSetTopic?: string }) => {
   const { processHandle } = useProcessHandleManager();
   const [postingProgress, setPostingProgress] = useState(0);

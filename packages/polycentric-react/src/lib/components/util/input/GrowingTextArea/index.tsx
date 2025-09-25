@@ -1,5 +1,10 @@
+/**
+ * @fileoverview Auto-growing textarea component with height constraints.
+ */
+
 import { TextareaHTMLAttributes, useRef } from 'react';
 
+// Auto-growing textarea with configurable height limits and flex grow option
 export const GrowingTextArea = ({
   className,
   onChange,

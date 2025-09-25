@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Desktop topic selector with favorites, trends, and search functionality.
+ */
+
 import {
   ArrowTrendingUpIcon,
   StarIcon as StarIconOutlined,
@@ -20,6 +24,7 @@ import { numberTo4Chars } from '../../../../../util/etc';
 import { Link } from '../../../../util/link';
 import { DesktopTopicSearch } from '../DesktopTopicSearch';
 
+// Topic list item with join/leave functionality and hover states
 const TopicListItem = ({
   topic,
   mode,
@@ -150,6 +155,7 @@ const TopicListItem = ({
   );
 };
 
+// Trending topics list with blocked topic filtering
 const TrendingTopics = () => {
   const hookOptions: QueryTopStringReferencesOptions = useMemo(() => {
     return {
@@ -202,6 +208,7 @@ const TrendingTopics = () => {
   );
 };
 
+// Joined topics list from CRDT queries
 const JoinedTopics = () => {
   const { processHandle } = useProcessHandleManager();
   const system = useMemo(() => processHandle.system(), [processHandle]);
@@ -238,6 +245,7 @@ const JoinedTopics = () => {
   );
 };
 
+// Desktop topic selector with favorites/trends toggle and search integration
 export const DesktopTopicSelector = () => {
   const [displayCategory, setDisplayCategory] = useState<
     'favorites' | 'trends'

@@ -1,3 +1,7 @@
+/**
+ * @fileoverview User profile feed page with tabbed navigation and mobile/desktop layouts.
+ */
+
 import { decode } from '@borderless/base64';
 import { IonContent } from '@ionic/react';
 import { Models, Protocol } from '@polycentric/polycentric-core';
@@ -18,6 +22,7 @@ import { useTextPublicKey, useUsernameCRDTQuery } from '../../hooks/queryHooks';
 import { useParams } from '../../hooks/stackRouterHooks';
 import { useIsMobile } from '../../hooks/styleHooks';
 
+// User profile feed page with tabbed navigation and mobile/desktop layouts
 export const UserFeedPage: Page = () => {
   const { urlInfoString } = useParams<{ urlInfoString: string }>();
   const { processHandle } = useProcessHandleManager();

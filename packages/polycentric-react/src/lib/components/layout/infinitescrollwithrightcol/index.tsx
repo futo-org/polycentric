@@ -1,3 +1,7 @@
+/**
+ * @fileoverview Infinite scroll layout with right column and scroll-to-top functionality.
+ */
+
 import { encode } from '@borderless/base64';
 import { ArrowUpIcon, Bars3Icon } from '@heroicons/react/24/outline';
 import {
@@ -19,6 +23,7 @@ import { SpinLoader } from '../../util/SpinLoader';
 import { FooterLinks } from '../footerlinks';
 import './style.css';
 
+// Right column component with search and footer
 const RightCol = ({
   children,
   verticalIpadExpanded,
@@ -58,6 +63,7 @@ type InfiniteScrollWithRightColProps = {
   loadingSpinnerN?: number;
 };
 
+// Main infinite scroll layout with virtualized posts and responsive right column
 export const InfiniteScrollWithRightCol = ({
   data,
   advanceFeed,

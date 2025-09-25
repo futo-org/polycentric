@@ -1,6 +1,11 @@
+/**
+ * @fileoverview Profile text input components with character counters.
+ */
+
 import { InputHTMLAttributes, TextareaHTMLAttributes } from 'react';
 import { GrowingTextArea } from '../../../../util/input/GrowingTextArea';
 
+// Text input with character counter and validation styling
 export const ProfileTextInput = ({
   title,
   hint,
@@ -43,6 +48,7 @@ export const ProfileTextInput = ({
   );
 };
 
+// Growing textarea with character counter and line limit
 export const ProfileTextArea = ({
   title,
   hint,
