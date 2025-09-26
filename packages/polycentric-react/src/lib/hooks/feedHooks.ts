@@ -95,6 +95,11 @@ export const useAuthorFeed: FeedHook = (system: Models.PublicKey.PublicKey) => {
 };
 
 // Explore feed with moderation filtering and blocked topic management
+// NOTE: This is the ONLY feed with moderation filtering due to how feeds are generated:
+// - All posts contain moderation info (signedEvent.moderationTags), but only explore feed can access it
+// - Explore feed: Gets posts with full moderation tags from server via makeGetExploreCallback
+// - Other feeds: Use client-side data sources (useIndex, useQueryCursor, etc.) that don't include moderation tags
+// - The server handles moderation, but the client uses the moderation info to filter what it doesn't want to see
 export const useExploreFeed: FeedHook = () => {
   const queryManager = useQueryManager();
   const { moderationLevels } = useModeration();
