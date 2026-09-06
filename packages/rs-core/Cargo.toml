@@ -49,7 +49,7 @@ uniffi-runtime-wasm = "0.31.0-5"
 # pinned to the same version in
 # patches/uniffi-bindgen-react-native@0.31.0-5.patch. The bindgen schema
 # versions must match exactly, so the two pins move together.
-wasm-bindgen = "=0.2.125"
+wasm-bindgen = "=0.2.127"
 
 [dev-dependencies]
 uniffi = { workspace = true, features = ["build"] }
