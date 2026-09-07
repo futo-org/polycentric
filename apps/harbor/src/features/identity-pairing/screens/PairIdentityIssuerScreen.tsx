@@ -217,7 +217,9 @@ export default function PairIdentityIssuerScreen() {
                   <View style={[Atoms.items_center, Atoms.gap_md]}>
                     <Text
                       variant="title"
-                      style={{ fontSize: 64, lineHeight: 72 }}
+                      // Android clips emoji when lineHeight is close to
+                      // fontSize; give ~1.5x headroom (cf. reaction/Emoji.tsx).
+                      style={{ fontSize: 64, lineHeight: 96 }}
                     >
                       {publicKeyEmojiFingerprint(activeClaimer).join(' ')}
                     </Text>

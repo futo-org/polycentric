@@ -93,7 +93,7 @@ export default function PairIdentityClaimerScreen() {
       >
         {approved ? (
           <>
-            <Text variant="title" style={{ fontSize: 64, lineHeight: 72 }}>
+            <Text variant="title" style={{ fontSize: 64, lineHeight: 96 }}>
               ✓
             </Text>
             <View style={[Atoms.items_center, Atoms.gap_xs]}>
@@ -113,7 +113,9 @@ export default function PairIdentityClaimerScreen() {
               variant="title"
               style={{
                 fontSize: 84,
-                lineHeight: 92,
+                // Android clips emoji when lineHeight is close to fontSize;
+                // give ~1.5x headroom (cf. reaction/Emoji.tsx).
+                lineHeight: 126,
                 textAlign: 'center',
               }}
             >
