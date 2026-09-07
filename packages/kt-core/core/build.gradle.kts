@@ -84,11 +84,12 @@ android {
 // The pre-commit hook (lint-staged) passes the staged files via
 // -PktlintStagedFiles so only Kotlin that is actually being committed gets
 // formatted; without the property every hand-written source is covered.
-val stagedKtFiles = (findProperty("ktlintStagedFiles") as? String)
-    ?.split(',')
-    ?.filter { it.isNotEmpty() }
-    ?.map { File(it).canonicalPath }
-    ?.toSet()
+val stagedKtFiles =
+    (findProperty("ktlintStagedFiles") as? String)
+        ?.split(',')
+        ?.filter { it.isNotEmpty() }
+        ?.map { File(it).canonicalPath }
+        ?.toSet()
 
 // ── ktlint (format/lint check) ─────────────────────────────────────────
 ktlint {
