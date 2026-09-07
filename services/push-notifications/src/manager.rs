@@ -219,7 +219,7 @@ impl NotificationManager {
         let mut rows = vec![];
 
         for key in authorized_keys {
-            let token_res = token_repository::Query::token_for_public_key(&ctx.db, &key).await?;
+            let token_res = token_repository::Query::token_for_public_key(&ctx.ro_db, &key).await?;
             if let Some(token) = token_res {
                 rows.push(token);
             }

@@ -16,6 +16,7 @@ pub mod identity;
 mod lock;
 pub mod logging;
 pub mod media;
+pub mod pairing;
 pub mod query;
 pub mod rx;
 pub mod store;

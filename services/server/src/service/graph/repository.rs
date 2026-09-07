@@ -111,7 +111,7 @@ impl Query {
             .distinct()
             .filter(BlockModel::Column::Blocker.eq(caller))
             .into_tuple::<String>()
-            .all(&ctx.db)
+            .all(&ctx.ro_db)
             .await
             .map_err(map_db_err)
     }
@@ -172,7 +172,7 @@ impl Query {
                     .eq(PgFunc::any(potential_blockers)),
             )
             .into_tuple::<String>()
-            .all(&ctx.db)
+            .all(&ctx.ro_db)
             .await
             .map(HashSet::from_iter)
             .map_err(map_db_err)
@@ -186,7 +186,7 @@ impl Query {
         let row = BlockModel::Entity::find()
             .filter(BlockModel::Column::Blocker.eq(blocker))
             .filter(BlockModel::Column::Blocked.eq(blocked))
-            .one(&ctx.db)
+            .one(&ctx.ro_db)
             .await
             .map_err(map_db_err)?;
 
@@ -212,7 +212,7 @@ impl Query {
     ) -> Result<u64, Status> {
         let rows: Vec<EventWithContentRow> = follow_events_query()
             .filter(ContentFollowModel::Column::IdentityId.eq(identity))
-            .all(&ctx.db)
+            .all(&ctx.ro_db)
             .await
             .map_err(map_db_err)?;
 
@@ -221,7 +221,7 @@ impl Query {
             .map(|(event, _)| TargetEventKey::of(event))
             .collect();
         let raw_tombstones =
-            tombstone::list_tombstones_for_event_keys(&ctx.db, &keys)
+            tombstone::list_tombstones_for_event_keys(&ctx.ro_db, &keys)
                 .await
                 .map_err(map_db_err)?;
         let valid_tombstones =
@@ -532,7 +532,7 @@ async fn list_graph_targets(
         .join(JoinType::InnerJoin, content_join())
         .filter(EventModel::Column::Collection.eq(collections::SOCIAL_GRAPH))
         .filter(EventModel::Column::Identity.eq(caller))
-        .all(&ctx.db)
+        .all(&ctx.ro_db)
         .await
         .map_err(map_db_err)?;
 
@@ -541,7 +541,7 @@ async fn list_graph_targets(
         .map(|(event, _)| TargetEventKey::of(event))
         .collect();
     let raw_tombstones =
-        tombstone::list_tombstones_for_event_keys(&ctx.db, &keys)
+        tombstone::list_tombstones_for_event_keys(&ctx.ro_db, &keys)
             .await
             .map_err(map_db_err)?;
     let valid_tombstones =
@@ -679,6 +679,7 @@ mod tests {
             signature: vec![],
             previous_signature: vec![],
             previous_root: vec![],
+            application_id: None,
             event_bytes: vec![id as u8],
             created_at: now(),
             synced_at: now(),

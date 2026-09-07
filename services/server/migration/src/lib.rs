@@ -47,9 +47,18 @@ mod m20260818_000001_qoute_table;
 mod m20260818_000002_reply_table;
 mod m20260818_000003_reaction_count_decay;
 mod m20260825_000001_default_follow_suggestions;
+mod m20260826_195541_recreate_pairing_tables;
 mod m20260831_000001_always_include_hashtags_in_search_data;
 mod m20260831_000002_reaction_tally_decayed_count;
 mod m20260901_000001_reaction_emoji_nullable;
+mod m20260902_000001_add_event_application;
+mod m20260903_000001_cache_post_indexes;
+mod m20260903_000001_reaction_decay_clamp_base;
+mod m20260903_000002_content_post_reply_parent_index;
+mod m20260904_000001_remove_unused_tables;
+mod m20260904_000003_recommended_feed_indices;
+
+mod old_entity;
 
 pub struct Migrator;
 
@@ -104,9 +113,16 @@ impl MigratorTrait for Migrator {
             Box::new(m20260818_000002_reply_table::Migration),
             Box::new(m20260818_000003_reaction_count_decay::Migration),
             Box::new(m20260825_000001_default_follow_suggestions::Migration),
+            Box::new(m20260826_195541_recreate_pairing_tables::Migration),
             Box::new(m20260901_000001_reaction_emoji_nullable::Migration),
             Box::new(m20260831_000001_always_include_hashtags_in_search_data::Migration),
             Box::new(m20260831_000002_reaction_tally_decayed_count::Migration),
+            Box::new(m20260902_000001_add_event_application::Migration),
+            Box::new(m20260903_000001_cache_post_indexes::Migration),
+            Box::new(m20260903_000002_content_post_reply_parent_index::Migration),
+            Box::new(m20260903_000001_reaction_decay_clamp_base::Migration),
+            Box::new(m20260904_000001_remove_unused_tables::Migration),
+            Box::new(m20260904_000003_recommended_feed_indices::Migration),
         ]
     }
 }

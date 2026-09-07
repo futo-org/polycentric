@@ -124,6 +124,14 @@ function RootStack() {
         />
 
         <Stack.Screen
+          name="[identityId]/identity"
+          options={{
+            presentation: 'transparentModal',
+            animation: 'none',
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
+        />
+        <Stack.Screen
           name="[identityId]/post/[keyFingerprint]/[sequence]/image/[index]"
           options={imageViewerScreenOptions}
         />

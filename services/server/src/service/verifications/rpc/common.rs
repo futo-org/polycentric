@@ -46,11 +46,11 @@ pub(crate) mod claim_bundles {
             claims.iter().map(HasEventKey::event_key).collect();
 
         let targets =
-            Repository::list_target_events_for_claims(&ctx.db, &claim_keys)
+            Repository::list_target_events_for_claims(&ctx.ro_db, &claim_keys)
                 .await
                 .map_err(map_db_err)?;
         let verifies =
-            Repository::list_verify_events_for_claims(&ctx.db, &claim_keys)
+            Repository::list_verify_events_for_claims(&ctx.ro_db, &claim_keys)
                 .await
                 .map_err(map_db_err)?;
         Ok(FetchedClaims {
@@ -338,6 +338,7 @@ pub(crate) mod tests {
             signature: vec![id as u8],
             previous_signature: vec![],
             previous_root: vec![],
+            application_id: None,
             event_bytes: vec![id as u8],
             created_at: ts(id),
             synced_at: ts(id),

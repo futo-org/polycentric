@@ -136,8 +136,33 @@ message Event {
   // RFC 6962 Merkle root over this signer's prior signatures in this
   // collection (leaf_count = key.sequence - 1).
   bytes previous_root = 8;
+
+  // The application that created the event. Absent when unknown.
+  optional Application application = 9;
 }
 ```
+
+### Application
+
+The application that authored an event. It is signed as part of the event, so it is
+the author's own claim and cannot be changed afterwards.
+
+```protobuf
+message Application {
+  // Human-readable name, e.g. "Harbor".
+  string name = 1;
+  // Reverse-DNS package or bundle identifier, e.g. "org.futo.polycentric".
+  string id = 2;
+  // Version of the application, e.g. "1.2.0".
+  string version = 3;
+  // Website of the application, e.g. "https://harbor.social".
+  string url = 4;
+}
+```
+
+Every application that writes events should set this on each one it creates. See
+[Declaring Your Application](../developer/declaring-your-application.md) for what to
+put in each field and how the SDKs stamp it for you.
 
 ### SignedEvent
 

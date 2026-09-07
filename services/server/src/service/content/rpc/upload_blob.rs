@@ -1,25 +1,23 @@
 //! `upload_blob`: persist a blob's metadata row and write its bytes
 //! to the filestore. Mutation — does not use the events pipeline.
 
-use crate::service::{
-    content::{
-        content_filestore::ContentFilestore,
-        content_helpers::parse_upload_blob_request,
-        content_repository as ContentRepository,
-    },
-    proto::{UploadBlobRequest, UploadBlobResponse},
-};
-use sea_orm::{DatabaseConnection, TransactionTrait};
+use sea_orm::TransactionTrait;
 use tonic::Status;
 
+use crate::service::content::content_filestore::ContentFilestore;
+use crate::service::content::content_helpers::parse_upload_blob_request;
+use crate::service::content::content_repository as ContentRepository;
+use crate::service::context::ServiceContext;
+use crate::service::proto::{UploadBlobRequest, UploadBlobResponse};
+
 pub async fn handle(
-    db: &DatabaseConnection,
+    ctx: &ServiceContext,
     filestore: &ContentFilestore,
     req: UploadBlobRequest,
 ) -> Result<UploadBlobResponse, Status> {
     let (blob, digest, body) = parse_upload_blob_request(req)?;
 
-    let txn = db.begin().await.map_err(|e| {
+    let txn = ctx.db.begin().await.map_err(|e| {
         tracing::error!(error = %e, "upload_blob txn begin error");
         Status::internal("internal server error")
     })?;

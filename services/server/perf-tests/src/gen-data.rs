@@ -25,7 +25,7 @@ async fn main() {
     };
 
     if args.len() == 0 {
-        eprintln!("No events to generate.");
+        eprintln!("No events to generate (maybe missing address?).");
         exit(1);
     }
 
@@ -52,7 +52,9 @@ async fn main() {
                     .expect("invalid amount of clients");
                 continue;
             }
-            "post" => EventKind::Post,
+            "post" => EventKind::Post(GenReply::None),
+            "post-reply-chain" => EventKind::Post(GenReply::Chain),
+            "post-reply-to-one" => EventKind::Post(GenReply::ToOne),
             "delete" => EventKind::Delete,
             "follow" => {
                 needs_identities = true;
@@ -208,7 +210,7 @@ async fn create_posts(
 /// Matches ContentBody variants.
 #[derive(Copy, Clone, Debug)]
 enum EventKind {
-    Post,
+    Post(GenReply),
     Delete,
     Follow,
     Block,
@@ -237,7 +239,7 @@ async fn gen_data(
 ) {
     let client = Client::new(address).await;
     match kind {
-        EventKind::Post => gen_post(client, amount).await,
+        EventKind::Post(reply) => gen_post(client, amount, reply).await,
         EventKind::Delete => gen_delete(client, amount).await,
         EventKind::Follow => gen_follow(client, amount, identities).await,
         EventKind::Block => gen_block(client, amount, identities).await,
@@ -250,23 +252,31 @@ async fn gen_data(
     }
 }
 
-async fn gen_post(mut client: Client, amount: usize) {
+#[derive(Copy, Clone, Debug)]
+enum GenReply {
+    /// No replies.
+    None,
+    /// Make one large chain always replying to the previously made post.
+    Chain,
+    /// Always reply to the first made post.
+    ToOne,
+}
+
+async fn gen_post(mut client: Client, amount: usize, reply: GenReply) {
+    let mut root: Option<EventKey> = None;
     let mut last: Option<EventKey> = None;
     for _ in 0..amount {
         client.post(
             Post {
                 text: random_string(10, 1000),
-                reply: if let Some(last) = last.as_ref()
-                    && rand::random()
-                {
-                    Some(PostReply {
-                        root: Some(last.clone()),
-                        parent: Some(last.clone()),
-                    })
-                } else {
-                    None
+                reply: match reply {
+                    GenReply::None => None,
+                    GenReply::Chain | GenReply::ToOne => Some(PostReply {
+                        root: root.clone(),
+                        parent: last.clone(),
+                    }),
                 },
-                images: Vec::new(), //Vec<ImageSet>,
+                images: Vec::new(), // Vec<ImageSet>,
                 quote: if let Some(last) = last.as_ref()
                     && rand::random()
                 {
@@ -282,7 +292,17 @@ async fn gen_post(mut client: Client, amount: usize) {
             },
             current_timestamp(),
         );
-        last = Some(client.get_last_event_key());
+        if let GenReply::Chain = reply {
+            if root.is_none() {
+                root = Some(client.get_last_event_key());
+            }
+            last = Some(client.get_last_event_key());
+        } else if let GenReply::ToOne = reply {
+            if root.is_none() {
+                root = Some(client.get_last_event_key());
+                last = Some(client.get_last_event_key());
+            }
+        }
 
         if client.pending().len() > MAX_EVENTS_PER_REQUEST {
             client.submit_events().await

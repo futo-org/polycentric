@@ -57,7 +57,7 @@ function WebList<T>({
     );
   }, [isEmpty]);
 
-  const { virtualizer, rows, anchorSpace } = useWindowListScroll({
+  const { virtualizer, rows, rowItems, anchorSpace } = useWindowListScroll({
     items,
     keyExtractor,
     scrollMargin,
@@ -138,7 +138,7 @@ function WebList<T>({
               }}
             >
               {renderItem?.({
-                item: items[row.index],
+                item: rowItems[row.index],
                 index: row.index,
                 target: 'Cell',
                 extraData: undefined,

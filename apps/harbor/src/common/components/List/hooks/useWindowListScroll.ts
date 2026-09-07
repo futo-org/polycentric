@@ -99,9 +99,14 @@ export function useWindowListScroll<T>({
     cancelled,
   });
   const isFocused = useRestoreOnRefocus(virtualizer, containerRef, isEmpty);
-  const rows = useFrozenRows(virtualizer.getVirtualItems(), isFocused);
+  const frozen = useFrozenRows(virtualizer.getVirtualItems(), items, isFocused);
 
-  return { virtualizer, rows, anchorSpace };
+  return {
+    virtualizer,
+    rows: frozen.rows,
+    rowItems: frozen.items,
+    anchorSpace,
+  };
 }
 
 function useSaveOnUnmount(
@@ -249,13 +254,20 @@ function useRestoreOnRefocus(
   return isFocused;
 }
 
-/** Rows from the last focused render, so the restored frame matches. */
-function useFrozenRows(virtualItems: VirtualItem[], isFocused: boolean) {
-  const frozen = useRef<VirtualItem[] | null>(null);
+/** Rows and their items from the last focused render, so the restored frame
+ *  matches. The items may shrink while hidden, so the rows index that snapshot. */
+function useFrozenRows<T>(
+  virtualItems: VirtualItem[],
+  items: readonly T[],
+  isFocused: boolean,
+) {
+  const frozen = useRef<{ rows: VirtualItem[]; items: readonly T[] } | null>(
+    null,
+  );
   if (isFocused) {
     frozen.current = null;
   } else {
-    frozen.current ??= virtualItems;
+    frozen.current ??= { rows: virtualItems, items };
   }
-  return frozen.current ?? virtualItems;
+  return frozen.current ?? { rows: virtualItems, items };
 }

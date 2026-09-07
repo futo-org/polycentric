@@ -1134,8 +1134,13 @@ async fn following_feed_pagination() {
 
     // Forward.
     let mut page_info: Option<PageInfo> = None;
-    let mut expected_iter =
-        [post3_key.clone(), post2_key.clone(), post1_key.clone(), post0_key].into_iter();
+    let mut expected_iter = [
+        post3_key.clone(),
+        post2_key.clone(),
+        post1_key.clone(),
+        post0_key,
+    ]
+    .into_iter();
     while let Some(expected) = expected_iter.next() {
         let request = async {
             let request = GetFollowingFeedRequest {
@@ -1486,8 +1491,13 @@ async fn recommended_feed_pagination() {
 
     // Forward.
     let mut page_info: Option<PageInfo> = None;
-    let mut expected_iter =
-        [post3_key.clone(), post2_key.clone(), post1_key.clone(), post0_key.clone()].into_iter();
+    let mut expected_iter = [
+        post3_key.clone(),
+        post2_key.clone(),
+        post1_key.clone(),
+        post0_key.clone(),
+    ]
+    .into_iter();
     while let Some(expected) = expected_iter.next() {
         let request = async {
             let request = GetFollowingFeedRequest {
@@ -1546,6 +1556,72 @@ async fn recommended_feed_pagination() {
         assert_eq!(page_info.has_next_page, true);
     }
     assert!(!page_info.as_ref().unwrap().has_previous_page);
+}
+
+#[tokio::test]
+async fn recommended_feed_includes_metadata() {
+    let mut client = TestClient::new().await;
+    client.post_text("Post 1", current_timestamp());
+    let post1_key = client.get_last_event_key();
+    client.submit_events().await;
+
+    let mut client = TestClient::new().await;
+    client.thumbs_up(post1_key.clone(), current_timestamp());
+    client.reply(post1_key.clone(), "Reply 1", current_timestamp());
+    client.submit_events().await;
+    let followee = client.identity();
+
+    let mut client = TestClient::new().await;
+    client.follow_identity(followee.to_owned(), current_timestamp());
+    client.submit_events().await;
+
+    let mut feeds = connect_feeds().await;
+    let request = GetFollowingFeedRequest {
+        follower_identity: client.identity().to_owned(),
+        page_params: None,
+        omit_labels: Vec::new(),
+        sort_by: Some(SortPostsBy::Top.into()),
+    };
+    let result = feeds
+        .get_recommended_feed(request)
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(result.event_bundles.len(), 2);
+    let event_bundle = &result.event_bundles[0];
+    let content = Content::decode(
+        &*event_bundle
+            .serialized_content
+            .as_ref()
+            .unwrap()
+            .content_bytes,
+    )
+    .unwrap();
+    if !matches!(&content.content_body, Some(ContentBody::Post(_))) {
+        panic!("unexpected event content: {content:?}");
+    };
+
+    let event = Event::decode(
+        &*event_bundle.signed_event.as_ref().unwrap().event_bytes,
+    )
+    .unwrap();
+    let key = event.key.as_ref().unwrap();
+    assert_eq!(key, &post1_key, "expected: {post1_key:?}, event: {event:?}");
+
+    let metadata = event_bundle.meta.as_ref().unwrap();
+    assert_eq!(metadata.reply_count, Some(1));
+    assert_eq!(metadata.reaction_count, Some(1));
+    assert_eq!(metadata.upvote_count, Some(1));
+    assert_eq!(metadata.downvote_count, Some(0));
+    assert_eq!(
+        metadata.emoji_reactions,
+        vec![ReactionTally {
+            emoji: "👍".to_owned(),
+            positive: true,
+            count: 1,
+        },]
+    );
 }
 
 async fn recommended_feed(for_identity: &str, expected: &[EventKey]) {

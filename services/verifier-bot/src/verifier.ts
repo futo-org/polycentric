@@ -7,6 +7,11 @@ import {
   publishVerify,
   SCHEMA_NAME,
 } from './claims.js';
+import {
+  type VerificationOutcome,
+  verificationDuration,
+  verifications,
+} from './metrics.js';
 import type { ClaimField, TokenResponse } from './models.js';
 import type { XOAuthURLResult } from './platforms/x.js';
 import { Result } from './result.js';
@@ -50,6 +55,20 @@ export abstract class Verifier {
     client: PolycentricClient,
     req: RequestInformation,
   ): Promise<Result<string>> {
+    const labels = {
+      platform: slug(this.platform),
+      verifier: this.verifierType,
+    };
+    const end = verificationDuration.startTimer(labels);
+    const done = (
+      outcome: VerificationOutcome,
+      result: Result<string>,
+    ): Result<string> => {
+      end();
+      verifications.inc({ ...labels, outcome });
+      return result;
+    };
+
     const contentType = req.headers['content-type'];
     let claimId: string | undefined;
 
@@ -58,44 +77,56 @@ export abstract class Verifier {
     } else if (contentType === 'application/octet-stream') {
       claimId = Buffer.from(req.body).toString('hex');
     } else {
-      return Result.errMsg(`Unsupported content type '${contentType}'.`);
+      return done(
+        'bad_request',
+        Result.errMsg(`Unsupported content type '${contentType}'.`),
+      );
     }
 
     const eventKey = claimId ? parseClaimId(claimId) : undefined;
     if (!eventKey) {
-      return Result.errMsg('Missing or invalid claim id.');
+      return done('bad_request', Result.errMsg('Missing or invalid claim id.'));
     }
 
     const claimResult = await fetchClaim(client, eventKey);
     if (!claimResult.success) {
-      return Result.err(claimResult.error);
+      return done('claim_fetch_failed', Result.err(claimResult.error));
     }
     const claim = claimResult.value;
 
     if (claim.schemaName !== SCHEMA_NAME) {
-      return Result.errMsg(
-        `Claim schema '${claim.schemaName}' is not a '${SCHEMA_NAME}' claim.`,
+      return done(
+        'schema_mismatch',
+        Result.errMsg(
+          `Claim schema '${claim.schemaName}' is not a '${SCHEMA_NAME}' claim.`,
+        ),
       );
     }
 
     // The claim's platform must match the verifier handling it.
     if (claim.platform && claim.platform !== slug(this.platform)) {
-      return Result.errMsg(
-        `Claim is for platform '${claim.platform}', not '${slug(this.platform)}'.`,
+      return done(
+        'platform_mismatch',
+        Result.errMsg(
+          `Claim is for platform '${claim.platform}', not '${slug(this.platform)}'.`,
+        ),
       );
     }
 
     const shouldVerifyResult = await this.shouldVerify(claim, req);
     if (!shouldVerifyResult.success) {
-      return Result.err(shouldVerifyResult.error);
+      return done('rejected', Result.err(shouldVerifyResult.error));
     }
 
     let verifyId: string;
     try {
       verifyId = await publishVerify(client, claim.eventKey);
     } catch (e) {
-      return Result.errMsg(
-        `Failed to publish verification: ${e instanceof Error ? e.message : String(e)}`,
+      return done(
+        'publish_failed',
+        Result.errMsg(
+          `Failed to publish verification: ${e instanceof Error ? e.message : String(e)}`,
+        ),
       );
     }
 
@@ -108,7 +139,7 @@ export abstract class Verifier {
     }
 
     console.info('requestVerify(200): Verified claim.', verifyId);
-    return Result.ok(verifyId);
+    return done('ok', Result.ok(verifyId));
   }
 
   protected abstract shouldVerify(

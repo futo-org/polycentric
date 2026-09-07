@@ -204,8 +204,15 @@ class XOAuthVerifier extends OAuthVerifier<XOAuthCallbackData> {
     }
   }
 
-  public healthCheck(): Promise<Result<void>> {
-    throw new Error('Method not implemented.');
+  public async healthCheck(): Promise<Result<void>> {
+    if (
+      process.env.POLYCENTRIC_VERIFIER_BOT_X_API_KEY === undefined ||
+      process.env.POLYCENTRIC_VERIFIER_BOT_X_API_SECRET === undefined
+    ) {
+      return Result.errMsg('Verifier not configured: Missing X credentials');
+    }
+
+    return Result.ok();
   }
 }
 

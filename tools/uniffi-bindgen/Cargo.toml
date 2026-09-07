@@ -6,7 +6,7 @@ description = "Binding-generator CLI for rs-core foreign bindings (Kotlin, Swift
 publish = false
 
 # Standalone (own [workspace]) so the root workspace doesn't need editing.
-# NOTE: this crate is REQUIRED by packages/kotlin-core's `uniffiGenerate`
+# NOTE: this crate is REQUIRED by packages/kt-core's `uniffiGenerate`
 # Gradle task — it is build infrastructure, not disposable output. Its
 # uniffi version must match the workspace pin (=0.31.0) exactly.
 [workspace]

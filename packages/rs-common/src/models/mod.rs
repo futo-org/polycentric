@@ -28,6 +28,7 @@ pub mod pointer;
 pub mod public_key;
 pub mod query_engine_stats;
 pub mod signed_event;
+pub mod signed_issuer_state;
 pub mod signed_message;
 pub mod vector_clock;
 

@@ -340,6 +340,7 @@ impl Client {
             previous_root,
             content_digest: Some(digest),
             created_at,
+            application: None,
         }
     }
 

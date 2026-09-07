@@ -5,8 +5,8 @@
 use crate::service::context::ServiceContext;
 use crate::service::identity::repository as id_repo;
 use crate::service::identity::rpc::common::require_moderator;
+use crate::service::identity::service as identity_service;
 use crate::service::proto::{SetBanStatusRequest, SetBanStatusResponse};
-use polycentric_common::models::collections;
 use sea_orm::TransactionTrait;
 use tonic::{Request, Status};
 
@@ -33,14 +33,6 @@ pub async fn handle(
         tracing::error!(error = %e, "set_ban_status db error");
         Status::internal("internal server error")
     })?;
-    if body.banned {
-        id_repo::Mutation::erase_identity_content(&txn, &body.target_identity)
-            .await
-            .map_err(|e| {
-                tracing::error!(error = %e, "set_ban_status erase error");
-                Status::internal("internal server error")
-            })?;
-    }
     txn.commit().await.map_err(|e| {
         tracing::error!(error = %e, "set_ban_status txn commit error");
         Status::internal("internal server error")
@@ -54,25 +46,17 @@ pub async fn handle(
     );
 
     if body.banned {
-        // The erased identity's cached chain head and canonical heads
-        // no longer match the database.
-        ctx.proof_cache
-            .invalidate_identity(&body.target_identity)
-            .await;
-        for collection in [
-            collections::IDENTITY,
-            collections::FEED,
-            collections::PROFILE,
-            collections::INTERACTIONS,
-            collections::SOCIAL_GRAPH,
-            collections::REPORTS,
-            collections::LABELS,
-            collections::VERIFICATIONS,
-        ] {
-            ctx.proof_cache
-                .invalidate_canonical(&body.target_identity, collection)
-                .await;
-        }
+        identity_service::erase_identity(
+            &ctx.db,
+            None,
+            Some(&ctx.proof_cache),
+            &body.target_identity,
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "set_ban_status erase error");
+            Status::internal("internal server error")
+        })?;
     }
 
     Ok(SetBanStatusResponse {})

@@ -38,12 +38,7 @@ impl NotificationService for NotificationServiceImpl {
         request: Request<SignedMessage>,
     ) -> Result<Response<RegisterPushNotificationResponse>, Status> {
         Ok(Response::new(
-            register_push_notifications::handle(
-                &self.ctx.db,
-                &self.ctx.notification_manager,
-                request.into_inner(),
-            )
-            .await?,
+            register_push_notifications::handle(&self.ctx, request.into_inner()).await?,
         ))
     }
 
@@ -52,12 +47,7 @@ impl NotificationService for NotificationServiceImpl {
         request: Request<SignedMessage>,
     ) -> Result<Response<UnregisterPushNotificationResponse>, Status> {
         Ok(Response::new(
-            unregister_push_notifications::handle(
-                &self.ctx.db,
-                &self.ctx.notification_manager,
-                request.into_inner(),
-            )
-            .await?,
+            unregister_push_notifications::handle(&self.ctx, request.into_inner()).await?,
         ))
     }
 }
@@ -85,6 +75,7 @@ mod tests {
     async fn impl_for_testing() -> NotificationServiceImpl {
         let ctx = Arc::new(Context {
             db: MockDatabase::new(DbBackend::Postgres).into_connection(),
+            ro_db: MockDatabase::new(DbBackend::Postgres).into_connection(),
             notification_manager: NotificationManager::new(None),
             polycentric: PolycentricClient::new(vec![]),
             main_server: String::new(),
@@ -160,7 +151,8 @@ mod tests {
             .into_connection();
 
         let ctx = Arc::new(Context {
-            db,
+            db: db.clone(),
+            ro_db: db,
             notification_manager: NotificationManager::new(None),
             polycentric: PolycentricClient::new(vec![]),
             main_server: String::new(),

@@ -136,8 +136,17 @@ class SpotifyOAuthVerifier extends OAuthVerifier<SpotifyTokenRequest> {
     return Result.ok();
   }
 
-  public healthCheck(): Promise<Result<void>> {
-    throw new Error('Method not implemented.');
+  public async healthCheck(): Promise<Result<void>> {
+    if (
+      process.env.POLYCENTRIC_VERIFIER_BOT_SPOTIFY_CLIENT_ID === undefined ||
+      process.env.POLYCENTRIC_VERIFIER_BOT_SPOTIFY_CLIENT_SECRET === undefined
+    ) {
+      return Result.errMsg(
+        'Verifier not configured: Missing Spotify credentials',
+      );
+    }
+
+    return Result.ok();
   }
 }
 

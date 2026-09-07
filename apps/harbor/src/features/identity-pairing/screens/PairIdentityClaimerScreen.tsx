@@ -12,7 +12,7 @@ import { useOnboardingLinks } from '@/src/features/onboarding/hooks/useOnboardin
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { decodePairingCode, type PairingSessionInfo } from '../pairingCode';
+import type { v2 } from '@polycentric/react-native';
 
 export default function PairIdentityClaimerScreen() {
   const { theme } = useTheme();
@@ -23,12 +23,12 @@ export default function PairIdentityClaimerScreen() {
   // Error state is managed by `usePairIdentityClaimer()`, so we use `null`
   // to mean that the pairing code was invalid and couldn't be parsed and
   // `undefined` to mean that we just don't have one.
-  const [sessionInfo, setSessionInfo] = useState<
-    PairingSessionInfo | null | undefined
+  const [pairingInfo, setPairingInfo] = useState<
+    v2.PairingInfo | null | undefined
   >(undefined);
 
   const { error, approved, claimInProgress } =
-    usePairIdentityClaimer(sessionInfo);
+    usePairIdentityClaimer(pairingInfo);
 
   const pubKeyStr = client.currentKeyPair
     ? publicKeyToString(client.currentKeyPair.publicKey)
@@ -47,23 +47,22 @@ export default function PairIdentityClaimerScreen() {
   }, [approved, refreshCurrentIdentity, to]);
 
   const renderBody = () => {
-    if (sessionInfo === undefined) {
+    if (pairingInfo === undefined) {
       return (
         <>
           <View style={Atoms.gap_xs}>
             <Text variant="subtitle">Pair Identity</Text>
           </View>
           <PairIdentityCamera
-            onCodeScanned={(encoded) => {
-              const decoded = decodePairingCode(encoded);
-              setSessionInfo(decoded ?? null);
+            onCodeScanned={(info) => {
+              setPairingInfo(info);
             }}
           />
         </>
       );
     }
 
-    if (sessionInfo !== undefined && error && !claimInProgress) {
+    if (pairingInfo !== undefined && error && !claimInProgress) {
       return (
         <>
           <Text variant="title">Error</Text>
@@ -75,7 +74,7 @@ export default function PairIdentityClaimerScreen() {
             variant="secondary"
             fullWidth
             onPress={() => {
-              setSessionInfo(undefined);
+              setPairingInfo(undefined);
             }}
           />
         </>
@@ -162,7 +161,7 @@ export default function PairIdentityClaimerScreen() {
       style={[
         Atoms.flex_1,
         { backgroundColor: theme.atoms.bg.backgroundColor },
-        ...(!sessionInfo || (sessionInfo && error && !claimInProgress)
+        ...(!pairingInfo || (pairingInfo && error && !claimInProgress)
           ? [Atoms.flex_col, Atoms.gap_lg]
           : []),
       ]}

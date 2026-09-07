@@ -19,6 +19,8 @@ type ComposerState = {
   attachments: ComposerAttachment[];
   submitting: boolean;
   error: string | null;
+  // Mentions inserted this session, identity -> display name
+  mentions: Record<string, string>;
 };
 
 type ComposerActions = {
@@ -28,6 +30,7 @@ type ComposerActions = {
   removeAttachment: (id: string) => void;
   setSubmitting: (value: boolean) => void;
   setError: (error: string | null) => void;
+  rememberMention: (identity: string, name: string) => void;
   /** Clear text, attachments, and error. Keeps no draft. */
   reset: () => void;
 };
@@ -37,6 +40,7 @@ const initialState: ComposerState = {
   attachments: [],
   submitting: false,
   error: null,
+  mentions: {},
 };
 
 export const useComposerStore = create<ComposerState & ComposerActions>(
@@ -57,6 +61,8 @@ export const useComposerStore = create<ComposerState & ComposerActions>(
       })),
     setSubmitting: (submitting) => set({ submitting }),
     setError: (error) => set({ error }),
+    rememberMention: (identity, name) =>
+      set((s) => ({ mentions: { ...s.mentions, [identity]: name } })),
     reset: () => set(initialState),
   }),
 );

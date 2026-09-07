@@ -77,6 +77,7 @@ jest.mock('@/src/common/constants', () => ({
   Routes: {
     tabs: {
       editProfile: () => '/x',
+      profileIdentity: () => '/x/identity',
       profileFollowing: () => '/x/following',
       profileFollowers: () => '/x/followers',
     },
@@ -84,7 +85,6 @@ jest.mock('@/src/common/constants', () => ({
 }));
 jest.mock('@/src/common/lib/polycentric-hooks', () => ({
   identiconUrl: () => 'u',
-  shortenIdentityId: () => 'SHORT_ID',
   truncateName: (name: string) => name,
   useUsername: () => 'fallback',
 }));
@@ -112,7 +112,7 @@ describe('ProfileHeader alias', () => {
       <ProfileHeader bannerColors={['#a', '#b']} onBack={() => undefined} />,
     );
     expect(queryByText('test@domain.com')).not.toBeNull();
-    expect(queryByText('SHORT_ID')).not.toBeNull();
+    expect(queryByText(IDENTITY)).not.toBeNull();
   });
 
   it('shows only the id when there is no alias', async () => {
@@ -120,9 +120,25 @@ describe('ProfileHeader alias', () => {
     const { queryByText } = await render(
       <ProfileHeader bannerColors={['#a', '#b']} onBack={() => undefined} />,
     );
-    expect(queryByText('SHORT_ID')).not.toBeNull();
+    expect(queryByText(IDENTITY)).not.toBeNull();
     // No alias-style text rendered.
     expect(queryByText(/@/)).toBeNull();
+  });
+});
+
+describe('ProfileHeader identity key', () => {
+  beforeEach(() => {
+    mockContext = { ...baseContext };
+    (router.push as jest.Mock).mockClear();
+  });
+
+  it('opens the identity sheet when the key is pressed', async () => {
+    const { getByText } = await render(
+      <ProfileHeader bannerColors={['#a', '#b']} onBack={() => undefined} />,
+    );
+
+    await fireEvent.press(getByText(IDENTITY));
+    expect(router.push).toHaveBeenCalledWith('/x/identity');
   });
 });
 

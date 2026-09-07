@@ -62,6 +62,7 @@ export async function createPolycentricClient(
     core: new PolycentricCore(),
     ...drivers,
     seedServers: config.seedServers,
+    application: config.application,
   });
 }
 

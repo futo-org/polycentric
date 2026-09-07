@@ -27,9 +27,14 @@ pub struct AzureConfig {
 pub struct Config {
     /// Postgres connection URL (`DATABASE_URL`).
     pub database_url: String,
+    /// Postgres read-only connection URL (`DATABASE_URL_RO`).
+    pub ro_database_url: Option<String>,
     /// Schema owning this service's tables
     /// (`POLYCENTRIC_MODERATION_DATABASE_SCHEMA`).
     pub database_schema: String,
+    /// Maximum size of the Postgres connection pool
+    /// (`POLYCENTRIC_DATABASE_MAX_CONNECTIONS`).
+    pub database_max_connections: u32,
     /// Hex 32-byte ed25519 seed labels events are signed with
     /// (`POLYCENTRIC_MODERATION_SIGNING_KEY`).
     pub signing_key: String,
@@ -64,8 +69,13 @@ pub fn init() -> Result<&'static Config, String> {
     let config = Config {
         database_url: std::env::var("DATABASE_URL")
             .unwrap_or_else(|_| "postgres://postgres:testing@localhost:5432".to_string()),
+        ro_database_url: std::env::var("DATABASE_URL_RO").ok(),
         database_schema: std::env::var("POLYCENTRIC_MODERATION_DATABASE_SCHEMA")
             .unwrap_or_else(|_| "moderation".to_string()),
+        database_max_connections: std::env::var("POLYCENTRIC_DATABASE_MAX_CONNECTIONS")
+            .ok()
+            .and_then(|s| s.trim().parse().ok())
+            .unwrap_or(20),
         signing_key: required("POLYCENTRIC_MODERATION_SIGNING_KEY")?
             .trim()
             .to_string(),

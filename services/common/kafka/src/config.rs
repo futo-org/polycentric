@@ -58,6 +58,13 @@ pub(crate) fn auto_offset_reset() -> String {
     env::var("POLYCENTRIC_KAFKA_AUTO_OFFSET_RESET").unwrap_or_else(|_| "latest".to_string())
 }
 
+/// Consumer `max.poll.interval.ms`, overridable via
+/// `POLYCENTRIC_KAFKA_MAX_POLL_INTERVAL_MS`. Above librdkafka's 5m default
+/// so a consumer blocked on one slow statement isn't evicted.
+pub(crate) fn max_poll_interval_ms() -> String {
+    env::var("POLYCENTRIC_KAFKA_MAX_POLL_INTERVAL_MS").unwrap_or_else(|_| "1800000".to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

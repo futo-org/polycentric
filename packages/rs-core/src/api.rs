@@ -1,17 +1,17 @@
 use crate::client::PolycentricClient;
 use crate::lock::LockRecover;
 use crate::media::process_image;
+use crate::pairing;
 use crate::sync;
 use polycentric_common::models::identity::assemble_recovery_payload;
 use polycentric_common::models::protos_v2::{
-    ContentDigest, CreatePairingSessionRequest, Event, GetAttributedToReactionCountsRequest,
-    GetPairingSessionRequest, GetServerInfoRequest, Identity, JoinPairingSessionRequest,
+    ContentDigest, Event, GetAttributedToReactionCountsRequest, GetServerInfoRequest, Identity,
     ListEventsResponse, PublicKey, PutEventsRequest, SetBanStatusRequest, SignedEvent,
     SignedMessage, UploadBlobRequest, UrlInfoRequest, content_service_client::ContentServiceClient,
     event_sync_service_client::EventSyncServiceClient,
     identity_service_client::IdentityServiceClient,
     notification_service_client::NotificationServiceClient,
-    pairing_service_client::PairingServiceClient, server_service_client::ServerServiceClient,
+    server_service_client::ServerServiceClient,
 };
 use polycentric_common::models::protos_v2::{ListHeadsRequest, PutEventsResponse};
 use polycentric_common::models::traits::Serializable;
@@ -676,73 +676,69 @@ impl PolycentricCore {
         Ok(response.into_inner().encode_to_vec())
     }
 
-    /// Create a pairing session on the server. `signed_message_bytes` is a
-    /// serialized `SignedMessage` wrapping an `InitialPairingSession`.
-    /// Returns serialized `PairingSession` proto bytes.
-    pub async fn create_pairing_session(
+    /// Create or update a pairing session on the server.
+    /// `signed_issuer_state` should be a serialized `SignedIssuerState` wrapping
+    /// a serialized `IssuerPairingState` message.
+    /// Checks that the server's response reflects the current pairing session.
+    /// Returns the server's response as a serialized `PairingSessionState` message.
+    pub async fn put_pairing_session(
         &self,
         server_url: String,
-        signed_message_bytes: Vec<u8>,
+        signed_issuer_state: Vec<u8>,
     ) -> Result<Vec<u8>, CoreError> {
-        let signed = SignedMessage::decode(signed_message_bytes.as_slice())
-            .map_err(|e| CoreError::Decode(format!("Failed to decode SignedMessage: {e}")))?;
-        let mut client = PairingServiceClient::new(channel(&server_url).await?);
-        let response = client
-            .create_pairing_session(CreatePairingSessionRequest {
-                signed_message: Some(signed),
-            })
-            .await
-            .map_err(|e| CoreError::Network(format!("create_pairing_session: {e}")))?;
-        let session = response
-            .into_inner()
-            .session
-            .ok_or_else(|| CoreError::Network("create_pairing_session: missing session".into()))?;
-        Ok(session.encode_to_vec())
+        pairing::put(&self.client, &server_url, signed_issuer_state).await
     }
 
-    /// Fetch a pairing session by its signature. Returns serialized
-    /// `PairingSession` proto bytes.
+    /// Fetch a pairing session by its digest's SHA256 hash.
     pub async fn get_pairing_session(
         &self,
         server_url: String,
-        pairing_session_signature: String,
+        digest_sha256: Vec<u8>,
     ) -> Result<Vec<u8>, CoreError> {
-        let mut client = PairingServiceClient::new(channel(&server_url).await?);
-        let response = client
-            .get_pairing_session(GetPairingSessionRequest {
-                pairing_session_signature,
-            })
-            .await
-            .map_err(|e| CoreError::Network(format!("get_pairing_session: {e}")))?;
-        let session = response
-            .into_inner()
-            .session
-            .ok_or_else(|| CoreError::Network("get_pairing_session: missing session".into()))?;
-        Ok(session.encode_to_vec())
+        let session_state = pairing::fetch_session(&server_url, digest_sha256.clone()).await?;
+        let state = pairing::open_state(session_state, &self.client, &digest_sha256, None)?;
+        Ok(state.raw.encode_to_vec())
     }
 
-    /// Join an existing pairing session. `signed_message_bytes` is a
-    /// serialized `SignedMessage` wrapping a `JoinPairingSessionBody`.
-    /// Returns serialized `PairingSession` proto bytes.
+    /// Register `claimer_key` as a claimer in the pairing session matching the digest hash.
+    /// Checks the server's response to ensure the claimer is present.
     pub async fn join_pairing_session(
         &self,
         server_url: String,
-        signed_message_bytes: Vec<u8>,
-    ) -> Result<Vec<u8>, CoreError> {
-        let signed = SignedMessage::decode(signed_message_bytes.as_slice())
-            .map_err(|e| CoreError::Decode(format!("Failed to decode SignedMessage: {e}")))?;
-        let mut client = PairingServiceClient::new(channel(&server_url).await?);
-        let response = client
-            .join_pairing_session(JoinPairingSessionRequest {
-                signed_message: Some(signed),
-            })
-            .await
-            .map_err(|e| CoreError::Network(format!("join_pairing_session: {e}")))?;
-        let session = response
-            .into_inner()
-            .session
-            .ok_or_else(|| CoreError::Network("join_pairing_session: missing session".into()))?;
-        Ok(session.encode_to_vec())
+        digest_sha256: Vec<u8>,
+        claimer_key: crate::query::event::key::PublicKey,
+    ) -> Result<(), CoreError> {
+        let claimer_key: PublicKey = claimer_key.into();
+        pairing::join(&self.client, server_url, digest_sha256, claimer_key).await
+    }
+
+    /// Poll function for the issuer.
+    /// Returns the list of claimers for the pairing session, as specified by the server.
+    pub async fn poll_for_claimers(
+        &self,
+        server_url: String,
+        digest_sha256: Vec<u8>,
+    ) -> Result<Vec<crate::query::event::key::PublicKey>, CoreError> {
+        let session_state = pairing::fetch_session(&server_url, digest_sha256.clone()).await?;
+        let state = pairing::open_state(session_state, &self.client, &digest_sha256, None)?;
+        Ok(state.raw.claimers.into_iter().map(Into::into).collect())
+    }
+
+    /// Poll function for the claimer.
+    /// Returns true when the issuer-declared identity state authorizes our public key.
+    /// The caller should still pull in the full identity chain to confirm.
+    pub async fn poll_for_authorization(
+        &self,
+        server_url: String,
+        digest_sha256: Vec<u8>,
+        claimer_key: crate::query::event::key::PublicKey,
+    ) -> Result<bool, CoreError> {
+        let session_state = pairing::fetch_session(&server_url, digest_sha256.clone()).await?;
+        let state = pairing::open_state(session_state, &self.client, &digest_sha256, None)?;
+        Ok(pairing::does_issuer_authorize(
+            &state.issuer_state,
+            &claimer_key.into(),
+        ))
     }
 
     /// Register a push notification token. `signed_message_bytes` is a

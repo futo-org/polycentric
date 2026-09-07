@@ -48,7 +48,7 @@ async fn fetch(
     params: &Params,
 ) -> Result<feeds_pipeline::Fetched<SortedBy>, Status> {
     let mut rows = FeedsRepository::explore_feed(
-        &ctx.service.db,
+        &ctx.service.ro_db,
         params.sort_by,
         params.common.limit + 1,
         params.common.cursor_filter.as_ref(),

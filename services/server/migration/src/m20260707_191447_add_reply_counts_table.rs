@@ -1,6 +1,6 @@
+use crate::old_entity::reply_count_model;
 use ::entity::{
     content_delete_model, content_model, content_post_model, event_model,
-    reply_count_model,
 };
 use sea_orm_migration::{prelude::*, schema::*};
 

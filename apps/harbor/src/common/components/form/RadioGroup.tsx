@@ -9,8 +9,13 @@ import {
 } from 'react-native';
 import { Atoms, Spacing, useTheme } from '../../theme';
 
-function RadioGroup({ ...props }: RadioGroupPrimitive.RootProps) {
-  return <RadioGroupPrimitive.Root {...props} />;
+function RadioGroup({ style, ...props }: RadioGroupPrimitive.RootProps) {
+  return (
+    <RadioGroupPrimitive.Root
+      {...props}
+      style={StyleSheet.flatten([style, props.disabled && { opacity: 0.5 }])}
+    />
+  );
 }
 
 function RadioItem({

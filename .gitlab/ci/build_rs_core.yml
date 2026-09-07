@@ -142,8 +142,8 @@ rs-core-wasm-build:
     expire_in: 1 week
 
 # Collects the rs-core libraries for downstream jobs. The build jobs are
-# optional needs; anything they didn't build is fetched from develop's latest
-# pipeline. Runs on every develop pipeline so that copy stays current.
+# optional needs; anything they didn't build is fetched from the newest
+# successful run of that build job on develop.
 rs-core-libraries:
   stage: build
   image: alpine:latest
@@ -158,7 +158,6 @@ rs-core-libraries:
       artifacts: true
       optional: true
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - !reference [.rs-core-workflow, rules]
     - !reference [.js-sdk-workflow, rules]
     - !reference [.rn-sdk-workflow, rules]
@@ -166,7 +165,7 @@ rs-core-libraries:
     - !reference [.verifier-bot-workflow, rules]
     - !reference [.release-workflow, rules]
   before_script:
-    - apk add --no-cache curl unzip
+    - apk add --no-cache curl jq unzip
   script:
     - .gitlab/ci/scripts/fetch-rs-core-libraries.sh
   artifacts:

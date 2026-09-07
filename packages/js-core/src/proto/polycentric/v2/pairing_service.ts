@@ -11,119 +11,183 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
-import { SignedMessage } from "./server";
+import { EventBundle } from "./events";
 import { PublicKey } from "./keypair";
 /**
- * *
- * Issuer-signed payload for creating a pairing session.
+ * Immutable state created at the start of a pairing session that uniquely
+ * identifies it.
  *
- * @generated from protobuf message polycentric.v2.InitialPairingSession
+ * @generated from protobuf message polycentric.v2.PairingSessionDigest
  */
-export interface InitialPairingSession {
+export interface PairingSessionDigest {
     /**
-     * Identity key the session is created for.
+     * Trusted source of truth for the identity being paired with.
      *
      * @generated from protobuf field: string issuer_identity = 1
      */
     issuerIdentity: string;
     /**
-     * Timestamp so that the pairing session id is unique.
+     * Each issuer state must be signed by this key and this key must be
+     * authorized for rotation.
      *
-     * @generated from protobuf field: int64 timestamp = 2
+     * @generated from protobuf field: polycentric.v2.PublicKey issuer_signer = 2
      */
-    timestamp: bigint;
+    issuerSigner?: PublicKey;
+    /**
+     * Random bitstring to add entropy and keep session identifiers unpredictable.
+     *
+     * @generated from protobuf field: bytes nonce = 3
+     */
+    nonce: Uint8Array;
+    /**
+     * Timestamp in posix epoch millis.
+     * Used for expiration and preventing replay attacks.
+     *
+     * @generated from protobuf field: int64 initial_timestamp = 4
+     */
+    initialTimestamp: bigint;
+    /**
+     * The number of milliseconds after the initial timestamp for which this
+     * session is considered valid.
+     *
+     * @generated from protobuf field: int64 ttl_millis = 5
+     */
+    ttlMillis: bigint;
 }
 /**
- * *
- * Payload that claimers sign when attempting to join a pairing session.
+ * Data to share out-of-band between the issuer and claimer.
+ * This means using copy/paste or a QR code.
  *
- * @generated from protobuf message polycentric.v2.JoinPairingSessionBody
+ * @generated from protobuf message polycentric.v2.PairingInfo
  */
-export interface JoinPairingSessionBody {
+export interface PairingInfo {
     /**
-     * @generated from protobuf field: string pairing_session_signature = 1
+     * URL of the server that holds this pairing session.
+     *
+     * @generated from protobuf field: string server = 1
      */
-    pairingSessionSignature: string;
+    server: string;
+    /**
+     * SHA256 hash of the pairing session digest.
+     *
+     * @generated from protobuf field: bytes digest_sha256 = 2
+     */
+    digestSha256: Uint8Array;
 }
 /**
- * *
- * Pairing session stored and returned by the server.
+ * Signed payload from issuers that contains pairing state information.
+ * Contains authenticated information about the pairing session for claimers and
+ * servers to read.
+ * Clients and servers should only obtain messages of this type from a
+ * `SignedIssuerState` message and must check its signature.
  *
- * @generated from protobuf message polycentric.v2.PairingSession
+ * @generated from protobuf message polycentric.v2.IssuerPairingState
  */
-export interface PairingSession {
+export interface IssuerPairingState {
     /**
-     * Signature of the signed InitialPairingSession payload; serves as the session id.
+     * Serialized `PairingSessionDigest` message.
+     * Identifies the pairing session that this state belongs to.
+     * This should be kept constant throughout the session.
+     * Clients should verify that the SHA256 hash and content of this field
+     * matches what they expect.
      *
-     * @generated from protobuf field: string pairing_session_signature = 1
+     * @generated from protobuf field: bytes session_digest = 1
      */
-    pairingSessionSignature: string;
+    sessionDigest: Uint8Array;
     /**
-     * Public key that signed the InitialPairingSession payload.
+     * The most recent identity event for this identity as reported by the issuer.
+     * Claimers should verify the full identity chain before fully trusting the
+     * content of this field.
+     * Even when not fully trusted, it is still useful for:
+     * - seeding the list of servers to query.
+     * - deciding when to try claiming.
      *
-     * @generated from protobuf field: polycentric.v2.PublicKey signed_by = 2
+     * @generated from protobuf field: polycentric.v2.EventBundle identity_state = 2
      */
-    signedBy?: PublicKey;
+    identityState?: EventBundle;
     /**
-     * Identity key the session was created for.
+     * A counter that gets incremented for each new state in this pairing session.
+     * This keeps updates well-ordered and prevents replay attacks from rolling
+     * back state.
+     * Starts at 1 for each pairing session.
      *
-     * @generated from protobuf field: string issuer_identity = 3
+     * @generated from protobuf field: int64 sequence = 3
      */
-    issuerIdentity: string;
+    sequence: bigint;
+}
+/**
+ * Encapsulates an issuer's signed pairing state and its signature.
+ *
+ * @generated from protobuf message polycentric.v2.SignedIssuerState
+ */
+export interface SignedIssuerState {
     /**
-     * Expiration timestamp in unix milliseconds.
+     * Serialized `IssuerPairingState` message from the issuer.
      *
-     * @generated from protobuf field: int64 expires_at = 4
+     * @generated from protobuf field: bytes state_bytes = 1
      */
-    expiresAt: bigint;
+    stateBytes: Uint8Array;
     /**
-     * Public keys that have joined the session so far.
+     * Signature over `state_bytes`.
+     * Must use the key pair specified in the digest.
      *
-     * @generated from protobuf field: repeated polycentric.v2.PublicKey claimer_pubkeys = 5
+     * @generated from protobuf field: bytes signature = 2
      */
-    claimerPubkeys: PublicKey[];
+    signature: Uint8Array;
+}
+/**
+ * Server-aggregated state for a pairing session containing input from the
+ * issuer and claimers.
+ *
+ * @generated from protobuf message polycentric.v2.PairingSessionState
+ */
+export interface PairingSessionState {
     /**
-     * Server-authoritative creation timestamp in unix milliseconds.
-     *
-     * @generated from protobuf field: int64 created_at = 6
+     * @generated from protobuf field: polycentric.v2.SignedIssuerState issuer_state = 1
      */
-    createdAt: bigint;
+    issuerState?: SignedIssuerState;
+    /**
+     * Server-managed list of claimers.
+     *
+     * @generated from protobuf field: repeated polycentric.v2.PublicKey claimers = 2
+     */
+    claimers: PublicKey[];
 }
 /**
  * *
- * Request payload for fetching a pairing session by signature.
+ * Request payload for fetching a pairing session.
  *
  * @generated from protobuf message polycentric.v2.GetPairingSessionRequest
  */
 export interface GetPairingSessionRequest {
     /**
-     * @generated from protobuf field: string pairing_session_signature = 1
+     * @generated from protobuf field: bytes digest_sha256 = 1
      */
-    pairingSessionSignature: string;
+    digestSha256: Uint8Array;
 }
 /**
  * *
- * Wrapper request for CreatePairingSession RPC.
+ * Wrapper request for PutPairingSession RPC.
  *
- * @generated from protobuf message polycentric.v2.CreatePairingSessionRequest
+ * @generated from protobuf message polycentric.v2.PutPairingSessionRequest
  */
-export interface CreatePairingSessionRequest {
+export interface PutPairingSessionRequest {
     /**
-     * @generated from protobuf field: polycentric.v2.SignedMessage signed_message = 1
+     * @generated from protobuf field: polycentric.v2.SignedIssuerState issuer_state = 1
      */
-    signedMessage?: SignedMessage;
+    issuerState?: SignedIssuerState;
 }
 /**
  * *
- * Wrapper response for CreatePairingSession RPC.
+ * Wrapper response for PutPairingSession RPC.
  *
- * @generated from protobuf message polycentric.v2.CreatePairingSessionResponse
+ * @generated from protobuf message polycentric.v2.PutPairingSessionResponse
  */
-export interface CreatePairingSessionResponse {
+export interface PutPairingSessionResponse {
     /**
-     * @generated from protobuf field: polycentric.v2.PairingSession session = 1
+     * @generated from protobuf field: polycentric.v2.PairingSessionState session_state = 1
      */
-    session?: PairingSession;
+    sessionState?: PairingSessionState;
 }
 /**
  * *
@@ -133,9 +197,9 @@ export interface CreatePairingSessionResponse {
  */
 export interface GetPairingSessionResponse {
     /**
-     * @generated from protobuf field: polycentric.v2.PairingSession session = 1
+     * @generated from protobuf field: polycentric.v2.PairingSessionState session_state = 1
      */
-    session?: PairingSession;
+    sessionState?: PairingSessionState;
 }
 /**
  * *
@@ -145,9 +209,17 @@ export interface GetPairingSessionResponse {
  */
 export interface JoinPairingSessionRequest {
     /**
-     * @generated from protobuf field: polycentric.v2.SignedMessage signed_message = 1
+     * SHA256 of the pairing session digest to join.
+     *
+     * @generated from protobuf field: bytes digest_sha256 = 1
      */
-    signedMessage?: SignedMessage;
+    digestSha256: Uint8Array;
+    /**
+     * Public key that the claimer wishes to join with.
+     *
+     * @generated from protobuf field: polycentric.v2.PublicKey claimer_key = 2
+     */
+    claimerKey?: PublicKey;
 }
 /**
  * *
@@ -157,27 +229,32 @@ export interface JoinPairingSessionRequest {
  */
 export interface JoinPairingSessionResponse {
     /**
-     * @generated from protobuf field: polycentric.v2.PairingSession session = 1
+     * @generated from protobuf field: polycentric.v2.PairingSessionState session_state = 1
      */
-    session?: PairingSession;
+    sessionState?: PairingSessionState;
 }
 // @generated message type with reflection information, may provide speed optimized methods
-class InitialPairingSession$Type extends MessageType<InitialPairingSession> {
+class PairingSessionDigest$Type extends MessageType<PairingSessionDigest> {
     constructor() {
-        super("polycentric.v2.InitialPairingSession", [
+        super("polycentric.v2.PairingSessionDigest", [
             { no: 1, name: "issuer_identity", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "timestamp", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+            { no: 2, name: "issuer_signer", kind: "message", T: () => PublicKey },
+            { no: 3, name: "nonce", kind: "scalar", T: 12 /*ScalarType.BYTES*/ },
+            { no: 4, name: "initial_timestamp", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
+            { no: 5, name: "ttl_millis", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
-    create(value?: PartialMessage<InitialPairingSession>): InitialPairingSession {
+    create(value?: PartialMessage<PairingSessionDigest>): PairingSessionDigest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.issuerIdentity = "";
-        message.timestamp = 0n;
+        message.nonce = new Uint8Array(0);
+        message.initialTimestamp = 0n;
+        message.ttlMillis = 0n;
         if (value !== undefined)
-            reflectionMergePartial<InitialPairingSession>(this, message, value);
+            reflectionMergePartial<PairingSessionDigest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: InitialPairingSession): InitialPairingSession {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PairingSessionDigest): PairingSessionDigest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -185,8 +262,17 @@ class InitialPairingSession$Type extends MessageType<InitialPairingSession> {
                 case /* string issuer_identity */ 1:
                     message.issuerIdentity = reader.string();
                     break;
-                case /* int64 timestamp */ 2:
-                    message.timestamp = reader.int64().toBigInt();
+                case /* polycentric.v2.PublicKey issuer_signer */ 2:
+                    message.issuerSigner = PublicKey.internalBinaryRead(reader, reader.uint32(), options, message.issuerSigner);
+                    break;
+                case /* bytes nonce */ 3:
+                    message.nonce = reader.bytes();
+                    break;
+                case /* int64 initial_timestamp */ 4:
+                    message.initialTimestamp = reader.int64().toBigInt();
+                    break;
+                case /* int64 ttl_millis */ 5:
+                    message.ttlMillis = reader.int64().toBigInt();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -199,13 +285,22 @@ class InitialPairingSession$Type extends MessageType<InitialPairingSession> {
         }
         return message;
     }
-    internalBinaryWrite(message: InitialPairingSession, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: PairingSessionDigest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* string issuer_identity = 1; */
         if (message.issuerIdentity !== "")
             writer.tag(1, WireType.LengthDelimited).string(message.issuerIdentity);
-        /* int64 timestamp = 2; */
-        if (message.timestamp !== 0n)
-            writer.tag(2, WireType.Varint).int64(message.timestamp);
+        /* polycentric.v2.PublicKey issuer_signer = 2; */
+        if (message.issuerSigner)
+            PublicKey.internalBinaryWrite(message.issuerSigner, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* bytes nonce = 3; */
+        if (message.nonce.length)
+            writer.tag(3, WireType.LengthDelimited).bytes(message.nonce);
+        /* int64 initial_timestamp = 4; */
+        if (message.initialTimestamp !== 0n)
+            writer.tag(4, WireType.Varint).int64(message.initialTimestamp);
+        /* int64 ttl_millis = 5; */
+        if (message.ttlMillis !== 0n)
+            writer.tag(5, WireType.Varint).int64(message.ttlMillis);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -213,30 +308,35 @@ class InitialPairingSession$Type extends MessageType<InitialPairingSession> {
     }
 }
 /**
- * @generated MessageType for protobuf message polycentric.v2.InitialPairingSession
+ * @generated MessageType for protobuf message polycentric.v2.PairingSessionDigest
  */
-export const InitialPairingSession = new InitialPairingSession$Type();
+export const PairingSessionDigest = new PairingSessionDigest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class JoinPairingSessionBody$Type extends MessageType<JoinPairingSessionBody> {
+class PairingInfo$Type extends MessageType<PairingInfo> {
     constructor() {
-        super("polycentric.v2.JoinPairingSessionBody", [
-            { no: 1, name: "pairing_session_signature", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        super("polycentric.v2.PairingInfo", [
+            { no: 1, name: "server", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "digest_sha256", kind: "scalar", T: 12 /*ScalarType.BYTES*/ }
         ]);
     }
-    create(value?: PartialMessage<JoinPairingSessionBody>): JoinPairingSessionBody {
+    create(value?: PartialMessage<PairingInfo>): PairingInfo {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.pairingSessionSignature = "";
+        message.server = "";
+        message.digestSha256 = new Uint8Array(0);
         if (value !== undefined)
-            reflectionMergePartial<JoinPairingSessionBody>(this, message, value);
+            reflectionMergePartial<PairingInfo>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: JoinPairingSessionBody): JoinPairingSessionBody {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PairingInfo): PairingInfo {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* string pairing_session_signature */ 1:
-                    message.pairingSessionSignature = reader.string();
+                case /* string server */ 1:
+                    message.server = reader.string();
+                    break;
+                case /* bytes digest_sha256 */ 2:
+                    message.digestSha256 = reader.bytes();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -249,10 +349,13 @@ class JoinPairingSessionBody$Type extends MessageType<JoinPairingSessionBody> {
         }
         return message;
     }
-    internalBinaryWrite(message: JoinPairingSessionBody, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string pairing_session_signature = 1; */
-        if (message.pairingSessionSignature !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.pairingSessionSignature);
+    internalBinaryWrite(message: PairingInfo, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string server = 1; */
+        if (message.server !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.server);
+        /* bytes digest_sha256 = 2; */
+        if (message.digestSha256.length)
+            writer.tag(2, WireType.LengthDelimited).bytes(message.digestSha256);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -260,54 +363,39 @@ class JoinPairingSessionBody$Type extends MessageType<JoinPairingSessionBody> {
     }
 }
 /**
- * @generated MessageType for protobuf message polycentric.v2.JoinPairingSessionBody
+ * @generated MessageType for protobuf message polycentric.v2.PairingInfo
  */
-export const JoinPairingSessionBody = new JoinPairingSessionBody$Type();
+export const PairingInfo = new PairingInfo$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PairingSession$Type extends MessageType<PairingSession> {
+class IssuerPairingState$Type extends MessageType<IssuerPairingState> {
     constructor() {
-        super("polycentric.v2.PairingSession", [
-            { no: 1, name: "pairing_session_signature", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "signed_by", kind: "message", T: () => PublicKey },
-            { no: 3, name: "issuer_identity", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "expires_at", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 5, name: "claimer_pubkeys", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PublicKey },
-            { no: 6, name: "created_at", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
+        super("polycentric.v2.IssuerPairingState", [
+            { no: 1, name: "session_digest", kind: "scalar", T: 12 /*ScalarType.BYTES*/ },
+            { no: 2, name: "identity_state", kind: "message", T: () => EventBundle },
+            { no: 3, name: "sequence", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 0 /*LongType.BIGINT*/ }
         ]);
     }
-    create(value?: PartialMessage<PairingSession>): PairingSession {
+    create(value?: PartialMessage<IssuerPairingState>): IssuerPairingState {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.pairingSessionSignature = "";
-        message.issuerIdentity = "";
-        message.expiresAt = 0n;
-        message.claimerPubkeys = [];
-        message.createdAt = 0n;
+        message.sessionDigest = new Uint8Array(0);
+        message.sequence = 0n;
         if (value !== undefined)
-            reflectionMergePartial<PairingSession>(this, message, value);
+            reflectionMergePartial<IssuerPairingState>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PairingSession): PairingSession {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: IssuerPairingState): IssuerPairingState {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* string pairing_session_signature */ 1:
-                    message.pairingSessionSignature = reader.string();
+                case /* bytes session_digest */ 1:
+                    message.sessionDigest = reader.bytes();
                     break;
-                case /* polycentric.v2.PublicKey signed_by */ 2:
-                    message.signedBy = PublicKey.internalBinaryRead(reader, reader.uint32(), options, message.signedBy);
+                case /* polycentric.v2.EventBundle identity_state */ 2:
+                    message.identityState = EventBundle.internalBinaryRead(reader, reader.uint32(), options, message.identityState);
                     break;
-                case /* string issuer_identity */ 3:
-                    message.issuerIdentity = reader.string();
-                    break;
-                case /* int64 expires_at */ 4:
-                    message.expiresAt = reader.int64().toBigInt();
-                    break;
-                case /* repeated polycentric.v2.PublicKey claimer_pubkeys */ 5:
-                    message.claimerPubkeys.push(PublicKey.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* int64 created_at */ 6:
-                    message.createdAt = reader.int64().toBigInt();
+                case /* int64 sequence */ 3:
+                    message.sequence = reader.int64().toBigInt();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -320,25 +408,16 @@ class PairingSession$Type extends MessageType<PairingSession> {
         }
         return message;
     }
-    internalBinaryWrite(message: PairingSession, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string pairing_session_signature = 1; */
-        if (message.pairingSessionSignature !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.pairingSessionSignature);
-        /* polycentric.v2.PublicKey signed_by = 2; */
-        if (message.signedBy)
-            PublicKey.internalBinaryWrite(message.signedBy, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* string issuer_identity = 3; */
-        if (message.issuerIdentity !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.issuerIdentity);
-        /* int64 expires_at = 4; */
-        if (message.expiresAt !== 0n)
-            writer.tag(4, WireType.Varint).int64(message.expiresAt);
-        /* repeated polycentric.v2.PublicKey claimer_pubkeys = 5; */
-        for (let i = 0; i < message.claimerPubkeys.length; i++)
-            PublicKey.internalBinaryWrite(message.claimerPubkeys[i], writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* int64 created_at = 6; */
-        if (message.createdAt !== 0n)
-            writer.tag(6, WireType.Varint).int64(message.createdAt);
+    internalBinaryWrite(message: IssuerPairingState, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* bytes session_digest = 1; */
+        if (message.sessionDigest.length)
+            writer.tag(1, WireType.LengthDelimited).bytes(message.sessionDigest);
+        /* polycentric.v2.EventBundle identity_state = 2; */
+        if (message.identityState)
+            EventBundle.internalBinaryWrite(message.identityState, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* int64 sequence = 3; */
+        if (message.sequence !== 0n)
+            writer.tag(3, WireType.Varint).int64(message.sequence);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -346,19 +425,128 @@ class PairingSession$Type extends MessageType<PairingSession> {
     }
 }
 /**
- * @generated MessageType for protobuf message polycentric.v2.PairingSession
+ * @generated MessageType for protobuf message polycentric.v2.IssuerPairingState
  */
-export const PairingSession = new PairingSession$Type();
+export const IssuerPairingState = new IssuerPairingState$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class SignedIssuerState$Type extends MessageType<SignedIssuerState> {
+    constructor() {
+        super("polycentric.v2.SignedIssuerState", [
+            { no: 1, name: "state_bytes", kind: "scalar", T: 12 /*ScalarType.BYTES*/ },
+            { no: 2, name: "signature", kind: "scalar", T: 12 /*ScalarType.BYTES*/ }
+        ]);
+    }
+    create(value?: PartialMessage<SignedIssuerState>): SignedIssuerState {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.stateBytes = new Uint8Array(0);
+        message.signature = new Uint8Array(0);
+        if (value !== undefined)
+            reflectionMergePartial<SignedIssuerState>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SignedIssuerState): SignedIssuerState {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* bytes state_bytes */ 1:
+                    message.stateBytes = reader.bytes();
+                    break;
+                case /* bytes signature */ 2:
+                    message.signature = reader.bytes();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SignedIssuerState, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* bytes state_bytes = 1; */
+        if (message.stateBytes.length)
+            writer.tag(1, WireType.LengthDelimited).bytes(message.stateBytes);
+        /* bytes signature = 2; */
+        if (message.signature.length)
+            writer.tag(2, WireType.LengthDelimited).bytes(message.signature);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message polycentric.v2.SignedIssuerState
+ */
+export const SignedIssuerState = new SignedIssuerState$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PairingSessionState$Type extends MessageType<PairingSessionState> {
+    constructor() {
+        super("polycentric.v2.PairingSessionState", [
+            { no: 1, name: "issuer_state", kind: "message", T: () => SignedIssuerState },
+            { no: 2, name: "claimers", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PublicKey }
+        ]);
+    }
+    create(value?: PartialMessage<PairingSessionState>): PairingSessionState {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.claimers = [];
+        if (value !== undefined)
+            reflectionMergePartial<PairingSessionState>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PairingSessionState): PairingSessionState {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* polycentric.v2.SignedIssuerState issuer_state */ 1:
+                    message.issuerState = SignedIssuerState.internalBinaryRead(reader, reader.uint32(), options, message.issuerState);
+                    break;
+                case /* repeated polycentric.v2.PublicKey claimers */ 2:
+                    message.claimers.push(PublicKey.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PairingSessionState, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* polycentric.v2.SignedIssuerState issuer_state = 1; */
+        if (message.issuerState)
+            SignedIssuerState.internalBinaryWrite(message.issuerState, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated polycentric.v2.PublicKey claimers = 2; */
+        for (let i = 0; i < message.claimers.length; i++)
+            PublicKey.internalBinaryWrite(message.claimers[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message polycentric.v2.PairingSessionState
+ */
+export const PairingSessionState = new PairingSessionState$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetPairingSessionRequest$Type extends MessageType<GetPairingSessionRequest> {
     constructor() {
         super("polycentric.v2.GetPairingSessionRequest", [
-            { no: 1, name: "pairing_session_signature", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 1, name: "digest_sha256", kind: "scalar", T: 12 /*ScalarType.BYTES*/ }
         ]);
     }
     create(value?: PartialMessage<GetPairingSessionRequest>): GetPairingSessionRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.pairingSessionSignature = "";
+        message.digestSha256 = new Uint8Array(0);
         if (value !== undefined)
             reflectionMergePartial<GetPairingSessionRequest>(this, message, value);
         return message;
@@ -368,8 +556,8 @@ class GetPairingSessionRequest$Type extends MessageType<GetPairingSessionRequest
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* string pairing_session_signature */ 1:
-                    message.pairingSessionSignature = reader.string();
+                case /* bytes digest_sha256 */ 1:
+                    message.digestSha256 = reader.bytes();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -383,9 +571,9 @@ class GetPairingSessionRequest$Type extends MessageType<GetPairingSessionRequest
         return message;
     }
     internalBinaryWrite(message: GetPairingSessionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string pairing_session_signature = 1; */
-        if (message.pairingSessionSignature !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.pairingSessionSignature);
+        /* bytes digest_sha256 = 1; */
+        if (message.digestSha256.length)
+            writer.tag(1, WireType.LengthDelimited).bytes(message.digestSha256);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -397,25 +585,25 @@ class GetPairingSessionRequest$Type extends MessageType<GetPairingSessionRequest
  */
 export const GetPairingSessionRequest = new GetPairingSessionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CreatePairingSessionRequest$Type extends MessageType<CreatePairingSessionRequest> {
+class PutPairingSessionRequest$Type extends MessageType<PutPairingSessionRequest> {
     constructor() {
-        super("polycentric.v2.CreatePairingSessionRequest", [
-            { no: 1, name: "signed_message", kind: "message", T: () => SignedMessage }
+        super("polycentric.v2.PutPairingSessionRequest", [
+            { no: 1, name: "issuer_state", kind: "message", T: () => SignedIssuerState }
         ]);
     }
-    create(value?: PartialMessage<CreatePairingSessionRequest>): CreatePairingSessionRequest {
+    create(value?: PartialMessage<PutPairingSessionRequest>): PutPairingSessionRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<CreatePairingSessionRequest>(this, message, value);
+            reflectionMergePartial<PutPairingSessionRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreatePairingSessionRequest): CreatePairingSessionRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PutPairingSessionRequest): PutPairingSessionRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* polycentric.v2.SignedMessage signed_message */ 1:
-                    message.signedMessage = SignedMessage.internalBinaryRead(reader, reader.uint32(), options, message.signedMessage);
+                case /* polycentric.v2.SignedIssuerState issuer_state */ 1:
+                    message.issuerState = SignedIssuerState.internalBinaryRead(reader, reader.uint32(), options, message.issuerState);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -428,10 +616,10 @@ class CreatePairingSessionRequest$Type extends MessageType<CreatePairingSessionR
         }
         return message;
     }
-    internalBinaryWrite(message: CreatePairingSessionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* polycentric.v2.SignedMessage signed_message = 1; */
-        if (message.signedMessage)
-            SignedMessage.internalBinaryWrite(message.signedMessage, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+    internalBinaryWrite(message: PutPairingSessionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* polycentric.v2.SignedIssuerState issuer_state = 1; */
+        if (message.issuerState)
+            SignedIssuerState.internalBinaryWrite(message.issuerState, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -439,29 +627,29 @@ class CreatePairingSessionRequest$Type extends MessageType<CreatePairingSessionR
     }
 }
 /**
- * @generated MessageType for protobuf message polycentric.v2.CreatePairingSessionRequest
+ * @generated MessageType for protobuf message polycentric.v2.PutPairingSessionRequest
  */
-export const CreatePairingSessionRequest = new CreatePairingSessionRequest$Type();
+export const PutPairingSessionRequest = new PutPairingSessionRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CreatePairingSessionResponse$Type extends MessageType<CreatePairingSessionResponse> {
+class PutPairingSessionResponse$Type extends MessageType<PutPairingSessionResponse> {
     constructor() {
-        super("polycentric.v2.CreatePairingSessionResponse", [
-            { no: 1, name: "session", kind: "message", T: () => PairingSession }
+        super("polycentric.v2.PutPairingSessionResponse", [
+            { no: 1, name: "session_state", kind: "message", T: () => PairingSessionState }
         ]);
     }
-    create(value?: PartialMessage<CreatePairingSessionResponse>): CreatePairingSessionResponse {
+    create(value?: PartialMessage<PutPairingSessionResponse>): PutPairingSessionResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<CreatePairingSessionResponse>(this, message, value);
+            reflectionMergePartial<PutPairingSessionResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreatePairingSessionResponse): CreatePairingSessionResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PutPairingSessionResponse): PutPairingSessionResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* polycentric.v2.PairingSession session */ 1:
-                    message.session = PairingSession.internalBinaryRead(reader, reader.uint32(), options, message.session);
+                case /* polycentric.v2.PairingSessionState session_state */ 1:
+                    message.sessionState = PairingSessionState.internalBinaryRead(reader, reader.uint32(), options, message.sessionState);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -474,10 +662,10 @@ class CreatePairingSessionResponse$Type extends MessageType<CreatePairingSession
         }
         return message;
     }
-    internalBinaryWrite(message: CreatePairingSessionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* polycentric.v2.PairingSession session = 1; */
-        if (message.session)
-            PairingSession.internalBinaryWrite(message.session, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+    internalBinaryWrite(message: PutPairingSessionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* polycentric.v2.PairingSessionState session_state = 1; */
+        if (message.sessionState)
+            PairingSessionState.internalBinaryWrite(message.sessionState, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -485,14 +673,14 @@ class CreatePairingSessionResponse$Type extends MessageType<CreatePairingSession
     }
 }
 /**
- * @generated MessageType for protobuf message polycentric.v2.CreatePairingSessionResponse
+ * @generated MessageType for protobuf message polycentric.v2.PutPairingSessionResponse
  */
-export const CreatePairingSessionResponse = new CreatePairingSessionResponse$Type();
+export const PutPairingSessionResponse = new PutPairingSessionResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetPairingSessionResponse$Type extends MessageType<GetPairingSessionResponse> {
     constructor() {
         super("polycentric.v2.GetPairingSessionResponse", [
-            { no: 1, name: "session", kind: "message", T: () => PairingSession }
+            { no: 1, name: "session_state", kind: "message", T: () => PairingSessionState }
         ]);
     }
     create(value?: PartialMessage<GetPairingSessionResponse>): GetPairingSessionResponse {
@@ -506,8 +694,8 @@ class GetPairingSessionResponse$Type extends MessageType<GetPairingSessionRespon
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* polycentric.v2.PairingSession session */ 1:
-                    message.session = PairingSession.internalBinaryRead(reader, reader.uint32(), options, message.session);
+                case /* polycentric.v2.PairingSessionState session_state */ 1:
+                    message.sessionState = PairingSessionState.internalBinaryRead(reader, reader.uint32(), options, message.sessionState);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -521,9 +709,9 @@ class GetPairingSessionResponse$Type extends MessageType<GetPairingSessionRespon
         return message;
     }
     internalBinaryWrite(message: GetPairingSessionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* polycentric.v2.PairingSession session = 1; */
-        if (message.session)
-            PairingSession.internalBinaryWrite(message.session, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* polycentric.v2.PairingSessionState session_state = 1; */
+        if (message.sessionState)
+            PairingSessionState.internalBinaryWrite(message.sessionState, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -538,11 +726,13 @@ export const GetPairingSessionResponse = new GetPairingSessionResponse$Type();
 class JoinPairingSessionRequest$Type extends MessageType<JoinPairingSessionRequest> {
     constructor() {
         super("polycentric.v2.JoinPairingSessionRequest", [
-            { no: 1, name: "signed_message", kind: "message", T: () => SignedMessage }
+            { no: 1, name: "digest_sha256", kind: "scalar", T: 12 /*ScalarType.BYTES*/ },
+            { no: 2, name: "claimer_key", kind: "message", T: () => PublicKey }
         ]);
     }
     create(value?: PartialMessage<JoinPairingSessionRequest>): JoinPairingSessionRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.digestSha256 = new Uint8Array(0);
         if (value !== undefined)
             reflectionMergePartial<JoinPairingSessionRequest>(this, message, value);
         return message;
@@ -552,8 +742,11 @@ class JoinPairingSessionRequest$Type extends MessageType<JoinPairingSessionReque
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* polycentric.v2.SignedMessage signed_message */ 1:
-                    message.signedMessage = SignedMessage.internalBinaryRead(reader, reader.uint32(), options, message.signedMessage);
+                case /* bytes digest_sha256 */ 1:
+                    message.digestSha256 = reader.bytes();
+                    break;
+                case /* polycentric.v2.PublicKey claimer_key */ 2:
+                    message.claimerKey = PublicKey.internalBinaryRead(reader, reader.uint32(), options, message.claimerKey);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -567,9 +760,12 @@ class JoinPairingSessionRequest$Type extends MessageType<JoinPairingSessionReque
         return message;
     }
     internalBinaryWrite(message: JoinPairingSessionRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* polycentric.v2.SignedMessage signed_message = 1; */
-        if (message.signedMessage)
-            SignedMessage.internalBinaryWrite(message.signedMessage, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* bytes digest_sha256 = 1; */
+        if (message.digestSha256.length)
+            writer.tag(1, WireType.LengthDelimited).bytes(message.digestSha256);
+        /* polycentric.v2.PublicKey claimer_key = 2; */
+        if (message.claimerKey)
+            PublicKey.internalBinaryWrite(message.claimerKey, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -584,7 +780,7 @@ export const JoinPairingSessionRequest = new JoinPairingSessionRequest$Type();
 class JoinPairingSessionResponse$Type extends MessageType<JoinPairingSessionResponse> {
     constructor() {
         super("polycentric.v2.JoinPairingSessionResponse", [
-            { no: 1, name: "session", kind: "message", T: () => PairingSession }
+            { no: 1, name: "session_state", kind: "message", T: () => PairingSessionState }
         ]);
     }
     create(value?: PartialMessage<JoinPairingSessionResponse>): JoinPairingSessionResponse {
@@ -598,8 +794,8 @@ class JoinPairingSessionResponse$Type extends MessageType<JoinPairingSessionResp
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* polycentric.v2.PairingSession session */ 1:
-                    message.session = PairingSession.internalBinaryRead(reader, reader.uint32(), options, message.session);
+                case /* polycentric.v2.PairingSessionState session_state */ 1:
+                    message.sessionState = PairingSessionState.internalBinaryRead(reader, reader.uint32(), options, message.sessionState);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -613,9 +809,9 @@ class JoinPairingSessionResponse$Type extends MessageType<JoinPairingSessionResp
         return message;
     }
     internalBinaryWrite(message: JoinPairingSessionResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* polycentric.v2.PairingSession session = 1; */
-        if (message.session)
-            PairingSession.internalBinaryWrite(message.session, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* polycentric.v2.PairingSessionState session_state = 1; */
+        if (message.sessionState)
+            PairingSessionState.internalBinaryWrite(message.sessionState, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -630,7 +826,7 @@ export const JoinPairingSessionResponse = new JoinPairingSessionResponse$Type();
  * @generated ServiceType for protobuf service polycentric.v2.PairingService
  */
 export const PairingService = new ServiceType("polycentric.v2.PairingService", [
-    { name: "CreatePairingSession", options: {}, I: CreatePairingSessionRequest, O: CreatePairingSessionResponse },
+    { name: "PutPairingSession", options: {}, I: PutPairingSessionRequest, O: PutPairingSessionResponse },
     { name: "GetPairingSession", options: {}, I: GetPairingSessionRequest, O: GetPairingSessionResponse },
     { name: "JoinPairingSession", options: {}, I: JoinPairingSessionRequest, O: JoinPairingSessionResponse }
 ]);

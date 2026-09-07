@@ -17,7 +17,7 @@ use crate::util::{http_client, scraper};
 
 #[derive(Clone)]
 struct AppState {
-    db: DatabaseConnection,
+    ro_db: DatabaseConnection,
     filestore: ContentFilestore,
 }
 
@@ -26,9 +26,11 @@ const CACHE_CONTROL: &str = "public, max-age=604800, stale-while-revalidate=6048
 /// Routes defined here for the polycentric server
 pub fn build_routes(
     db: DatabaseConnection,
+    ro_db: DatabaseConnection,
     filestore: ContentFilestore,
 ) -> Router {
-    let state = AppState { db, filestore };
+    _ = db; // Currently unused.
+    let state = AppState { ro_db, filestore };
 
     let cors = CorsLayer::new()
         .allow_origin(AllowOrigin::any())
@@ -56,7 +58,7 @@ async fn get_blob(
         ContentDigest::from_id(&digest_id).ok_or(StatusCode::BAD_REQUEST)?;
 
     let row = ContentRepository::Query::find_blob_by_digest(
-        &state.db,
+        &state.ro_db,
         digest.r#type as i16,
         &digest.value,
     )

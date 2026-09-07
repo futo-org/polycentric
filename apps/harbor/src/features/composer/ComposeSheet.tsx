@@ -12,6 +12,8 @@ import { ActivityIndicator, Pressable, ScrollView } from 'react-native';
 import { ComposeSheetFooterBar } from './ComposeSheetFooterBar';
 import { ComposerFields } from './ComposerFields';
 import { useComposer } from './hooks/useComposer';
+import { MentionSearchOverlay } from './components/MentionSearchOverlay';
+import { MentionProvider } from './hooks/useMentionStore';
 
 type ComposeSheetProps = {
   /** TODO: should be v2 `SignedEvent` */
@@ -117,13 +119,18 @@ export function ComposeSheet({
             }
             right={postAction}
           />
-          <ScrollView
-            style={Atoms.flex_1}
-            contentContainerStyle={Atoms.p_lg}
-            keyboardShouldPersistTaps="handled"
-          >
-            {fields}
-          </ScrollView>
+
+          <MentionProvider>
+            <ScrollView
+              style={Atoms.flex_1}
+              contentContainerStyle={Atoms.p_lg}
+              keyboardShouldPersistTaps="handled"
+            >
+              {fields}
+            </ScrollView>
+            <MentionSearchOverlay />
+          </MentionProvider>
+
           {footer}
         </Screen.PrimaryColumn>
       </Screen>
@@ -153,7 +160,13 @@ export function ComposeSheet({
           },
         ]}
       >
-        {fields}
+        {/* The web Sheet teleports its content through a portal, which
+            re-mounts children under the app's PortalHost — a provider outside
+            the Sheet is not an ancestor there, so it must live inside. */}
+        <MentionProvider>
+          {fields}
+          <MentionSearchOverlay />
+        </MentionProvider>
       </Sheet.Content>
     </Sheet>
   );

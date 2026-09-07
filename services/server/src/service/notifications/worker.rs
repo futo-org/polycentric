@@ -61,7 +61,7 @@ impl NotificationWorker {
         };
 
         let Some(row) = FeedsRepository::find_event_by_key(
-            &self.ctx.db,
+            &self.ctx.ro_db,
             key.collection as i16,
             &key.identity,
             signed_by.key_type as i16,
@@ -101,7 +101,7 @@ impl NotificationWorker {
             sequence: claim_key.sequence as i64,
         };
         Ok(VerificationsRepository::was_verification_requested(
-            &self.ctx.db,
+            &self.ctx.ro_db,
             &key,
             verifier,
         )

@@ -34,6 +34,37 @@ export interface VectorClock {
     sequence: bigint[];
 }
 /**
+ * The application that authored an event.
+ *
+ * @generated from protobuf message polycentric.v2.Application
+ */
+export interface Application {
+    /**
+     * Human-readable name, e.g. "Harbor".
+     *
+     * @generated from protobuf field: string name = 1
+     */
+    name: string;
+    /**
+     * Reverse-DNS package or bundle identifier, e.g. "org.futo.polycentric".
+     *
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * Version of the application, e.g. "1.2.0".
+     *
+     * @generated from protobuf field: string version = 3
+     */
+    version: string;
+    /**
+     * Website of the application, e.g. "https://harbor.social".
+     *
+     * @generated from protobuf field: string url = 4
+     */
+    url: string;
+}
+/**
  * Event messages reference, but do not include, content
  *
  * @generated from protobuf message polycentric.v2.Event
@@ -84,6 +115,12 @@ export interface Event {
      * @generated from protobuf field: bytes previous_root = 8
      */
     previousRoot: Uint8Array;
+    /**
+     * The application that created the event. Absent when unknown.
+     *
+     * @generated from protobuf field: optional polycentric.v2.Application application = 9
+     */
+    application?: Application;
 }
 /**
  * @generated from protobuf message polycentric.v2.SignedEvent
@@ -488,6 +525,77 @@ class VectorClock$Type extends MessageType<VectorClock> {
  */
 export const VectorClock = new VectorClock$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class Application$Type extends MessageType<Application> {
+    constructor() {
+        super("polycentric.v2.Application", [
+            { no: 1, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "version", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "url", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<Application>): Application {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.name = "";
+        message.id = "";
+        message.version = "";
+        message.url = "";
+        if (value !== undefined)
+            reflectionMergePartial<Application>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Application): Application {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string name */ 1:
+                    message.name = reader.string();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* string version */ 3:
+                    message.version = reader.string();
+                    break;
+                case /* string url */ 4:
+                    message.url = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: Application, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string name = 1; */
+        if (message.name !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.name);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* string version = 3; */
+        if (message.version !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.version);
+        /* string url = 4; */
+        if (message.url !== "")
+            writer.tag(4, WireType.LengthDelimited).string(message.url);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message polycentric.v2.Application
+ */
+export const Application = new Application$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class Event$Type extends MessageType<Event> {
     constructor() {
         super("polycentric.v2.Event", [
@@ -497,7 +605,8 @@ class Event$Type extends MessageType<Event> {
             { no: 4, name: "previous_signature", kind: "scalar", T: 12 /*ScalarType.BYTES*/ },
             { no: 6, name: "content_digest", kind: "message", T: () => ContentDigest },
             { no: 7, name: "created_at", kind: "scalar", T: 4 /*ScalarType.UINT64*/, L: 0 /*LongType.BIGINT*/ },
-            { no: 8, name: "previous_root", kind: "scalar", T: 12 /*ScalarType.BYTES*/ }
+            { no: 8, name: "previous_root", kind: "scalar", T: 12 /*ScalarType.BYTES*/ },
+            { no: 9, name: "application", kind: "message", T: () => Application }
         ]);
     }
     create(value?: PartialMessage<Event>): Event {
@@ -536,6 +645,9 @@ class Event$Type extends MessageType<Event> {
                 case /* bytes previous_root */ 8:
                     message.previousRoot = reader.bytes();
                     break;
+                case /* optional polycentric.v2.Application application */ 9:
+                    message.application = Application.internalBinaryRead(reader, reader.uint32(), options, message.application);
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -569,6 +681,9 @@ class Event$Type extends MessageType<Event> {
         /* bytes previous_root = 8; */
         if (message.previousRoot.length)
             writer.tag(8, WireType.LengthDelimited).bytes(message.previousRoot);
+        /* optional polycentric.v2.Application application = 9; */
+        if (message.application)
+            Application.internalBinaryWrite(message.application, writer.tag(9, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

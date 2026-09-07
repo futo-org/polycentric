@@ -86,7 +86,7 @@ async fn fetch(
     params: &Params,
 ) -> Result<feeds_pipeline::Fetched, Status> {
     let mut rows = list_page(
-        &ctx.db,
+        &ctx.ro_db,
         params,
         params.pagination.limit + 1, // Check for next page
         params.pagination.cursor_filter.as_ref(),
@@ -114,7 +114,7 @@ async fn hydrate(
         .map(|(e, _)| TargetEventKey::of(e))
         .collect();
 
-    let raw = tombstone::list_tombstones_for_event_keys(&ctx.db, &keys)
+    let raw = tombstone::list_tombstones_for_event_keys(&ctx.ro_db, &keys)
         .await
         .map_err(map_db_err)?;
     let deletes_by_target = tombstone::validate_tombstones(ctx, raw).await?;
@@ -218,6 +218,7 @@ mod tests {
                 signature: vec![id as u8],
                 previous_signature: vec![],
                 previous_root: vec![],
+                application_id: None,
                 event_bytes: vec![id as u8],
                 created_at: ts(id),
                 synced_at: ts(id),

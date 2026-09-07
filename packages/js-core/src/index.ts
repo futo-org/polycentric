@@ -32,7 +32,7 @@ export { PolycentricClient } from './polycentric-client';
 export { MemoryStorageDriver, MemoryFileStoreDriver } from './memory-storage';
 export { IdentityManager } from './client-internal/identity-manager';
 export { PairingSessionManager } from './client-internal/pairing-session-manager';
-export type { ActivePairingSession } from './client-internal/pairing-session-manager';
+export type { PairingSession } from './client-internal/pairing-session-manager';
 export type {
   PolycentricClientConfig,
   KeyPair,

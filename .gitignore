@@ -19,7 +19,7 @@ junit-server.xml
 
 # production
 /build
-/target
+**/target
 
 # misc
 .DS_Store

@@ -30,6 +30,7 @@ time.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tonic = { workspace = true, features = ["router", "transport"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+regex = { version = "1", default-features = false, features = ["std"] }
 serde = { version = "1", features = ["derive"] }
 
 

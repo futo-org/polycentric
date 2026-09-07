@@ -39,6 +39,10 @@ pub struct Model {
     // as known at sign time. Denormalized from event_bytes for proof lookups.
     pub previous_root: Vec<u8>,
 
+    // Application that created the event (`application` table), denormalized
+    // from event_bytes.
+    pub application_id: Option<i32>,
+
     // We need to store the raw event due to non-deterministic serialization
     pub event_bytes: Vec<u8>,
 
@@ -55,7 +59,7 @@ pub struct Model {
     pub block: HasOne<super::block_model::Entity>,
     /// Only if this is a post event.
     #[sea_orm(has_one)] // Really has zero or one.
-    pub reaction_tally: HasOne<super::reaction_tally_model2::Entity>,
+    pub reaction_tally: HasOne<super::reaction_tally_model::Entity>,
     /// Only if this is a reaction event.
     #[sea_orm(has_one)] // Really has zero or one.
     pub reaction: HasOne<super::reaction_model::Entity>,

@@ -9,8 +9,8 @@ import type { JoinPairingSessionRequest } from "./pairing_service";
 import type { GetPairingSessionResponse } from "./pairing_service";
 import type { GetPairingSessionRequest } from "./pairing_service";
 import { stackIntercept } from "@protobuf-ts/runtime-rpc";
-import type { CreatePairingSessionResponse } from "./pairing_service";
-import type { CreatePairingSessionRequest } from "./pairing_service";
+import type { PutPairingSessionResponse } from "./pairing_service";
+import type { PutPairingSessionRequest } from "./pairing_service";
 import type { UnaryCall } from "@protobuf-ts/runtime-rpc";
 import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
 /**
@@ -21,19 +21,19 @@ import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
  */
 export interface IPairingServiceClient {
     /**
-     * Creates a session after validating the issuer signature and authorization.
+     * Creates or updates a pairing session after authorizing the request as valid.
      *
-     * @generated from protobuf rpc: CreatePairingSession
+     * @generated from protobuf rpc: PutPairingSession
      */
-    createPairingSession(input: CreatePairingSessionRequest, options?: RpcOptions): UnaryCall<CreatePairingSessionRequest, CreatePairingSessionResponse>;
+    putPairingSession(input: PutPairingSessionRequest, options?: RpcOptions): UnaryCall<PutPairingSessionRequest, PutPairingSessionResponse>;
     /**
-     * Returns a pairing session for an active session signature.
+     * Fetch a pairing session.
      *
      * @generated from protobuf rpc: GetPairingSession
      */
     getPairingSession(input: GetPairingSessionRequest, options?: RpcOptions): UnaryCall<GetPairingSessionRequest, GetPairingSessionResponse>;
     /**
-     * Registers a claimer for a valid session signature.
+     * Registers a claimer to a pairing session.
      *
      * @generated from protobuf rpc: JoinPairingSession
      */
@@ -52,16 +52,16 @@ export class PairingServiceClient implements IPairingServiceClient, ServiceInfo 
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
-     * Creates a session after validating the issuer signature and authorization.
+     * Creates or updates a pairing session after authorizing the request as valid.
      *
-     * @generated from protobuf rpc: CreatePairingSession
+     * @generated from protobuf rpc: PutPairingSession
      */
-    createPairingSession(input: CreatePairingSessionRequest, options?: RpcOptions): UnaryCall<CreatePairingSessionRequest, CreatePairingSessionResponse> {
+    putPairingSession(input: PutPairingSessionRequest, options?: RpcOptions): UnaryCall<PutPairingSessionRequest, PutPairingSessionResponse> {
         const method = this.methods[0], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CreatePairingSessionRequest, CreatePairingSessionResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<PutPairingSessionRequest, PutPairingSessionResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Returns a pairing session for an active session signature.
+     * Fetch a pairing session.
      *
      * @generated from protobuf rpc: GetPairingSession
      */
@@ -70,7 +70,7 @@ export class PairingServiceClient implements IPairingServiceClient, ServiceInfo 
         return stackIntercept<GetPairingSessionRequest, GetPairingSessionResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Registers a claimer for a valid session signature.
+     * Registers a claimer to a pairing session.
      *
      * @generated from protobuf rpc: JoinPairingSession
      */

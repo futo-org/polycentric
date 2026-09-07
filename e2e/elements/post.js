@@ -7,4 +7,6 @@ output.post = {
   quote: 'Quote',
   // Header of a feed item that is someone's repost.
   reposted: 'reposted',
+  // Prompt of the inline reply composer under an opened post.
+  replyPrompt: 'Post your reply',
 };

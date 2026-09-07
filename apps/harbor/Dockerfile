@@ -13,6 +13,9 @@ WORKDIR /app
 # they must be present during `expo export`. Passed in via build-arg.
 ARG EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS
 ENV EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS=$EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS
+# Read by app.config.ts; falls back to the package.json version.
+ARG APP_VERSION
+ENV APP_VERSION=$APP_VERSION
 
 # CI populates packages/js-*/dist, packages/react-native/lib, and the
 # packages/rs-core-wasm wasm build from upstream artifacts and sets this

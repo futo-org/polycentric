@@ -123,8 +123,17 @@ class InstagramOAuthVerifier extends OAuthVerifier<InstagramTokenRequest> {
     return Result.ok();
   }
 
-  public healthCheck(): Promise<Result<void>> {
-    throw new Error('Method not implemented.');
+  public async healthCheck(): Promise<Result<void>> {
+    if (
+      process.env.POLYCENTRIC_VERIFIER_BOT_INSTAGRAM_CLIENT_ID === undefined ||
+      process.env.POLYCENTRIC_VERIFIER_BOT_INSTAGRAM_CLIENT_SECRET === undefined
+    ) {
+      return Result.errMsg(
+        'Verifier not configured: Missing Instagram credentials',
+      );
+    }
+
+    return Result.ok();
   }
 
   public async getClaimFieldsByUrl(url: string): Promise<Result<ClaimField[]>> {

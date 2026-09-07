@@ -47,7 +47,7 @@ async fn fetch(
     params: &Params,
 ) -> Result<Fetched, Status> {
     let mut rows = Query::suggest_follow(
-        &ctx.service.db,
+        &ctx.service.ro_db,
         &params.identity,
         params.pagination.cursor_filter.as_ref(),
         params.pagination.limit,
@@ -88,7 +88,7 @@ async fn hydrate(
                 .map(|follower| (&*row.event.identity, &**follower))
         })
         .collect::<Vec<_>>();
-    let follow_events = Query::follow_events(&ctx.service.db, follows)
+    let follow_events = Query::follow_events(&ctx.service.ro_db, follows)
         .await
         .map_err(|err| {
             tracing::error!(error = %err, "failed to get follow events");

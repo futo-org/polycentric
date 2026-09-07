@@ -3,6 +3,7 @@ import { ProfileAvatar } from '@/src/common/components/Avatar/ProfileAvatar';
 import { Routes } from '@/src/common/constants';
 import { timeAgo, type PostData } from '@/src/common/lib/polycentric-hooks';
 import { getKeyFingerprint } from '@/src/common/lib/polycentric-hooks/helpers';
+import { mentionsToPlainText } from '@/src/common/util/parseTextLinks';
 import { Atoms, useTheme, withHexOpacity } from '@/src/common/theme';
 import { Post } from '@/src/features/post/Post';
 import { ClaimTypeChip } from '@/src/features/verifications/claims/toolbar/ClaimTypeChip';
@@ -180,7 +181,7 @@ function InteractionNotification({
         {quoted?.content ? (
           <View style={[]}>
             <Text variant="secondary" color="neutral_500" numberOfLines={2}>
-              {quoted.content}
+              {mentionsToPlainText(quoted.content)}
             </Text>
           </View>
         ) : null}

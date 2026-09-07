@@ -1,6 +1,6 @@
+use crate::old_entity::{reaction_summary_model, reaction_tally_model};
 use ::entity::{
     content_delete_model, content_model, content_reaction_model, event_model,
-    reaction_summary_model, reaction_tally_model,
 };
 use sea_orm_migration::{prelude::*, schema::*};
 

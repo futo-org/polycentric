@@ -14,6 +14,18 @@ message VectorClock {
   repeated uint64 sequence = 1;
 }
 
+// The application that authored an event.
+message Application {
+  // Human-readable name, e.g. "Harbor".
+  string name = 1;
+  // Reverse-DNS package or bundle identifier, e.g. "org.futo.polycentric".
+  string id = 2;
+  // Version of the application, e.g. "1.2.0".
+  string version = 3;
+  // Website of the application, e.g. "https://harbor.social".
+  string url = 4;
+}
+
 // Event messages reference, but do not include, content
 message Event {
   // Key for the event
@@ -39,6 +51,9 @@ message Event {
   // (leaf_count = key.sequence - 1). Lets later events attest to the writer's
   // history; consumed by EventProof for membership verification.
   bytes previous_root = 8;
+
+  // The application that created the event. Absent when unknown.
+  optional Application application = 9;
 }
 
 message SignedEvent {

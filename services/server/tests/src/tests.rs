@@ -547,6 +547,7 @@ fn make_event(
         previous_root,
         content_digest: Some(digest),
         created_at,
+        application: None,
     }
 }
 

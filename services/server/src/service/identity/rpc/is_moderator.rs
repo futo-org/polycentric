@@ -15,10 +15,9 @@ pub async fn handle(
     let identity = authenticated_identity(&request)
         .ok_or_else(|| Status::unauthenticated("authentication required"))?;
 
-    let is_moderator =
-        id_repo::Query::is_moderator(&ctx.db, &identity)
-            .await
-            .map_err(|_| Status::internal("internal server error"))?;
+    let is_moderator = id_repo::Query::is_moderator(&ctx.ro_db, &identity)
+        .await
+        .map_err(|_| Status::internal("internal server error"))?;
 
     Ok(IsModeratorResponse { is_moderator })
 }

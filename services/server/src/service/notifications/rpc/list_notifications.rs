@@ -84,7 +84,7 @@ async fn fetch(
     params: &Params,
 ) -> Result<Fetched, Status> {
     let raw = NotificationRepository::list_for_identity(
-        &ctx.service.db,
+        &ctx.service.ro_db,
         &params.identity,
         params.limit + 1, // over-fetch for pagination
         params.after_id,
@@ -129,19 +129,12 @@ async fn hydrate(
     // them by their comparable key for the view stage.
     let proto_keys: Vec<EventKey> = cmp_keys.iter().map(to_proto_key).collect();
     let fetched =
-        FeedsRepository::list_events_by_keys(&ctx.service.db, &proto_keys)
+        FeedsRepository::list_events_by_keys(&ctx.service.ro_db, &proto_keys)
             .await
             .map_err(map_db_err)?;
-    let fetched_keys: Vec<TargetEventKey> =
-        fetched.iter().map(|(e, _)| TargetEventKey::of(e)).collect();
-    let mut fetched_bundles = rows_into_bundles(fetched);
-    attach_proofs(ctx.service, &mut fetched_bundles).await?;
-
-    let bundles: HashMap<TargetEventKey, EventBundle> =
-        fetched_keys.iter().cloned().zip(fetched_bundles).collect();
 
     let stats_fut = async {
-        gather_stats_for(&ctx.service.db, &fetched_keys)
+        gather_stats_for(&ctx.service.ro_db, fetched.iter().map(|(e, _)| e.id))
             .await
             .map_err(map_db_err)
     };
@@ -150,7 +143,7 @@ async fn hydrate(
     // author and does not object to their own posts.
     let label_fut = async {
         FeedsRepository::list_labels_for_event_keys(
-            &ctx.service.db,
+            &ctx.service.ro_db,
             &trigger_keys,
             ctx.service.trusted_moderator.as_deref(),
         )
@@ -179,6 +172,14 @@ async fn hydrate(
         stats_fut,
         blocked_fut,
     )?;
+
+    let fetched_keys: Vec<_> =
+        fetched.iter().map(|(e, _)| TargetEventKey::of(e)).collect();
+    let mut fetched_bundles = rows_into_bundles(fetched);
+    attach_proofs(ctx.service, &mut fetched_bundles).await?;
+
+    let bundles: HashMap<TargetEventKey, EventBundle> =
+        fetched_keys.into_iter().zip(fetched_bundles).collect();
 
     let mut label_bundles = rows_into_bundles(label_rows.clone());
     attach_proofs(ctx.service, &mut label_bundles).await?;
@@ -392,6 +393,7 @@ mod tests {
                 signature: vec![row.id as u8],
                 previous_signature: vec![],
                 previous_root: vec![],
+                application_id: None,
                 event_bytes: vec![row.id as u8],
                 created_at: ts,
                 synced_at: ts,

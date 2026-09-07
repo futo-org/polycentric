@@ -4,6 +4,7 @@ import { APP_NAME } from '@/src/common/constants';
 import { Atoms } from '@/src/common/theme';
 import { usePageTitle } from '@/src/common/lib/navigation/usePageTitle';
 import { truncateText } from '@/src/common/util/truncateText';
+import { mentionsToPlainText } from '@/src/common/util/parseTextLinks';
 import { useProfile } from '@/src/features/profile/hooks/useProfile';
 import { ThreadList } from '@/src/features/post/ThreadList';
 import { usePostById } from '@/src/features/post/hooks/usePostById';
@@ -30,7 +31,7 @@ export default function FeedPostScreen() {
   const author = useProfile(post?.identity ?? null);
   usePageTitle(
     post && author.name
-      ? `${author.name} on ${APP_NAME}: "${truncateText(post.content, 80)}"`
+      ? `${author.name} on ${APP_NAME}: "${truncateText(mentionsToPlainText(post.content), 80)}"`
       : 'Post',
   );
 

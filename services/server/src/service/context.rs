@@ -7,7 +7,10 @@ use sea_orm::DatabaseConnection;
 use std::sync::Arc;
 
 pub struct ServiceContext {
+    /// Read/write database connection pool.
     pub db: DatabaseConnection,
+    /// Read-only database connection pool.
+    pub ro_db: DatabaseConnection,
     pub proof_cache: Arc<ProofCache>,
     pub kafka_producer: FutureProducer,
     /// Only labels from this moderator identity are considered.
@@ -18,10 +21,12 @@ pub struct ServiceContext {
 impl ServiceContext {
     pub fn new(
         db: DatabaseConnection,
+        ro_db: DatabaseConnection,
         kafka_producer: FutureProducer,
     ) -> Arc<Self> {
         Arc::new(Self {
             db,
+            ro_db,
             proof_cache: ProofCache::new(),
             kafka_producer,
             trusted_moderator: crate::config::get().trusted_moderator.clone(),

@@ -1,0 +1,11 @@
+# Marks the sidebar of the screen on top as `#sidebar`. Screens further down
+# the stack stay mounted with their own zero-size sidebars, so a label alone
+# can resolve to one of those.
+- evalBrowserScript:
+    script: |
+      const sidebar = [...document.querySelectorAll('[role="navigation"]')].find(
+        (el) => el.getBoundingClientRect().width > 0,
+      );
+      if (!sidebar) throw new Error('no visible sidebar');
+      sidebar.id = 'sidebar';
+      return true;

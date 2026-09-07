@@ -48,8 +48,5 @@ opentelemetry = { version = "0.32", default-features = false, features = ["metri
 opentelemetry_sdk = { version = "0.32", default-features = false, features = ["metrics"] }
 opentelemetry-prometheus = { version = "0.32", default-features = false }
 prometheus = { version = "0.14", default-features = false }
-# Pinned: 0.3.48 adds a `From` impl on an associated-type projection that
-# fails coherence (E0119) in sea-query and aws-smithy-types. Unpin once those
-# crates ship releases that compile against it.
-time = { version = "=0.3.55", default-features = false }
+time = { version = "0.3.55", default-features = false }
 base64 = { version = "0.22.1", default-features = false }

@@ -4,13 +4,6 @@ version = "0.0.1"
 edition = "2024"
 
 [dependencies]
-# Workspace
 polycentric-common.workspace = true
-
-# 3rd Party
-aws-config = { version = "1", features = ["behavior-version-latest"] }
-aws-sdk-s3 = "1"
-# Transitive pin: 0.60.21 makes DeferredSignerSender::send generic, which
-# breaks type inference in aws-runtime <=1.7.4 (E0282). Remove this pin when
-# the aws-sdk crates above are bumped to versions built against the new API.
-aws-smithy-eventstream = "=0.61.1"
+aws-config = { version = "1", default-features = false, features = ["behavior-version-latest", "rt-tokio", "default-https-client"] }
+aws-sdk-s3 = { version = "1", default-features = false, features = ["behavior-version-latest", "rt-tokio", "default-https-client"] }

@@ -63,6 +63,7 @@ export const Routes = {
     profileFollowers: (identityId: string) =>
       `/${identityId}/followers` as const,
     editProfile: (identityId: string) => `/${identityId}/edit` as const,
+    profileIdentity: (identityId: string) => `/${identityId}/identity` as const,
     profilePhoto: (identityId: string) => `/${identityId}/photo` as const,
     post: (identityId: string, keyFingerprint: string, sequence: string) =>
       `/${identityId}/post/${keyFingerprint}/${sequence}` as const,

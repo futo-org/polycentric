@@ -8,6 +8,7 @@ import { SearchField } from './SearchField';
 export function SearchBar() {
   return (
     <SearchField
+      accessibilityRole="button"
       accessibilityLabel="Search"
       onPress={() => router.push(Routes.tabs.explore.search)}
     >

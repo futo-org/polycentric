@@ -1,0 +1,32 @@
+# Opens the post nearest the middle of the screen whose centre is the post
+# itself, since the tap lands there and a nested pressable (image, link card,
+# quote, mention) or the sticky header would take it instead. The web driver
+# has no relative selectors, so a script first marks that post. The feed is
+# virtualised, so only a post already on screen is safe to target.
+- evalBrowserScript:
+    script: |
+      const middle = window.innerHeight / 2;
+      const distance = (rect) => Math.abs(rect.top + rect.height / 2 - middle);
+      const posts = [...document.querySelectorAll('[role="article"]')]
+        .map((el) => ({ el, rect: el.getBoundingClientRect() }))
+        .filter(({ rect }) => rect.height > 0)
+        .sort((a, b) => distance(a.rect) - distance(b.rect));
+      const onScreen = posts.filter(
+        ({ rect }) => rect.top >= 0 && rect.bottom <= window.innerHeight,
+      );
+      const plain = ({ el, rect }) => {
+        const hit = document.elementFromPoint(
+          rect.left + rect.width / 2,
+          rect.top + rect.height / 2,
+        );
+        return hit?.closest('[tabindex], a, button, [role], img') === el;
+      };
+      const post = onScreen.find(plain) ?? posts.find(plain);
+      if (!post) throw new Error('no post to open on screen');
+      post.el.id = 'openPost';
+      return true;
+- tapOn:
+    css: '#openPost'
+- extendedWaitUntil:
+    visible: ${output.post.replyPrompt}
+    timeout: 30000

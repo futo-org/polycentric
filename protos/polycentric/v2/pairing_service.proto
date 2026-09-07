@@ -2,93 +2,141 @@ syntax = "proto3";
 package polycentric.v2;
 
 import "polycentric/v2/keypair.proto";
-import "polycentric/v2/server.proto";
+import "polycentric/v2/events.proto";
 
-/**
- * Issuer-signed payload for creating a pairing session.
- */
-message InitialPairingSession {
-  // Identity key the session is created for.
+// Immutable state created at the start of a pairing session that uniquely
+// identifies it.
+message PairingSessionDigest {
+  // Trusted source of truth for the identity being paired with.
   string issuer_identity = 1;
-  // Timestamp so that the pairing session id is unique.
-  int64 timestamp = 2;
+
+  // Each issuer state must be signed by this key and this key must be
+  // authorized for rotation.
+  PublicKey issuer_signer = 2;
+
+  // Random bitstring to add entropy and keep session identifiers unpredictable.
+  bytes nonce = 3;
+
+  // Timestamp in posix epoch millis.
+  // Used for expiration and preventing replay attacks.
+  int64 initial_timestamp = 4;
+
+  // The number of milliseconds after the initial timestamp for which this
+  // session is considered valid.
+  int64 ttl_millis = 5;
+}
+
+// Data to share out-of-band between the issuer and claimer.
+// This means using copy/paste or a QR code.
+message PairingInfo {
+  // URL of the server that holds this pairing session.
+  string server = 1;
+
+  // SHA256 hash of the pairing session digest.
+  bytes digest_sha256 = 2;
+}
+
+// Signed payload from issuers that contains pairing state information.
+// Contains authenticated information about the pairing session for claimers and
+// servers to read.
+// Clients and servers should only obtain messages of this type from a
+// `SignedIssuerState` message and must check its signature.
+message IssuerPairingState {
+  // Serialized `PairingSessionDigest` message.
+  // Identifies the pairing session that this state belongs to.
+  // This should be kept constant throughout the session.
+  // Clients should verify that the SHA256 hash and content of this field
+  // matches what they expect.
+  bytes session_digest = 1;
+
+  // The most recent identity event for this identity as reported by the issuer.
+  // Claimers should verify the full identity chain before fully trusting the
+  // content of this field.
+  // Even when not fully trusted, it is still useful for:
+  // - seeding the list of servers to query.
+  // - deciding when to try claiming.
+  EventBundle identity_state = 2;
+
+  // A counter that gets incremented for each new state in this pairing session.
+  // This keeps updates well-ordered and prevents replay attacks from rolling
+  // back state.
+  // Starts at 1 for each pairing session.
+  int64 sequence = 3;
+}
+
+// Encapsulates an issuer's signed pairing state and its signature.
+message SignedIssuerState {
+  // Serialized `IssuerPairingState` message from the issuer.
+  bytes state_bytes = 1;
+
+  // Signature over `state_bytes`.
+  // Must use the key pair specified in the digest.
+  bytes signature = 2;
+}
+
+// Server-aggregated state for a pairing session containing input from the
+// issuer and claimers.
+message PairingSessionState {
+  SignedIssuerState issuer_state = 1;
+
+  // Server-managed list of claimers.
+  repeated PublicKey claimers = 2;
 }
 
 /**
- * Payload that claimers sign when attempting to join a pairing session.
- */
-message JoinPairingSessionBody {
-  string pairing_session_signature = 1;
-}
-
-/**
- * Pairing session stored and returned by the server.
- */
-message PairingSession {
-  // Signature of the signed InitialPairingSession payload; serves as the session id.
-  string pairing_session_signature = 1;
-  // Public key that signed the InitialPairingSession payload.
-  PublicKey signed_by = 2;
-  // Identity key the session was created for.
-  string issuer_identity = 3;
-  // Expiration timestamp in unix milliseconds.
-  int64 expires_at = 4;
-  // Public keys that have joined the session so far.
-  repeated PublicKey claimer_pubkeys = 5;
-  // Server-authoritative creation timestamp in unix milliseconds.
-  int64 created_at = 6;
-}
-
-/**
- * Request payload for fetching a pairing session by signature.
+ * Request payload for fetching a pairing session.
  */
 message GetPairingSessionRequest {
-  string pairing_session_signature = 1;
+  bytes digest_sha256 = 1;
 }
 
 /**
- * Wrapper request for CreatePairingSession RPC.
+ * Wrapper request for PutPairingSession RPC.
  */
-message CreatePairingSessionRequest {
-  SignedMessage signed_message = 1;
+message PutPairingSessionRequest {
+  SignedIssuerState issuer_state = 1;
 }
 
 /**
- * Wrapper response for CreatePairingSession RPC.
+ * Wrapper response for PutPairingSession RPC.
  */
-message CreatePairingSessionResponse {
-  PairingSession session = 1;
+message PutPairingSessionResponse {
+  PairingSessionState session_state = 1;
 }
 
 /**
  * Wrapper response for GetPairingSession RPC.
  */
 message GetPairingSessionResponse {
-  PairingSession session = 1;
+  PairingSessionState session_state = 1;
 }
 
 /**
  * Wrapper request for JoinPairingSession RPC.
  */
 message JoinPairingSessionRequest {
-  SignedMessage signed_message = 1;
+  // SHA256 of the pairing session digest to join.
+  bytes digest_sha256 = 1;
+
+  // Public key that the claimer wishes to join with.
+  PublicKey claimer_key = 2;
 }
 
 /**
  * Wrapper response for JoinPairingSession RPC.
  */
 message JoinPairingSessionResponse {
-  PairingSession session = 1;
+  PairingSessionState session_state = 1;
 }
 
 /**
  * Pairing APIs used for device pairing.
  */
 service PairingService {
-  // Creates a session after validating the issuer signature and authorization.
-  rpc CreatePairingSession(CreatePairingSessionRequest) returns (CreatePairingSessionResponse);
-  // Returns a pairing session for an active session signature.
+  // Creates or updates a pairing session after authorizing the request as valid.
+  rpc PutPairingSession(PutPairingSessionRequest) returns (PutPairingSessionResponse);
+  // Fetch a pairing session.
   rpc GetPairingSession(GetPairingSessionRequest) returns (GetPairingSessionResponse);
-  // Registers a claimer for a valid session signature.
+  // Registers a claimer to a pairing session.
   rpc JoinPairingSession(JoinPairingSessionRequest) returns (JoinPairingSessionResponse);
 }

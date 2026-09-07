@@ -5,30 +5,27 @@ use polycentric_common::models::protos_v2::{
 };
 use sea_orm::{DbConn, DbErr};
 
-use crate::service::{
-    events::TargetEventKey,
-    stats::repository::{Query, ReactionSummary, ReactionTally},
+use crate::data::EventId;
+use crate::service::stats::repository::{
+    Query, ReactionSummary, ReactionTally,
 };
-
-/// Max number of emoji tallies to return per event.
-const EMOJI_TALLY_LIMIT: u64 = 50;
 
 #[derive(Default)]
 pub struct EventStats {
-    pub reply_counts: HashMap<TargetEventKey, i64>,
-    pub reaction_summaries: HashMap<TargetEventKey, ReactionSummary>,
-    pub reaction_tallies: HashMap<TargetEventKey, Vec<ReactionTally>>,
+    reply_counts: HashMap<EventId, i64>,
+    reaction_summaries: HashMap<EventId, ReactionSummary>,
+    reaction_tallies: HashMap<EventId, Vec<ReactionTally>>,
 }
 
-/// Gather reply counts, reaction summaries, and emoji tallies for `display_keys`.
+/// Gather reply counts, reaction summaries, and emoji tallies for events.
 pub async fn gather_stats_for(
     db: &DbConn,
-    display_keys: &[TargetEventKey],
+    event_ids: impl ExactSizeIterator<Item = EventId> + Clone,
 ) -> Result<EventStats, DbErr> {
     let (reply_counts, reaction_summaries, reaction_tallies) = tokio::try_join!(
-        Query::count_replies(db, display_keys.to_owned()),
-        Query::summarize_reactions(db, display_keys.to_owned()),
-        Query::tally_reactions(db, display_keys, EMOJI_TALLY_LIMIT),
+        Query::count_replies(db, event_ids.clone()),
+        Query::summarize_reactions(db, event_ids.clone()),
+        Query::tally_reactions(db, event_ids),
     )?;
 
     Ok(EventStats {
@@ -38,31 +35,27 @@ pub async fn gather_stats_for(
     })
 }
 
-/// Truncate a stat count to the `i32` max.
-/// Assumes counts are non-negative.
-fn truncate_count(count: i64) -> i32 {
-    i32::try_from(count).unwrap_or(i32::MAX)
-}
-
 /// Populate `meta` with values from `stats`.
 pub fn include_stats(
     meta: &mut Option<EventMetadata>,
-    event_key: &TargetEventKey,
+    event_id: EventId,
     stats: &EventStats,
 ) {
-    if let Some(reply_count) = stats.reply_counts.get(event_key) {
+    if let Some(reply_count) = stats.reply_counts.get(&event_id) {
         meta.get_or_insert_default().reply_count =
             Some(truncate_count(*reply_count));
     }
 
-    if let Some(summary) = stats.reaction_summaries.get(event_key) {
+    if let Some(summary) = stats.reaction_summaries.get(&event_id) {
         let meta = meta.get_or_insert_default();
-        meta.reaction_count = Some(truncate_count(summary.reaction_count));
+        meta.reaction_count = Some(truncate_count(
+            summary.upvote_count + summary.downvote_count,
+        ));
         meta.upvote_count = Some(truncate_count(summary.upvote_count));
         meta.downvote_count = Some(truncate_count(summary.downvote_count));
     }
 
-    if let Some(tallies) = stats.reaction_tallies.get(event_key) {
+    if let Some(tallies) = stats.reaction_tallies.get(&event_id) {
         meta.get_or_insert_default().emoji_reactions = tallies
             .iter()
             .map(|tally| ProtoReactionTally {
@@ -72,4 +65,10 @@ pub fn include_stats(
             })
             .collect();
     }
+}
+
+/// Truncate a stat count to the `i32` max.
+/// Assumes counts are non-negative.
+fn truncate_count(count: i64) -> i32 {
+    i32::try_from(count).unwrap_or(i32::MAX)
 }

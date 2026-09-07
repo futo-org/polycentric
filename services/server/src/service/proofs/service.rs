@@ -21,7 +21,7 @@ pub async fn build_proof_against(
 ) -> Result<Option<EventProof>, Status> {
     let canonical = ctx
         .proof_cache
-        .canonical(&ctx.db, identity, collection)
+        .canonical(&ctx.ro_db, identity, collection)
         .await
         .map_err(db_err)?;
 

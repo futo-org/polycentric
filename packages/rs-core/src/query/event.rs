@@ -36,6 +36,7 @@ pub struct GetEventArgs {
     pub identity: String,
     pub collection: i32,
     pub sequence: u64,
+    pub signer_key_prefix: Option<String>,
 }
 
 impl EventBundleResponse for ListEventsResponse {
@@ -142,12 +143,19 @@ pub fn get_event(
         identity,
         collection,
         sequence,
+        signer_key_prefix,
     } = args;
+    let signer_key_prefix = Arc::new(signer_key_prefix);
 
     if let Some(bundle) = query_client
         .client()
         .lock_recover()
-        .find_event_bundle_by_sequence(&identity, collection, sequence)
+        .find_event_bundle_by_sequence(
+            &identity,
+            collection,
+            sequence,
+            signer_key_prefix.as_deref(),
+        )
     {
         let bytes = bundle.encode_to_vec();
         let observable: Observable<QueryResult<Vec<u8>>> = Observable::new(move |subscriber| {
@@ -172,7 +180,7 @@ pub fn get_event(
             sequence_lt: Some(sequence_i64.saturating_add(1)),
             heads: vec![],
         }),
-        size: Some(1),
+        size: None,
     };
 
     let client = query_client.client().clone();
@@ -181,14 +189,17 @@ pub fn get_event(
     // so we can rely on the local store to handle tombstones properly.
     let merge_fn = {
         let identity = identity.clone();
+        let signer_key_prefix = signer_key_prefix.clone();
 
         move |_values: &[Vec<u8>],
               _previous: Option<&Vec<u8>>,
               client: &Arc<Mutex<PolycentricClient>>| {
-            let bundle = client
-                .clone()
-                .lock_recover()
-                .find_event_bundle_by_sequence(&identity, collection, sequence);
+            let bundle = client.clone().lock_recover().find_event_bundle_by_sequence(
+                &identity,
+                collection,
+                sequence,
+                signer_key_prefix.as_deref(),
+            );
 
             bundle
                 .as_ref()
@@ -201,6 +212,7 @@ pub fn get_event(
         let request = request.clone();
         let identity = identity.clone();
         let client = client.clone();
+        let signer_key_prefix = signer_key_prefix.clone();
 
         async move {
             let response = EventSyncServiceClient::new(channel(&server_url).await?)
@@ -221,7 +233,12 @@ pub fn get_event(
                 let mut c = client.lock_recover();
                 c.copy_bundles(hint_bundles);
                 c.copy_bundles(response.event_bundles);
-                c.find_event_bundle_by_sequence(&identity, collection, sequence)
+                c.find_event_bundle_by_sequence(
+                    &identity,
+                    collection,
+                    sequence,
+                    signer_key_prefix.as_deref(),
+                )
             };
 
             let bytes = bundle

@@ -10,6 +10,7 @@ import {
   type types,
   type IdentityState,
 } from '@polycentric/react-native';
+import { HARBOR_APPLICATION } from '@/src/common/util/application';
 import {
   useCallback,
   useEffect,
@@ -146,6 +147,55 @@ function DefaultErrorComponent({ error }: { error: Error }) {
   );
 }
 
+type Bootstrap = { client: PolycentricClient; store: PolycentricStoreApi };
+
+const BOOTSTRAP_KEY = '__polycentricBootstrap';
+type BootstrapGlobal = typeof globalThis & {
+  [BOOTSTRAP_KEY]?: Promise<Bootstrap>;
+};
+
+function bootstrapClient(): Promise<Bootstrap> {
+  const global = globalThis as BootstrapGlobal;
+  global[BOOTSTRAP_KEY] ??= (async () => {
+    // A keypair always exists; onboarding creates or pairs the identity.
+    const client = await createPolycentricClient({
+      databaseName: 'polycentric.db',
+      seedServers: DEFAULT_SEED_SERVERS,
+      application: HARBOR_APPLICATION,
+    });
+
+    const store = createPolycentricStore(client);
+    await store.getState().refreshIdentities();
+
+    if (client.activeIdentityKey) {
+      // Local refresh first, sync refreshes again when done.
+      useFollows.getState().refresh(client);
+      useReposts.getState().refresh(client);
+      useReactions.getState().refresh(client);
+      useBlocks.getState().refresh(client);
+      void client
+        .sync()
+        .then(() =>
+          Promise.all([
+            useFollows.getState().refresh(client),
+            useReposts.getState().refresh(client),
+            useReactions.getState().refresh(client),
+            useBlocks.getState().refresh(client),
+          ]),
+        )
+        .catch((syncError) => {
+          console.warn('Initial Polycentric sync failed:', syncError);
+        });
+    }
+
+    return { client, store };
+  })().catch((err) => {
+    delete global[BOOTSTRAP_KEY];
+    throw err;
+  });
+  return global[BOOTSTRAP_KEY];
+}
+
 export function PolycentricProvider({
   children,
   loadingComponent,
@@ -188,70 +238,44 @@ export function PolycentricProvider({
 
   useEffect(() => {
     let cancelled = false;
+    let ready: Bootstrap | null = null;
+
+    const handleKeyPairChanged = async () => {
+      if (cancelled || !ready) return;
+      const { client: c, store: s } = ready;
+      setCurrentIdentity(c.identityManager.resolveIdentity());
+      await s.getState().refreshIdentities();
+      useFollows.getState().refresh(c);
+      useReposts.getState().refresh(c);
+      useReactions.getState().refresh(c);
+      useBlocks.getState().refresh(c);
+    };
+
+    // Onboarding publishes the identity event; adopt it.
+    const handleContentCreated = ({
+      content,
+    }: {
+      content?: { contentBody: { oneofKind?: string } };
+    }) => {
+      if (cancelled || !ready) return;
+      if (content?.contentBody.oneofKind !== 'identity') return;
+      setCurrentIdentity(ready.client.identityManager.resolveIdentity());
+    };
 
     (async () => {
       try {
-        // PolycentricClient.initialize() guarantees a keypair exists on
-        // every device. Identity (the published Identity doc) is a separate
-        // concept — the onboarding gate handles creating or pairing one.
-        const c = await createPolycentricClient({
-          databaseName: 'polycentric.db',
-          seedServers: DEFAULT_SEED_SERVERS,
-        });
-
+        const result = await bootstrapClient();
         if (cancelled) return;
+        ready = result;
 
-        const s = createPolycentricStore(c);
-        await s.getState().refreshIdentities();
-
+        const { client: c, store: s } = result;
         setClient(c);
         setStore(s);
         setCurrentIdentity(c.identityManager.resolveIdentity());
-
-        // Only sync when we already have an identity to sync for.
-        if (c.activeIdentityKey) {
-          // Read follows from the local store immediately — don't gate
-          // the UI on the network sync. The sync runs in parallel and
-          // re-refreshes once new events have been pulled in.
-          useFollows.getState().refresh(c);
-          useReposts.getState().refresh(c);
-          useReactions.getState().refresh(c);
-          useBlocks.getState().refresh(c);
-          void c
-            .sync()
-            .then(() =>
-              Promise.all([
-                useFollows.getState().refresh(c),
-                useReposts.getState().refresh(c),
-                useReactions.getState().refresh(c),
-                useBlocks.getState().refresh(c),
-              ]),
-            )
-            .catch((syncError) => {
-              console.warn('Initial Polycentric sync failed:', syncError);
-            });
-        }
-
         setIsLoading(false);
 
-        c.events.onKeyPairChanged(async () => {
-          if (cancelled) return;
-          setCurrentIdentity(c.identityManager.resolveIdentity());
-          await s.getState().refreshIdentities();
-          // TODO: Cleanup this up
-          useFollows.getState().refresh(c);
-          useReposts.getState().refresh(c);
-          useReactions.getState().refresh(c);
-          useBlocks.getState().refresh(c);
-        });
-
-        // Identity onboarding (create / claim) publishes an Identity event.
-        // Set to current identity
-        c.events.onContentCreated(async ({ content }) => {
-          if (cancelled) return;
-          if (content?.contentBody.oneofKind !== 'identity') return;
-          setCurrentIdentity(c.identityManager.resolveIdentity());
-        });
+        c.events.onKeyPairChanged(handleKeyPairChanged);
+        c.events.onContentCreated(handleContentCreated);
       } catch (err) {
         if (!cancelled) {
           console.error('Failed to initialize PolycentricProvider:', err);
@@ -263,6 +287,8 @@ export function PolycentricProvider({
 
     return () => {
       cancelled = true;
+      ready?.client.events.offKeyPairChanged(handleKeyPairChanged);
+      ready?.client.events.offContentCreated(handleContentCreated);
     };
   }, []);
 

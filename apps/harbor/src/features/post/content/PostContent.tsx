@@ -1,12 +1,15 @@
-import { Text } from '@/src/common/components/primitives';
+import { ExternalLink, Text } from '@/src/common/components/primitives';
 import { Routes } from '@/src/common/constants';
 import type { PostData } from '@/src/common/lib/polycentric-hooks';
-import { hexToBytes } from '@/src/common/lib/polycentric-hooks/helpers';
+import {
+  hexToBytes,
+  thirdPartyApplication,
+} from '@/src/common/lib/polycentric-hooks/helpers';
 import { useWebHover } from '@/src/common/lib/useWebHover';
 import { Atoms } from '@/src/common/theme';
 import { useProfile } from '@/src/features/profile/hooks/useProfile';
 import { v2 } from '@polycentric/react-native';
-import { router } from 'expo-router';
+import { type ExternalPathString, router } from 'expo-router';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { PostImages } from '../PostImages';
@@ -33,10 +36,23 @@ export const PostContent = memo(function PostContent({
   /** Focused-post rendering: larger, selectable text. */
   focusedView?: boolean;
 }) {
+  const replyParentId = hideReplyingTo ? undefined : post.reply?.parentId;
+  const withApp = thirdPartyApplication(post.application);
+
   return (
-    <View style={[Atoms.gap_2xs]}>
-      {!hideReplyingTo && post.reply?.parentId ? (
-        <ReplyingToSubheader parentId={post.reply.parentId} />
+    <View style={[Atoms.gap_2xs, Atoms.mr_3xl]}>
+      {replyParentId || withApp ? (
+        <View style={[Atoms.flex_row, Atoms.align_center, Atoms.max_w_full]}>
+          {replyParentId ? (
+            <ReplyingToSubheader parentId={replyParentId} />
+          ) : null}
+          {withApp ? (
+            <ApplicationSubheader
+              {...withApp}
+              prefix={replyParentId ? ' with ' : 'Posted with '}
+            />
+          ) : null}
+        </View>
       ) : null}
 
       {post.labels && post.labels.length > 0 ? (
@@ -122,6 +138,37 @@ function ExpandablePostText({ content }: { content: string }) {
   );
 }
 
+function ApplicationSubheader({
+  prefix,
+  name,
+  url,
+}: {
+  prefix: string;
+  name: string;
+  url?: string;
+}) {
+  const label = (
+    <Text variant="secondary" color="neutral_500" fontWeight="regular">
+      {name}
+    </Text>
+  );
+
+  return (
+    <View style={[Atoms.flex_row, Atoms.align_center, Atoms.flex_shrink_0]}>
+      <Text variant="secondary" color="neutral_500" fontWeight="regular">
+        {prefix}
+      </Text>
+      {url ? (
+        <ExternalLink href={url as ExternalPathString} target="_blank">
+          {label}
+        </ExternalLink>
+      ) : (
+        label
+      )}
+    </View>
+  );
+}
+
 function ReplyingToSubheader({ parentId }: { parentId: string }) {
   const parentIdentity = useMemo(() => {
     try {
@@ -148,10 +195,16 @@ function ReplyingToSubheader({ parentId }: { parentId: string }) {
         Atoms.flex_row,
         Atoms.align_center,
         Atoms.self_start,
+        Atoms.flex_shrink_1,
         Atoms.max_w_full,
       ]}
     >
-      <Text variant="secondary" color="neutral_500" fontWeight="regular">
+      <Text
+        variant="secondary"
+        color="neutral_500"
+        fontWeight="regular"
+        style={Atoms.flex_shrink_0}
+      >
         Replying to{' '}
       </Text>
       <Text

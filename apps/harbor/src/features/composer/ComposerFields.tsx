@@ -6,7 +6,7 @@ import {
 } from '@/src/common/components/primitives';
 import type { PostData } from '@/src/common/lib/polycentric-hooks';
 import { Atoms, Spacing, useTheme, withHexOpacity } from '@/src/common/theme';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
   type LayoutChangeEvent,
@@ -22,6 +22,8 @@ import { singleImageAspectRatio } from './utils/attachmentLayout';
 import { MAX_POST_LENGTH, type useComposer } from './hooks/useComposer';
 import { isIOS, isWeb } from '@/src/common/util/platform';
 import { ScrollView } from '@/src/common/components/ScrollView';
+
+import { useMentionInputSync } from '@/src/features/composer/hooks/useMentionInputSync';
 
 const ATTACHMENT_GAP = Spacing.sm;
 
@@ -99,6 +101,18 @@ export function ComposerFields({
     if (text === '') inputRef.current?.clear();
   }, [text]);
 
+  const onChangeText = useCallback(
+    (next: string) => {
+      fieldTextRef.current = next;
+      setText(next);
+    },
+    [setText],
+  );
+
+  // Feeds the host's mention store (query derivation + the overlay's anchor);
+  // the autocomplete itself renders in MentionSearchOverlay, in the host.
+  const mentionInput = useMentionInputSync({ text, onChangeText, inputRef });
+
   return (
     <ScrollView
       style={[Atoms.flex_1]}
@@ -155,16 +169,19 @@ export function ComposerFields({
             autoFocus={autoFocus}
             value={isIOS ? text : undefined}
             defaultValue={isIOS ? undefined : initialText}
-            onChangeText={(next) => {
-              fieldTextRef.current = next;
-              setText(next);
-            }}
+            onChangeText={onChangeText}
             disabled={submitting}
             maxLength={MAX_POST_LENGTH}
             numberOfLines={isWeb ? 1 : undefined}
             scrollEnabled={false}
             style={[Atoms.px_0, Atoms.py_0, Atoms.pt_sm, Atoms.text_lg]}
+            onLayout={mentionInput.onLayout}
+            onSelectionChange={mentionInput.onSelectionChange}
+            onFocus={mentionInput.onFocus}
+            onBlur={mentionInput.onBlur}
+            onContentSizeChange={mentionInput.onContentSizeChange}
           />
+
           {attachments.length > 0 && (
             <AttachmentGrid
               attachments={attachments}

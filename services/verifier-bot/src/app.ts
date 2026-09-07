@@ -5,8 +5,19 @@ import { mkdirSync } from 'node:fs';
 import { ObjectId } from 'bson';
 import cors from 'cors';
 import express from 'express';
-import { collectDefaultMetrics, register } from 'prom-client';
 import { StatusCodes } from 'http-status-codes';
+import {
+  healthCheckIntervalMs,
+  runHealthCheck,
+  startHealthCheckLoop,
+} from './health.js';
+import {
+  httpDuration,
+  httpRequests,
+  oauthSessionsGauge,
+  register,
+  routeLabels,
+} from './metrics.js';
 import { platforms } from './platforms/platforms.js';
 import {
   decodeObject,
@@ -71,6 +82,7 @@ const oauthRedirects = new Map<
   string,
   { redirect: string; timeoutId: NodeJS.Timeout }
 >();
+oauthSessionsGauge(() => oauthRedirects.size);
 
 function storeOAuthRedirect(key: string, redirect: string) {
   clearTimeout(oauthRedirects.get(key)?.timeoutId);
@@ -184,7 +196,20 @@ async function ensureProfile(client: PolycentricClient): Promise<void> {
   const app = express();
   app.use(express.json());
 
-  collectDefaultMetrics();
+  const platformSlugs = new Set(platforms.map((p) => slug(p.name)));
+  app.use((req, res, next) => {
+    const end = httpDuration.startTimer();
+    res.on('finish', () => {
+      const labels = routeLabels(
+        new URL(req.originalUrl, 'http://localhost').pathname,
+        platformSlugs,
+      );
+      end(labels);
+      httpRequests.inc({ ...labels, status: String(res.statusCode) });
+    });
+    next();
+  });
+
   app.get('/metrics', (_req, res) => {
     register.metrics().then(
       (body) => res.type(register.contentType).send(body),
@@ -620,7 +645,7 @@ async function ensureProfile(client: PolycentricClient): Promise<void> {
         `/platforms/${name}/${verifier.verifierType}/health-check`,
         async (_req, res) => {
           try {
-            return writeResult(res, await verifier.healthCheck());
+            return writeResult(res, await runHealthCheck(verifier));
           } catch (e: unknown) {
             const requestId: string = new ObjectId().toString();
             console.error(
@@ -645,4 +670,14 @@ async function ensureProfile(client: PolycentricClient): Promise<void> {
   app.listen(3002, () => {
     console.log(`Verifiers server listening on port ${3002}`);
   });
+
+  // Periodic per-platform health checks feed the dashboard's up/down gauges.
+  const intervalMs = healthCheckIntervalMs();
+  if (intervalMs > 0) {
+    startHealthCheckLoop(
+      platforms.flatMap((p) => p.verifiers),
+      intervalMs,
+    );
+    console.log(`Health checks every ${intervalMs / 1000}s`);
+  }
 })();

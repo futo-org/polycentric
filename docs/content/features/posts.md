@@ -18,6 +18,12 @@ No single server can alter them or take them away from your audience.
 Every post can be replied to, and threads keep the conversation together.
 You can also quote a post to share it with your own comment on top.
 
+## Posts from other apps
+
+Polycentric is an open network, so posts can come from applications other
+than Harbor. When they do, the post shows "Posted with" and the name of the
+app above the text. If the app publishes a website, the name links to it.
+
 ## Mentions and links
 
 URLs in a post are tappable. Mention someone by typing their alias

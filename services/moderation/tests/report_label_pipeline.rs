@@ -368,6 +368,7 @@ fn signed_bundle(
         previous_root: vec![],
         content_digest: Some(sha256_digest(&content_bytes)),
         created_at,
+        application: None,
     };
     let event_bytes = event.encode_to_vec();
     EventBundle {

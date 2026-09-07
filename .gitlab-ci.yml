@@ -2,6 +2,7 @@ include:
   - local: '.gitlab/ci/setup_images.yml'
   - local: '.gitlab/ci/build_rs_core.yml'
   - local: '.gitlab/ci/build_js_sdks.yml'
+  - local: '.gitlab/ci/build_kt_core.yml'
   - local: '.gitlab/ci/build_rn_sdk.yml'
   - local: '.gitlab/ci/build_services.yml'
   - local: '.gitlab/ci/build_app.yml'

@@ -11,17 +11,19 @@ type SearchFieldProps = {
   children: ReactNode;
   onPress?: () => void;
   accessibilityLabel?: string;
+  accessibilityRole?: 'button';
 };
 
 export function SearchField({
   children,
   onPress,
   accessibilityLabel,
+  accessibilityRole,
 }: SearchFieldProps) {
   const { theme } = useTheme();
   return (
     <Pressable
-      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
       style={[

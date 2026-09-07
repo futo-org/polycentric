@@ -1,154 +1,65 @@
 use crate::service::proto as Proto;
-use ::entity::{pairing_session_claimer_model, pairing_session_model};
-use chrono::{DateTime, Duration, Utc};
+use ::entity::pairing_session_claimer_model as PairingSessionClaimerModel;
+use ::entity::pairing_session_model as PairingSessionModel;
 use sea_orm::*;
-use std::time::{SystemTime, UNIX_EPOCH};
 
-pub const PAIRING_SESSION_TTL_SECONDS: i32 = 300;
-
-/// Errors returned by pairing session repository operations.
-pub enum PairingSessionQueryError {
-    NotFound,
-    Internal,
-}
-
-/// Returns true when a stored pairing session has expired.
-pub fn is_pairing_session_expired(
-    session: &pairing_session_model::Model,
-) -> bool {
-    Utc::now() >= session.expires_at
-}
-
-/// Repository entry points for pairing session persistence.
 pub struct Query;
 
 impl Query {
-    /// Creates a fresh pairing session for `issuer_identity`.
-    ///
-    /// Before insert, performs cleanup in two steps:
-    /// 1) deletes expired sessions globally, and
-    /// 2) deletes any existing session for the same identity,
-    ///    so each identity has at most one active session.
-    pub async fn create_pairing_session(
-        db: &DbConn,
-        issuer_identity: &str,
-        pairing_session_signature: &str,
-        signed_by: &Proto::PublicKey,
-        created_at: DateTime<Utc>,
-        expires_at: DateTime<Utc>,
-    ) -> Result<pairing_session_model::Model, PairingSessionQueryError> {
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-        let dt = DateTime::<Utc>::from_timestamp(
-            now.as_secs() as i64,
-            now.subsec_nanos(),
-        )
-        .ok_or(PairingSessionQueryError::Internal)?;
-
-        let cutoff = dt
-            .checked_sub_signed(Duration::seconds(
-                PAIRING_SESSION_TTL_SECONDS as i64,
-            ))
-            .unwrap_or(dt);
-
-        let _ = pairing_session_model::Entity::delete_many()
-            .filter(pairing_session_model::Column::CreatedAt.lt(cutoff))
-            .exec(db)
-            .await;
-
-        let _ = pairing_session_model::Entity::delete_many()
-            .filter(
-                pairing_session_model::Column::IssuerIdentity
-                    .eq(issuer_identity),
-            )
-            .exec(db)
-            .await;
-
-        pairing_session_model::ActiveModel {
-            pairing_session_signature: Set(
-                pairing_session_signature.to_string()
-            ),
-            signed_by_key_type: Set(signed_by.key_type),
-            signed_by_key: Set(signed_by.key.clone()),
-            issuer_identity: Set(issuer_identity.to_string()),
-            created_at: Set(created_at),
-            expires_at: Set(expires_at),
-        }
-        .insert(db)
-        .await
-        .map_err(|_| PairingSessionQueryError::Internal)
-    }
-
-    /// Returns the pairing session row for `pairing_session_signature`.
-    ///
-    /// Fails with `PairingSessionQueryError::NotFound` when no session exists.
+    /// Returns the pairing session with this digest hash, if one exists.
     pub async fn get_pairing_session(
         db: &DbConn,
-        pairing_session_signature: &str,
-    ) -> Result<pairing_session_model::Model, PairingSessionQueryError> {
-        pairing_session_model::Entity::find_by_id(pairing_session_signature)
+        digest_sha256: &[u8],
+    ) -> Result<Option<PairingSessionModel::Model>, DbErr> {
+        PairingSessionModel::Entity::find()
+            .filter(PairingSessionModel::Column::DigestSha256.eq(digest_sha256))
             .one(db)
             .await
-            .map_err(|_| PairingSessionQueryError::Internal)?
-            .ok_or(PairingSessionQueryError::NotFound)
     }
 
-    /// Lists all claimers currently recorded for a pairing session signature.
-    pub async fn list_claimer_pubkeys(
+    /// Lists the claimers that have joined the session with this digest hash.
+    pub async fn list_claimers(
         db: &DbConn,
-        pairing_session_signature: &str,
-    ) -> Result<Vec<Proto::PublicKey>, PairingSessionQueryError> {
-        let rows = pairing_session_claimer_model::Entity::find()
+        digest_sha256: &[u8],
+    ) -> Result<Vec<Proto::PublicKey>, DbErr> {
+        let rows = PairingSessionClaimerModel::Entity::find()
             .filter(
-                pairing_session_claimer_model::Column::PairingSessionSignature
-                    .eq(pairing_session_signature),
+                PairingSessionClaimerModel::Column::DigestSha256
+                    .eq(digest_sha256),
             )
             .all(db)
-            .await
-            .map_err(|_| PairingSessionQueryError::Internal)?;
+            .await?;
 
         Ok(rows
             .into_iter()
             .map(|row| Proto::PublicKey {
-                key_type: row.key_type,
-                key: row.key,
+                key_type: row.claimer_key_type,
+                key: row.claimer_key,
             })
             .collect())
     }
 
-    /// Deletes a specific pairing session by session signature.
-    pub async fn delete_pairing_session(
+    /// Records a claimer for the session with this digest hash.
+    /// Claimers that have already joined are ignored.
+    pub async fn add_claimer(
         db: &DbConn,
-        pairing_session_signature: &str,
-    ) -> Result<(), PairingSessionQueryError> {
-        pairing_session_model::Entity::delete_by_id(pairing_session_signature)
-            .exec(db)
-            .await
-            .map(|_| ())
-            .map_err(|_| PairingSessionQueryError::Internal)
-    }
-
-    /// Records a claimer public key for a pairing session signature.
-    ///
-    /// Duplicate `(signature, key_type, key)` entries are ignored.
-    pub async fn add_claimer_pubkey(
-        db: &DbConn,
-        pairing_session_signature: &str,
-        public_key: &Proto::PublicKey,
-    ) -> Result<(), PairingSessionQueryError> {
-        let row = pairing_session_claimer_model::ActiveModel {
-            pairing_session_signature: Set(
-                pairing_session_signature.to_string()
-            ),
-            key_type: Set(public_key.key_type),
-            key: Set(public_key.key.clone()),
+        issuer_identity: &str,
+        digest_sha256: &[u8],
+        claimer_key: &Proto::PublicKey,
+    ) -> Result<(), DbErr> {
+        let row = PairingSessionClaimerModel::ActiveModel {
+            issuer_identity: Set(issuer_identity.to_string()),
+            digest_sha256: Set(digest_sha256.to_vec()),
+            claimer_key_type: Set(claimer_key.key_type),
+            claimer_key: Set(claimer_key.key.clone()),
         };
 
-        let res = pairing_session_claimer_model::Entity::insert(row)
+        let res = PairingSessionClaimerModel::Entity::insert(row)
             .on_conflict(
                 sea_query::OnConflict::columns([
-                    pairing_session_claimer_model::Column::PairingSessionSignature,
-                    pairing_session_claimer_model::Column::KeyType,
-                    pairing_session_claimer_model::Column::Key,
+                    PairingSessionClaimerModel::Column::DigestSha256,
+                    PairingSessionClaimerModel::Column::ClaimerKeyType,
+                    PairingSessionClaimerModel::Column::ClaimerKey,
                 ])
                 .do_nothing()
                 .to_owned(),
@@ -158,7 +69,60 @@ impl Query {
 
         match res {
             Ok(_) | Err(DbErr::RecordNotInserted) => Ok(()),
-            Err(_) => Err(PairingSessionQueryError::Internal),
+            Err(err) => Err(err),
         }
+    }
+
+    /// Returns the pairing session currently stored for `issuer_identity`.
+    pub async fn get_latest_pairing_session(
+        txn: &DatabaseTransaction,
+        issuer_identity: &str,
+    ) -> Result<Option<PairingSessionModel::Model>, DbErr> {
+        PairingSessionModel::Entity::find_by_id(issuer_identity)
+            .lock_exclusive()
+            .one(txn)
+            .await
+    }
+
+    /// Deletes every claimer of every session issued by `issuer_identity`.
+    pub async fn clear_claimers(
+        txn: &DatabaseTransaction,
+        issuer_identity: &str,
+    ) -> Result<(), DbErr> {
+        PairingSessionClaimerModel::Entity::delete_many()
+            .filter(
+                PairingSessionClaimerModel::Column::IssuerIdentity
+                    .eq(issuer_identity),
+            )
+            .exec(txn)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Writes the issuer state for a pairing session, replacing whatever
+    /// session was stored for this issuer.
+    pub async fn put_issuer_state(
+        txn: &DatabaseTransaction,
+        row: PairingSessionModel::ActiveModel,
+    ) -> Result<(), DbErr> {
+        PairingSessionModel::Entity::insert(row)
+            .on_conflict(
+                sea_query::OnConflict::column(
+                    PairingSessionModel::Column::IssuerIdentity,
+                )
+                .update_columns([
+                    PairingSessionModel::Column::DigestSha256,
+                    PairingSessionModel::Column::IssuerStateBytes,
+                    PairingSessionModel::Column::IssuerStateSignature,
+                    PairingSessionModel::Column::InitialTimestamp,
+                    PairingSessionModel::Column::Sequence,
+                ])
+                .to_owned(),
+            )
+            .exec_without_returning(txn)
+            .await?;
+
+        Ok(())
     }
 }

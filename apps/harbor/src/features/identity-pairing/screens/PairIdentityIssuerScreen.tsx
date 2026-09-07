@@ -1,19 +1,17 @@
 import { Button, Screen, ScreenHeader, Text } from '@/src/common/components';
 import Icon from '@/src/common/components/Icon';
 import { Sheet } from '@/src/common/components/sheet';
-import { useCurrentIdentity } from '@/src/common/lib/polycentric-hooks';
 import { Atoms, useTheme } from '@/src/common/theme';
 import { usePairIdentityIssuer } from '@/src/features/identity-pairing/hooks/usePairIdentityIssuer';
 import { publicKeyEmojiFingerprint } from '@/src/features/identity-pairing/publicKeyEmojiFingerprint';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { encodePairingCode } from '../pairingCode';
-import { bytesToHex } from '@polycentric/react-native';
+import { encodePairingCode, EncodingMode } from '../pairingCode';
 
-const PAIRING_BLOCK_WIDTH = 200;
+const PAIRING_BLOCK_WIDTH = 300;
 
 function CountdownTimer({
   expiresAt,
@@ -85,131 +83,56 @@ function CountdownTimer({
 
 export default function PairIdentityIssuerScreen() {
   const { theme } = useTheme();
-  const { identityKey } = useCurrentIdentity();
-  const {
-    currentPairingSession,
-    pendingClaimers,
-    createPairingSession,
-    pairingSessionError,
-    pairingSessionLoading,
-    clearPairingSession,
-    denyClaimer,
-    approveClaimer,
-  } = usePairIdentityIssuer(identityKey);
+  const { info, expiresAt, claimers, error, stage, approveClaimer } =
+    usePairIdentityIssuer();
+
+  /** Show an indicator that the pairing code has been copied when true. */
   const [justCopied, setJustCopied] = useState(false);
-  const [approvingClaimers, setApprovingClaimers] = useState<Set<string>>(
-    new Set(),
-  );
+
+  /** Pair as a rotation key instead of just a signing key when true. */
   const [pairAsRotationKey, setPairAsRotationKey] = useState(true);
-  const [showPendingApprovals, setShowPendingApprovals] = useState(false);
-  const [activePendingClaimer, setActivePendingClaimer] = useState<
-    string | null
-  >(null);
 
-  const pairingCode = currentPairingSession
-    ? encodePairingCode({
-        origin: currentPairingSession.server,
-        code: currentPairingSession.code,
-        identity: currentPairingSession.identityKey,
-      })
-    : undefined;
+  /** The prefix of the claimers array that we have rejected. */
+  const [rejectedCount, setRejectedCount] = useState(0);
+
+  /** Reject the currently-displayed claimer. */
+  const rejectClaimer = () => {
+    setRejectedCount((count) => (count === rejectedCount ? count + 1 : count));
+  };
 
   useEffect(() => {
-    return () => {
-      clearPairingSession();
-    };
-  }, [clearPairingSession]);
-
-  useEffect(() => {
-    if (
-      identityKey &&
-      !currentPairingSession &&
-      !pairingSessionError &&
-      !pairingSessionLoading
-    ) {
-      void createPairingSession();
+    if (stage === 'done') {
+      router.back();
     }
-  }, [
-    identityKey,
-    currentPairingSession,
-    createPairingSession,
-    pairingSessionError,
-    pairingSessionLoading,
-  ]);
+  }, [stage]);
 
-  useEffect(() => {
-    const next = pendingClaimers.length;
-    const nextClaimer = pendingClaimers[0] ?? null;
-
-    if (next > 0 && nextClaimer !== activePendingClaimer) {
-      setActivePendingClaimer(nextClaimer);
-    }
-
-    if (next > 0 && !showPendingApprovals && nextClaimer) {
-      setShowPendingApprovals(true);
-    }
-  }, [
-    pendingClaimers,
-    pendingClaimers.length,
-    showPendingApprovals,
-    activePendingClaimer,
-  ]);
-
-  const handleExpire = () => {
-    if (currentPairingSession) {
-      clearPairingSession();
-    }
+  const onExpire = () => {
+    // TODO: surface as error or something instead.
     router.back();
   };
 
+  const showApprovalSheet = claimers.length > rejectedCount;
+
   const renderPendingApprovalsSheet = () => {
-    const claimerStr = activePendingClaimer;
-    const activeClaimer = claimerStr ?? '';
-
-    const closeAndDeny = () => {
-      if (activeClaimer) denyClaimer(activeClaimer);
-      setActivePendingClaimer(null);
-      setShowPendingApprovals(false);
-    };
-
-    const closeSilently = () => {
-      setActivePendingClaimer(null);
-      setShowPendingApprovals(false);
-    };
+    const claimerStr = claimers[rejectedCount];
 
     return (
       <Sheet
         open={!!claimerStr}
         detents={[0.6, 1]}
         dismissible
-        onClose={closeAndDeny}
+        onClose={rejectClaimer}
       >
         {(() => {
           function PendingApprovalsSheetBody() {
             const { theme } = useTheme();
-            const dismissRequestedRef = useRef(false);
-            const [isApproveActionActive, setIsApproveActionActive] =
-              useState(false);
-            const isApproving = approvingClaimers.has(activeClaimer);
-            const pendingCount = pendingClaimers.length;
-
-            // biome-ignore lint/correctness/useExhaustiveDependencies: biome can't track captures of components declared inside callbacks
-            useEffect(() => {
-              if (pendingCount > 0 || isApproving || isApproveActionActive) {
-                dismissRequestedRef.current = false;
-                return;
-              }
-
-              if (dismissRequestedRef.current) return;
-              dismissRequestedRef.current = true;
-              closeSilently();
-            }, [pendingCount, isApproving, isApproveActionActive]);
+            const isApproving = stage === 'approving';
 
             return (
               <>
                 <Sheet.Header
                   title="Pending Approvals"
-                  onClose={closeAndDeny}
+                  onClose={rejectClaimer}
                 />
                 <Sheet.Content
                   style={[Atoms.px_lg, Atoms.pt_2xl, Atoms.pb_lg, Atoms.gap_lg]}
@@ -221,7 +144,7 @@ export default function PairIdentityIssuerScreen() {
                       // fontSize; give ~1.5x headroom (cf. reaction/Emoji.tsx).
                       style={{ fontSize: 64, lineHeight: 96 }}
                     >
-                      {publicKeyEmojiFingerprint(activeClaimer).join(' ')}
+                      {publicKeyEmojiFingerprint(claimerStr).join(' ')}
                     </Text>
                     <Text
                       variant="small"
@@ -229,7 +152,7 @@ export default function PairIdentityIssuerScreen() {
                       style={{ fontFamily: 'monospace', textAlign: 'center' }}
                       selectable
                     >
-                      {activeClaimer}
+                      {claimerStr}
                     </Text>
                   </View>
 
@@ -256,35 +179,8 @@ export default function PairIdentityIssuerScreen() {
                         title="Approve"
                         variant="primary"
                         size="md"
-                        onPress={async () => {
-                          setIsApproveActionActive(true);
-                          try {
-                            const claimerToApprove = activeClaimer;
-                            if (!identityKey || !claimerToApprove) {
-                              return;
-                            }
-
-                            setApprovingClaimers(
-                              (prev) => new Set([...prev, claimerToApprove]),
-                            );
-                            try {
-                              await approveClaimer(
-                                claimerToApprove,
-                                pairAsRotationKey,
-                              );
-                              router.back();
-                            } catch (err) {
-                              console.error('approve failed:', err);
-                            } finally {
-                              setApprovingClaimers((prev) => {
-                                const next = new Set(prev);
-                                next.delete(claimerToApprove);
-                                return next;
-                              });
-                            }
-                          } finally {
-                            setIsApproveActionActive(false);
-                          }
+                        onPress={() => {
+                          approveClaimer(claimerStr, pairAsRotationKey);
                         }}
                       />
                     )}
@@ -292,9 +188,7 @@ export default function PairIdentityIssuerScreen() {
                       title="Deny"
                       variant="secondary"
                       size="md"
-                      onPress={() => {
-                        denyClaimer(activeClaimer);
-                      }}
+                      onPress={rejectClaimer}
                     />
                   </View>
 
@@ -377,9 +271,9 @@ export default function PairIdentityIssuerScreen() {
                 { paddingTop: 100 },
               ]}
             >
-              {pairingSessionError ? (
+              {error ? (
                 <Text variant="body" color="negative_500">
-                  {pairingSessionError}
+                  {error}
                 </Text>
               ) : (
                 <View style={Atoms.gap_md}>
@@ -394,9 +288,9 @@ export default function PairIdentityIssuerScreen() {
                       },
                     ]}
                   >
-                    {pairingCode ? (
+                    {info ? (
                       <QRCode
-                        value={pairingCode}
+                        value={encodePairingCode(info, EncodingMode.BASE64)}
                         size={PAIRING_BLOCK_WIDTH}
                         color={theme.palette.neutral_950}
                         backgroundColor="transparent"
@@ -413,22 +307,16 @@ export default function PairIdentityIssuerScreen() {
 
                   <Pressable
                     onPress={() => {
-                      if (!pairingCode) {
+                      if (!info) {
                         return;
                       }
 
-                      // Encode the pairing code to hex rather than exposing the
-                      // raw JSON string to the user.
-                      const pairingCodeBytes = new TextEncoder().encode(
-                        pairingCode,
-                      );
-                      const hexPairingCode = bytesToHex(pairingCodeBytes);
-
-                      void Clipboard.setStringAsync(hexPairingCode);
+                      const code = encodePairingCode(info, EncodingMode.HEX);
+                      void Clipboard.setStringAsync(code);
                       setJustCopied(true);
                       setTimeout(() => setJustCopied(false), 2000);
                     }}
-                    disabled={pairingSessionLoading || !pairingCode}
+                    disabled={!info}
                     style={({ hovered }) => [
                       Atoms.flex_row,
                       Atoms.items_center,
@@ -458,10 +346,7 @@ export default function PairIdentityIssuerScreen() {
                   </Pressable>
 
                   <View style={Atoms.items_center}>
-                    <CountdownTimer
-                      expiresAt={currentPairingSession?.expiresAt ?? null}
-                      onExpire={handleExpire}
-                    />
+                    <CountdownTimer expiresAt={expiresAt} onExpire={onExpire} />
                   </View>
                 </View>
               )}
@@ -470,7 +355,7 @@ export default function PairIdentityIssuerScreen() {
         </Screen.PrimaryColumn>
       </Screen>
 
-      {showPendingApprovals ? renderPendingApprovalsSheet() : null}
+      {showApprovalSheet ? renderPendingApprovalsSheet() : null}
     </>
   );
 }

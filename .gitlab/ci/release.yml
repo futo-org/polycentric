@@ -156,6 +156,8 @@ release:
       artifacts: true
     - job: release-android-apk
       artifacts: true
+    - job: kt-core-publish
+      artifacts: true
     - job: release-publish-rs-core
       artifacts: false
     - job: release-publish-npm
@@ -175,3 +177,31 @@ release:
           url: "$APK_PACKAGE_URL"
           link_type: package
           filepath: "/harbor-android.apk"
+        - name: "Kotlin SDK AAR ($CI_COMMIT_TAG)"
+          url: "$KT_CORE_PACKAGE_URL"
+          link_type: package
+          filepath: "/polycentric-core.aar"
+
+#################################
+# Announce the release on chat  #
+#################################
+
+# GitLab's Mattermost integration has no release event, so post it ourselves.
+release-announce:
+  extends: .release-workflow
+  stage: release
+  image: alpine:latest
+  needs:
+    - job: release
+      artifacts: false
+    - job: release-changelog
+      artifacts: true
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    - |
+      jq -n --arg tag "$CI_COMMIT_TAG" \
+            --arg url "$CI_PROJECT_URL/-/releases/$CI_COMMIT_TAG" \
+            --rawfile notes release_notes.md \
+            '{text: ("### [Harbor \($tag)](\($url)) released\n\n" + ($notes | .[0:6000]))}' \
+        | curl -fsS -H "Content-Type: application/json" -d @- "$MATTERMOST_RELEASES_WEBHOOK"

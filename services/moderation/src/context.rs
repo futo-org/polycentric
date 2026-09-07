@@ -8,7 +8,10 @@ use crate::{
 
 /// Shared service dependencies threaded through message processing.
 pub struct Context {
+    /// Read/write database connection pool.
     pub db: DatabaseConnection,
+    /// Read-only database connection pool.
+    pub ro_db: DatabaseConnection,
     /// Azure moderation client. If `None`, ignored.
     pub azure: Option<AzureClient>,
     /// PhotoDNA CSAM client. If `None`, ignored.

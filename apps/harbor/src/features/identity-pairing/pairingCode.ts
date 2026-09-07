@@ -1,43 +1,62 @@
-export type PairingSessionInfo = {
-  /** URL of the server hosting the pairing session. */
-  readonly origin: string;
-
-  /** Identity string of the identity being paired. */
-  readonly identity: string;
-
-  /**
-   * ID string for the specific pairing session.
-   * Derived by encoding the intial pairing session's signature as hex.
-   */
-  readonly code: string;
-};
+import { Base64 } from 'js-base64';
+import { bytesToHex, hexToBytes, v2 } from '@polycentric/react-native';
 
 /**
  * -----------------------------------------------------------------------------
- * The pairing code is a JSON string that contains enough info for the claimer
- * to join the pairing session securely.
- * The QR code contains the raw string directly to keep it small-ish.
- * The copy button and manual entry use a hex-encoded version so that it appears
- * as an opaque token string to the user.
+ * The `PairingInfo` protobuf message contains the information we need to join
+ * a pairing session securely.
+ * For the QR code, we don't care about readability but we want the payload size
+ * to be small so that it is easy to scan.
+ * For the manual entry, we want it to look like a random token string.
  * -----------------------------------------------------------------------------
  */
 
-export function encodePairingCode(info: PairingSessionInfo): string {
-  return JSON.stringify(info);
+export enum EncodingMode {
+  BASE64 = 'base64',
+  HEX = 'hex',
 }
 
+/** Encode the pairing info for use in a QR code or copy/paste */
+export function encodePairingCode(
+  info: v2.PairingInfo,
+  mode: EncodingMode,
+): string {
+  const bytes = v2.PairingInfo.toBinary(info);
+
+  if (mode === EncodingMode.BASE64) {
+    return Base64.fromUint8Array(bytes, true);
+  } else if (mode === EncodingMode.HEX) {
+    return bytesToHex(bytes);
+  }
+
+  throw new Error('Unsupported encoding mode');
+}
+
+/** Decode a pairing code received from another device */
 export function decodePairingCode(
   encoded: string,
-): PairingSessionInfo | undefined {
+  mode: EncodingMode,
+): v2.PairingInfo | undefined {
   try {
-    const obj = JSON.parse(encoded);
+    let bytes: Uint8Array;
 
-    if (typeof obj !== 'object') return undefined;
-    if (typeof obj.origin !== 'string') return undefined;
-    if (typeof obj.identity !== 'string') return undefined;
-    if (typeof obj.code !== 'string') return undefined;
+    if (mode === EncodingMode.BASE64) {
+      bytes = Base64.toUint8Array(encoded);
+    } else if (mode === EncodingMode.HEX) {
+      const maybeBytes = hexToBytes(encoded);
+      if (!maybeBytes) return undefined;
+      bytes = maybeBytes;
+    } else {
+      return undefined;
+    }
 
-    return obj as PairingSessionInfo;
+    const info = v2.PairingInfo.fromBinary(bytes);
+
+    // Do some sanity checks
+    if (info.digestSha256.length === 0) return undefined;
+    if (info.server.length === 0) return undefined;
+
+    return info;
   } catch {
     return undefined;
   }

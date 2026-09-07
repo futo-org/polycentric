@@ -52,7 +52,13 @@
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > ~/.docker/config.json
   stage: build
   script:
+    # The default branch also gets a moving tag, used as the integration
+    # tests' fallback image.
     - |
+      NAMES="$CI_REGISTRY_IMAGE/${SERVICE_NAME}:$CI_COMMIT_SHA"
+      if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then
+        NAMES="$NAMES,$CI_REGISTRY_IMAGE/${SERVICE_NAME}:$CI_DEFAULT_BRANCH"
+      fi
       buildctl-daemonless.sh build \
         --frontend dockerfile.v0 \
         --local context=. \
@@ -60,7 +66,7 @@
         --import-cache type=registry,ref=$CI_REGISTRY_IMAGE/${SERVICE_NAME}:cache-$CI_DEFAULT_BRANCH \
         --import-cache type=registry,ref=$CI_REGISTRY_IMAGE/${SERVICE_NAME}:cache-$CI_COMMIT_REF_SLUG \
         --export-cache type=registry,ref=$CI_REGISTRY_IMAGE/${SERVICE_NAME}:cache-$CI_COMMIT_REF_SLUG,mode=max \
-        --output type=image,name=$CI_REGISTRY_IMAGE/${SERVICE_NAME}:$CI_COMMIT_SHA,push=true
+        --output "type=image,\"name=$NAMES\",push=true"
 
 ########################################################################
 # server
@@ -80,9 +86,13 @@
         # Charts pin this commit's image SHA (appVersion), so the image must
         # exist even for chart-only changes.
         - deploy/charts/**/*
+        # The integration tests run this commit's image.
+        - compose.yml
         - .gitlab/ci/build_services.yml
         - .gitlab/ci/deploy_services.yml
         - .gitlab/ci/publish_charts.yml
+        - .gitlab/ci/test_server.yml
+        - .gitlab/ci/scripts/integration-server.sh
     - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
       when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
@@ -92,9 +102,12 @@
         - services/server/**/*
         - services/common/**/*
         - deploy/charts/**/*
+        - compose.yml
         - .gitlab/ci/build_services.yml
         - .gitlab/ci/deploy_services.yml
         - .gitlab/ci/publish_charts.yml
+        - .gitlab/ci/test_server.yml
+        - .gitlab/ci/scripts/integration-server.sh
   variables:
     RUNNER_SCRIPT_TIMEOUT: 179m
     SERVICE_NAME: server

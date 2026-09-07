@@ -67,7 +67,7 @@ async fn fetch(
     params: &Params,
 ) -> Result<feeds_pipeline::Fetched, Status> {
     let subject_row = FeedsRepository::find_event_by_key(
-        &ctx.service.db,
+        &ctx.service.ro_db,
         params.collection,
         &params.identity,
         params.public_key_type,
@@ -79,27 +79,34 @@ async fn fetch(
     .ok_or_else(|| Status::not_found("event not found"))?;
     let subject_id = subject_row.0.id;
 
-    let ancestor_refs = FeedsRepository::list_ancestor_refs(
-        &ctx.service.db,
-        subject_id,
-        PARENT_HEIGHT_LIMIT,
-    )
-    .await
-    .map_err(map_db_err)?;
+    let ancestor_refs_fut = async {
+        FeedsRepository::list_ancestor_refs(
+            &ctx.service.ro_db,
+            subject_id,
+            PARENT_HEIGHT_LIMIT,
+        )
+        .await
+        .map_err(map_db_err)
+    };
 
-    let descendant_refs = FeedsRepository::list_descendant_refs(
-        &ctx.service.db,
-        subject_id,
-        DESCENDANT_DEPTH_LIMIT,
-        params.descendants_limit,
-    )
-    .await
-    .map_err(map_db_err)?;
+    let descendant_refs_fut = async {
+        FeedsRepository::list_descendant_refs(
+            &ctx.service.ro_db,
+            subject_id,
+            DESCENDANT_DEPTH_LIMIT,
+            params.descendants_limit,
+        )
+        .await
+        .map_err(map_db_err)
+    };
+
+    let (ancestor_refs, descendant_refs) =
+        tokio::try_join!(ancestor_refs_fut, descendant_refs_fut)?;
 
     // parent → [children, newest-first]. Order is (depth ASC,
     // created_at DESC), so per-parent order is newest first.
     let mut children_by_parent: HashMap<i64, Vec<i64>> = HashMap::new();
-    for r in &descendant_refs {
+    for r in descendant_refs {
         children_by_parent
             .entry(r.parent_event_id)
             .or_default()
@@ -107,18 +114,18 @@ async fn fetch(
     }
 
     let mut descendant_order: Vec<i64> = Vec::new();
-    let mut stack: Vec<(i64, bool)> = Vec::new();
     if let Some(direct) = children_by_parent.get(&subject_id) {
-        for &id in direct.iter().rev() {
-            stack.push((id, false));
+        let mut stack: Vec<i64> = Vec::new();
+        for id in direct.iter().rev() {
+            stack.push(*id);
         }
-    }
-    while let Some((id, _)) = stack.pop() {
-        descendant_order.push(id);
-        if let Some(kids) = children_by_parent.get(&id) {
-            let take = kids.len().min(BRANCHING_FACTOR);
-            for &kid in kids.iter().take(take).rev() {
-                stack.push((kid, true));
+        while let Some(id) = stack.pop() {
+            descendant_order.push(id);
+            if let Some(kids) = children_by_parent.get(&id) {
+                let take = kids.len().min(BRANCHING_FACTOR);
+                for &kid in kids.iter().take(take).rev() {
+                    stack.push(kid);
+                }
             }
         }
     }
@@ -128,7 +135,7 @@ async fn fetch(
     all_ids.extend(ancestor_refs.iter().map(|r| r.event_id));
     all_ids.extend(descendant_order.iter().copied());
     let mut by_id: HashMap<i64, EventWithContentRow> =
-        FeedsRepository::list_events_by_ids(&ctx.service.db, all_ids)
+        FeedsRepository::list_events_by_ids(&ctx.service.ro_db, all_ids)
             .await
             .map_err(map_db_err)?
             .into_iter()
@@ -161,14 +168,14 @@ async fn fetch(
 
 async fn hydrate(
     ctx: &RequestContext<'_>,
-    _params: &Params,
+    _: &Params,
     fetched: &feeds_pipeline::Fetched,
 ) -> Result<HydrationState, Status> {
     post_hydrate(ctx, &fetched.rows).await
 }
 
 async fn filter(
-    _ctx: &RequestContext<'_>,
+    _: &RequestContext<'_>,
     params: &Params,
     fetched: feeds_pipeline::Fetched,
     hydration: &HydrationState,
@@ -178,7 +185,7 @@ async fn filter(
 
 async fn view(
     ctx: &RequestContext<'_>,
-    _params: &Params,
+    _: &Params,
     filtered: GetFeedResponseFilter,
     hydration: HydrationState,
 ) -> Result<GetFeedResponseView, Status> {
@@ -222,6 +229,7 @@ mod tests {
             signature: vec![id as u8],
             previous_signature: vec![],
             previous_root: vec![],
+            application_id: None,
             event_bytes: vec![id as u8],
             created_at: ts(id),
             synced_at: ts(id),

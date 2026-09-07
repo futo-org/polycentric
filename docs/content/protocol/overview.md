@@ -76,6 +76,13 @@ signature is computed over the serialized `Event` bytes, and those exact bytes a
 stored as-is so the signature stays verifiable regardless of how a library
 re-serializes the message.
 
+An event also names the [`Application`](./data-model.md#application) that created
+it: a display name, a package identifier, a version, and a website. Because it sits
+inside the signed bytes it is the author's own statement, not something a server adds.
+Clients use it to show where a post came from, and servers can report which
+applications are in use. See
+[Declaring Your Application](../developer/declaring-your-application.md).
+
 ## Hash-linking and proofs
 
 Within a collection, each event records:

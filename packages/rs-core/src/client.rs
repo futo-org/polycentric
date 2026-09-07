@@ -14,6 +14,7 @@ use crate::lock::LockRecover;
 use crate::store::{
     content_store::ContentStore, event_proofs_store::EventProofsStore, event_store::EventStore,
     identity_store::IdentityStore, keys::EventKey, meta_store::MetaStore,
+    pairing_store::PairingStore,
 };
 use prost::Message;
 use std::collections::HashSet;
@@ -42,6 +43,7 @@ pub struct PolycentricClient {
     content_store: ContentStore,
     meta_store: MetaStore,
     identity_store: IdentityStore,
+    pairing_store: PairingStore,
 }
 
 impl PolycentricClient {
@@ -158,23 +160,35 @@ impl PolycentricClient {
     }
 
     /// First locally-valid bundle at `(identity, collection, sequence)`.
+    /// `signer_key_prefix` is a hex prefix of the signing key, used to pick
+    /// between events different keys published at the same sequence.
     pub fn find_event_bundle_by_sequence(
         &self,
         identity: &str,
         collection: i32,
         sequence: u64,
+        signer_key_prefix: Option<&str>,
     ) -> Option<EventBundle> {
         let candidates = self.list_valid_events(identity, collection).ok()?;
 
         for bundle in candidates {
-            let bundle_sequence = bundle
+            let Some(key) = bundle
                 .signed_event
                 .as_ref()
                 .and_then(|signed_event| Event::decode(signed_event.event_bytes.as_slice()).ok())
                 .and_then(|event| event.key)
-                .map(|key| key.sequence);
-
-            if bundle_sequence == Some(sequence) {
+            else {
+                continue;
+            };
+            if key.sequence != sequence {
+                continue;
+            }
+            let signer_matches = match (signer_key_prefix, key.signed_by.as_ref()) {
+                (None, _) => true,
+                (Some(prefix), Some(signer)) => hex::encode(&signer.key).starts_with(prefix),
+                (Some(_), None) => false,
+            };
+            if signer_matches {
                 return Some(bundle);
             }
         }
@@ -506,6 +520,18 @@ impl PolycentricClient {
             .collect()
     }
 
+    /// Ensure that the pairing store considers `sequence` to be an observed sequence
+    /// for the specified pairing session.
+    pub fn accept_pairing_sequence(&mut self, digest_sha256: &[u8], sequence: i64) {
+        self.pairing_store.accept_sequence(digest_sha256, sequence);
+    }
+
+    /// Returns whether a pairing session state with this sequence should be used.
+    /// This should be called for every pairing session state we receive from a remote.
+    pub fn try_pairing_sequence(&mut self, digest_sha256: &[u8], sequence: i64) -> bool {
+        self.pairing_store.try_sequence(digest_sha256, sequence)
+    }
+
     /// Validate an event against its identity chain, identity content,
     /// revocation status, and vector clock.
     pub fn validate_event(
@@ -722,6 +748,7 @@ mod tests {
             previous_root: Vec::new(),
             content_digest: Some(content_digest),
             created_at: 0,
+            application: None,
         };
         let event_bytes = event.encode_to_vec();
         let signature = signer.signing.sign(&event_bytes).to_bytes().to_vec();
@@ -1159,6 +1186,65 @@ mod tests {
         client
             .validate_event(&post, &[])
             .expect("B's FEED post validates against its own ack at seq=3");
+    }
+
+    #[test]
+    fn finds_event_by_sequence_and_signer_prefix() {
+        let mut client = PolycentricClient::new();
+        let a = keypair(1);
+        let b = keypair(2);
+
+        let identity = add_identity_event(&mut client, &a, None, 1, vec![a.public.clone()], vec![]);
+        add_identity_event(
+            &mut client,
+            &a,
+            Some(&identity),
+            2,
+            vec![a.public.clone()],
+            vec![b.public.clone()],
+        );
+        add_identity_event(
+            &mut client,
+            &b,
+            Some(&identity),
+            3,
+            vec![a.public.clone()],
+            vec![b.public.clone()],
+        );
+
+        let post_a = sign_event(&a, &identity, 2, 1, 3, vec![1, 0], dummy_post_digest());
+        let post_b = sign_event(&b, &identity, 2, 1, 3, vec![0, 1], dummy_post_digest());
+        client.copy_event(post_a).expect("copy a");
+        client.copy_event(post_b).expect("copy b");
+
+        let signer_of = |bundle: EventBundle| {
+            let event = Event::decode(bundle.signed_event.unwrap().event_bytes.as_slice()).unwrap();
+            event.key.unwrap().signed_by.unwrap().key
+        };
+
+        let prefix_a = hex::encode(&a.public.key[..8]);
+        let prefix_b = hex::encode(&b.public.key[..8]);
+
+        let found_a = client
+            .find_event_bundle_by_sequence(&identity, 2, 1, Some(&prefix_a))
+            .expect("a's post");
+        assert_eq!(signer_of(found_a), a.public.key);
+
+        let found_b = client
+            .find_event_bundle_by_sequence(&identity, 2, 1, Some(&prefix_b))
+            .expect("b's post");
+        assert_eq!(signer_of(found_b), b.public.key);
+
+        assert!(
+            client
+                .find_event_bundle_by_sequence(&identity, 2, 1, None)
+                .is_some()
+        );
+        assert!(
+            client
+                .find_event_bundle_by_sequence(&identity, 2, 1, Some("ffff"))
+                .is_none()
+        );
     }
 
     #[test]

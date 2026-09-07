@@ -14,7 +14,7 @@ pub async fn handle(
     ctx: &ServiceContext,
     req: ListHeadsRequest,
 ) -> Result<ListHeadsResponse, Status> {
-    let rows = EventsRepository::Query::list_heads(&ctx.db, &req.identity)
+    let rows = EventsRepository::Query::list_heads(&ctx.ro_db, &req.identity)
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "list_heads db error");

@@ -1,8 +1,9 @@
+import type { v2 } from '@polycentric/react-native';
 import type { ReactNode } from 'react';
 
-export interface PairIdentityCameraProps {
-  onCodeScanned: (pairingCode: string) => void;
-}
+export type PairIdentityCameraProps = {
+  onCodeScanned: (pairingInfo: v2.PairingInfo | null) => void;
+};
 
 /**
  * `PairIdentityCamera` should conform to this type definition on both web and

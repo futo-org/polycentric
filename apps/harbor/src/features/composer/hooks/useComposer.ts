@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useRef } from 'react';
 import { Keyboard } from 'react-native';
 import { useComposerStore } from './useComposerStore';
+import { rewriteIdentityMentions } from '../utils/rewriteIdentityMentions';
 import { useLinkPreview } from './useLinkPreview';
 
 export const MAX_ATTACHMENTS = 4;
@@ -273,7 +274,10 @@ export function useComposer({
       const link = await resolveLinkForPost();
 
       const post: types.v2.Post = {
-        text: text.trim(),
+        text: rewriteIdentityMentions(
+          text.trim(),
+          useComposerStore.getState().mentions,
+        ),
         images: imageSets,
         links: link ? [link] : [],
         // Tag posts authored in Harbor with the client label (Post.labels).

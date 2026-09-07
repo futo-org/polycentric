@@ -54,10 +54,12 @@ async fn fetch(
     ctx: &ServiceContext,
     params: &Params,
 ) -> Result<FetchedClaims, Status> {
-    let targets =
-        Repository::list_targets_for_identity(&ctx.db, &params.target_identity)
-            .await
-            .map_err(map_db_err)?;
+    let targets = Repository::list_targets_for_identity(
+        &ctx.ro_db,
+        &params.target_identity,
+    )
+    .await
+    .map_err(map_db_err)?;
 
     let target_keys: Vec<TargetEventKey> =
         targets.iter().map(|t| t.target_key.clone()).collect();
@@ -71,7 +73,7 @@ async fn fetch(
         .filter(|key| seen.insert(key.clone()))
         .collect();
 
-    let claims = Repository::list_claim_events_by_keys(&ctx.db, &claim_keys)
+    let claims = Repository::list_claim_events_by_keys(&ctx.ro_db, &claim_keys)
         .await
         .map_err(map_db_err)?;
 

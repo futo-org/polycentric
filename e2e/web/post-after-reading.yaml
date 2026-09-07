@@ -1,0 +1,28 @@
+url: ${MAESTRO_WEB_URL}
+name: I can make a post after reading one deep in explore
+---
+- runFlow: ../elements/load.yaml
+- runFlow: ../steps/fresh-start.yaml
+- runFlow: ../steps/create-identity.yaml
+- tapOn:
+    id: ${output.nav.explore}
+- runFlow: ../steps/scroll-to-end.yaml
+- runFlow: ../steps/open-post.yaml
+# The opened post carries its own reply prompt, so pick the sidebar button.
+- runFlow: ../steps/mark-sidebar.yaml
+- tapOn:
+    css: '#sidebar [aria-label="${output.nav.compose}"]'
+- tapOn: ${output.composer.input}
+- inputText: Posting after reading
+- tapOn:
+    id: ${output.composer.submit}
+- extendedWaitUntil:
+    notVisible:
+      id: ${output.composer.submit}
+    timeout: 30000
+# The new post heads the profile.
+- tapOn:
+    css: '#sidebar [aria-label="${output.nav.profile}"]'
+- extendedWaitUntil:
+    visible: Posting after reading
+    timeout: 30000

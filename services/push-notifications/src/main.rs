@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     common_telemetry::init_metrics("push-notifications");
 
     // Shared connection, then run migrations on every load.
-    let db = db::connect().await?;
+    let (db, ro_db) = db::connect().await?;
     db::run_migrations(&db).await?;
 
     let notification_manager = NotificationManager::new(config.expo_access_token.clone());
@@ -61,6 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ctx = Arc::new(Context {
         db,
+        ro_db,
         notification_manager,
         polycentric,
         main_server: config.main_server.clone(),

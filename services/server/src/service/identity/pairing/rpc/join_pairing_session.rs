@@ -1,60 +1,53 @@
-//! `join_pairing_session`: records a claimer key for an active
-//! pairing session and returns the updated session. Expired sessions
-//! are deleted before returning an expiry error.
+//! `join_pairing_session`: records a claimer key on a pairing session.
 
-use crate::service::identity::pairing::repository as pair_repo;
-use crate::service::identity::pairing::rpc::common::build_pairing_session;
-use crate::service::proto::{
-    JoinPairingSessionBody, JoinPairingSessionRequest,
-    JoinPairingSessionResponse,
-};
-use prost::Message;
-use sea_orm::DatabaseConnection;
 use tonic::Status;
 
+use crate::service::context::ServiceContext;
+use crate::service::identity::pairing::repository as pair_repo;
+use crate::service::identity::pairing::rpc::common::{
+    list_claimers, session_state,
+};
+use crate::service::proto::{
+    JoinPairingSessionRequest, JoinPairingSessionResponse,
+};
+
 pub async fn handle(
-    db: &DatabaseConnection,
+    ctx: &ServiceContext,
     req: JoinPairingSessionRequest,
 ) -> Result<JoinPairingSessionResponse, Status> {
-    let msg = req.signed_message.ok_or_else(|| {
-        Status::invalid_argument("signed_message is required")
-    })?;
-
-    let (public_key, msg_bytes) = msg
-        .open()
-        .ok_or_else(|| Status::unauthenticated("invalid signature"))?;
-
-    let body = JoinPairingSessionBody::decode(msg_bytes.as_slice())
-        .map_err(|_| Status::invalid_argument("invalid body"))?;
-
-    let session = pair_repo::Query::get_pairing_session(
-        db,
-        &body.pairing_session_signature,
-    )
-    .await
-    .map_err(|_| Status::not_found("session not found"))?;
-    if pair_repo::is_pairing_session_expired(&session) {
-        pair_repo::Query::delete_pairing_session(
-            db,
-            &body.pairing_session_signature,
-        )
-        .await
-        .map_err(|_| Status::internal("internal server error"))?;
-        return Err(Status::deadline_exceeded("session expired"));
+    let claimer_key = req
+        .claimer_key
+        .ok_or_else(|| Status::invalid_argument("claimer_key is required"))?;
+    if claimer_key.key.is_empty() {
+        return Err(Status::invalid_argument("claimer_key.key is required"));
     }
 
-    pair_repo::Query::add_claimer_pubkey(
-        db,
-        &body.pairing_session_signature,
-        &public_key,
+    let session = pair_repo::Query::get_pairing_session(
+        &ctx.db,
+        &req.digest_sha256,
     )
     .await
-    .map_err(|_| Status::internal("internal server error"))?;
+    .map_err(|e| {
+        tracing::error!(error = %e, "join_pairing_session lookup db error");
+        Status::internal("internal server error")
+    })?
+    .ok_or_else(|| Status::not_found("session not found"))?;
 
-    let session =
-        build_pairing_session(db, &body.pairing_session_signature).await?;
+    pair_repo::Query::add_claimer(
+        &ctx.db,
+        &session.issuer_identity,
+        &req.digest_sha256,
+        &claimer_key,
+    )
+    .await
+    .map_err(|e| {
+        tracing::error!(error = %e, "join_pairing_session add claimer db error");
+        Status::internal("internal server error")
+    })?;
+
+    let claimers = list_claimers(&ctx.db, &req.digest_sha256).await?;
 
     Ok(JoinPairingSessionResponse {
-        session: Some(session),
+        session_state: Some(session_state(&session, claimers)),
     })
 }

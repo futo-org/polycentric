@@ -88,9 +88,13 @@ export interface SuggestFollowResponse {
      */
     pageInfo?: PageInfo;
     /**
-     * Contains profile update events for the suggested to-follow identities and
+     * Contains profile update events for the suggested to-follow identities
+     * (`FollowSuggestion.suggestion`). Note that the identity events for the
+     * to-follow identities can be found in the suggestions.
+     *
+     * Also contains identity, profile update and follow events for the suggested
      * the identities of those who already follow those identities
-     * (`suggestion.followers`).
+     * (`FollowSuggestion.followers`).
      *
      * @generated from protobuf field: repeated polycentric.v2.EventHint event_hints = 3
      */

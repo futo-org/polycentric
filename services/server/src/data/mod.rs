@@ -12,6 +12,8 @@ use tonic::Status;
 pub mod hydration;
 pub mod pipeline;
 
+pub type EventId = i64;
+
 /// Row that contains an event.
 pub trait EventRow {
     /// Returns the event model and optionally content for the row.
@@ -22,6 +24,11 @@ pub trait EventRow {
     /// Returns the event model for the row.
     fn as_event(&self) -> &event_model::Model {
         self.as_event_with_content().0
+    }
+
+    /// Returns the event id.
+    fn event_id(&self) -> EventId {
+        self.as_event().id
     }
 
     /// Returns the content of the event, if any.
@@ -115,9 +122,9 @@ pub fn assemble_bundle(
     row: EventWithContentRow,
     stats: &EventStats,
 ) -> proto::EventBundle {
-    let key = TargetEventKey::of(&row.0);
+    let event_id = row.0.id;
     let mut bundle = row_into_bundle(row);
-    include_stats(&mut bundle.meta, &key, stats);
+    include_stats(&mut bundle.meta, event_id, stats);
     bundle
 }
 
@@ -328,11 +335,11 @@ impl<SortedBy> Cursor<SortedBy> {
 pub struct Marker<SortedBy> {
     pub sorted_by: SortedBy,
     /// Event id (`events.id`) to ensure the ordering is always unique.
-    pub event_id: i64,
+    pub event_id: EventId,
 }
 
 impl<SortedBy> Marker<SortedBy> {
-    pub fn values(&self) -> (SortedBy, i64)
+    pub fn values(&self) -> (SortedBy, EventId)
     where
         SortedBy: Copy,
     {

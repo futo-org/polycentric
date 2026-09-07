@@ -12,10 +12,12 @@ keys, which is why servers can't forge or edit your content.
 
 ## Adding a device
 
-Use `Settings > Pair Identity` to add another device to your identity. Your
-existing device shows a QR code and a button to copy the pairing code; the new
-device scans or pastes it, and both sides confirm a matching emoji fingerprint
-before the new device is approved.
+Use `Settings > Pair Identity` to add another device to your identity.
+Your new device can get the pairing code by scanning the QR code displayed on
+your existing device or by entering it manually after copying it to your
+clipboard.
+You will then have to compare the emoji fingerprint before approving the new
+device.
 
 ## Recovering when you have no devices logged in
 

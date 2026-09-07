@@ -55,7 +55,7 @@ pub async fn handle(
 
     // Over-fetch one to detect a following page.
     let mut rows = id_repo::Query::list_bans(
-        &ctx.db,
+        &ctx.ro_db,
         limit + 1,
         after.as_ref(),
         query.as_deref(),

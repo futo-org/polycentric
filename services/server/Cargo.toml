@@ -28,7 +28,7 @@ hex.workspace = true
 polycentric-common.workspace = true
 prost.workspace = true
 prost-types.workspace = true
-rdkafka = { workspace = true, features = ["tokio", "cmake-build", "curl", "sasl"] }
+rdkafka.workspace = true
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "json", "query"] }
 sea-orm = { workspace = true, features = ["sqlx-postgres", "runtime-tokio", "macros", "mock", "postgres-array"] }
 serde = { version = "1", default-features = false, features = ["std", "derive"] }

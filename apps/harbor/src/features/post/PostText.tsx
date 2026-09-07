@@ -1,4 +1,5 @@
 import { Text } from '@/src/common/components/primitives';
+import { Routes } from '@/src/common/constants/routes';
 import {
   parseTextLinks,
   type TextSegment,
@@ -11,9 +12,10 @@ type PostTextSize = { fontSize?: 'lg'; lineHeight?: 'lg' };
 
 /**
  * Render one parsed segment: plain text, a hyperlink (URLs/bare domains,
- * opened in the browser), or a mention — an alias (`@user@domain.com`) or
- * identity (`@<64-hex>`) — that navigates to that profile in-app. The tap is
- * stopped from also triggering the surrounding post-card press.
+ * opened in the browser), a hashtag (navigates to search), or a mention — an
+ * alias (`@user@domain.com`) or identity (`@<64-hex>`) — that navigates to
+ * that profile in-app. The tap is stopped from also triggering the
+ * surrounding post-card press.
  */
 function renderSegment(segment: TextSegment, key: number, size: PostTextSize) {
   if (segment.type === 'text') {
@@ -31,6 +33,11 @@ function renderSegment(segment: TextSegment, key: number, size: PostTextSize) {
         e.stopPropagation?.();
         if (segment.type === 'link') {
           void Linking.openURL(segment.url).catch(() => {});
+        } else if (segment.type === 'hashtag') {
+          router.push({
+            pathname: Routes.tabs.explore.search,
+            params: { q: segment.tag },
+          });
         } else {
           router.push({
             pathname: '/[identityId]',

@@ -1,3 +1,4 @@
+mod admin;
 mod config;
 mod cron;
 mod data;
@@ -8,7 +9,7 @@ mod service;
 mod util;
 mod workers;
 
-use crate::db::client::build_db_client;
+use crate::db::client::build_db_clients;
 use crate::grpc::server::build_grpc_router;
 use crate::routes::build_routes;
 use crate::service::content::content_filestore::{
@@ -20,11 +21,13 @@ use common_kafka::build_producer;
 use sea_orm::DatabaseConnection;
 
 /// Connect to the database, retrying with backoff.
-async fn connect_db_with_retry() -> DatabaseConnection {
+async fn connect_db_with_retry(
+    durable_commits: bool,
+) -> (DatabaseConnection, DatabaseConnection) {
     let mut delay = std::time::Duration::from_secs(1);
     loop {
-        match build_db_client().await {
-            Ok(db) => return db,
+        match build_db_clients(durable_commits).await {
+            Ok((db, ro_db)) => return (db, ro_db),
             Err(e) => {
                 tracing::warn!(
                     error = %e,
@@ -57,15 +60,18 @@ async fn main() {
     // `server`                  -> run the API (gRPC + HTTP) server (default)
     // `server workers [name…]`  -> run the named workers (`all` or no
     //                              names = every worker)
+    // `server delete-events|prune-content …` -> operator commands, see `admin::USAGE`
+    let rest: Vec<String> = std::env::args().skip(2).collect();
     match std::env::args().nth(1).as_deref() {
         None | Some("serve") => run_server().await,
-        Some("workers") => {
-            run_workers(std::env::args().skip(2).collect()).await
-        }
+        Some("workers") => run_workers(rest).await,
+        Some("delete-events") => admin::delete_events(rest).await,
+        Some("prune-content") => admin::prune_content(rest).await,
         Some(other) => {
             // Startup CLI misuse — plain stderr, logging may not matter yet.
             eprintln!(
-                "unknown subcommand: {other}\nusage: server [serve|workers [name…]]"
+                "unknown subcommand: {other}\nusage: server [serve|workers [name…]]\n{}",
+                admin::USAGE
             );
             std::process::exit(2);
         }
@@ -75,7 +81,7 @@ async fn main() {
 /// Run the API server: gRPC + HTTP merged onto a single port.
 async fn run_server() {
     common_telemetry::init_metrics("server");
-    let db = connect_db_with_retry().await;
+    let (db, ro_db) = connect_db_with_retry(true).await;
     let kafka_producer = build_producer()
         .await
         .expect("failed to build Kafka producer");
@@ -88,12 +94,13 @@ async fn run_server() {
 
     let grpc_router = build_grpc_router(
         db.clone(),
+        ro_db.clone(),
         kafka_producer,
         filestore.clone(),
         server_cfg,
     )
     .expect("failed to build gRPC router");
-    let http_router = build_routes(db, filestore);
+    let http_router = build_routes(db, ro_db, filestore);
 
     let app = http_router
         .merge(grpc_router)
@@ -115,11 +122,12 @@ async fn run_server() {
 async fn run_workers(only: Vec<String>) {
     workers::validate_worker_names(&only);
     common_telemetry::init_metrics("server-workers");
-    let db = connect_db_with_retry().await;
+    // Workers write rebuildable caches; skip the WAL flush wait per commit.
+    let (db, ro_db) = connect_db_with_retry(false).await;
     let kafka_producer = build_producer()
         .await
         .expect("failed to build Kafka producer");
-    let ctx = ServiceContext::new(db, kafka_producer);
+    let ctx = ServiceContext::new(db, ro_db, kafka_producer);
 
     workers::run_all_workers(ctx, only).await;
 }

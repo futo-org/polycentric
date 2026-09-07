@@ -47,10 +47,12 @@ async fn fetch(
     ctx: &ServiceContext,
     params: &Params,
 ) -> Result<FetchedClaims, Status> {
-    let claims =
-        Repository::list_claim_events_for_identity(&ctx.db, &params.identity)
-            .await
-            .map_err(map_db_err)?;
+    let claims = Repository::list_claim_events_for_identity(
+        &ctx.ro_db,
+        &params.identity,
+    )
+    .await
+    .map_err(map_db_err)?;
     claim_bundles::fetch_verification_state(ctx, claims).await
 }
 

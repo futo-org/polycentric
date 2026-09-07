@@ -54,7 +54,7 @@ async fn fetch(
     params: &Params,
 ) -> Result<Fetched<SearchRow, SortedPostsBy>, Status> {
     let mut rows = Query::search_posts(
-        &ctx.service.db,
+        &ctx.service.ro_db,
         &params.common.query,
         params.sort_by,
         params.common.limit,

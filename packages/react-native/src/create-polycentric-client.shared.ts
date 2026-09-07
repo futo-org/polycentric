@@ -1,9 +1,11 @@
-import type { PolycentricClient } from '@polycentric/js-core';
+import type { PolycentricClient, v2Types } from '@polycentric/js-core';
 
 export interface CreatePolycentricClientConfig {
   databaseName?: string;
   /** gRPC-web URLs the client should start with. */
   seedServers?: string[];
+  /** Stamped on every event the client builds. */
+  application?: v2Types.Application;
 }
 
 export function normalizeDatabaseName(databaseName?: string) {

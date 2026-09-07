@@ -354,6 +354,27 @@ describe('useComposer handlePost', () => {
     expect(result.current.submitting).toBe(false);
   });
 
+  it('rewrites remembered identity mentions to the curly form', async () => {
+    const id = 'a'.repeat(64);
+    const { result } = await renderComposer();
+    act(() => {
+      result.current.setText(`hi @${id} `);
+      useComposerStore.getState().rememberMention(id, 'Jane');
+    });
+
+    await act(async () => {
+      await result.current.handlePost();
+    });
+
+    expect(mockClient.contentManager.build).toHaveBeenCalledWith(
+      expect.objectContaining({
+        post: expect.objectContaining({ text: `hi @{${id},Jane}` }),
+      }),
+    );
+    // Memory is cleared with the rest of the composer.
+    expect(useComposerStore.getState().mentions).toEqual({});
+  });
+
   it('awaits the in-flight upload before committing the post', async () => {
     libraryReturns([{ uri: 'file://a.jpg', width: 100, height: 80 }]);
     const upload = deferred<{ images: [] }>();

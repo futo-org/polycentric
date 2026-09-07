@@ -77,6 +77,8 @@ export interface PolycentricClientConfig {
    * UIs should not offer identity creation/pairing in that case.
    */
   persistentStorage?: boolean;
+  /** Stamped on every event this client builds. */
+  application?: Proto.Application;
 }
 
 /**
@@ -108,12 +110,14 @@ export class PolycentricClient {
   public readonly storageDriver: IStorageDriver;
   public readonly filestoreDriver: IFileStoreDriver;
   public readonly persistentStorage: boolean;
+  public readonly application: Proto.Application | undefined;
 
   constructor(config: PolycentricClientConfig) {
     this.core = config.core;
     this.storageDriver = config.storageDriver;
     this.filestoreDriver = config.filestoreDriver;
     this.persistentStorage = config.persistentStorage ?? true;
+    this.application = config.application;
     if (config.seedServers && config.seedServers.length > 0) {
       this.servers = [...config.seedServers];
     }
@@ -360,6 +364,7 @@ export class PolycentricClient {
       previousRoot,
       contentDigest: this.contentManager.buildDigest(content),
       createdAt: BigInt(Date.now()),
+      application: this.application,
     });
 
     const identityContentForVC =

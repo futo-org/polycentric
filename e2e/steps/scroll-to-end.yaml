@@ -1,0 +1,19 @@
+# Scrolls to the end of the feed a few times, so it loads more pages and the
+# reader ends up well past the first one. The web driver's swipes don't move
+# the page, so scroll from a script. Ends a screen above the bottom, so a
+# post rather than the loading footer sits mid-viewport.
+- evalBrowserScript:
+    script: |
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const height = () => document.documentElement.scrollHeight;
+      for (let i = 0; i < 30 && height() <= window.innerHeight; i++) await sleep(100);
+      if (height() <= window.innerHeight) throw new Error('the feed did not outgrow the screen');
+      for (let i = 0; i < 5; i++) {
+        window.scrollTo(0, height());
+        await sleep(2000);
+      }
+      window.scrollBy(0, -window.innerHeight);
+      await sleep(1000);
+      return window.scrollY;
+    output: scrollY
+- assertTrue: ${scrollY > 0}

@@ -3,6 +3,7 @@ use crate::service::content::content_repository::Mutation as ContentRepository;
 use crate::service::content::repository::Mutation as ContentChildRepository;
 use crate::service::content::repository::{EventKeyParts, split_event_key};
 use crate::service::events::rpc::put_events::event_is_authorised;
+use ::entity::application_model as ApplicationModel;
 use ::entity::block_model as BlockModel;
 use ::entity::content_delete_model as ContentDeleteModel;
 use ::entity::content_model as ContentModel;
@@ -10,19 +11,19 @@ use ::entity::event_model as EventModel;
 use ::entity::follow_model as FollowModel;
 use ::entity::quote_model as QuoteModel;
 use ::entity::reaction_model as ReactionModel;
-use ::entity::reaction_tally_model2 as ReactionTallyModel;
+use ::entity::reaction_tally_model as ReactionTallyModel;
 use ::entity::reply_model as ReplyModel;
 use ::entity::repost_model as RepostModel;
 use chrono::Utc;
 use polycentric_common::models::collections;
 use polycentric_common::models::protos_v2::content::ContentBody;
 use polycentric_common::models::protos_v2::{
-    Block, Content, ContentDigest, Delete, EventKey, Follow, Post, Reaction,
-    Repost,
+    Application, Block, Content, ContentDigest, Delete, EventKey, Follow, Post,
+    Reaction, Repost,
 };
 use sea_orm::sea_query::{
     CommonTableExpression, DeleteStatement, Expr, Func, InsertStatement,
-    IntoCondition, IntoTableRef, SelectExpr, SelectStatement,
+    IntoCondition, IntoTableRef, OnConflict, SelectExpr, SelectStatement,
     SubQueryStatement, UpdateStatement, WithClause,
 };
 use sea_orm::*;
@@ -162,6 +163,39 @@ pub struct HeadInfoRow {
 pub struct Mutation;
 
 impl Mutation {
+    /// Find or create the `application` row for `app`, returning its id.
+    pub async fn application_id<C: ConnectionTrait>(
+        db: &C,
+        app: &Application,
+    ) -> Result<i32, DbErr> {
+        // Keep client-supplied strings within the unique index's limits.
+        const MAX_LEN: usize = 256;
+        let bounded = |s: &str| s.chars().take(MAX_LEN).collect::<String>();
+
+        let row = ApplicationModel::ActiveModel {
+            id: NotSet,
+            name: Set(bounded(&app.name)),
+            identifier: Set(bounded(&app.id)),
+            version: Set(bounded(&app.version)),
+            url: Set(bounded(&app.url)),
+        };
+        // A no-op update makes the existing row's id come back on conflict.
+        let inserted = ApplicationModel::Entity::insert(row)
+            .on_conflict(
+                OnConflict::columns([
+                    ApplicationModel::Column::Name,
+                    ApplicationModel::Column::Identifier,
+                    ApplicationModel::Column::Version,
+                    ApplicationModel::Column::Url,
+                ])
+                .update_column(ApplicationModel::Column::Name)
+                .to_owned(),
+            )
+            .exec(db)
+            .await?;
+        Ok(inserted.last_insert_id)
+    }
+
     /// Store an event and it's content.
     ///
     /// Returns `true` if the event was stored or `false` if the event is
@@ -380,9 +414,11 @@ impl Mutation {
             with.cte(cte);
         }
 
-        if let Some(reply) = post.reply.as_ref() {
+        if let Some(reply) = post.reply.as_ref()
+            && let Some(reply) = &reply.parent
+        {
             // NOTE: only adding a reply to the parent, not for the root.
-            let key = split_event_key(reply.parent.clone(), "reply")
+            let key = split_event_key(Some(reply.clone()), "reply")
                 .map_err(|err| DbErr::Custom(err.message().into()))?;
             let mut post_event_id = select_not_deleted_event_id(key);
 
@@ -980,6 +1016,7 @@ mod tests {
             signature: vec![],
             previous_signature: vec![],
             previous_root: vec![],
+            application_id: None,
             event_bytes: vec![1],
             created_at: now(),
             synced_at: now(),

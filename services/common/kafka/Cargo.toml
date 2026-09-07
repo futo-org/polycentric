@@ -4,4 +4,5 @@ version = "0.0.1"
 edition = "2024"
 
 [dependencies]
-rdkafka = { workspace = true, features = ["tokio", "cmake-build", "curl", "sasl"] }
+rdkafka = { workspace = true, default-features = false, features = ["tokio", "sasl"] }
+tracing.workspace = true

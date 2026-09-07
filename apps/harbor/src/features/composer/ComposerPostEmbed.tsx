@@ -6,6 +6,7 @@ import {
 } from '@/src/common/lib/polycentric-hooks';
 import { Atoms, useTheme, withHexOpacity } from '@/src/common/theme';
 import { View } from 'react-native';
+import { mentionsToPlainText } from '@/src/common/util/parseTextLinks';
 
 type ComposerPostEmbedProps = {
   intentText?: string;
@@ -17,7 +18,7 @@ export default function ComposerPostEmbed({
   post,
 }: ComposerPostEmbedProps) {
   const authorName = useUsername(post?.identity ?? null);
-  const content = post?.content ?? '';
+  const content = mentionsToPlainText(post?.content ?? '');
   const contentPreview =
     content.length > 30
       ? `${content.slice(0, 30)}…`

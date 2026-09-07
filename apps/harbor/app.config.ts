@@ -50,7 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: NAME,
   slug: 'polycentric',
-  version: process.env.APP_VERSION ?? PKG_VERSION ?? '0.0.1',
+  version: process.env.APP_VERSION || PKG_VERSION || '0.0.1',
   orientation: 'default',
   icon: './src/common/assets/images/app-icons/android-icon-foreground.png',
   scheme: SCHEME,

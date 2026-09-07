@@ -1,50 +1,31 @@
-import { Text } from '@/src/common/components/primitives';
 import { usePolycentric } from '@/src/common/lib/polycentric-hooks';
-import { Atoms, useTheme, withHexOpacity } from '@/src/common/theme';
+import { Atoms, useTheme, withHexOpacity, Spacing } from '@/src/common/theme';
 import Icon from '@/src/common/components/Icon';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import {
   resolveImageSources,
   type ImageViewerInput,
 } from './resolveImageSources';
-import { Image } from '@/src/common/components/Image';
+import { Platform, Pressable, useWindowDimensions, View } from 'react-native';
 import {
-  Platform,
-  Pressable,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from 'react-native';
-import {
-  Gesture,
   GestureDetector,
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
-import Animated, {
-  Extrapolation,
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
-import { runOnJS } from 'react-native-worklets';
+import { useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-/** Vertical drag (px) past which releasing dismisses the viewer. */
-const CLOSE_DISTANCE = 120;
-/** Vertical fling velocity (px/s) that dismisses regardless of distance. */
-const CLOSE_VELOCITY = 800;
-/** Maximum pinch-zoom magnification. */
-const MAX_SCALE = 5;
-/** Releasing a pinch below this scale dismisses the viewer. */
-const PINCH_CLOSE_SCALE = 0.8;
+import { ImageViewerBackdrop } from './components/ImageViewerBackdrop';
+import { ImagePane } from './components/ImagePane';
+import { NavArrow } from './components/NavArrow';
+import { useImageViewerGestures } from './hooks/useImageViewerGestures';
+import { NavDots } from '@/src/common/components/ImageViewer/components/NavDots';
+import { isWeb } from '@/src/common/util/platform';
 
 /**
  * Full-screen viewer for any `ImageSet`s (post attachments, avatars,
  * ...). Tap the backdrop or
  * the close button to dismiss; pinch in or swipe up/down to close;
- * left/right arrows (and keyboard arrows on web) navigate between images
- * when there's more than one.
+ * swipe left/right, use left/right arrows or keyboard arrows to navigate
+ * between images when there's more than one.
  */
 export function ImageViewer({
   images,
@@ -57,6 +38,12 @@ export function ImageViewer({
   onClose: () => void;
   onIndexChange?: (index: number) => void;
 }) {
+  // Don't show nav arrows on devices where primary input is touch-based since
+  // swiping is preferable then
+  const [showNavArrows] = useState(
+    () => isWeb && !matchMedia('(pointer: coarse)').matches,
+  );
+
   const client = usePolycentric();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -67,14 +54,44 @@ export function ImageViewer({
   );
 
   const [index, setIndex] = useState(initialIndex);
-  useEffect(() => {
-    setIndex(initialIndex);
-  }, [initialIndex]);
+  const count = sources.length;
+  const safeIndex = Math.min(index, count - 1);
 
-  const goPrev = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
+  const { height, width } = useWindowDimensions();
+
+  // Strip position
+  const offsetX = useSharedValue(-initialIndex * width);
+
+  // Snap offset to correct index if changed from the outside
+  useEffect(() => {
+    setIndex((prev) => {
+      if (initialIndex === prev) return prev;
+
+      offsetX.value = -initialIndex * width;
+      return initialIndex;
+    });
+  }, [initialIndex, offsetX, width]);
+
+  // Keep the strip position up-to-date
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only width/count changes should snap; safeIndex is read fresh
+  useEffect(() => {
+    offsetX.value = -Math.max(0, safeIndex) * width;
+  }, [width, count]);
+
+  const goTo = useCallback(
+    (i: number) => {
+      setIndex(i);
+      offsetX.value = withTiming(-i * width, { duration: 200 });
+    },
+    [offsetX, width],
+  );
+  const goPrev = useCallback(
+    () => goTo(Math.max(0, safeIndex - 1)),
+    [goTo, safeIndex],
+  );
   const goNext = useCallback(
-    () => setIndex((i) => Math.min(sources.length - 1, i + 1)),
-    [sources.length],
+    () => goTo(Math.min(count - 1, safeIndex + 1)),
+    [goTo, safeIndex, count],
   );
 
   // Report arrow/keyboard navigation, skipping the mount-time index.
@@ -99,149 +116,35 @@ export function ImageViewer({
     return () => window.removeEventListener('keydown', handler);
   }, [onClose, goPrev, goNext]);
 
-  const { height } = useWindowDimensions();
   const scale = useSharedValue(1);
-  const savedScale = useSharedValue(1);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
-  const savedTranslateX = useSharedValue(0);
-  const savedTranslateY = useSharedValue(0);
   const dismissY = useSharedValue(0);
 
-  // Reset zoom/pan whenever the displayed image changes.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `index` is the reset trigger, not a capture
-  useEffect(() => {
-    scale.value = 1;
-    savedScale.value = 1;
-    translateX.value = 0;
-    translateY.value = 0;
-    savedTranslateX.value = 0;
-    savedTranslateY.value = 0;
-    dismissY.value = 0;
-  }, [
+  const aspectRatio = sources[safeIndex]?.aspectRatio ?? 1;
+
+  // Detector's full-screen layout, for the backdrop-tap hit test.
+  const containerSize = useSharedValue({ w: 0, h: 0 });
+
+  const gesture = useImageViewerGestures({
+    onClose,
     index,
+    safeIndex,
+    setIndex,
+    count,
+    width,
+    height,
+    aspectRatio,
+    offsetX,
     scale,
-    savedScale,
     translateX,
     translateY,
-    savedTranslateX,
-    savedTranslateY,
     dismissY,
-  ]);
-
-  const pinch = useMemo(
-    () =>
-      Gesture.Pinch()
-        .onUpdate((e) => {
-          scale.value = Math.min(savedScale.value * e.scale, MAX_SCALE);
-        })
-        .onEnd(() => {
-          if (scale.value < PINCH_CLOSE_SCALE) {
-            // Pinched in far enough — shrink away and dismiss.
-            scale.value = withTiming(0.3, { duration: 180 }, (finished) => {
-              if (finished) runOnJS(onClose)();
-            });
-          } else if (scale.value <= 1) {
-            scale.value = withTiming(1);
-            savedScale.value = 1;
-            translateX.value = withTiming(0);
-            translateY.value = withTiming(0);
-            savedTranslateX.value = 0;
-            savedTranslateY.value = 0;
-          } else {
-            savedScale.value = scale.value;
-          }
-        }),
-    [
-      onClose,
-      scale,
-      savedScale,
-      translateX,
-      translateY,
-      savedTranslateX,
-      savedTranslateY,
-    ],
-  );
-
-  const pan = useMemo(
-    () =>
-      Gesture.Pan()
-        .onUpdate((e) => {
-          if (scale.value > 1) {
-            translateX.value = savedTranslateX.value + e.translationX;
-            translateY.value = savedTranslateY.value + e.translationY;
-          } else if (scale.value === 1) {
-            // Only drag-to-dismiss at natural size; ignore the centroid
-            // drift while a pinch is shrinking the image.
-            dismissY.value = e.translationY;
-          }
-        })
-        .onEnd((e) => {
-          if (scale.value > 1) {
-            savedTranslateX.value = translateX.value;
-            savedTranslateY.value = translateY.value;
-            return;
-          }
-          if (scale.value < 1) {
-            // A pinch-to-close is in progress; let the pinch decide
-            // whether to dismiss, so we don't double-fire onClose (which
-            // on Android popped an extra screen).
-            dismissY.value = withTiming(0, { duration: 150 });
-            return;
-          }
-          const dismiss =
-            Math.abs(e.translationY) > CLOSE_DISTANCE ||
-            Math.abs(e.velocityY) > CLOSE_VELOCITY;
-          if (dismiss) {
-            const target = e.translationY >= 0 ? height : -height;
-            dismissY.value = withTiming(
-              target,
-              { duration: 180 },
-              (finished) => {
-                if (finished) runOnJS(onClose)();
-              },
-            );
-          } else {
-            dismissY.value = withTiming(0, { duration: 150 });
-          }
-        }),
-    [
-      height,
-      onClose,
-      scale,
-      translateX,
-      translateY,
-      savedTranslateX,
-      savedTranslateY,
-      dismissY,
-    ],
-  );
-
-  const gesture = useMemo(() => Gesture.Simultaneous(pinch, pan), [pinch, pan]);
-
-  const imageStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value + dismissY.value },
-      { scale: scale.value },
-    ],
-  }));
-  const backdropStyle = useAnimatedStyle(() => {
-    // Fade with whichever dismiss gesture is in progress: a vertical
-    // drag, or a pinch shrinking the image below natural size.
-    const dragProgress = Math.abs(dismissY.value) / (height * 0.5);
-    const pinchProgress =
-      scale.value < 1 ? (1 - scale.value) / (1 - PINCH_CLOSE_SCALE) : 0;
-    const progress = Math.max(dragProgress, pinchProgress);
-    return {
-      opacity: interpolate(progress, [0, 1], [1, 0.2], Extrapolation.CLAMP),
-    };
+    containerSize,
   });
 
-  const safeIndex = Math.min(index, sources.length - 1);
-  const current = sources[safeIndex];
   const hasPrev = safeIndex > 0;
-  const hasNext = safeIndex < sources.length - 1;
+  const hasNext = safeIndex < count - 1;
 
   const chipBg = withHexOpacity(theme.palette.black, 'b0');
 
@@ -251,143 +154,74 @@ export function ImageViewer({
   // provides the (transparent-modal) presentation; here we just fill it.
   return (
     <GestureHandlerRootView style={Atoms.flex_1}>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFill,
-          { backgroundColor: 'rgba(0,0,0,0.92)' },
-          backdropStyle,
-        ]}
-      />
+      <ImageViewerBackdrop scale={scale} dismissY={dismissY} />
+      <GestureDetector gesture={gesture}>
+        <View
+          style={[Atoms.flex_1, Atoms.overflow_hidden]}
+          onLayout={(e) => {
+            containerSize.value = {
+              w: e.nativeEvent.layout.width,
+              h: e.nativeEvent.layout.height,
+            };
+          }}
+        >
+          {sources.map((source, i) => (
+            <ImagePane
+              // biome-ignore lint/suspicious/noArrayIndexKey: panes are positional slots in the strip and never reorder
+              key={`${i}-${source.uris[0]}`}
+              source={source}
+              paneX={i * width}
+              isCurrent={i === safeIndex}
+              offsetX={offsetX}
+              scale={scale}
+              translateX={translateX}
+              translateY={translateY}
+              dismissY={dismissY}
+            />
+          ))}
+        </View>
+      </GestureDetector>
+
       <Pressable
         onPress={onClose}
-        style={[Atoms.flex_1, Atoms.items_center, Atoms.justify_center]}
+        accessibilityLabel="Close image viewer"
+        hitSlop={12}
+        style={[
+          Atoms.absolute,
+          Atoms.items_center,
+          Atoms.justify_center,
+          Atoms.rounded_full,
+          {
+            top: insets.top,
+            right: 16,
+            width: 40,
+            height: 40,
+            backgroundColor: chipBg,
+          },
+        ]}
       >
-        {/* With no sources (the route is still loading its data) render just
-        the backdrop and close button, so the viewer holds its place and can
-        still be dismissed. */}
-        {current && (
-          <GestureDetector gesture={gesture}>
-            <Animated.View
-              style={[
-                Atoms.items_center,
-                Atoms.justify_center,
-                { width: '100%', height: '88%' },
-                imageStyle,
-              ]}
-            >
-              {/* Swallow taps on the image itself so they don't dismiss;
-                  taps on the surrounding letterbox fall through to the
-                  backdrop and close. */}
-              <Pressable
-                onPress={(e) => e.stopPropagation?.()}
-                style={[
-                  Atoms.w_full,
-                  { aspectRatio: current.aspectRatio ?? 1, maxHeight: '100%' },
-                ]}
-              >
-                <Image
-                  uris={current.uris}
-                  contentFit="contain"
-                  style={[Atoms.w_full, Atoms.h_full]}
-                />
-              </Pressable>
-            </Animated.View>
-          </GestureDetector>
-        )}
+        <Icon name="close" size={24} color="white" />
+      </Pressable>
 
-        <Pressable
-          onPress={(e) => {
-            e.stopPropagation?.();
-            onClose();
-          }}
-          accessibilityLabel="Close image viewer"
-          hitSlop={12}
+      {showNavArrows && (
+        <>
+          {hasPrev && <NavArrow side="left" onPress={goPrev} bg={chipBg} />}
+          {hasNext && <NavArrow side="right" onPress={goNext} bg={chipBg} />}
+        </>
+      )}
+
+      {count > 1 && (
+        <View
           style={[
             Atoms.absolute,
             Atoms.items_center,
-            Atoms.justify_center,
-            Atoms.rounded_full,
-            {
-              top: insets.top,
-              right: 16,
-              width: 40,
-              height: 40,
-              backgroundColor: chipBg,
-            },
+            { bottom: insets.bottom + Spacing.lg, left: 0, right: 0 },
           ]}
+          pointerEvents="none"
         >
-          <Icon name="close" size={24} color="white" />
-        </Pressable>
-
-        {hasPrev && <NavArrow side="left" onPress={goPrev} bg={chipBg} />}
-        {hasNext && <NavArrow side="right" onPress={goNext} bg={chipBg} />}
-
-        {sources.length > 1 && (
-          <View
-            pointerEvents="none"
-            style={[
-              Atoms.absolute,
-              Atoms.items_center,
-              { top: 20, left: 0, right: 0 },
-            ]}
-          >
-            <View
-              style={[
-                Atoms.px_sm,
-                Atoms.py_xs,
-                Atoms.rounded_lg,
-                { backgroundColor: chipBg },
-              ]}
-            >
-              <Text variant="small" style={{ color: theme.palette.white }}>
-                {safeIndex + 1} / {sources.length}
-              </Text>
-            </View>
-          </View>
-        )}
-      </Pressable>
+          <NavDots count={count} offset={offsetX} width={width} />
+        </View>
+      )}
     </GestureHandlerRootView>
-  );
-}
-
-function NavArrow({
-  side,
-  onPress,
-  bg,
-}: {
-  side: 'left' | 'right';
-  onPress: () => void;
-  bg: string;
-}) {
-  return (
-    <Pressable
-      onPress={(e) => {
-        e.stopPropagation?.();
-        onPress();
-      }}
-      hitSlop={12}
-      accessibilityLabel={side === 'left' ? 'Previous image' : 'Next image'}
-      style={[
-        Atoms.absolute,
-        Atoms.items_center,
-        Atoms.justify_center,
-        Atoms.rounded_full,
-        {
-          top: '50%',
-          width: 44,
-          height: 44,
-          transform: [{ translateY: -22 }],
-          backgroundColor: bg,
-        },
-        side === 'left' ? { left: 16 } : { right: 16 },
-      ]}
-    >
-      <Icon
-        name={side === 'left' ? 'chevronBack' : 'chevronForward'}
-        size={28}
-        color="white"
-      />
-    </Pressable>
   );
 }

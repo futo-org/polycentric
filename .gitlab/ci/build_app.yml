@@ -62,11 +62,37 @@ app-tests:
     - job: rs-core-libraries
       artifacts: true
 
+# Version for the web image. Release tags use the tag; other builds use the
+# next patch plus the commit, e.g. 1.2.1+ab12cd34.
+app-version:
+  extends: .app-workflow
+  rules:
+    - !reference [.app-workflow, rules]
+    - !reference [.release-workflow, rules]
+  stage: build
+  image: node:24-slim
+  script:
+    - APP_VERSION=$(node tools/expo/resolve-version.js)
+    - if [ -z "$CI_COMMIT_TAG" ]; then APP_VERSION="${APP_VERSION}+${CI_COMMIT_SHORT_SHA}"; fi
+    - echo "APP_VERSION=${APP_VERSION}" > app-version.env
+  artifacts:
+    reports:
+      dotenv: app-version.env
+
 web-image:
   extends: .app-build-base
   rules:
     - !reference [.app-workflow, rules]
     - !reference [.release-workflow, rules]
+  needs:
+    - job: rn-sdk-build
+      artifacts: true
+    - job: js-sdks-build
+      artifacts: true
+    - job: rs-core-libraries
+      artifacts: true
+    - job: app-version
+      artifacts: true
   image:
     name: moby/buildkit:rootless
     entrypoint: [""]
@@ -80,6 +106,7 @@ web-image:
         --frontend dockerfile.v0 \
         --local context=. \
         --local dockerfile=./apps/harbor \
+        --opt build-arg:APP_VERSION=$APP_VERSION \
         --opt build-arg:EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS=$EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS \
         --opt build-arg:EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS=$EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS \
         --opt build-arg:SKIP_WORKSPACE_BUILD=1 \
@@ -100,6 +127,7 @@ app-web-e2e:
     - name: $CI_REGISTRY_IMAGE/web:$CI_COMMIT_SHA
       alias: web
       variables:
+        EXPO_PUBLIC_APP_VARIANT: staging
         EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS: https://srv.staging.harbor.social,https://srv.staging.polycentric.io
   variables:
     MAESTRO_WEB_URL: http://web:8080

@@ -2,6 +2,7 @@
 
 use std::io::IsTerminal;
 
+use opentelemetry::KeyValue;
 use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use prometheus::Encoder;
@@ -50,6 +51,28 @@ pub fn init_metrics(service_name: &str) {
         .and_then(|p| p.parse().ok())
         .unwrap_or(9464);
     tokio::spawn(serve_metrics(registry, port));
+}
+
+/// Export the database pool's open connections (`db_pool_connections`,
+/// by `state` = `idle` | `used`) and its configured ceiling
+/// (`db_pool_max_connections`) as gauges sampled on every scrape. The
+/// callbacks hold a pool handle for the life of the process.
+pub fn observe_db_pool<DB: sqlx::Database>(meter_name: &'static str, pool: sqlx::Pool<DB>) {
+    let meter = opentelemetry::global::meter(meter_name);
+    let max = u64::from(pool.options().get_max_connections());
+    meter
+        .u64_observable_gauge("db_pool_max_connections")
+        .with_callback(move |gauge| gauge.observe(max, &[]))
+        .build();
+    meter
+        .u64_observable_gauge("db_pool_connections")
+        .with_callback(move |gauge| {
+            let size = u64::from(pool.size());
+            let idle = pool.num_idle() as u64;
+            gauge.observe(idle, &[KeyValue::new("state", "idle")]);
+            gauge.observe(size.saturating_sub(idle), &[KeyValue::new("state", "used")]);
+        })
+        .build();
 }
 
 async fn serve_metrics(registry: prometheus::Registry, port: u16) {

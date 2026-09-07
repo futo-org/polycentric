@@ -13,7 +13,7 @@ import {
 } from 'react-native-vision-camera-barcode-scanner';
 import type { PairIdentityCameraComponent } from './PairIdentityCamera.types';
 import { PairIdentityManualEntry } from './PairIdentityManualEntry';
-import { hexToBytes } from '@polycentric/react-native';
+import { decodePairingCode, EncodingMode } from '../pairingCode';
 
 // Stable reference for the barcode formats array to prevent
 // the scanner from being destroyed and recreated extra times.
@@ -38,7 +38,8 @@ export const PairIdentityCamera: PairIdentityCameraComponent = ({
       if (!value) return;
 
       scannedRef.current = true;
-      onCodeScanned(value);
+      const info = decodePairingCode(value, EncodingMode.BASE64) ?? null;
+      onCodeScanned(info);
     },
     onError: () => setCameraEnabled(false),
   });
@@ -52,13 +53,8 @@ export const PairIdentityCamera: PairIdentityCameraComponent = ({
   const handleContinue = () => {
     const trimmed = input.trim();
     if (!trimmed) return;
-
-    // Invalid hex will pass through as an empty string that fails to parse
-    // in the claimer hook and displays the correct error message.
-    const bytes = hexToBytes(trimmed);
-    const code = new TextDecoder().decode(bytes);
-
-    onCodeScanned(code);
+    const info = decodePairingCode(trimmed, EncodingMode.HEX) ?? null;
+    onCodeScanned(info);
   };
 
   const canUseCamera = hasPermission && cameraEnabled && device !== undefined;

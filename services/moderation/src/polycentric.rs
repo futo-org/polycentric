@@ -272,6 +272,7 @@ impl PolycentricClient {
             previous_root: head.previous_root,
             content_digest: Some(digest),
             created_at: now_millis(),
+            application: None,
         };
 
         let event_bytes = event.encode_to_vec();

@@ -24,6 +24,7 @@ impl Event {
             previous_root,
             content_digest,
             created_at,
+            application: None,
         }
     }
 

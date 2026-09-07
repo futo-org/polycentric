@@ -34,6 +34,15 @@
         - .gitlab/ci/scripts/integration-moderation.sh
   variables:
     RUNNER_SCRIPT_TIMEOUT: 30m
+    # This commit's server image, else the default branch's.
+    POLYCENTRIC_SERVER_IMAGE: ${CI_REGISTRY_IMAGE}/server:${CI_COMMIT_SHA}
+    POLYCENTRIC_SERVER_FALLBACK_IMAGE: ${CI_REGISTRY_IMAGE}/server:${CI_DEFAULT_BRANCH}
+  needs:
+    - job: server-image
+      artifacts: false
+      optional: true
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
 
 moderation-integration:
   extends: .moderation-integration-workflow

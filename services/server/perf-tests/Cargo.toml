@@ -14,9 +14,11 @@ path = "src/time.rs"
 
 [dependencies]
 ed25519-dalek.workspace = true
+hex.workspace = true
 polycentric-common = { workspace = true, features = ["transport"] }
 prost = { version = "0.14", default-features = false }
 rand = { version = "0.10", default-features = false, features = ["std", "std_rng", "thread_rng"] }
+serde_json = { version = "1", default-features = false, features = ["std"] }
 sha2 = { version = "0.10", default-features = false }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 tonic = { workspace = true, features = ["transport"] }

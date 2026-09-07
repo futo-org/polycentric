@@ -11,8 +11,8 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useState,
   type PropsWithChildren,
+  useSyncExternalStore,
 } from 'react';
 import { Appearance, useColorScheme } from 'react-native';
 import * as SystemUI from 'expo-system-ui';
@@ -34,14 +34,14 @@ export function ThemeProvider({ children }: PropsWithChildren) {
 
   const colorScheme = useColorScheme();
   const storedTheme = useSettings((s) => s.theme);
-  const [hydrated, setHydrated] = useState(useSettings.persist.hasHydrated());
 
-  useEffect(() => {
-    const unsub = useSettings.persist.onFinishHydration(() =>
-      setHydrated(true),
-    );
-    return unsub;
-  }, []);
+  // Server snapshot is `false` so the first client render matches the
+  // SSR shell; React re-renders with the real value right after hydration.
+  const hydrated = useSyncExternalStore(
+    useSettings.persist.onFinishHydration,
+    useSettings.persist.hasHydrated,
+    () => false,
+  );
 
   const activeThemeName = hydrated
     ? storedTheme

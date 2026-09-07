@@ -70,7 +70,16 @@ echo "==> Building and starting the server…"
 # Build and start the server without its depends_on chain (--no-deps), so
 # the scraper container is not pulled in.  The infrastructure is already
 # running, so this is safe.
-docker compose up -d --no-deps --build --wait server
+if [ -n "${POLYCENTRIC_SERVER_IMAGE:-}" ]; then
+  if ! docker pull -q "$POLYCENTRIC_SERVER_IMAGE"; then
+    echo "    ${POLYCENTRIC_SERVER_IMAGE} not found, using ${POLYCENTRIC_SERVER_FALLBACK_IMAGE}"
+    export POLYCENTRIC_SERVER_IMAGE="$POLYCENTRIC_SERVER_FALLBACK_IMAGE"
+    docker pull -q "$POLYCENTRIC_SERVER_IMAGE"
+  fi
+  docker compose up -d --no-deps --no-build --wait server
+else
+  docker compose up -d --no-deps --build --wait server
+fi
 
 # Resolve the server container's IP on the compose network and use it
 # directly, bypassing Docker embedded DNS (which can be flaky in a

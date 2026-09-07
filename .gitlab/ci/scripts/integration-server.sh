@@ -148,7 +148,12 @@ if [ "$CI_MODE" = true ]; then
   # --no-deps avoids pulling in the `scraper` dependency, which requires
   # NET_ADMIN for its nftables egress firewall and cannot start in CI's
   # Docker-in-Docker environment.
-  docker compose up -d --no-deps --build --wait server
+  if [ -n "${POLYCENTRIC_SERVER_IMAGE:-}" ]; then
+    docker pull -q "$POLYCENTRIC_SERVER_IMAGE"
+    docker compose up -d --no-deps --no-build --wait server
+  else
+    docker compose up -d --no-deps --build --wait server
+  fi
 
   # Resolve the server container's IP on the compose network and use it
   # directly, bypassing Docker embedded DNS (which can be flaky when the job

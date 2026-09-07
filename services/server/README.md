@@ -38,6 +38,26 @@ cargo run -p server
 The server listens on `0.0.0.0:3000`, multiplexing gRPC (h2c), gRPC-Web,
 and plain HTTP routes on the same port.
 
+## Operator Commands
+
+The server binary also carries maintenance commands that run against `DATABASE_URL`
+and exit. Each prints what it would change; add `--yes` to apply it.
+
+```sh
+# Delete an identity, or every identity a key has signed events for,
+# plus the cache rows, counts, notifications, and now-unreferenced content
+# derived from them.
+cargo run -p server -- delete-events --identity <hex>
+cargo run -p server -- delete-events --public-key <hex> --yes
+
+# Delete content rows no event references any more.
+cargo run -p server -- prune-content --yes
+```
+
+Blob bodies nothing references any more are removed from the object store when the
+`CONTENT_BLOB_OS_*` variables are set, and left in place otherwise. A running server
+caches identity heads in memory, so restart it after deleting events.
+
 ## Environment Variables
 
 All service variables are read and validated once at startup by
@@ -46,6 +66,7 @@ All service variables are read and validated once at startup by
 | Variable | Default | Description |
 |---|---|---|
 | `DATABASE_URL` | `postgres://postgres:testing@localhost:5432` | Postgres connection URL. |
+| `POLYCENTRIC_DATABASE_MAX_CONNECTIONS` | `100` | Maximum size of the Postgres connection pool. |
 | `POLYCENTRIC_SERVER_NAME` | `http://localhost:3000` | Canonical URL of this server. Stamped as the source on produced Kafka events. |
 | `POLYCENTRIC_ALLOW_HOSTS` | `POLYCENTRIC_SERVER_NAME` | Hosts clients may address this server as, comma-delimited — the audiences accepted on auth tokens. |
 | `CDN_URL` | `http://localhost:3000` | Public URL clients use to fetch blob bodies. Reported by `ServerService.GetInfo`. |

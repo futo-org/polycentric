@@ -8,7 +8,7 @@ use ::entity::{
     content_reaction_model as ContentReactionModel, event_model as EventModel,
     follow_model as FollowModel, quote_model as QuoteModel,
     reaction_model as ReactionModel,
-    reaction_tally_model2 as ReactionTallyModel, reply_model as ReplyModel,
+    reaction_tally_model as ReactionTallyModel, reply_model as ReplyModel,
     repost_model as RepostModel,
 };
 use polycentric_common::models::collections;
@@ -799,40 +799,41 @@ impl Query {
         let stmt = Statement::from_sql_and_values(
             db.get_database_backend(),
             r#"
-            WITH RECURSIVE descendant(event_id, parent_event_id, depth, sort_at) AS (
-                SELECT reply_e.id, sub_e.id, 1, reply_e.created_at
-                FROM events sub_e
-                INNER JOIN content_post cp
-                    ON cp.reply_parent_collection = sub_e.collection
-                    AND cp.reply_parent_identity = sub_e.identity
-                    AND cp.reply_parent_public_key_type = sub_e.public_key_type
-                    AND cp.reply_parent_public_key = sub_e.public_key
-                    AND cp.reply_parent_sequence = sub_e.sequence
-                INNER JOIN content c ON c.id = cp.content_id
-                INNER JOIN events reply_e
-                    ON reply_e.content_digest_type = c.digest_type
-                    AND reply_e.content_digest_bytes = c.digest_bytes
-                WHERE sub_e.id = $1
+            WITH RECURSIVE descendant(event_id, parent_event_id, depth, created_at) AS (
+                SELECT reply.id, events.id, 1, reply.created_at
+                FROM events
+                INNER JOIN content_post ON
+                        content_post.reply_parent_collection = events.collection
+                    AND content_post.reply_parent_identity = events.identity
+                    AND content_post.reply_parent_public_key_type = events.public_key_type
+                    AND content_post.reply_parent_public_key = events.public_key
+                    AND content_post.reply_parent_sequence = events.sequence
+                INNER JOIN content ON content.id = content_post.content_id
+                INNER JOIN events AS reply ON
+                        reply.content_digest_type = content.digest_type
+                    AND reply.content_digest_bytes = content.digest_bytes
+                WHERE events.id = $1
 
                 UNION ALL
 
-                SELECT reply_e.id, de.id, d.depth + 1, reply_e.created_at
-                FROM descendant d
-                INNER JOIN events de ON de.id = d.event_id
-                INNER JOIN content_post cp
-                    ON cp.reply_parent_collection = de.collection
-                    AND cp.reply_parent_identity = de.identity
-                    AND cp.reply_parent_public_key_type = de.public_key_type
-                    AND cp.reply_parent_public_key = de.public_key
-                    AND cp.reply_parent_sequence = de.sequence
-                INNER JOIN content c ON c.id = cp.content_id
-                INNER JOIN events reply_e
-                    ON reply_e.content_digest_type = c.digest_type
-                    AND reply_e.content_digest_bytes = c.digest_bytes
-                WHERE d.depth < $2
+                SELECT reply.id, descendant.event_id, descendant.depth + 1, reply.created_at
+                FROM descendant
+                INNER JOIN events ON events.id = descendant.event_id
+                INNER JOIN content_post ON
+                        content_post.reply_parent_collection = events.collection
+                    AND content_post.reply_parent_identity = events.identity
+                    AND content_post.reply_parent_public_key_type = events.public_key_type
+                    AND content_post.reply_parent_public_key = events.public_key
+                    AND content_post.reply_parent_sequence = events.sequence
+                INNER JOIN content ON content.id = content_post.content_id
+                INNER JOIN events AS reply ON
+                        reply.content_digest_type = content.digest_type
+                    AND reply.content_digest_bytes = content.digest_bytes
+                WHERE descendant.depth < $2
             )
-            SELECT event_id, parent_event_id, depth FROM descendant
-            ORDER BY depth ASC, sort_at DESC
+            SELECT event_id, parent_event_id
+            FROM descendant
+            ORDER BY depth ASC, created_at DESC
             LIMIT $3
             "#,
             vec![

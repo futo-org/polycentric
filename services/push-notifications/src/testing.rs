@@ -155,6 +155,7 @@ pub fn authored_bundle(author: &str, content: Content) -> EventBundle {
         content_digest: None,
         created_at: 0,
         previous_root: vec![],
+        application: None,
     };
     EventBundle {
         signed_event: Some(SignedEvent {
@@ -223,7 +224,8 @@ pub fn make_ctx(
     polycentric: PolycentricClient,
 ) -> Context {
     Context {
-        db,
+        db: db.clone(),
+        ro_db: db,
         notification_manager: NotificationManager::with_custom_push_url(None, expo_push_url),
         polycentric,
         main_server: String::new(),

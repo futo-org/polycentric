@@ -137,6 +137,12 @@ function notifySlowServer(message: string) {
   toast.warning(`${host} is responding slowly`);
 }
 
+const QUERY_CACHE_KEY = '__polycentricQueryCache';
+type QueryCacheGlobal = typeof globalThis & {
+  [QUERY_CACHE_KEY]?: Map<string, QueryRef>;
+};
+const queryCacheGlobal = globalThis as QueryCacheGlobal;
+
 export const useQueryStore = create<QueryStoreState>((set, get) => {
   const updateQueryRef = (key: string, patch: Partial<QueryRef>) => {
     set((state) => {
@@ -184,11 +190,17 @@ export const useQueryStore = create<QueryStoreState>((set, get) => {
     const sub = observable.subscribe({
       next(result) {
         const patch: Partial<QueryRef> = {
-          data: result.data,
           status: result.status,
           successfulServers: result.successfulServers,
           pendingServers: result.pendingServers,
         };
+
+        const hasData = get().queries.get(key)?.data !== undefined;
+        const localEmpty =
+          result.successfulServers === 0 && result.data?.byteLength === 0;
+        if (result.data !== undefined && !(hasData && localEmpty)) {
+          patch.data = result.data;
+        }
 
         if (result.pendingServers === 0 || result.successfulServers > 0) {
           patch.hasPendingRefresh = false;
@@ -224,29 +236,35 @@ export const useQueryStore = create<QueryStoreState>((set, get) => {
   };
 
   return {
-    queries: new Map(),
+    queries: queryCacheGlobal[QUERY_CACHE_KEY] ?? new Map(),
     subscriptions: new Map(),
 
     subscribe(key, args) {
+      const entry = get().queries.get(key);
+      const hasData = entry?.data !== undefined;
+
       // Resetting a populated entry to `Loading` re-renders every other
       // consumer of the key, and scrolling remounts rows constantly.
-      const initState = get().queries.get(key)?.data ? {} : LOADING_ENTRY;
+      const initState = hasData ? {} : LOADING_ENTRY;
+
+      const recover = !hasData && entry?.status === QueryStatus.Error;
+      const fetchArgs = recover ? forceRemote(args) : args;
 
       const existing = get().subscriptions.get(key);
       if (existing) {
         existing.refCount += 1;
         existing.args = args;
 
-        if (args.opts?.fetchMode === FetchMode.Default) {
+        if (recover || args.opts?.fetchMode === FetchMode.Default) {
           existing.dispose();
-          existing.dispose = fetch(key, args, initState);
+          existing.dispose = fetch(key, fetchArgs, initState);
         }
 
         return;
       }
       get().subscriptions.set(key, {
         refCount: 1,
-        dispose: fetch(key, args, initState),
+        dispose: fetch(key, fetchArgs, initState),
         args,
       });
     },
@@ -295,6 +313,10 @@ export const useQueryStore = create<QueryStoreState>((set, get) => {
       sub.dispose = fetch(key, args, LOADING_ENTRY);
     },
   };
+});
+
+useQueryStore.subscribe((state) => {
+  queryCacheGlobal[QUERY_CACHE_KEY] = state.queries;
 });
 
 export type UseQueryResult = QueryRef & {

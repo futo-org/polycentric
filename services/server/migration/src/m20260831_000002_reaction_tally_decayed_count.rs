@@ -1,5 +1,5 @@
 use crate::sea_orm::prelude::ChronoUtc;
-use entity::{event_model, gravity_model, reaction_tally_model2};
+use entity::{event_model, gravity_model, reaction_tally_model};
 use sea_orm_migration::prelude::*;
 use sea_orm_migration::sea_orm::ColumnTrait;
 
@@ -17,8 +17,8 @@ impl MigrationTrait for Migration {
         // This will be used for things like the explore feed so we don't have
         // to compute the decayed count for each request.
         let mut stmt = Table::alter();
-        stmt.table(reaction_tally_model2::Entity).add_column(
-            ColumnDef::new(reaction_tally_model2::Column::DecayedCount)
+        stmt.table(reaction_tally_model::Entity).add_column(
+            ColumnDef::new(reaction_tally_model::Column::DecayedCount)
                 .decimal_len(20, 11)
                 .not_null()
                 .default(0.0), // NOTE: deleted below.
@@ -93,12 +93,12 @@ impl MigrationTrait for Migration {
         // Update all decayed counts.
         let mut query = UpdateStatement::new();
         query
-            .table(reaction_tally_model2::Entity)
+            .table(reaction_tally_model::Entity)
             .value(
-                reaction_tally_model2::Column::DecayedCount,
+                reaction_tally_model::Column::DecayedCount,
                 Func::cust("reaction_count_decay").args([
                     Expr::col(
-                        reaction_tally_model2::Column::PositiveCount
+                        reaction_tally_model::Column::PositiveCount
                             .as_column_ref(),
                     ),
                     Expr::col(event_model::Column::CreatedAt.as_column_ref()),
@@ -107,7 +107,7 @@ impl MigrationTrait for Migration {
             .from(event_model::Entity)
             .and_where(Expr::col(event_model::Column::Id.as_column_ref()).eq(
                 Expr::col(
-                    reaction_tally_model2::Column::EventId.as_column_ref(),
+                    reaction_tally_model::Column::EventId.as_column_ref(),
                 ),
             ));
         tx.execute(&query).await?;
@@ -120,8 +120,8 @@ impl MigrationTrait for Migration {
         // NOTE: `TableAlterStatement::modify_column` doesn't work for this.
         tx.execute_unprepared(&format!(
             "ALTER TABLE {} ALTER COLUMN {} DROP DEFAULT",
-            reaction_tally_model2::Entity.quoted(),
-            reaction_tally_model2::Column::DecayedCount.quoted(),
+            reaction_tally_model::Entity.quoted(),
+            reaction_tally_model::Column::DecayedCount.quoted(),
         ))
         .await?;
 
@@ -129,8 +129,8 @@ impl MigrationTrait for Migration {
         // up the query significantly.
         tx.execute_unprepared(&format!(
             "CREATE INDEX {INDEX} ON {0} ({1}) WHERE {1} > 0",
-            reaction_tally_model2::Entity.quoted(),
-            reaction_tally_model2::Column::DecayedCount.quoted(),
+            reaction_tally_model::Entity.quoted(),
+            reaction_tally_model::Column::DecayedCount.quoted(),
         ))
         .await?;
 
@@ -169,8 +169,8 @@ impl MigrationTrait for Migration {
 
         //  Drop the added decayed count column.
         let mut stmt = Table::alter();
-        stmt.table(reaction_tally_model2::Entity)
-            .drop_column(reaction_tally_model2::Column::DecayedCount);
+        stmt.table(reaction_tally_model::Entity)
+            .drop_column(reaction_tally_model::Column::DecayedCount);
         tx.execute(&stmt).await?;
 
         // And drop the calculated at column.
@@ -184,7 +184,7 @@ impl MigrationTrait for Migration {
         index
             .if_exists()
             .name(INDEX)
-            .table(reaction_tally_model2::Entity);
+            .table(reaction_tally_model::Entity);
         tx.execute(&index).await?;
 
         Ok(())

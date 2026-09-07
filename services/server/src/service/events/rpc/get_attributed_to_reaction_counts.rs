@@ -23,7 +23,7 @@ pub async fn handle(
     };
 
     let (upvote_count, downvote_count) =
-        Mutation::get_attributed_reaction_summary(&ctx.db, &url)
+        Mutation::get_attributed_reaction_summary(&ctx.ro_db, &url)
             .await
             .map_err(|_| Status::internal("internal server error"))?;
 

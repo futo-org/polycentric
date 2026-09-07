@@ -82,6 +82,7 @@ pub fn sign(params: EventParams) -> SignedEvent {
         previous_root: params.previous_root,
         content_digest: Some(params.content_digest),
         created_at: params.created_at,
+        application: None,
     };
     let event_bytes = event.encode_to_vec();
     let signature = params.signer.sign(&event_bytes);

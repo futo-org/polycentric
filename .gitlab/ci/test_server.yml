@@ -40,6 +40,12 @@
         - .gitlab/ci/scripts/integration-server.sh
   variables:
     RUNNER_SCRIPT_TIMEOUT: 30m
+    POLYCENTRIC_SERVER_IMAGE: ${CI_REGISTRY_IMAGE}/server:${CI_COMMIT_SHA}
+  needs:
+    - job: server-image
+      artifacts: false
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
 
 server-integration:
   extends: .server-integration-workflow

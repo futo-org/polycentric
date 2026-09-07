@@ -30,6 +30,9 @@ export type PostData = {
   content: string;
   createdAt: number;
 
+  /** App that authored the event, if reported. */
+  application?: v2.Application;
+
   /** Attached image sets, in author-provided order. */
   images: v2.ImageSet[];
 
@@ -90,6 +93,21 @@ export type PostData = {
 };
 
 export type { LabelSet, PostLabel } from '@polycentric/react-native';
+
+const OWN_APP_ID_PREFIX = 'org.futo.polycentric';
+
+/** The app a post came from; `undefined` for our own builds. */
+export function thirdPartyApplication(
+  application?: v2.Application,
+): { name: string; url?: string } | undefined {
+  if (!application || application.id.startsWith(OWN_APP_ID_PREFIX)) {
+    return undefined;
+  }
+  return {
+    name: application.name || application.id,
+    url: /^https?:\/\//i.test(application.url) ? application.url : undefined,
+  };
+}
 
 // A key fingerprint is the first 16 characters of the hex bytes of the key contents
 // It does not include the key type.
@@ -191,6 +209,7 @@ export function decodePostBundle(bundle: v2.EventBundle): PostData | null {
       sequence: key.sequence.toString(),
       content: post.text,
       createdAt: Number(event.createdAt ?? 0),
+      application: event.application,
       images: post.images,
       links: post.links,
       reply,

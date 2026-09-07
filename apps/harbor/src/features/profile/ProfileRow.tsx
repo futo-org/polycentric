@@ -5,7 +5,7 @@ import {
   truncateName,
 } from '@/src/common/lib/polycentric-hooks';
 import { Atoms, useTheme } from '@/src/common/theme';
-import { useProfile } from './hooks/useProfile';
+import { useProfile, type ProfileHookResult } from './hooks/useProfile';
 import type { FetchMode } from '@polycentric/react-native';
 import type { ReactNode } from 'react';
 import { Pressable, type StyleProp, View, type ViewStyle } from 'react-native';
@@ -28,7 +28,7 @@ export function ProfileRow({
   style,
 }: {
   identity: string;
-  onPress?: () => void;
+  onPress?: (identity: string, profile: ProfileHookResult) => void;
   trailing?: ReactNode;
   size?: 'sm' | 'md';
   fetchMode?: FetchMode;
@@ -46,7 +46,7 @@ export function ProfileRow({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onPress?.(identity, profile)}
       disabled={disabled}
       style={({ hovered, pressed }) => [
         (hovered || pressed) &&

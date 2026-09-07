@@ -30,6 +30,7 @@ export async function createPolycentricClient(
       `${databaseName}-blobs`,
     ),
     seedServers: config.seedServers,
+    application: config.application,
   });
 }
 

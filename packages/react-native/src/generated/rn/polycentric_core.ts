@@ -495,7 +495,12 @@ const FfiConverterTypeGetAttributionFeedArgs = (() => {
 export type GetEventArgs = {
     identity: string,
     collection: number,
-    sequence: bigint
+    sequence: bigint,
+    /**
+     * Hex prefix of the signing key, to pick between events that
+     * different keys published at the same sequence.
+     */
+    signerKeyPrefix?: string
 }
 
 /**
@@ -521,18 +526,21 @@ const FfiConverterTypeGetEventArgs = (() => {
             return {
                 identity: FfiConverterString.readFromCursor(c), 
                 collection: FfiConverterInt32.readFromCursor(c), 
-                sequence: FfiConverterUInt64.readFromCursor(c)
+                sequence: FfiConverterUInt64.readFromCursor(c), 
+                signerKeyPrefix: FfiConverterOptionalString.readFromCursor(c)
             };
         }
         writeIntoCursor(value: TypeName, c: Cursor): void {
             FfiConverterString.writeIntoCursor(value.identity, c);
             FfiConverterInt32.writeIntoCursor(value.collection, c);
             FfiConverterUInt64.writeIntoCursor(value.sequence, c);
+            FfiConverterOptionalString.writeIntoCursor(value.signerKeyPrefix, c);
         }
         allocationSize(value: TypeName): number {
             return FfiConverterString.allocationSize(value.identity) +
              FfiConverterInt32.allocationSize(value.collection) +
-             FfiConverterUInt64.allocationSize(value.sequence);
+             FfiConverterUInt64.allocationSize(value.sequence) +
+             FfiConverterOptionalString.allocationSize(value.signerKeyPrefix);
             
         }
     };
@@ -4884,12 +4892,6 @@ export interface PolycentricCoreLike {
  */
     copyEvents(signedEvents: Array<ArrayBuffer>) /*throws*/: void;
 /**
- * Create a pairing session on the server. `signed_message_bytes` is a
- * serialized `SignedMessage` wrapping an `InitialPairingSession`.
- * Returns serialized `PairingSession` proto bytes.
- */
-    createPairingSession(serverUrl: string, signedMessageBytes: ArrayBuffer, asyncOpts_?: { signal: AbortSignal }) /*throws*/: Promise<ArrayBuffer>;
-/**
  * Unified entry point for every observable RPC.
  * `query` selects which RPC to run and supplies its parameters.
  * `query_key` is the cache key shared across subscribers.
@@ -4912,10 +4914,9 @@ export interface PolycentricCoreLike {
  */
     getIdentitySequence(identity: string, signer: ArrayBuffer) /*throws*/: bigint | undefined;
 /**
- * Fetch a pairing session by its signature. Returns serialized
- * `PairingSession` proto bytes.
+ * Fetch a pairing session by its digest's SHA256 hash.
  */
-    getPairingSession(serverUrl: string, pairingSessionSignature: string, asyncOpts_?: { signal: AbortSignal }) /*throws*/: Promise<ArrayBuffer>;
+    getPairingSession(serverUrl: string, digestSha256: ArrayBuffer, asyncOpts_?: { signal: AbortSignal }) /*throws*/: Promise<ArrayBuffer>;
 /**
  * Fetch a server's public info. Returns serialized
  * `GetServerInfoResponse` proto bytes.
@@ -4937,11 +4938,10 @@ export interface PolycentricCoreLike {
     invalidateQuery(queryKey: Array<string>): void;
     isBlocked(identity: string): boolean;
 /**
- * Join an existing pairing session. `signed_message_bytes` is a
- * serialized `SignedMessage` wrapping a `JoinPairingSessionBody`.
- * Returns serialized `PairingSession` proto bytes.
+ * Register `claimer_key` as a claimer in the pairing session matching the digest hash.
+ * Checks the server's response to ensure the claimer is present.
  */
-    joinPairingSession(serverUrl: string, signedMessageBytes: ArrayBuffer, asyncOpts_?: { signal: AbortSignal }) /*throws*/: Promise<ArrayBuffer>;
+    joinPairingSession(serverUrl: string, digestSha256: ArrayBuffer, claimerKey: PublicKey, asyncOpts_?: { signal: AbortSignal }) /*throws*/: Promise<void>;
 /**
  * List latest known sequence numbers from a server for a single identity.
  */
@@ -4952,6 +4952,17 @@ export interface PolycentricCoreLike {
  */
     listValidEvents(identity: string, collection: number) /*throws*/: ArrayBuffer;
     nextSequence(identity: string, collection: number): bigint;
+/**
+ * Poll function for the claimer.
+ * Returns true when the issuer-declared identity state authorizes our public key.
+ * The caller should still pull in the full identity chain to confirm.
+ */
+    pollForAuthorization(serverUrl: string, digestSha256: ArrayBuffer, claimerKey: PublicKey, asyncOpts_?: { signal: AbortSignal }) /*throws*/: Promise<boolean>;
+/**
+ * Poll function for the issuer.
+ * Returns the list of claimers for the pairing session, as specified by the server.
+ */
+    pollForClaimers(serverUrl: string, digestSha256: ArrayBuffer, asyncOpts_?: { signal: AbortSignal }) /*throws*/: Promise<Array<PublicKey>>;
 /**
  * Merkle root over the canonically-ordered signatures in
  * `(identity, collection)`. Empty when no events exist.
@@ -4980,6 +4991,14 @@ export interface PolycentricCoreLike {
  * Returns the response from the server with any errors and missing blobs.
  */
     putEvents(serverUrl: string, eventBundlesBytes: ArrayBuffer, asyncOpts_?: { signal: AbortSignal }) /*throws*/: Promise<ArrayBuffer>;
+/**
+ * Create or update a pairing session on the server.
+ * `signed_issuer_state` should be a serialized `SignedIssuerState` wrapping
+ * a serialized `IssuerPairingState` message.
+ * Checks that the server's response reflects the current pairing session.
+ * Returns the server's response as a serialized `PairingSessionState` message.
+ */
+    putPairingSession(serverUrl: string, signedIssuerState: ArrayBuffer, asyncOpts_?: { signal: AbortSignal }) /*throws*/: Promise<ArrayBuffer>;
 /**
  * Register a push notification token. `signed_message_bytes` is a
  * serialized `SignedMessage` wrapping a
@@ -5183,52 +5202,6 @@ export class PolycentricCore extends UniffiAbstractObject implements Polycentric
     }
     
 /**
- * Create a pairing session on the server. `signed_message_bytes` is a
- * serialized `SignedMessage` wrapping an `InitialPairingSession`.
- * Returns serialized `PairingSession` proto bytes.
- */
-    async createPairingSession(serverUrl: string, signedMessageBytes: ArrayBuffer, asyncOpts_?: { signal: AbortSignal }): Promise<ArrayBuffer> /*throws*/ {
-    const __stack = uniffiIsDebug ? new Error().stack : undefined;
-    try {
-        return await uniffiRustCallAsync(
-            /*rustCaller:*/ uniffiCaller,
-            /*rustFutureFunc:*/ () => {
-                return nativeModule().ubrn_uniffi_polycentric_core_fn_method_polycentriccore_create_pairing_session(
-                    uniffiTypePolycentricCoreObjectFactory.clonePointer(this),FfiConverterString.lower(serverUrl, nativeModule().rustbuffer_alloc),FfiConverterArrayBuffer.lower(signedMessageBytes, nativeModule().rustbuffer_alloc)
-                );
-            },
-            /*pollFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_poll_rust_buffer,
-            /*cancelFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_cancel_rust_buffer,
-            /*completeFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_complete_rust_buffer,
-            /*freeFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_free_rust_buffer,
-            // Async returns always go through the JS-side converter: the
-            // FFI symbol returns the future handle (u64), and the user-level
-            // RustBuffer comes back via the shared `rust_future_complete_*`
-            // export. The bytes the runtime hands back must be deserialized
-            // here using the per-callable return-type converter.
-            // Borrowed view over foreign memory: the call site owns the free,
-            // as on the sync paths. Unconditional — a no-op where buffers are
-            // already JS-owned.
-            /*liftFunc:*/ (__rb) => {
-                try {
-                    return FfiConverterArrayBuffer.lift(__rb);
-                } finally {
-                    nativeModule().rustbuffer_free(__rb);
-                }
-            },
-            /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
-            /*asyncOpts:*/ asyncOpts_,
-            /*errorHandler:*/ FfiConverterTypeCoreError.lift.bind(FfiConverterTypeCoreError)
-        );
-    } catch (__error: any) {
-        if (uniffiIsDebug && __error instanceof Error) {
-            __error.stack = __stack;
-        }
-        throw __error;
-    }
-    }
-    
-/**
  * Unified entry point for every observable RPC.
  * `query` selects which RPC to run and supplies its parameters.
  * `query_key` is the cache key shared across subscribers.
@@ -5322,17 +5295,16 @@ export class PolycentricCore extends UniffiAbstractObject implements Polycentric
     }
     
 /**
- * Fetch a pairing session by its signature. Returns serialized
- * `PairingSession` proto bytes.
+ * Fetch a pairing session by its digest's SHA256 hash.
  */
-    async getPairingSession(serverUrl: string, pairingSessionSignature: string, asyncOpts_?: { signal: AbortSignal }): Promise<ArrayBuffer> /*throws*/ {
+    async getPairingSession(serverUrl: string, digestSha256: ArrayBuffer, asyncOpts_?: { signal: AbortSignal }): Promise<ArrayBuffer> /*throws*/ {
     const __stack = uniffiIsDebug ? new Error().stack : undefined;
     try {
         return await uniffiRustCallAsync(
             /*rustCaller:*/ uniffiCaller,
             /*rustFutureFunc:*/ () => {
                 return nativeModule().ubrn_uniffi_polycentric_core_fn_method_polycentriccore_get_pairing_session(
-                    uniffiTypePolycentricCoreObjectFactory.clonePointer(this),FfiConverterString.lower(serverUrl, nativeModule().rustbuffer_alloc),FfiConverterString.lower(pairingSessionSignature, nativeModule().rustbuffer_alloc)
+                    uniffiTypePolycentricCoreObjectFactory.clonePointer(this),FfiConverterString.lower(serverUrl, nativeModule().rustbuffer_alloc),FfiConverterArrayBuffer.lower(digestSha256, nativeModule().rustbuffer_alloc)
                 );
             },
             /*pollFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_poll_rust_buffer,
@@ -5470,39 +5442,24 @@ export class PolycentricCore extends UniffiAbstractObject implements Polycentric
     }
     
 /**
- * Join an existing pairing session. `signed_message_bytes` is a
- * serialized `SignedMessage` wrapping a `JoinPairingSessionBody`.
- * Returns serialized `PairingSession` proto bytes.
+ * Register `claimer_key` as a claimer in the pairing session matching the digest hash.
+ * Checks the server's response to ensure the claimer is present.
  */
-    async joinPairingSession(serverUrl: string, signedMessageBytes: ArrayBuffer, asyncOpts_?: { signal: AbortSignal }): Promise<ArrayBuffer> /*throws*/ {
+    async joinPairingSession(serverUrl: string, digestSha256: ArrayBuffer, claimerKey: PublicKey, asyncOpts_?: { signal: AbortSignal }): Promise<void> /*throws*/ {
     const __stack = uniffiIsDebug ? new Error().stack : undefined;
     try {
         return await uniffiRustCallAsync(
             /*rustCaller:*/ uniffiCaller,
             /*rustFutureFunc:*/ () => {
                 return nativeModule().ubrn_uniffi_polycentric_core_fn_method_polycentriccore_join_pairing_session(
-                    uniffiTypePolycentricCoreObjectFactory.clonePointer(this),FfiConverterString.lower(serverUrl, nativeModule().rustbuffer_alloc),FfiConverterArrayBuffer.lower(signedMessageBytes, nativeModule().rustbuffer_alloc)
+                    uniffiTypePolycentricCoreObjectFactory.clonePointer(this),FfiConverterString.lower(serverUrl, nativeModule().rustbuffer_alloc),FfiConverterArrayBuffer.lower(digestSha256, nativeModule().rustbuffer_alloc),FfiConverterTypePublicKey.lower(claimerKey, nativeModule().rustbuffer_alloc)
                 );
             },
-            /*pollFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_poll_rust_buffer,
-            /*cancelFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_cancel_rust_buffer,
-            /*completeFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_complete_rust_buffer,
-            /*freeFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_free_rust_buffer,
-            // Async returns always go through the JS-side converter: the
-            // FFI symbol returns the future handle (u64), and the user-level
-            // RustBuffer comes back via the shared `rust_future_complete_*`
-            // export. The bytes the runtime hands back must be deserialized
-            // here using the per-callable return-type converter.
-            // Borrowed view over foreign memory: the call site owns the free,
-            // as on the sync paths. Unconditional — a no-op where buffers are
-            // already JS-owned.
-            /*liftFunc:*/ (__rb) => {
-                try {
-                    return FfiConverterArrayBuffer.lift(__rb);
-                } finally {
-                    nativeModule().rustbuffer_free(__rb);
-                }
-            },
+            /*pollFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_poll_void,
+            /*cancelFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_cancel_void,
+            /*completeFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_complete_void,
+            /*freeFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_free_void,
+            /*liftFunc:*/ (_v) => {},
             /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
             /*asyncOpts:*/ asyncOpts_,
             /*errorHandler:*/ FfiConverterTypeCoreError.lift.bind(FfiConverterTypeCoreError)
@@ -5593,6 +5550,88 @@ export class PolycentricCore extends UniffiAbstractObject implements Polycentric
             },
             /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
     ));
+    }
+    
+/**
+ * Poll function for the claimer.
+ * Returns true when the issuer-declared identity state authorizes our public key.
+ * The caller should still pull in the full identity chain to confirm.
+ */
+    async pollForAuthorization(serverUrl: string, digestSha256: ArrayBuffer, claimerKey: PublicKey, asyncOpts_?: { signal: AbortSignal }): Promise<boolean> /*throws*/ {
+    const __stack = uniffiIsDebug ? new Error().stack : undefined;
+    try {
+        return await uniffiRustCallAsync(
+            /*rustCaller:*/ uniffiCaller,
+            /*rustFutureFunc:*/ () => {
+                return nativeModule().ubrn_uniffi_polycentric_core_fn_method_polycentriccore_poll_for_authorization(
+                    uniffiTypePolycentricCoreObjectFactory.clonePointer(this),FfiConverterString.lower(serverUrl, nativeModule().rustbuffer_alloc),FfiConverterArrayBuffer.lower(digestSha256, nativeModule().rustbuffer_alloc),FfiConverterTypePublicKey.lower(claimerKey, nativeModule().rustbuffer_alloc)
+                );
+            },
+            /*pollFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_poll_i8,
+            /*cancelFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_cancel_i8,
+            /*completeFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_complete_i8,
+            /*freeFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_free_i8,
+            // Async returns always go through the JS-side converter: the
+            // FFI symbol returns the future handle (u64), and the user-level
+            // RustBuffer comes back via the shared `rust_future_complete_*`
+            // export. The bytes the runtime hands back must be deserialized
+            // here using the per-callable return-type converter.
+            /*liftFunc:*/ FfiConverterBool.lift.bind(FfiConverterBool),
+            /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+            /*asyncOpts:*/ asyncOpts_,
+            /*errorHandler:*/ FfiConverterTypeCoreError.lift.bind(FfiConverterTypeCoreError)
+        );
+    } catch (__error: any) {
+        if (uniffiIsDebug && __error instanceof Error) {
+            __error.stack = __stack;
+        }
+        throw __error;
+    }
+    }
+    
+/**
+ * Poll function for the issuer.
+ * Returns the list of claimers for the pairing session, as specified by the server.
+ */
+    async pollForClaimers(serverUrl: string, digestSha256: ArrayBuffer, asyncOpts_?: { signal: AbortSignal }): Promise<Array<PublicKey>> /*throws*/ {
+    const __stack = uniffiIsDebug ? new Error().stack : undefined;
+    try {
+        return await uniffiRustCallAsync(
+            /*rustCaller:*/ uniffiCaller,
+            /*rustFutureFunc:*/ () => {
+                return nativeModule().ubrn_uniffi_polycentric_core_fn_method_polycentriccore_poll_for_claimers(
+                    uniffiTypePolycentricCoreObjectFactory.clonePointer(this),FfiConverterString.lower(serverUrl, nativeModule().rustbuffer_alloc),FfiConverterArrayBuffer.lower(digestSha256, nativeModule().rustbuffer_alloc)
+                );
+            },
+            /*pollFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_poll_rust_buffer,
+            /*cancelFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_cancel_rust_buffer,
+            /*completeFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_complete_rust_buffer,
+            /*freeFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_free_rust_buffer,
+            // Async returns always go through the JS-side converter: the
+            // FFI symbol returns the future handle (u64), and the user-level
+            // RustBuffer comes back via the shared `rust_future_complete_*`
+            // export. The bytes the runtime hands back must be deserialized
+            // here using the per-callable return-type converter.
+            // Borrowed view over foreign memory: the call site owns the free,
+            // as on the sync paths. Unconditional — a no-op where buffers are
+            // already JS-owned.
+            /*liftFunc:*/ (__rb) => {
+                try {
+                    return FfiConverterSequenceTypePublicKey.lift(__rb);
+                } finally {
+                    nativeModule().rustbuffer_free(__rb);
+                }
+            },
+            /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+            /*asyncOpts:*/ asyncOpts_,
+            /*errorHandler:*/ FfiConverterTypeCoreError.lift.bind(FfiConverterTypeCoreError)
+        );
+    } catch (__error: any) {
+        if (uniffiIsDebug && __error instanceof Error) {
+            __error.stack = __stack;
+        }
+        throw __error;
+    }
     }
     
 /**
@@ -5724,6 +5763,54 @@ export class PolycentricCore extends UniffiAbstractObject implements Polycentric
             /*rustFutureFunc:*/ () => {
                 return nativeModule().ubrn_uniffi_polycentric_core_fn_method_polycentriccore_put_events(
                     uniffiTypePolycentricCoreObjectFactory.clonePointer(this),FfiConverterString.lower(serverUrl, nativeModule().rustbuffer_alloc),FfiConverterArrayBuffer.lower(eventBundlesBytes, nativeModule().rustbuffer_alloc)
+                );
+            },
+            /*pollFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_poll_rust_buffer,
+            /*cancelFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_cancel_rust_buffer,
+            /*completeFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_complete_rust_buffer,
+            /*freeFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_free_rust_buffer,
+            // Async returns always go through the JS-side converter: the
+            // FFI symbol returns the future handle (u64), and the user-level
+            // RustBuffer comes back via the shared `rust_future_complete_*`
+            // export. The bytes the runtime hands back must be deserialized
+            // here using the per-callable return-type converter.
+            // Borrowed view over foreign memory: the call site owns the free,
+            // as on the sync paths. Unconditional — a no-op where buffers are
+            // already JS-owned.
+            /*liftFunc:*/ (__rb) => {
+                try {
+                    return FfiConverterArrayBuffer.lift(__rb);
+                } finally {
+                    nativeModule().rustbuffer_free(__rb);
+                }
+            },
+            /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+            /*asyncOpts:*/ asyncOpts_,
+            /*errorHandler:*/ FfiConverterTypeCoreError.lift.bind(FfiConverterTypeCoreError)
+        );
+    } catch (__error: any) {
+        if (uniffiIsDebug && __error instanceof Error) {
+            __error.stack = __stack;
+        }
+        throw __error;
+    }
+    }
+    
+/**
+ * Create or update a pairing session on the server.
+ * `signed_issuer_state` should be a serialized `SignedIssuerState` wrapping
+ * a serialized `IssuerPairingState` message.
+ * Checks that the server's response reflects the current pairing session.
+ * Returns the server's response as a serialized `PairingSessionState` message.
+ */
+    async putPairingSession(serverUrl: string, signedIssuerState: ArrayBuffer, asyncOpts_?: { signal: AbortSignal }): Promise<ArrayBuffer> /*throws*/ {
+    const __stack = uniffiIsDebug ? new Error().stack : undefined;
+    try {
+        return await uniffiRustCallAsync(
+            /*rustCaller:*/ uniffiCaller,
+            /*rustFutureFunc:*/ () => {
+                return nativeModule().ubrn_uniffi_polycentric_core_fn_method_polycentriccore_put_pairing_session(
+                    uniffiTypePolycentricCoreObjectFactory.clonePointer(this),FfiConverterString.lower(serverUrl, nativeModule().rustbuffer_alloc),FfiConverterArrayBuffer.lower(signedIssuerState, nativeModule().rustbuffer_alloc)
                 );
             },
             /*pollFunc:*/ nativeModule().ubrn_ffi_polycentric_core_rust_future_poll_rust_buffer,
@@ -6204,6 +6291,9 @@ const FfiConverterOptionalTypeQueryOpts = new FfiConverterOptional(FfiConverterT
 // FfiConverter for bigint | undefined
 const FfiConverterOptionalUInt64 = new FfiConverterOptional(FfiConverterUInt64);
 
+// FfiConverter for Array<PublicKey>
+const FfiConverterSequenceTypePublicKey = new FfiConverterArray(FfiConverterTypePublicKey);
+
 // FfiConverter for Array<LabelSet>
 const FfiConverterSequenceTypeLabelSet = new FfiConverterArray(FfiConverterTypeLabelSet);
 
@@ -6292,9 +6382,6 @@ function uniffiEnsureInitialized() {
     if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_copy_events() !== 43572) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_polycentric_core_checksum_method_polycentriccore_copy_events");
     }
-    if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_create_pairing_session() !== 41985) {
-        throw new UniffiInternalError.ApiChecksumMismatch("uniffi_polycentric_core_checksum_method_polycentriccore_create_pairing_session");
-    }
     if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_fetch_query() !== 52560) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_polycentric_core_checksum_method_polycentriccore_fetch_query");
     }
@@ -6304,7 +6391,7 @@ function uniffiEnsureInitialized() {
     if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_get_identity_sequence() !== 8615) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_polycentric_core_checksum_method_polycentriccore_get_identity_sequence");
     }
-    if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_get_pairing_session() !== 24179) {
+    if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_get_pairing_session() !== 39177) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_polycentric_core_checksum_method_polycentriccore_get_pairing_session");
     }
     if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_get_server_info() !== 29065) {
@@ -6322,7 +6409,7 @@ function uniffiEnsureInitialized() {
     if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_is_blocked() !== 18227) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_polycentric_core_checksum_method_polycentriccore_is_blocked");
     }
-    if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_join_pairing_session() !== 15965) {
+    if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_join_pairing_session() !== 40794) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_polycentric_core_checksum_method_polycentriccore_join_pairing_session");
     }
     if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_list_heads() !== 64966) {
@@ -6333,6 +6420,12 @@ function uniffiEnsureInitialized() {
     }
     if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_next_sequence() !== 30106) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_polycentric_core_checksum_method_polycentriccore_next_sequence");
+    }
+    if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_poll_for_authorization() !== 44601) {
+        throw new UniffiInternalError.ApiChecksumMismatch("uniffi_polycentric_core_checksum_method_polycentriccore_poll_for_authorization");
+    }
+    if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_poll_for_claimers() !== 45154) {
+        throw new UniffiInternalError.ApiChecksumMismatch("uniffi_polycentric_core_checksum_method_polycentriccore_poll_for_claimers");
     }
     if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_previous_root() !== 20406) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_polycentric_core_checksum_method_polycentriccore_previous_root");
@@ -6348,6 +6441,9 @@ function uniffiEnsureInitialized() {
     }
     if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_put_events() !== 16446) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_polycentric_core_checksum_method_polycentriccore_put_events");
+    }
+    if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_put_pairing_session() !== 38808) {
+        throw new UniffiInternalError.ApiChecksumMismatch("uniffi_polycentric_core_checksum_method_polycentriccore_put_pairing_session");
     }
     if (nativeModule().ubrn_uniffi_polycentric_core_checksum_method_polycentriccore_register_push_notifications() !== 8128) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_polycentric_core_checksum_method_polycentriccore_register_push_notifications");

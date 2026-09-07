@@ -152,32 +152,79 @@ message GetPostThreadResponse {
 
 ## PairingService
 
-Links a new device to an existing identity. The issuer signs an
-`InitialPairingSession`, the server stores it, and claimers sign to join.
+Links a new device to an existing identity.
+The issuer creates a pairing session by uploading the initial
+`IssuerPairingState` to a server.
+The pairing session is then identified by the hash of the `PairingSessionDigest`
+contained within it.
+A `PairingInfo` message is shared out-of-band from the issuer (existing device)
+to the claimer (new device).
+This lets the claimer fetch the pairing session state and join the pairing
+session.
+It can validate the `PairingSessionDigest` by checking that the
+hash matches and `IssuerPairingState` updates based on the signature.
 
 ```protobuf
 service PairingService {
-  rpc CreatePairingSession(CreatePairingSessionRequest) returns (CreatePairingSessionResponse);
+  rpc PutPairingSession(PutPairingSessionRequest) returns (PutPairingSessionResponse);
   rpc GetPairingSession(GetPairingSessionRequest) returns (GetPairingSessionResponse);
   rpc JoinPairingSession(JoinPairingSessionRequest) returns (JoinPairingSessionResponse);
 }
 
-message InitialPairingSession {
+// Immutable session identity. A session is addressed by the SHA-256 of these
+// serialized bytes.
+message PairingSessionDigest {
   string issuer_identity = 1;
-  int64 created_at = 2;       // unix milliseconds
+  PublicKey issuer_signer = 2; // Signs every issuer state
+  bytes nonce = 3;
+  int64 initial_timestamp = 4;  // unix milliseconds
+  int64 ttl_millis = 5;         // validity window after `initial_timestamp`
 }
 
-message PairingSession {
-  string pairing_session_signature = 1;
-  PublicKey signed_by = 2;
-  InitialPairingSession initial_session = 3;
-  int64 expires_at = 4;       // unix milliseconds
-  repeated PublicKey claimer_pubkeys = 5;
+// Shared out-of-band.
+message PairingInfo {
+  string server = 1;
+  bytes digest_sha256 = 2;
+}
+
+message IssuerPairingState {
+  bytes session_digest = 1;        // serialized `PairingSessionDigest`
+  EventBundle identity_state = 2;  // issuer's latest identity event
+  int64 sequence = 3;              // incrementing integer for each state update
+}
+
+message SignedIssuerState {
+  bytes state_bytes = 1;  // serialized `IssuerPairingState`
+  bytes signature = 2;
+}
+
+message PairingSessionState {
+  SignedIssuerState issuer_state = 1;
+  repeated PublicKey claimers = 2;  // managed by the server
+}
+
+message PutPairingSessionRequest {
+  SignedIssuerState issuer_state = 1;
+}
+message PutPairingSessionResponse {
+  PairingSessionState session_state = 1;
+}
+
+message GetPairingSessionRequest {
+  bytes digest_sha256 = 1;
+}
+message GetPairingSessionResponse {
+  PairingSessionState session_state = 1;
+}
+
+message JoinPairingSessionRequest {
+  bytes digest_sha256 = 1;
+  PublicKey claimer_key = 2;
+}
+message JoinPairingSessionResponse {
+  PairingSessionState session_state = 1;
 }
 ```
-
-`CreatePairingSession` and `JoinPairingSession` wrap a
-[`SignedMessage`](#signedmessage); `GetPairingSession` takes a session signature.
 
 ## NotificationService
 
@@ -221,7 +268,7 @@ message ServerInfo {
 
 ## SignedMessage
 
-A generic envelope used by the pairing and notification services for requests that
+A generic envelope used by the notification service for requests that
 must be authenticated.
 
 ```protobuf

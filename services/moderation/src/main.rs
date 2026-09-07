@@ -311,7 +311,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     common_telemetry::init_metrics("moderation");
 
     // Shared connection, then run migrations on every load.
-    let db = db::connect().await?;
+    let (db, ro_db) = db::connect().await?;
     db::run_migrations(&db).await?;
 
     let azure = match &config.azure {
@@ -345,7 +345,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Reconcile with the servers before consuming: pulls our identity state
     // so the first labels event we author continues our chain correctly, and
     // re-pushes anything a server missed while it (or we) was unavailable.
-    let created = repository::created_bundles(&db, polycentric.identity())
+    let created = repository::created_bundles(&ro_db, polycentric.identity())
         .await
         .unwrap_or_else(|e| {
             tracing::warn!(error = %e, "could not load authored events for sync");
@@ -355,6 +355,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ctx = Context {
         db,
+        ro_db,
         azure,
         photodna,
         blobs,
@@ -471,8 +472,12 @@ async fn process(ctx: &Context, message: &BorrowedMessage<'_>) -> Outcome {
 
     // Obtain the Azure result: reuse a prior one if this content was already
     // processed, otherwise run Azure now and persist the outcome.
-    let azure_response = match repository::get_content(&ctx.db, digest_type, digest_bytes.clone())
-        .await
+    let azure_response = match repository::get_content(
+        &ctx.ro_db,
+        digest_type,
+        digest_bytes.clone(),
+    )
+    .await
     {
         // Already processed by Azure — skip the Azure step and reuse the
         // stored result (we still confirm the labels event below).
@@ -569,7 +574,8 @@ async fn process(ctx: &Context, message: &BorrowedMessage<'_>) -> Outcome {
         match key.clone() {
             Some(target) => {
                 let digest = polycentric::labels_content(&target, &labels).1;
-                match repository::created_content_exists(&ctx.db, digest.r#type, digest.value).await
+                match repository::created_content_exists(&ctx.ro_db, digest.r#type, digest.value)
+                    .await
                 {
                     Ok(true) => {
                         tracing::debug!(key = ?key, "labels event already created, skipping")
@@ -606,7 +612,7 @@ async fn process(ctx: &Context, message: &BorrowedMessage<'_>) -> Outcome {
 async fn publish_labels(ctx: &Context, target: EventKey, labels: Vec<String>) -> Outcome {
     let signer = ctx.polycentric.public_key();
     let head = match repository::chain_head(
-        &ctx.db,
+        &ctx.ro_db,
         collections::LABELS,
         ctx.polycentric.identity(),
         signer.key_type,
@@ -661,7 +667,7 @@ async fn process_moderator_report(
     author_identity: &str,
     report: &Report,
 ) -> Outcome {
-    match repository::is_moderator(&ctx.db, author_identity).await {
+    match repository::is_moderator(&ctx.ro_db, author_identity).await {
         Ok(true) => {}
         Ok(false) => {
             tracing::debug!(author = author_identity, "report author is not a moderator");
@@ -688,7 +694,7 @@ async fn process_moderator_report(
 
     let labels = vec![label.value().to_string()];
     let digest = polycentric::labels_content(&target, &labels).1;
-    match repository::created_content_exists(&ctx.db, digest.r#type, digest.value).await {
+    match repository::created_content_exists(&ctx.ro_db, digest.r#type, digest.value).await {
         Ok(true) => {
             tracing::debug!(key = ?target, "labels event already created, skipping");
             Outcome::Commit
@@ -713,7 +719,7 @@ async fn report_csam(ctx: &Context, key: &Option<EventKey>) {
     let additional_info = "PhotoDNA service reported image as CSAM";
     let (_, digest) =
         polycentric::report_content(&target, ReportCategory::ChildSafety, additional_info);
-    match repository::created_content_exists(&ctx.db, digest.r#type, digest.value).await {
+    match repository::created_content_exists(&ctx.ro_db, digest.r#type, digest.value).await {
         Ok(true) => {
             tracing::info!(key = ?key, "CSAM report already created, skipping");
             return;
@@ -727,7 +733,7 @@ async fn report_csam(ctx: &Context, key: &Option<EventKey>) {
 
     let signer = ctx.polycentric.public_key();
     let head = match repository::chain_head(
-        &ctx.db,
+        &ctx.ro_db,
         collections::REPORTS,
         ctx.polycentric.identity(),
         signer.key_type,

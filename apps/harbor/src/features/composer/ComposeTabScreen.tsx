@@ -11,6 +11,8 @@ import { ActivityIndicator, Pressable, View } from 'react-native';
 import { ComposeSheetFooterBar } from './ComposeSheetFooterBar';
 import { ComposerFields } from './ComposerFields';
 import { useComposer } from './hooks/useComposer';
+import { MentionSearchOverlay } from '@/src/features/composer/components/MentionSearchOverlay';
+import { MentionProvider } from './hooks/useMentionStore';
 
 // Full-screen composer for the detached "compose" native tab item (iOS).
 export default function ComposeTabScreen() {
@@ -73,24 +75,27 @@ export default function ComposeTabScreen() {
             )
           }
         />
-        <View style={[Atoms.flex_1, Atoms.px_lg, Atoms.py_lg]}>
-          <ComposerFields
-            isReply={composer.isReply}
-            replyTo={composer.replyTo}
-            quote={composer.quote}
-            error={composer.error}
-            currentIdentityKey={composer.currentIdentityKey}
-            placeholder={composer.placeholder}
-            text={composer.text}
-            setText={composer.setText}
-            attachments={composer.attachments}
-            submitting={composer.submitting}
-            onRemoveAttachment={composer.handleRemoveAttachment}
-            linkPreview={composer.linkPreview}
-            linkPreviewLoading={composer.linkPreviewLoading}
-            onRemoveLinkPreview={composer.handleRemoveLinkPreview}
-          />
-        </View>
+        <MentionProvider>
+          <View style={[Atoms.flex_1, Atoms.px_lg, Atoms.py_lg]}>
+            <ComposerFields
+              isReply={composer.isReply}
+              replyTo={composer.replyTo}
+              quote={composer.quote}
+              error={composer.error}
+              currentIdentityKey={composer.currentIdentityKey}
+              placeholder={composer.placeholder}
+              text={composer.text}
+              setText={composer.setText}
+              attachments={composer.attachments}
+              submitting={composer.submitting}
+              onRemoveAttachment={composer.handleRemoveAttachment}
+              linkPreview={composer.linkPreview}
+              linkPreviewLoading={composer.linkPreviewLoading}
+              onRemoveLinkPreview={composer.handleRemoveLinkPreview}
+            />
+          </View>
+          <MentionSearchOverlay />
+        </MentionProvider>
         <ComposeSheetFooterBar
           variant="native"
           charCount={composer.text.length}
