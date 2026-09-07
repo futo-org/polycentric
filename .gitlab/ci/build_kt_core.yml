@@ -78,7 +78,7 @@ kt-core-build:
     - ./gradlew :core:assembleRelease
   artifacts:
     paths:
-      - packages/kt-core/core/build/outputs/aar
+      - packages/kt-core/core/build/
     expire_in: 1 week
 
 # Publish to the GitLab Maven registry on any tag pipeline.
@@ -87,10 +87,15 @@ kt-core-publish:
   stage: publish
   rules:
     - if: $CI_COMMIT_TAG
+  needs:
+    - job: kt-core-build
+      artifacts: true
   script:
+    # Consumes the build dir produced by kt-core-build
     - ./gradlew :core:publishReleasePublicationToGitLabRepository -PktCoreVersion="${CI_COMMIT_TAG#v}"
-    # URL for the release asset link in release.yml.
-    - echo "KT_CORE_PACKAGE_URL=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/maven/org/futo/polycentric-core/${CI_COMMIT_TAG#v}/polycentric-core-${CI_COMMIT_TAG#v}.aar" > kt-core.env
+    # URL for the release asset link in release.yml--make sure that the ENV gets added to the root
+    # CI directory
+    - echo "KT_CORE_PACKAGE_URL=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/maven/org/futo/polycentric-core/${CI_COMMIT_TAG#v}/polycentric-core-${CI_COMMIT_TAG#v}.aar" > "${CI_PROJECT_DIR}/kt-core.env"
   artifacts:
     reports:
       dotenv: kt-core.env
