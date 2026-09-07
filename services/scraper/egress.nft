@@ -19,7 +19,7 @@ include "/etc/scraper-bogons.nft"
 table inet egress
 delete table inet egress
 table inet egress {
-  # IPv4 reserved/bogon ranges — the Team Cymru aggregated bogon list (the
+  # IPv4 reserved/bogon ranges - the Team Cymru aggregated bogon list (the
   # reserved/martian set, NOT "fullbogons", which also lists currently-
   # unallocated public space that churns and would block legitimate hosts).
   # The element list is $BOGON4, generated from a build-time snapshot (above).
@@ -65,7 +65,7 @@ table inet egress {
     # drops, or it would also kill server<->scraper replies.
     ct state established,related accept
 
-    # DNS to the configured resolver(s) only — must precede the drops.
+    # DNS to the configured resolver(s) only - must precede the drops.
     ip daddr @resolvers udp dport 53 accept
     ip daddr @resolvers tcp dport 53 accept
     ip6 daddr @resolvers6 udp dport 53 accept
@@ -76,12 +76,12 @@ table inet egress {
     ip6 daddr @blocked6 drop
 
     # Of the remaining (public) destinations, the scraper only ever needs
-    # HTTP/HTTPS. Drop any other NEW outbound so a malicious URL/redirect — or a
-    # compromised scraper — can't reach public services on non-web ports
+    # HTTP/HTTPS. Drop any other NEW outbound so a malicious URL/redirect - or a
+    # compromised scraper - can't reach public services on non-web ports
     # (port-scanning, SMTP/Redis/SSH, odd-port exfiltration, etc.). Loopback,
     # established replies, and DNS to the resolver(s) were accepted above. udp
-    # 443 is allowed for HTTP/3 (QUIC); all other new UDP — including DNS to
-    # non-resolvers — is dropped, keeping name resolution scoped to @resolvers.
+    # 443 is allowed for HTTP/3 (QUIC); all other new UDP - including DNS to
+    # non-resolvers - is dropped, keeping name resolution scoped to @resolvers.
     ct state new tcp dport != { 80, 443 } drop
     ct state new udp dport != 443 drop
     # policy accept -> NEW connections to public addresses on 80/443 pass.

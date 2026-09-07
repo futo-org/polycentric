@@ -1,0 +1,153 @@
+name: App
+
+# GitLab build_app.yml.
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        type: string
+        required: true
+      registry:
+        type: string
+        required: true
+      ref_slug:
+        type: string
+        required: true
+      is_tag:
+        type: string
+        required: true
+
+jobs:
+  web-image:
+    name: Build web image
+    if: fromJSON(inputs.plan).flags.web_image
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git docker-cli docker-cli-buildx
+      - uses: actions/checkout@v4
+      # Release tags use the tag; other builds the next patch plus the commit.
+      - name: Resolve version
+        id: version
+        env:
+          CI_COMMIT_TAG: ${{ inputs.is_tag == 'true' && github.ref_name || '' }}
+        run: |
+          APP_VERSION=$(node tools/expo/resolve-version.js)
+          if [ -z "$CI_COMMIT_TAG" ]; then APP_VERSION="${APP_VERSION}+$(echo "$GITHUB_SHA" | cut -c1-8)"; fi
+          echo "app_version=${APP_VERSION}" >> "$GITHUB_OUTPUT"
+      - uses: ./.forgejo/actions/sdk-artifacts
+        with:
+          rn-sdk: 'true'
+      - uses: ./.forgejo/actions/service-image
+        with:
+          image: web
+          dockerfile: apps/harbor
+          registry: ${{ inputs.registry }}
+          ref-slug: ${{ inputs.ref_slug }}
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.app_version }}
+            EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS=${{ vars.EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS }}
+            EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS=${{ vars.EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS }}
+            SKIP_WORKSPACE_BUILD=1
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+
+  # Drives the web image this run built, started as a job service.
+  app-web-e2e:
+    name: Test web e2e
+    needs: web-image
+    if: fromJSON(inputs.plan).flags.web_e2e
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    services:
+      web:
+        image: ${{ inputs.registry }}/web:${{ github.sha }}
+        env:
+          EXPO_PUBLIC_APP_VARIANT: staging
+          EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS: https://srv.staging.harbor.social,https://srv.staging.polycentric.io
+    env:
+      MAESTRO_WEB_URL: http://web:8080
+      MAESTRO_BROWSER: /usr/local/bin/e2e-chromium
+      MAESTRO_OUTPUT: reports
+    steps:
+      - name: Install Chromium
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends chromium
+          printf '#!/bin/sh\nexec /usr/bin/chromium --no-sandbox --unsafely-treat-insecure-origin-as-secure=%s "$@"\n' "$MAESTRO_WEB_URL" > "$MAESTRO_BROWSER"
+          chmod +x "$MAESTRO_BROWSER"
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter harbor-e2e...
+      - name: Web e2e
+        run: pnpm --filter harbor-e2e test:web
+      - uses: forgejo/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-web-report
+          path: e2e/reports
+          retention-days: 7
+
+  # APK rows wait and download the archive; store rows only queue on EAS and
+  # cd-staging.yml submits them by id.
+  app-eas-build:
+    name: ${{ matrix.label }}
+    if: fromJSON(inputs.plan).flags.eas_builds
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.plan).matrix.eas_builds }}
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      CI_COMMIT_TAG: ${{ inputs.is_tag == 'true' && github.ref_name || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/eas-build
+        with:
+          platform: ${{ matrix.platform }}
+          profile: ${{ matrix.profile }}
+          wait: ${{ matrix.wait || false }}
+      - uses: forgejo/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            apps/harbor/eas-build.json
+            apps/harbor/harbor.apk
+          retention-days: 7
+
+  app-ios-e2e:
+    name: ${{ matrix.label }}
+    needs: app-eas-build
+    if: fromJSON(inputs.plan).flags.ios_e2e
+    runs-on: ${{ vars.CI_RUNNER_IOS_DEVICE || 'ios-device' }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.plan).matrix.ios_e2e }}
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      MAESTRO_OUTPUT: reports
+      MAESTRO_APP_ID: ${{ matrix.app_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: forgejo/download-artifact@v4
+        with:
+          name: app-ios-${{ matrix.channel }}
+          path: apps/harbor
+      - name: Install dependencies
+        run: pnpm install --filter harbor-e2e... --filter polycentric-app...
+      - name: Resign the store build and run iOS e2e
+        run: |
+          cd apps/harbor
+          BUILD_ID=$(node -p "[].concat(JSON.parse(require('fs').readFileSync('eas-build.json', 'utf8')))[0].id")
+          node "$GITHUB_WORKSPACE/tools/expo/resign-build.js" "$BUILD_ID" --output harbor.ipa
+          MAESTRO_APP_FILE="$PWD/harbor.ipa" pnpm --filter harbor-e2e test:ios
+      - uses: forgejo/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-ios-${{ matrix.channel }}-report
+          path: e2e/reports
+          retention-days: 7

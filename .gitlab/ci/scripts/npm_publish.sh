@@ -11,6 +11,7 @@
 #   CI_SERVER_HOST   GitLab host for the project package registry
 #   CI_PROJECT_ID    GitLab project id for the project package registry
 #   NPM_TOKEN        public npm auth token; public publish is skipped if unset
+# Without CI_SERVER_HOST only the public publish runs.
 set -euo pipefail
 
 cd "$(dirname "$0")/../../.."
@@ -54,7 +55,9 @@ publish_all() {
   done
 }
 
-publish_all "https://${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/" "the GitLab package registry"
+if [ -n "${CI_SERVER_HOST:-}" ]; then
+  publish_all "https://${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/" "the GitLab package registry"
+fi
 
 if [ -n "${NPM_TOKEN:-}" ]; then
   publish_all "https://registry.npmjs.org/" "public npm"

@@ -1,0 +1,126 @@
+name: JS services
+
+# GitLab build_services.yml (scraper, verifier-bot).
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        type: string
+        required: true
+      registry:
+        type: string
+        required: true
+      ref_slug:
+        type: string
+        required: true
+      default_ref:
+        type: string
+        required: true
+
+jobs:
+  scraper-image:
+    name: Build scraper image
+    if: fromJSON(inputs.plan).flags.image_scraper
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git docker-cli docker-cli-buildx
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/service-image
+        with:
+          image: scraper
+          dockerfile: services/scraper
+          registry: ${{ inputs.registry }}
+          ref-slug: ${{ inputs.ref_slug }}
+          default-branch-tag: ${{ inputs.default_ref }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+
+  scraper-integration:
+    name: Test scraper integration
+    needs: scraper-image
+    if: ${{ !cancelled() && fromJSON(inputs.plan).flags.scraper_integration && needs.scraper-image.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    continue-on-error: true
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: '1'
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+    steps:
+      - name: Install Chromium
+        run: apt-get update && apt-get install -y --no-install-recommends chromium && rm -rf /var/lib/apt/lists/*
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter @polycentric/scraper...
+      - name: Integration tests
+        run: pnpm --filter @polycentric/scraper test:integration
+      - uses: forgejo/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-scraper-integration
+          path: services/scraper/junit.xml
+          retention-days: 7
+
+  verifier-bot-image:
+    name: Build verifier bot image
+    if: fromJSON(inputs.plan).flags.image_verifier_bot
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git docker-cli docker-cli-buildx
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/sdk-artifacts
+      - uses: ./.forgejo/actions/service-image
+        with:
+          image: verifier-bot
+          dockerfile: services/verifier-bot
+          registry: ${{ inputs.registry }}
+          ref-slug: ${{ inputs.ref_slug }}
+          default-branch-tag: ${{ inputs.default_ref }}
+          load: 'true'
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Health checks
+        env:
+          IMAGE: ${{ inputs.registry }}/verifier-bot:${{ github.sha }}
+          CI_JOB_ID: ${{ github.run_id }}
+        run: .gitlab/ci/scripts/verifier-image-health.sh "$IMAGE"
+
+  # VERIFIER_BOT_ENV_VARS is the base64 .env content (GitLab: a file variable).
+  # The scheduled run also checks the deployed bot.
+  verifier-bot-tests:
+    name: Test verifier bot
+    if: fromJSON(inputs.plan).flags.verifier_bot_tests
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: '1'
+      POLYCENTRIC_VERIFIER_BOT_PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+      EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS: ${{ vars.EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS }}
+    steps:
+      - name: Install Chromium
+        run: apt-get update && apt-get install -y --no-install-recommends chromium && rm -rf /var/lib/apt/lists/*
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/sdk-artifacts
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter @polycentric/verifier-bot...
+      - name: Write test env
+        env:
+          VERIFIER_BOT_ENV_VARS: ${{ secrets.VERIFIER_BOT_ENV_VARS }}
+        run: if [ -n "$VERIFIER_BOT_ENV_VARS" ]; then echo "$VERIFIER_BOT_ENV_VARS" | base64 -d > services/verifier-bot/.test.env; fi
+      - name: Tests
+        run: pnpm --filter @polycentric/verifier-bot test:ci
+      - uses: forgejo/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-verifier-bot-tests
+          path: services/verifier-bot/junit.xml
+          retention-days: 7
+      - name: Production health
+        if: ${{ !cancelled() && fromJSON(inputs.plan).flags.verifier_health }}
+        run: node .gitlab/ci/scripts/verifier-health.mjs

@@ -1,0 +1,31 @@
+name: rust-env
+description: Cargo paths under the workspace, the registry + target cache (r2-cache, keyed by toolchain and Cargo files) and sccache for what still compiles.
+inputs:
+  cache:
+    description: Cache name, one per job (each job's target dir differs)
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        CACHE: ${{ inputs.cache }}
+      run: |
+        key="rust-$CACHE-$({ rustc -V; git ls-files -z Cargo.lock '*Cargo.toml' | xargs -0 cat; } | sha256sum | cut -c1-16)"
+        {
+          echo "CARGO_HOME=$GITHUB_WORKSPACE/.cargo"
+          echo "CARGO_TARGET_DIR=$GITHUB_WORKSPACE/target"
+          echo "RUSTC_WRAPPER=sccache"
+          echo "RUST_CACHE_KEY=$key"
+          echo "RUST_CACHE_PATHS=.cargo/registry/index .cargo/registry/cache .cargo/git/db target"
+          if [ -n "${SCCACHE_R2_BUCKET:-}" ]; then
+            echo "SCCACHE_BUCKET=$SCCACHE_R2_BUCKET"
+            echo "SCCACHE_ENDPOINT=$SCCACHE_R2_ENDPOINT"
+            echo "SCCACHE_REGION=auto"
+            echo "AWS_ACCESS_KEY_ID=$SCCACHE_R2_ACCESS_KEY_ID"
+            echo "AWS_SECRET_ACCESS_KEY=$SCCACHE_R2_SECRET_ACCESS_KEY"
+          else
+            echo "SCCACHE_DIR=$GITHUB_WORKSPACE/.sccache"
+          fi
+        } >> "$GITHUB_ENV"
+        .forgejo/scripts/r2-cache.sh restore "$key"

@@ -1,0 +1,61 @@
+name: Charts
+
+# GitLab publish_charts.yml.
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        type: string
+        required: true
+      registry:
+        type: string
+        required: true
+      ref_slug:
+        type: string
+        required: true
+    outputs:
+      chart_version:
+        value: ${{ jobs.charts-build.outputs.chart_version }}
+
+jobs:
+  charts-build:
+    name: Build charts
+    if: fromJSON(inputs.plan).flags.charts
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    outputs:
+      chart_version: ${{ steps.publish.outputs.chart_version }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git curl jq crane helm
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/registry-login
+        with:
+          registry: ${{ inputs.registry }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Package and push charts
+        id: publish
+        env:
+          REGISTRY: ${{ inputs.registry }}
+          REF_SLUG: ${{ inputs.ref_slug }}
+        run: |
+          latest=$(curl -fsS "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases?limit=1" | jq -r '.[0].tag_name // "0.0.0"') || latest=""
+          [ -n "$latest" ] || latest="0.0.0"
+          core=${latest#v}; core=${core%%-*}
+          oldIFS=$IFS; IFS=.; set -- $core; IFS=$oldIFS
+          # The short SHA makes the version unique per commit; helm-controller
+          # only upgrades on a version change.
+          version="${1:-0}.${2:-0}.$(( ${3:-0} + 1 ))-${REF_SLUG}.g$(echo "$GITHUB_SHA" | cut -c1-8)"
+          echo "Publishing charts as version ${version}"
+          for chart in deploy/charts/*/; do
+            name=$(basename "$chart")
+            # appVersion pins image tags to the image built from this commit.
+            helm package "$chart" --version "$version" --app-version "$GITHUB_SHA" --destination packaged
+            helm push "packaged/${name}-${version}.tgz" "oci://$REGISTRY/charts"
+            crane tag "$REGISTRY/charts/${name}:${version}" "$REF_SLUG"
+            # cd-production.yml relabels the chart by commit.
+            crane tag "$REGISTRY/charts/${name}:${version}" "$GITHUB_SHA"
+          done
+          echo "chart_version=${version}" >> "$GITHUB_OUTPUT"

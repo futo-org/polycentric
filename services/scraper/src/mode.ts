@@ -20,7 +20,6 @@ const FETCH_DIRECT_DOMAINS = [
   'wikipedia',
   'twitch',
   'bitchute',
-  'rumble',
   'dailymotion',
   'nebula',
 ];

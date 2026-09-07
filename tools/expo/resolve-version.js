@@ -13,7 +13,8 @@
 // receive the CI runner's environment variables. app.config.ts reads the
 // version from package.json, which travels with the project upload.
 //
-// Reads CI_COMMIT_TAG, CI_API_V4_URL, CI_PROJECT_ID and CI_JOB_TOKEN.
+// Reads CI_COMMIT_TAG and either CI_API_V4_URL, CI_PROJECT_ID, CI_JOB_TOKEN
+// (GitLab) or GITHUB_API_URL, GITHUB_REPOSITORY, GITHUB_TOKEN (Forgejo).
 
 const fs = require('fs');
 const path = require('path');
@@ -53,10 +54,13 @@ if (tagMatch) {
   (async () => {
     let latest = '0.0.0';
     try {
-      const res = await fetch(
-        `${api}/projects/${projectId}/releases?per_page=1`,
-        { headers: { 'JOB-TOKEN': token } },
-      );
+      let url = `${api}/projects/${projectId}/releases?per_page=1`;
+      let headers = { 'JOB-TOKEN': token };
+      if (process.env.GITHUB_REPOSITORY) {
+        url = `${process.env.GITHUB_API_URL}/repos/${process.env.GITHUB_REPOSITORY}/releases?limit=1`;
+        headers = { Authorization: `token ${process.env.GITHUB_TOKEN}` };
+      }
+      const res = await fetch(url, { headers });
       if (res.ok) {
         const releases = await res.json();
         if (Array.isArray(releases) && releases[0]) {

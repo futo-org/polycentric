@@ -1,0 +1,21 @@
+name: r2-cache
+description: Restore or save workspace paths as a tarball in the R2 cache bucket (scripts/r2-cache.sh), immutable per key. No-op without SCCACHE_R2_* in env.
+inputs:
+  mode:
+    description: restore or save
+    required: true
+  key:
+    required: true
+  path:
+    description: Paths relative to the workspace, whitespace separated
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        MODE: ${{ inputs.mode }}
+        KEY: ${{ inputs.key }}
+        PATHS: ${{ inputs.path }}
+      # shellcheck disable=SC2086
+      run: .forgejo/scripts/r2-cache.sh "$MODE" "$KEY" $PATHS

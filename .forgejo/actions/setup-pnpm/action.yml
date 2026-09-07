@@ -1,0 +1,23 @@
+name: setup-pnpm
+description: pnpm (package.json packageManager) and, by default, pnpm install. Jobs run in node images, so no node setup.
+inputs:
+  install:
+    description: Run pnpm install ('false' when artifacts must be placed first)
+    default: 'true'
+  install-args:
+    description: Extra arguments for pnpm install
+    default: ''
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+      run: corepack enable pnpm && pnpm --version
+    - if: inputs.install == 'true'
+      shell: bash
+      env:
+        INSTALL_ARGS: ${{ inputs.install-args }}
+      run: |
+        set -f
+        pnpm install $INSTALL_ARGS
