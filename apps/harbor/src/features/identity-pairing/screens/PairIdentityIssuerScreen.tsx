@@ -239,7 +239,11 @@ function ApprovalSheet({
       dismissible={false}
       onClose={onDeny}
     >
-      <Sheet.Header title="Pending Approval" onClose={onDeny} />
+      <Sheet.Header
+        title="Pending Approval"
+        onClose={onDeny}
+        disabled={currentlyApproving}
+      />
       <Sheet.Content
         style={[Atoms.px_lg, Atoms.pt_2xl, Atoms.pb_lg, Atoms.gap_lg]}
       >
@@ -290,6 +294,7 @@ function ApprovalSheet({
                 variant="secondary"
                 size="md"
                 onPress={onDeny}
+                disabled={currentlyApproving}
               />
             </View>
 
@@ -297,6 +302,7 @@ function ApprovalSheet({
               accessibilityRole="checkbox"
               accessibilityState={{ checked: asRotation }}
               onPress={() => setAsRotation(!asRotation)}
+              disabled={currentlyApproving}
               style={[
                 Atoms.flex_row,
                 Atoms.items_start,
