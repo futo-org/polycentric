@@ -1,0 +1,44 @@
+name: Packages (iOS)
+
+# GitLab build_rn_sdk.yml, iOS half. Its own call: a job skipped by `if`
+# still needs a runner with its label, and the mac is not always online.
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        type: string
+        required: true
+
+jobs:
+  # Runs inside an ephemeral Tart macOS VM (see forgejo-tart-runner), so the
+  # .cirrus.yml build steps run directly here instead of via `cirrus run`.
+  rn-ios-build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ vars.CI_RUNNER_MACOS || 'macos' }}
+    strategy:
+      matrix: ${{ fromJSON(inputs.plan).matrix.ios_build }}
+    env:
+      CARGO_HOME: ${{ github.workspace }}/.cargo
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+          source "$CARGO_HOME/env"
+          rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+          brew install just protobuf cmake ninja clang-format pnpm
+      - name: Build iOS libraries
+        working-directory: packages/react-native
+        run: |
+          source "$CARGO_HOME/env"
+          pnpm i
+          pnpm ubrn:ios
+      - uses: forgejo/upload-artifact@v4
+        with:
+          name: rn-ios-build
+          path: |
+            packages/react-native/ios
+            packages/react-native/PolycentricReactNativeFramework.xcframework
+          retention-days: 7

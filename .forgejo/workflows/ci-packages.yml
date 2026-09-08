@@ -131,45 +131,14 @@ jobs:
           path: packages/kt-core/core/build/
           retention-days: 7
 
-  # Runs inside an ephemeral Tart macOS VM (see forgejo-tart-runner), so the
-  # .cirrus.yml build steps run directly here instead of via `cirrus run`.
-  rn-ios-build:
-    name: Build iOS libraries
-    if: fromJSON(inputs.plan).flags.build_rn
-    runs-on: ${{ vars.CI_RUNNER_MACOS || 'macos' }}
-    env:
-      CARGO_HOME: ${{ github.workspace }}/.cargo
-      CARGO_TARGET_DIR: ${{ github.workspace }}/target
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
-          source "$CARGO_HOME/env"
-          rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
-          brew install just protobuf cmake ninja clang-format pnpm
-      - name: Build iOS libraries
-        working-directory: packages/react-native
-        run: |
-          source "$CARGO_HOME/env"
-          pnpm i
-          pnpm ubrn:ios
-      - uses: forgejo/upload-artifact@v4
-        with:
-          name: rn-ios-build
-          path: |
-            packages/react-native/ios
-            packages/react-native/PolycentricReactNativeFramework.xcframework
-          retention-days: 7
-
-  # Libraries this run did not build come from the develop copy.
+  # Libraries this run did not build come from the develop copy. The iOS
+  # build (ci-packages-ios.yml) has already run: ci.yml orders the calls.
   js-packages-build:
     name: Build JS packages
-    needs: [rust-wasm-build, rust-android-build, rn-ios-build]
+    needs: [rust-wasm-build, rust-android-build]
     if: >-
       ${{ !cancelled() && fromJSON(inputs.plan).flags.build_sdks &&
-      needs.rust-wasm-build.result != 'failure' && needs.rust-android-build.result != 'failure' &&
-      needs.rn-ios-build.result != 'failure' }}
+      needs.rust-wasm-build.result != 'failure' && needs.rust-android-build.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     env:
@@ -194,7 +163,7 @@ jobs:
         with:
           name: rn-android-build
           path: packages/react-native/android/src/main/jniLibs
-      - if: needs.rn-ios-build.result == 'success'
+      - if: fromJSON(inputs.plan).flags.ios_build
         uses: forgejo/download-artifact@v4
         with:
           name: rn-ios-build

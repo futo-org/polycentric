@@ -114,10 +114,19 @@ jobs:
       registry: ${{ needs.changes.outputs.registry }}
       images_tag: ${{ needs.changes.outputs.images_tag }}
 
+  packages-ios:
+    name: Packages (iOS)
+    needs: changes
+    uses: ./.forgejo/workflows/ci-packages-ios.yml
+    with:
+      plan: ${{ needs.changes.outputs.plan }}
+
   packages:
     name: Packages
-    needs: [changes, setup-images]
-    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.setup-images.result != 'failure' }}
+    needs: [changes, setup-images, packages-ios]
+    if: >-
+      ${{ !cancelled() && needs.changes.result == 'success' && needs.setup-images.result != 'failure' &&
+      needs.packages-ios.result != 'failure' }}
     uses: ./.forgejo/workflows/ci-packages.yml
     secrets: inherit
     with:

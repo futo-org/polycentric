@@ -312,6 +312,11 @@ const easBuilds = channels.filter((c) => c.build);
 const publishes = channels.filter((c) => c.publish);
 
 const matrix = {
+  // On the mac: a row only when it runs, no job otherwise (see ci-packages-ios.yml).
+  ios_build:
+    flags.build_rn || ciChanged('ci-packages-ios')
+      ? [{ label: 'Build iOS libraries' }]
+      : [],
   service_images: rustServices
     .filter(
       (s) => s.changed || release || deploying || ciChanged('ci-rust-services'),

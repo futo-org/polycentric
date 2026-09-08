@@ -24,7 +24,8 @@ the develop copy.
 | Workflow | GitLab files | Jobs |
 |---|---|---|
 | `ci-checks.yml` | the check stage | one job per group, checks as steps: Lint / Test Rust packages (rs-core + rs-common), Check Rust services, Lint / Test JS packages (js-core), Check JS services (scraper, verifier bot), Check app, Lint charts, Lint workflows (zizmor, `.forgejo/zizmor.yml`), Scan dependencies (trivy, JSON report artifact) |
-| `ci-packages.yml` | build_rs_core, build_js_sdks, build_rn_sdk, build_kt_core | rust-wasm-build, rust-android-build, kt-core-build, rn-ios-build, js-packages-build (collect rs-core libraries, JS + React Native) |
+| `ci-packages-ios.yml` | build_rn_sdk (iOS) | rn-ios-build, on the mac; its own call so a run that skips it never waits for the mac |
+| `ci-packages.yml` | build_rs_core, build_js_sdks, build_rn_sdk, build_kt_core | rust-wasm-build, rust-android-build, kt-core-build, js-packages-build (collect rs-core libraries, JS + React Native) |
 | `ci-rust-services.yml` | build_services (rust), test_server, test_moderation | service-images, services-integration |
 | `ci-js-services.yml` | build_services (scraper, verifier-bot) | scraper-image, scraper-integration, verifier-bot-image (build + health check), verifier-bot-tests (+ scheduled production health) |
 | `ci-app.yml` | build_app | web-image (version + image), app-web-e2e, app-eas-build, app-ios-e2e |
