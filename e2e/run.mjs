@@ -215,7 +215,13 @@ if (platform === 'web') {
 }
 
 const device = chooseDevice();
-const flags = [...EXCLUDE, '-e', `MAESTRO_APP_ID=${APP_ID}`, ...seeded, flowsFor('native')];
+const flags = [
+  ...EXCLUDE,
+  '-e',
+  `MAESTRO_APP_ID=${APP_ID}`,
+  ...seeded,
+  flowsFor('native'),
+];
 if (device.platform === 'android') {
   setupJava();
   run('maestro', [
