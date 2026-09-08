@@ -2,6 +2,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
+import { VERIFIERS, seed } from './seed.mjs';
 
 const PLATFORMS = ['ios', 'android', 'web'];
 const APP_ID = process.env.MAESTRO_APP_ID ?? 'org.futo.polycentric.dev';
@@ -16,9 +17,16 @@ const EXCLUDE = ['--exclude-tags=flaky'];
 
 const platform = process.argv[2];
 if (platform && !PLATFORMS.includes(platform)) {
-  console.error(`Usage: run.mjs [${PLATFORMS.join('|')}]`);
+  console.error(`Usage: run.mjs [${PLATFORMS.join('|')}] [flow name]`);
   process.exit(2);
 }
+
+// A single flow by name, looked up in the platform's directory.
+const FLOW = process.argv.slice(3).find((arg) => !arg.startsWith('--'));
+const flowsFor = (dir) =>
+  FLOW
+    ? `${FLOWS}${dir}/${FLOW.replace(/(\.yaml)?$/, '.yaml')}`
+    : `${FLOWS}${dir}`;
 
 function fail(message) {
   console.error(message);
@@ -102,9 +110,13 @@ function chooseDevice() {
     fail('Both platforms are connected. Run test:ios or test:android.');
   }
 
-  // Prefer a plugged-in phone over a booted simulator.
+  // Prefer a plugged-in phone over a booted simulator; `--simulator` flips it.
   const chosen =
-    devices.find((device) => device.kind === 'device') ?? devices[0];
+    devices.find((device) =>
+      process.argv.includes('--simulator')
+        ? device.kind !== 'device'
+        : device.kind === 'device',
+    ) ?? devices[0];
   console.log(`Running on ${chosen.name} (${chosen.kind})`);
   return chosen;
 }
@@ -180,6 +192,13 @@ function iosArgs(device) {
   ];
 }
 
+// Users the flows search for must exist on the server under test.
+await seed();
+const seeded = Object.entries(VERIFIERS).flatMap(([k, v]) => [
+  '-e',
+  `${k}=${v}`,
+]);
+
 // Web goes through maestro-runner too: Maestro's own web driver is in beta
 // and leaves its browser open, so the process never exits.
 if (platform === 'web') {
@@ -190,12 +209,13 @@ if (platform === 'web') {
     ...EXCLUDE,
     '-e',
     `MAESTRO_WEB_URL=${WEB_URL}`,
-    `${FLOWS}web`,
+    ...seeded,
+    flowsFor('web'),
   ]);
 }
 
 const device = chooseDevice();
-const flags = [...EXCLUDE, '-e', `MAESTRO_APP_ID=${APP_ID}`, FLOWS];
+const flags = [...EXCLUDE, '-e', `MAESTRO_APP_ID=${APP_ID}`, ...seeded, flowsFor('native')];
 if (device.platform === 'android') {
   setupJava();
   run('maestro', [
