@@ -180,8 +180,6 @@ const jobs = (workflow, flags) =>
     ]),
   );
 
-// Staging deploys retag this run's images, so they need building too.
-const deploying = ciChanged('cd-staging');
 const docsChanged = docs || ciChanged('ci-docs') || ciChanged('cd-docs');
 
 // EAS: staging from staging branches, a manual run or the build-app PR label;
@@ -209,6 +207,10 @@ const flags = {
   docs: docsChanged,
   docs_deploy: docsChanged && defaultRef,
   docs_preview: docsChanged && pr,
+  // Staging deploys, each right after its build.
+  deploy_scraper: stagingRef && scraper,
+  deploy_verifier_bot: stagingRef && verifierBot,
+  deploy_web: stagingRef && app,
   ...jobs('ci-checks', {
     rs_core: rsCore,
     js_sdk: jsSdk,
@@ -235,22 +237,21 @@ const flags = {
   ...jobs('ci-js-services', {
     scraper_integration: scraper || schedule,
     verifier_bot_tests: verifierBot || schedule,
-    image_scraper: scraper || release || deploying,
-    image_verifier_bot: verifierBot || release || deploying,
+    image_scraper: scraper || release,
+    image_verifier_bot: verifierBot || release,
   }),
   ...jobs('ci-app', {
-    web_image: app || appRelease || deploying,
+    web_image: app || appRelease,
     web_e2e: app || (appRelease && !release),
   }),
-  // Published charts are only consumed by deploys (cd-staging retags them,
-  // cd-production relabels by commit); other runs just lint them.
-  charts: stagingRef && (charts || ciChanged('ci-charts')),
+  // Deploys retag the chart, so staging branches publish it every run.
+  charts: stagingRef,
 };
 
 // Matrix rows ---------------------------------------------------------------
 // `image`/`name` is the id (artifacts, cache keys), `label` what the UI shows.
 
-const services = [
+const rustServices = [
   {
     image: 'server',
     label: 'server',
@@ -272,27 +273,7 @@ const services = [
     chart: 'harbor-push-notifications',
     changed: pushNotifications,
   },
-  {
-    image: 'scraper',
-    label: 'scraper',
-    chart: 'harbor-scraper',
-    changed: scraper,
-  },
-  {
-    image: 'verifier-bot',
-    label: 'verifier bot',
-    chart: 'harbor-verifier-bot',
-    changed: verifierBot,
-  },
-  {
-    image: 'web',
-    label: 'web',
-    chart: 'harbor-web',
-    changed: app,
-    web_assets: true,
-  },
 ];
-const rustServices = services.filter((s) => s.dockerfile);
 
 const channels = [
   {
@@ -313,22 +294,14 @@ const publishes = channels.filter((c) => c.publish);
 
 const matrix = {
   service_images: rustServices
-    .filter(
-      (s) => s.changed || release || deploying || ciChanged('ci-rust-services'),
-    )
+    .filter((s) => s.changed || release || ciChanged('ci-rust-services'))
     .map(({ image, label, dockerfile }) => ({
       image,
       label: `Build ${label} image`,
       dockerfile,
     })),
-  eas_builds: easBuilds.flatMap(({ channel }) => [
-    {
-      name: `app-android-apk-${channel}`,
-      label: `Build Android APK (${channel})`,
-      platform: 'android',
-      profile: `${channel}-apk`,
-      wait: true,
-    },
+  // Store builds only queue on EAS; the APK build waits for its archive.
+  eas_store: easBuilds.flatMap(({ channel }) => [
     {
       name: `app-android-aab-${channel}`,
       label: `Build Android AAB (${channel})`,
@@ -342,6 +315,30 @@ const matrix = {
       profile: channel,
     },
   ]),
+  eas_apk: easBuilds.map(({ channel }) => ({
+    name: `app-android-apk-${channel}`,
+    label: `Build Android APK (${channel})`,
+    platform: 'android',
+    profile: `${channel}-apk`,
+  })),
+  deploy_store: publishes.flatMap(({ channel }) => [
+    {
+      channel,
+      platform: 'android',
+      label: `Deploy Android app to ${channel}`,
+      build: `app-android-aab-${channel}`,
+    },
+    {
+      channel,
+      platform: 'ios',
+      label: `Deploy iOS app to ${channel}`,
+      build: `app-ios-${channel}`,
+    },
+  ]),
+  deploy_apk: publishes.map(({ channel }) => ({
+    channel,
+    label: `Deploy APK to ${channel}`,
+  })),
   ios_e2e: easBuilds
     .filter(() => iosE2e)
     .map(({ channel, app_id }) => ({
@@ -349,48 +346,22 @@ const matrix = {
       label: `Test iOS e2e (${channel})`,
       app_id,
     })),
-  deploy_staging: services
-    .filter((s) => stagingRef && (s.changed || deploying))
-    .map(({ image, label, chart, web_assets }) => ({
+  deploy_rust_services: rustServices
+    .filter((s) => stagingRef && s.changed)
+    .map(({ image, label, chart }) => ({
       image,
       label: `Deploy ${label} to staging`,
       chart,
-      ...(web_assets && { web_assets }),
     })),
-  store_submits: publishes.flatMap(({ channel }) => [
-    {
-      channel,
-      platform: 'android',
-      label: `Submit Android app to store (${channel})`,
-      build: `app-android-aab-${channel}`,
-    },
-    {
-      channel,
-      platform: 'ios',
-      label: `Submit iOS app to store (${channel})`,
-      build: `app-ios-${channel}`,
-    },
-  ]),
-  apk_publishes: publishes.map(({ channel }) => ({
-    channel,
-    label: `Publish APK feed (${channel})`,
-  })),
-};
-// Forgejo never creates a job from an empty matrix and blocks whatever needs
-// it; an empty one keeps a row for the skipped job.
-const placeholder = {
-  service_images: 'Build service images',
-  eas_builds: 'Build apps',
-  ios_e2e: 'Test iOS e2e',
-  deploy_staging: 'Deploy to staging',
-  store_submits: 'Submit apps to store',
-  apk_publishes: 'Publish APK feed',
 };
 for (const [name, rows] of Object.entries(matrix)) {
   flags[name] = rows.length > 0;
-  matrix[name] = {
-    include: rows.length > 0 ? rows : [{ label: placeholder[name] }],
-  };
+  matrix[name] = { include: rows };
+}
+// Forgejo creates no job from an empty matrix and blocks whatever needs it:
+// services-integration needs this one.
+if (!flags.service_images) {
+  matrix.service_images.include.push({ label: 'Build service images' });
 }
 
 // Outputs -------------------------------------------------------------------

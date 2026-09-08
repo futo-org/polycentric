@@ -17,6 +17,9 @@ on:
       default_ref:
         type: string
         required: true
+      chart_version:
+        type: string
+        required: true
 
 jobs:
   scraper-image:
@@ -35,6 +38,26 @@ jobs:
           registry: ${{ inputs.registry }}
           ref-slug: ${{ inputs.ref_slug }}
           default-branch-tag: ${{ inputs.default_ref }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+
+  scraper-deploy:
+    name: Deploy scraper to staging
+    needs: scraper-image
+    if: ${{ !cancelled() && fromJSON(inputs.plan).flags.deploy_scraper && needs.scraper-image.result == 'success' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git curl crane
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/deploy-tag
+        with:
+          registry: ${{ inputs.registry }}
+          image: scraper
+          chart: harbor-scraper
+          chart-version: ${{ inputs.chart_version }}
+          environment: staging
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
 
@@ -89,6 +112,26 @@ jobs:
           IMAGE: ${{ inputs.registry }}/verifier-bot:${{ github.sha }}
           CI_JOB_ID: ${{ github.run_id }}
         run: .gitlab/ci/scripts/verifier-image-health.sh "$IMAGE"
+
+  verifier-bot-deploy:
+    name: Deploy verifier bot to staging
+    needs: verifier-bot-image
+    if: ${{ !cancelled() && fromJSON(inputs.plan).flags.deploy_verifier_bot && needs.verifier-bot-image.result == 'success' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git curl crane
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/deploy-tag
+        with:
+          registry: ${{ inputs.registry }}
+          image: verifier-bot
+          chart: harbor-verifier-bot
+          chart-version: ${{ inputs.chart_version }}
+          environment: staging
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
 
   # VERIFIER_BOT_ENV_VARS is the base64 .env content (GitLab: a file variable).
   # The scheduled run also checks the deployed bot.
