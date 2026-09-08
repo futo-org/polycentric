@@ -363,6 +363,14 @@ for (const [name, rows] of Object.entries(matrix)) {
 if (!flags.service_images) {
   matrix.service_images.include.push({ label: 'Build service images' });
 }
+// Jobs that download the SDK artifacts (sdk-artifacts action) need them built.
+flags.build_sdks ||=
+  flags.image_verifier_bot ||
+  flags.verifier_bot_tests ||
+  flags.web_image ||
+  flags.eas_store ||
+  release;
+flags.build_rn_sdk ||= flags.web_image || flags.eas_store || release;
 
 // Outputs -------------------------------------------------------------------
 

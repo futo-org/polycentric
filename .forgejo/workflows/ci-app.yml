@@ -61,7 +61,7 @@ jobs:
   app-web-e2e:
     name: Test web e2e
     needs: web-image
-    if: fromJSON(inputs.plan).flags.web_e2e
+    if: ${{ !cancelled() && fromJSON(inputs.plan).flags.web_e2e && needs.web-image.result == 'success' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     services:
