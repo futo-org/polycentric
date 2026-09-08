@@ -16,7 +16,10 @@ export const VERIFIERS = {
   MAESTRO_VERIFIER_B: 'Maestro Verifier Bravo',
 };
 
-const SERVER = process.env.MAESTRO_SEED_SERVER ?? 'http://localhost:3000';
+// The app's server list; the identities live on its first server.
+const SERVER = (
+  process.env.EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS ?? 'http://localhost:3000'
+).split(',')[0];
 const STATE = new URL('.seed/', import.meta.url).pathname;
 
 const sha256 = (data) =>
