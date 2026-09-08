@@ -57,6 +57,7 @@ mod m20260903_000001_reaction_decay_clamp_base;
 mod m20260903_000002_content_post_reply_parent_index;
 mod m20260904_000001_remove_unused_tables;
 mod m20260904_000003_recommended_feed_indices;
+mod m20260908_000001_recommended_feed_more_indices;
 
 mod old_entity;
 
@@ -123,6 +124,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260903_000001_reaction_decay_clamp_base::Migration),
             Box::new(m20260904_000001_remove_unused_tables::Migration),
             Box::new(m20260904_000003_recommended_feed_indices::Migration),
+            Box::new(m20260908_000001_recommended_feed_more_indices::Migration),
         ]
     }
 }
