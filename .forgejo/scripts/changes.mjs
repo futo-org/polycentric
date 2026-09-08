@@ -4,8 +4,7 @@
 // rows (one per grouped job). Needs a full clone.
 //
 // Env: GITHUB_*, REGISTRY, DEFAULT_BRANCH, STAGING_BRANCHES, EVENT_BEFORE,
-// PR_ACTION, PR_LABELS (JSON), INPUT_EAS_STAGING, INPUT_EAS_PRODUCTION,
-// INPUT_IOS_E2E.
+// PR_LABELS (JSON), INPUT_EAS_STAGING, INPUT_EAS_PRODUCTION, INPUT_IOS_E2E.
 
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
@@ -25,8 +24,7 @@ const branch = ref.startsWith('refs/heads/')
 
 const dispatch = event === 'workflow_dispatch';
 const schedule = event === 'schedule';
-const prClosed = event === 'pull_request' && env.PR_ACTION === 'closed';
-const pr = event === 'pull_request' && !prClosed;
+const pr = event === 'pull_request';
 const prLabelled = (name) =>
   pr && JSON.parse(env.PR_LABELS || '[]').some((label) => label.name === name);
 
@@ -51,7 +49,7 @@ const refSlug = (env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME)
 // null = every path matches (manual runs, GitLab web pipelines); [] = none.
 
 const changedFiles = () => {
-  if (prClosed || isTag || schedule) return [];
+  if (isTag || schedule) return [];
   if (pr) {
     const base = git('merge-base', `origin/${env.GITHUB_BASE_REF}`, 'HEAD');
     return git('diff', '--name-only', base, 'HEAD').split('\n');
@@ -211,7 +209,6 @@ const flags = {
   docs: docsChanged,
   docs_deploy: docsChanged && defaultRef,
   docs_preview: docsChanged && pr,
-  docs_preview_stop: prClosed,
   ...jobs('ci-checks', {
     rs_core: rsCore,
     js_sdk: jsSdk,

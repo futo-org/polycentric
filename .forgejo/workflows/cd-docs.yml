@@ -52,18 +52,3 @@ jobs:
         run: wrangler pages deploy ./docs/build --project-name=polycentric-docs --branch="pr-$PR_NUMBER"
       - name: Preview URL
         run: echo "https://pr-$PR_NUMBER.polycentric-docs-cs8.pages.dev"
-
-  docs-review-stop:
-    name: Remove docs preview
-    if: fromJSON(inputs.plan).flags.docs_preview_stop
-    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Delete the preview
-        run: node .gitlab/ci/scripts/cf-pages-delete-branch.mjs
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CF_PAGES_PROJECT: polycentric-docs
-          CF_PAGES_BRANCH: pr-${{ inputs.pr_number }}

@@ -32,7 +32,7 @@ the develop copy.
 | `ci-release.yml` | release | release-{changelog, publish-npm, package-rs-core, tag-images}, release |
 | `cd-staging.yml` | deploy_services, deploy_app | deploy-staging, app-deploy-store, app-deploy-apk |
 | `ci-docs.yml` | build_docs | docs-typecheck, docs-build |
-| `cd-docs.yml` | deploy_docs | docs-deploy (Cloudflare Pages, default branch), docs-review (`pr-<n>` preview), docs-review-stop (PR closed) |
+| `cd-docs.yml` | deploy_docs | docs-deploy (Cloudflare Pages, default branch), docs-review (`pr-<n>` preview) |
 
 Jobs that GitLab repeats per variant are one matrix job here
 (`service-images`, `app-eas-build`, `deploy-staging`, ...); the rows come
@@ -43,9 +43,11 @@ Dependencies between components are at the call level (`app` and
 `js-services` wait for `packages`, `deploy` for everything), so a failure in one
 component job holds back that whole component's dependants.
 
-`cd-production.yml` stands alone: `workflow_dispatch` replacing the GitLab
-`when: manual` production deploys. Pick a component (and optionally a
-commit); it relabels that commit's image and chart `production`.
+Two workflows stand alone: `cd-production.yml`, a `workflow_dispatch`
+replacing the GitLab `when: manual` production deploys (pick a component and
+optionally a commit; it relabels that commit's image and chart `production`),
+and `cd-docs-cleanup.yml`, which removes a PR's docs preview when the PR
+closes.
 
 Shared steps are composite actions in `.forgejo/actions/` (`rust-env`,
 `setup-pnpm`, `sdk-artifacts`, `registry-login`, `service-image`,
@@ -76,8 +78,8 @@ A manual run of `ci.yml` on `develop` behaves like GitLab "Run pipeline":
 everything builds, staging deploys and the docs redeploy (the GitLab `docs`
 tag).
 
-Pull request runs also fire on `labeled` and `closed`. A label other than
-`build-app` skips the run; closing a PR only removes its docs preview.
+Pull request runs also fire on `labeled`; a label other than `build-app`
+skips the run.
 
 ## Environments
 
