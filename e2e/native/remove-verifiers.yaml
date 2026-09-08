@@ -8,7 +8,7 @@ name: I can cancel verification requests on my claim
 - runFlow:
     file: ../steps/request-verification.yaml
     env:
-      NAME: ${MAESTRO_VERIFIER_A}
+      VERIFIER_NAME: ${MAESTRO_VERIFIER_A}
 # The counter updates once the request is saved.
 - extendedWaitUntil:
     visible: 0/1 verified
@@ -19,7 +19,7 @@ name: I can cancel verification requests on my claim
 - runFlow:
     file: ../steps/request-verification.yaml
     env:
-      NAME: ${MAESTRO_VERIFIER_B}
+      VERIFIER_NAME: ${MAESTRO_VERIFIER_B}
 - extendedWaitUntil:
     visible: 0/2 verified
     timeout: 30000

@@ -1,14 +1,14 @@
 appId: ${MAESTRO_APP_ID}
 ---
-# In the open "Request verification" sheet: finds the user NAME and asks
-# them. Drops the last character, so the row is the only thing on screen
-# showing the full name; the search prefix-matches every word.
+# In the open "Request verification" sheet: finds the user VERIFIER_NAME and
+# asks them. Drops the last character, so the row is the only thing on
+# screen showing the full name; the search prefix-matches every word.
 - tapOn: ${output.verifications.searchProfiles}
-- inputText: ${NAME.slice(0, -1)}
+- inputText: ${VERIFIER_NAME.slice(0, -1)}
 - extendedWaitUntil:
-    visible: ${NAME}
+    visible: ${VERIFIER_NAME}
     timeout: 30000
-- tapOn: ${NAME}
+- tapOn: ${VERIFIER_NAME}
 - extendedWaitUntil:
     notVisible: ${output.verifications.searchProfiles}
     timeout: 30000

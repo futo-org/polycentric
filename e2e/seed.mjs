@@ -17,16 +17,14 @@ export const SEEDED_USERS = {
   MAESTRO_VERIFIER_B: 'Maestro Verifier Bravo',
 };
 
-// The app's server list; the identities live on its first server.
-const SERVER_URL = (
-  process.env.EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS ?? 'http://localhost:3000'
-).split(',')[0];
+// The server the app under test talks to.
+const SERVER_URL = process.env.E2E_SERVER_URL ?? 'http://localhost:3000';
 const STATE_DIR = new URL('.seed/', import.meta.url).pathname;
 
 const sha256 = (data) =>
   new Uint8Array(createHash('sha256').update(data).digest());
 
-async function seedIdentity(client, name) {
+async function ensureUser(client, name) {
   const keyType = KEY_TYPE.ED25519;
   const privateKey = { keyType, key: sha256(`harbor-e2e:${name}`) };
   const publicKey = v2.PublicKey.create({
@@ -79,7 +77,7 @@ export async function seed() {
     seedServers: [SERVER_URL],
   });
   for (const name of Object.values(SEEDED_USERS))
-    await seedIdentity(client, name);
+    await ensureUser(client, name);
 }
 
 if (import.meta.main) {

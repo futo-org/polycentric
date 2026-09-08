@@ -194,7 +194,7 @@ function iosArgs(device) {
 
 // Users the flows search for must exist on the server under test.
 await seed();
-const seeded = Object.entries(SEEDED_USERS).flatMap(([k, v]) => [
+const seededUsersEnvs = Object.entries(SEEDED_USERS).flatMap(([k, v]) => [
   '-e',
   `${k}=${v}`,
 ]);
@@ -209,7 +209,7 @@ if (platform === 'web') {
     ...EXCLUDE,
     '-e',
     `MAESTRO_WEB_URL=${WEB_URL}`,
-    ...seeded,
+    ...seededUsersEnvs,
     flowsFor('web'),
   ]);
 }
@@ -219,7 +219,7 @@ const flags = [
   ...EXCLUDE,
   '-e',
   `MAESTRO_APP_ID=${APP_ID}`,
-  ...seeded,
+  ...seededUsersEnvs,
   flowsFor('native'),
 ];
 if (device.platform === 'android') {
