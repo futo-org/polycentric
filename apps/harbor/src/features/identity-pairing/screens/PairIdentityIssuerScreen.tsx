@@ -192,11 +192,10 @@ function CountdownTimer({
 }
 
 function CopyButton({ info }: { info: v2.PairingInfo | null }) {
-  const { theme } = useTheme();
-
   /** When true, indicate to the user that the text was copied. */
   const [justCopied, setJustCopied] = useState<boolean>(false);
 
+  /** We'll reset the text-copied indicator after a timeout. */
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const doCopy = useCallback(() => {
@@ -220,32 +219,15 @@ function CopyButton({ info }: { info: v2.PairingInfo | null }) {
   }, [info]);
 
   return (
-    <Pressable
-      onPress={doCopy}
+    <Button
+      title={justCopied ? 'Copied' : 'Copy pairing code'}
+      icon={justCopied ? 'checkmark' : 'copy'}
+      variant="primary"
+      size="md"
+      fullWidth
       disabled={!info}
-      style={({ hovered }) => [
-        Atoms.flex_row,
-        Atoms.items_center,
-        Atoms.justify_center,
-        Atoms.gap_sm,
-        Atoms.py_md,
-        Atoms.rounded_full,
-        {
-          backgroundColor: hovered
-            ? theme.palette.primary_100
-            : theme.palette.primary_50,
-        },
-      ]}
-    >
-      <Icon
-        name={justCopied ? 'checkmark' : 'copy'}
-        size={16}
-        color="primary_500"
-      />
-      <Text variant="small" color="primary_500" fontWeight="semibold">
-        {justCopied ? 'Copied' : 'Copy pairing code'}
-      </Text>
-    </Pressable>
+      onPress={doCopy}
+    />
   );
 }
 
