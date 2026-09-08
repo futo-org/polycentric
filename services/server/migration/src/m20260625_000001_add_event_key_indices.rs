@@ -1,6 +1,4 @@
-use ::entity::{
-    content_delete_model, content_label_model, content_reaction_model,
-};
+use ::entity::{content_delete, content_label, content_reaction};
 use sea_orm_migration::prelude::*;
 
 /// `content_delete`, `content_reaction`, and `content_label` are all
@@ -24,12 +22,12 @@ impl MigrationTrait for Migration {
                 Index::create()
                     .if_not_exists()
                     .name("content_delete_event_key_idx")
-                    .table(content_delete_model::Entity)
-                    .col(content_delete_model::Column::EventKeyCollection)
-                    .col(content_delete_model::Column::EventKeyIdentity)
-                    .col(content_delete_model::Column::EventKeyPublicKeyType)
-                    .col(content_delete_model::Column::EventKeyPublicKey)
-                    .col(content_delete_model::Column::EventKeySequence)
+                    .table(content_delete::Entity)
+                    .col(content_delete::Column::EventKeyCollection)
+                    .col(content_delete::Column::EventKeyIdentity)
+                    .col(content_delete::Column::EventKeyPublicKeyType)
+                    .col(content_delete::Column::EventKeyPublicKey)
+                    .col(content_delete::Column::EventKeySequence)
                     .to_owned(),
             )
             .await?;
@@ -39,12 +37,12 @@ impl MigrationTrait for Migration {
                 Index::create()
                     .if_not_exists()
                     .name("content_reaction_event_key_idx")
-                    .table(content_reaction_model::Entity)
-                    .col(content_reaction_model::Column::EventKeyCollection)
-                    .col(content_reaction_model::Column::EventKeyIdentity)
-                    .col(content_reaction_model::Column::EventKeyPublicKeyType)
-                    .col(content_reaction_model::Column::EventKeyPublicKey)
-                    .col(content_reaction_model::Column::EventKeySequence)
+                    .table(content_reaction::Entity)
+                    .col(content_reaction::Column::EventKeyCollection)
+                    .col(content_reaction::Column::EventKeyIdentity)
+                    .col(content_reaction::Column::EventKeyPublicKeyType)
+                    .col(content_reaction::Column::EventKeyPublicKey)
+                    .col(content_reaction::Column::EventKeySequence)
                     .to_owned(),
             )
             .await?;
@@ -54,12 +52,12 @@ impl MigrationTrait for Migration {
                 Index::create()
                     .if_not_exists()
                     .name("content_label_event_key_idx")
-                    .table(content_label_model::Entity)
-                    .col(content_label_model::Column::EventKeyCollection)
-                    .col(content_label_model::Column::EventKeyIdentity)
-                    .col(content_label_model::Column::EventKeyPublicKeyType)
-                    .col(content_label_model::Column::EventKeyPublicKey)
-                    .col(content_label_model::Column::EventKeySequence)
+                    .table(content_label::Entity)
+                    .col(content_label::Column::EventKeyCollection)
+                    .col(content_label::Column::EventKeyIdentity)
+                    .col(content_label::Column::EventKeyPublicKeyType)
+                    .col(content_label::Column::EventKeyPublicKey)
+                    .col(content_label::Column::EventKeySequence)
                     .to_owned(),
             )
             .await?;
@@ -72,7 +70,7 @@ impl MigrationTrait for Migration {
             .drop_index(
                 Index::drop()
                     .name("content_label_event_key_idx")
-                    .table(content_label_model::Entity)
+                    .table(content_label::Entity)
                     .to_owned(),
             )
             .await?;
@@ -81,7 +79,7 @@ impl MigrationTrait for Migration {
             .drop_index(
                 Index::drop()
                     .name("content_reaction_event_key_idx")
-                    .table(content_reaction_model::Entity)
+                    .table(content_reaction::Entity)
                     .to_owned(),
             )
             .await?;
@@ -90,7 +88,7 @@ impl MigrationTrait for Migration {
             .drop_index(
                 Index::drop()
                     .name("content_delete_event_key_idx")
-                    .table(content_delete_model::Entity)
+                    .table(content_delete::Entity)
                     .to_owned(),
             )
             .await?;

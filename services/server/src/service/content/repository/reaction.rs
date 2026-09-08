@@ -1,6 +1,6 @@
 use super::split_event_key;
 use crate::service::proto::Reaction;
-use entity::content_reaction_model as ContentReactionModel;
+use entity::content_reaction;
 use sea_orm::DbErr;
 use sea_orm::sea_query::{DynIden, Expr, InsertStatement, SelectStatement};
 use tonic::Status;
@@ -18,16 +18,16 @@ pub(super) fn add_query(
 
     let mut query = InsertStatement::new();
     query
-        .into_table(ContentReactionModel::Entity)
+        .into_table(content_reaction::Entity)
         .columns([
-            ContentReactionModel::Column::ContentId,
-            ContentReactionModel::Column::EventKeyCollection,
-            ContentReactionModel::Column::EventKeyIdentity,
-            ContentReactionModel::Column::EventKeyPublicKeyType,
-            ContentReactionModel::Column::EventKeyPublicKey,
-            ContentReactionModel::Column::EventKeySequence,
-            ContentReactionModel::Column::Emoji,
-            ContentReactionModel::Column::Positive,
+            content_reaction::Column::ContentId,
+            content_reaction::Column::EventKeyCollection,
+            content_reaction::Column::EventKeyIdentity,
+            content_reaction::Column::EventKeyPublicKeyType,
+            content_reaction::Column::EventKeyPublicKey,
+            content_reaction::Column::EventKeySequence,
+            content_reaction::Column::Emoji,
+            content_reaction::Column::Positive,
         ])
         .select_from({
             let mut q = SelectStatement::new();

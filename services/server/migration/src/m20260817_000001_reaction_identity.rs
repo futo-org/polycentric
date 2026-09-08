@@ -1,4 +1,4 @@
-use entity::{event_model, reaction_model};
+use entity::{event, reaction};
 use sea_orm::ColumnTrait;
 
 use sea_orm_migration::prelude::*;
@@ -11,8 +11,8 @@ impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         if manager
             .has_column(
-                reaction_model::Entity.unquoted(),
-                reaction_model::Column::Identity.unquoted(),
+                reaction::Entity.unquoted(),
+                reaction::Column::Identity.unquoted(),
             )
             .await?
         {
@@ -23,13 +23,10 @@ impl MigrationTrait for Migration {
 
         // Add the reaction.identity column, allowing nulls.
         let mut query = TableAlterStatement::new();
-        query.table(reaction_model::Entity).add_column(
+        query.table(reaction::Entity).add_column(
             ColumnDef::new_with_type(
-                reaction_model::Column::Identity,
-                reaction_model::Column::Identity
-                    .def()
-                    .get_column_type()
-                    .clone(),
+                reaction::Column::Identity,
+                reaction::Column::Identity.def().get_column_type().clone(),
             )
             .text()
             .null(), // Set to not null once we've filled all rows.
@@ -39,27 +36,24 @@ impl MigrationTrait for Migration {
         // Fill the column.
         let mut query = UpdateStatement::new();
         query
-            .table(reaction_model::Entity)
+            .table(reaction::Entity)
             .values([(
-                reaction_model::Column::Identity,
-                Expr::col(event_model::Column::Identity.as_column_ref()),
+                reaction::Column::Identity,
+                Expr::col(event::Column::Identity.as_column_ref()),
             )])
-            .from(event_model::Entity)
+            .from(event::Entity)
             .cond_where(
-                Expr::col(reaction_model::Column::EventId.as_column_ref())
-                    .eq(Expr::col(event_model::Column::Id.as_column_ref())),
+                Expr::col(reaction::Column::EventId.as_column_ref())
+                    .eq(Expr::col(event::Column::Id.as_column_ref())),
             );
         tx.execute(&query).await?;
 
         // Set column to not null.
         let mut query = TableAlterStatement::new();
-        query.table(reaction_model::Entity).modify_column(
+        query.table(reaction::Entity).modify_column(
             ColumnDef::new_with_type(
-                reaction_model::Column::Identity,
-                reaction_model::Column::Identity
-                    .def()
-                    .get_column_type()
-                    .clone(),
+                reaction::Column::Identity,
+                reaction::Column::Identity.def().get_column_type().clone(),
             )
             .text()
             .not_null(),
@@ -72,8 +66,8 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         if !manager
             .has_column(
-                reaction_model::Entity.unquoted(),
-                reaction_model::Column::Identity.unquoted(),
+                reaction::Entity.unquoted(),
+                reaction::Column::Identity.unquoted(),
             )
             .await?
         {
@@ -83,8 +77,8 @@ impl MigrationTrait for Migration {
         // Add the reaction.identity column, allowing nulls.
         let mut query = TableAlterStatement::new();
         query
-            .table(reaction_model::Entity)
-            .drop_column(reaction_model::Column::Identity);
+            .table(reaction::Entity)
+            .drop_column(reaction::Column::Identity);
         manager.alter_table(query).await?;
         Ok(())
     }

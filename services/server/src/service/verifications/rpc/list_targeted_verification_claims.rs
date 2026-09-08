@@ -170,8 +170,8 @@ mod tests {
         // lookup, and no claim keys means no further queries.
         let db = MockDatabase::new(DbBackend::Postgres)
             .append_query_results([Vec::<(
-                ::entity::event_model::Model,
-                ::entity::content_verification_target_model::Model,
+                entity::event::Model,
+                entity::content_verification_target::Model,
             )>::new()])
             .into_connection();
         let ctx = ctx(db).await;

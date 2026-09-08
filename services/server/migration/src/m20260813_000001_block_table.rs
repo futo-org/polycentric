@@ -1,7 +1,4 @@
-use entity::{
-    block_model, content_block_model, content_delete_model, content_model,
-    event_model,
-};
+use entity::{block, content, content_block, content_delete, event};
 use polycentric_common::models::collections;
 use sea_orm::sea_query::{IntoCondition, SelectStatement};
 use sea_orm::{
@@ -22,10 +19,10 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 TableCreateStatement::new()
-                    .table(block_model::Entity.table_ref())
+                    .table(block::Entity.table_ref())
                     .if_not_exists()
                     .col({
-                        let col = block_model::COLUMN.event_id;
+                        let col = block::COLUMN.event_id;
                         ColumnDef::new_with_type(
                             col.as_column_ref().1,
                             col.def().get_column_type().clone(),
@@ -34,7 +31,7 @@ impl MigrationTrait for Migration {
                         .take()
                     })
                     .col({
-                        let col = block_model::COLUMN.blocker;
+                        let col = block::COLUMN.blocker;
                         ColumnDef::new_with_type(
                             col.as_column_ref().1,
                             col.def().get_column_type().clone(),
@@ -44,7 +41,7 @@ impl MigrationTrait for Migration {
                         .take()
                     })
                     .col({
-                        let col = block_model::COLUMN.blocked;
+                        let col = block::COLUMN.blocked;
                         ColumnDef::new_with_type(
                             col.as_column_ref().1,
                             col.def().get_column_type().clone(),
@@ -58,7 +55,7 @@ impl MigrationTrait for Migration {
             .await?;
 
         let index = IndexCreateStatement::new()
-            .table(block_model::Entity.table_ref())
+            .table(block::Entity.table_ref())
             .col("blocker")
             .col("blocked")
             .take();
@@ -74,7 +71,7 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(
                 TableDropStatement::new()
-                    .table(block_model::Entity.table_ref())
+                    .table(block::Entity.table_ref())
                     .if_exists()
                     .restrict()
                     .take(),
@@ -88,33 +85,33 @@ impl MigrationTrait for Migration {
 fn backfill() -> Result<InsertStatement, DbErr> {
     let mut blocks = SelectStatement::new();
     blocks
-        .column(event_model::Column::Id.as_column_ref())
-        .column(event_model::Column::Identity.as_column_ref())
-        .column(content_block_model::Column::IdentityId.as_column_ref())
-        .from(event_model::Entity)
-        .inner_join(content_model::Entity, content_join())
+        .column(event::Column::Id.as_column_ref())
+        .column(event::Column::Identity.as_column_ref())
+        .column(content_block::Column::IdentityId.as_column_ref())
+        .from(event::Entity)
+        .inner_join(content::Entity, content_join())
         .inner_join(
-            content_block_model::Entity,
-            Expr::col(content_block_model::Column::ContentId.as_column_ref())
-                .eq(Expr::col(content_model::Column::Id.as_column_ref())),
+            content_block::Entity,
+            Expr::col(content_block::Column::ContentId.as_column_ref())
+                .eq(Expr::col(content::Column::Id.as_column_ref())),
         )
-        .and_where(event_model::Column::Collection.eq(GRAPH_COLLECTION))
+        .and_where(event::Column::Collection.eq(GRAPH_COLLECTION))
         .and_where(Expr::not_exists(deletions_of_the_event()));
 
     let mut insert = InsertStatement::new();
     insert
-        .into_table(block_model::Entity)
+        .into_table(block::Entity)
         .columns([
-            block_model::Column::EventId,
-            block_model::Column::Blocker,
-            block_model::Column::Blocked,
+            block::Column::EventId,
+            block::Column::Blocker,
+            block::Column::Blocked,
         ])
         .select_from(blocks)
         .map_err(|err| {
             DbErr::Custom(format!("incorrect amount of values: {err}"))
         })?
         .on_conflict({
-            let mut conflict = OnConflict::column(block_model::Column::EventId);
+            let mut conflict = OnConflict::column(block::Column::EventId);
             conflict.do_nothing();
             conflict
         });
@@ -128,72 +125,67 @@ fn deletions_of_the_event() -> SelectStatement {
     let mut deletions = SelectStatement::new();
     deletions
         .expr(Expr::val(1))
-        .from(content_delete_model::Entity)
+        .from(content_delete::Entity)
         .inner_join(
-            TableRef::from(content_model::Entity).alias(DELETE_CONTENT_ALIAS),
-            Expr::col((DELETE_CONTENT_ALIAS, content_model::Column::Id)).eq(
-                Expr::col(
-                    content_delete_model::Column::ContentId.as_column_ref(),
-                ),
+            TableRef::from(content::Entity).alias(DELETE_CONTENT_ALIAS),
+            Expr::col((DELETE_CONTENT_ALIAS, content::Column::Id)).eq(
+                Expr::col(content_delete::Column::ContentId.as_column_ref()),
             ),
         )
         .inner_join(
-            TableRef::from(event_model::Entity).alias(DELETE_EVENT_ALIAS),
+            TableRef::from(event::Entity).alias(DELETE_EVENT_ALIAS),
             Condition::all()
                 .add(
                     Expr::col((
                         DELETE_EVENT_ALIAS,
-                        event_model::Column::ContentDigestType,
+                        event::Column::ContentDigestType,
                     ))
                     .eq(Expr::col((
                         DELETE_CONTENT_ALIAS,
-                        content_model::Column::DigestType,
+                        content::Column::DigestType,
                     ))),
                 )
                 .add(
                     Expr::col((
                         DELETE_EVENT_ALIAS,
-                        event_model::Column::ContentDigestBytes,
+                        event::Column::ContentDigestBytes,
                     ))
                     .eq(Expr::col((
                         DELETE_CONTENT_ALIAS,
-                        content_model::Column::DigestBytes,
+                        content::Column::DigestBytes,
                     ))),
                 )
                 // Only the author of an event may delete it.
                 .add(
-                    Expr::col((
-                        DELETE_EVENT_ALIAS,
-                        event_model::Column::Identity,
-                    ))
-                    .eq(Expr::col(
-                        content_delete_model::Column::EventKeyIdentity
-                            .as_column_ref(),
-                    )),
+                    Expr::col((DELETE_EVENT_ALIAS, event::Column::Identity))
+                        .eq(Expr::col(
+                            content_delete::Column::EventKeyIdentity
+                                .as_column_ref(),
+                        )),
                 ),
         );
 
     // Correlate with the outer query
     for (delete_key, event_key) in [
         (
-            content_delete_model::Column::EventKeyCollection.as_column_ref(),
-            event_model::Column::Collection.as_column_ref(),
+            content_delete::Column::EventKeyCollection.as_column_ref(),
+            event::Column::Collection.as_column_ref(),
         ),
         (
-            content_delete_model::Column::EventKeyIdentity.as_column_ref(),
-            event_model::Column::Identity.as_column_ref(),
+            content_delete::Column::EventKeyIdentity.as_column_ref(),
+            event::Column::Identity.as_column_ref(),
         ),
         (
-            content_delete_model::Column::EventKeyPublicKeyType.as_column_ref(),
-            event_model::Column::PublicKeyType.as_column_ref(),
+            content_delete::Column::EventKeyPublicKeyType.as_column_ref(),
+            event::Column::PublicKeyType.as_column_ref(),
         ),
         (
-            content_delete_model::Column::EventKeyPublicKey.as_column_ref(),
-            event_model::Column::PublicKey.as_column_ref(),
+            content_delete::Column::EventKeyPublicKey.as_column_ref(),
+            event::Column::PublicKey.as_column_ref(),
         ),
         (
-            content_delete_model::Column::EventKeySequence.as_column_ref(),
-            event_model::Column::Sequence.as_column_ref(),
+            content_delete::Column::EventKeySequence.as_column_ref(),
+            event::Column::Sequence.as_column_ref(),
         ),
     ] {
         deletions.and_where(Expr::col(delete_key).eq(Expr::col(event_key)));
@@ -205,12 +197,12 @@ fn deletions_of_the_event() -> SelectStatement {
 /// Subquery: joins an event to the content it carries, on the content digest.
 fn content_join() -> Condition {
     Into::<RelationDef>::into(
-        event_model::Entity::belongs_to(content_model::Entity)
-            .from(event_model::Column::ContentDigestType)
-            .to(content_model::Column::DigestType)
+        event::Entity::belongs_to(content::Entity)
+            .from(event::Column::ContentDigestType)
+            .to(content::Column::DigestType)
             .on_condition(|event_tbl, content_tbl| {
-                Expr::col((event_tbl, event_model::Column::ContentDigestBytes))
-                    .equals((content_tbl, content_model::Column::DigestBytes))
+                Expr::col((event_tbl, event::Column::ContentDigestBytes))
+                    .equals((content_tbl, content::Column::DigestBytes))
                     .into_condition()
             }),
     )

@@ -4,7 +4,7 @@ use crate::service::proto::{SortPostsBy, SortUsersBy};
 use crate::service::search::rpc::search_posts::SortedPostsBy;
 use crate::service::search::rpc::search_users::SortedUsersBy;
 use crate::util::db::{CONTENT_PREFIX, EVENT_PREFIX, select_model_columns};
-use entity::{content_model, event_model};
+use entity::{content, event};
 use sea_orm::sea_query::{Expr, Order, Value};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, Iterable,
@@ -18,8 +18,8 @@ use tonic::Status;
 // the search rank) from SeaORM.
 #[derive(Debug)]
 pub struct SearchUsersEvent {
-    pub event: event_model::Model,
-    pub content: content_model::Model,
+    pub event: event::Model,
+    pub content: content::Model,
     pub search_rank: f32,
     pub profile_name: String,
 }
@@ -47,8 +47,8 @@ impl TryGetableMany for SearchUsersEvent {
 // the search rank) from SeaORM.
 #[derive(Debug)]
 pub struct SearchPostsEvent {
-    pub event: event_model::Model,
-    pub content: content_model::Model,
+    pub event: event::Model,
+    pub content: content::Model,
     pub search_rank: f32,
 }
 
@@ -85,16 +85,13 @@ impl Query {
         let cursor_filter =
             cursor_filter.unwrap_or(&CursorFilter::Forward(Cursor::Start));
 
-        let mut query = event_model::Entity::find().select_only();
-        query = select_model_columns(
-            query,
-            EVENT_PREFIX,
-            entity::event_model::Column::iter(),
-        );
+        let mut query = event::Entity::find().select_only();
+        query =
+            select_model_columns(query, EVENT_PREFIX, event::Column::iter());
         query = select_model_columns(
             query,
             CONTENT_PREFIX,
-            entity::content_model::Column::iter(),
+            content::Column::iter(),
         );
         query = query
             // TODO: we can use ts_rank_cd as well here.
@@ -106,7 +103,7 @@ impl Query {
             .join(JoinType::InnerJoin, content_join())
             .join(
                 JoinType::InnerJoin,
-                content_model::Relation::ContentProfileUpdateModel.def(),
+                content::Relation::ContentProfileUpdate.def(),
             )
             .filter(Expr::cust_with_values(
                 "search_data @@ search_query($1)",
@@ -207,16 +204,13 @@ impl Query {
         let cursor_filter =
             cursor_filter.unwrap_or(&CursorFilter::Forward(Cursor::Start));
 
-        let mut query = event_model::Entity::find().select_only();
-        query = select_model_columns(
-            query,
-            EVENT_PREFIX,
-            entity::event_model::Column::iter(),
-        );
+        let mut query = event::Entity::find().select_only();
+        query =
+            select_model_columns(query, EVENT_PREFIX, event::Column::iter());
         query = select_model_columns(
             query,
             CONTENT_PREFIX,
-            entity::content_model::Column::iter(),
+            content::Column::iter(),
         );
         query = query
             // TODO: we can use ts_rank_cd as well here.
@@ -225,10 +219,7 @@ impl Query {
                 SEARCH_RANK_COLUMN,
             )
             .join(JoinType::InnerJoin, content_join())
-            .join(
-                JoinType::InnerJoin,
-                content_model::Relation::ContentPostModel.def(),
-            )
+            .join(JoinType::InnerJoin, content::Relation::ContentPost.def())
             .filter(Expr::cust_with_values(
                 "search_data @@ search_query($1)",
                 [search_query],
@@ -237,7 +228,7 @@ impl Query {
         let column = sort_posts_by_column(sort_by);
         QueryOrder::query(&mut query)
             .order_by_expr(column, Order::Desc)
-            .order_by(event_model::Column::Id.as_column_ref(), Order::Desc);
+            .order_by(event::Column::Id.as_column_ref(), Order::Desc);
 
         match cursor_filter {
             CursorFilter::Forward(cur) => match cur {
@@ -317,7 +308,7 @@ fn sort_posts_by_column(sort_by: SortPostsBy) -> Expr {
         SortPostsBy::Default => Expr::col(SEARCH_RANK_COLUMN),
         SortPostsBy::Top => unimplemented!(),
         SortPostsBy::Latest => {
-            Expr::col(event_model::Column::CreatedAt.as_column_ref())
+            Expr::col(event::Column::CreatedAt.as_column_ref())
         }
     }
 }

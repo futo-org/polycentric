@@ -6,7 +6,7 @@
 //! outcome in the `url_info_cache` table.
 
 use chrono::{TimeDelta, Utc};
-use entity::url_info_cache_model;
+use entity::url_info_cache;
 use sea_orm::sea_query::{OnConflict, Query as SeaQuery};
 use sea_orm::{
     ColumnTrait, DbConn, EntityTrait, Order, PaginatorTrait, QueryFilter, Set,
@@ -39,7 +39,7 @@ enum ScrapeFailure {
     Unreachable(Status),
 }
 
-fn ttl(row: &url_info_cache_model::Model) -> TimeDelta {
+fn ttl(row: &url_info_cache::Model) -> TimeDelta {
     if row.error_code.is_some() {
         FAILURE_TTL
     } else {
@@ -50,7 +50,7 @@ fn ttl(row: &url_info_cache_model::Model) -> TimeDelta {
 /// Read a fresh cached outcome for `url`. Expired rows and database
 /// errors are both treated as cache misses.
 async fn get_cached(db: &DbConn, url: &str) -> Option<ScrapeOutcome> {
-    let row = url_info_cache_model::Entity::find_by_id(url)
+    let row = url_info_cache::Entity::find_by_id(url)
         .one(db)
         .await
         .map_err(|e| tracing::warn!(error = %e, "url_info cache lookup failed"))
@@ -102,7 +102,7 @@ async fn insert_cached(
         ),
     };
 
-    let row = url_info_cache_model::ActiveModel {
+    let row = url_info_cache::ActiveModel {
         url: Set(url.to_owned()),
         title: Set(title),
         description: Set(description),
@@ -114,17 +114,17 @@ async fn insert_cached(
         updated_at: Set(now),
     };
 
-    let insert = url_info_cache_model::Entity::insert(row)
+    let insert = url_info_cache::Entity::insert(row)
         .on_conflict(
-            OnConflict::column(url_info_cache_model::Column::Url)
+            OnConflict::column(url_info_cache::Column::Url)
                 .update_columns([
-                    url_info_cache_model::Column::Title,
-                    url_info_cache_model::Column::Description,
-                    url_info_cache_model::Column::Image,
-                    url_info_cache_model::Column::RawResponse,
-                    url_info_cache_model::Column::ErrorCode,
-                    url_info_cache_model::Column::ErrorMessage,
-                    url_info_cache_model::Column::UpdatedAt,
+                    url_info_cache::Column::Title,
+                    url_info_cache::Column::Description,
+                    url_info_cache::Column::Image,
+                    url_info_cache::Column::RawResponse,
+                    url_info_cache::Column::ErrorCode,
+                    url_info_cache::Column::ErrorMessage,
+                    url_info_cache::Column::UpdatedAt,
                 ])
                 .to_owned(),
         )
@@ -138,7 +138,7 @@ async fn insert_cached(
 /// Delete the `EVICTION_BATCH` oldest rows once the cache holds at
 /// least `MAX_CACHED_URLS` entries.
 async fn evict_if_full(db: &DbConn) {
-    let count = match url_info_cache_model::Entity::find().count(db).await {
+    let count = match url_info_cache::Entity::find().count(db).await {
         Ok(count) => count,
         Err(e) => {
             tracing::warn!(error = %e, "url_info cache count failed");
@@ -150,13 +150,13 @@ async fn evict_if_full(db: &DbConn) {
     }
 
     let oldest = SeaQuery::select()
-        .column(url_info_cache_model::Column::Url)
-        .from(url_info_cache_model::Entity)
-        .order_by(url_info_cache_model::Column::UpdatedAt, Order::Asc)
+        .column(url_info_cache::Column::Url)
+        .from(url_info_cache::Entity)
+        .order_by(url_info_cache::Column::UpdatedAt, Order::Asc)
         .limit(EVICTION_BATCH)
         .to_owned();
-    let evicted = url_info_cache_model::Entity::delete_many()
-        .filter(url_info_cache_model::Column::Url.in_subquery(oldest))
+    let evicted = url_info_cache::Entity::delete_many()
+        .filter(url_info_cache::Column::Url.in_subquery(oldest))
         .exec(db)
         .await;
     if let Err(e) = evicted {
@@ -352,8 +352,8 @@ mod tests {
         url: &str,
         title: &str,
         updated_at: chrono::DateTime<Utc>,
-    ) -> url_info_cache_model::Model {
-        url_info_cache_model::Model {
+    ) -> url_info_cache::Model {
+        url_info_cache::Model {
             url: url.to_string(),
             title: title.to_string(),
             description: String::new(),
@@ -385,7 +385,7 @@ mod tests {
     /// A mock connection expecting one miss-then-scrape lookup: a SELECT
     /// returning `first_select`, the row count, then the upsert.
     fn db_for_one_miss(
-        first_select: Vec<url_info_cache_model::Model>,
+        first_select: Vec<url_info_cache::Model>,
     ) -> MockDatabase {
         MockDatabase::new(DbBackend::Postgres)
             .append_query_results([first_select])
@@ -407,7 +407,7 @@ mod tests {
             .await;
 
         let db = MockDatabase::new(DbBackend::Postgres)
-            .append_query_results([Vec::<url_info_cache_model::Model>::new()])
+            .append_query_results([Vec::<url_info_cache::Model>::new()])
             .append_query_results([vec![count_row(0)]])
             .append_query_results([vec![cached_row(
                 "https://example.com",
@@ -474,7 +474,7 @@ mod tests {
             .await;
 
         let db = MockDatabase::new(DbBackend::Postgres)
-            .append_query_results([Vec::<url_info_cache_model::Model>::new()])
+            .append_query_results([Vec::<url_info_cache::Model>::new()])
             .append_query_results([vec![count_row(MAX_CACHED_URLS as i64)]])
             .append_exec_results([exec_ok(), exec_ok()]);
         let ctx = service_context(db).await;
@@ -509,13 +509,13 @@ mod tests {
             .create_async()
             .await;
 
-        let failure_row = url_info_cache_model::Model {
+        let failure_row = url_info_cache::Model {
             error_code: Some(Code::Unavailable as i32),
             error_message: Some("scraper returned status 502".to_string()),
             ..cached_row("https://dead.test", "", Utc::now())
         };
         let db = MockDatabase::new(DbBackend::Postgres)
-            .append_query_results([Vec::<url_info_cache_model::Model>::new()])
+            .append_query_results([Vec::<url_info_cache::Model>::new()])
             .append_query_results([vec![count_row(0)]])
             .append_query_results([vec![failure_row]])
             .append_exec_results([exec_ok()]);
@@ -592,8 +592,8 @@ mod tests {
         // would find no mock results and the test would fail.
         let db = MockDatabase::new(DbBackend::Postgres)
             .append_query_results([
-                Vec::<url_info_cache_model::Model>::new(),
-                Vec::<url_info_cache_model::Model>::new(),
+                Vec::<url_info_cache::Model>::new(),
+                Vec::<url_info_cache::Model>::new(),
             ])
             .append_query_results([vec![count_row(0)]])
             .append_exec_results([exec_ok()]);

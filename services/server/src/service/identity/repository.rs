@@ -2,11 +2,7 @@ use crate::data::EventWithContentRow;
 use crate::service::feeds::repository::content_join;
 use crate::service::identity::chain;
 use crate::service::proto::{ContentDigest, Identity, PublicKey};
-use ::entity::{
-    ban_model as BanModel, content_model as ContentModel,
-    event_model as EventModel, moderator_model as ModeratorModel,
-    notification as NotificationModel,
-};
+use ::entity::{ban, content, event, moderator, notification};
 use polycentric_common::models::collections;
 use sea_orm::*;
 
@@ -88,9 +84,7 @@ impl Query {
         db: &DbConn,
         identity: &str,
     ) -> Result<bool, DbErr> {
-        ModeratorModel::Entity::find_by_id(identity)
-            .exists(db)
-            .await
+        moderator::Entity::find_by_id(identity).exists(db).await
     }
 
     /// Number of events `identity` has.
@@ -98,8 +92,8 @@ impl Query {
         db: &C,
         identity: &str,
     ) -> Result<u64, DbErr> {
-        EventModel::Entity::find()
-            .filter(EventModel::Column::Identity.eq(identity))
+        event::Entity::find()
+            .filter(event::Column::Identity.eq(identity))
             .count(db)
             .await
     }
@@ -109,11 +103,11 @@ impl Query {
         db: &C,
         public_key: &[u8],
     ) -> Result<Vec<String>, DbErr> {
-        EventModel::Entity::find()
+        event::Entity::find()
             .select_only()
-            .column(EventModel::Column::Identity)
+            .column(event::Column::Identity)
             .distinct()
-            .filter(EventModel::Column::PublicKey.eq(public_key.to_vec()))
+            .filter(event::Column::PublicKey.eq(public_key.to_vec()))
             .into_tuple()
             .all(db)
             .await
@@ -140,7 +134,7 @@ impl Query {
         db: &C,
         identity: &str,
     ) -> Result<bool, DbErr> {
-        BanModel::Entity::find_by_id(identity).exists(db).await
+        ban::Entity::find_by_id(identity).exists(db).await
     }
 
     /// A page of banned identities, most recently banned first. Ordered
@@ -153,10 +147,10 @@ impl Query {
         limit: u64,
         after: Option<&BanCursor>,
         query: Option<&str>,
-    ) -> Result<Vec<BanModel::Model>, DbErr> {
-        let mut q = BanModel::Entity::find()
-            .order_by_desc(BanModel::Column::CreatedAt)
-            .order_by_desc(BanModel::Column::Identity)
+    ) -> Result<Vec<ban::Model>, DbErr> {
+        let mut q = ban::Entity::find()
+            .order_by_desc(ban::Column::CreatedAt)
+            .order_by_desc(ban::Column::Identity)
             .limit(limit);
 
         if let Some(cursor) = after {
@@ -164,15 +158,12 @@ impl Query {
             // (created_at, identity) descending order.
             q = q.filter(
                 Condition::any()
-                    .add(BanModel::Column::CreatedAt.lt(cursor.created_at))
+                    .add(ban::Column::CreatedAt.lt(cursor.created_at))
                     .add(
                         Condition::all()
+                            .add(ban::Column::CreatedAt.eq(cursor.created_at))
                             .add(
-                                BanModel::Column::CreatedAt
-                                    .eq(cursor.created_at),
-                            )
-                            .add(
-                                BanModel::Column::Identity
+                                ban::Column::Identity
                                     .lt(cursor.identity.clone()),
                             ),
                     ),
@@ -180,7 +171,7 @@ impl Query {
         }
 
         if let Some(query) = query {
-            q = q.filter(BanModel::Column::Identity.starts_with(query));
+            q = q.filter(ban::Column::Identity.starts_with(query));
         }
 
         q.all(db).await
@@ -196,12 +187,12 @@ impl Query {
         if identities.is_empty() {
             return Ok(Vec::new());
         }
-        EventModel::Entity::find()
-            .select_also(ContentModel::Entity)
+        event::Entity::find()
+            .select_also(content::Entity)
             .join(JoinType::LeftJoin, content_join())
-            .filter(EventModel::Column::Collection.eq(IDENTITY_COLLECTION))
-            .filter(EventModel::Column::Identity.is_in(identities))
-            .order_by_asc(EventModel::Column::Sequence)
+            .filter(event::Column::Collection.eq(IDENTITY_COLLECTION))
+            .filter(event::Column::Identity.is_in(identities))
+            .order_by_asc(event::Column::Sequence)
             .all(db)
             .await
     }
@@ -221,24 +212,24 @@ impl Mutation {
     ) -> Result<(), DbErr> {
         if banned {
             let now = chrono::Utc::now();
-            BanModel::Entity::insert(BanModel::ActiveModel {
+            ban::Entity::insert(ban::ActiveModel {
                 identity: Set(identity.to_string()),
                 banned_by: Set(Some(banned_by.to_string())),
                 created_at: Set(now),
                 updated_at: Set(now),
             })
             .on_conflict(
-                sea_query::OnConflict::column(BanModel::Column::Identity)
+                sea_query::OnConflict::column(ban::Column::Identity)
                     .update_columns([
-                        BanModel::Column::BannedBy,
-                        BanModel::Column::UpdatedAt,
+                        ban::Column::BannedBy,
+                        ban::Column::UpdatedAt,
                     ])
                     .to_owned(),
             )
             .exec_without_returning(db)
             .await?;
         } else {
-            BanModel::Entity::delete_by_id(identity).exec(db).await?;
+            ban::Entity::delete_by_id(identity).exec(db).await?;
         }
         Ok(())
     }
@@ -340,11 +331,11 @@ impl Mutation {
              WHERE NOT EXISTS (SELECT 1 FROM events e WHERE e.id = t.event_id)",
         )
         .await?;
-        NotificationModel::Entity::delete_many()
+        notification::Entity::delete_many()
             .filter(
                 Condition::any()
-                    .add(NotificationModel::Column::FromIdentity.eq(identity))
-                    .add(NotificationModel::Column::ToIdentity.eq(identity)),
+                    .add(notification::Column::FromIdentity.eq(identity))
+                    .add(notification::Column::ToIdentity.eq(identity)),
             )
             .exec(db)
             .await?;

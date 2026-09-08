@@ -1,5 +1,5 @@
 use crate::service::proto::Follow;
-use entity::content_follow_model as ContentFollowModel;
+use entity::content_follow;
 use sea_orm::DbErr;
 use sea_orm::sea_query::{DynIden, Expr, InsertStatement, SelectStatement};
 
@@ -10,10 +10,10 @@ pub(super) fn add_query(
     let Follow { identity } = follow;
     let mut query = InsertStatement::new();
     query
-        .into_table(ContentFollowModel::Entity)
+        .into_table(content_follow::Entity)
         .columns([
-            ContentFollowModel::Column::ContentId,
-            ContentFollowModel::Column::IdentityId,
+            content_follow::Column::ContentId,
+            content_follow::Column::IdentityId,
         ])
         .select_from({
             let mut q = SelectStatement::new();

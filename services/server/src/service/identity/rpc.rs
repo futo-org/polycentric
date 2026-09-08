@@ -74,26 +74,26 @@ mod tests {
     use super::*;
     use crate::service::auth::AuthenticatedIdentity;
     use crate::service::verifications::rpc::common::tests::ctx;
-    use ::entity::{ban_model, moderator_model};
     use chrono::Utc;
+    use entity::{ban, moderator};
     use sea_orm::{DbBackend, MockDatabase};
     use tonic::Code;
 
     const MODERATOR: &str = "moderator-identity";
     const OTHER: &str = "some-other-identity";
 
-    fn moderator_row() -> moderator_model::Model {
+    fn moderator_row() -> moderator::Model {
         let now = Utc::now();
-        moderator_model::Model {
+        moderator::Model {
             identity: MODERATOR.to_string(),
             created_at: now,
             updated_at: now,
         }
     }
 
-    fn ban_row(identity: &str) -> ban_model::Model {
+    fn ban_row(identity: &str) -> ban::Model {
         let now = Utc::now();
-        ban_model::Model {
+        ban::Model {
             identity: identity.to_string(),
             banned_by: Some(MODERATOR.to_string()),
             created_at: now,

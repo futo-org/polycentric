@@ -3,7 +3,7 @@
 //! per-URL reaction counts can be maintained. Derived from the entity (table +
 //! indexes) like the other content child tables; no-op if it already exists.
 
-use ::entity::content_attributed_to_reaction_model;
+use ::entity::content_attributed_to_reaction;
 use sea_orm::Schema;
 use sea_orm_migration::prelude::*;
 
@@ -19,13 +19,13 @@ impl MigrationTrait for Migration {
         let schema = Schema::new(manager.get_database_backend());
         manager
             .create_table(schema.create_table_from_entity(
-                content_attributed_to_reaction_model::Entity,
+                content_attributed_to_reaction::Entity,
             ))
             .await?;
 
-        for index in schema.create_index_from_entity(
-            content_attributed_to_reaction_model::Entity,
-        ) {
+        for index in schema
+            .create_index_from_entity(content_attributed_to_reaction::Entity)
+        {
             manager.create_index(index).await?;
         }
 
@@ -37,7 +37,7 @@ impl MigrationTrait for Migration {
             .drop_table(
                 Table::drop()
                     .if_exists()
-                    .table(content_attributed_to_reaction_model::Entity)
+                    .table(content_attributed_to_reaction::Entity)
                     .to_owned(),
             )
             .await

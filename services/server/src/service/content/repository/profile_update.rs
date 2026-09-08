@@ -1,6 +1,6 @@
 use crate::service::proto::ImageSet;
 use crate::service::proto::ProfileUpdate;
-use entity::content_profile_update_model as ContentProfileUpdateModel;
+use entity::content_profile_update;
 use sea_orm::DbErr;
 use sea_orm::prelude::Json;
 use sea_orm::sea_query::{DynIden, Expr, InsertStatement, SelectStatement};
@@ -20,14 +20,14 @@ pub(super) fn add_query(
 
     let mut query = InsertStatement::new();
     query
-        .into_table(ContentProfileUpdateModel::Entity)
+        .into_table(content_profile_update::Entity)
         .columns([
-            ContentProfileUpdateModel::Column::ContentId,
-            ContentProfileUpdateModel::Column::Name,
-            ContentProfileUpdateModel::Column::Avatar,
-            ContentProfileUpdateModel::Column::Banner,
-            ContentProfileUpdateModel::Column::Description,
-            ContentProfileUpdateModel::Column::Alias,
+            content_profile_update::Column::ContentId,
+            content_profile_update::Column::Name,
+            content_profile_update::Column::Avatar,
+            content_profile_update::Column::Banner,
+            content_profile_update::Column::Description,
+            content_profile_update::Column::Alias,
         ])
         .select_from({
             let mut q = SelectStatement::new();

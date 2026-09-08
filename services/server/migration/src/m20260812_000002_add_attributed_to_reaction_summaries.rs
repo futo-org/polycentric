@@ -3,7 +3,7 @@
 //! `reaction_summaries` but keyed by URL. Derived from the entity; no-op if it
 //! already exists.
 
-use ::entity::attributed_to_reaction_summary_model;
+use ::entity::attributed_to_reaction_summary;
 use sea_orm::Schema;
 use sea_orm_migration::prelude::*;
 
@@ -22,13 +22,13 @@ impl MigrationTrait for Migration {
         let schema = Schema::new(manager.get_database_backend());
         manager
             .create_table(schema.create_table_from_entity(
-                attributed_to_reaction_summary_model::Entity,
+                attributed_to_reaction_summary::Entity,
             ))
             .await?;
 
-        for index in schema.create_index_from_entity(
-            attributed_to_reaction_summary_model::Entity,
-        ) {
+        for index in schema
+            .create_index_from_entity(attributed_to_reaction_summary::Entity)
+        {
             manager.create_index(index).await?;
         }
 
@@ -40,7 +40,7 @@ impl MigrationTrait for Migration {
             .drop_table(
                 Table::drop()
                     .if_exists()
-                    .table(attributed_to_reaction_summary_model::Entity)
+                    .table(attributed_to_reaction_summary::Entity)
                     .to_owned(),
             )
             .await

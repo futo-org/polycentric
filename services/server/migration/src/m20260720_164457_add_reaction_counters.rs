@@ -1,7 +1,5 @@
-use crate::old_entity::{reaction_summary_model, reaction_tally_model};
-use ::entity::{
-    content_delete_model, content_model, content_reaction_model, event_model,
-};
+use crate::old_entity::{reaction_summary, reaction_tally};
+use ::entity::{content, content_delete, content_reaction, event};
 use sea_orm_migration::{prelude::*, schema::*};
 
 pub struct Migration;
@@ -84,15 +82,13 @@ impl MigrationTrait for Migration {
                     Index::create()
                         .if_not_exists()
                         .name("reaction_tallies_event_key_count_idx")
-                        .table(reaction_tally_model::Entity)
-                        .col(reaction_tally_model::Column::EventKeyCollection)
-                        .col(reaction_tally_model::Column::EventKeyIdentity)
-                        .col(
-                            reaction_tally_model::Column::EventKeyPublicKeyType,
-                        )
-                        .col(reaction_tally_model::Column::EventKeyPublicKey)
-                        .col(reaction_tally_model::Column::EventKeySequence)
-                        .col(reaction_tally_model::Column::Count)
+                        .table(reaction_tally::Entity)
+                        .col(reaction_tally::Column::EventKeyCollection)
+                        .col(reaction_tally::Column::EventKeyIdentity)
+                        .col(reaction_tally::Column::EventKeyPublicKeyType)
+                        .col(reaction_tally::Column::EventKeyPublicKey)
+                        .col(reaction_tally::Column::EventKeySequence)
+                        .col(reaction_tally::Column::Count)
                         .to_owned(),
                 )
                 .await?;
@@ -154,21 +150,21 @@ const CRE2: &str = "cre2"; // competing reaction event
 /// - not deleted
 /// - not superseded by a later reaction from the same identity
 fn reaction_events_select() -> SelectStatement {
-    use content_model::Column as C;
-    use content_reaction_model::Column as Cr;
+    use content::Column as C;
+    use content_reaction::Column as Cr;
 
     Query::select()
         // Join from reaction content -> content -> event
-        .from_as(content_reaction_model::Entity, CR)
+        .from_as(content_reaction::Entity, CR)
         .join_as(
             JoinType::InnerJoin,
-            content_model::Entity,
+            content::Entity,
             CRC,
             eq(CRC, C::Id, CR, Cr::ContentId),
         )
         .join_as(
             JoinType::InnerJoin,
-            event_model::Entity,
+            event::Entity,
             CRE,
             event_matches_content(CRE, CRC)
                 // Filter out deleted reactions
@@ -185,23 +181,23 @@ fn reaction_events_select() -> SelectStatement {
 /// However, it does not handle revocations.
 /// A reaction should only be counted if this query does not find anything.
 fn deletion_for(reaction: &'static str) -> SelectStatement {
-    use content_delete_model::Column as Cd;
-    use content_model::Column as C;
-    use event_model::Column as E;
+    use content::Column as C;
+    use content_delete::Column as Cd;
+    use event::Column as E;
 
     Query::select()
         .expr(Expr::val(1))
         // Join from content delete -> content -> event
-        .from_as(content_delete_model::Entity, DD)
+        .from_as(content_delete::Entity, DD)
         .join_as(
             JoinType::InnerJoin,
-            content_model::Entity,
+            content::Entity,
             DC,
             eq(DC, C::Id, DD, Cd::ContentId),
         )
         .join_as(
             JoinType::InnerJoin,
-            event_model::Entity,
+            event::Entity,
             DE,
             event_matches_content(DE, DC),
         )
@@ -229,23 +225,23 @@ fn deletion_for(reaction: &'static str) -> SelectStatement {
 /// to the same target event as the reaction event being counted.
 /// A reaction should only be counted if this query does not find anything.
 fn newer_reaction() -> SelectStatement {
-    use content_model::Column as C;
-    use content_reaction_model::Column as Cr;
-    use event_model::Column as E;
+    use content::Column as C;
+    use content_reaction::Column as Cr;
+    use event::Column as E;
 
     Query::select()
         .expr(Expr::val(1))
         // Join from the competing reaction content -> content -> event
-        .from_as(content_reaction_model::Entity, CR2)
+        .from_as(content_reaction::Entity, CR2)
         .join_as(
             JoinType::InnerJoin,
-            content_model::Entity,
+            content::Entity,
             CRC2,
             eq(CRC2, C::Id, CR2, Cr::ContentId),
         )
         .join_as(
             JoinType::InnerJoin,
-            event_model::Entity,
+            event::Entity,
             CRE2,
             event_matches_content(CRE2, CRC2)
                 // Filter out deleted reactions
@@ -296,9 +292,9 @@ fn newer_reaction() -> SelectStatement {
 /// The caller should run the query for inserting upvote counts first and
 /// then run the query for inserting downvote counts.
 fn backfill_summaries_stmt(positive: bool) -> InsertStatement {
-    use content_reaction_model::Column as Cr;
-    use event_model::Column as E;
-    use reaction_summary_model::Column as Rs;
+    use content_reaction::Column as Cr;
+    use event::Column as E;
+    use reaction_summary::Column as Rs;
 
     let reaction_target_cols = [
         (CR, Cr::EventKeyCollection),
@@ -333,7 +329,7 @@ fn backfill_summaries_stmt(positive: bool) -> InsertStatement {
     let mut insert = Query::insert();
 
     insert
-        .into_table(reaction_summary_model::Entity)
+        .into_table(reaction_summary::Entity)
         .columns(key_cols.iter().copied().chain([count_col]))
         .select_from(select)
         .expect("insert column count matches the select's column count");
@@ -354,9 +350,9 @@ fn backfill_summaries_stmt(positive: bool) -> InsertStatement {
 
 /// Insert statement for backfilling reaction tallies.
 fn backfill_tallies_stmt() -> InsertStatement {
-    use content_reaction_model::Column as Cr;
-    use event_model::Column as E;
-    use reaction_tally_model::Column as Rt;
+    use content_reaction::Column as Cr;
+    use event::Column as E;
+    use reaction_tally::Column as Rt;
 
     let group_cols = [
         // Target event:
@@ -378,7 +374,7 @@ fn backfill_tallies_stmt() -> InsertStatement {
         .to_owned();
 
     Query::insert()
-        .into_table(reaction_tally_model::Entity)
+        .into_table(reaction_tally::Entity)
         .columns([
             Rt::EventKeyCollection,
             Rt::EventKeyIdentity,
@@ -399,8 +395,8 @@ fn event_matches_content(
     event: &'static str,
     content: &'static str,
 ) -> Condition {
-    use content_model::Column as C;
-    use event_model::Column as E;
+    use content::Column as C;
+    use event::Column as E;
 
     Condition::all()
         .add(eq(event, E::ContentDigestType, content, C::DigestType))

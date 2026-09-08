@@ -201,9 +201,8 @@ mod tests {
     use crate::service::proto::{
         Content, EventKey, Post, PostReply, PublicKey,
     };
-    use ::entity::content_model as ContentModel;
-    use ::entity::event_model as EventModel;
     use chrono::DateTime;
+    use entity::{content, event};
     use prost::Message;
     use sea_orm::prelude::DateTimeWithTimeZone;
     use sea_orm::{DbBackend, MockDatabase, MockRow, Value};
@@ -216,8 +215,8 @@ mod tests {
         DateTime::from_timestamp(seconds, 0).unwrap().fixed_offset()
     }
 
-    fn event_row(id: i64, identity: &str) -> EventModel::Model {
-        EventModel::Model {
+    fn event_row(id: i64, identity: &str) -> event::Model {
+        event::Model {
             id,
             collection: POST_COLLECTION,
             identity: identity.to_string(),
@@ -236,7 +235,7 @@ mod tests {
         }
     }
 
-    fn event_key_of(row: &EventModel::Model) -> EventKey {
+    fn event_key_of(row: &event::Model) -> EventKey {
         EventKey {
             collection: row.collection as i32,
             identity: row.identity.clone(),
@@ -248,8 +247,8 @@ mod tests {
         }
     }
 
-    fn content_row(id: i64, content: &Content) -> ContentModel::Model {
-        ContentModel::Model {
+    fn content_row(id: i64, content: &Content) -> content::Model {
+        content::Model {
             id,
             digest_type: 1,
             digest_bytes: vec![id as u8],
@@ -258,10 +257,7 @@ mod tests {
         }
     }
 
-    fn post_row(
-        id: i64,
-        identity: &str,
-    ) -> (EventModel::Model, ContentModel::Model) {
+    fn post_row(id: i64, identity: &str) -> (event::Model, content::Model) {
         let content = Content {
             content_body: Some(ContentBody::Post(Post::default())),
         };
@@ -271,8 +267,8 @@ mod tests {
     fn reply_row(
         id: i64,
         identity: &str,
-        parent: &EventModel::Model,
-    ) -> (EventModel::Model, ContentModel::Model) {
+        parent: &event::Model,
+    ) -> (event::Model, content::Model) {
         let parent_key = event_key_of(parent);
         let content = Content {
             content_body: Some(ContentBody::Post(Post {

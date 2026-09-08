@@ -2,9 +2,7 @@
 
 use std::ops::ControlFlow;
 
-use entity::{
-    event_model, gravity_model, reaction_model, reaction_tally_model,
-};
+use entity::{event, gravity, reaction, reaction_tally};
 use sea_orm::sea_query::{
     Asterisk, Expr, Func, SelectStatement, UpdateStatement,
 };
@@ -70,25 +68,25 @@ pub(crate) fn update(cron: &Cron, db: DatabaseConnection) {
                         .mul(Expr::Constant(gravity_per_reaction.into())),
                         "gravity",
                     )
-                    .from(reaction_model::Entity)
+                    .from(reaction::Entity)
                     .inner_join(
-                        event_model::Entity,
-                        Expr::col(event_model::Column::Id.as_column_ref())
+                        event::Entity,
+                        Expr::col(event::Column::Id.as_column_ref())
                             .equals(
-                                reaction_model::Column::EventId
+                                reaction::Column::EventId
                                     .as_column_ref(),
                             ),
                     )
                     .cond_where(ExprTrait::eq(
                         Expr::col(
-                            reaction_model::Column::Positive
+                            reaction::Column::Positive
                                 .as_column_ref(),
                         ),
                         Expr::Constant(true.into()),
                     ))
                     .cond_where(ExprTrait::gte(
                         Expr::col(
-                            event_model::Column::CreatedAt.as_column_ref(),
+                            event::Column::CreatedAt.as_column_ref(),
                         ),
                         Expr::current_timestamp().sub(Expr::cust(format!(
                             "INTERVAL '{hours} hours'"
@@ -98,13 +96,13 @@ pub(crate) fn update(cron: &Cron, db: DatabaseConnection) {
 
             // Update the gravity value and calculation timestamp.
             let mut update_gravity = UpdateStatement::new();
-            update_gravity.table(gravity_model::Entity)
+            update_gravity.table(gravity::Entity)
                 .value(
-                    gravity_model::Column::Value,
+                    gravity::Column::Value,
                     Expr::from(gravity_value),
                 )
                 .value(
-                    gravity_model::Column::CalculatedAt,
+                    gravity::Column::CalculatedAt,
                     Expr::current_timestamp(),
                 );
 
@@ -130,36 +128,36 @@ pub(crate) fn update(cron: &Cron, db: DatabaseConnection) {
             // Update all calculated decayed counts.
             let mut query = UpdateStatement::new();
             query
-                .table(reaction_tally_model::Entity)
-                .from(gravity_model::Entity)
+                .table(reaction_tally::Entity)
+                .from(gravity::Entity)
                 .value(
-                    reaction_tally_model::Column::DecayedCount,
+                    reaction_tally::Column::DecayedCount,
                     {
                         let func = Func::cust("reaction_count_decay");
                         if let Some(feeds_gravity) = feeds_gravity {
                             func.args([
-                                Expr::col(reaction_tally_model::Column::PositiveCount.as_column_ref()),
-                                Expr::col(event_model::Column::CreatedAt.as_column_ref()),
+                                Expr::col(reaction_tally::Column::PositiveCount.as_column_ref()),
+                                Expr::col(event::Column::CreatedAt.as_column_ref()),
                                 Expr::Constant(feeds_gravity.into()),
                             ])
                         } else {
                             func.args([
-                                Expr::col(reaction_tally_model::Column::PositiveCount.as_column_ref()),
-                                Expr::col(event_model::Column::CreatedAt.as_column_ref()),
+                                Expr::col(reaction_tally::Column::PositiveCount.as_column_ref()),
+                                Expr::col(event::Column::CreatedAt.as_column_ref()),
                             ])
                         }
                     },
                 )
                 // This should be an inner join, but SeaORM doesn't support this,
                 // see <https://github.com/SeaQL/sea-query/issues/608>.
-                .from(event_model::Entity)
+                .from(event::Entity)
                 .and_where(
-                    Expr::col(event_model::Column::Id.as_column_ref())
-                        .eq(Expr::col(reaction_tally_model::Column::EventId.as_column_ref())),
+                    Expr::col(event::Column::Id.as_column_ref())
+                        .eq(Expr::col(reaction_tally::Column::EventId.as_column_ref())),
                 )
                 // If the decayed count was previously already zero there is no
                 // point in calculating it again as it can only go lower.
-                .and_where(Expr::col(reaction_tally_model::Column::DecayedCount.as_column_ref()).gt(Expr::Constant(0.0.into())));
+                .and_where(Expr::col(reaction_tally::Column::DecayedCount.as_column_ref()).gt(Expr::Constant(0.0.into())));
 
             if let Err(err) = tx.execute(&query).await {
                 tracing::warn!(error = %err, "failed to update decayed reaction counts");

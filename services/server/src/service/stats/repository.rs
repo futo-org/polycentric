@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use entity::{
-    attributed_to_reaction_summary_model as AttributedSummaryModel,
-    reaction_model, reaction_tally_model, reply_model,
-};
+use entity::{attributed_to_reaction_summary, reaction, reaction_tally, reply};
 use sea_orm::ActiveValue::Set;
 use sea_orm::sea_query::{
     Asterisk, ColumnRef, Expr, ExprTrait, Func, OnConflict, Order,
@@ -31,17 +28,13 @@ impl Query {
 
         let mut query = SelectStatement::new();
         query
-            .from(reply_model::Entity)
-            .expr_as(
-                Expr::col(reply_model::Column::Post.as_column_ref()),
-                "post",
-            )
+            .from(reply::Entity)
+            .expr_as(Expr::col(reply::Column::Post.as_column_ref()), "post")
             .expr_as(Expr::from(Func::count(Expr::col(Asterisk))), "count")
             .cond_where(
-                Expr::col(reply_model::Column::Post.as_column_ref())
-                    .is_in(event_ids),
+                Expr::col(reply::Column::Post.as_column_ref()).is_in(event_ids),
             )
-            .group_by_col(reply_model::Column::Post.as_column_ref());
+            .group_by_col(reply::Column::Post.as_column_ref());
 
         let rows = db.query_all(&query).await?;
         let map = rows
@@ -66,30 +59,26 @@ impl Query {
 
         let mut query = SelectStatement::new();
         query
-            .from(reaction_tally_model::Entity)
+            .from(reaction_tally::Entity)
             .expr_as(
-                Expr::col(
-                    reaction_tally_model::Column::EventId.as_column_ref(),
-                ),
+                Expr::col(reaction_tally::Column::EventId.as_column_ref()),
                 "event_id",
             )
             .expr_as(
                 Expr::col(
-                    reaction_tally_model::Column::PositiveCount.as_column_ref(),
+                    reaction_tally::Column::PositiveCount.as_column_ref(),
                 ),
                 "positive_count",
             )
             .expr_as(
                 Expr::col(
-                    reaction_tally_model::Column::NegativeCount.as_column_ref(),
+                    reaction_tally::Column::NegativeCount.as_column_ref(),
                 ),
                 "negative_count",
             )
             .cond_where(
-                Expr::col(
-                    reaction_tally_model::Column::EventId.as_column_ref(),
-                )
-                .is_in(event_ids),
+                Expr::col(reaction_tally::Column::EventId.as_column_ref())
+                    .is_in(event_ids),
             );
 
         let rows = db.query_all(&query).await?;
@@ -125,51 +114,45 @@ impl Query {
 
         let mut query = SelectStatement::new();
         query
-            .from(reaction_model::Entity)
+            .from(reaction::Entity)
             .expr_as(
-                Expr::col(reaction_model::Column::OnPost.as_column_ref()),
+                Expr::col(reaction::Column::OnPost.as_column_ref()),
                 "on_post",
             )
             .expr_as(
-                Expr::col(reaction_model::Column::Emoji.as_column_ref()),
+                Expr::col(reaction::Column::Emoji.as_column_ref()),
                 "emoji",
             )
             .expr_as(
-                Expr::col(reaction_model::Column::Positive.as_column_ref()),
+                Expr::col(reaction::Column::Positive.as_column_ref()),
                 "positive",
             )
             .expr_as(Expr::from(Func::count(Expr::col(Asterisk))), "count")
             .cond_where(
-                Expr::col(reaction_model::Column::OnPost.as_column_ref())
+                Expr::col(reaction::Column::OnPost.as_column_ref())
                     .is_in(event_ids),
             )
             .and_where(
-                Expr::col(reaction_model::Column::Emoji.as_column_ref())
+                Expr::col(reaction::Column::Emoji.as_column_ref())
                     .is_not_null(),
             )
             .group_by_columns([
-                reaction_model::Column::OnPost.as_column_ref(),
-                reaction_model::Column::Emoji.as_column_ref(),
-                reaction_model::Column::Positive.as_column_ref(),
+                reaction::Column::OnPost.as_column_ref(),
+                reaction::Column::Emoji.as_column_ref(),
+                reaction::Column::Positive.as_column_ref(),
             ])
             .order_by_columns([
                 (
-                    ColumnRef::from(
-                        reaction_model::Column::OnPost.as_column_ref(),
-                    ),
+                    ColumnRef::from(reaction::Column::OnPost.as_column_ref()),
                     Order::Desc,
                 ),
                 (ColumnRef::from("count"), Order::Desc),
                 (
-                    ColumnRef::from(
-                        reaction_model::Column::Emoji.as_column_ref(),
-                    ),
+                    ColumnRef::from(reaction::Column::Emoji.as_column_ref()),
                     Order::Desc,
                 ),
                 (
-                    ColumnRef::from(
-                        reaction_model::Column::Positive.as_column_ref(),
-                    ),
+                    ColumnRef::from(reaction::Column::Positive.as_column_ref()),
                     Order::Desc,
                 ),
             ]);
@@ -211,24 +194,27 @@ impl Mutation {
         let (upvote, downvote) = if positive { (1, 0) } else { (0, 1) };
 
         let count_col = if positive {
-            AttributedSummaryModel::Column::UpvoteCount
+            attributed_to_reaction_summary::Column::UpvoteCount
         } else {
-            AttributedSummaryModel::Column::DownvoteCount
+            attributed_to_reaction_summary::Column::DownvoteCount
         };
 
-        AttributedSummaryModel::Entity::insert(
-            AttributedSummaryModel::ActiveModel {
+        attributed_to_reaction_summary::Entity::insert(
+            attributed_to_reaction_summary::ActiveModel {
                 url: Set(url),
                 upvote_count: Set(upvote),
                 downvote_count: Set(downvote),
             },
         )
         .on_conflict(
-            OnConflict::column(AttributedSummaryModel::Column::Url)
+            OnConflict::column(attributed_to_reaction_summary::Column::Url)
                 .value(
                     count_col,
-                    Expr::col((AttributedSummaryModel::Entity, count_col))
-                        .add(1),
+                    Expr::col((
+                        attributed_to_reaction_summary::Entity,
+                        count_col,
+                    ))
+                    .add(1),
                 )
                 .to_owned(),
         )
@@ -246,15 +232,15 @@ impl Mutation {
         positive: bool,
     ) -> Result<(), DbErr> {
         let count_col = if positive {
-            AttributedSummaryModel::Column::UpvoteCount
+            attributed_to_reaction_summary::Column::UpvoteCount
         } else {
-            AttributedSummaryModel::Column::DownvoteCount
+            attributed_to_reaction_summary::Column::DownvoteCount
         };
 
-        AttributedSummaryModel::Entity::update_many()
+        attributed_to_reaction_summary::Entity::update_many()
             .col_expr(count_col, Expr::col(count_col).sub(1))
             .filter(
-                AttributedSummaryModel::Column::Url
+                attributed_to_reaction_summary::Column::Url
                     .eq(url)
                     .and(count_col.gt(0)),
             )
@@ -270,9 +256,10 @@ impl Mutation {
         db: &DbConn,
         url: &str,
     ) -> Result<(i64, i64), DbErr> {
-        let row = AttributedSummaryModel::Entity::find_by_id(url.to_owned())
-            .one(db)
-            .await?;
+        let row =
+            attributed_to_reaction_summary::Entity::find_by_id(url.to_owned())
+                .one(db)
+                .await?;
         Ok(row
             .map(|r| (r.upvote_count, r.downvote_count))
             .unwrap_or((0, 0)))

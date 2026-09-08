@@ -24,6 +24,7 @@ pub(crate) mod claim_bundles {
     use crate::service::verifications::repository::{
         Query as Repository, VerificationEventDto,
     };
+    use entity::{content, event};
     use std::collections::HashMap;
     use tonic::Status;
 
@@ -77,28 +78,26 @@ pub(crate) mod claim_bundles {
         let deletes_by_target =
             tombstone::validated_tombstones(ctx, &keys).await?;
 
-        let identities = collect_identities::<(
-            &entity::event_model::Model,
-            Option<&entity::content_model::Model>,
-        )>(
-            ctx.trusted_moderator.as_deref(),
-            fetched
-                .claims
-                .iter()
-                .map(|(event, content)| (event, content.as_ref()))
-                .chain(
-                    fetched
-                        .targets
-                        .iter()
-                        .map(|dto| (&dto.event, dto.content.as_ref())),
-                )
-                .chain(
-                    fetched
-                        .verifies
-                        .iter()
-                        .map(|dto| (&dto.event, dto.content.as_ref())),
-                ),
-        );
+        let identities =
+            collect_identities::<(&event::Model, Option<&content::Model>)>(
+                ctx.trusted_moderator.as_deref(),
+                fetched
+                    .claims
+                    .iter()
+                    .map(|(event, content)| (event, content.as_ref()))
+                    .chain(
+                        fetched
+                            .targets
+                            .iter()
+                            .map(|dto| (&dto.event, dto.content.as_ref())),
+                    )
+                    .chain(
+                        fetched
+                            .verifies
+                            .iter()
+                            .map(|dto| (&dto.event, dto.content.as_ref())),
+                    ),
+            );
         let (identity_events, profile_events) =
             list_identity_and_profile_events(ctx, identities).await?;
 
@@ -284,11 +283,11 @@ pub(crate) mod tests {
         Content, EventKey, PublicKey, VerificationClaim, VerificationTarget,
         VerificationVerify,
     };
-    use ::entity::content_model as ContentModel;
-    use ::entity::content_verification_target_model as TargetModel;
-    use ::entity::content_verification_verify_model as VerifyModel;
-    use ::entity::event_model as EventModel;
     use chrono::DateTime;
+    use entity::{
+        content, content_verification_target, content_verification_verify,
+        event,
+    };
     use polycentric_common::models::collections;
     use prost::Message as _;
     use sea_orm::prelude::DateTimeWithTimeZone;
@@ -325,8 +324,8 @@ pub(crate) mod tests {
         }
     }
 
-    pub(crate) fn event_row(id: i64, identity: &str) -> EventModel::Model {
-        EventModel::Model {
+    pub(crate) fn event_row(id: i64, identity: &str) -> event::Model {
+        event::Model {
             id,
             collection: collections::VERIFICATIONS as i16,
             identity: identity.to_string(),
@@ -345,8 +344,8 @@ pub(crate) mod tests {
         }
     }
 
-    fn content_row(id: i64, content: Content) -> ContentModel::Model {
-        ContentModel::Model {
+    fn content_row(id: i64, content: Content) -> content::Model {
+        content::Model {
             id,
             digest_type: 1,
             digest_bytes: vec![id as u8],
@@ -355,12 +354,12 @@ pub(crate) mod tests {
         }
     }
 
-    fn target_table_model(
+    fn target_table(
         id: i64,
         owner: &str,
         target: &str,
-    ) -> TargetModel::Model {
-        TargetModel::Model {
+    ) -> content_verification_target::Model {
+        content_verification_target::Model {
             content_id: id,
             target_identity: target.to_string(),
             claim_event_key_collection: collections::VERIFICATIONS as i16,
@@ -373,7 +372,7 @@ pub(crate) mod tests {
 
     /// A row of the three-entity queries; MockDatabase has no built-in
     /// support for model triples.
-    fn three_model_row<M, N, O>(a: M, b: N, c: O) -> MockRow
+    fn three_row<M, N, O>(a: M, b: N, c: O) -> MockRow
     where
         M: ModelTrait,
         N: ModelTrait,
@@ -421,10 +420,10 @@ pub(crate) mod tests {
                 },
             )),
         };
-        three_model_row(
+        three_row(
             event_row(id, owner),
             content_row(id, content),
-            target_table_model(id, owner, targets[0]),
+            target_table(id, owner, targets[0]),
         )
     }
 
@@ -442,10 +441,10 @@ pub(crate) mod tests {
                 },
             )),
         };
-        three_model_row(
+        three_row(
             event_row(id, verifier),
             content_row(id, content),
-            VerifyModel::Model {
+            content_verification_verify::Model {
                 content_id: id,
                 claim_event_key_collection: collections::VERIFICATIONS as i16,
                 claim_event_key_identity: claim_owner.to_string(),
@@ -462,7 +461,7 @@ pub(crate) mod tests {
     pub(crate) fn claim_row(
         id: i64,
         owner: &str,
-    ) -> (EventModel::Model, ContentModel::Model) {
+    ) -> (event::Model, content::Model) {
         let content = Content {
             content_body: Some(ContentBody::VerificationClaim(
                 VerificationClaim::default(),
@@ -478,8 +477,8 @@ pub(crate) mod tests {
         id: i64,
         owner: &str,
         target: &str,
-    ) -> (EventModel::Model, TargetModel::Model) {
-        (event_row(id, owner), target_table_model(id, owner, target))
+    ) -> (event::Model, content_verification_target::Model) {
+        (event_row(id, owner), target_table(id, owner, target))
     }
 
     /// Empty result set for any mocked query.

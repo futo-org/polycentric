@@ -1,6 +1,6 @@
 use super::split_event_key;
 use crate::service::proto::VerificationVerify;
-use entity::content_verification_verify_model as ContentVerificationVerifyModel;
+use entity::content_verification_verify;
 use sea_orm::DbErr;
 use sea_orm::sea_query::{DynIden, Expr, InsertStatement, SelectStatement};
 use tonic::Status;
@@ -14,14 +14,14 @@ pub(super) fn add_query(
 
     let mut query = InsertStatement::new();
     query
-        .into_table(ContentVerificationVerifyModel::Entity)
+        .into_table(content_verification_verify::Entity)
         .columns([
-            ContentVerificationVerifyModel::Column::ContentId,
-            ContentVerificationVerifyModel::Column::ClaimEventKeyCollection,
-            ContentVerificationVerifyModel::Column::ClaimEventKeyIdentity,
-            ContentVerificationVerifyModel::Column::ClaimEventKeyPublicKeyType,
-            ContentVerificationVerifyModel::Column::ClaimEventKeyPublicKey,
-            ContentVerificationVerifyModel::Column::ClaimEventKeySequence,
+            content_verification_verify::Column::ContentId,
+            content_verification_verify::Column::ClaimEventKeyCollection,
+            content_verification_verify::Column::ClaimEventKeyIdentity,
+            content_verification_verify::Column::ClaimEventKeyPublicKeyType,
+            content_verification_verify::Column::ClaimEventKeyPublicKey,
+            content_verification_verify::Column::ClaimEventKeySequence,
         ])
         .select_from({
             let mut q = SelectStatement::new();

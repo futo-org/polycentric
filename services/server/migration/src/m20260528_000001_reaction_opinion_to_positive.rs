@@ -1,4 +1,4 @@
-use ::entity::content_reaction_model;
+use ::entity::content_reaction;
 use sea_orm_migration::prelude::*;
 use sea_orm_migration::sea_orm::ConnectionTrait;
 
@@ -19,7 +19,7 @@ impl MigrationTrait for Migration {
             manager
                 .alter_table(
                     Table::alter()
-                        .table(content_reaction_model::Entity)
+                        .table(content_reaction::Entity)
                         .drop_column(Alias::new("opinion"))
                         .to_owned(),
                 )
@@ -39,13 +39,11 @@ impl MigrationTrait for Migration {
             manager
                 .alter_table(
                     Table::alter()
-                        .table(content_reaction_model::Entity)
+                        .table(content_reaction::Entity)
                         .add_column(
-                            ColumnDef::new(
-                                content_reaction_model::Column::Positive,
-                            )
-                            .boolean()
-                            .not_null(),
+                            ColumnDef::new(content_reaction::Column::Positive)
+                                .boolean()
+                                .not_null(),
                         )
                         .to_owned(),
                 )
@@ -60,8 +58,8 @@ impl MigrationTrait for Migration {
             manager
                 .alter_table(
                     Table::alter()
-                        .table(content_reaction_model::Entity)
-                        .drop_column(content_reaction_model::Column::Positive)
+                        .table(content_reaction::Entity)
+                        .drop_column(content_reaction::Column::Positive)
                         .to_owned(),
                 )
                 .await?;
@@ -71,7 +69,7 @@ impl MigrationTrait for Migration {
             manager
                 .alter_table(
                     Table::alter()
-                        .table(content_reaction_model::Entity)
+                        .table(content_reaction::Entity)
                         .add_column(
                             ColumnDef::new(Alias::new("opinion"))
                                 .small_integer()

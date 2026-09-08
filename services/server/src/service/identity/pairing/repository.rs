@@ -1,6 +1,5 @@
 use crate::service::proto as Proto;
-use ::entity::pairing_session_claimer_model as PairingSessionClaimerModel;
-use ::entity::pairing_session_model as PairingSessionModel;
+use ::entity::{pairing_session, pairing_session_claimer};
 use sea_orm::*;
 
 pub struct Query;
@@ -10,9 +9,9 @@ impl Query {
     pub async fn get_pairing_session(
         db: &DbConn,
         digest_sha256: &[u8],
-    ) -> Result<Option<PairingSessionModel::Model>, DbErr> {
-        PairingSessionModel::Entity::find()
-            .filter(PairingSessionModel::Column::DigestSha256.eq(digest_sha256))
+    ) -> Result<Option<pairing_session::Model>, DbErr> {
+        pairing_session::Entity::find()
+            .filter(pairing_session::Column::DigestSha256.eq(digest_sha256))
             .one(db)
             .await
     }
@@ -22,10 +21,9 @@ impl Query {
         db: &DbConn,
         digest_sha256: &[u8],
     ) -> Result<Vec<Proto::PublicKey>, DbErr> {
-        let rows = PairingSessionClaimerModel::Entity::find()
+        let rows = pairing_session_claimer::Entity::find()
             .filter(
-                PairingSessionClaimerModel::Column::DigestSha256
-                    .eq(digest_sha256),
+                pairing_session_claimer::Column::DigestSha256.eq(digest_sha256),
             )
             .all(db)
             .await?;
@@ -47,19 +45,19 @@ impl Query {
         digest_sha256: &[u8],
         claimer_key: &Proto::PublicKey,
     ) -> Result<(), DbErr> {
-        let row = PairingSessionClaimerModel::ActiveModel {
+        let row = pairing_session_claimer::ActiveModel {
             issuer_identity: Set(issuer_identity.to_string()),
             digest_sha256: Set(digest_sha256.to_vec()),
             claimer_key_type: Set(claimer_key.key_type),
             claimer_key: Set(claimer_key.key.clone()),
         };
 
-        let res = PairingSessionClaimerModel::Entity::insert(row)
+        let res = pairing_session_claimer::Entity::insert(row)
             .on_conflict(
                 sea_query::OnConflict::columns([
-                    PairingSessionClaimerModel::Column::DigestSha256,
-                    PairingSessionClaimerModel::Column::ClaimerKeyType,
-                    PairingSessionClaimerModel::Column::ClaimerKey,
+                    pairing_session_claimer::Column::DigestSha256,
+                    pairing_session_claimer::Column::ClaimerKeyType,
+                    pairing_session_claimer::Column::ClaimerKey,
                 ])
                 .do_nothing()
                 .to_owned(),
@@ -77,8 +75,8 @@ impl Query {
     pub async fn get_latest_pairing_session(
         txn: &DatabaseTransaction,
         issuer_identity: &str,
-    ) -> Result<Option<PairingSessionModel::Model>, DbErr> {
-        PairingSessionModel::Entity::find_by_id(issuer_identity)
+    ) -> Result<Option<pairing_session::Model>, DbErr> {
+        pairing_session::Entity::find_by_id(issuer_identity)
             .lock_exclusive()
             .one(txn)
             .await
@@ -89,9 +87,9 @@ impl Query {
         txn: &DatabaseTransaction,
         issuer_identity: &str,
     ) -> Result<(), DbErr> {
-        PairingSessionClaimerModel::Entity::delete_many()
+        pairing_session_claimer::Entity::delete_many()
             .filter(
-                PairingSessionClaimerModel::Column::IssuerIdentity
+                pairing_session_claimer::Column::IssuerIdentity
                     .eq(issuer_identity),
             )
             .exec(txn)
@@ -104,19 +102,19 @@ impl Query {
     /// session was stored for this issuer.
     pub async fn put_issuer_state(
         txn: &DatabaseTransaction,
-        row: PairingSessionModel::ActiveModel,
+        row: pairing_session::ActiveModel,
     ) -> Result<(), DbErr> {
-        PairingSessionModel::Entity::insert(row)
+        pairing_session::Entity::insert(row)
             .on_conflict(
                 sea_query::OnConflict::column(
-                    PairingSessionModel::Column::IssuerIdentity,
+                    pairing_session::Column::IssuerIdentity,
                 )
                 .update_columns([
-                    PairingSessionModel::Column::DigestSha256,
-                    PairingSessionModel::Column::IssuerStateBytes,
-                    PairingSessionModel::Column::IssuerStateSignature,
-                    PairingSessionModel::Column::InitialTimestamp,
-                    PairingSessionModel::Column::Sequence,
+                    pairing_session::Column::DigestSha256,
+                    pairing_session::Column::IssuerStateBytes,
+                    pairing_session::Column::IssuerStateSignature,
+                    pairing_session::Column::InitialTimestamp,
+                    pairing_session::Column::Sequence,
                 ])
                 .to_owned(),
             )

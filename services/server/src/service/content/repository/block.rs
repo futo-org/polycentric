@@ -1,5 +1,5 @@
 use crate::service::proto::Block;
-use entity::content_block_model as ContentBlockModel;
+use entity::content_block;
 use sea_orm::DbErr;
 use sea_orm::sea_query::{DynIden, Expr, InsertStatement, SelectStatement};
 
@@ -10,10 +10,10 @@ pub(super) fn add_query(
     let Block { identity } = block;
     let mut query = InsertStatement::new();
     query
-        .into_table(ContentBlockModel::Entity)
+        .into_table(content_block::Entity)
         .columns([
-            ContentBlockModel::Column::ContentId,
-            ContentBlockModel::Column::IdentityId,
+            content_block::Column::ContentId,
+            content_block::Column::IdentityId,
         ])
         .select_from({
             let mut q = SelectStatement::new();

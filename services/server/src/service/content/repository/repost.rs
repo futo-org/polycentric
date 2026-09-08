@@ -1,6 +1,6 @@
 use super::split_event_key;
 use crate::service::proto::Repost;
-use entity::content_repost_model as ContentRepostModel;
+use entity::content_repost;
 use sea_orm::DbErr;
 use sea_orm::sea_query::{DynIden, Expr, InsertStatement, SelectStatement};
 use tonic::Status;
@@ -20,14 +20,14 @@ pub(super) fn add_query(
 
     let mut query = InsertStatement::new();
     query
-        .into_table(ContentRepostModel::Entity)
+        .into_table(content_repost::Entity)
         .columns([
-            ContentRepostModel::Column::ContentId,
-            ContentRepostModel::Column::EventKeyCollection,
-            ContentRepostModel::Column::EventKeyIdentity,
-            ContentRepostModel::Column::EventKeyPublicKeyType,
-            ContentRepostModel::Column::EventKeyPublicKey,
-            ContentRepostModel::Column::EventKeySequence,
+            content_repost::Column::ContentId,
+            content_repost::Column::EventKeyCollection,
+            content_repost::Column::EventKeyIdentity,
+            content_repost::Column::EventKeyPublicKeyType,
+            content_repost::Column::EventKeyPublicKey,
+            content_repost::Column::EventKeySequence,
         ])
         .select_from({
             let mut q = SelectStatement::new();

@@ -1,4 +1,4 @@
-use ::entity::content_post_model;
+use ::entity::content_post;
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
@@ -18,41 +18,33 @@ impl MigrationTrait for Migration {
         manager
             .alter_table(
                 Table::alter()
-                    .table(content_post_model::Entity)
+                    .table(content_post::Entity)
+                    .add_column(
+                        ColumnDef::new(content_post::Column::QuoteCollection)
+                            .small_integer()
+                            .null(),
+                    )
+                    .add_column(
+                        ColumnDef::new(content_post::Column::QuoteIdentity)
+                            .string()
+                            .null(),
+                    )
                     .add_column(
                         ColumnDef::new(
-                            content_post_model::Column::QuoteCollection,
+                            content_post::Column::QuotePublicKeyType,
                         )
                         .small_integer()
                         .null(),
                     )
                     .add_column(
-                        ColumnDef::new(
-                            content_post_model::Column::QuoteIdentity,
-                        )
-                        .string()
-                        .null(),
+                        ColumnDef::new(content_post::Column::QuotePublicKey)
+                            .binary()
+                            .null(),
                     )
                     .add_column(
-                        ColumnDef::new(
-                            content_post_model::Column::QuotePublicKeyType,
-                        )
-                        .small_integer()
-                        .null(),
-                    )
-                    .add_column(
-                        ColumnDef::new(
-                            content_post_model::Column::QuotePublicKey,
-                        )
-                        .binary()
-                        .null(),
-                    )
-                    .add_column(
-                        ColumnDef::new(
-                            content_post_model::Column::QuoteSequence,
-                        )
-                        .big_integer()
-                        .null(),
+                        ColumnDef::new(content_post::Column::QuoteSequence)
+                            .big_integer()
+                            .null(),
                     )
                     .to_owned(),
             )
@@ -69,12 +61,12 @@ impl MigrationTrait for Migration {
         manager
             .alter_table(
                 Table::alter()
-                    .table(content_post_model::Entity)
-                    .drop_column(content_post_model::Column::QuoteCollection)
-                    .drop_column(content_post_model::Column::QuoteIdentity)
-                    .drop_column(content_post_model::Column::QuotePublicKeyType)
-                    .drop_column(content_post_model::Column::QuotePublicKey)
-                    .drop_column(content_post_model::Column::QuoteSequence)
+                    .table(content_post::Entity)
+                    .drop_column(content_post::Column::QuoteCollection)
+                    .drop_column(content_post::Column::QuoteIdentity)
+                    .drop_column(content_post::Column::QuotePublicKeyType)
+                    .drop_column(content_post::Column::QuotePublicKey)
+                    .drop_column(content_post::Column::QuoteSequence)
                     .to_owned(),
             )
             .await

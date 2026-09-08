@@ -1,4 +1,4 @@
-use ::entity::{event_model, notification};
+use ::entity::{event, notification};
 use sea_orm_migration::prelude::*;
 
 /// `notification_to_identity_id_idx`: `list_notifications` grabs the notifications
@@ -32,10 +32,10 @@ impl MigrationTrait for Migration {
                 Index::create()
                     .if_not_exists()
                     .name("events_collection_created_at_id_idx")
-                    .table(event_model::Entity)
-                    .col(event_model::Column::Collection)
-                    .col(event_model::Column::CreatedAt)
-                    .col(event_model::Column::Id)
+                    .table(event::Entity)
+                    .col(event::Column::Collection)
+                    .col(event::Column::CreatedAt)
+                    .col(event::Column::Id)
                     .to_owned(),
             )
             .await?;
@@ -45,12 +45,12 @@ impl MigrationTrait for Migration {
                 Index::create()
                     .if_not_exists()
                     .name("events_identity_heads_idx")
-                    .table(event_model::Entity)
-                    .col(event_model::Column::Identity)
-                    .col(event_model::Column::PublicKeyType)
-                    .col(event_model::Column::PublicKey)
-                    .col(event_model::Column::Collection)
-                    .col(event_model::Column::Sequence)
+                    .table(event::Entity)
+                    .col(event::Column::Identity)
+                    .col(event::Column::PublicKeyType)
+                    .col(event::Column::PublicKey)
+                    .col(event::Column::Collection)
+                    .col(event::Column::Sequence)
                     .to_owned(),
             )
             .await?;
@@ -63,7 +63,7 @@ impl MigrationTrait for Migration {
             .drop_index(
                 Index::drop()
                     .name("events_identity_heads_idx")
-                    .table(event_model::Entity)
+                    .table(event::Entity)
                     .to_owned(),
             )
             .await?;
@@ -72,7 +72,7 @@ impl MigrationTrait for Migration {
             .drop_index(
                 Index::drop()
                     .name("events_collection_created_at_id_idx")
-                    .table(event_model::Entity)
+                    .table(event::Entity)
                     .to_owned(),
             )
             .await?;

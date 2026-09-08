@@ -1,7 +1,4 @@
-use entity::{
-    content_delete_model, content_model, content_post_model,
-    content_reaction_model, event_model,
-};
+use entity::{content, content_delete, content_post, content_reaction, event};
 use polycentric_common::models::collections;
 use sea_orm::{ColumnTrait, EntityTrait, RelationDef};
 
@@ -18,91 +15,82 @@ impl MigrationTrait for Migration {
         // Get the event ids for all not-deleted posts.
         let mut posts = SelectStatement::new();
         posts
-            .column(event_model::Column::Id.as_column_ref())
-            .from(event_model::Entity)
+            .column(event::Column::Id.as_column_ref())
+            .from(event::Entity)
             .inner_join(
-                content_model::Entity,
+                content::Entity,
                 Into::<RelationDef>::into(
-                    event_model::Entity::belongs_to(content_model::Entity)
-                        .from(event_model::Column::ContentDigestType)
-                        .to(content_model::Column::DigestType)
+                    event::Entity::belongs_to(content::Entity)
+                        .from(event::Column::ContentDigestType)
+                        .to(content::Column::DigestType)
                         .on_condition(|event_tbl, content_tbl| {
                             Expr::col((
                                 event_tbl,
-                                event_model::Column::ContentDigestBytes,
+                                event::Column::ContentDigestBytes,
                             ))
-                            .equals((
-                                content_tbl,
-                                content_model::Column::DigestBytes,
-                            ))
+                            .equals((content_tbl, content::Column::DigestBytes))
                             .into_condition()
                         }),
                 ),
             )
             .inner_join(
-                content_post_model::Entity,
+                content_post::Entity,
                 Condition::any().add(
-                    Expr::col(
-                        content_post_model::Column::ContentId.as_column_ref(),
-                    )
-                    .eq(Expr::col(content_model::Column::Id.as_column_ref())),
+                    Expr::col(content_post::Column::ContentId.as_column_ref())
+                        .eq(Expr::col(content::Column::Id.as_column_ref())),
                 ),
             )
             .left_join(
-                content_delete_model::Entity,
+                content_delete::Entity,
                 Condition::all()
                     .add(
                         Expr::col(
-                            content_delete_model::Column::EventKeyCollection
+                            content_delete::Column::EventKeyCollection
                                 .as_column_ref(),
                         )
                         .eq(Expr::col(
-                            event_model::Column::Collection.as_column_ref(),
+                            event::Column::Collection.as_column_ref(),
                         )),
                     )
                     .add(
                         Expr::col(
-                            content_delete_model::Column::EventKeyIdentity
+                            content_delete::Column::EventKeyIdentity
+                                .as_column_ref(),
+                        )
+                        .eq(Expr::col(event::Column::Identity.as_column_ref())),
+                    )
+                    .add(
+                        Expr::col(
+                            content_delete::Column::EventKeyPublicKeyType
                                 .as_column_ref(),
                         )
                         .eq(Expr::col(
-                            event_model::Column::Identity.as_column_ref(),
+                            event::Column::PublicKeyType.as_column_ref(),
                         )),
                     )
                     .add(
                         Expr::col(
-                            content_delete_model::Column::EventKeyPublicKeyType
+                            content_delete::Column::EventKeyPublicKey
                                 .as_column_ref(),
                         )
                         .eq(Expr::col(
-                            event_model::Column::PublicKeyType.as_column_ref(),
+                            event::Column::PublicKey.as_column_ref(),
                         )),
                     )
                     .add(
                         Expr::col(
-                            content_delete_model::Column::EventKeyPublicKey
+                            content_delete::Column::EventKeySequence
                                 .as_column_ref(),
                         )
-                        .eq(Expr::col(
-                            event_model::Column::PublicKey.as_column_ref(),
-                        )),
-                    )
-                    .add(
-                        Expr::col(
-                            content_delete_model::Column::EventKeySequence
-                                .as_column_ref(),
-                        )
-                        .eq(Expr::col(
-                            event_model::Column::Sequence.as_column_ref(),
-                        )),
+                        .eq(Expr::col(event::Column::Sequence.as_column_ref())),
                     ),
             )
-            .and_where(event_model::Column::Collection.eq(collections::FEED))
+            .and_where(event::Column::Collection.eq(collections::FEED))
             .and_where(
-                Expr::cust(content_delete_model::Entity.into_iden().inner())
+                Expr::cust(content_delete::Entity.into_iden().inner())
                     .is_null(),
             )
-            .order_by(event_model::Column::Id.as_column_ref(), Order::Asc);
+            .order_by(event::Column::Id.as_column_ref(), Order::Asc);
 
         // Insert the reactions.
         let mut reactions = InsertStatement::new();
@@ -111,164 +99,173 @@ impl MigrationTrait for Migration {
             .columns(["event_id", "on_post", "emoji", "positive"])
             .select_from({
                 let mut q = SelectStatement::new();
-                q
-                    .expr(SelectExpr {
-                        expr: Expr::col(event_model::Column::Id.as_column_ref()),
-                        alias: Some("event_id".into()),
-                        window: None,
-                    })
-                    .expr(SelectExpr {
-                        expr: Expr::col(("post_event", event_model::Column::Id)),
-                        alias: Some("on_post".into()),
-                        window: None,
-                    })
-                    .expr(SelectExpr {
-                        expr: Expr::col(content_reaction_model::Column::Emoji.as_column_ref()),
-                        alias: Some("emoji".into()),
-                        window: None,
-                    })
-                    .expr(SelectExpr {
-                        expr: Expr::col(content_reaction_model::Column::Positive.as_column_ref()),
-                        alias: Some("positive".into()),
-                        window: None,
-                    })
-                    .from(event_model::Entity)
-                    .inner_join(
-                        content_model::Entity,
-                        Into::<RelationDef>::into(
-                            event_model::Entity::belongs_to(content_model::Entity)
-                                .from(event_model::Column::ContentDigestType)
-                                .to(content_model::Column::DigestType)
-                                .on_condition(|event_tbl, content_tbl| {
-                                    Expr::col((
-                                        event_tbl,
-                                        event_model::Column::ContentDigestBytes,
-                                    ))
-                                    .equals((
-                                        content_tbl,
-                                        content_model::Column::DigestBytes,
-                                    ))
-                                    .into_condition()
-                                }),
-                        ),
-                    )
-                    .inner_join(
-                        content_reaction_model::Entity,
-                        Condition::any().add(
+                q.expr(SelectExpr {
+                    expr: Expr::col(event::Column::Id.as_column_ref()),
+                    alias: Some("event_id".into()),
+                    window: None,
+                })
+                .expr(SelectExpr {
+                    expr: Expr::col(("post_event", event::Column::Id)),
+                    alias: Some("on_post".into()),
+                    window: None,
+                })
+                .expr(SelectExpr {
+                    expr: Expr::col(
+                        content_reaction::Column::Emoji.as_column_ref(),
+                    ),
+                    alias: Some("emoji".into()),
+                    window: None,
+                })
+                .expr(SelectExpr {
+                    expr: Expr::col(
+                        content_reaction::Column::Positive.as_column_ref(),
+                    ),
+                    alias: Some("positive".into()),
+                    window: None,
+                })
+                .from(event::Entity)
+                .inner_join(
+                    content::Entity,
+                    Into::<RelationDef>::into(
+                        event::Entity::belongs_to(content::Entity)
+                            .from(event::Column::ContentDigestType)
+                            .to(content::Column::DigestType)
+                            .on_condition(|event_tbl, content_tbl| {
+                                Expr::col((
+                                    event_tbl,
+                                    event::Column::ContentDigestBytes,
+                                ))
+                                .equals((
+                                    content_tbl,
+                                    content::Column::DigestBytes,
+                                ))
+                                .into_condition()
+                            }),
+                    ),
+                )
+                .inner_join(
+                    content_reaction::Entity,
+                    Condition::any().add(
+                        Expr::col(
+                            content_reaction::Column::ContentId.as_column_ref(),
+                        )
+                        .eq(Expr::col(content::Column::Id.as_column_ref())),
+                    ),
+                )
+                .left_join(
+                    content_delete::Entity,
+                    Condition::all()
+                        .add(
                             Expr::col(
-                                content_reaction_model::Column::ContentId.as_column_ref(),
+                                content_delete::Column::EventKeyCollection
+                                    .as_column_ref(),
                             )
-                            .eq(Expr::col(content_model::Column::Id.as_column_ref())),
+                            .eq(Expr::col(
+                                event::Column::Collection.as_column_ref(),
+                            )),
+                        )
+                        .add(
+                            Expr::col(
+                                content_delete::Column::EventKeyIdentity
+                                    .as_column_ref(),
+                            )
+                            .eq(Expr::col(
+                                event::Column::Identity.as_column_ref(),
+                            )),
+                        )
+                        .add(
+                            Expr::col(
+                                content_delete::Column::EventKeyPublicKeyType
+                                    .as_column_ref(),
+                            )
+                            .eq(Expr::col(
+                                event::Column::PublicKeyType.as_column_ref(),
+                            )),
+                        )
+                        .add(
+                            Expr::col(
+                                content_delete::Column::EventKeyPublicKey
+                                    .as_column_ref(),
+                            )
+                            .eq(Expr::col(
+                                event::Column::PublicKey.as_column_ref(),
+                            )),
+                        )
+                        .add(
+                            Expr::col(
+                                content_delete::Column::EventKeySequence
+                                    .as_column_ref(),
+                            )
+                            .eq(Expr::col(
+                                event::Column::Sequence.as_column_ref(),
+                            )),
                         ),
-                    )
-                    .left_join(
-                        content_delete_model::Entity,
-                        Condition::all()
-                            .add(
-                                Expr::col(
-                                    content_delete_model::Column::EventKeyCollection
-                                        .as_column_ref(),
-                                )
-                                .eq(Expr::col(
-                                    event_model::Column::Collection.as_column_ref(),
-                                )),
+                )
+                .inner_join(
+                    TableRef::from(event::Entity).alias("post_event"),
+                    Condition::all()
+                        .add(
+                            Expr::col(
+                                content_reaction::Column::EventKeyCollection
+                                    .as_column_ref(),
                             )
-                            .add(
-                                Expr::col(
-                                    content_delete_model::Column::EventKeyIdentity
-                                        .as_column_ref(),
-                                )
-                                .eq(Expr::col(
-                                    event_model::Column::Identity.as_column_ref(),
-                                )),
+                            .eq(Expr::col((
+                                "post_event",
+                                event::Column::Collection,
+                            ))),
+                        )
+                        .add(
+                            Expr::col(
+                                content_reaction::Column::EventKeyIdentity
+                                    .as_column_ref(),
                             )
-                            .add(
-                                Expr::col(
-                                    content_delete_model::Column::EventKeyPublicKeyType
-                                        .as_column_ref(),
-                                )
-                                .eq(Expr::col(
-                                    event_model::Column::PublicKeyType.as_column_ref(),
-                                )),
+                            .eq(Expr::col((
+                                "post_event",
+                                event::Column::Identity,
+                            ))),
+                        )
+                        .add(
+                            Expr::col(
+                                content_reaction::Column::EventKeyPublicKeyType
+                                    .as_column_ref(),
                             )
-                            .add(
-                                Expr::col(
-                                    content_delete_model::Column::EventKeyPublicKey
-                                        .as_column_ref(),
-                                )
-                                .eq(Expr::col(
-                                    event_model::Column::PublicKey.as_column_ref(),
-                                )),
+                            .eq(Expr::col((
+                                "post_event",
+                                event::Column::PublicKeyType,
+                            ))),
+                        )
+                        .add(
+                            Expr::col(
+                                content_reaction::Column::EventKeyPublicKey
+                                    .as_column_ref(),
                             )
-                            .add(
-                                Expr::col(
-                                    content_delete_model::Column::EventKeySequence
-                                        .as_column_ref(),
-                                )
-                                .eq(Expr::col(
-                                    event_model::Column::Sequence.as_column_ref(),
-                                )),
-                            ),
-                    )
-                    .inner_join(
-                        TableRef::from(event_model::Entity).alias("post_event"),
-                        Condition::all()
-                            .add(
-                                Expr::col(
-                                    content_reaction_model::Column::EventKeyCollection
-                                        .as_column_ref(),
-                                )
-                                .eq(Expr::col(
-                                    ("post_event", event_model::Column::Collection),
-                                )),
+                            .eq(Expr::col((
+                                "post_event",
+                                event::Column::PublicKey,
+                            ))),
+                        )
+                        .add(
+                            Expr::col(
+                                content_reaction::Column::EventKeySequence
+                                    .as_column_ref(),
                             )
-                            .add(
-                                Expr::col(
-                                    content_reaction_model::Column::EventKeyIdentity
-                                        .as_column_ref(),
-                                )
-                                .eq(Expr::col(
-                                    ("post_event", event_model::Column::Identity),
-                                )),
-                            )
-                            .add(
-                                Expr::col(
-                                    content_reaction_model::Column::EventKeyPublicKeyType
-                                        .as_column_ref(),
-                                )
-                                .eq(Expr::col(
-                                    ("post_event", event_model::Column::PublicKeyType),
-                                )),
-                            )
-                            .add(
-                                Expr::col(
-                                    content_reaction_model::Column::EventKeyPublicKey
-                                        .as_column_ref(),
-                                )
-                                .eq(Expr::col(
-                                    ("post_event", event_model::Column::PublicKey),
-                                )),
-                            )
-                            .add(
-                                Expr::col(
-                                    content_reaction_model::Column::EventKeySequence
-                                        .as_column_ref(),
-                                )
-                                .eq(Expr::col(
-                                    ("post_event", event_model::Column::Sequence),
-                                )),
-                            ),
-                    )
-                    .and_where(Expr::cust(content_delete_model::Entity.into_iden().inner()).is_null())
-                    .and_where(
-                        Expr::col(("post_event", event_model::Column::Id)).in_subquery({
-                            let mut q = SelectStatement::new();
-                            q
-                                .column("id")
-                                .from("post");
-                            q
-                        })
-                    );
+                            .eq(Expr::col((
+                                "post_event",
+                                event::Column::Sequence,
+                            ))),
+                        ),
+                )
+                .and_where(
+                    Expr::cust(content_delete::Entity.into_iden().inner())
+                        .is_null(),
+                )
+                .and_where(
+                    Expr::col(("post_event", event::Column::Id)).in_subquery({
+                        let mut q = SelectStatement::new();
+                        q.column("id").from("post");
+                        q
+                    }),
+                );
                 q
             })
             .map_err(|err| {
