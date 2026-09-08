@@ -14,9 +14,10 @@ cannot mint tokens from a token.
 `.forgejo/scripts/changes.mjs`, which resolves the GitLab `rules` into a
 plan: one flag per job plus the matrix rows for the grouped jobs (tags and
 manual runs match every path). `setup-images` builds the CI toolchain images,
-then the component workflows (`ci-*.yml` and `cd-staging.yml`,
-`workflow_call` only) run, called like GitLab `include:` files. Integration
-and e2e tests live with the component they test, after its build. Editing a
+then the component workflows (`ci-*.yml` and `cd-docs.yml`, `workflow_call`
+only) run, called like GitLab `include:` files. Integration and e2e tests
+live with the component they test, after its build, and so do its staging
+deploys: each image, chart or app deploys as soon as its own build is done. Editing a
 workflow, or an action or script it uses, reruns that workflow's jobs only
 (GitLab: the job's include file); libraries a run does not build come from
 the develop copy.
@@ -25,23 +26,22 @@ the develop copy.
 |---|---|---|
 | `ci-checks.yml` | the check stage | one job per group, checks as steps: Lint / Test Rust packages (rs-core + rs-common), Check Rust services, Lint / Test JS packages (js-core), Check JS services (scraper, verifier bot), Check app, Lint charts, Lint workflows (zizmor, `.forgejo/zizmor.yml`), Scan dependencies (trivy, JSON report artifact) |
 | `ci-packages.yml` | build_rs_core, build_js_sdks, build_rn_sdk, build_kt_core | rust-wasm-build, rust-android-build, kt-core-build, rn-ios-build, js-packages-build (collect rs-core libraries, JS + React Native) |
-| `ci-rust-services.yml` | build_services (rust), test_server, test_moderation | service-images, services-integration |
-| `ci-js-services.yml` | build_services (scraper, verifier-bot) | scraper-image, scraper-integration, verifier-bot-image (build + health check), verifier-bot-tests (+ scheduled production health) |
-| `ci-app.yml` | build_app | web-image (version + image), app-web-e2e, app-eas-build, app-ios-e2e |
+| `ci-rust-services.yml` | build_services (rust), deploy_services, test_server, test_moderation | service-images, deploy-staging, services-integration |
+| `ci-js-services.yml` | build_services (scraper, verifier-bot), deploy_services | scraper-image, scraper-deploy, scraper-integration, verifier-bot-image (build + health check), verifier-bot-deploy, verifier-bot-tests (+ scheduled production health) |
+| `ci-app.yml` | build_app, deploy_app | web-image (version + image), web-deploy, app-web-e2e, app-eas-store, app-eas-apk, app-store-deploy, app-apk-deploy, app-ios-e2e |
 | `ci-charts.yml` | publish_charts | charts-build (staging branches only; other runs lint) |
 | `ci-release.yml` | release | release-{changelog, publish-npm, package-rs-core, tag-images}, release |
-| `cd-staging.yml` | deploy_services, deploy_app | deploy-staging, app-deploy-store, app-deploy-apk |
 | `ci-docs.yml` | build_docs | docs-typecheck, docs-build |
 | `cd-docs.yml` | deploy_docs | docs-deploy (Cloudflare Pages, default branch), docs-review (`pr-<n>` preview) |
 
 Jobs that GitLab repeats per variant are one matrix job here
-(`service-images`, `app-eas-build`, `deploy-staging`, ...); the rows come
+(`service-images`, `app-eas-store`, `deploy-staging`, ...); the rows come
 from the plan. Job ids follow the GitLab job names; the display
 names are verb first (`Lint Rust packages`, `Build server image`, `Deploy web
 to staging`), since Forgejo lists the expanded jobs flat.
 Dependencies between components are at the call level (`app` and
-`js-services` wait for `packages`, `deploy` for everything), so a failure in one
-component job holds back that whole component's dependants.
+`js-services` wait for `packages`, the deploying components for `charts`), so
+a failure in one component job holds back that whole component's dependants.
 
 Two workflows stand alone: `cd-production.yml`, a `workflow_dispatch`
 replacing the GitLab `when: manual` production deploys (pick a component and
@@ -69,8 +69,8 @@ verifier-bot tests and the production verifier health check).
 - `eas_staging`: the staging EAS builds (apk, aab, ios) on any branch (GitLab:
   manual on merge requests, automatic on the default branch). On a pull
   request, the `build-app` label does the same for every push while it is set.
-- `eas_production`: the production EAS builds plus store submission and APK
-  feed publish; honoured on the default branch only (GitLab: manual there,
+- `eas_production`: the production EAS builds plus their store and APK
+  deploys; honoured on the default branch only (GitLab: manual there,
   automatic on `v*`/`app-*` tags).
 - `ios_e2e`: the iOS e2e suite on the store build the run queued.
 
@@ -84,7 +84,8 @@ skips the run.
 ## Environments
 
 - Staging: every push to `develop` deploys what changed (services, web, the
-  app's store tracks and APK feed). Other branches join by listing them in
+  app's store tracks and APK), each as soon as it is built; the charts
+  are published on every such push. Other branches join by listing them in
   the `CI_STAGING_BRANCHES` variable (comma separated) and in `ci.yml`'s
   `on.push.branches`.
 - Production: never automatic. Services and web go through
@@ -125,9 +126,9 @@ and `ci_variables`), not set by hand.
 - `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`: docs Pages deploys.
 - `VERIFIER_BOT_ENV_VARS`: base64-encoded `.env` for the verifier-bot tests
   (the content; GitLab used a file variable).
-- `STATIC_S3_ENDPOINT`, `STATIC_S3_BUCKET`, `STATIC_S3_REGION`,
-  `STATIC_S3_ACCESS_KEY_ID`, `STATIC_S3_SECRET_ACCESS_KEY`,
-  `STATIC_PUBLIC_BASE_URL`: the static bucket for web assets and the APK feed.
+- `STATIC_S3_ENDPOINT`, `STATIC_S3_ACCESS_KEY_ID`,
+  `STATIC_S3_SECRET_ACCESS_KEY`, plus the variables `STATIC_S3_BUCKET` and
+  `STATIC_PUBLIC_BASE_URL`: the static bucket for web assets and the APK.
 - `MATTERMOST_RELEASES_WEBHOOK`: release announcement.
 - `SCCACHE_R2_BUCKET` (variable), `SCCACHE_R2_ENDPOINT`,
   `SCCACHE_R2_ACCESS_KEY_ID`, `SCCACHE_R2_SECRET_ACCESS_KEY`: the CI cache

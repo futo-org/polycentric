@@ -32,11 +32,10 @@ jobs:
     container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
     env:
       STATIC_S3_ENDPOINT: ${{ secrets.STATIC_S3_ENDPOINT }}
-      STATIC_S3_BUCKET: ${{ secrets.STATIC_S3_BUCKET }}
-      STATIC_S3_REGION: ${{ secrets.STATIC_S3_REGION }}
+      STATIC_S3_BUCKET: ${{ vars.STATIC_S3_BUCKET }}
       STATIC_S3_ACCESS_KEY_ID: ${{ secrets.STATIC_S3_ACCESS_KEY_ID }}
       STATIC_S3_SECRET_ACCESS_KEY: ${{ secrets.STATIC_S3_SECRET_ACCESS_KEY }}
-      STATIC_PUBLIC_BASE_URL: ${{ secrets.STATIC_PUBLIC_BASE_URL }}
+      STATIC_PUBLIC_BASE_URL: ${{ vars.STATIC_PUBLIC_BASE_URL }}
     steps:
       - name: Install tools
         run: apk add --no-cache bash git curl crane
