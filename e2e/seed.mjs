@@ -12,16 +12,16 @@ import { createPolycentricNodeClient } from '@polycentric/js-node';
 
 // Passed to the flows as -e variables. Avoid English stop words in names: the
 // server's full-text search would drop "A" and match both users.
-export const VERIFIERS = {
+export const SEEDED_USERS = {
   MAESTRO_VERIFIER_A: 'Maestro Verifier Alpha',
   MAESTRO_VERIFIER_B: 'Maestro Verifier Bravo',
 };
 
 // The app's server list; the identities live on its first server.
-const SERVER = (
+const SERVER_URL = (
   process.env.EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS ?? 'http://localhost:3000'
 ).split(',')[0];
-const STATE = new URL('.seed/', import.meta.url).pathname;
+const STATE_DIR = new URL('.seed/', import.meta.url).pathname;
 
 const sha256 = (data) =>
   new Uint8Array(createHash('sha256').update(data).digest());
@@ -37,7 +37,7 @@ async function seedIdentity(client, name) {
   // is the identity key whether or not the identity exists yet.
   const identity = v2.Identity.create({
     rotationKeys: [publicKey],
-    servers: { urls: [SERVER] },
+    servers: { urls: [SERVER_URL] },
   });
   const identityKey = bytesToHex(sha256(v2.Identity.toBinary(identity)));
 
@@ -58,7 +58,7 @@ async function seedIdentity(client, name) {
   await client.identityManager.publish({
     rotationKeys: [publicKey],
     signingKeys: [],
-    servers: [SERVER],
+    servers: [SERVER_URL],
   });
   const content = client.contentManager.build({
     oneofKind: 'profileUpdate',
@@ -72,13 +72,14 @@ async function seedIdentity(client, name) {
 }
 
 export async function seed() {
-  mkdirSync(`${STATE}blobs`, { recursive: true });
+  mkdirSync(`${STATE_DIR}blobs`, { recursive: true });
   const client = await createPolycentricNodeClient({
-    databasePath: `${STATE}seed.db`,
-    blobDirectory: `${STATE}blobs`,
-    seedServers: [SERVER],
+    databasePath: `${STATE_DIR}seed.db`,
+    blobDirectory: `${STATE_DIR}blobs`,
+    seedServers: [SERVER_URL],
   });
-  for (const name of Object.values(VERIFIERS)) await seedIdentity(client, name);
+  for (const name of Object.values(SEEDED_USERS))
+    await seedIdentity(client, name);
 }
 
 if (import.meta.main) {

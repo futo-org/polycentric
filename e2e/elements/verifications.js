@@ -17,6 +17,7 @@ output.verifications = {
   requested: 'Requested',
   // Accessibility label of the dots button on a verifier row.
   verifierOptions: 'Verifier options',
+  // Menu item; also the confirm button's title of the alert it opens.
   cancelRequest: 'Cancel request',
   cancelRequestTitle: 'Cancel request?',
   notVerified: 'Not verified',

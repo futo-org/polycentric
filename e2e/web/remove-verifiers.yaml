@@ -10,7 +10,7 @@ name: I can cancel verification requests on my claim
     file: ../steps/request-verification.yaml
     env:
       NAME: ${MAESTRO_VERIFIER_A}
-# The sheet's title is the button's text too; wait for it to be gone.
+# The counter updates once the request is saved.
 - extendedWaitUntil:
     visible: 0/1 verified
     timeout: 30000
@@ -26,14 +26,14 @@ name: I can cancel verification requests on my claim
 - assertVisible: ${MAESTRO_VERIFIER_A}
 - assertVisible: ${MAESTRO_VERIFIER_B}
 # Rows list the newest request first, so this cancels B's.
-- runFlow: ../steps/cancel-request-web.yaml
+- runFlow: ../steps/cancel-verification-request-web.yaml
 # Removal syncs to the server before the list refreshes.
 - extendedWaitUntil:
     visible: 0/1 verified
     timeout: 30000
 - assertNotVisible: ${MAESTRO_VERIFIER_B}
 - assertVisible: ${MAESTRO_VERIFIER_A}
-- runFlow: ../steps/cancel-request-web.yaml
+- runFlow: ../steps/cancel-verification-request-web.yaml
 - extendedWaitUntil:
     visible: ${output.verifications.notVerified}
     timeout: 30000

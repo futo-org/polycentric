@@ -2,7 +2,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { VERIFIERS, seed } from './seed.mjs';
+import { SEEDED_USERS, seed } from './seed.mjs';
 
 const PLATFORMS = ['ios', 'android', 'web'];
 const APP_ID = process.env.MAESTRO_APP_ID ?? 'org.futo.polycentric.dev';
@@ -194,7 +194,7 @@ function iosArgs(device) {
 
 // Users the flows search for must exist on the server under test.
 await seed();
-const seeded = Object.entries(VERIFIERS).flatMap(([k, v]) => [
+const seeded = Object.entries(SEEDED_USERS).flatMap(([k, v]) => [
   '-e',
   `${k}=${v}`,
 ]);

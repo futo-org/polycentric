@@ -1,9 +1,9 @@
 appId: ${MAESTRO_APP_ID}
 ---
-# Cancels the verification request of the first verifier row (rows are in
-# request order; the flow asserts by name which one went). The confirm is
-# window.confirm, which the runner would dismiss, answering "no", so it is
-# stubbed to say yes and record the prompt.
+# Cancels the verification request on the first verifier row, the newest one
+# (the flow asserts by name which one went). The confirm is window.confirm,
+# which the runner would dismiss, answering "no", so it is stubbed to say yes
+# and record the prompt.
 - evalBrowserScript:
     script: |
       window.confirmMessage = '';
