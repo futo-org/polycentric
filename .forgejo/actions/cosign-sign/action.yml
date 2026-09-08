@@ -1,4 +1,4 @@
-name: cosign-sign
+forgejo/name: cosign-sign
 description: Signs pushed images/charts with the harbor-infra cosign key (cosign-sign.sh); a no-op when the key is absent.
 inputs:
   refs:
@@ -8,8 +8,8 @@ inputs:
     description: COSIGN_PRIVATE_KEY (base64 PEM); empty skips signing
     default: ''
   cosign-version:
-    description: cosign release for non-alpine job images
-    default: '2.5.3'
+    description: cosign release fetched when the job image has no apk
+    default: '3.0.6'
 runs:
   using: composite
   steps:
