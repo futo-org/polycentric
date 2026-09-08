@@ -13,6 +13,7 @@ import { encodePairingCode, EncodingMode } from '../pairingCode';
 import { useCountdown } from '../hooks/useCountdown';
 import type { v2 } from '@polycentric/react-native';
 
+/** Width of the UI elements in the pairing info card. */
 const PAIRING_BLOCK_WIDTH = 300;
 
 export default function PairIdentityIssuerScreen() {
@@ -74,41 +75,10 @@ export default function PairIdentityIssuerScreen() {
                   {error}
                 </Text>
               ) : (
-                <View style={Atoms.gap_md}>
-                  <View
-                    style={[
-                      Atoms.items_center,
-                      Atoms.justify_center,
-                      Atoms.p_xl,
-                      Atoms.rounded_lg,
-                      {
-                        backgroundColor: theme.palette.neutral_50,
-                      },
-                    ]}
-                  >
-                    {info ? (
-                      <QRCode
-                        value={encodePairingCode(info, EncodingMode.BASE64)}
-                        size={PAIRING_BLOCK_WIDTH}
-                        color={theme.palette.neutral_950}
-                        backgroundColor="transparent"
-                      />
-                    ) : (
-                      <View
-                        style={{
-                          width: PAIRING_BLOCK_WIDTH,
-                          height: PAIRING_BLOCK_WIDTH,
-                        }}
-                      />
-                    )}
-                  </View>
-
-                  <CopyButton info={info} />
-
-                  <View style={Atoms.items_center}>
-                    <CountdownTimer remainingSeconds={remainingSeconds} />
-                  </View>
-                </View>
+                <PairingInfoCard
+                  info={info}
+                  remainingSeconds={remainingSeconds}
+                />
               )}
             </ScrollView>
           </View>
@@ -122,6 +92,68 @@ export default function PairIdentityIssuerScreen() {
         onDeny={rejectClaimer}
       />
     </>
+  );
+}
+
+function PairingInfoCard({
+  info,
+  remainingSeconds,
+}: {
+  info: v2.PairingInfo | null;
+  remainingSeconds: number | null;
+}) {
+  const { theme } = useTheme();
+
+  return (
+    <View
+      style={[
+        Atoms.gap_md,
+        Atoms.p_lg,
+        Atoms.rounded_lg,
+        { backgroundColor: theme.palette.neutral_50 },
+      ]}
+    >
+      <PairingQRCode info={info} />
+      <CopyButton info={info} />
+      <View style={Atoms.items_center}>
+        <CountdownTimer remainingSeconds={remainingSeconds} />
+      </View>
+    </View>
+  );
+}
+
+function PairingQRCode({ info }: { info: v2.PairingInfo | null }) {
+  const { theme } = useTheme();
+
+  return (
+    <View
+      style={[
+        Atoms.items_center,
+        Atoms.justify_center,
+        Atoms.rounded_lg,
+        Atoms.overflow_hidden,
+        {
+          backgroundColor: theme.palette.white,
+        },
+      ]}
+    >
+      {info ? (
+        <QRCode
+          value={encodePairingCode(info, EncodingMode.BASE64)}
+          size={PAIRING_BLOCK_WIDTH}
+          color={theme.palette.black}
+          backgroundColor={theme.palette.white}
+          quietZone={32}
+        />
+      ) : (
+        <View
+          style={{
+            width: PAIRING_BLOCK_WIDTH,
+            height: PAIRING_BLOCK_WIDTH,
+          }}
+        />
+      )}
+    </View>
   );
 }
 
