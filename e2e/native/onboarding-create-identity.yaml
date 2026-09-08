@@ -4,7 +4,10 @@ appId: ${MAESTRO_APP_ID}
 - tapOn: 'Create new identity'
 - tapOn: 'Enter display name'
 - inputText: 'Maestro'
-- hideKeyboard
+# Not hideKeyboard: on Android that is a blind Back press, which pops this
+# screen whenever Gboard has no soft keyboard up (its physical-keyboard or
+# stylus toolbar modes). Enter blurs the field and dismisses the keyboard.
+- pressKey: Enter
 - tapOn: 'Continue'
 # Registering for push prompts once per install.
 - tapOn:
