@@ -46,6 +46,9 @@ Rules:
 - Libraries a run does not build come from the develop copy in the registry.
 - Only `develop` (and branches in `CI_STAGING_BRANCHES`) deploy to staging.
   Production is `cd-production.yml`.
+- `pr.yml`'s last job, `Complete`, fails if any job in the run did. It is the
+  required status check on `develop` (`PR / Complete (pull_request)`, set in
+  harbor-infra `futo-git/org`), so a PR that ran nothing still reports.
 
 ## Manual runs
 

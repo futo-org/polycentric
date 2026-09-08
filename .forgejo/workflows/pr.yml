@@ -148,3 +148,37 @@ jobs:
     with:
       plan: ${{ needs.changes.outputs.plan }}
       pr_number: ${{ github.event.pull_request.number }}
+
+  # The branch protection status check: PR / Complete (pull_request). It runs
+  # whatever the run did, so a PR with no jobs still reports.
+  complete:
+    name: Complete
+    needs:
+      - changes
+      - setup-images
+      - checks
+      - packages
+      - rust-services
+      - js-services
+      - app-web-checks
+      - web
+      - app
+      - docs
+      - cd-docs
+    if: always()
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - name: Job results
+        shell: sh
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          node -e '
+            const jobs = Object.entries(JSON.parse(process.env.RESULTS));
+            for (const [name, job] of jobs) console.log(`${job.result}\t${name}`);
+            const bad = jobs.filter(([, job]) => !["success", "skipped"].includes(job.result));
+            if (!bad.length) process.exit(0);
+            console.log(`::error::Not passing: ${bad.map(([n]) => n).join(", ")}`);
+            process.exit(1);
+          '

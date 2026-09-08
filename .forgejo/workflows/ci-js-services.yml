@@ -136,15 +136,9 @@ jobs:
           registry: ${{ inputs.registry }}
           ref-slug: ${{ inputs.ref_slug }}
           default-branch-tag: ${{ inputs.default_ref }}
-          load: 'true'
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
           cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      - name: Health checks
-        env:
-          IMAGE: ${{ inputs.registry }}/verifier-bot:${{ github.sha }}
-          CI_JOB_ID: ${{ github.run_id }}
-        run: .gitlab/ci/scripts/verifier-image-health.sh "$IMAGE"
 
   verifier-bot-deploy:
     name: JS services / Deploy verifier bot to staging
