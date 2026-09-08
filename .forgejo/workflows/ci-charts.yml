@@ -19,9 +19,26 @@ on:
         value: ${{ jobs.charts-build.outputs.chart_version }}
 
 jobs:
+  charts-lint:
+    name: Charts / Lint
+    if: fromJSON(inputs.plan).flags.charts_lint
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git helm
+      - uses: actions/checkout@v4
+      - name: Lint charts
+        run: |
+          for chart in deploy/charts/*/; do
+            helm lint "$chart"
+            helm template "$(basename "$chart")" "$chart" > /dev/null
+          done
+
   charts-build:
-    name: Build charts
-    if: fromJSON(inputs.plan).flags.charts
+    name: Charts / Build
+    needs: charts-lint
+    if: ${{ !cancelled() && fromJSON(inputs.plan).flags.charts && needs.charts-lint.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
     outputs:

@@ -1,0 +1,33 @@
+name: App & web checks
+
+# GitLab build_app.yml checks; the web image and the EAS builds wait on it.
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        type: string
+        required: true
+
+jobs:
+  app-checks:
+    name: App & web checks / Lint and test
+    if: fromJSON(inputs.plan).flags.app_checks
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter polycentric-app...
+      - name: Biome
+        continue-on-error: true
+        run: pnpm exec biome check apps/harbor --diagnostic-level=error
+      - name: Tests
+        run: pnpm --filter polycentric-app test:ci
+      - uses: forgejo/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-app
+          path: apps/harbor/junit.xml
+          retention-days: 7

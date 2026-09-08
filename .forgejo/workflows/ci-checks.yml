@@ -1,6 +1,6 @@
 name: Checks
 
-# GitLab check stage: one job per group, checks as steps.
+# Repo-wide checks; component checks live with their component.
 
 on:
   workflow_call:
@@ -8,215 +8,10 @@ on:
       plan:
         type: string
         required: true
-      registry:
-        type: string
-        required: true
-      images_tag:
-        type: string
-        required: true
-
-env:
-  CARGO_INCREMENTAL: '0'
-  CARGO_PROFILE_DEV_DEBUG: '0'
-  SCCACHE_R2_BUCKET: ${{ vars.SCCACHE_R2_BUCKET }}
-  SCCACHE_R2_ENDPOINT: ${{ secrets.SCCACHE_R2_ENDPOINT }}
-  SCCACHE_R2_ACCESS_KEY_ID: ${{ secrets.SCCACHE_R2_ACCESS_KEY_ID }}
-  SCCACHE_R2_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_R2_SECRET_ACCESS_KEY }}
 
 jobs:
-  rust-packages-lint:
-    name: Lint Rust packages
-    if: fromJSON(inputs.plan).flags.rs_core
-    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container:
-      image: ${{ inputs.registry }}/ci/rust:${{ inputs.images_tag }}
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.forgejo/actions/rust-env
-        with:
-          cache: packages-lint
-      - name: Format
-        run: cargo fmt --check -p polycentric-core -p polycentric-common
-      - name: Clippy
-        if: ${{ !cancelled() }}
-        run: |
-          cargo clippy -p polycentric-common
-          cargo clippy -p polycentric-core -- -D warnings
-      - uses: ./.forgejo/actions/r2-cache
-        if: always()
-        continue-on-error: true
-        with:
-          mode: save
-          key: ${{ env.RUST_CACHE_KEY }}
-          path: ${{ env.RUST_CACHE_PATHS }}
-
-  rust-packages-tests:
-    name: Test Rust packages
-    if: fromJSON(inputs.plan).flags.rs_core
-    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container:
-      image: ${{ inputs.registry }}/ci/rust:${{ inputs.images_tag }}
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.forgejo/actions/rust-env
-        with:
-          cache: packages-tests
-      - name: Tests
-        run: cargo nextest run -P ci -p polycentric-core -p polycentric-common
-      - uses: ./.forgejo/actions/r2-cache
-        if: always()
-        continue-on-error: true
-        with:
-          mode: save
-          key: ${{ env.RUST_CACHE_KEY }}
-          path: ${{ env.RUST_CACHE_PATHS }}
-      - uses: forgejo/upload-artifact@v4
-        if: always()
-        with:
-          name: junit-rust-packages
-          path: target/nextest/ci/junit.xml
-          retention-days: 7
-
-  # Server and moderation tests need the stack: ci-rust-services.yml.
-  rust-services:
-    name: Check Rust services
-    if: fromJSON(inputs.plan).flags.server || fromJSON(inputs.plan).flags.moderation || fromJSON(inputs.plan).flags.push_notifications
-    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container:
-      image: ${{ inputs.registry }}/ci/rust:${{ inputs.images_tag }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.forgejo/actions/rust-env
-        with:
-          cache: services-checks
-      - name: Format
-        continue-on-error: true
-        run: cargo fmt --check -p server -p moderation-service -p push-notifications-service
-      - name: Clippy
-        continue-on-error: true
-        run: cargo clippy -p server -p moderation-service -p push-notifications-service -- -D warnings
-      - name: Push notifications tests
-        if: fromJSON(inputs.plan).flags.push_notifications
-        run: cargo nextest run -P ci -p push-notifications-service
-      - uses: ./.forgejo/actions/r2-cache
-        if: always()
-        continue-on-error: true
-        with:
-          mode: save
-          key: ${{ env.RUST_CACHE_KEY }}
-          path: ${{ env.RUST_CACHE_PATHS }}
-      - uses: forgejo/upload-artifact@v4
-        if: always() && fromJSON(inputs.plan).flags.push_notifications
-        with:
-          name: junit-rust-services
-          path: target/nextest/ci/junit.xml
-          retention-days: 7
-
-  js-packages-lint:
-    name: Lint JS packages
-    if: fromJSON(inputs.plan).flags.js_sdk
-    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.forgejo/actions/setup-pnpm
-        with:
-          install-args: --filter polycentric
-      - name: Biome
-        run: pnpm exec biome check packages/js-core --diagnostic-level=error
-
-  js-packages-tests:
-    name: Test JS packages
-    if: fromJSON(inputs.plan).flags.js_sdk
-    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.forgejo/actions/setup-pnpm
-        with:
-          install-args: --filter @polycentric/js-core...
-      - name: js-core
-        run: pnpm --filter @polycentric/js-core test:ci
-      - uses: forgejo/upload-artifact@v4
-        if: always()
-        with:
-          name: junit-js-core
-          path: packages/js-core/junit.xml
-          retention-days: 7
-
-  js-services:
-    name: Check JS services
-    if: fromJSON(inputs.plan).flags.verifier_bot || fromJSON(inputs.plan).flags.scraper
-    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
-    env:
-      PUPPETEER_SKIP_DOWNLOAD: '1'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.forgejo/actions/setup-pnpm
-        with:
-          install-args: --filter polycentric --filter @polycentric/scraper...
-      - name: Verifier bot biome
-        if: fromJSON(inputs.plan).flags.verifier_bot
-        continue-on-error: true
-        run: pnpm exec biome check services/verifier-bot --diagnostic-level=error
-      - name: Scraper typecheck
-        if: ${{ !cancelled() && fromJSON(inputs.plan).flags.scraper }}
-        run: pnpm --filter @polycentric/scraper build
-      - name: Scraper tests
-        if: ${{ !cancelled() && fromJSON(inputs.plan).flags.scraper }}
-        run: pnpm --filter @polycentric/scraper test:ci
-      - uses: forgejo/upload-artifact@v4
-        if: always() && fromJSON(inputs.plan).flags.scraper
-        with:
-          name: junit-scraper
-          path: services/scraper/junit.xml
-          retention-days: 7
-
-  app:
-    name: Check app
-    if: fromJSON(inputs.plan).flags.app_checks
-    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.forgejo/actions/setup-pnpm
-        with:
-          install-args: --filter polycentric-app...
-      - name: Biome
-        continue-on-error: true
-        run: pnpm exec biome check apps/harbor --diagnostic-level=error
-      - name: Tests
-        run: pnpm --filter polycentric-app test:ci
-      - uses: forgejo/upload-artifact@v4
-        if: always()
-        with:
-          name: junit-app
-          path: apps/harbor/junit.xml
-          retention-days: 7
-
-  charts-lint:
-    name: Lint charts
-    if: fromJSON(inputs.plan).flags.charts_lint
-    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
-    steps:
-      - name: Install tools
-        run: apk add --no-cache bash git helm
-      - uses: actions/checkout@v4
-      - name: Lint charts
-        run: |
-          for chart in deploy/charts/*/; do
-            helm lint "$chart"
-            helm template "$(basename "$chart")" "$chart" > /dev/null
-          done
-
   workflows-lint:
-    name: Lint workflows
+    name: Checks / Lint workflows
     if: fromJSON(inputs.plan).flags.ci
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
@@ -235,7 +30,7 @@ jobs:
 
   # GitLab scan_dependencies.yml.
   trivy:
-    name: Scan dependencies
+    name: Checks / Scan dependencies
     if: fromJSON(inputs.plan).flags.scan
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}

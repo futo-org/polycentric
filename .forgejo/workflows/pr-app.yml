@@ -1,0 +1,79 @@
+name: PR apps
+
+# The build-app label on a pull request: the staging EAS builds for its head.
+
+on:
+  pull_request:
+    types: [labeled]
+
+concurrency:
+  group: pr-app-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    name: Plan
+    if: github.event.label.name == 'build-app'
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    outputs:
+      registry: ${{ steps.plan.outputs.registry }}
+      images_tag: ${{ steps.plan.outputs.images_tag }}
+      default_branch: ${{ steps.plan.outputs.default_branch }}
+      default_ref: ${{ steps.plan.outputs.default_ref }}
+      plan: ${{ steps.plan.outputs.plan }}
+      images_missing: ${{ steps.plan.outputs.images_missing }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.forgejo/actions/plan
+        id: plan
+        with:
+          eas-staging: 'true'
+
+  setup-images:
+    name: Build CI images
+    needs: changes
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - uses: ./.forgejo/actions/ci-images
+        if: needs.changes.outputs.images_missing == 'true'
+        with:
+          registry: ${{ needs.changes.outputs.registry }}
+          tag: ${{ needs.changes.outputs.images_tag }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+
+  packages:
+    name: Packages
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.setup-images.result != 'failure' }}
+    uses: ./.forgejo/workflows/ci-packages.yml
+    secrets: inherit
+    with:
+      plan: ${{ needs.changes.outputs.plan }}
+      registry: ${{ needs.changes.outputs.registry }}
+      images_tag: ${{ needs.changes.outputs.images_tag }}
+      default_branch: ${{ needs.changes.outputs.default_branch }}
+      default_ref: ${{ needs.changes.outputs.default_ref }}
+
+  app-web-checks:
+    name: App & web checks
+    needs: changes
+    uses: ./.forgejo/workflows/ci-app-web-checks.yml
+    with:
+      plan: ${{ needs.changes.outputs.plan }}
+
+  app:
+    name: App
+    needs: [changes, packages, app-web-checks]
+    if: >-
+      ${{ !cancelled() && needs.changes.result == 'success' && needs.packages.result != 'failure' &&
+      needs.app-web-checks.result != 'failure' }}
+    uses: ./.forgejo/workflows/ci-app.yml
+    secrets: inherit
+    with:
+      plan: ${{ needs.changes.outputs.plan }}
+      is_tag: 'false'

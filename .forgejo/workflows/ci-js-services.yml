@@ -22,9 +22,39 @@ on:
         required: true
 
 jobs:
+  js-services-checks:
+    name: JS services / Check
+    if: fromJSON(inputs.plan).flags.verifier_bot || fromJSON(inputs.plan).flags.scraper
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter polycentric --filter @polycentric/scraper...
+      - name: Verifier bot biome
+        if: fromJSON(inputs.plan).flags.verifier_bot
+        continue-on-error: true
+        run: pnpm exec biome check services/verifier-bot --diagnostic-level=error
+      - name: Scraper typecheck
+        if: ${{ !cancelled() && fromJSON(inputs.plan).flags.scraper }}
+        run: pnpm --filter @polycentric/scraper build
+      - name: Scraper tests
+        if: ${{ !cancelled() && fromJSON(inputs.plan).flags.scraper }}
+        run: pnpm --filter @polycentric/scraper test:ci
+      - uses: forgejo/upload-artifact@v4
+        if: always() && fromJSON(inputs.plan).flags.scraper
+        with:
+          name: junit-scraper
+          path: services/scraper/junit.xml
+          retention-days: 7
+
   scraper-image:
-    name: Build scraper image
-    if: fromJSON(inputs.plan).flags.image_scraper
+    name: JS services / Build scraper image
+    needs: js-services-checks
+    if: ${{ !cancelled() && fromJSON(inputs.plan).flags.image_scraper && needs.js-services-checks.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
     steps:
@@ -42,7 +72,7 @@ jobs:
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
 
   scraper-deploy:
-    name: Deploy scraper to staging
+    name: JS services / Deploy scraper to staging
     needs: scraper-image
     if: ${{ !cancelled() && fromJSON(inputs.plan).flags.deploy_scraper && needs.scraper-image.result == 'success' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
@@ -62,7 +92,7 @@ jobs:
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
 
   scraper-integration:
-    name: Test scraper integration
+    name: JS services / Test scraper integration
     needs: scraper-image
     if: ${{ !cancelled() && fromJSON(inputs.plan).flags.scraper_integration && needs.scraper-image.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
@@ -88,8 +118,9 @@ jobs:
           retention-days: 7
 
   verifier-bot-image:
-    name: Build verifier bot image
-    if: fromJSON(inputs.plan).flags.image_verifier_bot
+    name: JS services / Build verifier bot image
+    needs: js-services-checks
+    if: ${{ !cancelled() && fromJSON(inputs.plan).flags.image_verifier_bot && needs.js-services-checks.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
     steps:
@@ -114,7 +145,7 @@ jobs:
         run: .gitlab/ci/scripts/verifier-image-health.sh "$IMAGE"
 
   verifier-bot-deploy:
-    name: Deploy verifier bot to staging
+    name: JS services / Deploy verifier bot to staging
     needs: verifier-bot-image
     if: ${{ !cancelled() && fromJSON(inputs.plan).flags.deploy_verifier_bot && needs.verifier-bot-image.result == 'success' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
@@ -136,7 +167,7 @@ jobs:
   # VERIFIER_BOT_ENV_VARS is the base64 .env content (GitLab: a file variable).
   # The scheduled run also checks the deployed bot.
   verifier-bot-tests:
-    name: Test verifier bot
+    name: JS services / Test verifier bot
     if: fromJSON(inputs.plan).flags.verifier_bot_tests
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}

@@ -30,9 +30,101 @@ env:
   SCCACHE_R2_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_R2_SECRET_ACCESS_KEY }}
 
 jobs:
+  rust-packages-lint:
+    name: Packages / Lint Rust
+    if: fromJSON(inputs.plan).flags.rs_core
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ inputs.registry }}/ci/rust:${{ inputs.images_tag }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/rust-env
+        with:
+          cache: packages-lint
+      - name: Format
+        run: cargo fmt --check -p polycentric-core -p polycentric-common
+      - name: Clippy
+        if: ${{ !cancelled() }}
+        run: |
+          cargo clippy -p polycentric-common
+          cargo clippy -p polycentric-core -- -D warnings
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
+  rust-packages-tests:
+    name: Packages / Test Rust
+    if: fromJSON(inputs.plan).flags.rs_core
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ inputs.registry }}/ci/rust:${{ inputs.images_tag }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/rust-env
+        with:
+          cache: packages-tests
+      - name: Tests
+        run: cargo nextest run -P ci -p polycentric-core -p polycentric-common
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+      - uses: forgejo/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-rust-packages
+          path: target/nextest/ci/junit.xml
+          retention-days: 7
+
+  js-packages-lint:
+    name: Packages / Lint JS
+    if: fromJSON(inputs.plan).flags.js_sdk
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter polycentric
+      - name: Biome
+        run: pnpm exec biome check packages/js-core --diagnostic-level=error
+
+  js-packages-tests:
+    name: Packages / Test JS
+    if: fromJSON(inputs.plan).flags.js_sdk
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter @polycentric/js-core...
+      - name: js-core
+        run: pnpm --filter @polycentric/js-core test:ci
+      - uses: forgejo/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-js-core
+          path: packages/js-core/junit.xml
+          retention-days: 7
+
   rust-wasm-build:
-    name: Build wasm library
-    if: fromJSON(inputs.plan).flags.build_wasm
+    name: Packages / Build wasm
+    needs: [rust-packages-lint, rust-packages-tests]
+    if: >-
+      ${{ !cancelled() && fromJSON(inputs.plan).flags.build_wasm &&
+      needs.rust-packages-lint.result != 'failure' && needs.rust-packages-tests.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container:
       image: ${{ inputs.registry }}/ci/rust:${{ inputs.images_tag }}
@@ -62,8 +154,11 @@ jobs:
 
   # The Kotlin AAR builds the same Android targets, so it shares this job.
   rust-android-build:
-    name: Build Android libraries
-    if: fromJSON(inputs.plan).flags.build_rn
+    name: Packages / Build Android
+    needs: [rust-packages-lint, rust-packages-tests]
+    if: >-
+      ${{ !cancelled() && fromJSON(inputs.plan).flags.build_rn &&
+      needs.rust-packages-lint.result != 'failure' && needs.rust-packages-tests.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container:
       image: ${{ inputs.registry }}/ci/rust-android:${{ inputs.images_tag }}
@@ -90,8 +185,11 @@ jobs:
           retention-days: 7
 
   kt-core-build:
-    name: Build Kotlin library
-    if: fromJSON(inputs.plan).flags.kt_core_build
+    name: Packages / Build Kotlin
+    needs: [rust-packages-lint, rust-packages-tests]
+    if: >-
+      ${{ !cancelled() && fromJSON(inputs.plan).flags.kt_core_build &&
+      needs.rust-packages-lint.result != 'failure' && needs.rust-packages-tests.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container:
       image: ${{ inputs.registry }}/ci/rust-android:${{ inputs.images_tag }}
@@ -134,7 +232,7 @@ jobs:
   # Runs inside an ephemeral Tart macOS VM (see forgejo-tart-runner), so the
   # .cirrus.yml build steps run directly here instead of via `cirrus run`.
   rn-ios-build:
-    name: Build iOS libraries
+    name: Packages / Build iOS
     if: fromJSON(inputs.plan).flags.build_rn
     runs-on: ${{ vars.CI_RUNNER_MACOS || 'macos' }}
     env:
@@ -164,12 +262,13 @@ jobs:
 
   # Libraries this run did not build come from the develop copy.
   js-packages-build:
-    name: Build JS packages
-    needs: [rust-wasm-build, rust-android-build, rn-ios-build]
+    name: Packages / Build JS
+    needs: [rust-wasm-build, rust-android-build, rn-ios-build, js-packages-lint, js-packages-tests]
     if: >-
       ${{ !cancelled() && fromJSON(inputs.plan).flags.build_sdks &&
       needs.rust-wasm-build.result != 'failure' && needs.rust-android-build.result != 'failure' &&
-      needs.rn-ios-build.result != 'failure' }}
+      needs.rn-ios-build.result != 'failure' && needs.js-packages-lint.result != 'failure' &&
+      needs.js-packages-tests.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     env:

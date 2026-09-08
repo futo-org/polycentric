@@ -1,181 +1,96 @@
-# Forgejo Actions CI
+# CI
 
-Forgejo Actions port of the GitLab pipeline (`.gitlab-ci.yml` + `.gitlab/ci/*`,
-disabled by its `workflow: rules` but kept: the workflows reuse
-`.gitlab/ci/scripts/*` and `.gitlab/images/*`). Images, Helm charts and the CI toolchain images go to
-`registry.futo.org/harbor/...` (FUTO's zot), the JS SDKs to npmjs, and the
-release with its APK, AAR and crates to Forgejo releases. Forgejo's own
-package registry is not used: its workflow token cannot push packages and it
-cannot mint tokens from a token.
+Forgejo Actions. Images and charts go to `registry.futo.org/harbor`, JS
+packages to npm, releases to Forgejo releases. The old GitLab pipeline is
+disabled; its scripts (`.gitlab/ci/scripts`) and images (`.gitlab/images`)
+are still used.
 
-## Workflows
+## Entry points
 
-`ci.yml` runs on every push and pull request. Its `changes` job runs
-`.forgejo/scripts/changes.mjs`, which resolves the GitLab `rules` into a
-plan: one flag per job plus the matrix rows for the grouped jobs (tags and
-manual runs match every path). `setup-images` builds the CI toolchain images,
-then the component workflows (`ci-*.yml` and `cd-docs.yml`, `workflow_call`
-only) run, called like GitLab `include:` files. Integration and e2e tests
-live with the component they test, after its build, and so do its staging
-deploys: each image, chart or app deploys as soon as its own build is done. Editing a
-workflow, or an action or script it uses, reruns that workflow's jobs only
-(GitLab: the job's include file); libraries a run does not build come from
-the develop copy.
-
-| Workflow | GitLab files | Jobs |
+| Workflow | Runs on | Does |
 |---|---|---|
-| `ci-checks.yml` | the check stage | one job per group, checks as steps: Lint / Test Rust packages (rs-core + rs-common), Check Rust services, Lint / Test JS packages (js-core), Check JS services (scraper, verifier bot), Check app, Lint charts, Lint workflows (zizmor, `.forgejo/zizmor.yml`), Scan dependencies (trivy, JSON report artifact) |
-| `ci-packages.yml` | build_rs_core, build_js_sdks, build_rn_sdk, build_kt_core | rust-wasm-build, rust-android-build, kt-core-build, rn-ios-build, js-packages-build (collect rs-core libraries, JS + React Native) |
-| `ci-rust-services.yml` | build_services (rust), deploy_services, test_server, test_moderation | service-images, deploy-staging, services-integration |
-| `ci-js-services.yml` | build_services (scraper, verifier-bot), deploy_services | scraper-image, scraper-deploy, scraper-integration, verifier-bot-image (build + health check), verifier-bot-deploy, verifier-bot-tests (+ scheduled production health) |
-| `ci-app.yml` | build_app, deploy_app | web-image (version + image), web-deploy, app-web-e2e, app-eas-store, app-eas-apk, app-store-deploy, app-apk-deploy, app-ios-e2e |
-| `ci-charts.yml` | publish_charts | charts-build (staging branches only; other runs lint) |
-| `ci-release.yml` | release | release-{changelog, publish-npm, package-rs-core, tag-images}, release |
-| `ci-docs.yml` | build_docs | docs-typecheck, docs-build |
-| `cd-docs.yml` | deploy_docs | docs-deploy (Cloudflare Pages, default branch), docs-review (`pr-<n>` preview) |
+| `pr.yml` | pull requests | checks, builds, tests |
+| `pr-app.yml` | `build-app` label on a PR | staging EAS builds |
+| `cd-staging.yml` | push to `develop`, manual run, nightly | the above plus staging deploys |
+| `release.yml` | `v*` and `app-*` tags | the above plus the release |
+| `cd-production.yml` | manual | retag chosen components `production` |
+| `cd-docs-cleanup.yml` | PR closed | remove the docs preview |
 
-Jobs that GitLab repeats per variant are one matrix job here
-(`service-images`, `app-eas-store`, `deploy-staging`, ...); the rows come
-from the plan. Job ids follow the GitLab job names; the display
-names are verb first (`Lint Rust packages`, `Build server image`, `Deploy web
-to staging`), since Forgejo lists the expanded jobs flat.
-Dependencies between components are at the call level (`app` and
-`js-services` wait for `packages`, the deploying components for `charts`), so
-a failure in one component job holds back that whole component's dependants.
+Each entry point runs `changes.mjs` (the plan: which jobs run, from changed
+paths and the ref), builds missing CI images, then calls the component
+workflows.
 
-Two workflows stand alone: `cd-production.yml`, a `workflow_dispatch`
-replacing the GitLab `when: manual` production deploys (pick a component and
-optionally a commit; it relabels that commit's image and chart `production`),
-and `cd-docs-cleanup.yml`, which removes a PR's docs preview when the PR
-closes.
+## Components
 
-Shared steps are composite actions in `.forgejo/actions/` (`rust-env`,
-`setup-pnpm`, `sdk-artifacts`, `registry-login`, `service-image`,
-`deploy-tag`, `eas-build`). `registry-login` writes the docker auth file
-instead of calling `docker login`. Public DNS for registry.futo.org also
-carries a private address the runners cannot reach; the runner droplets'
-resolver (harbor-infra `futo-git/runners`) strips it for the droplet and
-every container.
-Artifacts use `forgejo/upload-artifact@v4` and `forgejo/download-artifact@v4`:
-the upstream v4 actions refuse any server other than github.com.
+| Workflow | Jobs |
+|---|---|
+| `ci-checks.yml` | zizmor, trivy |
+| `ci-packages.yml` | rs-core and js-core checks, wasm, Android, Kotlin, iOS and JS package builds |
+| `ci-rust-services.yml` | checks, images, staging deploys, integration tests |
+| `ci-js-services.yml` | checks, scraper and verifier bot images, staging deploys, tests |
+| `ci-app-web-checks.yml` | app and web lint and tests |
+| `ci-web.yml` | web image, staging deploy, web e2e |
+| `ci-app.yml` | EAS builds, store and APK deploys, iOS e2e |
+| `ci-charts.yml` | chart lint and publish |
+| `ci-docs.yml`, `cd-docs.yml` | docs build, Pages deploy, PR preview |
+| `ci-release.yml` | release notes, npm publish, crates, image tags, release |
 
-A daily `schedule` runs the GitLab schedule-only jobs (scraper integration,
-verifier-bot tests and the production verifier health check).
+Forgejo lists called jobs flat, so job names are `<component> / <job>`.
+
+Rules:
+
+- A job runs when its paths changed, or the workflow it is in (or an action
+  or script it uses) changed. Manual runs and tags run everything.
+- Builds wait for their component's checks. Deploys run right after their
+  build.
+- Libraries a run does not build come from the develop copy in the registry.
+- Only `develop` (and branches in `CI_STAGING_BRANCHES`) deploy to staging.
+  Production is `cd-production.yml`, or `eas_production` for the apps.
 
 ## Manual runs
 
-`ci.yml` `workflow_dispatch` inputs stand in for the GitLab manual jobs:
-
-- `eas_staging`: the staging EAS builds (apk, aab, ios) on any branch (GitLab:
-  manual on merge requests, automatic on the default branch). On a pull
-  request, the `build-app` label does the same for every push while it is set.
-- `eas_production`: the production EAS builds plus their store and APK
-  deploys; honoured on the default branch only (GitLab: manual there,
-  automatic on `v*`/`app-*` tags).
-- `ios_e2e`: the iOS e2e suite on the store build the run queued.
-
-A manual run of `ci.yml` on `develop` behaves like GitLab "Run pipeline":
-everything builds, staging deploys and the docs redeploy (the GitLab `docs`
-tag).
-
-Pull request runs also fire on `labeled`; a label other than `build-app`
-skips the run.
-
-## Environments
-
-- Staging: every push to `develop` deploys what changed (services, web, the
-  app's store tracks and APK), each as soon as it is built; the charts
-  are published on every such push. Other branches join by listing them in
-  the `CI_STAGING_BRANCHES` variable (comma separated) and in `ci.yml`'s
-  `on.push.branches`.
-- Production: never automatic. Services and web go through
-  `cd-production.yml` (pick the component, optionally a commit); the app
-  through `ci.yml` with `eas_production` on `develop`, or a `v*` / `app-*`
-  tag.
+`cd-staging.yml` inputs: `eas_staging` (staging app builds), `eas_production`
+(production app builds and store deploys, `develop` only), `ios_e2e`. A manual
+run on `develop` builds and deploys everything.
 
 ## Runners
 
-Labels and job images come from repository variables, with these defaults:
+Repository variables with defaults: `CI_RUNNER` (`docker`), `CI_RUNNER_MACOS`
+(`macos`), `CI_RUNNER_IOS_DEVICE` (`ios-device`), `CI_NODE_IMAGE`
+(`node:24-bookworm`), `CI_TOOLS_IMAGE` (`node:24-alpine`), `CI_REGISTRY`,
+`CI_STAGING_BRANCHES`.
 
-- `CI_RUNNER` (`docker`): Linux jobs. Every job sets `container:`, so the
-  label's default image is irrelevant, but the runner must mount the Docker
-  socket into job containers (`container.docker_host: automount` in the
-  runner config) for the image builds, the integration tests, the
-  verifier-bot health check and the `services:` of the web e2e job.
-- `CI_RUNNER_MACOS` (`macos`): an ephemeral macOS Tart VM with Xcode
-  (forgejo-tart-runner); `rn-ios-build` installs rustup and its brew tools
-  itself.
-- `CI_RUNNER_IOS_DEVICE` (`ios-device`): the mac with the distribution
-  certificate, the ad-hoc profile at `IOS_ADHOC_PROFILE` and Maestro
-  (`app-ios-e2e-*`).
-- `CI_NODE_IMAGE` (`node:24-bookworm`) and `CI_TOOLS_IMAGE`
-  (`node:24-alpine`, plus `apk add` per job): job containers need node and
-  git for `actions/checkout`, so not node:24-slim as on GitLab.
+The docker runner must mount the docker socket into job containers. The mac
+runners are the Tart VM (`rn-ios-build`) and the device mac with the ad-hoc
+profile and Maestro (`app-ios-e2e`).
 
-## Secrets
+## Secrets and variables
 
-All of these are provisioned by harbor-infra (`shared/futo-git/ci_values`
-and `ci_variables`), not set by hand.
+Provisioned by harbor-infra (`futo-git/ci_values`, `ci_variables`).
 
-- `REGISTRY_USER` (variable), `REGISTRY_TOKEN`: a registry.futo.org API key
-  (created in the zot UI after an SSO login) of a user with write access to
-  `harbor/**`. The user is the SSO email address, zot's OpenID identity.
-  Every image and chart push uses it; pulls are anonymous.
-- `EXPO_TOKEN`: EAS builds and submissions.
-- `NPM_TOKEN`: public npm publish on release (skipped if unset).
-- `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`: docs Pages deploys.
-- `VERIFIER_BOT_ENV_VARS`: base64-encoded `.env` for the verifier-bot tests
-  (the content; GitLab used a file variable).
+- `REGISTRY_USER` (variable), `REGISTRY_TOKEN`: zot API key of the CI user.
+- `EXPO_TOKEN`, `NPM_TOKEN`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`,
+  `MATTERMOST_RELEASES_WEBHOOK`, `VERIFIER_BOT_ENV_VARS` (base64 `.env`).
 - `STATIC_S3_ENDPOINT`, `STATIC_S3_ACCESS_KEY_ID`,
-  `STATIC_S3_SECRET_ACCESS_KEY`, plus the variables `STATIC_S3_BUCKET` and
-  `STATIC_PUBLIC_BASE_URL`: the static bucket for web assets and the APK.
-- `MATTERMOST_RELEASES_WEBHOOK`: release announcement.
-- `SCCACHE_R2_BUCKET` (variable), `SCCACHE_R2_ENDPOINT`,
-  `SCCACHE_R2_ACCESS_KEY_ID`, `SCCACHE_R2_SECRET_ACCESS_KEY`: the CI cache
-  bucket. The runners are ephemeral droplets, so `actions/cache` (per runner
-  instance) never hits. `r2-cache` stores tarballs under `cache/`, immutable
-  per key: `rust-env` restores each Rust job's cargo registry and `target/`
-  (key: job, rustc version, Cargo.lock and Cargo.toml files), so unchanged
-  dependencies are Fresh instead of going through sccache one crate at a
-  time; the Android job adds Gradle. sccache still covers the workspace
-  crates that do compile. All of it is a no-op when unset, as on fork PRs.
+  `STATIC_S3_SECRET_ACCESS_KEY`; variables `STATIC_S3_BUCKET`,
+  `STATIC_PUBLIC_BASE_URL`.
+- `SCCACHE_R2_ENDPOINT`, `SCCACHE_R2_ACCESS_KEY_ID`,
+  `SCCACHE_R2_SECRET_ACCESS_KEY`; variable `SCCACHE_R2_BUCKET`.
+- Variables `EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS`,
+  `EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS`.
 
-Repository variables: `EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS`,
-`EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS`, and optionally `CI_REGISTRY`
-(default `registry.futo.org/harbor`) and `CI_STAGING_BRANCHES` (default the
-default branch).
+## Caching
 
-Pull requests from forks get no secrets, so their image pushes fail.
+Runners are ephemeral, so `actions/cache` is useless. `r2-cache` keeps
+tarballs in the R2 bucket: each Rust job's cargo registry and `target/`
+(keyed by rustc version and Cargo files), plus Gradle. sccache covers the
+crates that still compile.
 
-## Bootstrap
+## Forgejo notes
 
-1. Register the runners above and set the secrets and variables.
-2. Have zot allow anonymous read and the CI user's write on `harbor/**`.
-3. Point helm-controller/flux at `oci://registry.futo.org/harbor/charts`.
-4. Push `develop` once so the `ci/*` images and `ci/rs-core-libraries:develop`
-   are published.
-
-## Differences from GitLab
-
-- Only `v<major>.<minor>.<patch>` and `app-*` tags trigger tag runs; the
-  per-component `server-*`/`js-sdk-*`/... tags are gone.
-- Release notes come from `.forgejo/scripts/release-notes.mjs` (the
-  `Changelog:` trailers, grouped like `.gitlab/changelog_config.yml`). The APK,
-  the AAR and the crates are release attachments; there is no Maven or private
-  npm publish.
-- Libraries a run does not build (`rs-core-libraries`) come from the
-  `ci/rs-core-libraries:develop` image (a tar layer, `crane export`), which
-  default-branch runs republish complete, instead of the latest successful
-  GitLab job artifacts.
-- Server and moderation integration tests run one after the other in a
-  single job (GitLab: `resource_group`), since they share Compose project
-  name and host ports.
-- CI images are tagged by the content hash of `.gitlab/images` and only built
-  when that tag is missing; GitLab rebuilt every pipeline against the runner
-  host's local layer cache, which ephemeral runners do not have. Charts
-  additionally get a commit SHA tag so `cd-production.yml` can relabel
-  them.
-- JUnit reports are plain artifacts; trivy has no code quality report.
-- No pnpm store cache (the store is several GB, slower to restore than to
-  download); jobs install only what they need with `pnpm install --filter
-  <package>...`. The wasm and Android targets are baked into the CI images.
+- Artifacts need `forgejo/upload-artifact@v4` and
+  `forgejo/download-artifact@v4`.
+- A job's `if` is evaluated by the runner, so a skipped job on a label with
+  no online runner waits forever.
+- An empty matrix creates no job and blocks anything that `needs` it.
+- Reusable workflows are one level deep; the entry points repeat the calls.
