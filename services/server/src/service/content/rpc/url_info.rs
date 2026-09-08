@@ -260,9 +260,8 @@ async fn fetch_metadata(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sea_orm::{
-        DatabaseConnection, DbBackend, MockDatabase, MockExecResult,
-    };
+    use sea_orm::{DbBackend, MockDatabase, MockExecResult};
+    use std::sync::Arc;
     use tonic::Code;
 
     // Each test gets its own mock server (own port) and passes its URL
@@ -387,12 +386,11 @@ mod tests {
     /// returning `first_select`, the row count, then the upsert.
     fn db_for_one_miss(
         first_select: Vec<url_info_cache_model::Model>,
-    ) -> DatabaseConnection {
+    ) -> MockDatabase {
         MockDatabase::new(DbBackend::Postgres)
             .append_query_results([first_select])
             .append_query_results([vec![count_row(0)]])
             .append_exec_results([exec_ok()])
-            .into_connection()
     }
 
     #[tokio::test]
@@ -416,14 +414,14 @@ mod tests {
                 "Cached",
                 Utc::now(),
             )]])
-            .append_exec_results([exec_ok()])
-            .into_connection();
+            .append_exec_results([exec_ok()]);
+        let ctx = service_context(db).await;
 
         let scrape_url = format!("{}/scrape", server.url());
-        let first = lookup(&db, &scrape_url, "https://example.com")
+        let first = lookup(&ctx, &scrape_url, "https://example.com")
             .await
             .expect("first lookup should succeed");
-        let second = lookup(&db, &scrape_url, "https://example.com")
+        let second = lookup(&ctx, &scrape_url, "https://example.com")
             .await
             .expect("second lookup should succeed");
 
@@ -451,9 +449,10 @@ mod tests {
             "Stale",
             stale,
         )]);
+        let ctx = service_context(db).await;
 
         let scrape_url = format!("{}/scrape", server.url());
-        let resp = lookup(&db, &scrape_url, "https://example.com")
+        let resp = lookup(&ctx, &scrape_url, "https://example.com")
             .await
             .expect("expired row should be refetched");
 
@@ -477,17 +476,17 @@ mod tests {
         let db = MockDatabase::new(DbBackend::Postgres)
             .append_query_results([Vec::<url_info_cache_model::Model>::new()])
             .append_query_results([vec![count_row(MAX_CACHED_URLS as i64)]])
-            .append_exec_results([exec_ok(), exec_ok()])
-            .into_connection();
+            .append_exec_results([exec_ok(), exec_ok()]);
+        let ctx = service_context(db).await;
 
         let scrape_url = format!("{}/scrape", server.url());
-        let resp = lookup(&db, &scrape_url, "https://example.com")
+        let resp = lookup(&ctx, &scrape_url, "https://example.com")
             .await
             .expect("lookup should succeed");
         assert_eq!(resp.title, "Evicting");
         mock.assert_async().await;
 
-        let statements = db.into_transaction_log();
+        let statements = ctx.db.clone().into_transaction_log();
         let eviction = statements
             .iter()
             .find(|statement| format!("{statement:?}").contains("DELETE"));
@@ -519,14 +518,14 @@ mod tests {
             .append_query_results([Vec::<url_info_cache_model::Model>::new()])
             .append_query_results([vec![count_row(0)]])
             .append_query_results([vec![failure_row]])
-            .append_exec_results([exec_ok()])
-            .into_connection();
+            .append_exec_results([exec_ok()]);
+        let ctx = service_context(db).await;
 
         let scrape_url = format!("{}/scrape", server.url());
-        let first = lookup(&db, &scrape_url, "https://dead.test")
+        let first = lookup(&ctx, &scrape_url, "https://dead.test")
             .await
             .expect_err("first lookup should fail");
-        let second = lookup(&db, &scrape_url, "https://dead.test")
+        let second = lookup(&ctx, &scrape_url, "https://dead.test")
             .await
             .expect_err("second lookup should fail");
 
@@ -552,9 +551,10 @@ mod tests {
             .await;
 
         let db = db_for_one_miss(Vec::new());
+        let ctx = service_context(db).await;
 
         let scrape_url = format!("{}/scrape", server.url());
-        let resp = lookup(&db, &scrape_url, " https://example.com/page ")
+        let resp = lookup(&ctx, &scrape_url, " https://example.com/page ")
             .await
             .expect("padded URL should be trimmed and scraped");
 
@@ -596,11 +596,11 @@ mod tests {
                 Vec::<url_info_cache_model::Model>::new(),
             ])
             .append_query_results([vec![count_row(0)]])
-            .append_exec_results([exec_ok()])
-            .into_connection();
+            .append_exec_results([exec_ok()]);
+        let ctx = service_context(db).await;
 
         let refused =
-            lookup(&db, "http://127.0.0.1:1/scrape", "https://example.com")
+            lookup(&ctx, "http://127.0.0.1:1/scrape", "https://example.com")
                 .await
                 .expect_err("unreachable scraper should fail");
         assert_eq!(refused.code(), Code::Unavailable);
@@ -617,11 +617,19 @@ mod tests {
             .await;
 
         let scrape_url = format!("{}/scrape", server.url());
-        let recovered = lookup(&db, &scrape_url, "https://example.com")
+        let recovered = lookup(&ctx, &scrape_url, "https://example.com")
             .await
             .expect("retry after recovery should succeed");
 
         assert_eq!(recovered.title, "Recovered");
         mock.assert_async().await;
+    }
+
+    async fn service_context(db: MockDatabase) -> Arc<ServiceContext> {
+        let db = db.into_connection();
+        let kafka_producer = common_kafka::build_producer()
+            .await
+            .expect("failed to build Kafka producer");
+        ServiceContext::new(db.clone(), db, kafka_producer)
     }
 }
