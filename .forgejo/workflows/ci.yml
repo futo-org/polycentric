@@ -127,10 +127,13 @@ jobs:
       default_branch: ${{ needs.changes.outputs.default_branch }}
       default_ref: ${{ needs.changes.outputs.default_ref }}
 
+  # Components deploy to staging right after their build; they need the chart.
   rust-services:
     name: Rust services
-    needs: [changes, setup-images]
-    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.setup-images.result != 'failure' }}
+    needs: [changes, setup-images, charts]
+    if: >-
+      ${{ !cancelled() && needs.changes.result == 'success' && needs.setup-images.result != 'failure' &&
+      needs.charts.result != 'failure' }}
     uses: ./.forgejo/workflows/ci-rust-services.yml
     secrets: inherit
     with:
@@ -140,11 +143,14 @@ jobs:
       ref_slug: ${{ needs.changes.outputs.ref_slug }}
       default_branch: ${{ needs.changes.outputs.default_branch }}
       default_ref: ${{ needs.changes.outputs.default_ref }}
+      chart_version: ${{ needs.charts.outputs.chart_version }}
 
   js-services:
     name: JS services
-    needs: [changes, packages]
-    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.packages.result != 'failure' }}
+    needs: [changes, packages, charts]
+    if: >-
+      ${{ !cancelled() && needs.changes.result == 'success' && needs.packages.result != 'failure' &&
+      needs.charts.result != 'failure' }}
     uses: ./.forgejo/workflows/ci-js-services.yml
     secrets: inherit
     with:
@@ -152,11 +158,14 @@ jobs:
       registry: ${{ needs.changes.outputs.registry }}
       ref_slug: ${{ needs.changes.outputs.ref_slug }}
       default_ref: ${{ needs.changes.outputs.default_ref }}
+      chart_version: ${{ needs.charts.outputs.chart_version }}
 
   app:
     name: App
-    needs: [changes, packages]
-    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.packages.result != 'failure' }}
+    needs: [changes, packages, charts]
+    if: >-
+      ${{ !cancelled() && needs.changes.result == 'success' && needs.packages.result != 'failure' &&
+      needs.charts.result != 'failure' }}
     uses: ./.forgejo/workflows/ci-app.yml
     secrets: inherit
     with:
@@ -164,6 +173,7 @@ jobs:
       registry: ${{ needs.changes.outputs.registry }}
       ref_slug: ${{ needs.changes.outputs.ref_slug }}
       is_tag: ${{ needs.changes.outputs.is_tag }}
+      chart_version: ${{ needs.charts.outputs.chart_version }}
 
   charts:
     name: Charts
@@ -203,18 +213,3 @@ jobs:
     with:
       registry: ${{ needs.changes.outputs.registry }}
       images_tag: ${{ needs.changes.outputs.images_tag }}
-
-  # Production service deploys are cd-production.yml.
-  deploy:
-    name: Deploy
-    needs: [changes, rust-services, js-services, app, charts, release]
-    if: >-
-      ${{ !cancelled() && needs.changes.result == 'success' && fromJSON(needs.changes.outputs.plan).flags.cd &&
-      needs.rust-services.result != 'failure' && needs.js-services.result != 'failure' &&
-      needs.app.result != 'failure' && needs.charts.result != 'failure' && needs.release.result != 'failure' }}
-    uses: ./.forgejo/workflows/cd-staging.yml
-    secrets: inherit
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
-      registry: ${{ needs.changes.outputs.registry }}
-      chart_version: ${{ needs.charts.outputs.chart_version }}
