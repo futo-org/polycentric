@@ -209,7 +209,7 @@ jobs:
     name: Deploy
     needs: [changes, rust-services, js-services, app, charts, release]
     if: >-
-      ${{ !cancelled() && needs.changes.result == 'success' &&
+      ${{ !cancelled() && needs.changes.result == 'success' && fromJSON(needs.changes.outputs.plan).flags.cd &&
       needs.rust-services.result != 'failure' && needs.js-services.result != 'failure' &&
       needs.app.result != 'failure' && needs.charts.result != 'failure' && needs.release.result != 'failure' }}
     uses: ./.forgejo/workflows/cd-staging.yml
