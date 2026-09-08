@@ -1,10 +1,10 @@
-# Stage 1: Base — Node + pnpm
+# Stage 1: Base - Node + pnpm
 FROM node:24-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && corepack prepare pnpm@10.19.0 --activate
 
-# Stage: Bogon snapshot — fetch the Team Cymru aggregated IPv4 bogon list at
+# Stage: Bogon snapshot - fetch the Team Cymru aggregated IPv4 bogon list at
 # build time and emit it as an nft `define` ($BOGON4). Baking the snapshot into
 # the image keeps the egress firewall free of any runtime network dependency.
 # `test -s` + the RFC1918 grep fail the BUILD (never the running container) if
@@ -26,14 +26,14 @@ RUN echo "bogon snapshot rev: ${BOGONS_REV}" \
 FROM base AS build
 WORKDIR /app
 
-# Don't let puppeteer download its own Chromium during install — the runtime
+# Don't let puppeteer download its own Chromium during install - the runtime
 # image provides a system Chromium (see PUPPETEER_EXECUTABLE_PATH in the run
 # stage).
 ENV PUPPETEER_SKIP_DOWNLOAD=1
 
 # Only the workspace pieces the scraper needs: the root manifests, patches,
 # `tools` (for @polycentric/tsconfig), and the service itself. The other
-# workspace packages (apps/*, packages/*) are absent here — pnpm tolerates
+# workspace packages (apps/*, packages/*) are absent here - pnpm tolerates
 # missing workspace members and installs only what's present.
 COPY .npmrc pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY patches patches

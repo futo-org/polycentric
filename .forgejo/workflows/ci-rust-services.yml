@@ -1,0 +1,128 @@
+name: Rust services
+
+# GitLab build_services.yml (rust), test_server.yml, test_moderation.yml.
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        type: string
+        required: true
+      registry:
+        type: string
+        required: true
+      images_tag:
+        type: string
+        required: true
+      ref_slug:
+        type: string
+        required: true
+      default_branch:
+        type: string
+        required: true
+      default_ref:
+        type: string
+        required: true
+      chart_version:
+        type: string
+        required: true
+
+env:
+  CARGO_INCREMENTAL: '0'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  SCCACHE_R2_BUCKET: ${{ vars.SCCACHE_R2_BUCKET }}
+  SCCACHE_R2_ENDPOINT: ${{ secrets.SCCACHE_R2_ENDPOINT }}
+  SCCACHE_R2_ACCESS_KEY_ID: ${{ secrets.SCCACHE_R2_ACCESS_KEY_ID }}
+  SCCACHE_R2_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_R2_SECRET_ACCESS_KEY }}
+
+jobs:
+  service-images:
+    name: ${{ matrix.label }}
+    if: fromJSON(inputs.plan).flags.service_images
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.plan).matrix.service_images }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git docker-cli docker-cli-buildx
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/service-image
+        with:
+          image: ${{ matrix.image }}
+          dockerfile: ${{ matrix.dockerfile }}
+          registry: ${{ inputs.registry }}
+          ref-slug: ${{ inputs.ref_slug }}
+          default-branch-tag: ${{ inputs.default_ref }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+
+  deploy-staging:
+    name: ${{ matrix.label }}
+    needs: service-images
+    if: ${{ !cancelled() && fromJSON(inputs.plan).flags.deploy_rust_services && needs.service-images.result == 'success' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.plan).matrix.deploy_rust_services }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git curl crane
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/deploy-tag
+        with:
+          registry: ${{ inputs.registry }}
+          image: ${{ matrix.image }}
+          chart: ${{ matrix.chart }}
+          chart-version: ${{ inputs.chart_version }}
+          environment: staging
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+
+  # Both suites share one Compose project name and host ports, so they run
+  # in one job, one after the other (GitLab: resource_group).
+  services-integration:
+    name: Test Rust services integration
+    needs: service-images
+    if: >-
+      ${{ !cancelled() && needs.service-images.result != 'failure' &&
+      (fromJSON(inputs.plan).flags.server_integration || fromJSON(inputs.plan).flags.moderation_integration) }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ inputs.registry }}/ci/rust-dind:${{ inputs.images_tag }}
+    timeout-minutes: 60
+    env:
+      POLYCENTRIC_SERVER_IMAGE: ${{ inputs.registry }}/server:${{ github.sha }}
+      POLYCENTRIC_SERVER_FALLBACK_IMAGE: ${{ inputs.registry }}/server:${{ inputs.default_branch }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/rust-env
+        with:
+          cache: services-integration
+      - name: Server integration tests
+        if: fromJSON(inputs.plan).flags.server_integration && needs.service-images.result == 'success'
+        run: .gitlab/ci/scripts/integration-server.sh --ci
+      - uses: forgejo/upload-artifact@v4
+        if: always() && fromJSON(inputs.plan).flags.server_integration
+        with:
+          name: junit-server-integration
+          path: target/nextest/ci/junit.xml
+          retention-days: 7
+      - name: Moderation integration tests
+        if: ${{ !cancelled() && fromJSON(inputs.plan).flags.moderation_integration }}
+        run: .gitlab/ci/scripts/integration-moderation.sh
+      - uses: forgejo/upload-artifact@v4
+        if: always() && fromJSON(inputs.plan).flags.moderation_integration
+        with:
+          name: junit-moderation-integration
+          path: target/nextest/ci/junit.xml
+          retention-days: 7
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}

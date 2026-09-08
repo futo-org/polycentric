@@ -50,6 +50,13 @@ done
 # ---------------------------------------------------------------------------
 # Cleanup trap
 # ---------------------------------------------------------------------------
+# The job's own container ID (see integration-moderation.sh).
+self_container() {
+  local id
+  id=$(grep -oE 'containers/[0-9a-f]{64}' /proc/self/mountinfo | head -1 | cut -d/ -f2)
+  echo "${id:-$(cat /etc/hostname)}"
+}
+
 cleanup() {
   if [ "$NO_CLEANUP" = true ]; then
     return
@@ -60,6 +67,9 @@ cleanup() {
     kill "$SERVER_PID" 2>/dev/null || true
     wait "$SERVER_PID" 2>/dev/null || true
     echo "    server stopped (PID $SERVER_PID)"
+  fi
+  if [ "$CI_MODE" = true ]; then
+    docker network disconnect "${COMPOSE_PROJECT_NAME}_default" "$(self_container)" >/dev/null 2>&1 || true
   fi
   if [ "$NO_DEPS" = false ]; then
     echo "    stopping docker compose services…"
@@ -133,12 +143,6 @@ fi
 # ---------------------------------------------------------------------------
 if [ "$CI_MODE" = true ]; then
   NETWORK="${COMPOSE_PROJECT_NAME}_default"
-
-  self_container() {
-    local id
-    id=$(grep -oE 'containers/[0-9a-f]{64}' /proc/self/mountinfo | head -1 | cut -d/ -f2)
-    echo "${id:-$(cat /etc/hostname)}"
-  }
 
   echo "==> Joining job container to the stack network ($NETWORK)…"
   docker network connect "$NETWORK" "$(self_container)"

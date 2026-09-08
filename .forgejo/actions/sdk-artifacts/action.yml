@@ -1,0 +1,22 @@
+name: sdk-artifacts
+description: Places the rs-core-libraries and js-sdks-dist artifacts (and optionally rn-sdk) in the checkout.
+inputs:
+  rn-sdk:
+    description: Also place the built react-native package
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - uses: forgejo/download-artifact@v4
+      with:
+        name: rs-core-libraries
+        path: packages
+    - uses: forgejo/download-artifact@v4
+      with:
+        name: js-sdks-dist
+        path: packages
+    - if: inputs.rn-sdk == 'true'
+      uses: forgejo/download-artifact@v4
+      with:
+        name: rn-sdk
+        path: packages/react-native

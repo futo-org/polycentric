@@ -303,7 +303,7 @@ mod tests {
         let kafka_producer = common_kafka::build_producer()
             .await
             .expect("failed to build Kafka producer");
-        ServiceContext::new(db, kafka_producer)
+        ServiceContext::new(db.clone(), db, kafka_producer)
     }
 
     fn params() -> Params {

@@ -1,5 +1,7 @@
 url: ${MAESTRO_WEB_URL}
 name: I can make a post after reading one deep in explore
+tags:
+  - flaky
 ---
 - runFlow: ../elements/load.yaml
 - runFlow: ../steps/fresh-start.yaml

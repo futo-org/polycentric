@@ -9,7 +9,7 @@ name = "server"
 path = "src/main.rs"
 
 [[bin]]
-name = "decode_response"
+name = "decode-response"
 path = "src/bin/decode_response.rs"
 
 [dependencies]
