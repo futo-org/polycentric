@@ -1,3 +1,5 @@
+appId: ${MAESTRO_APP_ID}
+---
 # Opens the repost menu of the post in the middle of the screen. The web
 # driver has no relative selectors, so a script first marks that post. The
 # feed is virtualised, so only a post already on screen is safe to target.

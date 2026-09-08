@@ -1,3 +1,5 @@
+appId: ${MAESTRO_APP_ID}
+---
 # Loads every page object, so flows reference ${output.<screen>.<element>}
 # rather than the labels themselves.
 - runScript: onboarding.js

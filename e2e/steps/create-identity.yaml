@@ -1,3 +1,5 @@
+appId: ${MAESTRO_APP_ID}
+---
 - tapOn: ${output.onboarding.createIdentity}
 - tapOn: ${output.onboarding.displayName}
 - inputText: Maestro

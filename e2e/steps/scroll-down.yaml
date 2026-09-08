@@ -1,3 +1,5 @@
+appId: ${MAESTRO_APP_ID}
+---
 # Scrolls the feed down one screen once it has loaded. The web driver's
 # swipes don't move the page, and the feed is virtualised, so wait for a
 # post to render at the new position.
