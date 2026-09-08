@@ -17,8 +17,3 @@ appId: ${MAESTRO_APP_ID}
 - extendedWaitUntil:
     visible: ${output.verifications.searchProfiles}
     timeout: 30000
-# The "Claim created" toast closing takes the keyboard down with it on
-# Android, so typing before it has gone loses the search field's focus.
-- extendedWaitUntil:
-    notVisible: ${output.verifications.claimCreated}
-    timeout: 10000
