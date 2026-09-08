@@ -11,6 +11,7 @@ RUN curl -L -o /tmp/ndk.zip "https://dl.google.com/android/repository/android-nd
     && rm -rf /opt/android-ndk/simpleperf /opt/android-ndk/shader-tools
 
 RUN cargo install cargo-ndk && rm -rf /usr/local/cargo/registry
+RUN rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
 
 ENV ANDROID_NDK_HOME=/opt/android-ndk
 ENV PATH="/opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
@@ -29,5 +30,5 @@ ENV ANDROID_HOME=/opt/android-sdk
 ENV PATH="/opt/android-sdk/cmdline-tools/latest/bin:${PATH}"
 # Pin SDK at compileSdk 35.
 RUN yes | sdkmanager --licenses > /dev/null \
-    && sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools" \
+    && sdkmanager "platforms;android-35" "build-tools;35.0.0" "build-tools;36.0.0" "platform-tools" \
     && rm -rf ${ANDROID_HOME}/.temp

@@ -4,6 +4,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     unzip \
+    zstd \
     pkg-config \
     libssl-dev \
     libsasl2-dev \
@@ -14,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Rust deps
-RUN rustup component add clippy rustfmt
+RUN rustup component add clippy rustfmt && rustup target add wasm32-unknown-unknown
 RUN cargo install just && rm -rf /usr/local/cargo/registry
 
 # sccache

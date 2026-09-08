@@ -1,0 +1,26 @@
+name: registry-login
+description: Registry auth for docker, buildx, crane and helm, written without a network round trip.
+inputs:
+  registry:
+    description: Registry root, e.g. registry.futo.org/harbor
+    required: true
+  registry-user:
+    default: ''
+  registry-token:
+    default: ''
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        REGISTRY: ${{ inputs.registry }}
+        REGISTRY_USER: ${{ inputs.registry-user }}
+        REGISTRY_TOKEN: ${{ inputs.registry-token }}
+      run: | # zizmor: ignore[github-env] literal path
+        host="${REGISTRY%%/*}"
+        mkdir -p ~/.docker
+        if [ -n "$REGISTRY_USER" ]; then
+          auth=$(printf '%s:%s' "$REGISTRY_USER" "$REGISTRY_TOKEN" | base64 | tr -d '\n')
+          printf '{"auths":{"%s":{"auth":"%s"}}}\n' "$host" "$auth" > ~/.docker/config.json
+        fi
+        echo "HELM_REGISTRY_CONFIG=$HOME/.docker/config.json" >> "$GITHUB_ENV"

@@ -7,7 +7,7 @@ set -eu
 echo "scraper: applying egress firewall"
 nft -f /etc/scraper-egress.nft
 
-# Allow DNS only to the resolver(s) this container is configured with — they
+# Allow DNS only to the resolver(s) this container is configured with - they
 # often sit in an otherwise-blocked range (VPC resolver in 10/8, etc.), so
 # without this the internal-range drops would break name resolution.
 for ns in $(awk '/^nameserver/ { print $2 }' /etc/resolv.conf); do
@@ -18,7 +18,7 @@ for ns in $(awk '/^nameserver/ { print $2 }' /etc/resolv.conf); do
 done
 
 # Drop root and run the service as the unprivileged `node` user. setpriv keeps
-# the env as-is, so set HOME for `node` ourselves — Chromium needs a writable
+# the env as-is, so set HOME for `node` ourselves - Chromium needs a writable
 # home for its crashpad data dir (without it the browser fails to launch).
 export HOME=/home/node
 exec setpriv --reuid=node --regid=node --init-groups -- "$@"
