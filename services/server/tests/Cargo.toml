@@ -12,7 +12,7 @@ path = "src/lib.rs"
 name = "integration"
 path = "src/tests.rs"
 
-[dependencies]
+[dev-dependencies]
 base64.workspace = true
 ed25519-dalek.workspace = true
 getrandom.workspace = true
