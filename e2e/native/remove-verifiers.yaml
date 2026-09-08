@@ -14,7 +14,7 @@ name: I can remove verifiers from my claim
     visible: 0/1 verified
     timeout: 30000
 - runScript:
-    file: ../steps/verify-claim.js
+    file: ../steps/verify-newest-claim.js
     env:
       VERIFIER_NAME: ${MAESTRO_VERIFIER_A}
 # The claim screen only refetches on pull-to-refresh.

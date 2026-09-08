@@ -1,6 +1,6 @@
 // Lets a flow act as a seeded user. Maestro's runScript sandbox has no SDK,
 // only an http client, so run.mjs serves this in its own process (and it dies
-// with it): POST /verify {"name"} verifies the newest claim asking that user.
+// with it): POST /verify-newest-claim {"name"} does what it says for that user.
 import { createServer } from 'node:http';
 import { COLLECTION, SyncStrategy, v2 } from '@polycentric/js-core';
 import { Query, QueryStatus } from '@polycentric/rs-core-wasm/generated';
@@ -86,8 +86,8 @@ async function verifyNewestClaim(client, name) {
 }
 
 async function handle(client, req) {
-  if (req.method !== 'POST' || req.url !== '/verify') {
-    return [404, 'Only POST /verify'];
+  if (req.method !== 'POST' || req.url !== '/verify-newest-claim') {
+    return [404, 'Only POST /verify-newest-claim'];
   }
   let body = '';
   for await (const chunk of req) body += chunk;
@@ -106,7 +106,7 @@ export function startVerifyServer(client) {
       500,
       String(error?.stack ?? error),
     ]);
-    console.log(`verify: ${status} ${message}`);
+    console.log(`verify-newest-claim: ${status} ${message}`);
     res.writeHead(status).end(message);
   });
   return new Promise((resolve) =>
