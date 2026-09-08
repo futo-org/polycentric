@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   # Built by the server-image CI job from services/server/Dockerfile.
-  repository: gitlab.futo.org:5050/harbor/harbor/server
+  repository: registry.futo.org/harbor/server
   # Defaults to the chart's appVersion — charts-publish packages every chart
   # with --app-version $CI_COMMIT_SHA, pinning the image built from the same
   # commit. Deploys happen by re-tagging the *chart* per environment
