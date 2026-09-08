@@ -1,36 +1,46 @@
-name: Deploy production
+name: Deploy to production
 
-# GitLab's manual production deploys: relabels a commit's image and chart.
+# Manual: relabels a commit's images and charts production, one step per
+# component picked.
 
 on:
   workflow_dispatch:
     inputs:
-      component:
-        description: What to deploy
-        type: choice
-        required: true
-        options:
-          - server
-          - moderation-service
-          - push-notifications-service
-          - scraper
-          - verifier-bot
-          - web
       sha:
         description: Commit to deploy (default the ref's head)
         type: string
         default: ''
+      server:
+        type: boolean
+        default: false
+      moderation:
+        type: boolean
+        default: false
+      push_notifications:
+        type: boolean
+        default: false
+      scraper:
+        type: boolean
+        default: false
+      verifier_bot:
+        type: boolean
+        default: false
+      web:
+        type: boolean
+        default: false
 
 concurrency:
-  group: cd-production-${{ inputs.component }}
+  group: cd-production
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy ${{ inputs.component }} to production
+    name: Deploy to production
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
     env:
+      REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
+      SHA: ${{ inputs.sha || github.sha }}
       STATIC_S3_ENDPOINT: ${{ secrets.STATIC_S3_ENDPOINT }}
       STATIC_S3_BUCKET: ${{ vars.STATIC_S3_BUCKET }}
       STATIC_S3_ACCESS_KEY_ID: ${{ secrets.STATIC_S3_ACCESS_KEY_ID }}
@@ -40,34 +50,76 @@ jobs:
       - name: Install tools
         run: apk add --no-cache bash git curl crane
       - uses: actions/checkout@v4
-      - name: Resolve target
-        id: target
-        env:
-          COMPONENT: ${{ inputs.component }}
-          SHA: ${{ inputs.sha }}
-          REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
-        run: |
-          case "$COMPONENT" in
-            server) chart=harbor-server ;;
-            moderation-service) chart=harbor-moderation ;;
-            push-notifications-service) chart=harbor-push-notifications ;;
-            scraper) chart=harbor-scraper ;;
-            verifier-bot) chart=harbor-verifier-bot ;;
-            web) chart=harbor-web ;;
-          esac
-          {
-            echo "registry=$REGISTRY"
-            echo "chart=$chart"
-            echo "sha=${SHA:-$GITHUB_SHA}"
-          } >> "$GITHUB_OUTPUT"
-      - uses: ./.forgejo/actions/deploy-tag
+      - name: Server
+        if: inputs.server
+        uses: ./.forgejo/actions/deploy-tag
         with:
-          registry: ${{ steps.target.outputs.registry }}
-          image: ${{ inputs.component }}
-          chart: ${{ steps.target.outputs.chart }}
-          chart-version: ${{ steps.target.outputs.sha }}
-          sha: ${{ steps.target.outputs.sha }}
+          registry: ${{ env.REGISTRY }}
+          image: server
+          chart: harbor-server
+          chart-version: ${{ env.SHA }}
+          sha: ${{ env.SHA }}
           environment: production
-          web-assets: ${{ inputs.component == 'web' }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Moderation
+        if: inputs.moderation
+        uses: ./.forgejo/actions/deploy-tag
+        with:
+          registry: ${{ env.REGISTRY }}
+          image: moderation-service
+          chart: harbor-moderation
+          chart-version: ${{ env.SHA }}
+          sha: ${{ env.SHA }}
+          environment: production
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Push notifications
+        if: inputs.push_notifications
+        uses: ./.forgejo/actions/deploy-tag
+        with:
+          registry: ${{ env.REGISTRY }}
+          image: push-notifications-service
+          chart: harbor-push-notifications
+          chart-version: ${{ env.SHA }}
+          sha: ${{ env.SHA }}
+          environment: production
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Scraper
+        if: inputs.scraper
+        uses: ./.forgejo/actions/deploy-tag
+        with:
+          registry: ${{ env.REGISTRY }}
+          image: scraper
+          chart: harbor-scraper
+          chart-version: ${{ env.SHA }}
+          sha: ${{ env.SHA }}
+          environment: production
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Verifier bot
+        if: inputs.verifier_bot
+        uses: ./.forgejo/actions/deploy-tag
+        with:
+          registry: ${{ env.REGISTRY }}
+          image: verifier-bot
+          chart: harbor-verifier-bot
+          chart-version: ${{ env.SHA }}
+          sha: ${{ env.SHA }}
+          environment: production
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Web
+        if: inputs.web
+        uses: ./.forgejo/actions/deploy-tag
+        with:
+          registry: ${{ env.REGISTRY }}
+          image: web
+          chart: harbor-web
+          chart-version: ${{ env.SHA }}
+          sha: ${{ env.SHA }}
+          environment: production
+          web-assets: 'true'
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}

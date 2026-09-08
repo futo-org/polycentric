@@ -14,7 +14,7 @@ on:
 
 jobs:
   docs-deploy:
-    name: Deploy docs
+    name: Docs / Deploy
     if: fromJSON(inputs.plan).flags.docs_deploy
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
@@ -33,7 +33,7 @@ jobs:
 
   # Preview at https://pr-<n>.polycentric-docs-cs8.pages.dev
   docs-review:
-    name: Deploy docs preview
+    name: Docs / Deploy preview
     if: fromJSON(inputs.plan).flags.docs_preview
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}

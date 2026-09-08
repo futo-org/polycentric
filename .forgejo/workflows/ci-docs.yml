@@ -11,7 +11,7 @@ on:
 
 jobs:
   docs-typecheck:
-    name: Typecheck docs
+    name: Docs / Typecheck
     if: fromJSON(inputs.plan).flags.docs
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
@@ -25,7 +25,7 @@ jobs:
         run: pnpm --filter=polycentric-docs run typecheck
 
   docs-build:
-    name: Build docs
+    name: Docs / Build
     if: fromJSON(inputs.plan).flags.docs
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}

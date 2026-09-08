@@ -22,7 +22,7 @@ env:
 
 jobs:
   release-changelog:
-    name: Write release notes
+    name: Release / Write notes
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     steps:
@@ -38,7 +38,7 @@ jobs:
           retention-days: 7
 
   release-publish-npm:
-    name: Publish npm packages
+    name: Release / Publish npm packages
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     env:
@@ -60,7 +60,7 @@ jobs:
         run: .gitlab/ci/scripts/npm_publish.sh
 
   release-package-rs-core:
-    name: Package crates
+    name: Release / Package crates
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container:
       image: ${{ inputs.registry }}/ci/rust:${{ inputs.images_tag }}
@@ -87,7 +87,7 @@ jobs:
           retention-days: 7
 
   release-tag-images:
-    name: Tag release images
+    name: Release / Tag images
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
     steps:
@@ -107,7 +107,7 @@ jobs:
           crane tag "$REGISTRY/server:$GITHUB_SHA" "$GITHUB_REF_NAME"
 
   release:
-    name: Create release
+    name: Release / Create
     needs: [release-changelog, release-publish-npm, release-package-rs-core, release-tag-images]
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}

@@ -1,6 +1,7 @@
-name: CI
+name: Staging
 
-# The GitLab pipeline as component workflows; changes.mjs builds their plan.
+# Staging branches, manual runs and the nightly schedule: the component
+# workflows with their staging deploys; changes.mjs builds their plan.
 
 on:
   workflow_dispatch:
@@ -17,25 +18,19 @@ on:
         description: Run the iOS e2e suite on the store build
         type: boolean
         default: false
-  pull_request:
-    types: [opened, synchronize, reopened, labeled]
   push:
     branches: [develop]
-    tags: ['v*', 'app-*']
   schedule:
     - cron: '0 6 * * *'
 
-# Manual runs get their own group so a push does not cancel an EAS build;
-# a label added to a PR waits for the running build instead of cancelling it.
+# Manual runs get their own group so a push does not cancel an EAS build.
 concurrency:
-  group: ci-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && 'manual' || 'auto' }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'labeled' }}
+  group: staging-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && 'manual' || 'auto' }}
+  cancel-in-progress: false
 
 jobs:
-  # Labels other than build-app skip the run (every job needs this one).
   changes:
     name: Plan
-    if: github.event.action != 'labeled' || github.event.label.name == 'build-app'
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     outputs:
@@ -43,65 +38,37 @@ jobs:
       ref_slug: ${{ steps.plan.outputs.ref_slug }}
       images_tag: ${{ steps.plan.outputs.images_tag }}
       default_branch: ${{ steps.plan.outputs.default_branch }}
-      is_tag: ${{ steps.plan.outputs.is_tag }}
       default_ref: ${{ steps.plan.outputs.default_ref }}
       plan: ${{ steps.plan.outputs.plan }}
-      images_missing: ${{ steps.images.outputs.images_missing }}
+      images_missing: ${{ steps.plan.outputs.images_missing }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Resolve plan
+      - uses: ./.forgejo/actions/plan
         id: plan
-        env:
-          REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          STAGING_BRANCHES: ${{ vars.CI_STAGING_BRANCHES }}
-          EVENT_BEFORE: ${{ github.event.before }}
-          PR_LABELS: ${{ toJSON(github.event.pull_request.labels) }}
-          INPUT_EAS_STAGING: ${{ inputs.eas_staging }}
-          INPUT_EAS_PRODUCTION: ${{ inputs.eas_production }}
-          INPUT_IOS_E2E: ${{ inputs.ios_e2e }}
-        run: node .forgejo/scripts/changes.mjs
-      - name: Check CI images
-        id: images
-        env:
-          REGISTRY: ${{ steps.plan.outputs.registry }}
-          TAG: ${{ steps.plan.outputs.images_tag }}
-        run: .forgejo/scripts/ci-images.sh check
+        with:
+          staging-branches: ${{ vars.CI_STAGING_BRANCHES }}
+          event-before: ${{ github.event.before }}
+          eas-staging: ${{ inputs.eas_staging }}
+          eas-production: ${{ inputs.eas_production }}
+          ios-e2e: ${{ inputs.ios_e2e }}
 
   # Always runs (a skipped job breaks Forgejo's matrix expansion downstream);
-  # the steps only when an image tag is missing.
+  # the step only when an image tag is missing.
   setup-images:
     name: Build CI images
     needs: changes
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
-    env:
-      REGISTRY: ${{ needs.changes.outputs.registry }}
-      TAG: ${{ needs.changes.outputs.images_tag }}
     steps:
-      - name: Install tools
-        if: needs.changes.outputs.images_missing == 'true'
-        run: apk add --no-cache bash git crane docker-cli docker-cli-buildx
-      - uses: actions/checkout@v4
-        if: needs.changes.outputs.images_missing == 'true'
-      - uses: ./.forgejo/actions/registry-login
+      - uses: ./.forgejo/actions/ci-images
         if: needs.changes.outputs.images_missing == 'true'
         with:
           registry: ${{ needs.changes.outputs.registry }}
+          tag: ${{ needs.changes.outputs.images_tag }}
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
-      # Existing tags are skipped; rust-dind and rust-android build on rust.
-      - name: Build rust image
-        if: needs.changes.outputs.images_missing == 'true'
-        run: .forgejo/scripts/ci-images.sh build rust
-      - name: Build rust-dind image
-        if: needs.changes.outputs.images_missing == 'true'
-        run: .forgejo/scripts/ci-images.sh build rust-dind
-      - name: Build rust-android image
-        if: needs.changes.outputs.images_missing == 'true'
-        run: .forgejo/scripts/ci-images.sh build rust-android
 
   checks:
     name: Checks
@@ -111,8 +78,6 @@ jobs:
     secrets: inherit
     with:
       plan: ${{ needs.changes.outputs.plan }}
-      registry: ${{ needs.changes.outputs.registry }}
-      images_tag: ${{ needs.changes.outputs.images_tag }}
 
   packages:
     name: Packages
@@ -160,20 +125,39 @@ jobs:
       default_ref: ${{ needs.changes.outputs.default_ref }}
       chart_version: ${{ needs.charts.outputs.chart_version }}
 
-  app:
-    name: App
-    needs: [changes, packages, charts]
+  app-web-checks:
+    name: App & web checks
+    needs: changes
+    uses: ./.forgejo/workflows/ci-app-web-checks.yml
+    with:
+      plan: ${{ needs.changes.outputs.plan }}
+
+  web:
+    name: Web
+    needs: [changes, packages, charts, app-web-checks]
     if: >-
       ${{ !cancelled() && needs.changes.result == 'success' && needs.packages.result != 'failure' &&
-      needs.charts.result != 'failure' }}
-    uses: ./.forgejo/workflows/ci-app.yml
+      needs.charts.result != 'failure' && needs.app-web-checks.result != 'failure' }}
+    uses: ./.forgejo/workflows/ci-web.yml
     secrets: inherit
     with:
       plan: ${{ needs.changes.outputs.plan }}
       registry: ${{ needs.changes.outputs.registry }}
       ref_slug: ${{ needs.changes.outputs.ref_slug }}
-      is_tag: ${{ needs.changes.outputs.is_tag }}
+      is_tag: 'false'
       chart_version: ${{ needs.charts.outputs.chart_version }}
+
+  app:
+    name: App
+    needs: [changes, packages, app-web-checks]
+    if: >-
+      ${{ !cancelled() && needs.changes.result == 'success' && needs.packages.result != 'failure' &&
+      needs.app-web-checks.result != 'failure' }}
+    uses: ./.forgejo/workflows/ci-app.yml
+    secrets: inherit
+    with:
+      plan: ${{ needs.changes.outputs.plan }}
+      is_tag: 'false'
 
   charts:
     name: Charts
@@ -200,16 +184,3 @@ jobs:
     secrets: inherit
     with:
       plan: ${{ needs.changes.outputs.plan }}
-      pr_number: ${{ github.event.pull_request.number }}
-
-  release:
-    name: Release
-    needs: [changes, packages, rust-services, app]
-    if: >-
-      ${{ !cancelled() && needs.changes.outputs.is_tag == 'true' &&
-      needs.packages.result != 'failure' && needs.rust-services.result != 'failure' && needs.app.result != 'failure' }}
-    uses: ./.forgejo/workflows/ci-release.yml
-    secrets: inherit
-    with:
-      registry: ${{ needs.changes.outputs.registry }}
-      images_tag: ${{ needs.changes.outputs.images_tag }}
