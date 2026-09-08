@@ -181,13 +181,15 @@ const jobs = (workflow, flags) =>
 
 const docsChanged = docs || ciChanged('ci-docs') || ciChanged('cd-docs');
 
-// EAS: staging from staging branches (app or ci-app.yml changes) or the
-// eas_staging input (manual runs, pr-app.yml); production from app release
-// tags or a manual run on develop.
-const easStaging =
-  (stagingRef && (appEas || ciChanged('ci-app'))) || input('INPUT_EAS_STAGING');
+// EAS: production from app release tags or cd-production.yml on develop;
+// staging from staging branches (app or ci-app.yml changes) or the
+// eas_staging input (manual runs, pr-app.yml). A production run builds no
+// staging apps.
 const easProduction =
   appRelease || (dispatch && defaultRef && input('INPUT_EAS_PRODUCTION'));
+const easStaging =
+  (stagingRef && !easProduction && (appEas || ciChanged('ci-app'))) ||
+  input('INPUT_EAS_STAGING');
 const iosE2e = dispatch && input('INPUT_IOS_E2E');
 
 // Jobs ----------------------------------------------------------------------

@@ -74,5 +74,12 @@ jobs:
             crane tag "$REGISTRY/charts/${name}:${version}" "$REF_SLUG"
             # cd-production.yml relabels the chart by commit.
             crane tag "$REGISTRY/charts/${name}:${version}" "$GITHUB_SHA"
+            echo "$REGISTRY/charts/${name}:${version}" >> packaged/refs
           done
           echo "chart_version=${version}" >> "$GITHUB_OUTPUT"
+          { echo "refs<<EOF"; cat packaged/refs; echo "EOF"; } >> "$GITHUB_OUTPUT"
+      # Flux verifies the chart signature before every helm upgrade.
+      - uses: ./.forgejo/actions/cosign-sign
+        with:
+          refs: ${{ steps.publish.outputs.refs }}
+          key: ${{ secrets.COSIGN_PRIVATE_KEY }}

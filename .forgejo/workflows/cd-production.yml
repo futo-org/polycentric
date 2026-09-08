@@ -1,13 +1,14 @@
 name: Deploy to production
 
-# Manual: relabels a commit's images and charts production, one step per
-# component picked.
+# Manual: relabels what staging runs (or a commit's images and charts)
+# production, one step per component picked; apps builds the production EAS
+# apps from the ref's head and submits them.
 
 on:
   workflow_dispatch:
     inputs:
       sha:
-        description: Commit to deploy (default the ref's head)
+        description: Commit to deploy instead of the staging tags (its components must have been built)
         type: string
         default: ''
       server:
@@ -28,6 +29,10 @@ on:
       web:
         type: boolean
         default: false
+      apps:
+        description: Build the production apps on EAS and submit them (default branch only)
+        type: boolean
+        default: false
 
 concurrency:
   group: cd-production
@@ -36,11 +41,12 @@ concurrency:
 jobs:
   deploy:
     name: Deploy to production
+    if: inputs.server || inputs.moderation || inputs.push_notifications || inputs.scraper || inputs.verifier_bot || inputs.web
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
     env:
       REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
-      SHA: ${{ inputs.sha || github.sha }}
+      TAG: ${{ inputs.sha || 'staging' }}
       STATIC_S3_ENDPOINT: ${{ secrets.STATIC_S3_ENDPOINT }}
       STATIC_S3_BUCKET: ${{ vars.STATIC_S3_BUCKET }}
       STATIC_S3_ACCESS_KEY_ID: ${{ secrets.STATIC_S3_ACCESS_KEY_ID }}
@@ -57,8 +63,8 @@ jobs:
           registry: ${{ env.REGISTRY }}
           image: server
           chart: harbor-server
-          chart-version: ${{ env.SHA }}
-          sha: ${{ env.SHA }}
+          chart-version: ${{ env.TAG }}
+          tag: ${{ env.TAG }}
           environment: production
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
@@ -69,8 +75,8 @@ jobs:
           registry: ${{ env.REGISTRY }}
           image: moderation-service
           chart: harbor-moderation
-          chart-version: ${{ env.SHA }}
-          sha: ${{ env.SHA }}
+          chart-version: ${{ env.TAG }}
+          tag: ${{ env.TAG }}
           environment: production
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
@@ -81,8 +87,8 @@ jobs:
           registry: ${{ env.REGISTRY }}
           image: push-notifications-service
           chart: harbor-push-notifications
-          chart-version: ${{ env.SHA }}
-          sha: ${{ env.SHA }}
+          chart-version: ${{ env.TAG }}
+          tag: ${{ env.TAG }}
           environment: production
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
@@ -93,8 +99,8 @@ jobs:
           registry: ${{ env.REGISTRY }}
           image: scraper
           chart: harbor-scraper
-          chart-version: ${{ env.SHA }}
-          sha: ${{ env.SHA }}
+          chart-version: ${{ env.TAG }}
+          tag: ${{ env.TAG }}
           environment: production
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
@@ -105,8 +111,8 @@ jobs:
           registry: ${{ env.REGISTRY }}
           image: verifier-bot
           chart: harbor-verifier-bot
-          chart-version: ${{ env.SHA }}
-          sha: ${{ env.SHA }}
+          chart-version: ${{ env.TAG }}
+          tag: ${{ env.TAG }}
           environment: production
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
@@ -117,9 +123,79 @@ jobs:
           registry: ${{ env.REGISTRY }}
           image: web
           chart: harbor-web
-          chart-version: ${{ env.SHA }}
-          sha: ${{ env.SHA }}
+          chart-version: ${{ env.TAG }}
+          tag: ${{ env.TAG }}
           environment: production
           web-assets: 'true'
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
+
+  changes:
+    name: Plan
+    if: inputs.apps
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    outputs:
+      registry: ${{ steps.plan.outputs.registry }}
+      images_tag: ${{ steps.plan.outputs.images_tag }}
+      default_branch: ${{ steps.plan.outputs.default_branch }}
+      default_ref: ${{ steps.plan.outputs.default_ref }}
+      plan: ${{ steps.plan.outputs.plan }}
+      images_missing: ${{ steps.plan.outputs.images_missing }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.forgejo/actions/plan
+        id: plan
+        with:
+          eas-production: 'true'
+
+  setup-images:
+    name: Build CI images
+    needs: changes
+    if: inputs.apps
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - uses: ./.forgejo/actions/ci-images
+        if: needs.changes.outputs.images_missing == 'true'
+        with:
+          registry: ${{ needs.changes.outputs.registry }}
+          tag: ${{ needs.changes.outputs.images_tag }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+
+  packages:
+    name: Packages
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.setup-images.result != 'failure' }}
+    uses: ./.forgejo/workflows/ci-packages.yml
+    secrets: inherit
+    with:
+      plan: ${{ needs.changes.outputs.plan }}
+      registry: ${{ needs.changes.outputs.registry }}
+      images_tag: ${{ needs.changes.outputs.images_tag }}
+      default_branch: ${{ needs.changes.outputs.default_branch }}
+      default_ref: ${{ needs.changes.outputs.default_ref }}
+
+  app-web-checks:
+    name: App & web checks
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.result == 'success' }}
+    uses: ./.forgejo/workflows/ci-app-web-checks.yml
+    with:
+      plan: ${{ needs.changes.outputs.plan }}
+
+  app:
+    name: App
+    needs: [changes, packages, app-web-checks]
+    if: >-
+      ${{ !cancelled() && needs.changes.result == 'success' && needs.packages.result != 'failure' &&
+      needs.app-web-checks.result != 'failure' }}
+    uses: ./.forgejo/workflows/ci-app.yml
+    secrets: inherit
+    with:
+      plan: ${{ needs.changes.outputs.plan }}
+      is_tag: 'false'

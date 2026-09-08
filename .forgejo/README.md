@@ -13,7 +13,7 @@ are still used.
 | `pr-app.yml` | `build-app` label on a PR | staging EAS builds |
 | `cd-staging.yml` | push to `develop`, manual run, nightly | the above plus staging deploys |
 | `release.yml` | `v*` and `app-*` tags | the above plus the release |
-| `cd-production.yml` | manual | retag chosen components `production` |
+| `cd-production.yml` | manual | promote chosen components to `production`, production app builds |
 | `cd-docs-cleanup.yml` | PR closed | remove the docs preview |
 
 Each entry point runs `changes.mjs` (the plan: which jobs run, from changed
@@ -45,13 +45,18 @@ Rules:
   build.
 - Libraries a run does not build come from the develop copy in the registry.
 - Only `develop` (and branches in `CI_STAGING_BRANCHES`) deploy to staging.
-  Production is `cd-production.yml`, or `eas_production` for the apps.
+  Production is `cd-production.yml`.
 
 ## Manual runs
 
-`cd-staging.yml` inputs: `eas_staging` (staging app builds), `eas_production`
-(production app builds and store deploys, `develop` only), `ios_e2e`. A manual
-run on `develop` builds and deploys everything.
+`cd-staging.yml` inputs: `eas_staging` (staging app builds), `ios_e2e`. A
+manual run on `develop` builds and deploys everything.
+
+`cd-production.yml`: tick the components to promote. Each moves the `staging`
+image and chart tags to `production`, so production gets what staging runs.
+`sha` deploys that commit instead; it only works for components that commit
+built. `apps` builds the production apps from the ref's head and submits them
+(`develop` only).
 
 ## Runners
 

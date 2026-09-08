@@ -45,6 +45,7 @@ jobs:
           tag: ${{ needs.changes.outputs.images_tag }}
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
 
   packages:
     name: Packages

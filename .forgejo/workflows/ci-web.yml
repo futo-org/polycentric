@@ -56,6 +56,7 @@ jobs:
             SKIP_WORKSPACE_BUILD=1
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
 
   web-deploy:
     name: Web / Deploy to staging

@@ -48,6 +48,7 @@ build_image() {
     sleep 15
   done
   crane tag "$REGISTRY/ci/$name:$TAG" latest
+  "$(dirname "$0")/cosign-sign.sh" "$REGISTRY/ci/$name:$TAG"
 }
 
 build() {

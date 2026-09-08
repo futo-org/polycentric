@@ -10,10 +10,6 @@ on:
         description: Build the staging apps on EAS (apk, aab, ios)
         type: boolean
         default: false
-      eas_production:
-        description: Build and deploy the production apps on EAS (default branch only)
-        type: boolean
-        default: false
       ios_e2e:
         description: Run the iOS e2e suite on the store build
         type: boolean
@@ -51,7 +47,6 @@ jobs:
           staging-branches: ${{ vars.CI_STAGING_BRANCHES }}
           event-before: ${{ github.event.before }}
           eas-staging: ${{ inputs.eas_staging }}
-          eas-production: ${{ inputs.eas_production }}
           ios-e2e: ${{ inputs.ios_e2e }}
 
   # Always runs (a skipped job breaks Forgejo's matrix expansion downstream);
@@ -69,6 +64,7 @@ jobs:
           tag: ${{ needs.changes.outputs.images_tag }}
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
 
   checks:
     name: Checks

@@ -9,11 +9,14 @@ inputs:
     required: true
   registry-token:
     required: true
+  cosign-key:
+    description: COSIGN_PRIVATE_KEY; freshly built images are signed with it (empty skips)
+    default: ''
 runs:
   using: composite
   steps:
     - shell: sh
-      run: apk add --no-cache bash git crane docker-cli docker-cli-buildx
+      run: apk add --no-cache bash git crane cosign docker-cli docker-cli-buildx
     - uses: actions/checkout@v4
     - uses: ./.forgejo/actions/registry-login
       with:
@@ -26,16 +29,19 @@ runs:
       env:
         REGISTRY: ${{ inputs.registry }}
         TAG: ${{ inputs.tag }}
+        COSIGN_PRIVATE_KEY: ${{ inputs.cosign-key }}
       run: .forgejo/scripts/ci-images.sh build rust
     - name: Build rust-dind image
       shell: bash
       env:
         REGISTRY: ${{ inputs.registry }}
         TAG: ${{ inputs.tag }}
+        COSIGN_PRIVATE_KEY: ${{ inputs.cosign-key }}
       run: .forgejo/scripts/ci-images.sh build rust-dind
     - name: Build rust-android image
       shell: bash
       env:
         REGISTRY: ${{ inputs.registry }}
         TAG: ${{ inputs.tag }}
+        COSIGN_PRIVATE_KEY: ${{ inputs.cosign-key }}
       run: .forgejo/scripts/ci-images.sh build rust-android

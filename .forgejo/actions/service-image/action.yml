@@ -24,6 +24,9 @@ inputs:
     required: true
   registry-token:
     required: true
+  cosign-key:
+    description: COSIGN_PRIVATE_KEY; the pushed image is signed with it (empty skips)
+    default: ''
 runs:
   using: composite
   steps:
@@ -64,3 +67,8 @@ runs:
         # mode=min: build-stage layers change every commit, not worth uploading.
         docker buildx build "$@" \
           --cache-to "type=registry,ref=$IMAGE:cache-$REF_SLUG,mode=min,image-manifest=true,oci-mediatypes=true" .
+    # Sign the commit's image by digest; the moving tags share that digest.
+    - uses: ./.forgejo/actions/cosign-sign
+      with:
+        refs: ${{ inputs.registry }}/${{ inputs.image }}:${{ github.sha }}
+        key: ${{ inputs.cosign-key }}

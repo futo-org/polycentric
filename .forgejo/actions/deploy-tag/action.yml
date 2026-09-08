@@ -13,8 +13,8 @@ inputs:
   environment:
     description: staging or production
     required: true
-  sha:
-    description: Commit whose image to deploy (default GITHUB_SHA)
+  tag:
+    description: Existing tag of the image to relabel (default GITHUB_SHA)
     default: ''
   web-assets:
     description: Upload the web bundle to the static bucket first (needs STATIC_* env)
@@ -38,14 +38,19 @@ runs:
         CHART: ${{ inputs.chart }}
         CHART_VERSION: ${{ inputs.chart-version }}
         ENVIRONMENT_TAG: ${{ inputs.environment }}
-        SHA: ${{ inputs.sha }}
+        TAG: ${{ inputs.tag }}
         WEB_ASSETS: ${{ inputs.web-assets }}
       run: |
-        SHA="${SHA:-$GITHUB_SHA}"
+        TAG="${TAG:-$GITHUB_SHA}"
+        IMAGE_REF="$REGISTRY/$IMAGE:$TAG"
+        CHART_REF="$REGISTRY/charts/$CHART:$CHART_VERSION"
+        for ref in "$IMAGE_REF" "$CHART_REF"; do
+          crane digest "$ref" >/dev/null || { echo "::error::$ref is not in the registry"; exit 1; }
+        done
         if [ "$WEB_ASSETS" = true ]; then
           ASSETS_BASE_URL="${STATIC_PUBLIC_BASE_URL%/}/web/${ENVIRONMENT_TAG}"
-          crane export "$REGISTRY/$IMAGE:$SHA" - | tar -x app/dist/client
+          crane export "$IMAGE_REF" - | tar -x app/dist/client
           node .gitlab/ci/scripts/publish-web-assets.mjs app/dist/client "web/${ENVIRONMENT_TAG}" "$ASSETS_BASE_URL"
         fi
-        crane tag "$REGISTRY/$IMAGE:$SHA" "$ENVIRONMENT_TAG"
-        crane tag "$REGISTRY/charts/$CHART:$CHART_VERSION" "$ENVIRONMENT_TAG"
+        crane tag "$IMAGE_REF" "$ENVIRONMENT_TAG"
+        crane tag "$CHART_REF" "$ENVIRONMENT_TAG"

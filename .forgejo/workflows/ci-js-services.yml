@@ -70,6 +70,7 @@ jobs:
           default-branch-tag: ${{ inputs.default_ref }}
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
 
   scraper-deploy:
     name: JS services / Deploy scraper to staging
@@ -138,6 +139,7 @@ jobs:
           load: 'true'
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
       - name: Health checks
         env:
           IMAGE: ${{ inputs.registry }}/verifier-bot:${{ github.sha }}
