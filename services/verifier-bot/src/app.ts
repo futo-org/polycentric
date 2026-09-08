@@ -2,6 +2,7 @@ import * as dotenv from 'dotenv';
 dotenv.config({ path: './.env' });
 
 import { mkdirSync } from 'node:fs';
+import { base64Encode, base64EncodeString } from '@polycentric/js-core';
 import { ObjectId } from 'bson';
 import cors from 'cors';
 import express from 'express';
@@ -186,9 +187,9 @@ async function ensureProfile(client: PolycentricClient): Promise<void> {
   console.log(
     `Identity loaded (identityKey: ${
       client.activeIdentityKey
-    }, key: ${Buffer.from(
+    }, key: ${base64Encode(
       client.currentKeyPair?.publicKey.key ?? new Uint8Array(),
-    ).toString('base64')})`,
+    )})`,
   );
 
   await ensureProfile(client);
@@ -323,9 +324,7 @@ async function ensureProfile(client: PolycentricClient): Promise<void> {
         return;
       }
 
-      const encodedData = Buffer.from(JSON.stringify(queryObject)).toString(
-        'base64',
-      );
+      const encodedData = base64EncodeString(JSON.stringify(queryObject));
 
       // The client registered its return URL when it asked for the
       // sign-in URL.

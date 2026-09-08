@@ -1,3 +1,4 @@
+import { base64EncodeString } from '@polycentric/js-core';
 import {
   createCookieEnabledAxios,
   getCallbackForPlatform,
@@ -58,11 +59,11 @@ class SpotifyOAuthVerifier extends OAuthVerifier<SpotifyTokenRequest> {
       method: 'POST',
       data: qs.stringify(fdata),
       headers: {
-        Authorization: `Basic ${Buffer.from(
+        Authorization: `Basic ${base64EncodeString(
           process.env.POLYCENTRIC_VERIFIER_BOT_SPOTIFY_CLIENT_ID +
             ':' +
             process.env.POLYCENTRIC_VERIFIER_BOT_SPOTIFY_CLIENT_SECRET,
-        ).toString('base64')}`,
+        )}`,
         'content-type': 'application/x-www-form-urlencoded',
       },
     });

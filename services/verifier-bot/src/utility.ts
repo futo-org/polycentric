@@ -1,3 +1,4 @@
+import { base64DecodeString, base64EncodeString } from '@polycentric/js-core';
 import axios, { type AxiosInstance } from 'axios';
 import bodyParser from 'body-parser';
 import type { NextFunction, Request, Response } from 'express';
@@ -44,13 +45,14 @@ export function createCookieEnabledAxios(): AxiosInstance {
 }
 
 export function encodeObject<T>(token: T): string {
-  return encodeURIComponent(
-    Buffer.from(JSON.stringify(token)).toString('base64'),
-  );
+  return encodeURIComponent(base64EncodeString(JSON.stringify(token)));
 }
 
 export function decodeObject<T>(base64String: string): T {
-  const jsonString = Buffer.from(base64String, 'base64').toString('utf-8');
+  const jsonString = base64DecodeString(base64String);
+  if (jsonString === undefined) {
+    throw new SyntaxError('Invalid base64 encoding');
+  }
   return JSON.parse(jsonString) as T;
 }
 

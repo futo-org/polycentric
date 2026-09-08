@@ -1,3 +1,4 @@
+import { base64DecodeString } from '@polycentric/js-core';
 import { StatusCodes } from 'http-status-codes';
 import type { ClaimField, Platform, TokenResponse } from '../models.js';
 import { Result } from '../result.js';
@@ -191,7 +192,10 @@ class DiscordOAuthVerifier extends OAuthVerifier<DiscordTokenRequest> {
     let payload: DiscordToken;
     try {
       const base64Token = decodeURIComponent(challengeResponseUrlEncodedBase64);
-      const jsonToken = Buffer.from(base64Token, 'base64').toString('utf8');
+      const jsonToken = base64DecodeString(base64Token);
+      if (jsonToken === undefined) {
+        throw new Error('Invalid base64 encoding in Discord token data.');
+      }
       payload = JSON.parse(jsonToken);
     } catch (e: any) {
       console.error(

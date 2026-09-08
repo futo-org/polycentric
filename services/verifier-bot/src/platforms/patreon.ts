@@ -1,3 +1,4 @@
+import { base64DecodeString } from '@polycentric/js-core';
 import axios from 'axios';
 import { StatusCodes } from 'http-status-codes';
 import type { ClaimField, Platform, TokenResponse } from '../models.js';
@@ -198,7 +199,12 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
     let payload: PatreonToken;
     try {
       const base64Token = decodeURIComponent(challengeResponseBase64UrlEncoded);
-      const jsonToken = Buffer.from(base64Token, 'base64').toString('utf8');
+      const jsonToken = base64DecodeString(base64Token);
+      if (jsonToken === undefined) {
+        return Result.err({
+          message: 'Invalid Base64 encoding in Patreon token data.',
+        });
+      }
       payload = JSON.parse(jsonToken);
     } catch (e: any) {
       console.error(
@@ -209,11 +215,6 @@ class PatreonOAuthVerifier extends OAuthVerifier<PatreonOAuthCallbackData> {
       let errorMessage = 'Invalid token data format for Patreon verification.';
       if (e instanceof SyntaxError) {
         errorMessage = 'Invalid JSON format in Patreon token data.';
-      } else if (
-        e.message.includes('Invalid character') ||
-        e.message.includes('base64')
-      ) {
-        errorMessage = 'Invalid Base64 encoding in Patreon token data.';
       }
       return Result.err({ message: errorMessage, extendedMessage: e.message });
     }
