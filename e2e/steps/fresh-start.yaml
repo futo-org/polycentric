@@ -1,4 +1,4 @@
-appId: ${MAESTRO_APP_ID}
+url: ${MAESTRO_WEB_URL}
 ---
 # Opens the app with nothing stored, so onboarding shows. `clearState`
 # clears cookies, localStorage and the cache but not IndexedDB or OPFS,
