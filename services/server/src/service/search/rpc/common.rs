@@ -12,7 +12,7 @@ use crate::service::feeds::rpc::common::{
 use crate::service::proofs::service::attach_proofs;
 use crate::service::proto::{EventBundle, EventHint, PageParams, SearchResult};
 use crate::service::stats::service::EventStats;
-use entity::{content_model, event_model};
+use entity::{content, event};
 use serde::Deserialize;
 use std::collections::HashSet;
 use tonic::Status;
@@ -136,20 +136,20 @@ fn test_prepare_search_query() {
 }
 
 /// Event, content and search rank.
-pub type SearchRow = (event_model::Model, content_model::Model, f32);
+pub type SearchRow = (event::Model, content::Model, f32);
 
 impl EventRow for SearchRow {
     fn as_event_with_content(
         &self,
-    ) -> (&event_model::Model, Option<&content_model::Model>) {
+    ) -> (&event::Model, Option<&content::Model>) {
         (&self.0, Some(&self.1))
     }
 
-    fn as_event(&self) -> &event_model::Model {
+    fn as_event(&self) -> &event::Model {
         &self.0
     }
 
-    fn as_content(&self) -> Option<&content_model::Model> {
+    fn as_content(&self) -> Option<&content::Model> {
         Some(&self.1)
     }
 }
@@ -336,7 +336,7 @@ mod tests {
 
     fn search_row(id: i64, identity: &str, content: &Content) -> SearchRow {
         (
-            event_model::Model {
+            event::Model {
                 id,
                 collection: 2,
                 identity: identity.to_string(),
@@ -353,7 +353,7 @@ mod tests {
                 created_at: now(),
                 synced_at: now(),
             },
-            content_model::Model {
+            content::Model {
                 id,
                 digest_type: 1,
                 digest_bytes: vec![id as u8],

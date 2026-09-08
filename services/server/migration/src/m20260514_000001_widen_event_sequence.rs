@@ -1,4 +1,4 @@
-use ::entity::event_model;
+use ::entity::event;
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
@@ -10,9 +10,9 @@ impl MigrationTrait for Migration {
         manager
             .alter_table(
                 Table::alter()
-                    .table(event_model::Entity)
+                    .table(event::Entity)
                     .modify_column(
-                        ColumnDef::new(event_model::Column::Sequence)
+                        ColumnDef::new(event::Column::Sequence)
                             .big_integer()
                             .not_null(),
                     )
@@ -25,9 +25,9 @@ impl MigrationTrait for Migration {
         manager
             .alter_table(
                 Table::alter()
-                    .table(event_model::Entity)
+                    .table(event::Entity)
                     .modify_column(
-                        ColumnDef::new(event_model::Column::Sequence)
+                        ColumnDef::new(event::Column::Sequence)
                             .small_integer()
                             .not_null(),
                     )

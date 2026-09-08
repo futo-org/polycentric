@@ -2,7 +2,7 @@ pub mod repository;
 pub mod rpc;
 pub mod tombstone;
 
-use ::entity::event_model as EventModel;
+use entity::event;
 use tonic::Status;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -15,7 +15,7 @@ pub struct TargetEventKey {
 }
 
 impl TargetEventKey {
-    pub fn of(event: &EventModel::Model) -> Self {
+    pub fn of(event: &event::Model) -> Self {
         Self {
             collection: event.collection,
             identity: event.identity.clone(),

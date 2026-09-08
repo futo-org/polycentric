@@ -1,4 +1,4 @@
-use ::entity::content_label_model;
+use ::entity::content_label;
 use sea_orm::Schema;
 use sea_orm_migration::prelude::*;
 
@@ -14,13 +14,11 @@ impl MigrationTrait for Migration {
         let schema = Schema::new(manager.get_database_backend());
         manager
             .create_table(
-                schema.create_table_from_entity(content_label_model::Entity),
+                schema.create_table_from_entity(content_label::Entity),
             )
             .await?;
 
-        for index in
-            schema.create_index_from_entity(content_label_model::Entity)
-        {
+        for index in schema.create_index_from_entity(content_label::Entity) {
             manager.create_index(index).await?;
         }
 
@@ -32,7 +30,7 @@ impl MigrationTrait for Migration {
             .drop_table(
                 Table::drop()
                     .if_exists()
-                    .table(content_label_model::Entity)
+                    .table(content_label::Entity)
                     .to_owned(),
             )
             .await

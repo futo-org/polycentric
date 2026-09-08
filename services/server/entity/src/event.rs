@@ -53,25 +53,25 @@ pub struct Model {
 
     /// Only if this is a follow event.
     #[sea_orm(has_one)] // Really has zero or one.
-    pub follow: HasOne<super::follow_model::Entity>,
+    pub follow: HasOne<super::follow::Entity>,
     /// Only if this is a block event.
     #[sea_orm(has_one)] // Really has zero or one.
-    pub block: HasOne<super::block_model::Entity>,
+    pub block: HasOne<super::block::Entity>,
     /// Only if this is a post event.
     #[sea_orm(has_one)] // Really has zero or one.
-    pub reaction_tally: HasOne<super::reaction_tally_model::Entity>,
+    pub reaction_tally: HasOne<super::reaction_tally::Entity>,
     /// Only if this is a reaction event.
     #[sea_orm(has_one)] // Really has zero or one.
-    pub reaction: HasOne<super::reaction_model::Entity>,
+    pub reaction: HasOne<super::reaction::Entity>,
     /// Only if this is a repost event.
     #[sea_orm(has_one)] // Really has zero or one.
-    pub repost: HasOne<super::repost_model::Entity>,
+    pub repost: HasOne<super::repost::Entity>,
     /// Only if this a post event that quotes another post.
     #[sea_orm(has_one)] // Really has zero or one.
-    pub quote: HasOne<super::quote_model::Entity>,
+    pub quote: HasOne<super::quote::Entity>,
     /// Only if this a post event that replies to another post.
     #[sea_orm(has_one)] // Really has zero or one.
-    pub reply: HasOne<super::reply_model::Entity>,
+    pub reply: HasOne<super::reply::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

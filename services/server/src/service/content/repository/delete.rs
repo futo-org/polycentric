@@ -1,6 +1,6 @@
 use super::split_event_key;
 use crate::service::proto::Delete;
-use entity::content_delete_model as ContentDeleteModel;
+use entity::content_delete;
 use sea_orm::DbErr;
 use sea_orm::sea_query::{DynIden, Expr, InsertStatement, SelectStatement};
 use tonic::Status;
@@ -14,14 +14,14 @@ pub(super) fn add_query(
 
     let mut query = InsertStatement::new();
     query
-        .into_table(ContentDeleteModel::Entity)
+        .into_table(content_delete::Entity)
         .columns([
-            ContentDeleteModel::Column::ContentId,
-            ContentDeleteModel::Column::EventKeyCollection,
-            ContentDeleteModel::Column::EventKeyIdentity,
-            ContentDeleteModel::Column::EventKeyPublicKeyType,
-            ContentDeleteModel::Column::EventKeyPublicKey,
-            ContentDeleteModel::Column::EventKeySequence,
+            content_delete::Column::ContentId,
+            content_delete::Column::EventKeyCollection,
+            content_delete::Column::EventKeyIdentity,
+            content_delete::Column::EventKeyPublicKeyType,
+            content_delete::Column::EventKeyPublicKey,
+            content_delete::Column::EventKeySequence,
         ])
         .select_from({
             let mut q = SelectStatement::new();

@@ -1,4 +1,4 @@
-use ::entity::ban_model;
+use ::entity::ban;
 use sea_orm_migration::prelude::*;
 
 /// `ban_created_at_identity_idx`: `list_bans` pages the ban list in
@@ -17,9 +17,9 @@ impl MigrationTrait for Migration {
                 Index::create()
                     .if_not_exists()
                     .name("ban_created_at_identity_idx")
-                    .table(ban_model::Entity)
-                    .col(ban_model::Column::CreatedAt)
-                    .col(ban_model::Column::Identity)
+                    .table(ban::Entity)
+                    .col(ban::Column::CreatedAt)
+                    .col(ban::Column::Identity)
                     .to_owned(),
             )
             .await
@@ -30,7 +30,7 @@ impl MigrationTrait for Migration {
             .drop_index(
                 Index::drop()
                     .name("ban_created_at_identity_idx")
-                    .table(ban_model::Entity)
+                    .table(ban::Entity)
                     .to_owned(),
             )
             .await

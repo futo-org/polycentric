@@ -1,6 +1,6 @@
 use super::split_event_key;
 use crate::service::proto::Labels;
-use entity::content_label_model as ContentLabelModel;
+use entity::content_label;
 use sea_orm::DbErr;
 use sea_orm::sea_query::{
     CommonTableExpression, DynIden, Expr, InsertStatement, SelectStatement,
@@ -27,14 +27,14 @@ pub(super) fn add_query(
     with.cte(cte);
 
     let mut query = InsertStatement::new();
-    query.into_table(ContentLabelModel::Entity).columns([
-        ContentLabelModel::Column::ContentId,
-        ContentLabelModel::Column::LabelValue,
-        ContentLabelModel::Column::EventKeyCollection,
-        ContentLabelModel::Column::EventKeyIdentity,
-        ContentLabelModel::Column::EventKeyPublicKeyType,
-        ContentLabelModel::Column::EventKeyPublicKey,
-        ContentLabelModel::Column::EventKeySequence,
+    query.into_table(content_label::Entity).columns([
+        content_label::Column::ContentId,
+        content_label::Column::LabelValue,
+        content_label::Column::EventKeyCollection,
+        content_label::Column::EventKeyIdentity,
+        content_label::Column::EventKeyPublicKeyType,
+        content_label::Column::EventKeyPublicKey,
+        content_label::Column::EventKeySequence,
     ])
         .select_from({
             let mut q = SelectStatement::new();

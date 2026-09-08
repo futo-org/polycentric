@@ -1,7 +1,4 @@
-use entity::{
-    content_delete_model, content_model, content_repost_model, event_model,
-    repost_model,
-};
+use entity::{content, content_delete, content_repost, event, repost};
 use sea_orm::{ColumnTrait, EntityTrait, RelationDef};
 use sea_orm_migration::prelude::*;
 
@@ -11,7 +8,7 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        if manager.has_table(repost_model::Entity.unquoted()).await? {
+        if manager.has_table(repost::Entity.unquoted()).await? {
             return Ok(());
         }
 
@@ -19,19 +16,19 @@ impl MigrationTrait for Migration {
 
         let mut create_table = TableCreateStatement::new();
         create_table
-            .table(repost_model::Entity.unquoted())
+            .table(repost::Entity.unquoted())
             .col({
-                let mut def = ColumnDef::new(repost_model::Column::EventId);
+                let mut def = ColumnDef::new(repost::Column::EventId);
                 def.primary_key().big_integer().not_null();
                 def
             })
             .col({
-                let mut def = ColumnDef::new(repost_model::Column::Identity);
+                let mut def = ColumnDef::new(repost::Column::Identity);
                 def.text().not_null();
                 def
             })
             .col({
-                let mut def = ColumnDef::new(repost_model::Column::Post);
+                let mut def = ColumnDef::new(repost::Column::Post);
                 def.big_integer().not_null();
                 def
             });
@@ -40,127 +37,127 @@ impl MigrationTrait for Migration {
 
         let mut fill_table = InsertStatement::new();
         fill_table
-            .into_table(repost_model::Entity)
+            .into_table(repost::Entity)
             .columns([
-                repost_model::Column::EventId,
-                repost_model::Column::Identity,
-                repost_model::Column::Post,
+                repost::Column::EventId,
+                repost::Column::Identity,
+                repost::Column::Post,
             ])
             .select_from({
                 let mut q = SelectStatement::new();
                 q
                     .clear_selects() // Need to rename.
                     .expr(SelectExpr {
-                        expr: Expr::col(event_model::Column::Id.as_column_ref()),
-                        alias: Some(repost_model::Column::EventId.into()),
+                        expr: Expr::col(event::Column::Id.as_column_ref()),
+                        alias: Some(repost::Column::EventId.into()),
                         window: None,
                     })
                     .expr(SelectExpr {
-                        expr: Expr::col(event_model::Column::Identity.as_column_ref()),
-                        alias: Some(repost_model::Column::Identity.into()),
+                        expr: Expr::col(event::Column::Identity.as_column_ref()),
+                        alias: Some(repost::Column::Identity.into()),
                         window: None,
                     })
                     .expr(SelectExpr {
                         expr: Expr::col((
-                              "repost_event", event_model::Column::Id.unquoted(),
+                              "repost_event", event::Column::Id.unquoted(),
                         )),
-                        alias: Some(repost_model::Column::Post.into()),
+                        alias: Some(repost::Column::Post.into()),
                         window: None,
                     })
-                    .from(event_model::Entity)
+                    .from(event::Entity)
                     .inner_join(
-                        content_model::Entity,
+                        content::Entity,
                         Into::<RelationDef>::into(
-                            event_model::Entity::belongs_to(content_model::Entity)
-                                .from(event_model::Column::ContentDigestType)
-                                .to(content_model::Column::DigestType)
+                            event::Entity::belongs_to(content::Entity)
+                                .from(event::Column::ContentDigestType)
+                                .to(content::Column::DigestType)
                                 .on_condition(|event_tbl, content_tbl| {
                                     Expr::col((
                                         event_tbl,
-                                        event_model::Column::ContentDigestBytes,
+                                        event::Column::ContentDigestBytes,
                                     ))
                                     .equals((
                                         content_tbl,
-                                        content_model::Column::DigestBytes,
+                                        content::Column::DigestBytes,
                                     ))
                                     .into_condition()
                                 }),
                         ),
                     )
                     .inner_join(
-                        content_repost_model::Entity,
+                        content_repost::Entity,
                         Condition::any().add(
                             Expr::col(
-                                content_repost_model::Column::ContentId.as_column_ref(),
+                                content_repost::Column::ContentId.as_column_ref(),
                             )
-                            .eq(Expr::col(content_model::Column::Id.as_column_ref())),
+                            .eq(Expr::col(content::Column::Id.as_column_ref())),
                         ),
                     )
                     .inner_join(
-                        TableRef::Table(event_model::Entity.into(), Some("repost_event".into())),
+                        TableRef::Table(event::Entity.into(), Some("repost_event".into())),
                         Condition::all()
-                            .and(Expr::col(content_repost_model::Column::EventKeyCollection.as_column_ref())
-                                .eq(Expr::col(("repost_event", event_model::Column::Collection))))
-                            .and(Expr::col(content_repost_model::Column::EventKeyIdentity.as_column_ref())
-                                .eq(Expr::col(("repost_event", event_model::Column::Identity))))
-                            .and(Expr::col(content_repost_model::Column::EventKeyPublicKeyType.as_column_ref())
-                                .eq(Expr::col(("repost_event", event_model::Column::PublicKeyType))))
-                            .and(Expr::col(content_repost_model::Column::EventKeyPublicKey.as_column_ref())
-                                .eq(Expr::col(("repost_event", event_model::Column::PublicKey))))
-                            .and(Expr::col(content_repost_model::Column::EventKeySequence.as_column_ref())
-                                .eq(Expr::col(("repost_event", event_model::Column::Sequence))))
+                            .and(Expr::col(content_repost::Column::EventKeyCollection.as_column_ref())
+                                .eq(Expr::col(("repost_event", event::Column::Collection))))
+                            .and(Expr::col(content_repost::Column::EventKeyIdentity.as_column_ref())
+                                .eq(Expr::col(("repost_event", event::Column::Identity))))
+                            .and(Expr::col(content_repost::Column::EventKeyPublicKeyType.as_column_ref())
+                                .eq(Expr::col(("repost_event", event::Column::PublicKeyType))))
+                            .and(Expr::col(content_repost::Column::EventKeyPublicKey.as_column_ref())
+                                .eq(Expr::col(("repost_event", event::Column::PublicKey))))
+                            .and(Expr::col(content_repost::Column::EventKeySequence.as_column_ref())
+                                .eq(Expr::col(("repost_event", event::Column::Sequence))))
                     )
                     .left_join(
-                        content_delete_model::Entity,
+                        content_delete::Entity,
                         Condition::all()
                             .add(
                                 Expr::col(
-                                    content_delete_model::Column::EventKeyCollection
+                                    content_delete::Column::EventKeyCollection
                                         .as_column_ref(),
                                 )
                                 .eq(Expr::col(
-                                    event_model::Column::Collection.as_column_ref(),
+                                    event::Column::Collection.as_column_ref(),
                                 )),
                             )
                             .add(
                                 Expr::col(
-                                    content_delete_model::Column::EventKeyIdentity
+                                    content_delete::Column::EventKeyIdentity
                                         .as_column_ref(),
                                 )
                                 .eq(Expr::col(
-                                    event_model::Column::Identity.as_column_ref(),
+                                    event::Column::Identity.as_column_ref(),
                                 )),
                             )
                             .add(
                                 Expr::col(
-                                    content_delete_model::Column::EventKeyPublicKeyType
+                                    content_delete::Column::EventKeyPublicKeyType
                                         .as_column_ref(),
                                 )
                                 .eq(Expr::col(
-                                    event_model::Column::PublicKeyType.as_column_ref(),
+                                    event::Column::PublicKeyType.as_column_ref(),
                                 )),
                             )
                             .add(
                                 Expr::col(
-                                    content_delete_model::Column::EventKeyPublicKey
+                                    content_delete::Column::EventKeyPublicKey
                                         .as_column_ref(),
                                 )
                                 .eq(Expr::col(
-                                    event_model::Column::PublicKey.as_column_ref(),
+                                    event::Column::PublicKey.as_column_ref(),
                                 )),
                             )
                             .add(
                                 Expr::col(
-                                    content_delete_model::Column::EventKeySequence
+                                    content_delete::Column::EventKeySequence
                                         .as_column_ref(),
                                 )
                                 .eq(Expr::col(
-                                    event_model::Column::Sequence.as_column_ref(),
+                                    event::Column::Sequence.as_column_ref(),
                                 )),
                             ),
                     )
                     .and_where(
-                        Expr::cust(content_delete_model::Entity.into_iden().inner())
+                        Expr::cust(content_delete::Entity.into_iden().inner())
                             .is_null(),
                     );
                 q
@@ -169,7 +166,7 @@ impl MigrationTrait for Migration {
                 DbErr::Custom(format!("incorrect amount of values: {err}"))
             })?
             .on_conflict({
-                let mut c = OnConflict::column(repost_model::Column::EventId);
+                let mut c = OnConflict::column(repost::Column::EventId);
                 c.do_nothing();
                 c
             });
@@ -179,12 +176,12 @@ impl MigrationTrait for Migration {
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        if !manager.has_table(repost_model::Entity.unquoted()).await? {
+        if !manager.has_table(repost::Entity.unquoted()).await? {
             return Ok(());
         }
 
         let mut drop_table = TableDropStatement::new();
-        drop_table.table(repost_model::Entity.unquoted()).restrict();
+        drop_table.table(repost::Entity.unquoted()).restrict();
         manager.drop_table(drop_table).await?;
         Ok(())
     }

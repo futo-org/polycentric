@@ -1,9 +1,6 @@
-use ::entity::block_model as BlockModel;
-use ::entity::content_follow_model as ContentFollowModel;
-use ::entity::content_model as ContentModel;
-use ::entity::default_follow_suggestion_model as DefaultFollowSuggestionModel;
-use ::entity::event_model as EventModel;
-use ::entity::follow_model as FollowModel;
+use ::entity::{
+    block, content, content_follow, default_follow_suggestion, event, follow,
+};
 use polycentric_common::models::collections;
 use prost::Message;
 use sea_orm::*;
@@ -27,8 +24,8 @@ use crate::util::db::{CONTENT_PREFIX, EVENT_PREFIX, select_model_columns};
 
 #[derive(Debug)]
 pub struct FollowSuggestionEvent {
-    pub event: EventModel::Model,
-    pub content: ContentModel::Model,
+    pub event: event::Model,
+    pub content: content::Model,
     pub followers: Vec<String>,
 }
 
@@ -53,15 +50,15 @@ impl TryGetableMany for FollowSuggestionEvent {
 impl EventRow for FollowSuggestionEvent {
     fn as_event_with_content(
         &self,
-    ) -> (&EventModel::Model, Option<&ContentModel::Model>) {
+    ) -> (&event::Model, Option<&content::Model>) {
         (&self.event, Some(&self.content))
     }
 
-    fn as_event(&self) -> &EventModel::Model {
+    fn as_event(&self) -> &event::Model {
         &self.event
     }
 
-    fn as_content(&self) -> Option<&ContentModel::Model> {
+    fn as_content(&self) -> Option<&content::Model> {
         Some(&self.content)
     }
 
@@ -105,11 +102,11 @@ impl Query {
         ctx: &ServiceContext,
         caller: &str,
     ) -> Result<Vec<String>, Status> {
-        BlockModel::Entity::find()
+        block::Entity::find()
             .select_only()
-            .column(BlockModel::Column::Blocked)
+            .column(block::Column::Blocked)
             .distinct()
-            .filter(BlockModel::Column::Blocker.eq(caller))
+            .filter(block::Column::Blocker.eq(caller))
             .into_tuple::<String>()
             .all(&ctx.ro_db)
             .await
@@ -162,13 +159,13 @@ impl Query {
             return Ok(HashSet::new());
         }
 
-        BlockModel::Entity::find()
+        block::Entity::find()
             .select_only()
-            .column(BlockModel::Column::Blocker)
+            .column(block::Column::Blocker)
             .distinct()
-            .filter(BlockModel::Column::Blocked.eq(blocked))
+            .filter(block::Column::Blocked.eq(blocked))
             .filter(
-                Expr::col((BlockModel::Entity, BlockModel::Column::Blocker))
+                Expr::col((block::Entity, block::Column::Blocker))
                     .eq(PgFunc::any(potential_blockers)),
             )
             .into_tuple::<String>()
@@ -183,9 +180,9 @@ impl Query {
         blocker: &str,
         blocked: &str,
     ) -> Result<bool, Status> {
-        let row = BlockModel::Entity::find()
-            .filter(BlockModel::Column::Blocker.eq(blocker))
-            .filter(BlockModel::Column::Blocked.eq(blocked))
+        let row = block::Entity::find()
+            .filter(block::Column::Blocker.eq(blocker))
+            .filter(block::Column::Blocked.eq(blocked))
             .one(&ctx.ro_db)
             .await
             .map_err(map_db_err)?;
@@ -211,7 +208,7 @@ impl Query {
         identity: &str,
     ) -> Result<u64, Status> {
         let rows: Vec<EventWithContentRow> = follow_events_query()
-            .filter(ContentFollowModel::Column::IdentityId.eq(identity))
+            .filter(content_follow::Column::IdentityId.eq(identity))
             .all(&ctx.ro_db)
             .await
             .map_err(map_db_err)?;
@@ -245,8 +242,8 @@ impl Query {
         limit: u32,
         cursor_filter: Option<&CursorFilter<EventCreatedAt>>,
     ) -> Result<Vec<EventWithContentRow>, DbErr> {
-        let query = follow_events_query()
-            .filter(EventModel::Column::Identity.eq(identity));
+        let query =
+            follow_events_query().filter(event::Column::Identity.eq(identity));
         page_follow_events(db, query, limit, cursor_filter).await
     }
 
@@ -259,7 +256,7 @@ impl Query {
         cursor_filter: Option<&CursorFilter<EventCreatedAt>>,
     ) -> Result<Vec<EventWithContentRow>, DbErr> {
         let query = follow_events_query()
-            .filter(ContentFollowModel::Column::IdentityId.eq(identity));
+            .filter(content_follow::Column::IdentityId.eq(identity));
         page_follow_events(db, query, limit, cursor_filter).await
     }
 
@@ -276,12 +273,12 @@ impl Query {
         const FOLLOWING_TABLE: &str = "following";
         let mut following = SelectStatement::new();
         following
-            .column(FollowModel::Column::Followee)
-            .from(FollowModel::Entity)
-            .and_where(FollowModel::Column::Follower.eq(identity));
+            .column(follow::Column::Followee)
+            .from(follow::Entity)
+            .and_where(follow::Column::Follower.eq(identity));
         let mut select_following = SelectStatement::new();
         select_following
-            .column(FollowModel::Column::Followee)
+            .column(follow::Column::Followee)
             .from(FOLLOWING_TABLE);
         const SUGGESTIONS_TABLE: &str = "suggestions";
         // List of identities that are followed by identities that `identity`
@@ -289,7 +286,7 @@ impl Query {
         // and Alice follows Bob, this list will include Bob.
         let mut followee_suggestions = SelectStatement::new();
         followee_suggestions
-            .column(FollowModel::Column::Followee)
+            .column(follow::Column::Followee)
             // NOTE: the tuple (followee, follower) is not unique in the follow
             // table because the user can create multiple valid events that
             // follow the same identity. As a result we can return duplicate
@@ -301,32 +298,31 @@ impl Query {
             // `FunctionCall::arg_with` or a similar function to set DISTINCT in
             // the function call.
             .expr_as(
-                PgFunc::array_agg(Expr::col(FollowModel::Column::Follower)),
+                PgFunc::array_agg(Expr::col(follow::Column::Follower)),
                 FOLLOWERS_COLUMN,
             )
-            .from(FollowModel::Entity)
+            .from(follow::Entity)
             .and_where(
-                FollowModel::Column::Follower
-                    .in_subquery(select_following.clone()),
+                follow::Column::Follower.in_subquery(select_following.clone()),
             )
-            .group_by_col(FollowModel::Column::Followee);
+            .group_by_col(follow::Column::Followee);
         // All default suggestions.
         let mut default_suggestions = SelectStatement::new();
         default_suggestions
-            .column(DefaultFollowSuggestionModel::Column::Identity)
+            .column(default_follow_suggestion::Column::Identity)
             // By using an empty array for the followers we ensure the default
             // suggestions always come last.
             .expr_as(Expr::cust("ARRAY[]::TEXT[]"), FOLLOWERS_COLUMN)
-            .from(DefaultFollowSuggestionModel::Entity);
+            .from(default_follow_suggestion::Entity);
         // Combined followee and default suggestions.
         let mut suggestions = SelectStatement::new();
         suggestions
-            .column(FollowModel::Column::Followee)
+            .column(follow::Column::Followee)
             .column(FOLLOWERS_COLUMN)
             .from_subquery(
                 {
                     let mut q = SelectStatement::new();
-                    q.column(FollowModel::Column::Followee)
+                    q.column(follow::Column::Followee)
                         .column(FOLLOWERS_COLUMN)
                         .from_subquery(
                             followee_suggestions,
@@ -339,44 +335,39 @@ impl Query {
             )
             // Don't suggest ourselves.
             .and_where(
-                Expr::col(FollowModel::Column::Followee.into_column_ref())
+                Expr::col(follow::Column::Followee.into_column_ref())
                     .ne(identity),
             )
             // Don't suggest identities the identity is already following.
             .and_where(
-                Expr::col(FollowModel::Column::Followee.into_column_ref())
+                Expr::col(follow::Column::Followee.into_column_ref())
                     .not_in_subquery(select_following),
             );
 
         // The latest identitiy events based on the follow suggestions.
         let mut identity_events = SelectStatement::new();
         identity_events
-            .distinct_on([EventModel::Column::Identity.as_column_ref()])
-            .expr(Expr::col(ColumnRef::Asterisk(Some(
-                EventModel::Entity.into(),
-            ))))
+            .distinct_on([event::Column::Identity.as_column_ref()])
+            .expr(Expr::col(ColumnRef::Asterisk(Some(event::Entity.into()))))
             .expr_as(
                 Expr::col((SUGGESTIONS_TABLE, FOLLOWERS_COLUMN)),
                 FOLLOWERS_COLUMN,
             )
-            .from(EventModel::Entity)
+            .from(event::Entity)
             .inner_join(
                 SUGGESTIONS_TABLE,
-                Expr::col(EventModel::Column::Identity.as_column_ref()).eq(
-                    Expr::col((
-                        SUGGESTIONS_TABLE,
-                        FollowModel::Column::Followee,
-                    )),
+                Expr::col(event::Column::Identity.as_column_ref()).eq(
+                    Expr::col((SUGGESTIONS_TABLE, follow::Column::Followee)),
                 ),
             )
             .cond_where(
-                Expr::col(EventModel::Column::Collection.as_column_ref())
+                Expr::col(event::Column::Collection.as_column_ref())
                     .eq(Expr::Constant(collections::IDENTITY.into())),
             )
-            .order_by(EventModel::Column::Identity, Order::Asc)
-            .order_by(EventModel::Column::Sequence, Order::Desc);
+            .order_by(event::Column::Identity, Order::Asc)
+            .order_by(event::Column::Sequence, Order::Desc);
 
-        let mut query = EventModel::Entity::find().select_only();
+        let mut query = event::Entity::find().select_only();
         QuerySelect::query(&mut query).with_cte({
             let mut c = WithClause::new();
             let mut following_cte = CommonTableExpression::new();
@@ -389,7 +380,7 @@ impl Query {
             identity_events_cte
                 // NOTE: overwriting table name so that we don't have to rename
                 // the selects below.
-                .table_name(EventModel::Entity)
+                .table_name(event::Entity)
                 .query(identity_events);
             c.recursive(false)
                 .cte(following_cte)
@@ -397,19 +388,16 @@ impl Query {
                 .cte(identity_events_cte);
             c
         });
-        query = select_model_columns(
-            query,
-            EVENT_PREFIX,
-            EventModel::Column::iter(),
-        );
+        query =
+            select_model_columns(query, EVENT_PREFIX, event::Column::iter());
         query = select_model_columns(
             query,
             CONTENT_PREFIX,
-            ContentModel::Column::iter(),
+            content::Column::iter(),
         );
         query = query.join(JoinType::InnerJoin, content_join());
         QuerySelect::query(&mut query).expr_as(
-            Expr::col((EventModel::Entity, FOLLOWERS_COLUMN)),
+            Expr::col((event::Entity, FOLLOWERS_COLUMN)),
             FOLLOWERS_COLUMN,
         );
 
@@ -422,7 +410,7 @@ impl Query {
         // Mapping to 0 keeps them last and paginatable.
         let order_column = Expr::from(Func::coalesce([
             Func::cust("array_length")
-                .arg(Expr::col((EventModel::Entity, FOLLOWERS_COLUMN)))
+                .arg(Expr::col((event::Entity, FOLLOWERS_COLUMN)))
                 .arg(Expr::Constant(1.into()))
                 .into(),
             Expr::Constant(0.into()),
@@ -434,7 +422,7 @@ impl Query {
         QuerySelect::query(&mut query)
             .order_by_expr(order_column.clone(), Order::Desc)
             .order_by_expr(
-                Expr::col(EventModel::Column::Id.as_column_ref()),
+                Expr::col(event::Column::Id.as_column_ref()),
                 Order::Desc,
             );
 
@@ -445,7 +433,7 @@ impl Query {
                     query = query.filter(
                         Expr::tuple([
                             order_column,
-                            Expr::col(EventModel::Column::Id.as_column_ref()),
+                            Expr::col(event::Column::Id.as_column_ref()),
                         ])
                         .lt(Expr::tuple([
                             Expr::from(marker.sorted_by),
@@ -461,7 +449,7 @@ impl Query {
                     query = query.filter(
                         Expr::tuple([
                             order_column,
-                            Expr::col(EventModel::Column::Id.as_column_ref()),
+                            Expr::col(event::Column::Id.as_column_ref()),
                         ])
                         .gt(Expr::tuple([
                             Expr::from(marker.sorted_by),
@@ -498,20 +486,15 @@ impl Query {
             .expr(Expr::col(Asterisk))
             .from_values(follows, "follows");
 
-        EventModel::Entity::find()
-            .select_also(ContentModel::Entity)
+        event::Entity::find()
+            .select_also(content::Entity)
             .join(JoinType::InnerJoin, content_join())
-            .join(
-                JoinType::InnerJoin,
-                FollowModel::Relation::EventModel.def().rev(),
-            )
-            .filter(
-                EventModel::Column::Collection.eq(collections::SOCIAL_GRAPH),
-            )
+            .join(JoinType::InnerJoin, follow::Relation::Event.def().rev())
+            .filter(event::Column::Collection.eq(collections::SOCIAL_GRAPH))
             .filter(
                 Expr::tuple([
-                    Expr::col(FollowModel::Column::Followee),
-                    Expr::col(FollowModel::Column::Follower),
+                    Expr::col(follow::Column::Followee),
+                    Expr::col(follow::Column::Follower),
                 ])
                 .eq(Expr::any(values)),
             )
@@ -525,13 +508,13 @@ impl Query {
 async fn list_graph_targets(
     ctx: &ServiceContext,
     caller: &str,
-    extract: fn(&ContentModel::Model) -> Option<String>,
+    extract: fn(&content::Model) -> Option<String>,
 ) -> Result<Vec<String>, Status> {
-    let rows: Vec<EventWithContentRow> = EventModel::Entity::find()
-        .select_also(ContentModel::Entity)
+    let rows: Vec<EventWithContentRow> = event::Entity::find()
+        .select_also(content::Entity)
         .join(JoinType::InnerJoin, content_join())
-        .filter(EventModel::Column::Collection.eq(collections::SOCIAL_GRAPH))
-        .filter(EventModel::Column::Identity.eq(caller))
+        .filter(event::Column::Collection.eq(collections::SOCIAL_GRAPH))
+        .filter(event::Column::Identity.eq(caller))
         .all(&ctx.ro_db)
         .await
         .map_err(map_db_err)?;
@@ -566,20 +549,19 @@ async fn list_graph_targets(
 
 /// Graph events joined to their Follow content. The inner joins keep
 /// Delete (unfollow) events out of the page.
-fn follow_events_query() -> SelectTwo<EventModel::Entity, ContentModel::Entity>
-{
-    EventModel::Entity::find()
-        .select_also(ContentModel::Entity)
+fn follow_events_query() -> SelectTwo<event::Entity, content::Entity> {
+    event::Entity::find()
+        .select_also(content::Entity)
         .join(JoinType::InnerJoin, content_join())
         .join(JoinType::InnerJoin, follow_join())
-        .filter(EventModel::Column::Collection.eq(collections::SOCIAL_GRAPH))
+        .filter(event::Column::Collection.eq(collections::SOCIAL_GRAPH))
 }
 
 /// Relation joining a content row to its Follow row.
 fn follow_join() -> RelationDef {
-    ContentModel::Entity::belongs_to(ContentFollowModel::Entity)
-        .from(ContentModel::Column::Id)
-        .to(ContentFollowModel::Column::ContentId)
+    content::Entity::belongs_to(content_follow::Entity)
+        .from(content::Column::Id)
+        .to(content_follow::Column::ContentId)
         .into()
 }
 
@@ -587,15 +569,15 @@ fn follow_join() -> RelationDef {
 /// Mirrors the feeds repository's pagination.
 async fn page_follow_events(
     db: &DbConn,
-    query: SelectTwo<EventModel::Entity, ContentModel::Entity>,
+    query: SelectTwo<event::Entity, content::Entity>,
     limit: u32,
     cursor_filter: Option<&CursorFilter<EventCreatedAt>>,
 ) -> Result<Vec<EventWithContentRow>, DbErr> {
     let cursor_filter =
         cursor_filter.unwrap_or(&CursorFilter::Forward(Cursor::Start));
 
-    let mut sea_cursor = query
-        .cursor_by((EventModel::Column::CreatedAt, EventModel::Column::Id));
+    let mut sea_cursor =
+        query.cursor_by((event::Column::CreatedAt, event::Column::Id));
     sea_cursor.desc();
 
     match cursor_filter {
@@ -627,7 +609,7 @@ async fn page_follow_events(
 /// Identity of the target of a Follow event, decoded from the
 /// parent content row.
 fn decode_followed_identity(
-    content: &::entity::content_model::Model,
+    content: &::entity::content::Model,
 ) -> Option<String> {
     let decoded = Content::decode(content.serialized_bytes.as_slice()).ok()?;
     match decoded.content_body? {
@@ -666,8 +648,8 @@ mod tests {
         Utc::now().fixed_offset()
     }
 
-    fn event_row(id: i64, identity: &str, sequence: i64) -> EventModel::Model {
-        EventModel::Model {
+    fn event_row(id: i64, identity: &str, sequence: i64) -> event::Model {
+        event::Model {
             id,
             collection: collections::SOCIAL_GRAPH as _,
             identity: identity.to_string(),
@@ -686,13 +668,13 @@ mod tests {
         }
     }
 
-    fn follow_row(id: i64, target: &str) -> ContentModel::Model {
+    fn follow_row(id: i64, target: &str) -> content::Model {
         let content = Content {
             content_body: Some(ContentBody::Follow(Follow {
                 identity: target.to_string(),
             })),
         };
-        ContentModel::Model {
+        content::Model {
             id,
             digest_type: 1,
             digest_bytes: vec![id as u8],
@@ -701,13 +683,13 @@ mod tests {
         }
     }
 
-    fn block_content_row(id: i64, target: &str) -> ContentModel::Model {
+    fn block_content_row(id: i64, target: &str) -> content::Model {
         let content = Content {
             content_body: Some(ContentBody::Block(Block {
                 identity: target.to_string(),
             })),
         };
-        ContentModel::Model {
+        content::Model {
             id,
             digest_type: 1,
             digest_bytes: vec![id as u8],
@@ -716,12 +698,8 @@ mod tests {
         }
     }
 
-    fn block_row(
-        event_id: i64,
-        blocker: &str,
-        blocked: &str,
-    ) -> BlockModel::Model {
-        BlockModel::Model {
+    fn block_row(event_id: i64, blocker: &str, blocked: &str) -> block::Model {
+        block::Model {
             event_id,
             blocker: blocker.to_string(),
             blocked: blocked.to_string(),
@@ -828,7 +806,7 @@ mod tests {
     #[tokio::test]
     async fn blocks_identity_false_without_rows() {
         let db = MockDatabase::new(DbBackend::Postgres)
-            .append_query_results([Vec::<BlockModel::Model>::new()])
+            .append_query_results([Vec::<block::Model>::new()])
             .into_connection();
         let ctx = ctx(db).await;
 

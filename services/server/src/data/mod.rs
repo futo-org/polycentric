@@ -3,7 +3,7 @@ use crate::service::events::TargetEventKey;
 use crate::service::stats::service::{EventStats, include_stats};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use entity::{content_model, event_model};
+use entity::{content, event};
 use polycentric_common::models::protos_v2 as proto;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -17,12 +17,11 @@ pub type EventId = i64;
 /// Row that contains an event.
 pub trait EventRow {
     /// Returns the event model and optionally content for the row.
-    fn as_event_with_content(
-        &self,
-    ) -> (&event_model::Model, Option<&content_model::Model>);
+    fn as_event_with_content(&self)
+    -> (&event::Model, Option<&content::Model>);
 
     /// Returns the event model for the row.
-    fn as_event(&self) -> &event_model::Model {
+    fn as_event(&self) -> &event::Model {
         self.as_event_with_content().0
     }
 
@@ -32,7 +31,7 @@ pub trait EventRow {
     }
 
     /// Returns the content of the event, if any.
-    fn as_content(&self) -> Option<&content_model::Model> {
+    fn as_content(&self) -> Option<&content::Model> {
         self.as_event_with_content().1
     }
 
@@ -47,39 +46,38 @@ pub trait EventRow {
     }
 }
 
-/// `(event_model::Model, Option<content_model::Model>)` — the shape every
+/// `(event::Model, Option<content::Model>)` — the shape every
 /// event-returning query already produces.
-pub type EventWithContentRow =
-    (event_model::Model, Option<content_model::Model>);
+pub type EventWithContentRow = (event::Model, Option<content::Model>);
 
 impl EventRow for EventWithContentRow {
     fn as_event_with_content(
         &self,
-    ) -> (&event_model::Model, Option<&content_model::Model>) {
+    ) -> (&event::Model, Option<&content::Model>) {
         (&self.0, self.1.as_ref())
     }
 
-    fn as_event(&self) -> &event_model::Model {
+    fn as_event(&self) -> &event::Model {
         &self.0
     }
 
-    fn as_content(&self) -> Option<&content_model::Model> {
+    fn as_content(&self) -> Option<&content::Model> {
         self.1.as_ref()
     }
 }
 
-impl EventRow for (&event_model::Model, Option<&content_model::Model>) {
+impl EventRow for (&event::Model, Option<&content::Model>) {
     fn as_event_with_content(
         &self,
-    ) -> (&event_model::Model, Option<&content_model::Model>) {
+    ) -> (&event::Model, Option<&content::Model>) {
         *self
     }
 
-    fn as_event(&self) -> &event_model::Model {
+    fn as_event(&self) -> &event::Model {
         self.0
     }
 
-    fn as_content(&self) -> Option<&content_model::Model> {
+    fn as_content(&self) -> Option<&content::Model> {
         self.1
     }
 }
@@ -90,15 +88,15 @@ where
 {
     fn as_event_with_content(
         &self,
-    ) -> (&event_model::Model, Option<&content_model::Model>) {
+    ) -> (&event::Model, Option<&content::Model>) {
         T::as_event_with_content(self)
     }
 
-    fn as_event(&self) -> &event_model::Model {
+    fn as_event(&self) -> &event::Model {
         T::as_event(self)
     }
 
-    fn as_content(&self) -> Option<&content_model::Model> {
+    fn as_content(&self) -> Option<&content::Model> {
         T::as_content(self)
     }
 

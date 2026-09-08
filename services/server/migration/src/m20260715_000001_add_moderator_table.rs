@@ -1,8 +1,8 @@
 //! Creates the `moderator` table: identities the server recognizes as
 //! moderators, one row per identity. Columns are spelled out here (rather
 //! than derived from the entity) so this migration is a fixed snapshot
-//! that never drifts as `entity::moderator_model` evolves. `IF NOT EXISTS`
-//! keeps it a no-op on a database that already has the table.
+//! that never drifts as `entity::moderator` evolves. `IF NOT EXISTS` keeps
+//! it a no-op on a database that already has the table.
 
 use sea_orm_migration::{prelude::*, schema::*};
 

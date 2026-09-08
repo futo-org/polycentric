@@ -4,9 +4,7 @@ use crate::service::identity::service::authorize_event_signer;
 use crate::service::proto::{
     Event, EventBundle, SerializedContent, SignedEvent,
 };
-use ::entity::content_delete_model as ContentDeleteModel;
-use ::entity::content_model as ContentModel;
-use ::entity::event_model as EventModel;
+use entity::{content, content_delete, event};
 use prost::Message;
 use sea_orm::sea_query::{Expr, ExprTrait, IntoCondition};
 use sea_orm::{
@@ -66,40 +64,34 @@ pub async fn list_tombstones_for_event_keys(
         filter = filter.add(
             Condition::all()
                 .add(
-                    ContentDeleteModel::Column::EventKeyCollection
+                    content_delete::Column::EventKeyCollection
                         .eq(key.collection),
                 )
                 .add(
-                    ContentDeleteModel::Column::EventKeyIdentity
+                    content_delete::Column::EventKeyIdentity
                         .eq(key.identity.clone()),
                 )
                 .add(
-                    ContentDeleteModel::Column::EventKeyPublicKeyType
+                    content_delete::Column::EventKeyPublicKeyType
                         .eq(key.public_key_type),
                 )
                 .add(
-                    ContentDeleteModel::Column::EventKeyPublicKey
+                    content_delete::Column::EventKeyPublicKey
                         .eq(key.public_key.clone()),
                 )
-                .add(
-                    ContentDeleteModel::Column::EventKeySequence
-                        .eq(key.sequence),
-                ),
+                .add(content_delete::Column::EventKeySequence.eq(key.sequence)),
         );
     }
 
-    let rows = ContentDeleteModel::Entity::find()
+    let rows = content_delete::Entity::find()
         .join(JoinType::InnerJoin, delete_to_content_join())
         .join(JoinType::InnerJoin, content_to_delete_event_join())
         .filter(filter)
         // Exclude invalid delete events (event not belonging to an identity)
-        .filter(
-            Expr::col((EventModel::Entity, EventModel::Column::Identity))
-                .equals((
-                    ContentDeleteModel::Entity,
-                    ContentDeleteModel::Column::EventKeyIdentity,
-                )),
-        )
+        .filter(Expr::col((event::Entity, event::Column::Identity)).equals((
+            content_delete::Entity,
+            content_delete::Column::EventKeyIdentity,
+        )))
         .into_partial_model::<TombstoneRow>()
         .all(db)
         .await?;
@@ -131,7 +123,7 @@ pub async fn list_tombstones_for_event_keys(
 }
 
 #[derive(Debug, DerivePartialModel)]
-#[sea_orm(entity = "ContentDeleteModel::Entity")]
+#[sea_orm(entity = "content_delete::Entity")]
 struct TombstoneRow {
     event_key_collection: i16,
     event_key_identity: String,
@@ -147,13 +139,13 @@ struct TombstoneRow {
 }
 
 #[derive(Debug, DerivePartialModel)]
-#[sea_orm(entity = "ContentModel::Entity")]
+#[sea_orm(entity = "content::Entity")]
 struct TombstoneContentPartial {
     serialized_bytes: Vec<u8>,
 }
 
 #[derive(Debug, DerivePartialModel)]
-#[sea_orm(entity = "EventModel::Entity")]
+#[sea_orm(entity = "event::Entity")]
 struct TombstoneEventPartial {
     event_bytes: Vec<u8>,
     signature: Vec<u8>,
@@ -163,9 +155,9 @@ struct TombstoneEventPartial {
 /// content row reached here is the Delete payload's serialized body —
 /// the bytes a client needs to interpret the tombstone.
 fn delete_to_content_join() -> RelationDef {
-    ContentDeleteModel::Entity::belongs_to(ContentModel::Entity)
-        .from(ContentDeleteModel::Column::ContentId)
-        .to(ContentModel::Column::Id)
+    content_delete::Entity::belongs_to(content::Entity)
+        .from(content_delete::Column::ContentId)
+        .to(content::Column::Id)
         .into()
 }
 
@@ -177,13 +169,13 @@ fn delete_to_content_join() -> RelationDef {
 /// from→to columns; semantic direction is irrelevant for an INNER
 /// JOIN.
 fn content_to_delete_event_join() -> RelationDef {
-    let def: RelationDef = ContentModel::Entity::belongs_to(EventModel::Entity)
-        .from(ContentModel::Column::DigestType)
-        .to(EventModel::Column::ContentDigestType)
+    let def: RelationDef = content::Entity::belongs_to(event::Entity)
+        .from(content::Column::DigestType)
+        .to(event::Column::ContentDigestType)
         .into();
     def.on_condition(|c, e| {
-        Expr::col((c, ContentModel::Column::DigestBytes))
-            .equals((e, EventModel::Column::ContentDigestBytes))
+        Expr::col((c, content::Column::DigestBytes))
+            .equals((e, event::Column::ContentDigestBytes))
             .into_condition()
     })
 }

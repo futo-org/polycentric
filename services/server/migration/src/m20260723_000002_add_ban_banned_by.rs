@@ -1,4 +1,4 @@
-use ::entity::ban_model;
+use ::entity::ban;
 use sea_orm_migration::prelude::*;
 
 /// Adds `ban.banned_by`: the identity of the moderator who issued the
@@ -16,10 +16,8 @@ impl MigrationTrait for Migration {
         manager
             .alter_table(
                 Table::alter()
-                    .table(ban_model::Entity)
-                    .add_column(
-                        ColumnDef::new(ban_model::Column::BannedBy).string(),
-                    )
+                    .table(ban::Entity)
+                    .add_column(ColumnDef::new(ban::Column::BannedBy).string())
                     .to_owned(),
             )
             .await
@@ -32,8 +30,8 @@ impl MigrationTrait for Migration {
         manager
             .alter_table(
                 Table::alter()
-                    .table(ban_model::Entity)
-                    .drop_column(ban_model::Column::BannedBy)
+                    .table(ban::Entity)
+                    .drop_column(ban::Column::BannedBy)
                     .to_owned(),
             )
             .await

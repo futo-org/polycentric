@@ -6,9 +6,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use ::entity::notification;
 use chrono::Utc;
 use common_kafka::{BorrowedMessage, FutureRecord, Message};
+use entity::notification;
 use polycentric_common::models::protos_v2::{
     Content, Event, EventBundle, EventKey, Notification, NotificationKind,
     content::ContentBody,

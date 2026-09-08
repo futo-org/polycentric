@@ -1,4 +1,4 @@
-use ::entity::content_post_model;
+use ::entity::content_post;
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
@@ -15,12 +15,12 @@ impl MigrationTrait for Migration {
                 index
                     .if_not_exists()
                     .name(INDEX)
-                    .table(content_post_model::Entity)
-                    .col(content_post_model::Column::ReplyParentCollection)
-                    .col(content_post_model::Column::ReplyParentIdentity)
-                    .col(content_post_model::Column::ReplyParentPublicKeyType)
-                    .col(content_post_model::Column::ReplyParentPublicKey)
-                    .col(content_post_model::Column::ReplyParentSequence);
+                    .table(content_post::Entity)
+                    .col(content_post::Column::ReplyParentCollection)
+                    .col(content_post::Column::ReplyParentIdentity)
+                    .col(content_post::Column::ReplyParentPublicKeyType)
+                    .col(content_post::Column::ReplyParentPublicKey)
+                    .col(content_post::Column::ReplyParentSequence);
                 index
             })
             .await

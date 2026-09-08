@@ -1,4 +1,4 @@
-use ::entity::{content_follow_model, event_model};
+use ::entity::{content_follow, event};
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
@@ -11,8 +11,8 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("content_follow_identity_id_idx")
-                    .table(content_follow_model::Entity)
-                    .col(content_follow_model::Column::IdentityId)
+                    .table(content_follow::Entity)
+                    .col(content_follow::Column::IdentityId)
                     .to_owned(),
             )
             .await?;
@@ -21,9 +21,9 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("events_content_digest_idx")
-                    .table(event_model::Entity)
-                    .col(event_model::Column::ContentDigestType)
-                    .col(event_model::Column::ContentDigestBytes)
+                    .table(event::Entity)
+                    .col(event::Column::ContentDigestType)
+                    .col(event::Column::ContentDigestBytes)
                     .to_owned(),
             )
             .await?;
@@ -36,7 +36,7 @@ impl MigrationTrait for Migration {
             .drop_index(
                 Index::drop()
                     .name("events_content_digest_idx")
-                    .table(event_model::Entity)
+                    .table(event::Entity)
                     .to_owned(),
             )
             .await?;
@@ -45,7 +45,7 @@ impl MigrationTrait for Migration {
             .drop_index(
                 Index::drop()
                     .name("content_follow_identity_id_idx")
-                    .table(content_follow_model::Entity)
+                    .table(content_follow::Entity)
                     .to_owned(),
             )
             .await?;

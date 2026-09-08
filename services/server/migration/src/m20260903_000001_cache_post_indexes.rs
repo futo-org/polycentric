@@ -1,4 +1,4 @@
-use ::entity::{quote_model, reaction_model, reply_model, repost_model};
+use ::entity::{quote, reaction, reply, repost};
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
@@ -13,8 +13,8 @@ impl MigrationTrait for Migration {
                 Index::create()
                     .if_not_exists()
                     .name("reaction_on_post_idx")
-                    .table(reaction_model::Entity)
-                    .col(reaction_model::Column::OnPost)
+                    .table(reaction::Entity)
+                    .col(reaction::Column::OnPost)
                     .to_owned(),
             )
             .await?;
@@ -23,8 +23,8 @@ impl MigrationTrait for Migration {
                 Index::create()
                     .if_not_exists()
                     .name("repost_post_idx")
-                    .table(repost_model::Entity)
-                    .col(repost_model::Column::Post)
+                    .table(repost::Entity)
+                    .col(repost::Column::Post)
                     .to_owned(),
             )
             .await?;
@@ -33,8 +33,8 @@ impl MigrationTrait for Migration {
                 Index::create()
                     .if_not_exists()
                     .name("quote_post_idx")
-                    .table(quote_model::Entity)
-                    .col(quote_model::Column::Post)
+                    .table(quote::Entity)
+                    .col(quote::Column::Post)
                     .to_owned(),
             )
             .await?;
@@ -43,8 +43,8 @@ impl MigrationTrait for Migration {
                 Index::create()
                     .if_not_exists()
                     .name("reply_post_idx")
-                    .table(reply_model::Entity)
-                    .col(reply_model::Column::Post)
+                    .table(reply::Entity)
+                    .col(reply::Column::Post)
                     .to_owned(),
             )
             .await
@@ -52,10 +52,10 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         for (table, name) in [
-            (reaction_model::Entity.unquoted(), "reaction_on_post_idx"),
-            (repost_model::Entity.unquoted(), "repost_post_idx"),
-            (quote_model::Entity.unquoted(), "quote_post_idx"),
-            (reply_model::Entity.unquoted(), "reply_post_idx"),
+            (reaction::Entity.unquoted(), "reaction_on_post_idx"),
+            (repost::Entity.unquoted(), "repost_post_idx"),
+            (quote::Entity.unquoted(), "quote_post_idx"),
+            (reply::Entity.unquoted(), "reply_post_idx"),
         ] {
             manager
                 .drop_index(

@@ -1,7 +1,5 @@
-use crate::old_entity::reply_count_model;
-use ::entity::{
-    content_delete_model, content_model, content_post_model, event_model,
-};
+use crate::old_entity::reply_count;
+use ::entity::{content, content_delete, content_post, event};
 use sea_orm_migration::{prelude::*, schema::*};
 
 pub struct Migration;
@@ -74,10 +72,10 @@ async fn backfill_reply_counts(
 }
 
 fn backfill_reply_counts_stmt() -> InsertStatement {
-    use content_delete_model::Column as Cd;
-    use content_model::Column as C;
-    use content_post_model::Column as Cp;
-    use event_model::Column as E;
+    use content::Column as C;
+    use content_delete::Column as Cd;
+    use content_post::Column as Cp;
+    use event::Column as E;
 
     // --- Table aliases ---
     let rp = "rp"; // reply post content body
@@ -94,16 +92,16 @@ fn backfill_reply_counts_stmt() -> InsertStatement {
     let reply_is_deleted = Query::select()
         .expr(Expr::val(1))
         // Join from content delete -> content -> event
-        .from_as(content_delete_model::Entity, dd)
+        .from_as(content_delete::Entity, dd)
         .join_as(
             JoinType::InnerJoin,
-            content_model::Entity,
+            content::Entity,
             dc,
             eq(dc, C::Id, dd, Cd::ContentId),
         )
         .join_as(
             JoinType::InnerJoin,
-            event_model::Entity,
+            event::Entity,
             de,
             Condition::all()
                 .add(eq(de, E::ContentDigestType, dc, C::DigestType))
@@ -138,16 +136,16 @@ fn backfill_reply_counts_stmt() -> InsertStatement {
         .expr(Func::count(Expr::col((re, E::Id))))
         // For each post content with a parent, find the corresponding events.
         // Join from content post -> content -> event.
-        .from_as(content_post_model::Entity, rp)
+        .from_as(content_post::Entity, rp)
         .join_as(
             JoinType::InnerJoin,
-            content_model::Entity,
+            content::Entity,
             rc,
             eq(rc, C::Id, rp, Cp::ContentId),
         )
         .join_as(
             JoinType::InnerJoin,
-            event_model::Entity,
+            event::Entity,
             re,
             Condition::all()
                 .add(eq(re, E::ContentDigestType, rc, C::DigestType))
@@ -169,14 +167,14 @@ fn backfill_reply_counts_stmt() -> InsertStatement {
 
     // Build the final insertion statement
     Query::insert()
-        .into_table(reply_count_model::Entity)
+        .into_table(reply_count::Entity)
         .columns([
-            reply_count_model::Column::EventKeyCollection,
-            reply_count_model::Column::EventKeyIdentity,
-            reply_count_model::Column::EventKeyPublicKeyType,
-            reply_count_model::Column::EventKeyPublicKey,
-            reply_count_model::Column::EventKeySequence,
-            reply_count_model::Column::ReplyCount,
+            reply_count::Column::EventKeyCollection,
+            reply_count::Column::EventKeyIdentity,
+            reply_count::Column::EventKeyPublicKeyType,
+            reply_count::Column::EventKeyPublicKey,
+            reply_count::Column::EventKeySequence,
+            reply_count::Column::ReplyCount,
         ])
         .select_from(select)
         .expect("insert column count matches the select's column count")

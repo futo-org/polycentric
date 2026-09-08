@@ -1,4 +1,4 @@
-use entity::{content_post_model, content_profile_update_model};
+use entity::{content_post, content_profile_update};
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
@@ -45,7 +45,7 @@ impl MigrationTrait for Migration {
 
         let mut stmt = Table::alter();
         let stored = true;
-        stmt.table(content_post_model::Entity)
+        stmt.table(content_post::Entity)
             // NOTE: modify_column doesn't work here (SeaORM only generates a
             // query that sets `NOT NULL`).
             .drop_column(COLUMN)
@@ -63,13 +63,13 @@ impl MigrationTrait for Migration {
         let mut index = Index::create();
         index
             .name(CONTENT_POST_INDEX)
-            .table(content_post_model::Entity)
+            .table(content_post::Entity)
             .col("search_data")
             .full_text();
         manager.create_index(index).await?;
 
         let mut stmt = Table::alter();
-        stmt.table(content_profile_update_model::Entity)
+        stmt.table(content_profile_update::Entity)
             // Another case where modify_column doesn't work.
             .drop_column(COLUMN)
             .add_column(
@@ -92,7 +92,7 @@ impl MigrationTrait for Migration {
         let mut index = Index::create();
         index
             .name(CONTENT_PROFILE_INDEX)
-            .table(content_profile_update_model::Entity)
+            .table(content_profile_update::Entity)
             .col("search_data")
             .full_text();
         manager.create_index(index).await?;
@@ -106,7 +106,7 @@ impl MigrationTrait for Migration {
         // Revert to the old versions.
 
         let mut stmt = Table::alter();
-        stmt.table(content_post_model::Entity)
+        stmt.table(content_post::Entity)
             // modify_column doesn't work here either.
             .drop_column(COLUMN)
             .add_column(ColumnDef::new(COLUMN).custom("tsvector").not_null()
@@ -119,7 +119,7 @@ impl MigrationTrait for Migration {
         tx.execute(&stmt).await?;
 
         let mut stmt = Table::alter();
-        stmt.table(content_profile_update_model::Entity)
+        stmt.table(content_profile_update::Entity)
             // Nor here...
             .drop_column(COLUMN)
             .add_column(ColumnDef::new(COLUMN).custom("tsvector").not_null()
@@ -143,7 +143,7 @@ impl MigrationTrait for Migration {
         let mut index = Index::create();
         index
             .name(CONTENT_POST_INDEX)
-            .table(content_post_model::Entity)
+            .table(content_post::Entity)
             .col("search_data")
             .full_text();
         manager.create_index(index).await?;
@@ -151,7 +151,7 @@ impl MigrationTrait for Migration {
         let mut index = Index::create();
         index
             .name(CONTENT_PROFILE_INDEX)
-            .table(content_profile_update_model::Entity)
+            .table(content_profile_update::Entity)
             .col("search_data")
             .full_text();
         manager.create_index(index).await?;

@@ -1,5 +1,5 @@
 use crate::service::proto::{Identity, PublicKey, RevocationBound};
-use entity::content_identity_model as ContentIdentityModel;
+use entity::content_identity;
 use prost::Message;
 use sea_orm::DbErr;
 use sea_orm::sea_query::{DynIden, Expr, InsertStatement, SelectStatement};
@@ -23,15 +23,15 @@ pub(super) fn add_query(
 
     let mut query = InsertStatement::new();
     query
-        .into_table(ContentIdentityModel::Entity)
+        .into_table(content_identity::Entity)
         .columns([
-           ContentIdentityModel::Column::ContentId,
-           ContentIdentityModel::Column::Identity,
-           ContentIdentityModel::Column::IdentityBytes,
-           ContentIdentityModel::Column::RotationKeys,
-           ContentIdentityModel::Column::SigningKeys,
-           ContentIdentityModel::Column::RevocationBounds,
-           ContentIdentityModel::Column::Servers,
+           content_identity::Column::ContentId,
+           content_identity::Column::Identity,
+           content_identity::Column::IdentityBytes,
+           content_identity::Column::RotationKeys,
+           content_identity::Column::SigningKeys,
+           content_identity::Column::RevocationBounds,
+           content_identity::Column::Servers,
         ])
         .select_from({
             let mut q = SelectStatement::new();

@@ -173,9 +173,8 @@ async fn view(
 mod tests {
     use super::*;
     use crate::service::proto::{Content, Follow, content::ContentBody};
-    use ::entity::content_model as ContentModel;
-    use ::entity::event_model as EventModel;
     use chrono::DateTime;
+    use entity::{content, event};
     use polycentric_common::models::collections;
     use prost::Message as _;
     use sea_orm::prelude::DateTimeWithTimeZone;
@@ -199,14 +198,14 @@ mod tests {
         id: i64,
         follower: &str,
         target: &str,
-    ) -> (EventModel::Model, ContentModel::Model) {
+    ) -> (event::Model, content::Model) {
         let content = Content {
             content_body: Some(ContentBody::Follow(Follow {
                 identity: target.to_string(),
             })),
         };
         (
-            EventModel::Model {
+            event::Model {
                 id,
                 collection: collections::SOCIAL_GRAPH as i16,
                 identity: follower.to_string(),
@@ -223,7 +222,7 @@ mod tests {
                 created_at: ts(id),
                 synced_at: ts(id),
             },
-            ContentModel::Model {
+            content::Model {
                 id,
                 digest_type: 1,
                 digest_bytes: vec![id as u8],

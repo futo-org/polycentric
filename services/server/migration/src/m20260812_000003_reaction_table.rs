@@ -1,4 +1,4 @@
-use entity::event_model;
+use entity::event;
 use sea_orm::ColumnTrait;
 use sea_orm_migration::prelude::*;
 
@@ -11,8 +11,7 @@ const REACTION_TALLY_TABLE: &str = "reaction_tally";
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        let event_id_type =
-            event_model::Column::Id.def().get_column_type().clone();
+        let event_id_type = event::Column::Id.def().get_column_type().clone();
         let mut reaction_table = TableCreateStatement::new();
         reaction_table
             .table(REACTION_TABLE)

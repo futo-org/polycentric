@@ -13,7 +13,7 @@ pub struct Model {
     pub blocked: String,
 
     #[sea_orm(belongs_to, from = "event_id", to = "id")]
-    pub parent: HasOne<super::event_model::Entity>,
+    pub parent: HasOne<super::event::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}
