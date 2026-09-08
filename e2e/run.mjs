@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { SEEDED_USERS, seed } from './seed.mjs';
+import { startVerifyServer } from './verify.mjs';
 
 const PLATFORMS = ['ios', 'android', 'web'];
 const APP_ID = process.env.MAESTRO_APP_ID ?? 'org.futo.polycentric.dev';
@@ -41,9 +42,11 @@ function read(dir) {
   }
 }
 
-function run(command, args) {
-  const result = spawnSync(command, args, { stdio: 'inherit' });
-  process.exit(result.status ?? 1);
+// Async so the verify helper can answer the flows while Maestro runs.
+async function run(command, args) {
+  const child = spawn(command, args, { stdio: 'inherit' });
+  const status = await new Promise((resolve) => child.on('exit', resolve));
+  process.exit(status ?? 1);
 }
 
 // The android path shells out to the JVM maestro CLI, which needs JAVA_HOME
@@ -192,24 +195,25 @@ function iosArgs(device) {
   ];
 }
 
-// Users the flows search for must exist on the server under test.
-await seed();
-const seededUsersEnvs = Object.entries(SEEDED_USERS).flatMap(([k, v]) => [
-  '-e',
-  `${k}=${v}`,
-]);
+// Users the flows search for must exist on the server under test, and the
+// flows act as them through the verify helper.
+const client = await seed();
+const flowEnvs = [
+  ...Object.entries(SEEDED_USERS).map(([k, v]) => `${k}=${v}`),
+  `MAESTRO_VERIFY_URL=${await startVerifyServer(client)}`,
+].flatMap((kv) => ['-e', kv]);
 
 // Web goes through maestro-runner too: Maestro's own web driver is in beta
 // and leaves its browser open, so the process never exits.
 if (platform === 'web') {
-  run('maestro-runner', [
+  await run('maestro-runner', [
     '--platform=web',
     'test',
     ...OUTPUT,
     ...EXCLUDE,
     '-e',
     `MAESTRO_WEB_URL=${WEB_URL}`,
-    ...seededUsersEnvs,
+    ...flowEnvs,
     flowsFor('web'),
   ]);
 }
@@ -219,12 +223,12 @@ const flags = [
   ...EXCLUDE,
   '-e',
   `MAESTRO_APP_ID=${APP_ID}`,
-  ...seededUsersEnvs,
+  ...flowEnvs,
   flowsFor('native'),
 ];
 if (device.platform === 'android') {
   setupJava();
-  run('maestro', [
+  await run('maestro', [
     '--platform',
     'android',
     '--device',
@@ -233,4 +237,4 @@ if (device.platform === 'android') {
     ...flags,
   ]);
 }
-run('maestro-runner', [...iosArgs(device), 'test', ...OUTPUT, ...flags]);
+await run('maestro-runner', [...iosArgs(device), 'test', ...OUTPUT, ...flags]);

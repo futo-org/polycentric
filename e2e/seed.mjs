@@ -24,7 +24,8 @@ const STATE_DIR = new URL('.seed/', import.meta.url).pathname;
 const sha256 = (data) =>
   new Uint8Array(createHash('sha256').update(data).digest());
 
-async function ensureUser(client, name) {
+// The key pair and identity key of a seeded user.
+export async function keysFor(client, name) {
   const keyType = KEY_TYPE.ED25519;
   const privateKey = { keyType, key: sha256(`harbor-e2e:${name}`) };
   const publicKey = v2.PublicKey.create({
@@ -38,6 +39,14 @@ async function ensureUser(client, name) {
     servers: { urls: [SERVER_URL] },
   });
   const identityKey = bytesToHex(sha256(v2.Identity.toBinary(identity)));
+  return { keyType, privateKey, publicKey, identityKey };
+}
+
+async function ensureUser(client, name) {
+  const { keyType, privateKey, publicKey, identityKey } = await keysFor(
+    client,
+    name,
+  );
 
   // Ask the server rather than local state: a fresh checkout has none, and
   // adopting the identity via identityManager.claim would publish a login
@@ -69,6 +78,7 @@ async function ensureUser(client, name) {
   console.log(`${name}: ${client.activeIdentityKey}`);
 }
 
+// Returns the client, which verify.mjs reuses to act as the seeded users.
 export async function seed() {
   mkdirSync(`${STATE_DIR}blobs`, { recursive: true });
   const client = await createPolycentricNodeClient({
@@ -78,6 +88,7 @@ export async function seed() {
   });
   for (const name of Object.values(SEEDED_USERS))
     await ensureUser(client, name);
+  return client;
 }
 
 if (import.meta.main) {

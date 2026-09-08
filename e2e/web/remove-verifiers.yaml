@@ -1,5 +1,5 @@
 url: ${MAESTRO_WEB_URL}
-name: I can cancel verification requests on my claim
+name: I can remove verifiers from my claim
 ---
 - runFlow: ../elements/load.yaml
 - runFlow: ../steps/fresh-start.yaml
@@ -14,26 +14,45 @@ name: I can cancel verification requests on my claim
 - extendedWaitUntil:
     visible: 0/1 verified
     timeout: 30000
+- runScript:
+    file: ../steps/verify-claim.js
+    env:
+      VERIFIER_NAME: ${MAESTRO_VERIFIER_A}
+# Refresh the page to see the successful verification
+- evalBrowserScript:
+    script: return location.origin + location.pathname
+    output: claimUrl
+- openLink: ${claimUrl}
+- extendedWaitUntil:
+    visible: 1/1 verified
+    timeout: 30000
 - tapOn: ${output.verifications.requestVerification}
 - runFlow:
     file: ../steps/request-verification.yaml
     env:
       VERIFIER_NAME: ${MAESTRO_VERIFIER_B}
 - extendedWaitUntil:
-    visible: 0/2 verified
+    visible: 1/2 verified
     timeout: 30000
 - assertVisible: ${output.verifications.verifiers}
 - assertVisible: ${MAESTRO_VERIFIER_A}
 - assertVisible: ${MAESTRO_VERIFIER_B}
 # Rows list the newest request first, so this cancels B's.
-- runFlow: ../steps/cancel-verification-request-web.yaml
+- runFlow:
+    file: ../steps/remove-verifier-web.yaml
+    env:
+      CONFIRM_TITLE: ${output.verifications.cancelRequestTitle}
 # Removal syncs to the server before the list refreshes.
 - extendedWaitUntil:
-    visible: 0/1 verified
+    visible: 1/1 verified
     timeout: 30000
 - assertNotVisible: ${MAESTRO_VERIFIER_B}
 - assertVisible: ${MAESTRO_VERIFIER_A}
-- runFlow: ../steps/cancel-verification-request-web.yaml
+# A verify only counts while requested, so removing A un-verifies the claim.
+- runFlow:
+    file: ../steps/remove-verifier-web.yaml
+    env:
+      CONFIRM_TITLE: ${output.verifications.removeVerifierTitle}
 - extendedWaitUntil:
     visible: ${output.verifications.notVerified}
     timeout: 30000

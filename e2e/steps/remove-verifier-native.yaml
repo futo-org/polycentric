@@ -1,0 +1,12 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Removes the first verifier row, the newest one (the flow asserts by name
+# which one went): cancels the request, or drops the verifier once verified.
+# MENU_ITEM, CONFIRM_TITLE and CONFIRM say which. The menu closes before the
+# alert opens, so the same text can serve both.
+- tapOn:
+    text: ${output.verifications.verifierOptions}
+    index: 0
+- tapOn: ${MENU_ITEM}
+- assertVisible: ${CONFIRM_TITLE}
+- tapOn: ${CONFIRM}

@@ -14,6 +14,7 @@
   "devDependencies": {
     "@polycentric/js-core": "workspace:*",
     "@polycentric/js-node": "workspace:*",
+    "@polycentric/rs-core-wasm": "workspace:*",
     "maestro-runner": "^1.1.25"
   }
 }

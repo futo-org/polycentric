@@ -1,5 +1,5 @@
 appId: ${MAESTRO_APP_ID}
-name: I can cancel verification requests on my claim
+name: I can remove verifiers from my claim
 ---
 - runFlow: ../elements/load.yaml
 - runFlow: onboarding-create-identity.yaml
@@ -13,6 +13,16 @@ name: I can cancel verification requests on my claim
 - extendedWaitUntil:
     visible: 0/1 verified
     timeout: 30000
+- runScript:
+    file: ../steps/verify-claim.js
+    env:
+      VERIFIER_NAME: ${MAESTRO_VERIFIER_A}
+# The claim screen only refetches on pull-to-refresh.
+- swipe:
+    direction: DOWN
+- extendedWaitUntil:
+    visible: 1/1 verified
+    timeout: 30000
 # Reopening while the dismiss animation still runs leaves the sheet down.
 - waitForAnimationToEnd
 - tapOn: ${output.verifications.requestVerification}
@@ -21,20 +31,31 @@ name: I can cancel verification requests on my claim
     env:
       VERIFIER_NAME: ${MAESTRO_VERIFIER_B}
 - extendedWaitUntil:
-    visible: 0/2 verified
+    visible: 1/2 verified
     timeout: 30000
 - assertVisible: ${output.verifications.verifiers}
 - assertVisible: ${MAESTRO_VERIFIER_A}
 - assertVisible: ${MAESTRO_VERIFIER_B}
 # Rows list the newest request first, so this cancels B's.
-- runFlow: ../steps/cancel-verification-request-native.yaml
+- runFlow:
+    file: ../steps/remove-verifier-native.yaml
+    env:
+      MENU_ITEM: ${output.verifications.cancelRequest}
+      CONFIRM_TITLE: ${output.verifications.cancelRequestTitle}
+      CONFIRM: ${output.verifications.cancelRequest}
 # Removal syncs to the server before the list refreshes.
 - extendedWaitUntil:
-    visible: 0/1 verified
+    visible: 1/1 verified
     timeout: 30000
 - assertNotVisible: ${MAESTRO_VERIFIER_B}
 - assertVisible: ${MAESTRO_VERIFIER_A}
-- runFlow: ../steps/cancel-verification-request-native.yaml
+# A verify only counts while requested, so removing A un-verifies the claim.
+- runFlow:
+    file: ../steps/remove-verifier-native.yaml
+    env:
+      MENU_ITEM: ${output.verifications.removeVerifier}
+      CONFIRM_TITLE: ${output.verifications.removeVerifierTitle}
+      CONFIRM: ${output.verifications.remove}
 - extendedWaitUntil:
     visible: ${output.verifications.notVerified}
     timeout: 30000

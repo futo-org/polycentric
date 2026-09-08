@@ -14,8 +14,13 @@ output.verifications = {
   verifiers: 'Verifiers',
   // Accessibility label of the dots button on a verifier row.
   verifierOptions: 'Verifier options',
-  // Menu item; also the confirm button's title of the alert it opens.
+  // Menu item on a requested row; also the confirm button's title of the
+  // alert it opens.
   cancelRequest: 'Cancel request',
   cancelRequestTitle: 'Cancel request?',
+  // Menu item on a verified row, and its alert.
+  removeVerifier: 'Remove verifier',
+  removeVerifierTitle: 'Remove verifier?',
+  remove: 'Remove',
   notVerified: 'Not verified',
 };

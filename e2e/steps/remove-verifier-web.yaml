@@ -1,7 +1,8 @@
 appId: ${MAESTRO_APP_ID}
 ---
-# Cancels the verification request on the first verifier row, the newest one
-# (the flow asserts by name which one went). The confirm is window.confirm,
+# Removes the first verifier row, the newest one (the flow asserts by name
+# which one went): cancels the request, or drops the verifier once verified.
+# CONFIRM_TITLE says which alert to expect. The confirm is window.confirm,
 # which the runner would dismiss, answering "no", so it is stubbed to say yes
 # and record the prompt.
 - evalBrowserScript:
@@ -20,4 +21,4 @@ appId: ${MAESTRO_APP_ID}
 - evalBrowserScript:
     script: return window.confirmMessage
     output: confirmMessage
-- assertTrue: ${confirmMessage.startsWith(output.verifications.cancelRequestTitle)}
+- assertTrue: ${confirmMessage.startsWith(CONFIRM_TITLE)}
