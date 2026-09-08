@@ -54,7 +54,11 @@ export function ClaimVerifierMenu({
 
   return (
     <DropdownMenu>
-      <DropdownMenu.Trigger hitSlop={16} style={Atoms.outline_none}>
+      <DropdownMenu.Trigger
+        accessibilityLabel="Verifier options"
+        hitSlop={16}
+        style={Atoms.outline_none}
+      >
         {({ pressed, hovered }) => (
           <View
             style={[
