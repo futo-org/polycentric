@@ -6,7 +6,7 @@ import { usePairIdentityIssuer } from '@/src/features/identity-pairing/hooks/use
 import { publicKeyEmojiFingerprint } from '@/src/features/identity-pairing/publicKeyEmojiFingerprint';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { encodePairingCode, EncodingMode } from '../pairingCode';
@@ -193,20 +193,35 @@ function CountdownTimer({
 
 function CopyButton({ info }: { info: v2.PairingInfo | null }) {
   const { theme } = useTheme();
+
+  /** When true, indicate to the user that the text was copied. */
   const [justCopied, setJustCopied] = useState<boolean>(false);
+
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const doCopy = useCallback(() => {
+    if (!info) {
+      return;
+    }
+
+    const code = encodePairingCode(info, EncodingMode.HEX);
+    void Clipboard.setStringAsync(code);
+
+    setJustCopied(true);
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      setJustCopied(false);
+      timeoutRef.current = null;
+    }, 2000);
+  }, [info]);
 
   return (
     <Pressable
-      onPress={() => {
-        if (!info) {
-          return;
-        }
-
-        const code = encodePairingCode(info, EncodingMode.HEX);
-        void Clipboard.setStringAsync(code);
-        setJustCopied(true);
-        setTimeout(() => setJustCopied(false), 2000);
-      }}
+      onPress={doCopy}
       disabled={!info}
       style={({ hovered }) => [
         Atoms.flex_row,
