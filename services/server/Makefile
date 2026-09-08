@@ -73,6 +73,6 @@ clean:
 	cargo clean
 
 # Command to run before commiting.
-pre_commit: lint fmt test
+pre_commit: lint fmt test db_schema
 
 .PHONY: check clean clippy db_dump db_migrations db_schema dev doc fmt lint pre_commit psql run start_dependencies test
