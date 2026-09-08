@@ -52,13 +52,11 @@ mod tests {
     // composes are covered by the graph repository tests.
     #[tokio::test]
     async fn rejects_an_empty_identity() {
+        let db = MockDatabase::new(DbBackend::Postgres).into_connection();
         let kafka_producer = common_kafka::build_producer()
             .await
             .expect("failed to build Kafka producer");
-        let ctx = Arc::new(ServiceContext::new(
-            MockDatabase::new(DbBackend::Postgres).into_connection(),
-            kafka_producer,
-        ));
+        let ctx = Arc::new(ServiceContext::new(db.clone(), db, kafka_producer));
 
         let result = handle(
             &ctx,

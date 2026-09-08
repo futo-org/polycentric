@@ -702,7 +702,11 @@ mod tests {
         let kafka_producer = common_kafka::build_producer()
             .await
             .expect("failed to build Kafka producer");
-        NotificationWorker::new(ServiceContext::new(db, kafka_producer))
+        NotificationWorker::new(ServiceContext::new(
+            db.clone(),
+            db,
+            kafka_producer,
+        ))
     }
 
     fn pending(to_identity: &str) -> PendingNotification {
