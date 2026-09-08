@@ -1,7 +1,7 @@
 import { ed25519 } from '@noble/curves/ed25519.js';
 import { KEY_TYPE } from '../constants';
 import type { KeyPair } from '../polycentric-client';
-import { base64UrlEncode } from '../utils/base64';
+import { base64Encode, base64EncodeString } from '../utils/base64';
 import { bytesToHex } from '../utils/hex';
 
 /** How long a server JWT stays valid unless overridden. */
@@ -55,10 +55,10 @@ export async function createServerJwt(options: {
     keyPair.privateKey.key,
   );
 
-  return `${signingInput}.${base64UrlEncode(signature)}`;
+  return `${signingInput}.${base64Encode(signature, true)}`;
 }
 
-/** A JSON value as a base64url JWT segment. */
+/** A JSON value as an unpadded base64url JWT segment. */
 function encodeSegment(value: object): string {
-  return base64UrlEncode(new TextEncoder().encode(JSON.stringify(value)));
+  return base64EncodeString(JSON.stringify(value), true);
 }

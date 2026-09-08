@@ -6,19 +6,6 @@ import {
 } from '@polycentric/react-native';
 import type { UseQueryResult } from '@/src/common/query/hooks/useQuery';
 
-export function toBase64(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode.apply(null, Array.from(bytes)));
-}
-
-export function fromBase64(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
-
 export type PostData = {
   /** Hex of the event key */
   id: string;
@@ -444,21 +431,6 @@ export function publicKeyToStringURLSafe(key: v2.PublicKey): string {
 
 export function stringURLSafeToPublicKey(str: string): v2.PublicKey {
   return stringToPublicKey(str);
-}
-
-/**
- * @deprecated misnamed — this returns a short base64 form of the signer's
- * public key, not the identity id. Use {@link shortenIdentityId} or render
- * the v2 `key.identity` string directly.
- */
-export function getIdentityId(publicKey: v2.PublicKey): string {
-  const bytes = publicKey.key ?? new Uint8Array();
-  if (bytes.length === 0) return '...';
-  return toBase64(bytes).slice(0, 10);
-}
-
-export function getIdentityIdShort(publicKey: v2.PublicKey): string {
-  return getIdentityId(publicKey).slice(0, 4);
 }
 
 /**

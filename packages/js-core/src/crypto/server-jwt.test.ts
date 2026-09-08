@@ -2,6 +2,7 @@ import { ed25519 } from '@noble/curves/ed25519.js';
 import { describe, expect, it } from 'vitest';
 import { KEY_TYPE } from '../constants';
 import type { KeyPair } from '../polycentric-client';
+import { base64Decode, base64DecodeString } from '../utils/base64';
 import { bytesToHex } from '../utils/hex';
 import { createServerJwt } from './server-jwt';
 
@@ -18,7 +19,9 @@ const IDENTITY = 'identity-key-hex';
 const SERVER = 'https://server.example.com';
 
 function decodeSegment(segment: string): Record<string, unknown> {
-  return JSON.parse(Buffer.from(segment, 'base64url').toString('utf8'));
+  const json = base64DecodeString(segment);
+  if (json === undefined) throw new Error(`not base64: ${segment}`);
+  return JSON.parse(json);
 }
 
 async function createParts() {
@@ -70,8 +73,13 @@ describe('createServerJwt', () => {
   it('signs header.claims with the keypair (EdDSA)', async () => {
     const { header, claims, signature } = await createParts();
 
+    const signatureBytes = base64Decode(signature);
+    if (signatureBytes === undefined) {
+      throw new Error(`not base64: ${signature}`);
+    }
+
     const verified = ed25519.verify(
-      Buffer.from(signature, 'base64url'),
+      signatureBytes,
       new TextEncoder().encode(`${header}.${claims}`),
       PUBLIC_KEY,
     );

@@ -1,5 +1,10 @@
-import { Base64 } from 'js-base64';
-import { bytesToHex, hexToBytes, v2 } from '@polycentric/react-native';
+import {
+  base64Decode,
+  base64Encode,
+  bytesToHex,
+  hexToBytes,
+  v2,
+} from '@polycentric/react-native';
 
 /**
  * -----------------------------------------------------------------------------
@@ -24,7 +29,7 @@ export function encodePairingCode(
   const bytes = v2.PairingInfo.toBinary(info);
 
   if (mode === EncodingMode.BASE64) {
-    return Base64.fromUint8Array(bytes, true);
+    return base64Encode(bytes, true);
   } else if (mode === EncodingMode.HEX) {
     return bytesToHex(bytes);
   }
@@ -38,18 +43,15 @@ export function decodePairingCode(
   mode: EncodingMode,
 ): v2.PairingInfo | undefined {
   try {
-    let bytes: Uint8Array;
+    let bytes: Uint8Array | undefined;
 
     if (mode === EncodingMode.BASE64) {
-      bytes = Base64.toUint8Array(encoded);
+      bytes = base64Decode(encoded);
     } else if (mode === EncodingMode.HEX) {
-      const maybeBytes = hexToBytes(encoded);
-      if (!maybeBytes) return undefined;
-      bytes = maybeBytes;
-    } else {
-      return undefined;
+      bytes = hexToBytes(encoded);
     }
 
+    if (!bytes) return undefined;
     const info = v2.PairingInfo.fromBinary(bytes);
 
     // Do some sanity checks

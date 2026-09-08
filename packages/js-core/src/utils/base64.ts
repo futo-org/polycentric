@@ -1,19 +1,51 @@
-const BASE64URL_ALPHABET =
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+import { Base64 } from 'js-base64';
 
-/** Unpadded base64url (RFC 7515) encoding of `bytes`. */
-export function base64UrlEncode(bytes: Uint8Array): string {
-  let out = '';
-  for (let i = 0; i < bytes.length; i += 3) {
-    const [a, b, c] = [bytes[i], bytes[i + 1], bytes[i + 2]];
-    out += BASE64URL_ALPHABET[a >> 2];
-    out += BASE64URL_ALPHABET[((a & 0x03) << 4) | ((b ?? 0) >> 4)];
-    if (b !== undefined) {
-      out += BASE64URL_ALPHABET[((b & 0x0f) << 2) | ((c ?? 0) >> 6)];
-    }
-    if (c !== undefined) {
-      out += BASE64URL_ALPHABET[c & 0x3f];
-    }
+/**
+ * Wrappers over the js-base64 package to handle all base64 encoding/decoding
+ * that we do in javascript.
+ * The main reason that we have a wrapper instead of using the library directly
+ * is to add validation for decoding since js-base64 sometimes throws and
+ * sometimes ignores when invalid input is encountered.
+ */
+
+/**
+ * Encode the input bytes into a base64 string.
+ * Standard padded base64 will be used when urlSafe is false,
+ * and unpadded base64url will be used when it is true.
+ */
+export function base64Encode(bytes: Uint8Array, urlSafe = false): string {
+  return Base64.fromUint8Array(bytes, urlSafe);
+}
+
+/**
+ * Decode a base64 string to bytes.
+ * Returns undefined if the input is invalid.
+ */
+export function base64Decode(base64: string): Uint8Array | undefined {
+  if (!Base64.isValid(base64)) return undefined;
+
+  try {
+    return Base64.toUint8Array(base64);
+  } catch {
+    return undefined;
   }
-  return out;
+}
+
+/** Encode the input as UTF-8 into a base64 string. */
+export function base64EncodeString(text: string, urlSafe = false): string {
+  return Base64.encode(text, urlSafe);
+}
+
+/**
+ * Decode a base64 string to a string.
+ * Returns undefined if the input is invalid.
+ */
+export function base64DecodeString(base64: string): string | undefined {
+  if (!Base64.isValid(base64)) return undefined;
+
+  try {
+    return Base64.decode(base64);
+  } catch {
+    return undefined;
+  }
 }

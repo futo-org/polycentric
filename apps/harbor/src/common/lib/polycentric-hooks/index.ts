@@ -43,13 +43,9 @@ export {
   stringToPublicKey,
   publicKeyToStringURLSafe,
   stringURLSafeToPublicKey,
-  getIdentityId,
-  getIdentityIdShort,
   shortenIdentityId,
   signedEventToHex,
   hexToSignedEvent,
-  toBase64,
-  fromBase64,
 } from './helpers';
 export { truncateText as truncateName } from '../../util/truncateText';
 export type {

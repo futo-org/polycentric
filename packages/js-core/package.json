@@ -29,7 +29,6 @@
     "@protobuf-ts/grpcweb-transport": "^2.11.1",
     "@protobuf-ts/runtime": "^2.10.0",
     "@protobuf-ts/runtime-rpc": "^2.11.1",
-    "base64url": "^3.0.1",
     "eventemitter3": "^5.0.1",
     "js-base64": "^3.7.8"
   },
