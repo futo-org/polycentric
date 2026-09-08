@@ -205,10 +205,6 @@ const flags = {
   docs: docsChanged,
   docs_deploy: docsChanged && defaultRef,
   docs_preview: docsChanged && pr,
-  // Staging deploys, each right after its build.
-  deploy_scraper: stagingRef && scraper,
-  deploy_verifier_bot: stagingRef && verifierBot,
-  deploy_web: stagingRef && app,
   ...jobs('ci-app-web-checks', {
     app_checks: app || (appRelease && !release),
   }),
@@ -278,7 +274,7 @@ const channels = [
     channel: 'staging',
     app_id: 'org.futo.polycentric.staging',
     build: easStaging,
-    publish: stagingRef && appEas,
+    publish: stagingRef && easStaging,
   },
   {
     channel: 'production',
@@ -290,9 +286,12 @@ const channels = [
 const easBuilds = channels.filter((c) => c.build);
 const publishes = channels.filter((c) => c.publish);
 
+const buildsImage = (s) =>
+  s.changed || release || ciChanged('ci-rust-services');
+
 const matrix = {
   service_images: rustServices
-    .filter((s) => s.changed || release || ciChanged('ci-rust-services'))
+    .filter(buildsImage)
     .map(({ image, label, dockerfile }) => ({
       image,
       label: `Rust services / Build ${label} image`,
@@ -345,7 +344,7 @@ const matrix = {
       app_id,
     })),
   deploy_rust_services: rustServices
-    .filter((s) => stagingRef && s.changed)
+    .filter((s) => stagingRef && buildsImage(s))
     .map(({ image, label, chart }) => ({
       image,
       label: `Rust services / Deploy ${label} to staging`,
@@ -363,6 +362,10 @@ if (!flags.service_images) {
     label: 'Rust services / Build service images',
   });
 }
+// Staging branches deploy what they built.
+flags.deploy_web = stagingRef && flags.web_image;
+flags.deploy_scraper = stagingRef && flags.image_scraper;
+flags.deploy_verifier_bot = stagingRef && flags.image_verifier_bot;
 // Jobs that download the SDK artifacts (sdk-artifacts action) need them built.
 flags.build_sdks ||=
   flags.image_verifier_bot ||
