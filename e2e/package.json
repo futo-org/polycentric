@@ -8,9 +8,12 @@
     "test:android": "node run.mjs android",
     "test:ios": "node run.mjs ios",
     "test:web": "node run.mjs web",
-    "devices": "maestro-runner devices"
+    "devices": "maestro-runner devices",
+    "seed": "node seed.mjs"
   },
   "devDependencies": {
+    "@polycentric/js-core": "workspace:*",
+    "@polycentric/js-node": "workspace:*",
     "maestro-runner": "^1.1.25"
   }
 }

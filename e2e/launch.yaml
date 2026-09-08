@@ -3,6 +3,10 @@ appId: ${MAESTRO_APP_ID}
 - launchApp:
     appId: ${MAESTRO_APP_ID}
     clearState: true
+    # Without this maestro-runner auto-accepts every alert not just permission
+    # ones, so it answers the app's own confirm dialogs before a flow can.
+    permissions:
+      all: unset
 - extendedWaitUntil:
     visible: 'Create new identity'
     timeout: 120000

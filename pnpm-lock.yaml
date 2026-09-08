@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@noble/curves':
+      specifier: ^2.2.0
+      version: 2.4.0
     '@noble/hashes':
       specifier: ^2.2.0
       version: 2.2.0
@@ -383,6 +386,12 @@ importers:
 
   e2e:
     devDependencies:
+      '@polycentric/js-core':
+        specifier: workspace:*
+        version: link:../packages/js-core
+      '@polycentric/js-node':
+        specifier: workspace:*
+        version: link:../packages/js-node
       maestro-runner:
         specifier: ^1.1.25
         version: 1.1.25
@@ -18221,9 +18230,7 @@ snapshots:
       metro-runtime: 0.84.5
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
     optional: true
 
   '@react-native/metro-config@0.86.2(@babel/core@7.29.7)':
@@ -18234,9 +18241,7 @@ snapshots:
       metro-runtime: 0.84.5
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 

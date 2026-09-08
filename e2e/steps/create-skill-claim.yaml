@@ -1,0 +1,24 @@
+appId: ${MAESTRO_APP_ID}
+---
+# From the Verifications tab: creates a Skill claim. The app then opens the
+# new claim with its "Request verification" sheet already up.
+- tapOn: ${output.verifications.createClaim}
+- tapOn: ${output.verifications.skillType}
+# The skill field has focus when the form opens, except on web. Its
+# placeholder is also the sheet title, so target the input itself there.
+- runFlow:
+    when:
+      platform: Web
+    commands:
+      - tapOn:
+          css: 'input[placeholder="${output.verifications.skillType}"]'
+- inputText: Sailing
+- tapOn: ${output.verifications.create}
+- extendedWaitUntil:
+    visible: ${output.verifications.searchProfiles}
+    timeout: 30000
+# The "Claim created" toast closing takes the keyboard down with it on
+# Android, so typing before it has gone loses the search field's focus.
+- extendedWaitUntil:
+    notVisible: ${output.verifications.claimCreated}
+    timeout: 10000

@@ -48,6 +48,9 @@ export function ProfileRow({
     <Pressable
       onPress={() => onPress?.(identity, profile)}
       disabled={disabled}
+      // iOS folds an accessible view's children into one element, which
+      // would hide any control in `trailing` from assistive tech.
+      accessible={!trailing}
       style={({ hovered, pressed }) => [
         (hovered || pressed) &&
           activeStyle === 'highlight' && {

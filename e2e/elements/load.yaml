@@ -6,3 +6,4 @@ appId: ${MAESTRO_APP_ID}
 - runScript: nav.js
 - runScript: composer.js
 - runScript: post.js
+- runScript: verifications.js

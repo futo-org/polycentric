@@ -1,0 +1,41 @@
+url: ${MAESTRO_WEB_URL}
+name: I can cancel verification requests on my claim
+---
+- runFlow: ../elements/load.yaml
+- runFlow: ../steps/fresh-start.yaml
+- runFlow: ../steps/create-identity.yaml
+- tapOn: ${output.verifications.nav}
+- runFlow: ../steps/create-skill-claim.yaml
+- runFlow:
+    file: ../steps/request-verification.yaml
+    env:
+      NAME: ${MAESTRO_VERIFIER_A}
+# The sheet's title is the button's text too; wait for it to be gone.
+- extendedWaitUntil:
+    visible: 0/1 verified
+    timeout: 30000
+- tapOn: ${output.verifications.requestVerification}
+- runFlow:
+    file: ../steps/request-verification.yaml
+    env:
+      NAME: ${MAESTRO_VERIFIER_B}
+- extendedWaitUntil:
+    visible: 0/2 verified
+    timeout: 30000
+- assertVisible: ${output.verifications.verifiers}
+- assertVisible: ${MAESTRO_VERIFIER_A}
+- assertVisible: ${MAESTRO_VERIFIER_B}
+# Rows list the newest request first, so this cancels B's.
+- runFlow: ../steps/cancel-request-web.yaml
+# Removal syncs to the server before the list refreshes.
+- extendedWaitUntil:
+    visible: 0/1 verified
+    timeout: 30000
+- assertNotVisible: ${MAESTRO_VERIFIER_B}
+- assertVisible: ${MAESTRO_VERIFIER_A}
+- runFlow: ../steps/cancel-request-web.yaml
+- extendedWaitUntil:
+    visible: ${output.verifications.notVerified}
+    timeout: 30000
+- assertNotVisible: ${MAESTRO_VERIFIER_A}
+- assertNotVisible: ${output.verifications.verifiers}

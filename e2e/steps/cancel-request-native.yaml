@@ -1,0 +1,12 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Cancels the verification request of the first verifier row (rows list the
+# newest request first; the flow asserts by name which one went). The menu
+# closes before the alert opens, so the same text taps the menu item and
+# then the alert's confirm button.
+- tapOn:
+    text: ${output.verifications.verifierOptions}
+    index: 0
+- tapOn: ${output.verifications.cancelRequest}
+- assertVisible: ${output.verifications.cancelRequestTitle}
+- tapOn: ${output.verifications.cancelRequest}

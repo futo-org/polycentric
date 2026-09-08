@@ -1,2 +1,4 @@
 # Maestro writes a timestamped run directory per e2e run.
 reports/
+# Local state of the seed script (sqlite + blobs).
+.seed/
