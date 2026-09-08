@@ -376,9 +376,21 @@ const matrix = {
     label: `Publish APK feed (${channel})`,
   })),
 };
+// Forgejo never creates a job from an empty matrix and blocks whatever needs
+// it; an empty one keeps a row for the skipped job.
+const placeholder = {
+  service_images: 'Build service images',
+  eas_builds: 'Build apps',
+  ios_e2e: 'Test iOS e2e',
+  deploy_staging: 'Deploy to staging',
+  store_submits: 'Submit apps to store',
+  apk_publishes: 'Publish APK feed',
+};
 for (const [name, rows] of Object.entries(matrix)) {
   flags[name] = rows.length > 0;
-  matrix[name] = { include: rows };
+  matrix[name] = {
+    include: rows.length > 0 ? rows : [{ label: placeholder[name] }],
+  };
 }
 
 // Outputs -------------------------------------------------------------------

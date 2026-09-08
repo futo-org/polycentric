@@ -1,8 +1,8 @@
 # Forgejo Actions CI
 
 Forgejo Actions port of the GitLab pipeline (`.gitlab-ci.yml` + `.gitlab/ci/*`,
-kept in place during the transition; the workflows reuse `.gitlab/ci/scripts/*`
-and `.gitlab/images/*`). Images, Helm charts and the CI toolchain images go to
+disabled by its `workflow: rules` but kept: the workflows reuse
+`.gitlab/ci/scripts/*` and `.gitlab/images/*`). Images, Helm charts and the CI toolchain images go to
 `registry.futo.org/harbor/...` (FUTO's zot), the JS SDKs to npmjs, and the
 release with its APK, AAR and crates to Forgejo releases. Forgejo's own
 package registry is not used: its workflow token cannot push packages and it
