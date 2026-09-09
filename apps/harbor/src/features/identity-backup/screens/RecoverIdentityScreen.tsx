@@ -1,4 +1,4 @@
-import { Button, OutcomeDisplay, Text } from '@/src/common/components';
+import { Button, Text } from '@/src/common/components';
 import {
   usePolycentric,
   usePolycentricContext,
@@ -12,6 +12,7 @@ import {
   BackupFilePicker,
   type PickedBackupFile,
 } from '@/src/features/identity-backup/components/BackupFilePicker';
+import { BackupStatus } from '@/src/features/identity-backup/components/BackupStatus';
 import { useOnboardingLinks } from '@/src/features/onboarding/hooks/useOnboardingLinks';
 import { router } from 'expo-router';
 import { type ReactNode, useState } from 'react';
@@ -79,7 +80,7 @@ export default function RecoverIdentityScreen() {
     const message =
       state.message ?? 'Unable to recover identity from this backup file.';
 
-    innerContent = <OutcomeDisplay status="error" message={message} />;
+    innerContent = <BackupStatus successful={false} message={message} />;
   } else {
     innerContent = (
       <>

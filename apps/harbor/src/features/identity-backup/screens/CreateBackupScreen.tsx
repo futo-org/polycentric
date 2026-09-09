@@ -1,10 +1,4 @@
-import {
-  Button,
-  Screen,
-  ScreenHeader,
-  OutcomeDisplay,
-  Text,
-} from '@/src/common/components';
+import { Button, Screen, ScreenHeader, Text } from '@/src/common/components';
 import Icon from '@/src/common/components/Icon';
 import { showAlert } from '@/src/common/lib/dialogs';
 import { usePolycentric } from '@/src/common/lib/polycentric-hooks';
@@ -15,6 +9,7 @@ import {
   backupFileName,
   encodeIdentityBackup,
 } from '@/src/features/identity-backup/backup';
+import { BackupStatus } from '@/src/features/identity-backup/components/BackupStatus';
 import { saveBackupFile } from '@/src/features/identity-backup/saveBackupFile';
 import {
   SyncStrategy,
@@ -159,7 +154,7 @@ export default function CreateBackupScreen() {
   if (state.stage === 'ready') {
     innerContent = <BackupContent onSave={onSave} />;
   } else if (state.stage === 'failed') {
-    innerContent = <OutcomeDisplay status="error" message={state.message} />;
+    innerContent = <BackupStatus successful={false} message={state.message} />;
   }
 
   return (

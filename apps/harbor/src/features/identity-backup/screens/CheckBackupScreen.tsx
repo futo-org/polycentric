@@ -1,11 +1,4 @@
-import {
-  Button,
-  Screen,
-  ScreenHeader,
-  type DisplayStatus,
-  OutcomeDisplay,
-  Text,
-} from '@/src/common/components';
+import { Button, Screen, ScreenHeader, Text } from '@/src/common/components';
 import { usePolycentricContext } from '@/src/common/lib/polycentric-hooks';
 import { Atoms, Spacing, useTheme } from '@/src/common/theme';
 import {
@@ -16,6 +9,7 @@ import {
   BackupFilePicker,
   type PickedBackupFile,
 } from '@/src/features/identity-backup/components/BackupFilePicker';
+import { BackupStatus } from '@/src/features/identity-backup/components/BackupStatus';
 import type { PolycentricClient } from '@polycentric/react-native';
 import { router } from 'expo-router';
 import { type ReactNode, useState } from 'react';
@@ -97,18 +91,17 @@ export default function CheckBackupScreen() {
   if (stage === 'input') {
     innerContent = <BackupFilePicker onPicked={onPicked} />;
   } else {
-    let status: DisplayStatus;
     let message: string;
     if (stage === 'success') {
-      status = 'success';
       message = 'This backup file can restore your identity.';
     } else {
-      status = 'error';
       message =
         state.message ?? 'This backup file is unable to restore your identity.';
     }
 
-    innerContent = <OutcomeDisplay status={status} message={message} />;
+    innerContent = (
+      <BackupStatus successful={stage === 'success'} message={message} />
+    );
   }
 
   return (
