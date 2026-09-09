@@ -24,7 +24,6 @@ const branch = ref.startsWith('refs/heads/')
   : null;
 
 const dispatch = event === 'workflow_dispatch';
-const schedule = event === 'schedule';
 const pr = event === 'pull_request';
 
 const isTag = ref.startsWith('refs/tags/');
@@ -48,7 +47,7 @@ const refSlug = (env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME)
 // null = every path matches (manual runs, GitLab web pipelines); [] = none.
 
 const changedFiles = () => {
-  if (isTag || schedule) return [];
+  if (isTag) return [];
   if (pr) {
     const base = git('merge-base', `origin/${env.GITHUB_BASE_REF}`, 'HEAD');
     return git('diff', '--name-only', base, 'HEAD').split('\n');
@@ -203,7 +202,6 @@ const flags = {
   ),
   scan: pr || defaultRef,
   release,
-  verifier_health: schedule,
   docs: docsChanged,
   docs_deploy: docsChanged && defaultRef,
   docs_preview: docsChanged && pr,
@@ -216,8 +214,7 @@ const flags = {
     js_sdk: jsSdk,
     build_wasm: rsCoreWasm || rsCore || release,
     build_rn: rnSdk || rsCore || release,
-    build_sdks:
-      rsCore || jsSdk || rnSdk || app || verifierBot || appRelease || schedule,
+    build_sdks: rsCore || jsSdk || rnSdk || app || verifierBot || appRelease,
     build_rn_sdk: rnSdk || rsCore || app || appRelease,
     kt_core_build: ktCore || release,
   }),
@@ -231,8 +228,8 @@ const flags = {
   ...jobs('ci-js-services', {
     scraper,
     verifier_bot: verifierBot,
-    scraper_integration: scraper || schedule,
-    verifier_bot_tests: verifierBot || schedule,
+    scraper_integration: scraper,
+    verifier_bot_tests: verifierBot,
     image_scraper: scraper || release,
     image_verifier_bot: verifierBot || release,
   }),

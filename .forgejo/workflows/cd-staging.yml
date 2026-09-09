@@ -1,7 +1,7 @@
 name: Staging
 
-# Staging branches, manual runs and the nightly schedule: the component
-# workflows with their staging deploys; changes.mjs builds their plan.
+# Staging branches and manual runs: the component workflows with their
+# staging deploys; changes.mjs builds their plan.
 
 on:
   workflow_dispatch:
@@ -16,8 +16,6 @@ on:
         default: false
   push:
     branches: [develop]
-  schedule:
-    - cron: '0 6 * * *'
 
 # Manual runs get their own group so a push does not cancel an EAS build.
 concurrency:

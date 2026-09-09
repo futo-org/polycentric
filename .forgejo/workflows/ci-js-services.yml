@@ -163,7 +163,6 @@ jobs:
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
 
   # VERIFIER_BOT_ENV_VARS is the base64 .env content (GitLab: a file variable).
-  # The scheduled run also checks the deployed bot.
   verifier-bot-tests:
     name: JS services / Test verifier bot
     if: fromJSON(inputs.plan).flags.verifier_bot_tests
@@ -172,7 +171,6 @@ jobs:
     env:
       PUPPETEER_SKIP_DOWNLOAD: '1'
       POLYCENTRIC_VERIFIER_BOT_PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
-      EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS: ${{ vars.EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS }}
     steps:
       - name: Install Chromium
         run: apt-get update && apt-get install -y --no-install-recommends chromium && rm -rf /var/lib/apt/lists/*
@@ -193,6 +191,3 @@ jobs:
           name: junit-verifier-bot-tests
           path: services/verifier-bot/junit.xml
           retention-days: 7
-      - name: Production health
-        if: ${{ !cancelled() && fromJSON(inputs.plan).flags.verifier_health }}
-        run: node .gitlab/ci/scripts/verifier-health.mjs

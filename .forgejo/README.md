@@ -11,7 +11,7 @@ are still used.
 |---|---|---|
 | `pr.yml` | pull requests | checks, builds, tests |
 | `pr-app.yml` | `build-app` label on a PR | staging EAS builds |
-| `cd-staging.yml` | push to `develop`, manual run, nightly | the above plus staging deploys |
+| `cd-staging.yml` | push to `develop`, manual run | the above plus staging deploys |
 | `release.yml` | `v*` and `app-*` tags | the above plus the release |
 | `cd-production.yml` | manual | promote chosen components to `production`, production app builds |
 | `cd-docs-cleanup.yml` | PR closed | remove the docs preview |
