@@ -112,7 +112,7 @@ export default function Notification({
     return <Post post={notification.quote} />;
   }
   if (notification.kind === 'mention') {
-    return <Post post={notification.post} />;
+    return <Post post={notification.mentioningPost} />;
   }
   return <InteractionNotification notification={notification} />;
 }

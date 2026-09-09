@@ -183,8 +183,8 @@ mod tests {
 
     #[test]
     fn mention_quotes_the_text_and_links_to_the_post() {
-        let hex = "a".repeat(64);
-        let text = format!("hey @{{{hex},Jane Doe}} look");
+        let identity = "a".repeat(64);
+        let text = format!("hey @{{{identity},Jane Doe}} look");
         let rendered =
             render(NotificationKind::Mention, &key("alice"), &post(&text)).expect("should render");
         assert_eq!(rendered.body, "Mentioned you: hey Jane Doe look");

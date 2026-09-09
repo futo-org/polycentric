@@ -30,7 +30,7 @@ impl Query {
     /// alias each identity's latest profile claims. Aliases nobody claims are
     /// absent. Unverified: a profile may claim any alias; when several claim
     /// the same one, the most recently synced profile wins.
-    pub async fn identities_for_aliases(
+    pub async fn find_identities_by_aliases(
         db: &DbConn,
         aliases: &[String],
     ) -> Result<HashMap<String, String>, DbErr> {
@@ -73,13 +73,13 @@ impl Query {
             .await?;
 
         // Rows are newest first, so the first identity per alias wins.
-        let mut map = HashMap::new();
+        let mut identity_by_alias_map = HashMap::new();
         for row in rows {
             let alias: String = row.try_get("", "alias")?;
             let identity: String = row.try_get("", "identity")?;
-            map.entry(alias).or_insert(identity);
+            identity_by_alias_map.entry(alias).or_insert(identity);
         }
-        Ok(map)
+        Ok(identity_by_alias_map)
     }
 }
 
@@ -106,25 +106,25 @@ mod tests {
             ]])
             .into_connection();
 
-        let map = Query::identities_for_aliases(
+        let identity_by_alias_map = Query::find_identities_by_aliases(
             &db,
             &["bob@x.com".to_string(), "carol@x.com".to_string()],
         )
         .await
         .expect("query should succeed");
-        assert_eq!(map["bob@x.com"], "bob");
-        assert_eq!(map["carol@x.com"], "carol");
-        assert_eq!(map.len(), 2);
+        assert_eq!(identity_by_alias_map["bob@x.com"], "bob");
+        assert_eq!(identity_by_alias_map["carol@x.com"], "carol");
+        assert_eq!(identity_by_alias_map.len(), 2);
     }
 
     #[tokio::test]
     async fn no_aliases_skips_the_query() {
         // No `append_query_results`, so the mock errors if a query runs.
         let db = MockDatabase::new(DatabaseBackend::Postgres).into_connection();
-        let map = Query::identities_for_aliases(&db, &[])
+        let identity_by_alias_map = Query::find_identities_by_aliases(&db, &[])
             .await
             .expect("no lookup should be attempted");
-        assert!(map.is_empty());
+        assert!(identity_by_alias_map.is_empty());
     }
 
     fn sample_row(id: i64, kind: i32) -> notification::Model {

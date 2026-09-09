@@ -93,7 +93,7 @@ export type VerificationCompleteNotification = NotificationBase & {
 export type MentionNotification = NotificationBase & {
   kind: 'mention';
   /** The post that mentions you (its text plus key, for navigation). */
-  post: PostData;
+  mentioningPost: PostData;
 };
 
 export type NotificationData =
@@ -164,11 +164,11 @@ function decodeNotification(
 
     case v2.NotificationKind.MENTION: {
       // The mentioning post is the trigger event; drop it if it won't decode.
-      const post = notification.triggerEvent
+      const mentioningPost = notification.triggerEvent
         ? withLabels(decodeV2PostBundle(notification.triggerEvent), labels)
         : null;
-      if (!post) return null;
-      return { ...base, kind: 'mention', post };
+      if (!mentioningPost) return null;
+      return { ...base, kind: 'mention', mentioningPost };
     }
 
     case v2.NotificationKind.REPOST:

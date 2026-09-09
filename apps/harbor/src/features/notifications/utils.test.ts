@@ -219,7 +219,7 @@ describe('decodeNotifications', () => {
     );
     expect(item.kind).toBe('mention');
     if (item.kind === 'mention') {
-      expect(item.post.content).toBe('hey you');
+      expect(item.mentioningPost.content).toBe('hey you');
     }
   });
 
