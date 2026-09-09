@@ -1,6 +1,7 @@
 import {
   Button,
   OutcomeDisplay,
+  type OutcomeDisplayProps,
   Screen,
   ScreenHeader,
   Text,
@@ -47,14 +48,6 @@ export default function PairIdentityIssuerScreen() {
     setClaimerCursor((count) => (count === claimerCursor ? count + 1 : count));
   };
 
-  // TODO: it would be nice to have a success status page for 'done'
-  // and an error status page for `expired`.
-  useEffect(() => {
-    if (stage === 'done' || expired) {
-      router.back();
-    }
-  }, [stage, expired]);
-
   let pendingClaimer: string | null = null;
 
   if ((stage === 'polling' || stage === 'approving') && !expired) {
@@ -64,12 +57,12 @@ export default function PairIdentityIssuerScreen() {
   let mainContent: ReactNode;
 
   if (expired) {
-    mainContent = <OutcomeDisplay status="error" message="Session expired." />;
+    mainContent = <StatusDisplay status="error" message="Session expired." />;
   } else if (error) {
-    mainContent = <OutcomeDisplay status="error" message={error} />;
+    mainContent = <StatusDisplay status="error" message={error} />;
   } else if (stage === 'done') {
     mainContent = (
-      <OutcomeDisplay status="success" message="Pairing successful." />
+      <StatusDisplay status="success" message="Pairing successful." />
     );
   } else {
     mainContent = (
@@ -247,6 +240,15 @@ function CopyButton({ info }: { info: v2.PairingInfo | null }) {
       disabled={!info}
       onPress={doCopy}
     />
+  );
+}
+
+function StatusDisplay(props: OutcomeDisplayProps) {
+  return (
+    <View style={Atoms.gap_md}>
+      <OutcomeDisplay {...props} />
+      <Button fullWidth title="Done" onPress={() => router.back()} />
+    </View>
   );
 }
 
