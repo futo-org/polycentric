@@ -4,7 +4,6 @@ use crate::*;
 use prost::Message;
 
 #[tokio::test]
-#[ignore] // Currently failing, to be fixed in #201.
 async fn trusted_labels_served_in_feed_response() {
     let mut event = connect_event_sync().await;
     let mut feed = connect_feeds().await;
@@ -19,8 +18,7 @@ async fn trusted_labels_served_in_feed_response() {
         recovery_signature: None,
     }
     .derive_hex_key();
-    let mod_key = test_moderator_key();
-    let mod_identity = test_moderator_identity();
+    let mut moderator = TestClient::trusted_moderator().await;
 
     publish_genesis(
         &mut event,
@@ -29,7 +27,6 @@ async fn trusted_labels_served_in_feed_response() {
         DEFAULT_CREATED_AT,
     )
     .await;
-    ensure_moderator_setup().await;
 
     let post_sig = publish_post(
         &mut event,
@@ -42,15 +39,12 @@ async fn trusted_labels_served_in_feed_response() {
     .await;
 
     let target_key = get_post_event_key(&author_identity, &author_key);
-    let labels_sig = publish_labels(
-        &mut event,
-        &mod_identity,
-        &mod_key,
+    let labels_sig = moderator.label_key(
         target_key.clone(),
         vec!["sexually-suggestive".to_string()],
         DEFAULT_CREATED_AT + 2 * HOUR,
-    )
-    .await;
+    );
+    moderator.submit_events().await;
 
     // Get identity feed — no omit_labels.
     let resp = feed
@@ -109,7 +103,8 @@ async fn trusted_labels_served_in_feed_response() {
         .expect("valid event bytes in label bundle");
     let label_event_key = label_event.key.as_ref().expect("event has key");
     assert_eq!(
-        label_event_key.identity, mod_identity,
+        label_event_key.identity,
+        moderator.identity(),
         "label event should carry the moderator identity",
     );
     assert_eq!(label_event_key.collection, COLLECTION_LABELS);
@@ -130,8 +125,7 @@ async fn labeler_identity_served_with_feed_response() {
         recovery_signature: None,
     }
     .derive_hex_key();
-    let mod_key = test_moderator_key();
-    let mod_identity = test_moderator_identity();
+    let mut moderator = TestClient::trusted_moderator().await;
 
     publish_genesis(
         &mut event,
@@ -140,7 +134,6 @@ async fn labeler_identity_served_with_feed_response() {
         DEFAULT_CREATED_AT,
     )
     .await;
-    ensure_moderator_setup().await;
 
     publish_post(
         &mut event,
@@ -152,15 +145,12 @@ async fn labeler_identity_served_with_feed_response() {
     )
     .await;
 
-    publish_labels(
-        &mut event,
-        &mod_identity,
-        &mod_key,
+    moderator.label_key(
         get_post_event_key(&author_identity, &author_key),
         vec!["violence".to_string()],
         DEFAULT_CREATED_AT + 2 * HOUR,
-    )
-    .await;
+    );
+    moderator.submit_events().await;
 
     let resp = feed
         .get_identity_feed(GetIdentityFeedRequest {
@@ -185,7 +175,8 @@ async fn labeler_identity_served_with_feed_response() {
         .collect();
 
     let labeler_identity_served = keys.iter().any(|key| {
-        key.collection == COLLECTION_IDENTITY && key.identity == mod_identity
+        key.collection == COLLECTION_IDENTITY
+            && key.identity == moderator.identity()
     });
 
     assert!(
@@ -196,7 +187,6 @@ async fn labeler_identity_served_with_feed_response() {
 }
 
 #[tokio::test]
-#[ignore] // Currently failing, to be fixed in #201.
 async fn omit_labels_hides_labeled_post() {
     let mut event = connect_event_sync().await;
     let mut feed = connect_feeds().await;
@@ -211,8 +201,7 @@ async fn omit_labels_hides_labeled_post() {
         recovery_signature: None,
     }
     .derive_hex_key();
-    let mod_key = test_moderator_key();
-    let mod_identity = test_moderator_identity();
+    let mut moderator = TestClient::trusted_moderator().await;
 
     publish_genesis(
         &mut event,
@@ -221,7 +210,6 @@ async fn omit_labels_hides_labeled_post() {
         DEFAULT_CREATED_AT,
     )
     .await;
-    ensure_moderator_setup().await;
 
     let post_sig = publish_post(
         &mut event,
@@ -234,15 +222,12 @@ async fn omit_labels_hides_labeled_post() {
     .await;
 
     let target_key = get_post_event_key(&author_identity, &author_key);
-    publish_labels(
-        &mut event,
-        &mod_identity,
-        &mod_key,
+    moderator.label_key(
         target_key,
         vec!["sexually-suggestive".to_string()],
         DEFAULT_CREATED_AT + 2 * HOUR,
-    )
-    .await;
+    );
+    moderator.submit_events().await;
 
     // Query with omit_labels = ["sexually-suggestive"] → post should be hidden.
     let resp = feed
@@ -356,7 +341,6 @@ async fn attribution_feed_returns_only_matching_posts() {
 }
 
 #[tokio::test]
-#[ignore] // Currently failing, to be fixed in #201.
 async fn attribution_feed_omit_labels_hides_labeled_post() {
     let mut event = connect_event_sync().await;
     let mut feed = connect_feeds().await;
@@ -373,8 +357,7 @@ async fn attribution_feed_omit_labels_hides_labeled_post() {
         recovery_signature: None,
     }
     .derive_hex_key();
-    let mod_key = test_moderator_key();
-    let mod_identity = test_moderator_identity();
+    let mut moderator = TestClient::trusted_moderator().await;
 
     publish_genesis(
         &mut event,
@@ -383,7 +366,6 @@ async fn attribution_feed_omit_labels_hides_labeled_post() {
         DEFAULT_CREATED_AT,
     )
     .await;
-    ensure_moderator_setup().await;
 
     let post_sig = publish_post(
         &mut event,
@@ -396,15 +378,12 @@ async fn attribution_feed_omit_labels_hides_labeled_post() {
     .await;
 
     let target_key = get_post_event_key(&author_identity, &author_key);
-    publish_labels(
-        &mut event,
-        &mod_identity,
-        &mod_key,
+    moderator.label_key(
         target_key,
         vec!["sexually-suggestive".to_string()],
         DEFAULT_CREATED_AT + 2 * HOUR,
-    )
-    .await;
+    );
+    moderator.submit_events().await;
 
     // Without omit_labels the post is served.
     let resp = feed
@@ -461,7 +440,6 @@ fn attribution_feed_request(
 }
 
 #[tokio::test]
-#[ignore] // Currently failing, to be fixed in #201.
 async fn omit_labels_non_matching_keeps_post_and_labels() {
     let mut event = connect_event_sync().await;
     let mut feed = connect_feeds().await;
@@ -476,8 +454,7 @@ async fn omit_labels_non_matching_keeps_post_and_labels() {
         recovery_signature: None,
     }
     .derive_hex_key();
-    let mod_key = test_moderator_key();
-    let mod_identity = test_moderator_identity();
+    let mut moderator = TestClient::trusted_moderator().await;
 
     publish_genesis(
         &mut event,
@@ -486,7 +463,6 @@ async fn omit_labels_non_matching_keeps_post_and_labels() {
         DEFAULT_CREATED_AT,
     )
     .await;
-    ensure_moderator_setup().await;
 
     let post_sig = publish_post(
         &mut event,
@@ -499,15 +475,12 @@ async fn omit_labels_non_matching_keeps_post_and_labels() {
     .await;
 
     let target_key = get_post_event_key(&author_identity, &author_key);
-    let labels_sig = publish_labels(
-        &mut event,
-        &mod_identity,
-        &mod_key,
+    let labels_sig = moderator.label_key(
         target_key.clone(),
         vec!["sexually-suggestive".to_string()],
         DEFAULT_CREATED_AT + 2 * HOUR,
-    )
-    .await;
+    );
+    moderator.submit_events().await;
 
     // Query with a different label — post should stay, label event should be
     // present in the collection (client renders Warn from the collection).
@@ -571,30 +544,10 @@ async fn untrusted_labels_not_indexed() {
     }
     .derive_hex_key();
 
-    // Impostor — a random key that is NOT the configured moderator.
-    let impostor_key = generate_signing_key();
-    let impostor_identity = Identity {
-        rotation_keys: vec![public_key_of(&impostor_key)],
-        signing_keys: vec![],
-        revocation_bounds: vec![],
-        servers: None,
-        recovery_key: None,
-        recovery_signature: None,
-    }
-    .derive_hex_key();
-
     publish_genesis(
         &mut event,
         &author_identity,
         &author_key,
-        DEFAULT_CREATED_AT,
-    )
-    .await;
-    ensure_moderator_setup().await;
-    publish_genesis(
-        &mut event,
-        &impostor_identity,
-        &impostor_key,
         DEFAULT_CREATED_AT,
     )
     .await;
@@ -612,15 +565,13 @@ async fn untrusted_labels_not_indexed() {
     let target_key = get_post_event_key(&author_identity, &author_key);
 
     // Publish a Labels event from the impostor (NOT the trusted moderator).
-    let impostor_labels_sig = publish_labels(
-        &mut event,
-        &impostor_identity,
-        &impostor_key,
+    let mut impostor = TestClient::new().await;
+    let impostor_labels_sig = impostor.label_key(
         target_key.clone(),
         vec!["sexually-suggestive".to_string()],
         DEFAULT_CREATED_AT + 2 * HOUR,
-    )
-    .await;
+    );
+    impostor.submit_events().await;
 
     // Feed query — no omit_labels.
     let resp = feed
@@ -676,29 +627,10 @@ async fn omit_labels_untrusted_label_does_not_hide() {
     }
     .derive_hex_key();
 
-    let impostor_key = generate_signing_key();
-    let impostor_identity = Identity {
-        rotation_keys: vec![public_key_of(&impostor_key)],
-        signing_keys: vec![],
-        revocation_bounds: vec![],
-        servers: None,
-        recovery_key: None,
-        recovery_signature: None,
-    }
-    .derive_hex_key();
-
     publish_genesis(
         &mut event,
         &author_identity,
         &author_key,
-        DEFAULT_CREATED_AT,
-    )
-    .await;
-    ensure_moderator_setup().await;
-    publish_genesis(
-        &mut event,
-        &impostor_identity,
-        &impostor_key,
         DEFAULT_CREATED_AT,
     )
     .await;
@@ -713,16 +645,14 @@ async fn omit_labels_untrusted_label_does_not_hide() {
     )
     .await;
 
-    let target_key = get_post_event_key(&author_identity, &author_key);
-    publish_labels(
-        &mut event,
-        &impostor_identity,
-        &impostor_key,
-        target_key,
+    // Not the trusted moderator.
+    let mut impostor = TestClient::new().await;
+    impostor.label_key(
+        get_post_event_key(&author_identity, &author_key),
         vec!["sexually-suggestive".to_string()],
         DEFAULT_CREATED_AT + 2 * HOUR,
-    )
-    .await;
+    );
+    impostor.submit_events().await;
 
     // Query with omit_labels = ["sexually-suggestive"] — the label came from an untrusted
     // source so it was never indexed; the post should NOT be hidden.
@@ -772,7 +702,6 @@ async fn thread_no_labels_returns_post() {
         DEFAULT_CREATED_AT,
     )
     .await;
-    ensure_moderator_setup().await;
 
     let post_sig = publish_post(
         &mut event,
@@ -825,7 +754,6 @@ async fn thread_no_labels_returns_post() {
 }
 
 #[tokio::test]
-#[ignore] // Currently failing, to be fixed in #201.
 async fn thread_omit_labels_matching_hides_post() {
     let mut event = connect_event_sync().await;
     let mut feed = connect_feeds().await;
@@ -840,8 +768,7 @@ async fn thread_omit_labels_matching_hides_post() {
         recovery_signature: None,
     }
     .derive_hex_key();
-    let mod_key = test_moderator_key();
-    let mod_identity = test_moderator_identity();
+    let mut moderator = TestClient::trusted_moderator().await;
 
     publish_genesis(
         &mut event,
@@ -850,7 +777,6 @@ async fn thread_omit_labels_matching_hides_post() {
         DEFAULT_CREATED_AT,
     )
     .await;
-    ensure_moderator_setup().await;
 
     let post_sig = publish_post(
         &mut event,
@@ -863,15 +789,13 @@ async fn thread_omit_labels_matching_hides_post() {
     .await;
 
     let target_key = get_post_event_key(&author_identity, &author_key);
-    let labels_sig = publish_labels(
-        &mut event,
-        &mod_identity,
-        &mod_key,
+    let labels_sig = moderator.label_key(
         target_key.clone(),
         vec!["sexually-suggestive".to_string()],
         DEFAULT_CREATED_AT + 2 * HOUR,
-    )
-    .await;
+    );
+    moderator.submit_events().await;
+
     let resp = feed
         .get_post_thread(GetPostThreadRequest {
             event_key: Some(target_key.clone()),
@@ -918,7 +842,6 @@ async fn thread_omit_labels_matching_hides_post() {
 }
 
 #[tokio::test]
-#[ignore] // Currently failing, to be fixed in #201.
 async fn thread_omit_labels_not_matching_keeps_post() {
     let mut event = connect_event_sync().await;
     let mut feed = connect_feeds().await;
@@ -933,8 +856,7 @@ async fn thread_omit_labels_not_matching_keeps_post() {
         recovery_signature: None,
     }
     .derive_hex_key();
-    let mod_key = test_moderator_key();
-    let mod_identity = test_moderator_identity();
+    let mut moderator = TestClient::trusted_moderator().await;
 
     publish_genesis(
         &mut event,
@@ -943,7 +865,6 @@ async fn thread_omit_labels_not_matching_keeps_post() {
         DEFAULT_CREATED_AT,
     )
     .await;
-    ensure_moderator_setup().await;
 
     let post_sig = publish_post(
         &mut event,
@@ -956,15 +877,12 @@ async fn thread_omit_labels_not_matching_keeps_post() {
     .await;
 
     let target_key = get_post_event_key(&author_identity, &author_key);
-    let labels_sig = publish_labels(
-        &mut event,
-        &mod_identity,
-        &mod_key,
+    let labels_sig = moderator.label_key(
         target_key.clone(),
         vec!["sexually-suggestive".to_string()],
         DEFAULT_CREATED_AT + 2 * HOUR,
-    )
-    .await;
+    );
+    moderator.submit_events().await;
 
     let resp = feed
         .get_post_thread(GetPostThreadRequest {
