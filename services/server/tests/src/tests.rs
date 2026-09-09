@@ -21,6 +21,7 @@ use tokio::sync::OnceCell;
 mod event_sync;
 mod feeds;
 mod graph;
+mod notifications;
 mod search;
 
 /// gRPC server address. Override with `POLYCENTRIC_TEST_SERVER` env var.
