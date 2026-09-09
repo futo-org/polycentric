@@ -14,13 +14,13 @@ pub async fn deleted<Ctx, Params, Row, SortedBy>(
 where
     Row: EventRow,
 {
-    let Fetched { rows, page_info } = fetched;
-    let rows = rows
-        .into_iter()
-        .filter(|row| {
-            !hydration.deletes_by_target.contains_key(&row.event_key())
-        })
-        .collect();
+    let Fetched {
+        mut rows,
+        page_info,
+    } = fetched;
+    rows.retain(|row| {
+        !hydration.deletes_by_target.contains_key(&row.event_key())
+    });
     Ok(Filtered { rows, page_info })
 }
 
@@ -34,16 +34,16 @@ pub async fn deleted_or_blocked<Ctx, Params, Row, SortedBy>(
 where
     Row: EventRow,
 {
-    let Fetched { rows, page_info } = fetched;
-    let rows = rows
-        .into_iter()
-        .filter(|row| {
-            !hydration
-                .blocked_identities
-                .contains(&row.as_event().identity)
-                && !hydration.deletes_by_target.contains_key(&row.event_key())
-        })
-        .collect();
+    let Fetched {
+        mut rows,
+        page_info,
+    } = fetched;
+    rows.retain(|row| {
+        !hydration
+            .blocked_identities
+            .contains(&row.as_event().identity)
+            && !hydration.deletes_by_target.contains_key(&row.event_key())
+    });
     Ok(Filtered { rows, page_info })
 }
 
