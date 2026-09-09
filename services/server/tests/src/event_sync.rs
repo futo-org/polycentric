@@ -731,3 +731,53 @@ async fn events_submitted_twice_are_ignored() {
         "expected our post in the list response",
     );
 }
+
+#[tokio::test]
+async fn events_with_different_content_but_same_key_should_error() {
+    let mut client = TestClient::new().await;
+
+    client.post_text("Hello World!", DEFAULT_CREATED_AT);
+
+    // Break the sequence on purpose.
+    client.collection_sequences[COLLECTION_FEED as usize].0 -= 1;
+    client.post_text("Hello Mars!", DEFAULT_CREATED_AT);
+
+    let event_bundles = take(&mut client.pending);
+    assert_eq!(event_bundles.len(), 3); // 1 for identity + 2 posts.
+
+    // Ensure the sequences are the same for the two post events.
+    let post_event_sequence1 = event_bundles[1]
+        .signed_event
+        .as_ref()
+        .unwrap()
+        .open()
+        .unwrap()
+        .key
+        .unwrap()
+        .sequence;
+    let post_event_sequence2 = event_bundles[1]
+        .signed_event
+        .as_ref()
+        .unwrap()
+        .open()
+        .unwrap()
+        .key
+        .unwrap()
+        .sequence;
+    assert_eq!(post_event_sequence1, post_event_sequence2);
+
+    let response = client
+        .event_sync_client
+        .put_events(PutEventsRequest {
+            event_bundles: event_bundles.clone(),
+        })
+        .await
+        .expect("put_events failed")
+        .into_inner();
+
+    assert_eq!(response.errors.len(), 1, "expected an error");
+    for err in response.errors.iter() {
+        // Second post with the invalid sequence.
+        assert_eq!(err.event_bundle_index, 2);
+    }
+}
