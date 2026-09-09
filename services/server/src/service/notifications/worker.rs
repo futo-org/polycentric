@@ -956,6 +956,40 @@ mod tests {
     }
 
     #[test]
+    fn a_reply_mentioning_its_parent_author_and_a_third_identity() {
+        let parent = event_key("bob");
+        let post = Post {
+            reply: Some(PostReply {
+                root: None,
+                parent: Some(parent.clone()),
+            }),
+            text: "@bob@x.com @carol@x.com".to_string(),
+            ..Default::default()
+        };
+        let identity_by_alias_map = HashMap::from([
+            ("bob@x.com".to_string(), "bob".to_string()),
+            ("carol@x.com".to_string(), "carol".to_string()),
+        ]);
+
+        let mut notifications = build_notifications(
+            "alice",
+            &content(ContentBody::Post(post.clone())),
+        );
+        notifications.extend(build_mention_notifications(
+            "alice",
+            &post.text,
+            &identity_by_alias_map,
+            &notifications,
+        ));
+
+        assert_eq!(recipients(&notifications), ["bob", "carol"]);
+        assert_eq!(notifications[0].kind, NotificationKind::Reply);
+        assert_eq!(notifications[0].target, Some(parent));
+        assert_eq!(notifications[1].kind, NotificationKind::Mention);
+        assert_eq!(notifications[1].target, None);
+    }
+
+    #[test]
     fn key_columns_flattens_an_event_key() {
         let cols = KeyColumns::from(&event_key("bob"));
         assert_eq!(cols.collection, 2);
