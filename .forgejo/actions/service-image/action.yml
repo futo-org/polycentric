@@ -48,7 +48,9 @@ runs:
         builder="buildx-$(tr -d - < /proc/sys/kernel/random/uuid | cut -c1-12)"
         docker buildx create --name "$builder" --driver docker-container --use
         trap 'docker buildx rm "$builder"' EXIT
-        set -- --tag "$IMAGE:$GITHUB_SHA"
+        # Without a per-commit label a fully cached build is byte-identical to
+        # the previous one and containerd reports the older pull's digest.
+        set -- --tag "$IMAGE:$GITHUB_SHA" --label "org.opencontainers.image.revision=$GITHUB_SHA"
         if [ "$DEFAULT_BRANCH_TAG" = true ]; then
           set -- "$@" --tag "$IMAGE:${DEFAULT_BRANCH:-develop}"
         fi
