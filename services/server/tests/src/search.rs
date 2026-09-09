@@ -589,7 +589,7 @@ async fn search_posts_omit_labels() {
     let post_event_key = client.get_last_event_key();
     client.submit_events().await;
 
-    let mut trusted_moderator = TestClient::trusted_moderator().await;
+    let (mut trusted_moderator, _guard) = TestClient::trusted_moderator().await;
     trusted_moderator.label(
         Labels {
             event_key: Some(post_event_key),

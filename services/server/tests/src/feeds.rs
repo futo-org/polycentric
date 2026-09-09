@@ -18,7 +18,7 @@ async fn trusted_labels_served_in_feed_response() {
         recovery_signature: None,
     }
     .derive_hex_key();
-    let mut moderator = TestClient::trusted_moderator().await;
+    let (mut moderator, _guard) = TestClient::trusted_moderator().await;
 
     publish_genesis(
         &mut event,
@@ -125,7 +125,7 @@ async fn labeler_identity_served_with_feed_response() {
         recovery_signature: None,
     }
     .derive_hex_key();
-    let mut moderator = TestClient::trusted_moderator().await;
+    let (mut moderator, _guard) = TestClient::trusted_moderator().await;
 
     publish_genesis(
         &mut event,
@@ -201,7 +201,7 @@ async fn omit_labels_hides_labeled_post() {
         recovery_signature: None,
     }
     .derive_hex_key();
-    let mut moderator = TestClient::trusted_moderator().await;
+    let (mut moderator, _guard) = TestClient::trusted_moderator().await;
 
     publish_genesis(
         &mut event,
@@ -357,7 +357,7 @@ async fn attribution_feed_omit_labels_hides_labeled_post() {
         recovery_signature: None,
     }
     .derive_hex_key();
-    let mut moderator = TestClient::trusted_moderator().await;
+    let (mut moderator, _guard) = TestClient::trusted_moderator().await;
 
     publish_genesis(
         &mut event,
@@ -454,7 +454,7 @@ async fn omit_labels_non_matching_keeps_post_and_labels() {
         recovery_signature: None,
     }
     .derive_hex_key();
-    let mut moderator = TestClient::trusted_moderator().await;
+    let (mut moderator, _guard) = TestClient::trusted_moderator().await;
 
     publish_genesis(
         &mut event,
@@ -768,7 +768,7 @@ async fn thread_omit_labels_matching_hides_post() {
         recovery_signature: None,
     }
     .derive_hex_key();
-    let mut moderator = TestClient::trusted_moderator().await;
+    let (mut moderator, _guard) = TestClient::trusted_moderator().await;
 
     publish_genesis(
         &mut event,
@@ -856,7 +856,7 @@ async fn thread_omit_labels_not_matching_keeps_post() {
         recovery_signature: None,
     }
     .derive_hex_key();
-    let mut moderator = TestClient::trusted_moderator().await;
+    let (mut moderator, _guard) = TestClient::trusted_moderator().await;
 
     publish_genesis(
         &mut event,

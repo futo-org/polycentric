@@ -17,6 +17,7 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::SystemTime;
 use tokio::sync::OnceCell;
+use tokio::sync::{Mutex, MutexGuard};
 
 mod event_sync;
 mod feeds;
@@ -175,10 +176,38 @@ impl TestClient {
     }
 
     /// Create a client for the trusted moderator.
-    pub async fn trusted_moderator() -> TestClient {
-        ensure_moderator_setup().await;
-        let key = test_moderator_key();
-        TestClient::new_with_identity(key).await
+    pub async fn trusted_moderator() -> (TestClient, MutexGuard<'static, bool>)
+    {
+        // Mutex to ensure that we only use one moderator concurrently,
+        // otherwise the various sequences get messed up causing test failures.
+        //
+        // Boolean indicates if the indentity event has to be submitted or not.
+        static ONE_MODERATOR: Mutex<bool> = Mutex::const_new(true);
+
+        let mut guard = ONE_MODERATOR.lock().await;
+
+        let seed = sha256(b"polycentric-test-moderator-seed-2026");
+        let mut bytes = [0u8; 32];
+        bytes.copy_from_slice(&seed[..32]);
+        let key = SigningKey::from_bytes(&bytes);
+
+        let mut client = TestClient::new_with_identity(key).await;
+
+        if *guard {
+            // We keep the indentity creation events.
+            *guard = false;
+        } else {
+            // Identity events already stored.
+            client.pending.clear();
+        }
+
+        // Quick way to create a unique sequence value.
+        let now = current_timestamp();
+        for collection_sequence in &mut client.collection_sequences {
+            collection_sequence.0 = now;
+        }
+
+        (client, guard)
     }
 
     async fn new_with_identity(key: SigningKey) -> TestClient {
