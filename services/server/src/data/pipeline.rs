@@ -47,14 +47,14 @@ where
 
 /// Remove any extra rows (for checking next page existence) and extracts page
 /// info.
-pub fn finalize_fetch<E, F, SortedBy>(
-    rows: &mut Vec<E>,
+pub fn finalize_fetch<Row, F, SortedBy>(
+    rows: &mut Vec<Row>,
     cursor_filter: Option<&CursorFilter<SortedBy>>,
     limit: u32,
     row_to_marker: F,
 ) -> PageInfo<SortedBy>
 where
-    F: Fn(&E) -> Marker<SortedBy>,
+    F: Fn(&Row) -> Marker<SortedBy>,
     SortedBy: Clone,
 {
     // We tried fetching more rows than the client limit.

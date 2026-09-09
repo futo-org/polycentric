@@ -46,10 +46,8 @@ impl<SortedBy> Params<SortedBy> {
     }
 }
 
-pub struct Fetched<SortedBy = EventCreatedAt> {
-    pub rows: Vec<EventWithContentRow>,
-    pub page_info: PageInfo<SortedBy>,
-}
+pub type Fetched<SortedBy = EventCreatedAt> =
+    pipeline::Fetched<EventWithContentRow, SortedBy>;
 
 pub struct GetFeedResponseFilter<SortedBy = EventCreatedAt> {
     pub live_rows: Vec<EventWithContentRow>,
