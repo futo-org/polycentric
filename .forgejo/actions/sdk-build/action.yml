@@ -3,9 +3,9 @@ description: The rs-core libraries a job needs (this run's artifacts, which it p
 inputs:
   registry:
     required: true
-  libraries:
-    description: Libraries to have in place, from wasm android ios
-    default: wasm android ios
+  natives:
+    description: Native libraries to have in place besides wasm (the JS SDKs need it), from android ios
+    default: ''
   wasm-artifact:
     description: Take rs-core-wasm-build from this run
     default: 'false'
@@ -57,7 +57,7 @@ runs:
     - shell: bash
       env:
         REGISTRY: ${{ inputs.registry }}
-        LIBRARIES: ${{ inputs.libraries }}
+        NATIVES: ${{ inputs.natives }}
         WASM: ${{ inputs.wasm-artifact }}
         ANDROID: ${{ inputs.android-artifact }}
         IOS: ${{ inputs.ios-artifact }}
@@ -67,7 +67,7 @@ runs:
         [ "$ANDROID" = true ] && built="$built android"
         [ "$IOS" = true ] && built="$built ios"
         [ -z "$built" ] || .forgejo/scripts/rs-core-libraries.sh publish $built
-        .forgejo/scripts/rs-core-libraries.sh fetch $LIBRARIES
+        .forgejo/scripts/rs-core-libraries.sh fetch wasm $NATIVES
     - uses: forgejo/upload-artifact@v4
       with:
         name: rs-core-libraries

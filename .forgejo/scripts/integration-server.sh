@@ -7,10 +7,10 @@
 # runs `cargo test -p integration-tests`, then cleans up.
 #
 # Usage:
-#   .gitlab/ci/scripts/integration-server.sh              # full run
-#   .gitlab/ci/scripts/integration-server.sh --no-deps     # skip docker services (already up)
-#   .gitlab/ci/scripts/integration-server.sh --no-cleanup  # keep server + docker running
-#   .gitlab/ci/scripts/integration-server.sh --ci          # CI mode
+#   .forgejo/scripts/integration-server.sh              # full run
+#   .forgejo/scripts/integration-server.sh --no-deps     # skip docker services (already up)
+#   .forgejo/scripts/integration-server.sh --no-cleanup  # keep server + docker running
+#   .forgejo/scripts/integration-server.sh --ci          # CI mode
 #
 # Run the server integration test suite.
 #

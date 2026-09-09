@@ -451,7 +451,6 @@ jobs:
       - uses: ./.forgejo/actions/sdk-build
         with:
           registry: ${{ needs.changes.outputs.registry }}
-          libraries: wasm
           wasm-artifact: ${{ needs.wasm.result == 'success' }}
           android-artifact: ${{ needs.android.result == 'success' }}
           ios-artifact: ${{ needs.ios.result == 'success' }}
@@ -466,13 +465,12 @@ jobs:
     needs: [changes, setup-images]
     if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.service_images && needs.setup-images.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/buildkit:${{ needs.changes.outputs.images_tag }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.changes.outputs.plan).matrix.service_images }}
     steps:
-      - name: Install tools
-        run: apk add --no-cache bash git docker-cli docker-cli-buildx
       - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/service-image
         with:
@@ -486,13 +484,12 @@ jobs:
 
   scraper-image:
     name: Build scraper image
-    needs: changes
-    if: fromJSON(needs.changes.outputs.plan).flags.image_scraper
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.image_scraper && needs.setup-images.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/buildkit:${{ needs.changes.outputs.images_tag }}
     steps:
-      - name: Install tools
-        run: apk add --no-cache bash git docker-cli docker-cli-buildx
       - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/service-image
         with:
@@ -509,10 +506,9 @@ jobs:
     needs: [changes, sdks]
     if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.image_verifier_bot && needs.sdks.result == 'success' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/buildkit:${{ needs.changes.outputs.images_tag }}
     steps:
-      - name: Install tools
-        run: apk add --no-cache bash git docker-cli docker-cli-buildx
       - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/sdk-artifacts
       - uses: ./.forgejo/actions/service-image
@@ -530,10 +526,9 @@ jobs:
     needs: [changes, sdks]
     if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.web_image && needs.sdks.result == 'success' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/buildkit:${{ needs.changes.outputs.images_tag }}
     steps:
-      - name: Install tools
-        run: apk add --no-cache bash git docker-cli docker-cli-buildx
       - uses: actions/checkout@v4
       - name: Resolve version
         id: version
@@ -580,7 +575,7 @@ jobs:
           cache: services-integration
       - name: Server integration tests
         if: fromJSON(needs.changes.outputs.plan).flags.server_integration && needs.service-images.result == 'success'
-        run: .gitlab/ci/scripts/integration-server.sh --ci
+        run: .forgejo/scripts/integration-server.sh --ci
       - uses: forgejo/upload-artifact@v4
         if: always() && fromJSON(needs.changes.outputs.plan).flags.server_integration
         with:
@@ -589,7 +584,7 @@ jobs:
           retention-days: 7
       - name: Moderation integration tests
         if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.moderation_integration }}
-        run: .gitlab/ci/scripts/integration-moderation.sh
+        run: .forgejo/scripts/integration-moderation.sh
       - uses: forgejo/upload-artifact@v4
         if: always() && fromJSON(needs.changes.outputs.plan).flags.moderation_integration
         with:

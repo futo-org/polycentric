@@ -106,7 +106,6 @@ jobs:
       - uses: ./.forgejo/actions/sdk-build
         with:
           registry: ${{ needs.changes.outputs.registry }}
-          libraries: wasm
           wasm-artifact: ${{ needs.wasm.result == 'success' }}
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
@@ -116,12 +115,11 @@ jobs:
     needs: [changes, sdks]
     if: ${{ !cancelled() && needs.changes.result == 'success' && needs.sdks.result != 'failure' && needs.sdks.result != 'cancelled' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/buildkit:${{ needs.changes.outputs.images_tag }}
     env:
       REGISTRY: ${{ needs.changes.outputs.registry }}
     steps:
-      - name: Install tools
-        run: apk add --no-cache bash git curl jq crane helm docker-cli docker-cli-buildx
       - uses: actions/checkout@v4
       - if: needs.changes.outputs.image != 'true'
         uses: ./.forgejo/actions/sdk-artifacts

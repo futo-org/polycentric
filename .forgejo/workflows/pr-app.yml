@@ -28,6 +28,7 @@ jobs:
       registry: ${{ steps.plan.outputs.registry }}
       images_tag: ${{ steps.plan.outputs.images_tag }}
       images_missing: ${{ steps.plan.outputs.images_missing }}
+      have_wasm: ${{ steps.plan.outputs.have_wasm }}
       have_android: ${{ steps.plan.outputs.have_android }}
       have_ios: ${{ steps.plan.outputs.have_ios }}
     steps:
@@ -52,7 +53,26 @@ jobs:
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
           cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
 
-  # The native libraries, unless the registry has them for these sources.
+  # The rs-core libraries (the JS SDKs need wasm too), unless the registry has
+  # them for these sources.
+  wasm:
+    name: Build wasm
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && needs.changes.outputs.have_wasm != 'true' && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/wasm-build
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
   android:
     name: Build Android
     needs: [changes, setup-images]
@@ -85,8 +105,10 @@ jobs:
 
   sdks:
     name: Build SDKs
-    needs: [changes, android, ios]
-    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.android.result != 'failure' && needs.ios.result != 'failure' }}
+    needs: [changes, wasm, android, ios]
+    if: >-
+      ${{ !cancelled() && needs.changes.result == 'success' &&
+      needs.wasm.result != 'failure' && needs.android.result != 'failure' && needs.ios.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     steps:
@@ -94,7 +116,8 @@ jobs:
       - uses: ./.forgejo/actions/sdk-build
         with:
           registry: ${{ needs.changes.outputs.registry }}
-          libraries: android ios
+          natives: android ios
+          wasm-artifact: ${{ needs.wasm.result == 'success' }}
           android-artifact: ${{ needs.android.result == 'success' }}
           ios-artifact: ${{ needs.ios.result == 'success' }}
           rn-sdk: 'true'

@@ -138,6 +138,7 @@ jobs:
       - uses: ./.forgejo/actions/sdk-build
         with:
           registry: ${{ needs.changes.outputs.registry }}
+          natives: android ios
           wasm-artifact: ${{ needs.wasm.result == 'success' }}
           android-artifact: ${{ needs.android.result == 'success' }}
           ios-artifact: ${{ needs.ios.result == 'success' }}
@@ -151,10 +152,9 @@ jobs:
     name: Build server image
     needs: [changes, setup-images]
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/buildkit:${{ needs.changes.outputs.images_tag }}
     steps:
-      - name: Install tools
-        run: apk add --no-cache bash git docker-cli docker-cli-buildx
       - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/service-image
         with:
@@ -170,10 +170,9 @@ jobs:
     name: Build web image
     needs: [changes, sdks]
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/buildkit:${{ needs.changes.outputs.images_tag }}
     steps:
-      - name: Install tools
-        run: apk add --no-cache bash git docker-cli docker-cli-buildx
       - uses: actions/checkout@v4
       - name: Resolve version
         id: version
@@ -313,7 +312,7 @@ jobs:
         run: |
           export CI_COMMIT_SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-8)
           export CI_COMMIT_TITLE=$(git log -1 --format=%s)
-          node .gitlab/ci/scripts/publish-android-update.mjs
+          node .forgejo/scripts/publish-android-update.mjs
 
   # Release ------------------------------------------------------------------
 
@@ -353,7 +352,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Publish
-        run: .gitlab/ci/scripts/npm_publish.sh
+        run: .forgejo/scripts/npm_publish.sh
 
   crates:
     name: Package crates

@@ -68,7 +68,7 @@ const SERVER_STACK = [
   'services/server/',
   'services/common/',
   /^compose\.yml$/,
-  '.gitlab/ci/scripts/integration-server.sh',
+  '.forgejo/scripts/integration-server.sh',
 ];
 
 const rsCore = touches(CARGO, /^packages\/rs-[^/]+\//);
@@ -93,7 +93,7 @@ const moderationIntegration = touches(
   'services/moderation/',
   'services/server/',
   /^compose\.yml$/,
-  '.gitlab/ci/scripts/integration-moderation.sh',
+  '.forgejo/scripts/integration-moderation.sh',
 );
 const pushNotifications = touches(
   CARGO,
@@ -239,7 +239,7 @@ const out = (name, value) => {
   console.log(`${name}=${text}`);
 };
 out('registry', env.REGISTRY);
-// CI images are tagged by the content of .gitlab/images; unchanged inputs
+// CI images are tagged by the content of .forgejo/images; unchanged inputs
 // mean an existing tag and no build.
-out('images_tag', git('rev-parse', 'HEAD:.gitlab/images').slice(0, 12));
+out('images_tag', git('rev-parse', 'HEAD:.forgejo/images').slice(0, 12));
 out('plan', { flags, matrix });

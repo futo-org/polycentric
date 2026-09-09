@@ -1,9 +1,8 @@
 # CI
 
 Forgejo Actions. Images and charts go to `registry.futo.org/harbor`, JS
-packages to npm, releases to Forgejo releases. The old GitLab pipeline is
-disabled; its scripts (`.gitlab/ci/scripts`) and images (`.gitlab/images`)
-are still used.
+packages to npm, releases to Forgejo releases. Workflows, actions, scripts
+and the CI toolchain images (`images/`) all live here.
 
 ## Workflows
 
@@ -67,7 +66,8 @@ Repository variables with defaults: `CI_RUNNER` (`docker`), `CI_RUNNER_MACOS`
 (`macos`), `CI_RUNNER_IOS_DEVICE` (`ios-device`), `CI_NODE_IMAGE`
 (`node:24-bookworm`), `CI_TOOLS_IMAGE` (`node:24-alpine`), `CI_REGISTRY`.
 
-The docker runner must mount the docker socket into job containers. The mac
+The docker runner must mount the docker socket into job containers (compose
+integration tests, service containers, the CI image builds). The mac
 runners are the Tart VM (`ios-build`) and the device mac with the ad-hoc
 profile and Maestro (`ios-e2e`).
 
@@ -93,13 +93,12 @@ tarballs in the R2 bucket: each Rust job's cargo registry and `target/`
 (keyed by rustc version and Cargo files), plus Gradle. sccache covers the
 crates that still compile.
 
-Image builds run on one buildx builder per runner droplet, `harbor`, created
-by the first job that needs it with `buildkitd.toml` (gc keeps 40 GB), so
-layers stay local while the droplet lives. They also read and write the
-registry cache `<image>:cache-develop` with `mode=max`, so a build on a fresh
-droplet resumes from the step that changed. A `buildkitd.toml` change only
-reaches a droplet after `docker buildx rm harbor` there, or when the pool
-recycles it.
+Image builds run rootless BuildKit inside the job container (`ci/buildkit`,
+`buildctl-daemonless.sh`), no docker daemon involved, so nothing survives the
+job: they read and write the registry cache `<image>:cache-develop` with
+`mode=max`, and a build resumes from the step that changed. Rootless BuildKit
+needs the runner to start job containers with seccomp and AppArmor unconfined
+(harbor-ops runner config).
 
 ## Forgejo notes
 

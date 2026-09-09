@@ -26,12 +26,10 @@ jobs:
   deploy:
     name: Deploy
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    container: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}/ci/buildkit:latest
     env:
       REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
     steps:
-      - name: Install tools
-        run: apk add --no-cache bash git curl jq crane helm docker-cli docker-cli-buildx
       - uses: actions/checkout@v4
       - name: Check the commit's image
         id: image

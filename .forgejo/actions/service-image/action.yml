@@ -1,5 +1,5 @@
 name: service-image
-description: buildx image build pushed as <registry>/<image>:<sha> with a registry layer cache (GitLab .service-image).
+description: Rootless BuildKit build pushed as <registry>/<image>:<sha> with a registry layer cache (GitLab .service-image). Runs in the ci/buildkit job image, the build itself as its `user`.
 inputs:
   image:
     description: Image name under the registry (server, moderation-service, web, ...)
@@ -37,25 +37,26 @@ runs:
         BUILD_ARGS: ${{ inputs.build-args }}
         EXPORT_CACHE: ${{ inputs.export-cache }}
       run: |
-        # One builder per droplet keeps the layer cache local across jobs.
-        # Jobs share the daemon, so two may bootstrap it at once: retry.
-        docker buildx create --name harbor --driver docker-container --buildkitd-config .forgejo/buildkitd.toml 2>/dev/null || true
-        docker buildx inspect --bootstrap harbor >/dev/null || { sleep 10; docker buildx inspect --bootstrap harbor >/dev/null; }
+        install -d -o user -g user /home/user/.docker
+        [ ! -f ~/.docker/config.json ] || install -o user -g user -m 0600 ~/.docker/config.json /home/user/.docker/config.json
+        # rootlesskit refuses root, which the job's steps run as.
+        build() {
+          su -s /bin/bash user -c "cd $(printf '%q' "$PWD") && exec env HOME=/home/user XDG_RUNTIME_DIR=/run/user/1000 TMPDIR=/home/user/.local/tmp BUILDKITD_FLAGS=--oci-worker-no-process-sandbox buildctl-daemonless.sh build $(printf '%q ' "$@")"
+        }
         # Without a per-commit label a fully cached build is byte-identical to
         # the previous one and containerd reports the older pull's digest.
-        set -- --tag "$IMAGE:$GITHUB_SHA" --label "org.opencontainers.image.revision=$GITHUB_SHA"
+        set -- --opt "label:org.opencontainers.image.revision=$GITHUB_SHA"
         while IFS= read -r arg; do
-          [ -n "$arg" ] && set -- "$@" --build-arg "$arg"
+          [ -n "$arg" ] && set -- "$@" --opt "build-arg:$arg"
         done <<< "$BUILD_ARGS"
-        set -- "$@" --file "$DOCKERFILE/Dockerfile" \
-          --cache-from "type=registry,ref=$IMAGE:cache-${DEFAULT_BRANCH:-develop}"
-        docker buildx build --builder harbor --push "$@" .
+        set -- "$@" --frontend dockerfile.v0 --local context=. --local "dockerfile=$DOCKERFILE" \
+          --import-cache "type=registry,ref=$IMAGE:cache-${DEFAULT_BRANCH:-develop}"
+        build "$@" --output "type=image,name=$IMAGE:$GITHUB_SHA,push=true"
         # A separate pass: zot drops one of two concurrent uploads of a blob.
         # mode=max keeps the build stages, so a later build resumes from the
         # step that changed instead of the top of the Dockerfile.
         if [ "$EXPORT_CACHE" = true ]; then
-          docker buildx build --builder harbor "$@" \
-            --cache-to "type=registry,ref=$IMAGE:cache-${DEFAULT_BRANCH:-develop},mode=max,ignore-error=true,image-manifest=true,oci-mediatypes=true" .
+          build "$@" --export-cache "type=registry,ref=$IMAGE:cache-${DEFAULT_BRANCH:-develop},mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true"
         fi
     # Sign the commit's image by digest; the moving tags share that digest.
     - uses: ./.forgejo/actions/cosign-sign

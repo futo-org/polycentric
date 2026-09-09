@@ -100,7 +100,6 @@ jobs:
       - uses: ./.forgejo/actions/sdk-build
         with:
           registry: ${{ needs.changes.outputs.registry }}
-          libraries: wasm
           wasm-artifact: ${{ needs.wasm.result == 'success' }}
           rn-sdk: 'true'
           registry-user: ${{ vars.REGISTRY_USER }}
@@ -111,7 +110,8 @@ jobs:
     needs: [changes, sdks]
     if: ${{ !cancelled() && needs.changes.result == 'success' && needs.sdks.result != 'failure' && needs.sdks.result != 'cancelled' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/buildkit:${{ needs.changes.outputs.images_tag }}
     env:
       REGISTRY: ${{ needs.changes.outputs.registry }}
       STATIC_S3_ENDPOINT: ${{ secrets.STATIC_S3_ENDPOINT }}
@@ -120,8 +120,6 @@ jobs:
       STATIC_S3_SECRET_ACCESS_KEY: ${{ secrets.STATIC_S3_SECRET_ACCESS_KEY }}
       STATIC_PUBLIC_BASE_URL: ${{ vars.STATIC_PUBLIC_BASE_URL }}
     steps:
-      - name: Install tools
-        run: apk add --no-cache bash git curl jq crane helm docker-cli docker-cli-buildx
       - uses: actions/checkout@v4
       - name: Resolve version
         if: needs.changes.outputs.image != 'true'

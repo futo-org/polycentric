@@ -45,3 +45,10 @@ runs:
         TAG: ${{ inputs.tag }}
         COSIGN_PRIVATE_KEY: ${{ inputs.cosign-key }}
       run: .forgejo/scripts/ci-images.sh build rust-android
+    - name: Build buildkit image
+      shell: bash
+      env:
+        REGISTRY: ${{ inputs.registry }}
+        TAG: ${{ inputs.tag }}
+        COSIGN_PRIVATE_KEY: ${{ inputs.cosign-key }}
+      run: .forgejo/scripts/ci-images.sh build buildkit
