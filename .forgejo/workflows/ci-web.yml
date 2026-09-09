@@ -14,6 +14,9 @@ on:
       ref_slug:
         type: string
         required: true
+      default_ref:
+        type: string
+        required: true
       is_tag:
         type: string
         required: true
@@ -49,6 +52,7 @@ jobs:
           dockerfile: apps/harbor
           registry: ${{ inputs.registry }}
           ref-slug: ${{ inputs.ref_slug }}
+          export-cache: ${{ inputs.default_ref }}
           build-args: |
             APP_VERSION=${{ steps.version.outputs.app_version }}
             EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS=${{ vars.EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS }}

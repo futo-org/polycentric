@@ -17,6 +17,9 @@ inputs:
   build-args:
     description: One KEY=VALUE per line
     default: ''
+  export-cache:
+    description: Refresh the branch's build cache; the default branch keeps the shared one warm
+    default: 'false'
   registry-user:
     required: true
   registry-token:
@@ -39,6 +42,7 @@ runs:
         REF_SLUG: ${{ inputs.ref-slug }}
         DEFAULT_BRANCH_TAG: ${{ inputs.default-branch-tag }}
         BUILD_ARGS: ${{ inputs.build-args }}
+        EXPORT_CACHE: ${{ inputs.export-cache }}
       run: |
         # Matrix rows share the droplet's daemon, so the name must be unique per job.
         builder="buildx-$(tr -d - < /proc/sys/kernel/random/uuid | cut -c1-12)"
@@ -52,13 +56,15 @@ runs:
           [ -n "$arg" ] && set -- "$@" --build-arg "$arg"
         done <<< "$BUILD_ARGS"
         set -- "$@" --file "$DOCKERFILE/Dockerfile" \
-          --cache-from "type=registry,ref=$IMAGE:cache-${DEFAULT_BRANCH:-develop}" \
-          --cache-from "type=registry,ref=$IMAGE:cache-$REF_SLUG"
+          --cache-from "type=registry,ref=$IMAGE:cache-${DEFAULT_BRANCH:-develop}"
         docker buildx build --push "$@" .
-        # After the push: zot drops one of two concurrent uploads of a blob.
-        # mode=min: build-stage layers change every commit, not worth uploading.
-        docker buildx build "$@" \
-          --cache-to "type=registry,ref=$IMAGE:cache-$REF_SLUG,mode=min,image-manifest=true,oci-mediatypes=true" .
+        # A separate pass: zot drops one of two concurrent uploads of a blob.
+        # mode=max keeps the build stages, so a later build resumes from the
+        # step that changed instead of the top of the Dockerfile.
+        if [ "$EXPORT_CACHE" = true ]; then
+          docker buildx build "$@" \
+            --cache-to "type=registry,ref=$IMAGE:cache-$REF_SLUG,mode=max,ignore-error=true,image-manifest=true,oci-mediatypes=true" .
+        fi
     # Sign the commit's image by digest; the moving tags share that digest.
     - uses: ./.forgejo/actions/cosign-sign
       with:

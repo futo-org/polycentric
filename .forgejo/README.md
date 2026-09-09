@@ -94,6 +94,10 @@ tarballs in the R2 bucket: each Rust job's cargo registry and `target/`
 (keyed by rustc version and Cargo files), plus Gradle. sccache covers the
 crates that still compile.
 
+Image builds read the registry cache `<image>:cache-develop`. Only default
+branch runs write it, with `mode=max` so a build resumes from the step that
+changed; a PR reads it and exports nothing.
+
 ## Forgejo notes
 
 - Artifacts need `forgejo/upload-artifact@v4` and

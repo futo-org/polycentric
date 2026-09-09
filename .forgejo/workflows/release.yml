@@ -115,6 +115,7 @@ jobs:
       plan: ${{ needs.changes.outputs.plan }}
       registry: ${{ needs.changes.outputs.registry }}
       ref_slug: ${{ needs.changes.outputs.ref_slug }}
+      default_ref: ${{ needs.changes.outputs.default_ref }}
       is_tag: 'true'
       chart_version: ''
 
