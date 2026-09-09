@@ -1,17 +1,20 @@
-import { Text } from '@/src/common/components';
+import { Text } from '@/src/common/components/primitives';
 import Icon from '@/src/common/components/Icon';
 import { Atoms } from '@/src/common/theme';
 import { View } from 'react-native';
 
-export interface BackupStatusProps {
+export type DisplayStatus = 'success' | 'error';
+
+export interface OutcomeDisplayProps {
   /** Determines which icon to display. */
-  successful: boolean;
+  status: DisplayStatus;
   /** Text to display under the icon. */
   message: string;
 }
 
-/** Main content for a status screen showing either success or failure. */
-export function BackupStatus({ successful, message }: BackupStatusProps) {
+/** Prominently display a status indicator and message to the user. */
+export function OutcomeDisplay({ status, message }: OutcomeDisplayProps) {
+  const successful = status === 'success';
   const iconName = successful ? 'checkmarkCircle' : 'closeCircle';
   const iconColor = successful ? 'primary_500' : 'negative_500';
 

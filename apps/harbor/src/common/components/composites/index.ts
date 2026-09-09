@@ -9,3 +9,4 @@ export * from '../layout/ScreenHeader';
 export * from './SocialButton';
 export * from './IdentityBadge';
 export * from './ListItemGroup';
+export * from './OutcomeDisplay';
