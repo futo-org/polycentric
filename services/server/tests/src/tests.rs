@@ -13,10 +13,7 @@ use rand::distr::{Alphabetic, SampleString};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::mem::take;
-use std::sync::OnceLock;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::SystemTime;
-use tokio::sync::OnceCell;
 use tokio::sync::{Mutex, MutexGuard};
 
 mod event_sync;
@@ -826,113 +823,9 @@ pub fn bundle_signature(b: &EventBundle) -> Vec<u8> {
         .clone()
 }
 
-/// Deterministic signing key for the test moderator. The server must be
-/// started with `POLYCENTRIC_MODERATION_IDENTITY` set to
-/// [`test_moderator_identity()`] for these tests to pass.
-pub fn test_moderator_key() -> SigningKey {
-    let seed = sha256(b"polycentric-test-moderator-seed-2026");
-    let mut bytes = [0u8; 32];
-    bytes.copy_from_slice(&seed[..32]);
-    SigningKey::from_bytes(&bytes)
-}
-
-/// Identity string of the test moderator — the value that must be set as
-/// `POLYCENTRIC_MODERATION_IDENTITY` when starting the server.
-pub fn test_moderator_identity() -> String {
-    let key = test_moderator_key();
-    let initial = Identity {
-        rotation_keys: vec![public_key_of(&key)],
-        signing_keys: vec![],
-        revocation_bounds: vec![],
-        servers: None,
-        recovery_key: None,
-        recovery_signature: None,
-    };
-    initial.derive_hex_key()
-}
-
-/// Build a signed Labels-collection (collection 7) event bundle targeting
-/// `target_event_key` with the given label values.
-#[allow(clippy::too_many_arguments)]
-pub fn make_labels_bundle(
-    identity: &str,
-    signing_key: &SigningKey,
-    sequence: u64,
-    identity_sequence: u64,
-    vector_clock: Vec<u64>,
-    previous_root: Vec<u8>,
-    target_event_key: EventKey,
-    label_values: Vec<String>,
-    created_at: u64,
-) -> EventBundle {
-    let content = Content {
-        content_body: Some(content::ContentBody::Labels(Labels {
-            event_key: Some(target_event_key),
-            label_values,
-        })),
-    };
-    let (content_bytes, digest) = content_with_digest(content);
-    let event = make_event(
-        COLLECTION_LABELS,
-        identity,
-        signing_key,
-        sequence,
-        identity_sequence,
-        VectorClock {
-            sequence: vector_clock,
-        },
-        vec![],
-        previous_root,
-        digest,
-        created_at,
-    );
-    bundle(sign(signing_key, event), content_bytes)
-}
-
 // Following are moderation / label integration tests: The server must
 // be started with `POLYCENTRIC_MODERATION_IDENTITY` set to the value
 // returned by `test_moderator_identity()`.
-
-/// Ensures the moderator's genesis identity event is published exactly once
-/// across all tests (the moderator identity is deterministic, so sequence
-/// collisions would silently fail on the second insert).
-static MODERATOR_READY: OnceCell<()> = OnceCell::const_new();
-
-async fn ensure_moderator_setup() {
-    MODERATOR_READY
-        .get_or_init(|| async {
-            let mut event = connect_event_sync().await;
-            let mod_key = test_moderator_key();
-            let mod_identity = test_moderator_identity();
-            publish_genesis(
-                &mut event,
-                &mod_identity,
-                &mod_key,
-                DEFAULT_CREATED_AT,
-            )
-            .await;
-        })
-        .await;
-}
-
-/// Monotonic sequence number for the moderator's Labels events — each test
-/// needs a unique (collection, identity, pub_key, sequence) tuple or the
-/// duplicate is silently dropped by the server. Seeded from the clock because
-/// test runners like nextest run each test in its own process, so a fixed
-/// initial value would collide across concurrently running tests.
-static NEXT_LABELS_SEQ: OnceLock<AtomicU64> = OnceLock::new();
-
-async fn next_labels_seq() -> u64 {
-    NEXT_LABELS_SEQ
-        .get_or_init(|| {
-            let nanos = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .expect("clock before unix epoch")
-                .as_nanos() as u64;
-            AtomicU64::new(nanos)
-        })
-        .fetch_add(1, Ordering::Relaxed)
-}
 
 async fn publish_genesis(
     client: &mut EventSyncServiceClient<tonic::transport::Channel>,
@@ -986,36 +879,6 @@ async fn publish_post(
         })
         .await
         .expect("post put failed");
-    sig
-}
-
-async fn publish_labels(
-    client: &mut EventSyncServiceClient<tonic::transport::Channel>,
-    identity: &str,
-    key: &SigningKey,
-    target_event_key: EventKey,
-    label_values: Vec<String>,
-    created_at: u64,
-) -> Vec<u8> {
-    let seq = next_labels_seq().await;
-    let bundle = make_labels_bundle(
-        identity,
-        key,
-        seq,
-        1,
-        vec![1],
-        vec![],
-        target_event_key,
-        label_values,
-        created_at,
-    );
-    let sig = bundle_signature(&bundle);
-    client
-        .put_events(PutEventsRequest {
-            event_bundles: vec![bundle],
-        })
-        .await
-        .expect("labels put failed");
     sig
 }
 
