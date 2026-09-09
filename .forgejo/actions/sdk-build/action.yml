@@ -1,5 +1,5 @@
 name: sdk-build
-description: The rs-core libraries a job needs (this run's artifacts, else their develop copies) and the JS SDKs built on them, uploaded as the sdk-artifacts action expects. Debian node job image.
+description: The rs-core libraries a job needs (this run's artifacts, which it publishes under their sources' key, else the registry's copy for that key) and the JS SDKs built on them, uploaded as the sdk-artifacts action expects. Debian node job image.
 inputs:
   registry:
     required: true
@@ -18,6 +18,10 @@ inputs:
   rn-sdk:
     description: Also build and upload the react-native package
     default: 'false'
+  registry-user:
+    required: true
+  registry-token:
+    required: true
 runs:
   using: composite
   steps:
@@ -45,11 +49,25 @@ runs:
       with:
         name: rn-ios-build
         path: packages/react-native
+    - uses: ./.forgejo/actions/registry-login
+      with:
+        registry: ${{ inputs.registry }}
+        registry-user: ${{ inputs.registry-user }}
+        registry-token: ${{ inputs.registry-token }}
     - shell: bash
       env:
         REGISTRY: ${{ inputs.registry }}
         LIBRARIES: ${{ inputs.libraries }}
-      run: .forgejo/scripts/rs-core-libraries.sh fetch $LIBRARIES
+        WASM: ${{ inputs.wasm-artifact }}
+        ANDROID: ${{ inputs.android-artifact }}
+        IOS: ${{ inputs.ios-artifact }}
+      run: |
+        built=""
+        [ "$WASM" = true ] && built="$built wasm"
+        [ "$ANDROID" = true ] && built="$built android"
+        [ "$IOS" = true ] && built="$built ios"
+        [ -z "$built" ] || .forgejo/scripts/rs-core-libraries.sh publish $built
+        .forgejo/scripts/rs-core-libraries.sh fetch $LIBRARIES
     - uses: forgejo/upload-artifact@v4
       with:
         name: rs-core-libraries

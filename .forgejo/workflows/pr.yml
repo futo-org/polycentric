@@ -29,6 +29,9 @@ jobs:
       images_tag: ${{ steps.plan.outputs.images_tag }}
       plan: ${{ steps.plan.outputs.plan }}
       images_missing: ${{ steps.plan.outputs.images_missing }}
+      have_wasm: ${{ steps.plan.outputs.have_wasm }}
+      have_android: ${{ steps.plan.outputs.have_android }}
+      have_ios: ${{ steps.plan.outputs.have_ios }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -363,11 +366,12 @@ jobs:
           retention-days: 7
 
   # Packages -----------------------------------------------------------------
+  # The rs-core libraries, unless the registry has them for these sources.
 
   wasm:
     name: Build wasm
     needs: [changes, setup-images]
-    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.build_wasm && needs.setup-images.result != 'failure' }}
+    if: ${{ !cancelled() && needs.changes.outputs.have_wasm != 'true' && needs.setup-images.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container:
       image: ${{ needs.changes.outputs.registry }}/ci/rust:${{ needs.changes.outputs.images_tag }}
@@ -385,7 +389,7 @@ jobs:
   android:
     name: Build Android
     needs: [changes, setup-images]
-    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.build_rn && needs.setup-images.result != 'failure' }}
+    if: ${{ !cancelled() && needs.changes.outputs.have_android != 'true' && needs.setup-images.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container:
       image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
@@ -403,7 +407,7 @@ jobs:
   ios:
     name: Build iOS
     needs: changes
-    if: fromJSON(needs.changes.outputs.plan).flags.build_rn
+    if: needs.changes.outputs.have_ios != 'true'
     runs-on: ${{ vars.CI_RUNNER_MACOS || 'macos' }}
     env:
       CARGO_HOME: ${{ github.workspace }}/.cargo
@@ -432,11 +436,14 @@ jobs:
           key: ${{ env.RUST_CACHE_KEY }}
           path: ${{ env.RUST_CACHE_PATHS }}
 
-  # The web and verifier bot images need wasm; Android and iOS are checked above.
+  # The web and verifier bot images need wasm; Android and iOS are published
+  # here for the deploys and pr-app.yml.
   sdks:
     name: Build SDKs
-    needs: [changes, wasm]
-    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.build_sdks && needs.wasm.result != 'failure' }}
+    needs: [changes, wasm, android, ios]
+    if: >-
+      ${{ !cancelled() && (fromJSON(needs.changes.outputs.plan).flags.build_sdks || needs.android.result == 'success' || needs.ios.result == 'success') &&
+      needs.wasm.result != 'failure' && needs.android.result != 'failure' && needs.ios.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     steps:
@@ -446,7 +453,11 @@ jobs:
           registry: ${{ needs.changes.outputs.registry }}
           libraries: wasm
           wasm-artifact: ${{ needs.wasm.result == 'success' }}
+          android-artifact: ${{ needs.android.result == 'success' }}
+          ios-artifact: ${{ needs.ios.result == 'success' }}
           rn-sdk: ${{ fromJSON(needs.changes.outputs.plan).flags.build_rn_sdk }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
 
   # Images -------------------------------------------------------------------
 

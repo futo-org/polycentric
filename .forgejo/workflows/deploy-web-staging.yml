@@ -38,8 +38,8 @@ jobs:
     outputs:
       registry: ${{ steps.plan.outputs.registry }}
       images_tag: ${{ steps.plan.outputs.images_tag }}
-      plan: ${{ steps.plan.outputs.plan }}
       images_missing: ${{ steps.plan.outputs.images_missing }}
+      have_wasm: ${{ steps.plan.outputs.have_wasm }}
       image: ${{ steps.image.outputs.exists }}
     steps:
       - uses: actions/checkout@v4
@@ -47,8 +47,6 @@ jobs:
           fetch-depth: 0
       - uses: ./.forgejo/actions/plan
         id: plan
-        with:
-          event-before: ${{ github.event.before }}
       - name: Check the commit's image
         id: image
         env:
@@ -70,13 +68,13 @@ jobs:
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
           cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
 
-  # wasm only when the image is missing and this push changed it; else develop's copy.
+  # wasm only when the image is missing and the registry has no copy for these sources.
   wasm:
     name: Build wasm
     needs: [changes, setup-images]
     if: >-
-      ${{ !cancelled() && needs.changes.outputs.image != 'true' && github.event_name == 'push' &&
-      fromJSON(needs.changes.outputs.plan).flags.build_wasm && needs.setup-images.result != 'failure' }}
+      ${{ !cancelled() && needs.changes.outputs.image != 'true' && needs.changes.outputs.have_wasm != 'true' &&
+      needs.setup-images.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container:
       image: ${{ needs.changes.outputs.registry }}/ci/rust:${{ needs.changes.outputs.images_tag }}
@@ -105,6 +103,8 @@ jobs:
           libraries: wasm
           wasm-artifact: ${{ needs.wasm.result == 'success' }}
           rn-sdk: 'true'
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
 
   deploy:
     name: Deploy

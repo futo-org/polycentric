@@ -30,6 +30,9 @@ jobs:
       registry: ${{ steps.plan.outputs.registry }}
       images_tag: ${{ steps.plan.outputs.images_tag }}
       images_missing: ${{ steps.plan.outputs.images_missing }}
+      have_wasm: ${{ steps.plan.outputs.have_wasm }}
+      have_android: ${{ steps.plan.outputs.have_android }}
+      have_ios: ${{ steps.plan.outputs.have_ios }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,10 +56,12 @@ jobs:
           cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
 
   # Packages -----------------------------------------------------------------
+  # The rs-core libraries, unless the registry has them for these sources.
 
   wasm:
     name: Build wasm
     needs: [changes, setup-images]
+    if: ${{ !cancelled() && needs.changes.outputs.have_wasm != 'true' && needs.setup-images.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container:
       image: ${{ needs.changes.outputs.registry }}/ci/rust:${{ needs.changes.outputs.images_tag }}
@@ -74,6 +79,7 @@ jobs:
   android:
     name: Build Android
     needs: [changes, setup-images]
+    if: ${{ !cancelled() && needs.changes.outputs.have_android != 'true' && needs.setup-images.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container:
       image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
@@ -90,6 +96,8 @@ jobs:
 
   ios:
     name: Build iOS
+    needs: changes
+    if: needs.changes.outputs.have_ios != 'true'
     runs-on: ${{ vars.CI_RUNNER_MACOS || 'macos' }}
     env:
       CARGO_HOME: ${{ github.workspace }}/.cargo
@@ -120,6 +128,9 @@ jobs:
   sdks:
     name: Build SDKs
     needs: [changes, wasm, android, ios]
+    if: >-
+      ${{ !cancelled() && needs.changes.result == 'success' &&
+      needs.wasm.result != 'failure' && needs.android.result != 'failure' && needs.ios.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     steps:
@@ -127,10 +138,12 @@ jobs:
       - uses: ./.forgejo/actions/sdk-build
         with:
           registry: ${{ needs.changes.outputs.registry }}
-          wasm-artifact: 'true'
-          android-artifact: 'true'
-          ios-artifact: 'true'
+          wasm-artifact: ${{ needs.wasm.result == 'success' }}
+          android-artifact: ${{ needs.android.result == 'success' }}
+          ios-artifact: ${{ needs.ios.result == 'success' }}
           rn-sdk: 'true'
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
 
   # Images -------------------------------------------------------------------
 

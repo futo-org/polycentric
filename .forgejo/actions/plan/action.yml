@@ -1,5 +1,5 @@
 name: plan
-description: Runs changes.mjs and the CI image check; the workflows gate their jobs on the outputs.
+description: Runs changes.mjs, the CI image check and the rs-core library checks; the workflows gate their jobs on the outputs.
 inputs:
   event-before:
     default: ''
@@ -12,6 +12,13 @@ outputs:
     value: ${{ steps.plan.outputs.plan }}
   images_missing:
     value: ${{ steps.images.outputs.images_missing }}
+  have_wasm:
+    description: Whether the registry holds the wasm library for this commit's sources
+    value: ${{ steps.libraries.outputs.have_wasm }}
+  have_android:
+    value: ${{ steps.libraries.outputs.have_android }}
+  have_ios:
+    value: ${{ steps.libraries.outputs.have_ios }}
 runs:
   using: composite
   steps:
@@ -29,3 +36,9 @@ runs:
         REGISTRY: ${{ steps.plan.outputs.registry }}
         TAG: ${{ steps.plan.outputs.images_tag }}
       run: .forgejo/scripts/ci-images.sh check
+    - name: Check rs-core libraries
+      id: libraries
+      shell: bash
+      env:
+        REGISTRY: ${{ steps.plan.outputs.registry }}
+      run: .forgejo/scripts/rs-core-libraries.sh check wasm android ios

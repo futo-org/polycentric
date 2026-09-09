@@ -43,16 +43,15 @@ jobs:
     outputs:
       registry: ${{ steps.plan.outputs.registry }}
       images_tag: ${{ steps.plan.outputs.images_tag }}
-      plan: ${{ steps.plan.outputs.plan }}
       images_missing: ${{ steps.plan.outputs.images_missing }}
+      have_android: ${{ steps.plan.outputs.have_android }}
+      have_ios: ${{ steps.plan.outputs.have_ios }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: ./.forgejo/actions/plan
         id: plan
-        with:
-          event-before: ${{ github.event.before }}
 
   setup-images:
     name: Build CI images
@@ -69,13 +68,11 @@ jobs:
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
           cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
 
-  # The native libraries only when this push changed them; else develop's copies.
+  # The native libraries, unless the registry has them for these sources.
   android:
     name: Build Android
     needs: [changes, setup-images]
-    if: >-
-      ${{ !cancelled() && github.event_name == 'push' && fromJSON(needs.changes.outputs.plan).flags.build_rn &&
-      needs.setup-images.result != 'failure' }}
+    if: ${{ !cancelled() && needs.changes.outputs.have_android != 'true' && needs.setup-images.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container:
       image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
@@ -93,7 +90,7 @@ jobs:
   ios:
     name: Build iOS
     needs: changes
-    if: github.event_name == 'push' && fromJSON(needs.changes.outputs.plan).flags.build_rn
+    if: needs.changes.outputs.have_ios != 'true'
     runs-on: ${{ vars.CI_RUNNER_MACOS || 'macos' }}
     env:
       CARGO_HOME: ${{ github.workspace }}/.cargo
@@ -117,6 +114,8 @@ jobs:
           android-artifact: ${{ needs.android.result == 'success' }}
           ios-artifact: ${{ needs.ios.result == 'success' }}
           rn-sdk: 'true'
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
 
   # Store builds only queue on EAS, so their submit jobs follow right away
   # and EAS waits for the build itself.

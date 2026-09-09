@@ -1,12 +1,22 @@
 #!/usr/bin/env bash
-# The rs-core libraries (wasm, android, ios) a run did not build come from
-# their develop copies in the registry, ci/rs-core-<name>:develop, which
-# develop.yml refreshes when their sources change.
+# The rs-core libraries (wasm, android, ios) in the registry, each under a key
+# hashed from its sources: ci/rs-core-<name>:<key>. A job takes the copy for
+# its sources or builds it; a copy for other sources is never used.
 #
-# Usage: rs-core-libraries.sh fetch [name...]     default: all three
-#        rs-core-libraries.sh publish name...     needs the registry-login action first
+# Usage: rs-core-libraries.sh check name...     writes have_<name>=true|false to GITHUB_OUTPUT (curl only)
+#        rs-core-libraries.sh fetch name...     restores the ones this run did not build (crane)
+#        rs-core-libraries.sh publish name...   pushes the ones this run built (crane, after registry-login)
 # Env: REGISTRY.
 set -euo pipefail
+
+# the sources the library is built from
+inputs() {
+  case $1 in
+    wasm) echo packages/rs-core packages/rs-common packages/rs-core-wasm protos Cargo.toml Cargo.lock patches .gitlab/images ;;
+    android | ios) echo packages/rs-core packages/rs-common packages/react-native protos Cargo.toml Cargo.lock .gitlab/images ;;
+    *) echo "unknown library $1" >&2; exit 2 ;;
+  esac
+}
 
 # a build-only path that shows the library is present
 marker() {
@@ -14,7 +24,6 @@ marker() {
     wasm) echo packages/rs-core-wasm/dist ;;
     android) echo packages/react-native/android/src/main/jniLibs ;;
     ios) echo packages/react-native/PolycentricReactNativeFramework.xcframework/ios-arm64 ;;
-    *) echo "unknown library $1" >&2; exit 2 ;;
   esac
 }
 
@@ -28,7 +37,22 @@ paths() {
 }
 
 image() {
-  echo "$REGISTRY/ci/rs-core-$1:develop"
+  key=$(for p in $(inputs "$1"); do git rev-parse "HEAD:$p"; done | sha256sum | cut -c1-16)
+  echo "$REGISTRY/ci/rs-core-$1:$key"
+}
+
+check() {
+  host=${REGISTRY%%/*}
+  path=${REGISTRY#*/}
+  for name in "$@"; do
+    ref=$(image "$name")
+    have=false
+    curl -fsSI \
+      -H 'Accept: application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json' \
+      "https://$host/v2/$path/ci/rs-core-$name/manifests/${ref##*:}" >/dev/null 2>&1 && have=true
+    echo "$ref: $have"
+    echo "have_$name=$have" >> "$GITHUB_OUTPUT"
+  done
 }
 
 fetch() {
@@ -37,9 +61,10 @@ fetch() {
       echo "$name: built by this run"
       continue
     fi
-    echo "$name: from $(image "$name")"
-    crane digest "$(image "$name")" >/dev/null 2>&1 || { echo "::error::$(image "$name") does not exist yet; run develop.yml"; exit 1; }
-    crane export "$(image "$name")" - | tar -x $(paths "$name")
+    ref=$(image "$name")
+    echo "$name: from $ref"
+    crane digest "$ref" >/dev/null 2>&1 || { echo "::error::$ref does not exist; the $name build job must run"; exit 1; }
+    crane export "$ref" - | tar -x $(paths "$name")
   done
 }
 
@@ -55,8 +80,10 @@ publish() {
 
 mode=${1:-}
 shift || true
+[ $# -gt 0 ] || { echo "usage: $0 check|fetch|publish name..." >&2; exit 2; }
 case "$mode" in
-  fetch) fetch "${@:-wasm android ios}" ;;
-  publish) [ $# -gt 0 ] && publish "$@" || { echo "usage: $0 publish name..." >&2; exit 2; } ;;
-  *) echo "usage: $0 fetch [name...]|publish name..." >&2; exit 2 ;;
+  check) check "$@" ;;
+  fetch) fetch "$@" ;;
+  publish) publish "$@" ;;
+  *) echo "usage: $0 check|fetch|publish name..." >&2; exit 2 ;;
 esac

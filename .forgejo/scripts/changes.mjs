@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Turns the GitLab rules (changed paths + ref conditions) into the plan that
-// the workflows gate their jobs with: `flags` (one per job) and `matrix` rows
-// (one per grouped job). Needs a full clone.
+// pr.yml gates its jobs with: `flags` (one per job) and `matrix` rows (one
+// per grouped job). Needs a full clone.
 //
 // Env: GITHUB_*, REGISTRY, EVENT_BEFORE.
 
@@ -72,7 +72,6 @@ const SERVER_STACK = [
 ];
 
 const rsCore = touches(CARGO, /^packages\/rs-[^/]+\//);
-const rsCoreWasm = touches(LOCK, 'patches/', 'packages/rs-core-wasm/');
 const jsSdk = touches(LOCK, /^packages\/js-[^/]+\//);
 const rnSdk = touches(LOCK, 'packages/react-native/');
 const ktCore = touches(
@@ -169,8 +168,6 @@ const flags = {
     push_notifications: pushNotifications,
     scraper,
     app,
-    build_wasm: rsCoreWasm || rsCore,
-    build_rn: rnSdk || rsCore,
     build_sdks: rsCore || jsSdk || rnSdk || app || verifierBot,
     build_rn_sdk: rnSdk || rsCore || app,
     kt_core_build: ktCore,

@@ -12,7 +12,6 @@ are still used.
 | `pr.yml` | pull requests | lint, package, image and docs builds, unit, integration and e2e tests, docs preview |
 | `pr-app.yml` | `build-app` label on a PR | staging EAS builds |
 | `pr-docs-cleanup.yml` | PR closed | remove the docs preview |
-| `develop.yml` | push to `develop` touching the rs-core libraries' sources, manual run | rebuild them, refresh their develop copies |
 | `deploy-<component>-staging.yml` | push to `develop` touching the component, manual run | staging deploy |
 | `deploy-<component>-production.yml` | manual | production deploy |
 | `release.yml` | `v*` and `app-*` tags | packages, images, production apps, the release |
@@ -27,12 +26,12 @@ Rules:
   or script it uses) changed. Tags build everything.
 - Images are pushed as `<image>:<sha>`. PRs are squash-merged, so a develop
   commit is a new SHA and a deploy rebuilds the image it needs.
-- The rs-core libraries (wasm, Android, iOS) have develop copies in the
-  registry, `ci/rs-core-<name>:develop`, kept by `develop.yml`. A job builds
-  the ones its push changed and takes the rest from there
-  (`rs-core-libraries.sh`); web and the verifier bot need only wasm, the app
-  only Android and iOS. The first run needs a manual `develop.yml` to seed
-  the copies.
+- The rs-core libraries (wasm, Android, iOS) are pushed as
+  `ci/rs-core-<name>:<key>`, the key a hash of the sources that produce that
+  library (`rs-core-libraries.sh`). A job takes the copy for its sources and
+  builds the library only when there is none, so a squash commit shares its
+  PR's copy and a copy for other sources is never used. Web and the verifier
+  bot need only wasm, the app only Android and iOS.
 - `pr.yml`'s last job, `Complete`, fails if any job in the run did. It is the
   required status check on `develop` (`PR / Complete (pull_request)`, set in
   harbor-infra `futo-git/org`), so a PR that ran nothing still reports.
@@ -45,8 +44,8 @@ Components: `server`, `moderation`, `push-notifications`, `scraper`,
 `deploy-<component>-staging.yml` runs on a push to `develop` that touches the
 component's paths (or the workflow and the actions it uses), and manually. A
 service deploy takes the commit's image from the registry and builds it only
-when missing (`web` and `verifier-bot` first the SDKs, and wasm when the push
-changed it), packages and pushes the component's chart as
+when missing (`web` and `verifier-bot` first the SDKs, and wasm when its copy
+is missing), packages and pushes the component's chart as
 `<next patch>-<ref>.g<sha>` with the commit as `appVersion`, then moves the
 image and chart `staging` tags. helm-controller watches the chart tag. `web`
 also uploads its bundle to the static bucket. `app` builds the staging apps on
