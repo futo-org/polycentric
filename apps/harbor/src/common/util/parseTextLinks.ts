@@ -1,3 +1,6 @@
+// The server mirrors the mention rules below in
+// `packages/rs-common/src/mentions.rs` (to notify mentioned users). Keep the
+// two in sync.
 type SegmentBody =
   | { type: 'text'; value: string }
   | { type: 'link'; value: string; url: string }
