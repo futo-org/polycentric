@@ -25,7 +25,7 @@ where
     Ok(Filtered { rows, page_info })
 }
 
-/// Filter out deleted events or events by blocked identities..
+/// Filter out deleted events or events by blocked identities.
 pub async fn deleted_or_blocked<Params, Row, SortedBy>(
     _: &RequestContext<'_>,
     _: &Params,
@@ -45,20 +45,6 @@ where
             .contains(&row.as_event().identity)
             && !hydration.deletes_by_target.contains_key(&row.event_key())
     });
-    Ok(Filtered { rows, page_info })
-}
-
-/// No filtering, just returns the rows and page info.
-pub async fn none<Ctx, Params, Row, SortedBy>(
-    _: &Ctx,
-    _: &Params,
-    fetched: Fetched<Row, SortedBy>,
-    _: &HydrationState,
-) -> Result<Filtered<Row, SortedBy>, Status>
-where
-    Row: EventRow,
-{
-    let Fetched { rows, page_info } = fetched;
     Ok(Filtered { rows, page_info })
 }
 
