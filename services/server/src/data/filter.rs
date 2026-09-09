@@ -6,8 +6,8 @@ use crate::data::{EventRow, PageInfo};
 use crate::service::context::ServiceContext;
 
 /// Filter out deleted events.
-pub async fn deleted<Params, Row, SortedBy>(
-    _: &ServiceContext,
+pub async fn deleted<Ctx, Params, Row, SortedBy>(
+    _: &Ctx,
     _: &Params,
     fetched: Fetched<Row, SortedBy>,
     hydration: &HydrationState,
