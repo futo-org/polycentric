@@ -16,17 +16,13 @@ import { type Href, router } from 'expo-router';
 import { useCallback } from 'react';
 import { Pressable, View } from 'react-native';
 import type {
-  MentionNotification,
   NotificationData,
   QuoteNotification,
   ReplyNotification,
 } from './utils';
 
 /** Notifications rendered as the actor's own post. */
-type PostNotification =
-  | ReplyNotification
-  | QuoteNotification
-  | MentionNotification;
+type PostNotification = ReplyNotification | QuoteNotification;
 
 /** Route to a post's thread, or `null` when its key can't be fingerprinted. */
 function postRoute(post: PostData) {
@@ -43,6 +39,8 @@ function summary(
   switch (notification.kind) {
     case 'follow':
       return 'followed you';
+    case 'mention':
+      return 'mentioned you';
     case 'repost':
       return 'reposted your post';
     case 'reaction':
@@ -56,7 +54,8 @@ function summary(
   }
 }
 
-/** Your post, shown as a quoted block — the thing acted upon. */
+/** The post shown as a quoted block: yours that was acted upon, or the
+ *  actor's that mentions you. */
 function quotedPost(
   notification: Exclude<NotificationData, PostNotification>,
 ): PostData | undefined {
@@ -64,6 +63,8 @@ function quotedPost(
     case 'reaction':
     case 'repost':
       return notification.targetPost;
+    case 'mention':
+      return notification.mentioningPost;
     case 'follow':
     case 'verificationRequest':
     case 'verificationComplete':
@@ -83,6 +84,8 @@ function notificationRoute(
       return notification.targetPost
         ? postRoute(notification.targetPost)
         : null;
+    case 'mention':
+      return postRoute(notification.mentioningPost);
     case 'verificationRequest':
     case 'verificationComplete': {
       const key = notification.claimKey;
@@ -103,22 +106,19 @@ export default function Notification({
 }: {
   notification: NotificationData;
 }) {
-  // Replies, quotes and mentions are just the actor's post (the quote
-  // embeds the quoted post itself).
+  // Replies and quotes are just the actor's post (the quote embeds the
+  // quoted post itself).
   if (notification.kind === 'reply') {
     return <Post post={notification.reply} />;
   }
   if (notification.kind === 'quote') {
     return <Post post={notification.quote} />;
   }
-  if (notification.kind === 'mention') {
-    return <Post post={notification.mentioningPost} />;
-  }
   return <InteractionNotification notification={notification} />;
 }
 
-/** Follow / repost / reaction, rendered as an actor + action row with an
- *  optional quoted post. */
+/** Follow / repost / reaction / mention, rendered as an actor + action row
+ *  with an optional quoted post. */
 function InteractionNotification({
   notification,
 }: {
