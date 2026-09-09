@@ -1,0 +1,19 @@
+name: wasm-build
+description: rs-core-wasm release build, uploaded as rs-core-wasm-build (GitLab build_rs_core.yml). ci/rust job image; save the Rust cache after it.
+runs:
+  using: composite
+  steps:
+    - uses: ./.forgejo/actions/rust-env
+      with:
+        cache: wasm
+    - shell: bash
+      run: pnpm install --filter @polycentric/rs-core-wasm
+    - shell: bash
+      run: pnpm --filter @polycentric/rs-core-wasm build --release
+    - uses: forgejo/upload-artifact@v4
+      with:
+        name: rs-core-wasm-build
+        path: |
+          packages/rs-core-wasm/src/generated/wasm
+          packages/rs-core-wasm/dist
+        retention-days: 7

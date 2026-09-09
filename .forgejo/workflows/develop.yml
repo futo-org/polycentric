@@ -1,0 +1,37 @@
+name: Develop
+
+# Pushes to develop: the rs-core libraries the commit's Test run published
+# become develop's copy. Deploys are the deploy-*-staging workflows.
+
+on:
+  push:
+    branches: [develop]
+
+concurrency:
+  group: develop
+  cancel-in-progress: false
+
+jobs:
+  libraries:
+    name: rs-core libraries
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    env:
+      REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git crane
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/registry-login
+        with:
+          registry: ${{ env.REGISTRY }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Tag the commit's copy as develop
+        run: |
+          libraries="$REGISTRY/ci/rs-core-libraries"
+          if crane digest "$libraries:$GITHUB_SHA" >/dev/null 2>&1; then
+            crane tag "$libraries:$GITHUB_SHA" develop
+          else
+            echo "no libraries published for $GITHUB_SHA; develop's copy stands"
+          fi

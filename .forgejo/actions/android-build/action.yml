@@ -1,0 +1,17 @@
+name: android-build
+description: react-native Android libraries (also the Kotlin AAR's targets), uploaded as rn-android-build (GitLab build_rn_sdk.yml). ci/rust-android job image; save the Rust cache after it.
+runs:
+  using: composite
+  steps:
+    - uses: ./.forgejo/actions/rust-env
+      with:
+        cache: android
+    - shell: bash
+      run: pnpm install --filter @polycentric/react-native
+    - shell: bash
+      run: pnpm --filter @polycentric/react-native ubrn:android --release
+    - uses: forgejo/upload-artifact@v4
+      with:
+        name: rn-android-build
+        path: packages/react-native/android/src/main/jniLibs
+        retention-days: 7

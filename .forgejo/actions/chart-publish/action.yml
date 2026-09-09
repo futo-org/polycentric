@@ -1,0 +1,48 @@
+name: chart-publish
+description: Packages and pushes one chart as <next patch>-<ref>.g<sha> with the commit as appVersion, tags it by commit and signs it (GitLab publish_charts.yml). Needs helm, crane, curl, jq.
+inputs:
+  registry:
+    required: true
+  chart:
+    description: Directory under deploy/charts
+    required: true
+  registry-user:
+    required: true
+  registry-token:
+    required: true
+  cosign-key:
+    description: COSIGN_PRIVATE_KEY; empty skips signing
+    default: ''
+outputs:
+  version:
+    value: ${{ steps.publish.outputs.version }}
+runs:
+  using: composite
+  steps:
+    - uses: ./.forgejo/actions/registry-login
+      with:
+        registry: ${{ inputs.registry }}
+        registry-user: ${{ inputs.registry-user }}
+        registry-token: ${{ inputs.registry-token }}
+    - id: publish
+      shell: bash
+      env:
+        REGISTRY: ${{ inputs.registry }}
+        CHART: ${{ inputs.chart }}
+      run: |
+        latest=$(curl -fsS "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases?limit=1" | jq -r '.[0].tag_name // "0.0.0"') || latest=""
+        [ -n "$latest" ] || latest="0.0.0"
+        core=${latest#v}; core=${core%%-*}
+        oldIFS=$IFS; IFS=.; set -- $core; IFS=$oldIFS
+        ref=$(echo "$GITHUB_REF_NAME" | tr -c 'a-zA-Z0-9\n' -)
+        # helm-controller only upgrades on a version change.
+        version="${1:-0}.${2:-0}.$(( ${3:-0} + 1 ))-${ref}.g$(echo "$GITHUB_SHA" | cut -c1-8)"
+        helm package "deploy/charts/$CHART" --version "$version" --app-version "$GITHUB_SHA" --destination packaged
+        helm push "packaged/${CHART}-${version}.tgz" "oci://$REGISTRY/charts"
+        crane tag "$REGISTRY/charts/$CHART:$version" "$GITHUB_SHA"
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+    # Flux verifies the chart signature before every helm upgrade.
+    - uses: ./.forgejo/actions/cosign-sign
+      with:
+        refs: ${{ inputs.registry }}/charts/${{ inputs.chart }}:${{ steps.publish.outputs.version }}
+        key: ${{ inputs.cosign-key }}

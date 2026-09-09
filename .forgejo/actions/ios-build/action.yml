@@ -1,0 +1,26 @@
+name: ios-build
+description: react-native iOS libraries built in the ephemeral Tart macOS VM (the .cirrus.yml steps run directly), uploaded as rn-ios-build. Needs CARGO_HOME and CARGO_TARGET_DIR under the workspace.
+runs:
+  using: composite
+  steps:
+    - name: Install toolchain
+      shell: bash
+      run: |
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+        source "$CARGO_HOME/env"
+        rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+        brew install just protobuf cmake ninja clang-format pnpm
+    - name: Build iOS libraries
+      shell: bash
+      working-directory: packages/react-native
+      run: |
+        source "$CARGO_HOME/env"
+        pnpm i
+        pnpm ubrn:ios
+    - uses: forgejo/upload-artifact@v4
+      with:
+        name: rn-ios-build
+        path: |
+          packages/react-native/ios
+          packages/react-native/PolycentricReactNativeFramework.xcframework
+        retention-days: 7

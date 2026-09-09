@@ -1,79 +1,108 @@
-name: App
+name: Deploy app to staging
 
-# GitLab build_app.yml (EAS) and deploy_app.yml (app).
+# GitLab build_app.yml (EAS) and deploy_app.yml (app), staging channel.
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
-      plan:
-        type: string
-        required: true
-      is_tag:
-        type: string
-        required: true
+      ios_e2e:
+        description: Run the iOS e2e suite on the store build
+        type: boolean
+        default: false
+  push:
+    branches: [develop]
+    paths:
+      - pnpm-lock.yaml
+      - apps/**
+      - .forgejo/workflows/deploy-app-staging.yml
+      - .forgejo/actions/sdk-build/**
+      - .forgejo/actions/eas-build/**
+
+concurrency:
+  group: deploy-app-staging
+  cancel-in-progress: false
 
 jobs:
+  sdks:
+    name: SDKs
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/sdk-build
+        with:
+          registry: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
+          rn-sdk: 'true'
+
   # Store builds only queue on EAS, so their submit jobs follow right away
   # and EAS waits for the build itself.
-  app-eas-store:
+  store:
     name: ${{ matrix.label }}
-    if: fromJSON(inputs.plan).flags.eas_store
+    needs: sdks
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(inputs.plan).matrix.eas_store }}
+      matrix:
+        include:
+          - platform: android
+            name: app-android-aab-staging
+            label: Build Android AAB
+          - platform: ios
+            name: app-ios-staging
+            label: Build iOS app
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      CI_COMMIT_TAG: ${{ inputs.is_tag == 'true' && github.ref_name || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/eas-build
         with:
           platform: ${{ matrix.platform }}
-          profile: ${{ matrix.profile }}
+          profile: staging
       - uses: forgejo/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
           path: apps/harbor/eas-build.json
           retention-days: 7
 
-  app-eas-apk:
-    name: ${{ matrix.label }}
-    if: fromJSON(inputs.plan).flags.eas_apk
+  apk:
+    name: Build Android APK
+    needs: sdks
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(inputs.plan).matrix.eas_apk }}
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      CI_COMMIT_TAG: ${{ inputs.is_tag == 'true' && github.ref_name || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/eas-build
         with:
-          platform: ${{ matrix.platform }}
-          profile: ${{ matrix.profile }}
+          platform: android
+          profile: staging-apk
           wait: 'true'
       - uses: forgejo/upload-artifact@v4
         with:
-          name: ${{ matrix.name }}
+          name: app-android-apk-staging
           path: |
             apps/harbor/eas-build.json
             apps/harbor/harbor.apk
           retention-days: 7
 
   # eas-cli needs the expo project config even when submitting by id.
-  app-store-deploy:
+  store-deploy:
     name: ${{ matrix.label }}
-    needs: app-eas-store
-    if: ${{ !cancelled() && fromJSON(inputs.plan).flags.deploy_store && needs.app-eas-store.result == 'success' }}
+    needs: store
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(inputs.plan).matrix.deploy_store }}
+      matrix:
+        include:
+          - platform: android
+            build: app-android-aab-staging
+            label: Deploy Android app
+          - platform: ios
+            build: app-ios-staging
+            label: Deploy iOS app
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
@@ -89,22 +118,17 @@ jobs:
         working-directory: apps/harbor
         env:
           PLATFORM: ${{ matrix.platform }}
-          CHANNEL: ${{ matrix.channel }}
         run: |
           BUILD_ID=$(node -p "[].concat(JSON.parse(require('fs').readFileSync('eas-build.json', 'utf8')))[0].id")
-          npx eas-cli submit --platform "$PLATFORM" --profile "$CHANNEL" --id "$BUILD_ID" --non-interactive --no-wait
+          npx eas-cli submit --platform "$PLATFORM" --profile staging --id "$BUILD_ID" --non-interactive --no-wait
 
-  app-apk-deploy:
-    name: ${{ matrix.label }}
-    needs: app-eas-apk
-    if: ${{ !cancelled() && fromJSON(inputs.plan).flags.deploy_apk && needs.app-eas-apk.result == 'success' }}
+  apk-deploy:
+    name: Deploy APK
+    needs: apk
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(inputs.plan).matrix.deploy_apk }}
     env:
-      UPDATE_CHANNEL: ${{ matrix.channel }}
+      UPDATE_CHANNEL: staging
       STATIC_S3_ENDPOINT: ${{ secrets.STATIC_S3_ENDPOINT }}
       STATIC_S3_BUCKET: ${{ vars.STATIC_S3_BUCKET }}
       STATIC_S3_ACCESS_KEY_ID: ${{ secrets.STATIC_S3_ACCESS_KEY_ID }}
@@ -112,40 +136,33 @@ jobs:
       STATIC_PUBLIC_BASE_URL: ${{ vars.STATIC_PUBLIC_BASE_URL }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: forgejo/download-artifact@v4
         with:
-          name: app-android-apk-${{ matrix.channel }}
+          name: app-android-apk-staging
           path: apps/harbor
-      # v* tags put the release notes into latest.json.
-      - name: Release notes
-        if: matrix.channel == 'production' && fromJSON(inputs.plan).flags.release
-        run: node .forgejo/scripts/release-notes.mjs release_notes.md
       - name: Publish the APK
         run: |
           export CI_COMMIT_SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-8)
           export CI_COMMIT_TITLE=$(git log -1 --format=%s)
           node .gitlab/ci/scripts/publish-android-update.mjs
 
-  app-ios-e2e:
-    name: ${{ matrix.label }}
-    needs: app-eas-store
-    if: fromJSON(inputs.plan).flags.ios_e2e
+  # An empty matrix creates no job; an `if` would wait for the device runner.
+  ios-e2e:
+    name: Test iOS e2e
+    needs: store
     runs-on: ${{ vars.CI_RUNNER_IOS_DEVICE || 'ios-device' }}
     continue-on-error: true
     strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(inputs.plan).matrix.ios_e2e }}
+      matrix: ${{ inputs.ios_e2e && fromJSON('{"include":[{"channel":"staging"}]}') || fromJSON('{"include":[]}') }}
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       MAESTRO_OUTPUT: reports
-      MAESTRO_APP_ID: ${{ matrix.app_id }}
+      MAESTRO_APP_ID: org.futo.polycentric.staging
     steps:
       - uses: actions/checkout@v4
       - uses: forgejo/download-artifact@v4
         with:
-          name: app-ios-${{ matrix.channel }}
+          name: app-ios-staging
           path: apps/harbor
       - name: Install dependencies
         run: pnpm install --filter harbor-e2e... --filter polycentric-app...
@@ -158,6 +175,6 @@ jobs:
       - uses: forgejo/upload-artifact@v4
         if: always()
         with:
-          name: e2e-ios-${{ matrix.channel }}-report
+          name: e2e-ios-staging-report
           path: e2e/reports
           retention-days: 7
