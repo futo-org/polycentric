@@ -1,0 +1,87 @@
+name: Deploy verifier bot to staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - package.json
+      - tools/**
+      - patches/**
+      - packages/js-*/**
+      - packages/rs-core-wasm/**
+      - services/verifier-bot/**
+      - deploy/charts/harbor-verifier-bot/**
+      - .forgejo/workflows/deploy-verifier-bot-staging.yml
+      - .forgejo/actions/sdk-build/**
+      - .forgejo/actions/service-image/**
+      - .forgejo/actions/chart-publish/**
+      - .forgejo/actions/deploy-tag/**
+      - .forgejo/scripts/image-exists.sh
+
+concurrency:
+  group: deploy-verifier-bot-staging
+  cancel-in-progress: false
+
+jobs:
+  # The image needs the SDKs only when the PR did not build it.
+  sdks:
+    name: SDKs
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
+    outputs:
+      image: ${{ steps.image.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the commit's image
+        id: image
+        run: .forgejo/scripts/image-exists.sh verifier-bot
+      - if: steps.image.outputs.exists != 'true'
+        uses: ./.forgejo/actions/sdk-build
+        with:
+          registry: ${{ env.REGISTRY }}
+
+  deploy:
+    name: Deploy
+    needs: sdks
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    env:
+      REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git curl jq crane helm docker-cli docker-cli-buildx
+      - uses: actions/checkout@v4
+      - if: needs.sdks.outputs.image != 'true'
+        uses: ./.forgejo/actions/sdk-artifacts
+      - if: needs.sdks.outputs.image != 'true'
+        uses: ./.forgejo/actions/service-image
+        with:
+          image: verifier-bot
+          dockerfile: services/verifier-bot
+          registry: ${{ env.REGISTRY }}
+          export-cache: 'true'
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      - uses: ./.forgejo/actions/chart-publish
+        id: chart
+        with:
+          registry: ${{ env.REGISTRY }}
+          chart: harbor-verifier-bot
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      - uses: ./.forgejo/actions/deploy-tag
+        with:
+          registry: ${{ env.REGISTRY }}
+          image: verifier-bot
+          chart: harbor-verifier-bot
+          chart-version: ${{ steps.chart.outputs.version }}
+          environment: staging
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}

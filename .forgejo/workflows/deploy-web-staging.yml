@@ -1,0 +1,99 @@
+name: Deploy web to staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - pnpm-lock.yaml
+      - apps/**
+      - deploy/charts/harbor-web/**
+      - .forgejo/workflows/deploy-web-staging.yml
+      - .forgejo/actions/sdk-build/**
+      - .forgejo/actions/service-image/**
+      - .forgejo/actions/chart-publish/**
+      - .forgejo/actions/deploy-tag/**
+      - .forgejo/scripts/image-exists.sh
+
+concurrency:
+  group: deploy-web-staging
+  cancel-in-progress: false
+
+jobs:
+  # The image needs the SDKs only when the PR did not build it.
+  sdks:
+    name: SDKs
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
+    outputs:
+      image: ${{ steps.image.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the commit's image
+        id: image
+        run: .forgejo/scripts/image-exists.sh web
+      - if: steps.image.outputs.exists != 'true'
+        uses: ./.forgejo/actions/sdk-build
+        with:
+          registry: ${{ env.REGISTRY }}
+          rn-sdk: 'true'
+
+  deploy:
+    name: Deploy
+    needs: sdks
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    env:
+      REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
+      STATIC_S3_ENDPOINT: ${{ secrets.STATIC_S3_ENDPOINT }}
+      STATIC_S3_BUCKET: ${{ vars.STATIC_S3_BUCKET }}
+      STATIC_S3_ACCESS_KEY_ID: ${{ secrets.STATIC_S3_ACCESS_KEY_ID }}
+      STATIC_S3_SECRET_ACCESS_KEY: ${{ secrets.STATIC_S3_SECRET_ACCESS_KEY }}
+      STATIC_PUBLIC_BASE_URL: ${{ vars.STATIC_PUBLIC_BASE_URL }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git curl jq crane helm docker-cli docker-cli-buildx
+      - uses: actions/checkout@v4
+      - name: Resolve version
+        if: needs.sdks.outputs.image != 'true'
+        id: version
+        run: echo "app_version=$(node tools/expo/resolve-version.js)+$(echo "$GITHUB_SHA" | cut -c1-8)" >> "$GITHUB_OUTPUT"
+      - if: needs.sdks.outputs.image != 'true'
+        uses: ./.forgejo/actions/sdk-artifacts
+        with:
+          rn-sdk: 'true'
+      - if: needs.sdks.outputs.image != 'true'
+        uses: ./.forgejo/actions/service-image
+        with:
+          image: web
+          dockerfile: apps/harbor
+          registry: ${{ env.REGISTRY }}
+          export-cache: 'true'
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.app_version }}
+            EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS=${{ vars.EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS }}
+            EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS=${{ vars.EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS }}
+            SKIP_WORKSPACE_BUILD=1
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      - uses: ./.forgejo/actions/chart-publish
+        id: chart
+        with:
+          registry: ${{ env.REGISTRY }}
+          chart: harbor-web
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      - uses: ./.forgejo/actions/deploy-tag
+        with:
+          registry: ${{ env.REGISTRY }}
+          image: web
+          chart: harbor-web
+          chart-version: ${{ steps.chart.outputs.version }}
+          environment: staging
+          web-assets: 'true'
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}

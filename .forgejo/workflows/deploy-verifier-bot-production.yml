@@ -1,0 +1,35 @@
+name: Deploy verifier bot to production
+
+# Moves the staging image and chart tags to production, or a commit's.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit to deploy instead of what staging runs (its image and chart must exist)
+        type: string
+        default: ''
+
+concurrency:
+  group: deploy-verifier-bot-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git curl crane
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/deploy-tag
+        with:
+          registry: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
+          image: verifier-bot
+          chart: harbor-verifier-bot
+          chart-version: ${{ inputs.sha || 'staging' }}
+          tag: ${{ inputs.sha || 'staging' }}
+          environment: production
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}

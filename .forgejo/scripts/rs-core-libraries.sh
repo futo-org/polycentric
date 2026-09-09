@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# rs-core libraries this run did not build come from the default branch's
-# copy, an image in the registry; default-branch runs republish it complete.
+# rs-core libraries a run did not build come from the registry: the commit's
+# copy when a run published it, else the default branch's (develop.yml retags
+# the commit's copy once it lands).
 #
 # Usage: rs-core-libraries.sh fetch|publish
-# Env: REGISTRY, DEFAULT_BRANCH; publish needs the registry-login action first.
+# Env: REGISTRY, GITHUB_SHA, DEFAULT_BRANCH; publish needs the registry-login action first.
 set -euo pipefail
 
-image="${REGISTRY}/ci/rs-core-libraries:${DEFAULT_BRANCH:-develop}"
+repo="${REGISTRY}/ci/rs-core-libraries"
+commit="$repo:${GITHUB_SHA}"
+default="$repo:${DEFAULT_BRANCH:-develop}"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -25,11 +28,15 @@ fetch() {
     if [ -e "$1" ]; then
       echo "$name: built by this run"
     else
-      echo "$name: from $image"
+      echo "$name: from the registry"
       missing+=("$@")
     fi
   done
-  [ ${#missing[@]} -eq 0 ] || crane export "$image" - | tar -x "${missing[@]}"
+  [ ${#missing[@]} -gt 0 ] || return 0
+  image=$default
+  crane digest "$commit" >/dev/null 2>&1 && image=$commit
+  echo "fetching from $image"
+  crane export "$image" - | tar -x "${missing[@]}"
 }
 
 publish() {
@@ -40,7 +47,7 @@ publish() {
     paths+=("$@")
   done
   tar cf "$tmp/libs.tar" "${paths[@]}"
-  crane append -f "$tmp/libs.tar" -t "$image"
+  crane append -f "$tmp/libs.tar" -t "$commit"
 }
 
 case "${1:-}" in

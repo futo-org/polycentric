@@ -1,0 +1,63 @@
+name: Deploy grayjay migrator to staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - Cargo.toml
+      - Cargo.lock
+      - services/grayjay-migrator/**
+      - services/common/**
+      - deploy/charts/harbor-grayjay-migrator/**
+      - .forgejo/workflows/deploy-grayjay-migrator-staging.yml
+      - .forgejo/actions/service-image/**
+      - .forgejo/actions/chart-publish/**
+      - .forgejo/actions/deploy-tag/**
+      - .forgejo/scripts/image-exists.sh
+
+concurrency:
+  group: deploy-grayjay-migrator-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    env:
+      REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git curl jq crane helm docker-cli docker-cli-buildx
+      - uses: actions/checkout@v4
+      - name: Check the commit's image
+        id: image
+        run: .forgejo/scripts/image-exists.sh grayjay-migrator
+      - if: steps.image.outputs.exists != 'true'
+        uses: ./.forgejo/actions/service-image
+        with:
+          image: grayjay-migrator
+          dockerfile: services/grayjay-migrator
+          registry: ${{ env.REGISTRY }}
+          export-cache: 'true'
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      - uses: ./.forgejo/actions/chart-publish
+        id: chart
+        with:
+          registry: ${{ env.REGISTRY }}
+          chart: harbor-grayjay-migrator
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      - uses: ./.forgejo/actions/deploy-tag
+        with:
+          registry: ${{ env.REGISTRY }}
+          image: grayjay-migrator
+          chart: harbor-grayjay-migrator
+          chart-version: ${{ steps.chart.outputs.version }}
+          environment: staging
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}

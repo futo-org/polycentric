@@ -9,16 +9,11 @@ inputs:
     required: true
   registry:
     required: true
-  ref-slug:
-    required: true
-  default-branch-tag:
-    description: Also push the moving <default branch> tag
-    default: 'false'
   build-args:
     description: One KEY=VALUE per line
     default: ''
   export-cache:
-    description: Refresh the branch's build cache; the default branch keeps the shared one warm
+    description: Refresh the shared build cache
     default: 'false'
   registry-user:
     required: true
@@ -39,8 +34,6 @@ runs:
       env:
         IMAGE: ${{ inputs.registry }}/${{ inputs.image }}
         DOCKERFILE: ${{ inputs.dockerfile }}
-        REF_SLUG: ${{ inputs.ref-slug }}
-        DEFAULT_BRANCH_TAG: ${{ inputs.default-branch-tag }}
         BUILD_ARGS: ${{ inputs.build-args }}
         EXPORT_CACHE: ${{ inputs.export-cache }}
       run: |
@@ -51,9 +44,6 @@ runs:
         # Without a per-commit label a fully cached build is byte-identical to
         # the previous one and containerd reports the older pull's digest.
         set -- --tag "$IMAGE:$GITHUB_SHA" --label "org.opencontainers.image.revision=$GITHUB_SHA"
-        if [ "$DEFAULT_BRANCH_TAG" = true ]; then
-          set -- "$@" --tag "$IMAGE:${DEFAULT_BRANCH:-develop}"
-        fi
         while IFS= read -r arg; do
           [ -n "$arg" ] && set -- "$@" --build-arg "$arg"
         done <<< "$BUILD_ARGS"
@@ -65,7 +55,7 @@ runs:
         # step that changed instead of the top of the Dockerfile.
         if [ "$EXPORT_CACHE" = true ]; then
           docker buildx build "$@" \
-            --cache-to "type=registry,ref=$IMAGE:cache-$REF_SLUG,mode=max,ignore-error=true,image-manifest=true,oci-mediatypes=true" .
+            --cache-to "type=registry,ref=$IMAGE:cache-${DEFAULT_BRANCH:-develop},mode=max,ignore-error=true,image-manifest=true,oci-mediatypes=true" .
         fi
     # Sign the commit's image by digest; the moving tags share that digest.
     - uses: ./.forgejo/actions/cosign-sign

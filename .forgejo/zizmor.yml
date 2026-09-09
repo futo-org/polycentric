@@ -1,4 +1,4 @@
-# ci-checks.yml, Lint workflows.
+# pr.yml, Lint workflows.
 rules:
   unpinned-uses:
     config:

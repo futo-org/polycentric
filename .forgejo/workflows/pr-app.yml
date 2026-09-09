@@ -1,6 +1,7 @@
 name: PR apps
 
-# The build-app label on a pull request: the staging EAS builds for its head.
+# The build-app label on a pull request: the staging EAS builds for its head,
+# on the rs-core libraries its Test run published (else develop's).
 
 on:
   pull_request:
@@ -11,70 +12,65 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  changes:
-    name: Plan
+  sdks:
+    name: Build SDKs
     if: github.event.label.name == 'build-app'
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
-    outputs:
-      registry: ${{ steps.plan.outputs.registry }}
-      images_tag: ${{ steps.plan.outputs.images_tag }}
-      default_branch: ${{ steps.plan.outputs.default_branch }}
-      default_ref: ${{ steps.plan.outputs.default_ref }}
-      plan: ${{ steps.plan.outputs.plan }}
-      images_missing: ${{ steps.plan.outputs.images_missing }}
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/sdk-build
         with:
-          fetch-depth: 0
-      - uses: ./.forgejo/actions/plan
-        id: plan
-        with:
-          eas-staging: 'true'
+          registry: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
+          rn-sdk: 'true'
 
-  setup-images:
-    name: Build CI images
-    needs: changes
+  store:
+    name: ${{ matrix.label }}
+    needs: sdks
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            name: app-android-aab-staging
+            label: Build Android AAB
+          - platform: ios
+            name: app-ios-staging
+            label: Build iOS app
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
-      - uses: ./.forgejo/actions/ci-images
-        if: needs.changes.outputs.images_missing == 'true'
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/eas-build
         with:
-          registry: ${{ needs.changes.outputs.registry }}
-          tag: ${{ needs.changes.outputs.images_tag }}
-          registry-user: ${{ vars.REGISTRY_USER }}
-          registry-token: ${{ secrets.REGISTRY_TOKEN }}
-          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          platform: ${{ matrix.platform }}
+          profile: staging
+      - uses: forgejo/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: apps/harbor/eas-build.json
+          retention-days: 7
 
-  packages:
-    name: Packages
-    needs: [changes, setup-images]
-    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.setup-images.result != 'failure' }}
-    uses: ./.forgejo/workflows/ci-packages.yml
-    secrets: inherit
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
-      registry: ${{ needs.changes.outputs.registry }}
-      images_tag: ${{ needs.changes.outputs.images_tag }}
-      default_branch: ${{ needs.changes.outputs.default_branch }}
-      default_ref: ${{ needs.changes.outputs.default_ref }}
-
-  app-web-checks:
-    name: App & web checks
-    needs: changes
-    uses: ./.forgejo/workflows/ci-app-web-checks.yml
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
-
-  app:
-    name: App
-    needs: [changes, packages, app-web-checks]
-    if: >-
-      ${{ !cancelled() && needs.changes.result == 'success' && needs.packages.result != 'failure' &&
-      needs.app-web-checks.result != 'failure' }}
-    uses: ./.forgejo/workflows/ci-app.yml
-    secrets: inherit
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
-      is_tag: 'false'
+  apk:
+    name: Build Android APK
+    needs: sdks
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/eas-build
+        with:
+          platform: android
+          profile: staging-apk
+          wait: 'true'
+      - uses: forgejo/upload-artifact@v4
+        with:
+          name: app-android-apk-staging
+          path: |
+            apps/harbor/eas-build.json
+            apps/harbor/harbor.apk
+          retention-days: 7

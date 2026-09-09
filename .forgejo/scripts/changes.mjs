@@ -1,47 +1,21 @@
 #!/usr/bin/env node
 // Turns the GitLab rules (changed paths + ref conditions) into the plan that
-// the entry workflows (pr, pr-app, cd-staging, release) hand to the component
-// workflows: `flags` (one per job) and `matrix` rows (one per grouped job).
-// Needs a full clone.
+// pr.yml gates its jobs with: `flags` (one per job) and `matrix` rows (one
+// per grouped job). Needs a full clone.
 //
-// Env: GITHUB_*, REGISTRY, DEFAULT_BRANCH, STAGING_BRANCHES, EVENT_BEFORE,
-// INPUT_EAS_STAGING, INPUT_EAS_PRODUCTION, INPUT_IOS_E2E.
+// Env: GITHUB_*, REGISTRY, EVENT_BEFORE.
 
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 
 const env = process.env;
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
-const input = (name) => env[name] === 'true';
 
 // Run context ---------------------------------------------------------------
 
 const event = env.GITHUB_EVENT_NAME;
-const ref = env.GITHUB_REF;
-const defaultBranch = env.DEFAULT_BRANCH || 'develop';
-const branch = ref.startsWith('refs/heads/')
-  ? ref.slice('refs/heads/'.length)
-  : null;
-
-const dispatch = event === 'workflow_dispatch';
 const pr = event === 'pull_request';
-
-const isTag = ref.startsWith('refs/tags/');
-const release = /^refs\/tags\/v\d+\.\d+\.\d+/.test(ref);
-const appRelease = release || ref.startsWith('refs/tags/app-');
-
-// GitLab CI_COMMIT_BRANCH == CI_DEFAULT_BRANCH: a push or "Run pipeline".
-const branchRun = branch !== null && (event === 'push' || dispatch);
-const defaultRef = branchRun && branch === defaultBranch;
-const stagingBranches = (env.STAGING_BRANCHES || defaultBranch).split(',');
-const stagingRef =
-  branchRun && stagingBranches.map((b) => b.trim()).includes(branch);
-
-const refSlug = (env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME)
-  .toLowerCase()
-  .replace(/[^a-z0-9]/g, '-')
-  .replace(/^-+|-+$/g, '')
-  .slice(0, 63);
+const isTag = env.GITHUB_REF.startsWith('refs/tags/');
 
 // Changed files -------------------------------------------------------------
 // null = every path matches (manual runs, GitLab web pipelines); [] = none.
@@ -137,7 +111,6 @@ const verifierBot = touches(
   CHARTS,
 );
 const app = touches(LOCK, 'apps/', CHARTS);
-const appEas = touches(LOCK, 'apps/');
 const docs = touches('docs/');
 const charts = touches(
   CHARTS,
@@ -178,176 +151,73 @@ const jobs = (workflow, flags) =>
     ]),
   );
 
-const docsChanged = docs || ciChanged('ci-docs') || ciChanged('cd-docs');
-
-// EAS: production from app release tags or cd-production.yml on develop;
-// staging from staging branches (app or ci-app.yml changes) or the
-// eas_staging input (manual runs, pr-app.yml). A production run builds no
-// staging apps.
-const easProduction =
-  appRelease || (dispatch && defaultRef && input('INPUT_EAS_PRODUCTION'));
-const easStaging =
-  (stagingRef && !easProduction && (appEas || ciChanged('ci-app'))) ||
-  input('INPUT_EAS_STAGING');
-const iosE2e = dispatch && input('INPUT_IOS_E2E');
-
 // Jobs ----------------------------------------------------------------------
 
 const flags = {
-  ci: touches(
-    '.forgejo/workflows/',
-    '.forgejo/actions/',
-    '.forgejo/scripts/',
-    '.forgejo/zizmor.yml',
-  ),
-  scan: pr || defaultRef,
-  release,
-  docs: docsChanged,
-  docs_deploy: docsChanged && defaultRef,
-  docs_preview: docsChanged && pr,
-  ...jobs('ci-app-web-checks', {
-    app_checks: app || (appRelease && !release),
-  }),
-  ...jobs('ci-charts', { charts_lint: charts }),
-  ...jobs('ci-packages', {
+  ...jobs('pr', {
+    workflows: touches('.forgejo/'),
+    scan: pr,
+    rs_core_lint: rsCore,
+    rust_services_lint: server || moderation || pushNotifications,
+    js_sdk_lint: jsSdk,
+    js_services_lint: scraper || verifierBot,
+    charts_lint: charts,
+    docs_lint: docs,
+    app_lint: app,
     rs_core: rsCore,
     js_sdk: jsSdk,
-    build_wasm: rsCoreWasm || rsCore || release,
-    build_rn: rnSdk || rsCore || release,
-    build_sdks: rsCore || jsSdk || rnSdk || app || verifierBot || appRelease,
-    build_rn_sdk: rnSdk || rsCore || app || appRelease,
-    kt_core_build: ktCore || release,
-  }),
-  ...jobs('ci-rust-services', {
-    server,
-    moderation,
     push_notifications: pushNotifications,
+    scraper,
+    app,
+    build_wasm: rsCoreWasm || rsCore,
+    build_rn: rnSdk || rsCore,
+    build_sdks: rsCore || jsSdk || rnSdk || app || verifierBot,
+    build_rn_sdk: rnSdk || rsCore || app,
+    kt_core_build: ktCore,
+    image_scraper: scraper,
+    image_verifier_bot: verifierBot,
+    web_image: app,
     server_integration: serverIntegration,
     moderation_integration: moderationIntegration,
-  }),
-  ...jobs('ci-js-services', {
-    scraper,
-    verifier_bot: verifierBot,
     scraper_integration: scraper,
     verifier_bot_tests: verifierBot,
-    image_scraper: scraper || release,
-    image_verifier_bot: verifierBot || release,
+    web_e2e: app,
+    docs,
+    docs_preview: docs && pr,
   }),
-  ...jobs('ci-web', {
-    web_image: app || appRelease,
-    web_e2e: app || (appRelease && !release),
-  }),
-  // Deploys retag the chart, so staging branches publish it every run.
-  charts: stagingRef,
 };
 
 // Matrix rows ---------------------------------------------------------------
-// `image`/`name` is the id (artifacts, cache keys), `label` what the UI shows.
+// `image` is the id (artifacts, cache keys), `label` what the UI shows.
 
 const rustServices = [
   {
     image: 'server',
     label: 'server',
     dockerfile: 'services/server',
-    chart: 'harbor-server',
     changed: server,
   },
   {
     image: 'moderation-service',
     label: 'moderation',
     dockerfile: 'services/moderation',
-    chart: 'harbor-moderation',
     changed: moderation,
   },
   {
     image: 'push-notifications-service',
     label: 'push notifications',
     dockerfile: 'services/push-notifications',
-    chart: 'harbor-push-notifications',
     changed: pushNotifications,
   },
 ];
 
-const channels = [
-  {
-    channel: 'staging',
-    app_id: 'org.futo.polycentric.staging',
-    build: easStaging,
-    publish: stagingRef && easStaging,
-  },
-  {
-    channel: 'production',
-    app_id: 'org.futo.polycentric',
-    build: easProduction,
-    publish: easProduction,
-  },
-];
-const easBuilds = channels.filter((c) => c.build);
-const publishes = channels.filter((c) => c.publish);
-
-const buildsImage = (s) =>
-  s.changed || release || ciChanged('ci-rust-services');
-
 const matrix = {
   service_images: rustServices
-    .filter(buildsImage)
+    .filter((s) => s.changed || ciChanged('pr'))
     .map(({ image, label, dockerfile }) => ({
       image,
-      label: `Rust services / Build ${label} image`,
+      label: `Build ${label} image`,
       dockerfile,
-    })),
-  // Store builds only queue on EAS; the APK build waits for its archive.
-  eas_store: easBuilds.flatMap(({ channel }) => [
-    {
-      name: `app-android-aab-${channel}`,
-      label: `App / Build Android AAB (${channel})`,
-      platform: 'android',
-      profile: channel,
-    },
-    {
-      name: `app-ios-${channel}`,
-      label: `App / Build iOS app (${channel})`,
-      platform: 'ios',
-      profile: channel,
-    },
-  ]),
-  eas_apk: easBuilds.map(({ channel }) => ({
-    name: `app-android-apk-${channel}`,
-    label: `App / Build Android APK (${channel})`,
-    platform: 'android',
-    profile: `${channel}-apk`,
-  })),
-  deploy_store: publishes.flatMap(({ channel }) => [
-    {
-      channel,
-      platform: 'android',
-      label: `App / Deploy Android app to ${channel}`,
-      build: `app-android-aab-${channel}`,
-    },
-    {
-      channel,
-      platform: 'ios',
-      label: `App / Deploy iOS app to ${channel}`,
-      build: `app-ios-${channel}`,
-    },
-  ]),
-  deploy_apk: publishes.map(({ channel }) => ({
-    channel,
-    label: `App / Deploy APK to ${channel}`,
-  })),
-  ios_e2e: easBuilds
-    .filter(() => iosE2e)
-    .map(({ channel, app_id }) => ({
-      channel,
-      label: `App / Test iOS e2e (${channel})`,
-      app_id,
-    })),
-  deploy_rust_services: rustServices
-    .filter((s) => stagingRef && buildsImage(s))
-    .map(({ image, label, chart }) => ({
-      image,
-      label: `Rust services / Deploy ${label} to staging`,
-      chart,
     })),
 };
 for (const [name, rows] of Object.entries(matrix)) {
@@ -355,24 +225,14 @@ for (const [name, rows] of Object.entries(matrix)) {
   matrix[name] = { include: rows };
 }
 // Forgejo creates no job from an empty matrix and blocks whatever needs it:
-// services-integration needs this one.
+// the integration tests need this one.
 if (!flags.service_images) {
-  matrix.service_images.include.push({
-    label: 'Rust services / Build service images',
-  });
+  matrix.service_images.include.push({ label: 'Build service images' });
 }
-// Staging branches deploy what they built.
-flags.deploy_web = stagingRef && flags.web_image;
-flags.deploy_scraper = stagingRef && flags.image_scraper;
-flags.deploy_verifier_bot = stagingRef && flags.image_verifier_bot;
 // Jobs that download the SDK artifacts (sdk-artifacts action) need them built.
 flags.build_sdks ||=
-  flags.image_verifier_bot ||
-  flags.verifier_bot_tests ||
-  flags.web_image ||
-  flags.eas_store ||
-  release;
-flags.build_rn_sdk ||= flags.web_image || flags.eas_store || release;
+  flags.image_verifier_bot || flags.verifier_bot_tests || flags.web_image;
+flags.build_rn_sdk ||= flags.web_image;
 
 // Outputs -------------------------------------------------------------------
 
@@ -382,11 +242,7 @@ const out = (name, value) => {
   console.log(`${name}=${text}`);
 };
 out('registry', env.REGISTRY);
-out('ref_slug', refSlug);
 // CI images are tagged by the content of .gitlab/images; unchanged inputs
 // mean an existing tag and no build.
 out('images_tag', git('rev-parse', 'HEAD:.gitlab/images').slice(0, 12));
-out('default_branch', defaultBranch);
-out('is_tag', isTag);
-out('default_ref', defaultRef);
 out('plan', { flags, matrix });

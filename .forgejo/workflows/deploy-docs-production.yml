@@ -1,0 +1,36 @@
+name: Deploy docs to production
+
+# GitLab deploy_docs.yml. PR previews are pr.yml's docs-preview job.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - docs/**
+      - .forgejo/workflows/deploy-docs-production.yml
+      - .forgejo/actions/setup-pnpm/**
+
+concurrency:
+  group: deploy-docs-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter=polycentric-docs...
+      - name: Build
+        run: pnpm --filter=polycentric-docs run build
+      - name: Install wrangler
+        run: npm install -g wrangler # zizmor: ignore[adhoc-packages]
+      - name: Deploy
+        run: wrangler pages deploy ./docs/build --project-name=polycentric-docs --branch=production
