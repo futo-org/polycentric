@@ -3,7 +3,6 @@ use tonic::Status;
 use crate::data::hydration::HydrationState;
 use crate::data::pipeline::Fetched;
 use crate::data::{EventRow, PageInfo};
-use crate::service::context::ServiceContext;
 
 /// Filter out deleted events.
 pub async fn deleted<Ctx, Params, Row, SortedBy>(
@@ -45,6 +44,20 @@ where
                 && !hydration.deletes_by_target.contains_key(&row.event_key())
         })
         .collect();
+    Ok(Filtered { rows, page_info })
+}
+
+/// No filtering, just returns the rows and page info.
+pub async fn none<Ctx, Params, Row, SortedBy>(
+    _: &Ctx,
+    _: &Params,
+    fetched: Fetched<Row, SortedBy>,
+    _: &HydrationState,
+) -> Result<Filtered<Row, SortedBy>, Status>
+where
+    Row: EventRow,
+{
+    let Fetched { rows, page_info } = fetched;
     Ok(Filtered { rows, page_info })
 }
 
