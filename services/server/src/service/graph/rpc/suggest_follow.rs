@@ -2,10 +2,10 @@
 
 use tonic::Status;
 
+use crate::data::filter::{self, Filtered};
 use crate::data::hydration::{self, HydrateConfig, HydrationState};
-use crate::data::{
-    EventRow, Marker, PageInfo, PaginationParams, assemble_bundle, pipeline,
-};
+use crate::data::pipeline::{self, Fetched};
+use crate::data::{Marker, PaginationParams, assemble_bundle};
 use crate::service::context::RequestContext;
 use crate::service::graph::repository::{
     FollowSuggestionEvent, FollowSuggestionsSortedBy, Query,
@@ -34,18 +34,21 @@ pub async fn handle(
         identity,
     };
 
-    pipeline::create_pipeline(ctx, &params, fetch, hydrate, filter, view).await
-}
-
-struct Fetched {
-    rows: Vec<FollowSuggestionEvent>,
-    page_info: PageInfo<FollowSuggestionsSortedBy>,
+    pipeline::create_pipeline(
+        ctx,
+        &params,
+        fetch,
+        hydrate,
+        filter::deleted_or_blocked,
+        view,
+    )
+    .await
 }
 
 async fn fetch(
     ctx: &RequestContext<'_>,
     params: &Params,
-) -> Result<Fetched, Status> {
+) -> Result<Fetched<FollowSuggestionEvent, FollowSuggestionsSortedBy>, Status> {
     let mut rows = Query::suggest_follow(
         &ctx.service.ro_db,
         &params.identity,
@@ -73,7 +76,7 @@ async fn fetch(
 async fn hydrate(
     ctx: &RequestContext<'_>,
     _: &Params,
-    fetched: &Fetched,
+    fetched: &Fetched<FollowSuggestionEvent, FollowSuggestionsSortedBy>,
 ) -> Result<HydrationState, Status> {
     let mut hydration =
         hydration::hydrate(ctx, &fetched.rows, &HydrateConfig::default())
@@ -99,40 +102,14 @@ async fn hydrate(
     Ok(hydration)
 }
 
-struct Filtered {
-    live_rows: Vec<FollowSuggestionEvent>,
-    page_info: PageInfo<FollowSuggestionsSortedBy>,
-}
-
-async fn filter(
-    _: &RequestContext<'_>,
-    _: &Params,
-    fetched: Fetched,
-    hydration: &HydrationState,
-) -> Result<Filtered, Status> {
-    let Fetched { rows, page_info } = fetched;
-    let live_rows = rows
-        .into_iter()
-        .filter(|row| {
-            !hydration.blocked_identities.contains(&row.event.identity)
-                && !hydration.deletes_by_target.contains_key(&row.event_key())
-        })
-        .collect();
-
-    Ok(Filtered {
-        live_rows,
-        page_info,
-    })
-}
-
 async fn view(
     _: &RequestContext<'_>,
     _: &Params,
-    filtered: Filtered,
+    filtered: Filtered<FollowSuggestionEvent, FollowSuggestionsSortedBy>,
     hydration: HydrationState,
 ) -> Result<SuggestFollowResponse, Status> {
     let suggestions = filtered
-        .live_rows
+        .rows
         .into_iter()
         .map(|row| FollowSuggestion {
             suggestion: Some(assemble_bundle(
