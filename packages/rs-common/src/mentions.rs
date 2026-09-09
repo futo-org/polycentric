@@ -122,47 +122,42 @@ pub fn mentions_to_plain_text(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde::Deserialize;
 
-    fn sample_identity() -> String {
-        "a".repeat(64)
+    /// Shared with the client's `parseTextLinks.test.ts`, which runs the same
+    /// file — so both parsers agree on every case.
+    const FIXTURES: &str = include_str!("mentions.fixtures.json");
+
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Expected {
+        Identity { identity: String },
+        Alias { alias: String },
+    }
+
+    #[derive(Deserialize)]
+    struct Fixture {
+        name: String,
+        text: String,
+        mentions: Vec<Expected>,
+        plain: String,
     }
 
     #[test]
-    fn extracts_every_supported_form() {
-        let identity = sample_identity();
-        let text = format!(
-            "hi @{{{identity},Jane Doe}} @{{{identity}}} @{identity} @bob@example.com, @ex.org!"
-        );
-        assert_eq!(
-            extract_mentions(&text),
-            vec![
-                Mention::Identity(identity.clone()),
-                Mention::Identity(identity.clone()),
-                Mention::Identity(identity),
-                Mention::Alias("bob@example.com".into()),
-                Mention::Alias("ex.org".into()),
-            ]
-        );
-    }
-
-    #[test]
-    fn skips_emails_bare_words_and_malformed_curlies() {
-        let text = format!(
-            "mail a@b.com or @nodot; @{{nope,x}} @{{{}",
-            sample_identity()
-        );
-        assert!(extract_mentions(&text).is_empty());
-    }
-
-    #[test]
-    fn renders_curly_mentions_as_display_names() {
-        let identity = sample_identity();
-        let text = format!(
-            "hi @{{{identity},Jane Doe}} and @{{{identity}}} not @{{nope,x}} @{{{identity} a@{{{identity}}}"
-        );
-        assert_eq!(
-            mentions_to_plain_text(&text),
-            format!("hi Jane Doe and @{identity} not @{{nope,x}} @{{{identity} a@{{{identity}}}")
-        );
+    fn matches_the_shared_fixtures() {
+        let fixtures: Vec<Fixture> = serde_json::from_str(FIXTURES).unwrap();
+        assert!(!fixtures.is_empty());
+        for f in fixtures {
+            let expected: Vec<Mention> = f
+                .mentions
+                .into_iter()
+                .map(|m| match m {
+                    Expected::Identity { identity } => Mention::Identity(identity),
+                    Expected::Alias { alias } => Mention::Alias(alias),
+                })
+                .collect();
+            assert_eq!(extract_mentions(&f.text), expected, "{}", f.name);
+            assert_eq!(mentions_to_plain_text(&f.text), f.plain, "{}", f.name);
+        }
     }
 }

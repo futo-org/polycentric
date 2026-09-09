@@ -1,0 +1,200 @@
+[
+  {
+    "name": "alias",
+    "text": "@user@domain.com",
+    "mentions": [{ "alias": "user@domain.com" }],
+    "plain": "@user@domain.com"
+  },
+  {
+    "name": "alias within text",
+    "text": "hey @user@domain.com bye",
+    "mentions": [{ "alias": "user@domain.com" }],
+    "plain": "hey @user@domain.com bye"
+  },
+  {
+    "name": "alias excludes trailing punctuation",
+    "text": "see @user@domain.com.",
+    "mentions": [{ "alias": "user@domain.com" }],
+    "plain": "see @user@domain.com."
+  },
+  {
+    "name": "alias preserves case",
+    "text": "@User@Domain.com",
+    "mentions": [{ "alias": "User@Domain.com" }],
+    "plain": "@User@Domain.com"
+  },
+  {
+    "name": "alias with dotted/underscored local part",
+    "text": "@first.last_1@domain.io",
+    "mentions": [{ "alias": "first.last_1@domain.io" }],
+    "plain": "@first.last_1@domain.io"
+  },
+  {
+    "name": "plain email is not a mention",
+    "text": "reach me@example.com please",
+    "mentions": [],
+    "plain": "reach me@example.com please"
+  },
+  {
+    "name": "non-ASCII email is not a mention",
+    "text": "reach andré@example.com or 漢字@example.com",
+    "mentions": [],
+    "plain": "reach andré@example.com or 漢字@example.com"
+  },
+  {
+    "name": "punctuation directly before an alias",
+    "text": "(@user@domain.com)",
+    "mentions": [{ "alias": "user@domain.com" }],
+    "plain": "(@user@domain.com)"
+  },
+  {
+    "name": "alias needs a dot",
+    "text": "@user@localhost here",
+    "mentions": [],
+    "plain": "@user@localhost here"
+  },
+  {
+    "name": "bare domain alias",
+    "text": "hi @domain.com",
+    "mentions": [{ "alias": "domain.com" }],
+    "plain": "hi @domain.com"
+  },
+  {
+    "name": "alias with unknown TLD",
+    "text": "@user@some.internal",
+    "mentions": [{ "alias": "user@some.internal" }],
+    "plain": "@user@some.internal"
+  },
+  {
+    "name": "dotless @word is plain text",
+    "text": "hey @everyone hi",
+    "mentions": [],
+    "plain": "hey @everyone hi"
+  },
+  {
+    "name": "curly with display name",
+    "text": "hi @{0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722,Jane Doe} bye",
+    "mentions": [
+      {
+        "identity": "0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722"
+      }
+    ],
+    "plain": "hi Jane Doe bye"
+  },
+  {
+    "name": "curly without display name",
+    "text": "@{0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722}",
+    "mentions": [
+      {
+        "identity": "0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722"
+      }
+    ],
+    "plain": "@0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722"
+  },
+  {
+    "name": "curly with empty display name",
+    "text": "@{0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722,}",
+    "mentions": [
+      {
+        "identity": "0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722"
+      }
+    ],
+    "plain": "@0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722"
+  },
+  {
+    "name": "curly keeps trailing punctuation as text",
+    "text": "see @{0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722,Jane}.",
+    "mentions": [
+      {
+        "identity": "0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722"
+      }
+    ],
+    "plain": "see Jane."
+  },
+  {
+    "name": "curly with non-hex identity",
+    "text": "@{notanidentity,Jane}",
+    "mentions": [],
+    "plain": "@{notanidentity,Jane}"
+  },
+  {
+    "name": "unclosed curly",
+    "text": "@{0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722",
+    "mentions": [],
+    "plain": "@{0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722"
+  },
+  {
+    "name": "curly glued to a word",
+    "text": "a@{0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722}",
+    "mentions": [],
+    "plain": "a@{0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722}"
+  },
+  {
+    "name": "identity",
+    "text": "@0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722",
+    "mentions": [
+      {
+        "identity": "0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722"
+      }
+    ],
+    "plain": "@0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722"
+  },
+  {
+    "name": "identity within text",
+    "text": "hi @0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722 ok",
+    "mentions": [
+      {
+        "identity": "0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722"
+      }
+    ],
+    "plain": "hi @0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722 ok"
+  },
+  {
+    "name": "identity excludes trailing punctuation",
+    "text": "see @0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722.",
+    "mentions": [
+      {
+        "identity": "0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722"
+      }
+    ],
+    "plain": "see @0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722."
+  },
+  {
+    "name": "fewer than 64 hex chars",
+    "text": "@deadbeef here",
+    "mentions": [],
+    "plain": "@deadbeef here"
+  },
+  {
+    "name": "more than 64 hex chars",
+    "text": "@0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722ab",
+    "mentions": [],
+    "plain": "@0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722ab"
+  },
+  {
+    "name": "64 non-hex chars",
+    "text": "@gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg here",
+    "mentions": [],
+    "plain": "@gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg here"
+  },
+  {
+    "name": "mixed forms",
+    "text": "@{0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722,Jane} @0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722 @user@domain.com me@x.com",
+    "mentions": [
+      {
+        "identity": "0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722"
+      },
+      {
+        "identity": "0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722"
+      },
+      { "alias": "user@domain.com" }
+    ],
+    "plain": "Jane @0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722 @user@domain.com me@x.com"
+  },
+  {
+    "name": "links and hashtags pass through",
+    "text": "plain https://x.com #tag",
+    "mentions": [],
+    "plain": "plain https://x.com #tag"
+  }
+]

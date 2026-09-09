@@ -3,6 +3,7 @@ import {
   parseTextLinks,
   type TextSegment,
 } from './parseTextLinks';
+import mentionFixtures from '../../../../../packages/rs-common/src/mentions.fixtures.json';
 
 /**
  * parseTextLinks minus the raw offsets, so the segment assertions below stay
@@ -24,19 +25,6 @@ const linkValues = (text: string) => links(text).map((l) => l.value);
 
 /** Resolved URLs of the link segments. */
 const linkUrls = (text: string) => links(text).map((l) => l.url);
-
-/** Just the alias segments. */
-const aliases = (text: string) =>
-  parse(text).filter(
-    (s): s is Extract<TextSegment, { type: 'alias' }> => s.type === 'alias',
-  );
-
-/** Just the identity segments. */
-const identities = (text: string) =>
-  parse(text).filter(
-    (s): s is Extract<TextSegment, { type: 'identity' }> =>
-      s.type === 'identity',
-  );
 
 const HEX64 =
   '0a2abecb223dbd572729018f8d201f32471e2a5b71e2032c052f6830846c4722';
@@ -170,157 +158,20 @@ describe('parseTextLinks', () => {
     });
   });
 
-  describe('alias mentions', () => {
-    it('detects an `@user@domain.com` mention', () => {
-      expect(parse('@user@domain.com')).toEqual([
-        { type: 'alias', value: '@user@domain.com', alias: 'user@domain.com' },
-      ]);
-    });
-
-    it('detects a mention within surrounding text', () => {
-      expect(parse('hey @user@domain.com bye')).toEqual([
-        { type: 'text', value: 'hey ' },
-        { type: 'alias', value: '@user@domain.com', alias: 'user@domain.com' },
-        { type: 'text', value: ' bye' },
-      ]);
-    });
-
-    it('excludes trailing punctuation from the mention', () => {
-      expect(parse('see @user@domain.com.')).toEqual([
-        { type: 'text', value: 'see ' },
-        { type: 'alias', value: '@user@domain.com', alias: 'user@domain.com' },
-        { type: 'text', value: '.' },
-      ]);
-    });
-
-    it('preserves case (normalisation happens downstream)', () => {
-      expect(aliases('@User@Domain.com')).toEqual([
-        { type: 'alias', value: '@User@Domain.com', alias: 'User@Domain.com' },
-      ]);
-    });
-
-    it('allows dotted/underscored local parts', () => {
-      expect(aliases('@first.last_1@domain.io')).toEqual([
-        {
-          type: 'alias',
-          value: '@first.last_1@domain.io',
-          alias: 'first.last_1@domain.io',
-        },
-      ]);
-    });
-
-    it('does not treat a plain email as a mention', () => {
-      expect(aliases('reach me@example.com please')).toEqual([]);
-    });
-
-    it('does not treat a non-ASCII email as a mention', () => {
-      expect(aliases('reach andré@example.com or 漢字@example.com')).toEqual(
-        [],
+  // Cases shared with the server's `mentions.rs` (see the note at the top of
+  // parseTextLinks.ts), so both parsers agree on every mention form.
+  describe('mentions', () => {
+    it.each(mentionFixtures)('$name', ({ text, mentions, plain }) => {
+      type Found = { identity: string } | { alias: string };
+      const found = parse(text).flatMap((s): Found[] =>
+        s.type === 'identity'
+          ? [{ identity: s.identity }]
+          : s.type === 'alias'
+            ? [{ alias: s.alias }]
+            : [],
       );
-    });
-
-    it('allows punctuation directly before a mention', () => {
-      expect(aliases('(@user@domain.com)').map((a) => a.alias)).toEqual([
-        'user@domain.com',
-      ]);
-    });
-
-    it('does not match `@user@localhost` (no dot)', () => {
-      expect(aliases('@user@localhost here')).toEqual([]);
-    });
-
-    it('detects a bare `@domain.com` mention', () => {
-      expect(aliases('hi @domain.com')).toEqual([
-        { type: 'alias', value: '@domain.com', alias: 'domain.com' },
-      ]);
-    });
-
-    it('does not require a known TLD', () => {
-      expect(aliases('@user@some.internal')).toEqual([
-        {
-          type: 'alias',
-          value: '@user@some.internal',
-          alias: 'user@some.internal',
-        },
-      ]);
-    });
-
-    it('leaves a dotless `@word` as plain text', () => {
-      expect(parse('hey @everyone hi')).toEqual([
-        { type: 'text', value: 'hey @everyone hi' },
-      ]);
-    });
-  });
-
-  describe('curly mentions', () => {
-    it('detects `@{identity,displayName}` and renders the display name', () => {
-      expect(parse(`hi @{${HEX64},Jane Doe} bye`)).toEqual([
-        { type: 'text', value: 'hi ' },
-        { type: 'identity', value: 'Jane Doe', identity: HEX64 },
-        { type: 'text', value: ' bye' },
-      ]);
-    });
-
-    it('detects `@{identity}` without a display name', () => {
-      expect(parse(`@{${HEX64}}`)).toEqual([
-        { type: 'identity', value: `@${HEX64}`, identity: HEX64 },
-      ]);
-    });
-
-    it('falls back to the identity when the display name is empty', () => {
-      expect(parse(`@{${HEX64},}`)).toEqual([
-        { type: 'identity', value: `@${HEX64}`, identity: HEX64 },
-      ]);
-    });
-
-    it('keeps trailing punctuation outside the braces as text', () => {
-      expect(parse(`see @{${HEX64},Jane}.`)).toEqual([
-        { type: 'text', value: 'see ' },
-        { type: 'identity', value: 'Jane', identity: HEX64 },
-        { type: 'text', value: '.' },
-      ]);
-    });
-
-    it('rejects a non-hex identity', () => {
-      expect(parse('@{notanidentity,Jane}')).toEqual([
-        { type: 'text', value: '@{notanidentity,Jane}' },
-      ]);
-    });
-  });
-
-  describe('identity mentions', () => {
-    it('detects an `@<64-hex>` mention', () => {
-      expect(parse(`@${HEX64}`)).toEqual([
-        { type: 'identity', value: `@${HEX64}`, identity: HEX64 },
-      ]);
-    });
-
-    it('detects a mention within surrounding text', () => {
-      expect(parse(`hi @${HEX64} ok`)).toEqual([
-        { type: 'text', value: 'hi ' },
-        { type: 'identity', value: `@${HEX64}`, identity: HEX64 },
-        { type: 'text', value: ' ok' },
-      ]);
-    });
-
-    it('excludes trailing punctuation from the mention', () => {
-      expect(parse(`see @${HEX64}.`)).toEqual([
-        { type: 'text', value: 'see ' },
-        { type: 'identity', value: `@${HEX64}`, identity: HEX64 },
-        { type: 'text', value: '.' },
-      ]);
-    });
-
-    it('does not match fewer than 64 hex chars', () => {
-      expect(identities('@deadbeef here')).toEqual([]);
-    });
-
-    it('does not match a longer hex run (not exactly 64)', () => {
-      expect(identities(`@${HEX64}ab`)).toEqual([]);
-    });
-
-    it('does not match 64 non-hex chars', () => {
-      expect(identities(`@${'g'.repeat(64)} here`)).toEqual([]);
+      expect(found).toEqual(mentions);
+      expect(mentionsToPlainText(text)).toBe(plain);
     });
   });
 
@@ -447,19 +298,5 @@ describe('parseTextLinks', () => {
       }
       expect(cursor).toBe(input.length);
     });
-  });
-});
-
-describe('mentionsToPlainText', () => {
-  it('renders curly mentions as their display name and keeps the rest', () => {
-    expect(
-      mentionsToPlainText(`hi @{${HEX64},Jane Doe} see @{${HEX64}} @a.b.com`),
-    ).toBe(`hi Jane Doe see @${HEX64} @a.b.com`);
-  });
-
-  it('is the identity for text without mentions', () => {
-    expect(mentionsToPlainText('plain https://x.com #tag')).toBe(
-      'plain https://x.com #tag',
-    );
   });
 });
