@@ -48,9 +48,12 @@ first build the SDKs, and wasm when its copy is missing), packages and pushes
 the component's chart as
 `<next patch>-<ref>.g<sha>` with the commit as `appVersion`, then moves the
 image and chart `staging` tags. helm-controller watches the chart tag. `web`
-also uploads its bundle to the static bucket. `app` builds the staging apps on
-EAS and submits them; `ios_e2e` runs the iOS suite on the store build. `docs`
-deploys to Cloudflare Pages.
+also uploads its bundle to the static bucket. `app` queues the store builds
+on EAS and submits them, and builds the APK on the runner (`eas build
+--local` in the `ci/rust-android` image, with the EAS profile's credentials
+and version) before uploading it and its update manifest to the static
+bucket. `ios_e2e` runs the iOS suite on the store build. `docs` deploys to
+Cloudflare Pages.
 
 `deploy-<component>-production.yml` moves the `staging` image and chart tags
 to `production`, so production gets what staging runs. `sha` deploys that

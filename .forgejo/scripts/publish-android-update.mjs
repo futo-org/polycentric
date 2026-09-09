@@ -3,11 +3,11 @@
 //   apk/<channel>/harbor-latest.apk              (stable download link)
 //   apk/<channel>/latest.json                    (polled by the app)
 //
-// Reads apps/harbor/{eas-build.json,harbor.apk} and release_notes.md
-// (production tags only) from earlier jobs' artifacts.
+// Reads apps/harbor/harbor.apk and release_notes.md (production tags only).
 //
-// Env: UPDATE_CHANNEL (staging|production), STATIC_PUBLIC_BASE_URL, and
-// the STATIC_S3_* variables read by tools/static-bucket.
+// Env: UPDATE_CHANNEL (staging|production), APP_VERSION_NAME,
+// APP_VERSION_CODE (the apk-build action's outputs), STATIC_PUBLIC_BASE_URL,
+// and the STATIC_S3_* variables read by tools/static-bucket.
 
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -26,17 +26,12 @@ if (!publicBaseUrl) {
 
 const bucket = createStaticBucket();
 
-// `eas build --json` emits an array of builds.
-const easOutput = JSON.parse(
-  readFileSync('apps/harbor/eas-build.json', 'utf8'),
-);
-const build = Array.isArray(easOutput) ? easOutput[0] : easOutput;
-const versionName = build?.appVersion;
-const versionCode = Number(build?.appBuildVersion);
+const versionName = process.env.APP_VERSION_NAME;
+const versionCode = Number(process.env.APP_VERSION_CODE);
 if (!versionName || !Number.isInteger(versionCode) || versionCode <= 0) {
   console.error(
-    `could not read appVersion/appBuildVersion from eas-build.json ` +
-      `(got ${build?.appVersion} / ${build?.appBuildVersion})`,
+    `APP_VERSION_NAME/APP_VERSION_CODE must name the APK's version ` +
+      `(got ${versionName} / ${process.env.APP_VERSION_CODE})`,
   );
   process.exit(1);
 }
