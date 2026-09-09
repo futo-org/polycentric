@@ -21,12 +21,12 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO_ROOT"
 export COMPOSE_PROJECT_NAME=harbor
 
 # ---------------------------------------------------------------------------
-# Test moderator identity (deterministic — derived from the same seed as
+# Test moderator identity (deterministic, derived from the same seed as
 # `test_moderator_key()` in the integration-test crate).  Generated via:
 #   seed = sha256(b"polycentric-test-moderator-seed-2026")
 #   key  = Ed25519SigningKey::from_bytes(&seed)

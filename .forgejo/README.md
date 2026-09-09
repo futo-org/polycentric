@@ -23,8 +23,8 @@ Rules:
 
 - A `pr.yml` job runs when its paths changed, or the workflow (or an action
   or script it uses) changed. Tags build everything.
-- Images are pushed as `<image>:<sha>`. PRs are squash-merged, so a develop
-  commit is a new SHA and a deploy rebuilds the image it needs.
+- Images are pushed as `<image>:<sha>`; every run builds the ones it needs
+  and BuildKit's registry cache decides what that costs.
 - The rs-core libraries (wasm, Android, iOS) are pushed as
   `ci/rs-core-<name>:<key>`, the key a hash of the sources that produce that
   library (`rs-core-libraries.sh`). A job takes the copy for its sources and
@@ -42,14 +42,18 @@ Components: `server`, `moderation`, `push-notifications`, `scraper`,
 
 `deploy-<component>-staging.yml` runs on a push to `develop` that touches the
 component's paths (or the workflow and the actions it uses), and manually. A
-service deploy takes the commit's image from the registry and builds it only
-when missing (`web` and `verifier-bot` first the SDKs, and wasm when its copy
-is missing), packages and pushes the component's chart as
+service deploy builds the commit's image (BuildKit's registry cache makes a
+rebuild of unchanged sources a matter of seconds; `web` and `verifier-bot`
+first build the SDKs, and wasm when its copy is missing), packages and pushes
+the component's chart as
 `<next patch>-<ref>.g<sha>` with the commit as `appVersion`, then moves the
 image and chart `staging` tags. helm-controller watches the chart tag. `web`
-also uploads its bundle to the static bucket. `app` builds the staging apps on
-EAS and submits them; `ios_e2e` runs the iOS suite on the store build. `docs`
-deploys to Cloudflare Pages.
+also uploads its bundle to the static bucket. `app` queues the store builds
+on EAS and submits them, and builds the APK on the runner (`eas build
+--local` in the `ci/rust-android` image, with the EAS profile's credentials
+and version) before uploading it and its update manifest to the static
+bucket. `ios_e2e` runs the iOS suite on the store build. `docs` deploys to
+Cloudflare Pages.
 
 `deploy-<component>-production.yml` moves the `staging` image and chart tags
 to `production`, so production gets what staging runs. `sha` deploys that

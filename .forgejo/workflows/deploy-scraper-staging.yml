@@ -16,7 +16,6 @@ on:
       - .forgejo/actions/service-image/**
       - .forgejo/actions/chart-publish/**
       - .forgejo/actions/deploy-tag/**
-      - .forgejo/scripts/image-exists.sh
 
 concurrency:
   group: deploy-scraper-staging
@@ -31,11 +30,7 @@ jobs:
       REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
     steps:
       - uses: actions/checkout@v4
-      - name: Check the commit's image
-        id: image
-        run: .forgejo/scripts/image-exists.sh scraper
-      - if: steps.image.outputs.exists != 'true'
-        uses: ./.forgejo/actions/service-image
+      - uses: ./.forgejo/actions/service-image
         with:
           image: scraper
           dockerfile: services/scraper

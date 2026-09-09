@@ -165,7 +165,7 @@ const flags = {
     app_lint: app,
     rs_core: rsCore,
     js_sdk: jsSdk,
-    push_notifications: pushNotifications,
+    rust_services: server || moderation || pushNotifications,
     scraper,
     app,
     build_sdks: rsCore || jsSdk || rnSdk || app || verifierBot,

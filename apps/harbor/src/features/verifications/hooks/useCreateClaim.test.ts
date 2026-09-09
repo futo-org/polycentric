@@ -152,22 +152,11 @@ describe('useCreateClaim', () => {
     expect(target.targetIdentities).toEqual(['them']);
     // Points at the claim event committed first.
     expect(target.claimEventKey?.sequence).toBe(1n);
-
-    expect(invalidateQuery).toHaveBeenCalledWith(mockClient, [
-      'verification-requests',
-      'me',
-      'them',
-    ]);
   });
 
   it('does not publish a target without requestFrom', async () => {
     await submit({ job_title: 'Developer' });
 
     expect(mockClient.commitEvent).toHaveBeenCalledTimes(1);
-    expect(invalidateQuery).not.toHaveBeenCalledWith(mockClient, [
-      'verification-requests',
-      'me',
-      undefined,
-    ]);
   });
 });

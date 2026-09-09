@@ -273,10 +273,10 @@ jobs:
           path: target/nextest/ci/junit.xml
           retention-days: 7
 
-  push-notifications:
-    name: Test push notifications
+  rust-services:
+    name: Test Rust services
     needs: [changes, setup-images]
-    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.push_notifications && needs.setup-images.result != 'failure' }}
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.rust_services && needs.setup-images.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container:
       image: ${{ needs.changes.outputs.registry }}/ci/rust:${{ needs.changes.outputs.images_tag }}
@@ -286,7 +286,7 @@ jobs:
         with:
           cache: services-tests
       - name: Tests
-        run: cargo nextest run -P ci -p push-notifications-service
+        run: cargo nextest run -P ci -p server -p moderation-service -p push-notifications-service
       - uses: ./.forgejo/actions/r2-cache
         if: always()
         continue-on-error: true
@@ -756,7 +756,7 @@ jobs:
       - docs-lint
       - app-lint
       - rust-packages
-      - push-notifications
+      - rust-services
       - js-packages
       - scraper
       - app
