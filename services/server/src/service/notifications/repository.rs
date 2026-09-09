@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+
 use ::entity::notification;
+use polycentric_common::models::collections;
 use sea_orm::*;
 
 pub struct Query;
@@ -22,12 +25,107 @@ impl Query {
 
         query.all(db).await
     }
+
+    /// The identity each of `aliases` (lowercased) resolves to, per the
+    /// alias each identity's latest profile claims. Aliases nobody claims are
+    /// absent. Unverified: a profile may claim any alias; when several claim
+    /// the same one, the most recently synced profile wins.
+    pub async fn identities_for_aliases(
+        db: &DbConn,
+        aliases: &[String],
+    ) -> Result<HashMap<String, String>, DbErr> {
+        if aliases.is_empty() {
+            return Ok(HashMap::new());
+        }
+        // Candidates: identities with any profile claiming one of the
+        // aliases (hits the lower(alias) index). Then keep only each
+        // candidate's latest profile, and only if it still claims the alias.
+        let rows = db
+            .query_all_raw(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                "SELECT alias, identity FROM (\
+                   SELECT DISTINCT ON (e.identity) \
+                     lower(cpu.alias) AS alias, e.identity, e.id \
+                   FROM events e \
+                   JOIN content c \
+                     ON c.digest_type = e.content_digest_type \
+                    AND c.digest_bytes = e.content_digest_bytes \
+                   JOIN content_profile_update cpu ON cpu.content_id = c.id \
+                   WHERE e.collection = $2 \
+                     AND e.identity IN (\
+                       SELECT e2.identity \
+                       FROM content_profile_update cpu2 \
+                       JOIN content c2 ON c2.id = cpu2.content_id \
+                       JOIN events e2 \
+                         ON e2.content_digest_type = c2.digest_type \
+                        AND e2.content_digest_bytes = c2.digest_bytes \
+                       WHERE e2.collection = $2 \
+                         AND lower(cpu2.alias) = ANY($1)) \
+                   ORDER BY e.identity, e.sequence DESC \
+                 ) latest \
+                 WHERE alias = ANY($1) \
+                 ORDER BY id DESC",
+                [
+                    aliases.to_vec().into(),
+                    (collections::PROFILE as i16).into(),
+                ],
+            ))
+            .await?;
+
+        // Rows are newest first, so the first identity per alias wins.
+        let mut map = HashMap::new();
+        for row in rows {
+            let alias: String = row.try_get("", "alias")?;
+            let identity: String = row.try_get("", "identity")?;
+            map.entry(alias).or_insert(identity);
+        }
+        Ok(map)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use sea_orm::{DatabaseBackend, MockDatabase};
+    use std::collections::BTreeMap;
+
+    fn alias_row(alias: &str, identity: &str) -> BTreeMap<String, Value> {
+        BTreeMap::from([
+            ("alias".to_string(), Value::from(alias)),
+            ("identity".to_string(), Value::from(identity)),
+        ])
+    }
+
+    #[tokio::test]
+    async fn the_newest_claim_of_an_alias_wins() {
+        let db = MockDatabase::new(DatabaseBackend::Postgres)
+            .append_query_results([vec![
+                alias_row("bob@x.com", "bob"),
+                alias_row("bob@x.com", "impostor"),
+                alias_row("carol@x.com", "carol"),
+            ]])
+            .into_connection();
+
+        let map = Query::identities_for_aliases(
+            &db,
+            &["bob@x.com".to_string(), "carol@x.com".to_string()],
+        )
+        .await
+        .expect("query should succeed");
+        assert_eq!(map["bob@x.com"], "bob");
+        assert_eq!(map["carol@x.com"], "carol");
+        assert_eq!(map.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn no_aliases_skips_the_query() {
+        // No `append_query_results`, so the mock errors if a query runs.
+        let db = MockDatabase::new(DatabaseBackend::Postgres).into_connection();
+        let map = Query::identities_for_aliases(&db, &[])
+            .await
+            .expect("no lookup should be attempted");
+        assert!(map.is_empty());
+    }
 
     fn sample_row(id: i64, kind: i32) -> notification::Model {
         let ts = chrono::DateTime::from_timestamp(0, 0).unwrap();

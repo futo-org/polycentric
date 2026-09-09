@@ -1,11 +1,9 @@
 //! Renders a notification into the kind-specific parts of a push message.
 
-use std::sync::LazyLock;
-
+use polycentric_common::mentions::mentions_to_plain_text;
 use polycentric_common::models::protos_v2::{
     Content, EventKey, NotificationKind, content::ContentBody,
 };
-use regex::{Captures, Regex};
 
 /// The kind-specific parts of a push message: the body text and the deep
 /// link the notification opens.
@@ -28,6 +26,16 @@ pub fn render(kind: NotificationKind, key: &EventKey, content: &Content) -> Opti
                     false => format!("Replied: {}", mentions_to_plain_text(&post.text)),
                 },
                 // Deep link to the reply post itself.
+                url: post_url(key),
+            })
+        }
+        NotificationKind::Mention => {
+            let Some(ContentBody::Post(post)) = &content.content_body else {
+                return None;
+            };
+            Some(Rendered {
+                body: format!("Mentioned you: {}", mentions_to_plain_text(&post.text)),
+                // Deep link to the mentioning post itself.
                 url: post_url(key),
             })
         }
@@ -71,20 +79,6 @@ pub fn render(kind: NotificationKind, key: &EventKey, content: &Content) -> Opti
         }
         _ => None,
     }
-}
-
-/// `text` as the client renders it: `@{<64 hex>,Name}` becomes `Name` and
-/// `@{<64 hex>}` becomes `@<64 hex>`, mirroring `parseTextLinks`'s curly
-/// mention form. Anything else, including a malformed `@{...}`, stays as is.
-fn mentions_to_plain_text(text: &str) -> String {
-    static CURLY_MENTION: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"@\{([0-9a-fA-F]{64})(?:,([^}]*))?\}").unwrap());
-    CURLY_MENTION
-        .replace_all(text, |c: &Captures| match c.get(2).map(|m| m.as_str()) {
-            Some(name) if !name.is_empty() => name.to_string(),
-            _ => format!("@{}", &c[1]),
-        })
-        .into_owned()
 }
 
 /// First 8 bytes of a signing key (`EventKey.signed_by`) as lowercase hex,
@@ -184,6 +178,19 @@ mod tests {
         assert_eq!(
             rendered.body,
             format!("Replied: hi Jane Doe and @{hex} not @{{nope,x}} @{{{hex}")
+        );
+    }
+
+    #[test]
+    fn mention_quotes_the_text_and_links_to_the_post() {
+        let hex = "a".repeat(64);
+        let text = format!("hey @{{{hex},Jane Doe}} look");
+        let rendered =
+            render(NotificationKind::Mention, &key("alice"), &post(&text)).expect("should render");
+        assert_eq!(rendered.body, "Mentioned you: hey Jane Doe look");
+        assert_eq!(
+            rendered.url.as_deref(),
+            Some("harbor:///alice/post/abababababababab/7")
         );
     }
 

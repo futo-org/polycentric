@@ -155,7 +155,11 @@ export enum NotificationKind {
     /**
      * @generated from protobuf enum value: NOTIFICATION_KIND_VERIFICATION_COMPLETE = 7;
      */
-    VERIFICATION_COMPLETE = 7
+    VERIFICATION_COMPLETE = 7,
+    /**
+     * @generated from protobuf enum value: NOTIFICATION_KIND_MENTION = 8;
+     */
+    MENTION = 8
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class Notification$Type extends MessageType<Notification> {
