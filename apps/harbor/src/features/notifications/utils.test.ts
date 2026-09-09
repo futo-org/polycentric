@@ -210,6 +210,19 @@ describe('decodeNotifications', () => {
     }
   });
 
+  it('decodes a mention with the mentioning post', () => {
+    const [item] = decodeOne(
+      v2.Notification.create({
+        triggerEvent: makeBundle(ACTOR, postContent('hey you')),
+        kind: v2.NotificationKind.MENTION,
+      }),
+    );
+    expect(item.kind).toBe('mention');
+    if (item.kind === 'mention') {
+      expect(item.post.content).toBe('hey you');
+    }
+  });
+
   it('decodes a quote with its post and the quoted post', () => {
     const [item] = decodeOne(
       v2.Notification.create({

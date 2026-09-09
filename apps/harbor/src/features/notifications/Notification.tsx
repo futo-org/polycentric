@@ -16,13 +16,17 @@ import { type Href, router } from 'expo-router';
 import { useCallback } from 'react';
 import { Pressable, View } from 'react-native';
 import type {
+  MentionNotification,
   NotificationData,
   QuoteNotification,
   ReplyNotification,
 } from './utils';
 
 /** Notifications rendered as the actor's own post. */
-type PostNotification = ReplyNotification | QuoteNotification;
+type PostNotification =
+  | ReplyNotification
+  | QuoteNotification
+  | MentionNotification;
 
 /** Route to a post's thread, or `null` when its key can't be fingerprinted. */
 function postRoute(post: PostData) {
@@ -99,13 +103,16 @@ export default function Notification({
 }: {
   notification: NotificationData;
 }) {
-  // Replies and quotes are just the actor's post (the quote embeds the
-  // quoted post itself).
+  // Replies, quotes and mentions are just the actor's post (the quote
+  // embeds the quoted post itself).
   if (notification.kind === 'reply') {
     return <Post post={notification.reply} />;
   }
   if (notification.kind === 'quote') {
     return <Post post={notification.quote} />;
+  }
+  if (notification.kind === 'mention') {
+    return <Post post={notification.post} />;
   }
   return <InteractionNotification notification={notification} />;
 }
