@@ -1,6 +1,5 @@
 import * as DropdownMenuPrimitive from '@rn-primitives/dropdown-menu';
-import type React from 'react';
-import type { ReactNode } from 'react';
+import type { ReactNode, RefAttributes } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Atoms, useTheme } from '../theme';
@@ -9,7 +8,7 @@ function DropdownMenuContent({
   style,
   ...props
 }: DropdownMenuPrimitive.ContentProps &
-  React.RefAttributes<DropdownMenuPrimitive.ContentRef>) {
+  RefAttributes<DropdownMenuPrimitive.ContentRef>) {
   const { theme } = useTheme();
 
   return (
@@ -54,6 +53,7 @@ function DropdownMenuItem({
             Atoms.flex_row,
             Atoms.align_center,
             Atoms.gap_lg,
+            props.disabled && { opacity: 0.5 },
           ]}
         >
           {children}
