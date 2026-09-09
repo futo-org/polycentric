@@ -41,29 +41,55 @@ export function ClaimVerifiersList({
       </Text>
       <View>
         {verifiers.map((verifier) => (
-          <ProfileRow
+          <VerifierRow
             key={verifier.identity}
-            identity={verifier.identity}
-            size="sm"
-            onPress={() => router.push(Routes.tabs.profile(verifier.identity))}
-            trailing={
-              <>
-                <Text
-                  variant="small"
-                  fontWeight="semibold"
-                  color={verifier.verified ? 'positive_500' : 'neutral_500'}
-                  selectable={false}
-                >
-                  {verifier.verified ? 'Verified' : 'Requested'}
-                </Text>
-                {canRemoveVerifiers && (
-                  <ClaimVerifierMenu claim={claim} verifier={verifier} />
-                )}
-              </>
-            }
+            verifier={verifier}
+            claim={claim}
+            canRemove={canRemoveVerifiers}
           />
         ))}
       </View>
     </View>
+  );
+}
+
+function VerifierRow({
+  verifier,
+  claim,
+  canRemove,
+}: {
+  verifier: ClaimVerifier;
+  claim: DecodedClaim;
+  canRemove: boolean;
+}) {
+  const statusText = (
+    <Text
+      variant="small"
+      fontWeight="semibold"
+      color={verifier.verified ? 'positive_500' : 'neutral_500'}
+      selectable={false}
+    >
+      {verifier.verified ? 'Verified' : 'Requested'}
+    </Text>
+  );
+
+  return (
+    <ProfileRow
+      key={verifier.identity}
+      identity={verifier.identity}
+      size="sm"
+      onPress={() => router.push(Routes.tabs.profile(verifier.identity))}
+      trailing={
+        canRemove ? (
+          <ClaimVerifierMenu
+            statusText={statusText}
+            claim={claim}
+            verifier={verifier}
+          />
+        ) : (
+          statusText
+        )
+      }
+    />
   );
 }

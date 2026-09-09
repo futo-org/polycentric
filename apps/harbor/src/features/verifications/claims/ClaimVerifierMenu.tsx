@@ -3,16 +3,19 @@ import DropdownMenu from '@/src/common/components/DropdownMenu';
 import Icon from '@/src/common/components/Icon';
 import { useToast } from '@/src/common/components/toast';
 import { confirm } from '@/src/common/lib/dialogs/alert';
-import { Atoms, useTheme, withHexOpacity } from '@/src/common/theme';
+import { Atoms, useTheme, withHexOpacity, Spacing } from '@/src/common/theme';
 import { View } from 'react-native';
 import type { DecodedClaim } from '../hooks/useClaimById';
 import useRemoveVerifier from '../hooks/useRemoveVerifier';
 import type { ClaimVerifier } from '../utils/claim-status';
+import type { ReactNode } from 'react';
 
 export function ClaimVerifierMenu({
+  statusText,
   claim,
   verifier,
 }: {
+  statusText: ReactNode;
   claim: DecodedClaim;
   verifier: ClaimVerifier;
 }) {
@@ -55,7 +58,17 @@ export function ClaimVerifierMenu({
         {({ pressed, hovered }) => (
           <View
             style={[
-              Atoms.p_xs,
+              Atoms.flex_row,
+              Atoms.align_center,
+              Atoms.py_xs,
+              Atoms.gap_xs,
+
+              // Different left and right paddings + negative margin balance the
+              // icon visually (vertical dots have empty space around them)
+              Atoms.pl_md,
+              Atoms.pr_xs,
+              { marginRight: -Spacing.sm },
+
               Atoms.rounded_full,
               Atoms.overflow_hidden,
               (hovered || pressed) && {
@@ -66,7 +79,8 @@ export function ClaimVerifierMenu({
               },
             ]}
           >
-            <Icon name="more" color="neutral_500" size={20} />
+            {statusText}
+            <Icon name="dotsVertical" color="neutral_500" size={20} />
           </View>
         )}
       </DropdownMenu.Trigger>
