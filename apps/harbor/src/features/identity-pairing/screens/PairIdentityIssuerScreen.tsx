@@ -1,10 +1,4 @@
-import {
-  Button,
-  OutcomeDisplay,
-  Screen,
-  ScreenHeader,
-  Text,
-} from '@/src/common/components';
+import { Button, Screen, ScreenHeader, Text } from '@/src/common/components';
 import Icon from '@/src/common/components/Icon';
 import { Sheet } from '@/src/common/components/sheet';
 import { Atoms, useTheme } from '@/src/common/theme';
@@ -12,13 +6,7 @@ import { usePairIdentityIssuer } from '@/src/features/identity-pairing/hooks/use
 import { publicKeyEmojiFingerprint } from '@/src/features/identity-pairing/publicKeyEmojiFingerprint';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { encodePairingCode, EncodingMode } from '../pairingCode';
@@ -61,22 +49,6 @@ export default function PairIdentityIssuerScreen() {
     pendingClaimer = claimers.at(claimerCursor) ?? null;
   }
 
-  let mainContent: ReactNode;
-
-  if (expired) {
-    mainContent = <OutcomeDisplay status="error" message="Session expired." />;
-  } else if (error) {
-    mainContent = <OutcomeDisplay status="error" message={error} />;
-  } else if (stage === 'done') {
-    mainContent = (
-      <OutcomeDisplay status="success" message="Pairing successful." />
-    );
-  } else {
-    mainContent = (
-      <PairingInfoCard info={info} remainingSeconds={remainingSeconds} />
-    );
-  }
-
   return (
     <>
       <Screen>
@@ -98,7 +70,16 @@ export default function PairIdentityIssuerScreen() {
                 { paddingTop: 100 },
               ]}
             >
-              {mainContent}
+              {error ? (
+                <Text variant="body" color="negative_500">
+                  {error}
+                </Text>
+              ) : (
+                <PairingInfoCard
+                  info={info}
+                  remainingSeconds={remainingSeconds}
+                />
+              )}
             </ScrollView>
           </View>
         </Screen.PrimaryColumn>
