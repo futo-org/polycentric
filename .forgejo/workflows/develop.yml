@@ -1,37 +1,165 @@
 name: Develop
 
-# Pushes to develop: the rs-core libraries the commit's Test run published
-# become develop's copy. Deploys are the deploy-*-staging workflows.
+# Pushes to develop that change the rs-core libraries' sources: rebuild them
+# and refresh the develop copies that jobs not building them fall back to.
 
 on:
+  workflow_dispatch:
   push:
     branches: [develop]
+    paths:
+      - Cargo.toml
+      - Cargo.lock
+      - patches/**
+      - protos/**
+      - packages/rs-core/**
+      - packages/rs-common/**
+      - packages/rs-core-wasm/**
+      - packages/react-native/**
+      - .gitlab/images/**
+      - .forgejo/workflows/develop.yml
+      - .forgejo/actions/plan/**
+      - .forgejo/actions/ci-images/**
+      - .forgejo/actions/wasm-build/**
+      - .forgejo/actions/android-build/**
+      - .forgejo/actions/ios-build/**
+      - .forgejo/scripts/**
 
 concurrency:
   group: develop
   cancel-in-progress: false
 
+env:
+  CARGO_INCREMENTAL: '0'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  SCCACHE_R2_BUCKET: ${{ vars.SCCACHE_R2_BUCKET }}
+  SCCACHE_R2_ENDPOINT: ${{ secrets.SCCACHE_R2_ENDPOINT }}
+  SCCACHE_R2_ACCESS_KEY_ID: ${{ secrets.SCCACHE_R2_ACCESS_KEY_ID }}
+  SCCACHE_R2_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_R2_SECRET_ACCESS_KEY }}
+
 jobs:
-  libraries:
-    name: rs-core libraries
+  changes:
+    name: Plan
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    outputs:
+      registry: ${{ steps.plan.outputs.registry }}
+      images_tag: ${{ steps.plan.outputs.images_tag }}
+      plan: ${{ steps.plan.outputs.plan }}
+      images_missing: ${{ steps.plan.outputs.images_missing }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.forgejo/actions/plan
+        id: plan
+        with:
+          event-before: ${{ github.event.before }}
+
+  setup-images:
+    name: Build CI images
+    needs: changes
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - uses: ./.forgejo/actions/ci-images
+        if: needs.changes.outputs.images_missing == 'true'
+        with:
+          registry: ${{ needs.changes.outputs.registry }}
+          tag: ${{ needs.changes.outputs.images_tag }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+
+  wasm:
+    name: Build wasm
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.build_wasm && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/wasm-build
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
+  android:
+    name: Build Android
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.build_rn && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/android-build
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
+  ios:
+    name: Build iOS
+    needs: changes
+    if: fromJSON(needs.changes.outputs.plan).flags.build_rn
+    runs-on: ${{ vars.CI_RUNNER_MACOS || 'macos' }}
+    env:
+      CARGO_HOME: ${{ github.workspace }}/.cargo
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/ios-build
+
+  publish:
+    name: Publish develop copies
+    needs: [changes, wasm, android, ios]
+    if: >-
+      ${{ !cancelled() && needs.changes.result == 'success' &&
+      needs.wasm.result != 'failure' && needs.android.result != 'failure' && needs.ios.result != 'failure' &&
+      (needs.wasm.result == 'success' || needs.android.result == 'success' || needs.ios.result == 'success') }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
     env:
-      REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
+      REGISTRY: ${{ needs.changes.outputs.registry }}
     steps:
       - name: Install tools
         run: apk add --no-cache bash git crane
       - uses: actions/checkout@v4
+      - if: needs.wasm.result == 'success'
+        uses: forgejo/download-artifact@v4
+        with:
+          name: rs-core-wasm-build
+          path: packages/rs-core-wasm
+      - if: needs.android.result == 'success'
+        uses: forgejo/download-artifact@v4
+        with:
+          name: rn-android-build
+          path: packages/react-native/android/src/main/jniLibs
+      - if: needs.ios.result == 'success'
+        uses: forgejo/download-artifact@v4
+        with:
+          name: rn-ios-build
+          path: packages/react-native
       - uses: ./.forgejo/actions/registry-login
         with:
           registry: ${{ env.REGISTRY }}
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
-      - name: Tag the commit's copy as develop
+      - name: Publish
+        env:
+          WASM: ${{ needs.wasm.result == 'success' }}
+          RN: ${{ needs.android.result == 'success' && needs.ios.result == 'success' }}
         run: |
-          libraries="$REGISTRY/ci/rs-core-libraries"
-          if crane digest "$libraries:$GITHUB_SHA" >/dev/null 2>&1; then
-            crane tag "$libraries:$GITHUB_SHA" develop
-          else
-            echo "no libraries published for $GITHUB_SHA; develop's copy stands"
-          fi
+          built=""
+          [ "$WASM" = true ] && built="$built wasm"
+          [ "$RN" = true ] && built="$built android ios"
+          .forgejo/scripts/rs-core-libraries.sh publish $built

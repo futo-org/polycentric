@@ -12,7 +12,7 @@ are still used.
 | `pr.yml` | pull requests | lint, package, image and docs builds, unit, integration and e2e tests, docs preview |
 | `pr-app.yml` | `build-app` label on a PR | staging EAS builds |
 | `pr-docs-cleanup.yml` | PR closed | remove the docs preview |
-| `develop.yml` | push to `develop` | the commit's rs-core libraries become develop's copy |
+| `develop.yml` | push to `develop` touching the rs-core libraries' sources, manual run | rebuild them, refresh their develop copies |
 | `deploy-<component>-staging.yml` | push to `develop` touching the component, manual run | staging deploy |
 | `deploy-<component>-production.yml` | manual | production deploy |
 | `release.yml` | `v*` and `app-*` tags | packages, images, production apps, the release |
@@ -25,11 +25,14 @@ Rules:
 
 - A `pr.yml` job runs when its paths changed, or the workflow (or an action
   or script it uses) changed. Tags build everything.
-- Merges are fast-forward, so a develop commit is its PR's head: `pr.yml`'s
-  images (`<image>:<sha>`) and rs-core libraries
-  (`ci/rs-core-libraries:<sha>`) are what the deploys reuse.
-- rs-core libraries a run does not build come from the registry: the commit's
-  copy when its Test run published one, else develop's.
+- Images are pushed as `<image>:<sha>`. PRs are squash-merged, so a develop
+  commit is a new SHA and a deploy rebuilds the image it needs.
+- The rs-core libraries (wasm, Android, iOS) have develop copies in the
+  registry, `ci/rs-core-<name>:develop`, kept by `develop.yml`. A job builds
+  the ones its push changed and takes the rest from there
+  (`rs-core-libraries.sh`); web and the verifier bot need only wasm, the app
+  only Android and iOS. The first run needs a manual `develop.yml` to seed
+  the copies.
 - `pr.yml`'s last job, `Complete`, fails if any job in the run did. It is the
   required status check on `develop` (`PR / Complete (pull_request)`, set in
   harbor-infra `futo-git/org`), so a PR that ran nothing still reports.
@@ -37,12 +40,13 @@ Rules:
 ## Deploys
 
 Components: `server`, `moderation`, `push-notifications`, `scraper`,
-`verifier-bot`, `web`, `grayjay-migrator`, `app`, `docs`.
+`verifier-bot`, `web`, `app`, `docs`.
 
 `deploy-<component>-staging.yml` runs on a push to `develop` that touches the
 component's paths (or the workflow and the actions it uses), and manually. A
 service deploy takes the commit's image from the registry and builds it only
-when missing, packages and pushes the component's chart as
+when missing (`web` and `verifier-bot` first the SDKs, and wasm when the push
+changed it), packages and pushes the component's chart as
 `<next patch>-<ref>.g<sha>` with the commit as `appVersion`, then moves the
 image and chart `staging` tags. helm-controller watches the chart tag. `web`
 also uploads its bundle to the static bucket. `app` builds the staging apps on
@@ -90,8 +94,13 @@ tarballs in the R2 bucket: each Rust job's cargo registry and `target/`
 (keyed by rustc version and Cargo files), plus Gradle. sccache covers the
 crates that still compile.
 
-Image builds read and write the registry cache `<image>:cache-develop` with
-`mode=max`, so a build resumes from the step that changed.
+Image builds run on one buildx builder per runner droplet, `harbor`, created
+by the first job that needs it with `buildkitd.toml` (gc keeps 40 GB), so
+layers stay local while the droplet lives. They also read and write the
+registry cache `<image>:cache-develop` with `mode=max`, so a build on a fresh
+droplet resumes from the step that changed. A `buildkitd.toml` change only
+reaches a droplet after `docker buildx rm harbor` there, or when the pool
+recycles it.
 
 ## Forgejo notes
 

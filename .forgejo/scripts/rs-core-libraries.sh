@@ -1,57 +1,62 @@
 #!/usr/bin/env bash
-# rs-core libraries a run did not build come from the registry: the commit's
-# copy when a run published it, else the default branch's (develop.yml retags
-# the commit's copy once it lands).
+# The rs-core libraries (wasm, android, ios) a run did not build come from
+# their develop copies in the registry, ci/rs-core-<name>:develop, which
+# develop.yml refreshes when their sources change.
 #
-# Usage: rs-core-libraries.sh fetch|publish
-# Env: REGISTRY, GITHUB_SHA, DEFAULT_BRANCH; publish needs the registry-login action first.
+# Usage: rs-core-libraries.sh fetch [name...]     default: all three
+#        rs-core-libraries.sh publish name...     needs the registry-login action first
+# Env: REGISTRY.
 set -euo pipefail
 
-repo="${REGISTRY}/ci/rs-core-libraries"
-commit="$repo:${GITHUB_SHA}"
-default="$repo:${DEFAULT_BRANCH:-develop}"
-tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
+# a build-only path that shows the library is present
+marker() {
+  case $1 in
+    wasm) echo packages/rs-core-wasm/dist ;;
+    android) echo packages/react-native/android/src/main/jniLibs ;;
+    ios) echo packages/react-native/PolycentricReactNativeFramework.xcframework/ios-arm64 ;;
+    *) echo "unknown library $1" >&2; exit 2 ;;
+  esac
+}
 
-# job name, then the paths its artifact restores
-LIBS=(
-  "rs-core-wasm-build packages/rs-core-wasm/dist packages/rs-core-wasm/src/generated/wasm"
-  "rn-android-build packages/react-native/android/src/main/jniLibs"
-  "rn-ios-build packages/react-native/PolycentricReactNativeFramework.xcframework packages/react-native/ios"
-)
+# what the library's build artifact restores
+paths() {
+  case $1 in
+    wasm) echo packages/rs-core-wasm/dist packages/rs-core-wasm/src/generated/wasm ;;
+    android) echo packages/react-native/android/src/main/jniLibs ;;
+    ios) echo packages/react-native/PolycentricReactNativeFramework.xcframework packages/react-native/ios ;;
+  esac
+}
+
+image() {
+  echo "$REGISTRY/ci/rs-core-$1:develop"
+}
 
 fetch() {
-  missing=()
-  for lib in "${LIBS[@]}"; do
-    set -- $lib
-    name=$1; shift
-    if [ -e "$1" ]; then
+  for name in "$@"; do
+    if [ -e "$(marker "$name")" ]; then
       echo "$name: built by this run"
-    else
-      echo "$name: from the registry"
-      missing+=("$@")
+      continue
     fi
+    echo "$name: from $(image "$name")"
+    crane digest "$(image "$name")" >/dev/null 2>&1 || { echo "::error::$(image "$name") does not exist yet; run develop.yml"; exit 1; }
+    crane export "$(image "$name")" - | tar -x $(paths "$name")
   done
-  [ ${#missing[@]} -gt 0 ] || return 0
-  image=$default
-  crane digest "$commit" >/dev/null 2>&1 && image=$commit
-  echo "fetching from $image"
-  crane export "$image" - | tar -x "${missing[@]}"
 }
 
 publish() {
-  paths=()
-  for lib in "${LIBS[@]}"; do
-    set -- $lib
-    shift
-    paths+=("$@")
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  for name in "$@"; do
+    [ -e "$(marker "$name")" ] || { echo "::error::$name was not built by this run"; exit 1; }
+    tar cf "$tmp/$name.tar" $(paths "$name")
+    crane append -f "$tmp/$name.tar" -t "$(image "$name")"
   done
-  tar cf "$tmp/libs.tar" "${paths[@]}"
-  crane append -f "$tmp/libs.tar" -t "$commit"
 }
 
-case "${1:-}" in
-  fetch) fetch ;;
-  publish) publish ;;
-  *) echo "usage: $0 fetch|publish" >&2; exit 2 ;;
+mode=${1:-}
+shift || true
+case "$mode" in
+  fetch) fetch "${@:-wasm android ios}" ;;
+  publish) [ $# -gt 0 ] && publish "$@" || { echo "usage: $0 publish name..." >&2; exit 2; } ;;
+  *) echo "usage: $0 fetch [name...]|publish name..." >&2; exit 2 ;;
 esac

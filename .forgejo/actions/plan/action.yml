@@ -1,5 +1,5 @@
 name: plan
-description: Runs changes.mjs and the CI image check; pr.yml gates its jobs on the outputs.
+description: Runs changes.mjs and the CI image check; the workflows gate their jobs on the outputs.
 inputs:
   event-before:
     default: ''

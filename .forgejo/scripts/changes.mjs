@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Turns the GitLab rules (changed paths + ref conditions) into the plan that
-// pr.yml gates its jobs with: `flags` (one per job) and `matrix` rows (one
-// per grouped job). Needs a full clone.
+// the workflows gate their jobs with: `flags` (one per job) and `matrix` rows
+// (one per grouped job). Needs a full clone.
 //
 // Env: GITHUB_*, REGISTRY, EVENT_BEFORE.
 

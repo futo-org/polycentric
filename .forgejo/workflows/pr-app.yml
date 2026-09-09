@@ -1,7 +1,6 @@
 name: PR apps
 
-# The build-app label on a pull request: the staging EAS builds for its head,
-# on the rs-core libraries its Test run published (else develop's).
+# The build-app label on a pull request: the staging EAS builds for its head.
 
 on:
   pull_request:
@@ -11,17 +10,92 @@ concurrency:
   group: pr-app-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  CARGO_INCREMENTAL: '0'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  SCCACHE_R2_BUCKET: ${{ vars.SCCACHE_R2_BUCKET }}
+  SCCACHE_R2_ENDPOINT: ${{ secrets.SCCACHE_R2_ENDPOINT }}
+  SCCACHE_R2_ACCESS_KEY_ID: ${{ secrets.SCCACHE_R2_ACCESS_KEY_ID }}
+  SCCACHE_R2_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_R2_SECRET_ACCESS_KEY }}
+
 jobs:
+  changes:
+    name: Plan
+    if: github.event.label.name == 'build-app'
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    outputs:
+      registry: ${{ steps.plan.outputs.registry }}
+      images_tag: ${{ steps.plan.outputs.images_tag }}
+      plan: ${{ steps.plan.outputs.plan }}
+      images_missing: ${{ steps.plan.outputs.images_missing }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.forgejo/actions/plan
+        id: plan
+
+  setup-images:
+    name: Build CI images
+    needs: changes
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - uses: ./.forgejo/actions/ci-images
+        if: needs.changes.outputs.images_missing == 'true'
+        with:
+          registry: ${{ needs.changes.outputs.registry }}
+          tag: ${{ needs.changes.outputs.images_tag }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+
+  # The native libraries only when the PR changed them; else develop's copies.
+  android:
+    name: Build Android
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.build_rn && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/android-build
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
+  ios:
+    name: Build iOS
+    needs: changes
+    if: fromJSON(needs.changes.outputs.plan).flags.build_rn
+    runs-on: ${{ vars.CI_RUNNER_MACOS || 'macos' }}
+    env:
+      CARGO_HOME: ${{ github.workspace }}/.cargo
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/ios-build
+
   sdks:
     name: Build SDKs
-    if: github.event.label.name == 'build-app'
+    needs: [changes, android, ios]
+    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.android.result != 'failure' && needs.ios.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/sdk-build
         with:
-          registry: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
+          registry: ${{ needs.changes.outputs.registry }}
+          libraries: android ios
+          android-artifact: ${{ needs.android.result == 'success' }}
+          ios-artifact: ${{ needs.ios.result == 'success' }}
           rn-sdk: 'true'
 
   store:

@@ -131,9 +131,6 @@ jobs:
           android-artifact: 'true'
           ios-artifact: 'true'
           rn-sdk: 'true'
-          publish: 'true'
-          registry-user: ${{ vars.REGISTRY_USER }}
-          registry-token: ${{ secrets.REGISTRY_TOKEN }}
 
   # Images -------------------------------------------------------------------
 

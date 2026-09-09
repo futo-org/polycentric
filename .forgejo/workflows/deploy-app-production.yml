@@ -1,7 +1,8 @@
 name: Deploy app to production
 
 # GitLab build_app.yml (EAS) and deploy_app.yml (app), production channel,
-# from the default branch's head. Release tags go through release.yml.
+# from the default branch's head on develop's native libraries. Release tags
+# go through release.yml.
 
 on:
   workflow_dispatch:
@@ -12,7 +13,7 @@ concurrency:
 
 jobs:
   sdks:
-    name: SDKs
+    name: Build SDKs
     if: github.ref_name == github.event.repository.default_branch
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
@@ -21,6 +22,7 @@ jobs:
       - uses: ./.forgejo/actions/sdk-build
         with:
           registry: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
+          libraries: android ios
           rn-sdk: 'true'
 
   # Store builds only queue on EAS, so their submit jobs follow right away

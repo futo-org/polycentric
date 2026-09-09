@@ -1,0 +1,6 @@
+# The service-image action's builder, one per runner droplet.
+[worker.oci]
+  gc = true
+  [[worker.oci.gcpolicy]]
+    all = true
+    keepBytes = "40GB"

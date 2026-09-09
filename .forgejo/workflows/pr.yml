@@ -432,12 +432,11 @@ jobs:
           key: ${{ env.RUST_CACHE_KEY }}
           path: ${{ env.RUST_CACHE_PATHS }}
 
+  # The web and verifier bot images need wasm; Android and iOS are checked above.
   sdks:
     name: Build SDKs
-    needs: [changes, wasm, android, ios]
-    if: >-
-      ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.build_sdks &&
-      needs.wasm.result != 'failure' && needs.android.result != 'failure' && needs.ios.result != 'failure' }}
+    needs: [changes, wasm]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.build_sdks && needs.wasm.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     steps:
@@ -445,13 +444,9 @@ jobs:
       - uses: ./.forgejo/actions/sdk-build
         with:
           registry: ${{ needs.changes.outputs.registry }}
+          libraries: wasm
           wasm-artifact: ${{ needs.wasm.result == 'success' }}
-          android-artifact: ${{ needs.android.result == 'success' }}
-          ios-artifact: ${{ needs.ios.result == 'success' }}
           rn-sdk: ${{ fromJSON(needs.changes.outputs.plan).flags.build_rn_sdk }}
-          publish: 'true'
-          registry-user: ${{ vars.REGISTRY_USER }}
-          registry-token: ${{ secrets.REGISTRY_TOKEN }}
 
   # Images -------------------------------------------------------------------
 
