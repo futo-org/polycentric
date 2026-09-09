@@ -1,5 +1,5 @@
 name: ci-images
-description: Builds the CI toolchain images whose content tag is missing (ci-images.sh). Alpine job container.
+description: Builds the CI toolchain images whose content tag is missing (ci-images.sh). Alpine job container, after checkout.
 inputs:
   registry:
     required: true
@@ -17,7 +17,6 @@ runs:
   steps:
     - shell: sh
       run: apk add --no-cache bash git crane cosign docker-cli docker-cli-buildx
-    - uses: actions/checkout@v4
     - uses: ./.forgejo/actions/registry-login
       with:
         registry: ${{ inputs.registry }}

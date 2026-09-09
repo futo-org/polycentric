@@ -65,6 +65,7 @@ jobs:
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/ci-images
         if: needs.changes.outputs.images_missing == 'true'
         with:
@@ -98,7 +99,9 @@ jobs:
   sdks:
     name: Build SDKs
     needs: [changes, wasm]
-    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.image != 'true' && needs.wasm.result != 'failure' }}
+    if: >-
+      ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.image != 'true' &&
+      (needs.wasm.result == 'success' || needs.changes.outputs.have_wasm == 'true') }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     steps:
