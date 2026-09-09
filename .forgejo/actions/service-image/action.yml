@@ -37,8 +37,12 @@ runs:
         BUILD_ARGS: ${{ inputs.build-args }}
         EXPORT_CACHE: ${{ inputs.export-cache }}
       run: |
-        install -d -o user -g user /home/user/.docker
-        [ ! -f ~/.docker/config.json ] || install -o user -g user -m 0600 ~/.docker/config.json /home/user/.docker/config.json
+        # The image sets HOME=/home/user for root too, so the login usually landed there already.
+        if [ -f ~/.docker/config.json ] && [ ! ~/.docker/config.json -ef /home/user/.docker/config.json ]; then
+          install -d /home/user/.docker
+          install -m 0600 ~/.docker/config.json /home/user/.docker/config.json
+        fi
+        chown -R user:user /home/user
         # rootlesskit refuses root, which the job's steps run as.
         build() {
           su -s /bin/bash user -c "cd $(printf '%q' "$PWD") && exec env HOME=/home/user XDG_RUNTIME_DIR=/run/user/1000 TMPDIR=/home/user/.local/tmp BUILDKITD_FLAGS=--oci-worker-no-process-sandbox buildctl-daemonless.sh build $(printf '%q ' "$@")"
