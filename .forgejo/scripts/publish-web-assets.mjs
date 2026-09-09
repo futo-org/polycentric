@@ -9,7 +9,7 @@
 
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { createStaticBucket } from '../../../tools/static-bucket/index.js';
+import { createStaticBucket } from '../../tools/static-bucket/index.js';
 
 const [srcDir, destPrefix, baseUrl] = process.argv.slice(2);
 if (!srcDir || !destPrefix) {

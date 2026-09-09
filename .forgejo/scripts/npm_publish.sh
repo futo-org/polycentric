@@ -14,7 +14,7 @@
 # Without CI_SERVER_HOST only the public publish runs.
 set -euo pipefail
 
-cd "$(dirname "$0")/../../.."
+cd "$(dirname "$0")/../.."
 
 VERSION="${CI_COMMIT_TAG#v}"
 echo "Publishing @polycentric packages at version ${VERSION}"

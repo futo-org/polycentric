@@ -11,7 +11,7 @@
 
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { createStaticBucket } from '../../../tools/static-bucket/index.js';
+import { createStaticBucket } from '../../tools/static-bucket/index.js';
 
 const channel = process.env.UPDATE_CHANNEL;
 if (channel !== 'staging' && channel !== 'production') {

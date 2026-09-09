@@ -7,7 +7,7 @@
 #   KEEP_STACK=1   leave the Docker stack running on exit (default: tear down)
 set -euo pipefail
 
-cd "$(dirname "$0")/../../.."
+cd "$(dirname "$0")/../.."
 
 # A fixed project name keeps the network name (<project>_default) independent
 # of the checkout directory, for both the connect below and teardown.
