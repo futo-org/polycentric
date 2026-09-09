@@ -676,6 +676,8 @@ jobs:
       MAESTRO_WEB_URL: http://web:8080
       MAESTRO_BROWSER: /usr/local/bin/e2e-chromium
       MAESTRO_OUTPUT: reports
+      # run.mjs seeds the identities the flows search for on the app's server.
+      E2E_SERVER_URL: https://srv.staging.harbor.social
     steps:
       - name: Install Chromium
         run: |
@@ -683,6 +685,8 @@ jobs:
           printf '#!/bin/sh\nexec /usr/bin/chromium --no-sandbox --unsafely-treat-insecure-origin-as-secure=%s "$@"\n' "$MAESTRO_WEB_URL" > "$MAESTRO_BROWSER"
           chmod +x "$MAESTRO_BROWSER"
       - uses: actions/checkout@v4
+      # seed.mjs imports the js SDKs.
+      - uses: ./.forgejo/actions/sdk-artifacts
       - uses: ./.forgejo/actions/setup-pnpm
         with:
           install-args: --filter harbor-e2e...
