@@ -308,6 +308,21 @@ impl TestClient {
         self.push_event_bundle(ContentBody::Labels(labels), created_at)
     }
 
+    pub fn label_key(
+        &mut self,
+        on: EventKey,
+        labels: Vec<String>,
+        created_at: u64,
+    ) -> Vec<u8> {
+        self.label(
+            Labels {
+                event_key: Some(on),
+                label_values: labels,
+            },
+            created_at,
+        )
+    }
+
     pub fn follow(&mut self, follow: Follow, created_at: u64) -> Vec<u8> {
         self.push_event_bundle(ContentBody::Follow(follow), created_at)
     }
