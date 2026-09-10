@@ -19,7 +19,7 @@ pub async fn handle(
     req: GetPostRequest,
 ) -> Result<GetPostResponse, Status> {
     let Some(event_key) = req.event_key else {
-        return Err(Status::invalid_argument(format!("event_key is required")));
+        return Err(Status::invalid_argument("event_key is required"));
     };
     let params = Params { event_key };
     pipeline::create_pipeline(ctx, &params, fetch, hydrate, filter, view).await
@@ -54,14 +54,13 @@ async fn filter(
     row: Option<EventWithContentRow>,
     hydration: &HydrationState,
 ) -> Result<Option<EventWithContentRow>, Status> {
-    if let Some(r) = row.as_ref() {
-        if hydration
+    if let Some(r) = row.as_ref()
+        && (hydration
             .blocked_identities
             .contains(&r.as_event().identity)
-            || hydration.deletes_by_target.contains_key(&r.event_key())
-        {
-            return Ok(None);
-        }
+            || hydration.deletes_by_target.contains_key(&r.event_key()))
+    {
+        return Ok(None);
     }
 
     Ok(row)
@@ -92,13 +91,13 @@ async fn view(
     tokio::try_join!(
         async {
             if let Some(event_bundle) = event_bundle.as_mut() {
-                attach_proofs(&ctx.service, slice::from_mut(event_bundle)).await
+                attach_proofs(ctx.service, slice::from_mut(event_bundle)).await
             } else {
                 Ok(())
             }
         },
-        attach_proofs(&ctx.service, &mut tombstone_bundles),
-        attach_proofs(&ctx.service, &mut label_bundles),
+        attach_proofs(ctx.service, &mut tombstone_bundles),
+        attach_proofs(ctx.service, &mut label_bundles),
     )?;
 
     let event_hints = identity_events
