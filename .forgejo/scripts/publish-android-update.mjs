@@ -67,15 +67,20 @@ writeFileSync('latest.json', `${JSON.stringify(manifest, null, 2)}\n`);
 
 const APK_CONTENT_TYPE = 'application/vnd.android.package-archive';
 
-bucket.put(
+await bucket.put(
   apkKey,
   apkFile,
   APK_CONTENT_TYPE,
   'public, max-age=31536000, immutable',
 );
-bucket.put(latestApkKey, apkFile, APK_CONTENT_TYPE, 'public, max-age=300');
+await bucket.put(
+  latestApkKey,
+  apkFile,
+  APK_CONTENT_TYPE,
+  'public, max-age=300',
+);
 // Manifest goes last so it never points at an APK that isn't there yet.
-bucket.put(
+await bucket.put(
   manifestKey,
   'latest.json',
   'application/json',
