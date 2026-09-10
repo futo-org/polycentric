@@ -16,7 +16,6 @@ use polycentric_common::models::protos_v2::{
 use polycentric_common::models::protos_v2::{ListHeadsRequest, PutEventsResponse};
 use polycentric_common::models::traits::Serializable;
 use prost::Message;
-use std::sync::LazyLock;
 use std::sync::{Arc, Mutex};
 
 #[cfg(all(not(target_arch = "wasm32"), not(feature = "native-transport")))]
@@ -31,6 +30,7 @@ async fn channel(server_url: &str) -> Result<crate::query::GrpcChannel, CoreErro
 /// Install a panic hook that logs the panic message
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn install_panic_hook() {
+    use std::sync::LazyLock;
     let lazy = LazyLock::new(|| {
         std::panic::set_hook(Box::new(|info| {
             let location = info
