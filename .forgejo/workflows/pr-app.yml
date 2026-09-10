@@ -158,21 +158,22 @@ jobs:
 
   apk:
     name: Build Android APK
-    needs: [changes, setup-images, sdks]
-    if: ${{ !cancelled() && needs.sdks.result == 'success' && needs.setup-images.result != 'failure' }}
+    needs: sdks
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container:
-      image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.forgejo/actions/apk-build
+      - uses: ./.forgejo/actions/eas-build
         with:
+          platform: android
           profile: staging-apk
+          wait: 'true'
       - uses: forgejo/upload-artifact@v4
         with:
           name: app-android-apk-staging
-          path: apps/harbor/harbor.apk
+          path: |
+            apps/harbor/eas-build.json
+            apps/harbor/harbor.apk
           retention-days: 7

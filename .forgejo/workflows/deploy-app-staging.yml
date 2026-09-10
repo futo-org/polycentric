@@ -144,7 +144,7 @@ jobs:
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
 
   # Store builds only queue on EAS, so their submit jobs follow right away
-  # and EAS waits for the build itself. The APK is built here.
+  # and EAS waits for the build itself.
   store:
     name: ${{ matrix.label }}
     needs: sdks
@@ -175,40 +175,26 @@ jobs:
           retention-days: 7
 
   apk:
-    name: Build and deploy Android APK
-    needs: [changes, setup-images, sdks]
-    if: ${{ !cancelled() && needs.sdks.result == 'success' && needs.setup-images.result != 'failure' }}
+    name: Build Android APK
+    needs: sdks
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container:
-      image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
-      UPDATE_CHANNEL: staging
-      STATIC_S3_ENDPOINT: ${{ secrets.STATIC_S3_ENDPOINT }}
-      STATIC_S3_BUCKET: ${{ vars.STATIC_S3_BUCKET }}
-      STATIC_S3_ACCESS_KEY_ID: ${{ secrets.STATIC_S3_ACCESS_KEY_ID }}
-      STATIC_S3_SECRET_ACCESS_KEY: ${{ secrets.STATIC_S3_SECRET_ACCESS_KEY }}
-      STATIC_PUBLIC_BASE_URL: ${{ vars.STATIC_PUBLIC_BASE_URL }}
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.forgejo/actions/apk-build
-        id: apk
+      - uses: ./.forgejo/actions/eas-build
         with:
+          platform: android
           profile: staging-apk
+          wait: 'true'
       - uses: forgejo/upload-artifact@v4
         with:
           name: app-android-apk-staging
-          path: apps/harbor/harbor.apk
+          path: |
+            apps/harbor/eas-build.json
+            apps/harbor/harbor.apk
           retention-days: 7
-      - name: Publish the APK
-        env:
-          APP_VERSION_NAME: ${{ steps.apk.outputs.version_name }}
-          APP_VERSION_CODE: ${{ steps.apk.outputs.version_code }}
-        run: |
-          export CI_COMMIT_SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-8)
-          export CI_COMMIT_TITLE=$(git log -1 --format=%s)
-          node .forgejo/scripts/publish-android-update.mjs
 
   # eas-cli needs the expo project config even when submitting by id.
   store-deploy:
@@ -244,6 +230,30 @@ jobs:
         run: |
           BUILD_ID=$(node -p "[].concat(JSON.parse(require('fs').readFileSync('eas-build.json', 'utf8')))[0].id")
           npx eas-cli submit --platform "$PLATFORM" --profile staging --id "$BUILD_ID" --non-interactive --no-wait
+
+  apk-deploy:
+    name: Deploy APK
+    needs: apk
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      UPDATE_CHANNEL: staging
+      STATIC_S3_ENDPOINT: ${{ secrets.STATIC_S3_ENDPOINT }}
+      STATIC_S3_BUCKET: ${{ vars.STATIC_S3_BUCKET }}
+      STATIC_S3_ACCESS_KEY_ID: ${{ secrets.STATIC_S3_ACCESS_KEY_ID }}
+      STATIC_S3_SECRET_ACCESS_KEY: ${{ secrets.STATIC_S3_SECRET_ACCESS_KEY }}
+      STATIC_PUBLIC_BASE_URL: ${{ vars.STATIC_PUBLIC_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: forgejo/download-artifact@v4
+        with:
+          name: app-android-apk-staging
+          path: apps/harbor
+      - name: Publish the APK
+        run: |
+          export CI_COMMIT_SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-8)
+          export CI_COMMIT_TITLE=$(git log -1 --format=%s)
+          node .forgejo/scripts/publish-android-update.mjs
 
   # An empty matrix creates no job; an `if` would wait for the device runner.
   ios-e2e:

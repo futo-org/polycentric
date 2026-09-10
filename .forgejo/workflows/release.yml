@@ -232,26 +232,24 @@ jobs:
 
   apk:
     name: Build Android APK
-    needs: [changes, setup-images, sdks]
+    needs: sdks
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container:
-      image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
-    outputs:
-      version_name: ${{ steps.apk.outputs.version_name }}
-      version_code: ${{ steps.apk.outputs.version_code }}
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.forgejo/actions/apk-build
-        id: apk
+      - uses: ./.forgejo/actions/eas-build
         with:
+          platform: android
           profile: production-apk
+          wait: 'true'
       - uses: forgejo/upload-artifact@v4
         with:
           name: app-android-apk-production
-          path: apps/harbor/harbor.apk
+          path: |
+            apps/harbor/eas-build.json
+            apps/harbor/harbor.apk
           retention-days: 7
 
   # eas-cli needs the expo project config even when submitting by id.
@@ -296,8 +294,6 @@ jobs:
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     env:
       UPDATE_CHANNEL: production
-      APP_VERSION_NAME: ${{ needs.apk.outputs.version_name }}
-      APP_VERSION_CODE: ${{ needs.apk.outputs.version_code }}
       STATIC_S3_ENDPOINT: ${{ secrets.STATIC_S3_ENDPOINT }}
       STATIC_S3_BUCKET: ${{ vars.STATIC_S3_BUCKET }}
       STATIC_S3_ACCESS_KEY_ID: ${{ secrets.STATIC_S3_ACCESS_KEY_ID }}
