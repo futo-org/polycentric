@@ -1,7 +1,7 @@
 // Uploads to the static S3 bucket, signed by curl (--aws-sigv4). No npm
 // dependencies: CI scripts import this from a bare checkout.
 
-import { execFileSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
@@ -30,6 +30,22 @@ function encodeKey(key) {
     .join('/');
 }
 
+function curl(args, input) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('curl', args, { stdio: ['pipe', 'pipe', 'inherit'] });
+    let out = '';
+    child.stdout.on('data', (chunk) => {
+      out += chunk;
+    });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0) resolve(out);
+      else reject(new Error(`curl exited ${code} for ${args.at(-1)}`));
+    });
+    child.stdin.end(input);
+  });
+}
+
 /**
  * Bucket client configured from STATIC_S3_ENDPOINT, STATIC_S3_BUCKET,
  * STATIC_S3_ACCESS_KEY_ID, STATIC_S3_SECRET_ACCESS_KEY and the optional
@@ -41,8 +57,37 @@ export function createStaticBucket(env = process.env) {
   const accessKeyId = requireEnv(env, 'STATIC_S3_ACCESS_KEY_ID');
   const secretAccessKey = requireEnv(env, 'STATIC_S3_SECRET_ACCESS_KEY');
   const region = env.STATIC_S3_REGION || 'auto';
+  const config = `user = "${accessKeyId}:${secretAccessKey}"\n`;
+  const signed = [
+    '-sS',
+    '--aws-sigv4',
+    `aws:amz:${region}:s3`,
+    '--config',
+    '-',
+  ];
+  const url = (key) => `${endpoint}/${bucket}/${encodeKey(key)}`;
 
-  function put(key, file, contentType, cacheControl) {
+  /** The object's ETag (the MD5 of a single-part upload), or null if absent. */
+  async function head(key) {
+    const out = await curl(
+      [
+        ...signed,
+        '-I',
+        '-o',
+        '/dev/null',
+        '-w',
+        '%{http_code} %header{etag}',
+        url(key),
+      ],
+      config,
+    );
+    const [status, etag = ''] = out.trim().split(' ');
+    if (status === '404') return null;
+    if (status !== '200') throw new Error(`HEAD ${key} returned ${status}`);
+    return { etag: etag.replace(/"/g, '') };
+  }
+
+  async function put(key, file, contentType, cacheControl) {
     if (!cacheControl) {
       throw new Error(`no cache-control given for ${key}`);
     }
@@ -52,15 +97,10 @@ export function createStaticBucket(env = process.env) {
     const bodySha256 = createHash('sha256')
       .update(readFileSync(file))
       .digest('hex');
-    execFileSync(
-      'curl',
+    await curl(
       [
-        '-sS',
+        ...signed,
         '--fail-with-body',
-        '--aws-sigv4',
-        `aws:amz:${region}:s3`,
-        '--config',
-        '-',
         '--upload-file',
         file,
         '--header',
@@ -69,14 +109,11 @@ export function createStaticBucket(env = process.env) {
         `cache-control: ${cacheControl}`,
         '--header',
         `x-amz-content-sha256: ${bodySha256}`,
-        `${endpoint}/${bucket}/${encodeKey(key)}`,
+        url(key),
       ],
-      {
-        input: `user = "${accessKeyId}:${secretAccessKey}"\n`,
-        stdio: ['pipe', 'inherit', 'inherit'],
-      },
+      config,
     );
   }
 
-  return { put };
+  return { head, put };
 }

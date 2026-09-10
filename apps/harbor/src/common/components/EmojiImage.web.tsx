@@ -19,6 +19,7 @@ export const EmojiImage = memo(function EmojiImage({
   return (
     <Image
       source={{ uri: `/twemoji/${twemojiCode(sequence)}.svg` }}
+      resizeMode="contain"
       style={[{ width: size, height: size }, style]}
       accessibilityLabel={sequence}
       onError={() => setMissing(true)}
