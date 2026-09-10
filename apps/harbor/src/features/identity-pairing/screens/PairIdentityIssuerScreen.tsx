@@ -1,7 +1,8 @@
 import { Button, Screen, ScreenHeader, Text } from '@/src/common/components';
 import Icon from '@/src/common/components/Icon';
+import type { IconProps } from '@/src/common/components/Icon';
 import { Sheet } from '@/src/common/components/sheet';
-import { Atoms, useTheme } from '@/src/common/theme';
+import { Atoms, type Palette, useTheme } from '@/src/common/theme';
 import { usePairIdentityIssuer } from '@/src/features/identity-pairing/hooks/usePairIdentityIssuer';
 import { publicKeyEmojiFingerprint } from '@/src/features/identity-pairing/publicKeyEmojiFingerprint';
 import * as Clipboard from 'expo-clipboard';
@@ -16,13 +17,17 @@ import type { v2 } from '@polycentric/react-native';
 /** Width of the UI elements in the pairing info card. */
 const PAIRING_BLOCK_WIDTH = 300;
 
+// TODO: structured error reporting from rs-core
+const RS_CORE_EXPIRATION_ERROR_MSG =
+  'CoreError.InvalidInput: Invalid input: pairing session has expired';
+
 export default function PairIdentityIssuerScreen() {
   const { theme } = useTheme();
 
   const { info, expiresAt, claimers, error, stage, approveClaimer } =
     usePairIdentityIssuer();
 
-  const { remainingSeconds, expired } = useCountdown(expiresAt);
+  const { remainingSeconds, ...countdown } = useCountdown(expiresAt);
 
   /**
    * The index into the claimers array to display to the user.
@@ -37,21 +42,31 @@ export default function PairIdentityIssuerScreen() {
 
   let pendingClaimer: string | null = null;
 
+  // Expiration can be surfaced by rs-core as a validation error or from our
+  // countdown reaching 0.
+  const expired = countdown.expired || error === RS_CORE_EXPIRATION_ERROR_MSG;
+
   if ((stage === 'polling' || stage === 'approving') && !expired) {
     pendingClaimer = claimers.at(claimerCursor) ?? null;
   }
 
   let mainContent: ReactNode;
 
-  if (expired) {
+  if (error) {
     mainContent = (
-      <StatusDisplay status="error" message="The pairing code expired." />
+      <StatusDisplay icon="error" summary={'Pairing failed.'} details={error} />
     );
-  } else if (error) {
-    mainContent = <StatusDisplay status="error" message={error} />;
+  } else if (expired) {
+    mainContent = (
+      <StatusDisplay icon="error" summary="The pairing code expired." />
+    );
   } else if (stage === 'done') {
     mainContent = (
-      <StatusDisplay status="success" message="Pairing successful." />
+      <StatusDisplay
+        icon="success"
+        summary="Pairing successful."
+        details="Your other device should see the approval soon."
+      />
     );
   } else {
     mainContent = (
@@ -77,6 +92,7 @@ export default function PairIdentityIssuerScreen() {
                 Atoms.gap_lg,
                 Atoms.pb_lg,
                 Atoms.items_center,
+                Atoms.w_full,
                 { paddingTop: 100 },
               ]}
             >
@@ -234,13 +250,35 @@ function CopyButton({ info }: { info: v2.PairingInfo | null }) {
 
 /** Display the outcome of the pairing process to the user. */
 function StatusDisplay({
-  status,
-  message,
+  icon,
+  summary,
+  details,
 }: {
-  status: 'success' | 'error';
-  message: string;
+  icon: 'success' | 'error';
+  summary: string;
+  details?: string;
 }) {
-  const successful = status === 'success';
+  const { theme } = useTheme();
+
+  let iconName: IconProps['name'];
+  let iconColor: IconProps['color'];
+  let detailsColor: keyof Palette;
+  let detailsBg: string;
+  let detailsBorder: string;
+
+  if (icon === 'success') {
+    iconName = 'checkmarkCircle';
+    iconColor = 'primary_500';
+    detailsColor = 'neutral_900';
+    detailsBg = theme.palette.neutral_25;
+    detailsBorder = theme.palette.neutral_100;
+  } else {
+    iconName = 'closeCircle';
+    iconColor = 'negative_500';
+    detailsColor = 'negative_600';
+    detailsBg = theme.palette.negative_25;
+    detailsBorder = theme.palette.negative_100;
+  }
 
   return (
     <View
@@ -248,24 +286,41 @@ function StatusDisplay({
         Atoms.py_2xl,
         Atoms.gap_md,
         Atoms.items_center,
-        { width: '100%', maxWidth: 320 },
+        { width: '100%', maxWidth: 450 },
       ]}
     >
-      <Icon
-        name={successful ? 'checkmarkCircle' : 'closeCircle'}
-        size={72}
-        color={successful ? 'primary_500' : 'negative_500'}
-      />
-      <Text variant="subtitle" style={Atoms.text_left}>
-        {message}
-      </Text>
-      <Button
-        title="Done"
-        variant="primary"
-        size="md"
-        fullWidth
-        onPress={() => router.back()}
-      />
+      <Icon name={iconName} size={72} color={iconColor} />
+
+      <Text variant="subtitle">{summary}</Text>
+
+      {details ? (
+        <View
+          style={[
+            Atoms.p_sm,
+            Atoms.rounded_lg,
+            Atoms.w_full,
+            Atoms.text_left,
+            {
+              backgroundColor: detailsBg,
+              borderWidth: 1,
+              borderColor: detailsBorder,
+            },
+          ]}
+        >
+          <Text variant="secondary" color={detailsColor}>
+            {details}
+          </Text>
+        </View>
+      ) : null}
+
+      <View style={{ width: '100%' }}>
+        <Button
+          title="Done"
+          variant="primary"
+          fullWidth
+          onPress={() => router.back()}
+        />
+      </View>
     </View>
   );
 }
