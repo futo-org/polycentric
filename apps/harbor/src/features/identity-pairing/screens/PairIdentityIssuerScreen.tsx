@@ -90,7 +90,7 @@ export default function PairIdentityIssuerScreen() {
               { backgroundColor: theme.atoms.bg.backgroundColor },
             ]}
           >
-            <ScreenHeader title="Pair Identity" onBack={() => router.back()} />
+            <ScreenHeader title="Pair Identity" onBack={exit} />
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={[
@@ -318,12 +318,7 @@ function StatusDisplay({
       ) : null}
 
       <View style={{ width: '100%' }}>
-        <Button
-          title="Done"
-          variant="primary"
-          fullWidth
-          onPress={() => router.back()}
-        />
+        <Button title="Done" variant="primary" fullWidth onPress={exit} />
       </View>
     </View>
   );
@@ -478,4 +473,10 @@ function ApprovalSheet({
       </Sheet.Content>
     </Sheet>
   );
+}
+
+function exit() {
+  if (router.canGoBack()) {
+    router.back();
+  }
 }
