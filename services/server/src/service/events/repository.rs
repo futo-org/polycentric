@@ -23,6 +23,7 @@ use sea_orm::*;
 use tonic::Status;
 
 const COLLECTION_FEED: i16 = collections::FEED as i16;
+const COLLECTION_PROFILE: i16 = collections::PROFILE as i16;
 const COLLECTION_SOCIAL: i16 = collections::SOCIAL_GRAPH as i16;
 const COLLECTION_INTERACTIONS: i16 = collections::INTERACTIONS as i16;
 
@@ -792,6 +793,13 @@ impl Mutation {
                 );
 
                 Ok(Some(query.into()))
+            }
+            COLLECTION_PROFILE => {
+                let mut delete_profile = DeleteStatement::new();
+                delete_profile
+                    .from_table(profile::Entity)
+                    .cond_where(profile::Column::EventId.in_subquery(event_id));
+                Ok(Some(delete_profile.into()))
             }
             // Deletion of a following or of a block. The event key does not
             // say which, so clear both caches.
