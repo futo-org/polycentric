@@ -1,8 +1,9 @@
 import { Atoms } from '@/src/common/theme';
+import { EmojiImage } from '@/src/common/components/EmojiImage';
 import { isWeb } from '@/src/common/util/platform';
 import { memo, useCallback, type ReactNode } from 'react';
-import { Pressable, Text } from 'react-native';
-import type { Insets, StyleProp, TextStyle, ViewStyle } from 'react-native';
+import { Pressable, View } from 'react-native';
+import type { Insets, StyleProp, ViewStyle } from 'react-native';
 
 // Scale/timing/opacity for the hover (on web) and press (on native) animations.
 export const EMOJI_POP_SCALE = 1.12;
@@ -75,10 +76,9 @@ type EmojiProps = {
   selected?: boolean;
   /** Width/height of the button */
   size?: string | number;
-  // Color and highlightColor passed as a prop to avoid frequent theme subscriptions
-  color: string;
+  // Passed as a prop to avoid frequent theme subscriptions
   highlightColor: string;
-  style?: StyleProp<TextStyle>;
+  style?: StyleProp<ViewStyle>;
 };
 
 export const Emoji = memo(function Emoji({
@@ -88,7 +88,6 @@ export const Emoji = memo(function Emoji({
   value,
   selected = false,
   size,
-  color,
   highlightColor,
 }: EmojiProps) {
   const handlePress = useCallback(
@@ -104,21 +103,12 @@ export const Emoji = memo(function Emoji({
       highlightColor={highlightColor}
       selected={selected}
     >
-      <Text
-        style={[
-          isNumericSize
-            ? {
-                fontSize: size * 0.55,
-                lineHeight: size,
-              }
-            : Atoms.text_2xl,
-          Atoms.text_center,
-          { color },
-          style,
-        ]}
-      >
-        {emoji}
-      </Text>
+      <View style={style}>
+        <EmojiImage
+          sequence={emoji}
+          size={isNumericSize ? Math.round(size * 0.62) : 28}
+        />
+      </View>
     </EmojiLikePressable>
   );
 });

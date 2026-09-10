@@ -55,7 +55,6 @@ export default function EmojiPickerInline({
           onSelect={handleSelect}
           size={INLINE_SIZE}
           selected={selectedEmoji === emoji.emoji}
-          color={theme.palette.neutral_1000}
           highlightColor={theme.palette.neutral_100}
         />
       ))}

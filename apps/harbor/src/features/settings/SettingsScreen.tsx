@@ -173,6 +173,11 @@ export default function SettingsTabScreen() {
               <ListItemGroup label="About">
                 <VersionRow />
                 {canSelfUpdate() ? <CheckForUpdatesRow /> : null}
+                <ListItemWrapper
+                  onPress={() => router.push(Routes.tabs.settings.legalNotices)}
+                >
+                  <Text variant="body">Legal notices</Text>
+                </ListItemWrapper>
               </ListItemGroup>
 
               <SourceCodeItem />
