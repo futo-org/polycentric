@@ -417,10 +417,33 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/ios-build
 
+  kt-core-lint:
+    name: Lint Kotlin
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.kt_core_lint && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
+    env:
+      GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/kt-core-build
+        with:
+          task: ':core:ktlintCheck'
+          upload-artifact: 'false'
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
   kt-core:
     name: Build Kotlin
-    needs: [changes, setup-images]
-    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.kt_core_build && needs.setup-images.result != 'failure' }}
+    needs: [changes, setup-images, kt-core-lint]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.kt_core_build && needs.kt-core-lint.result != 'failure' && needs.setup-images.result != 'failure' }}
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container:
       image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
@@ -764,6 +787,7 @@ jobs:
       - android
       - ios
       - kt-core
+      - kt-core-lint
       - sdks
       - service-images
       - scraper-image

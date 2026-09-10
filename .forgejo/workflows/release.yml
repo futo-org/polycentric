@@ -118,6 +118,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/kt-core-build
+      - name: Publish the AAR to the Maven registry
+        if: startsWith(github.ref_name, 'v')
+        env:
+          FORGEJO_PACKAGE_TOKEN: ${{ secrets.FORGEJO_PACKAGE_TOKEN }}
+        run: |
+          cd packages/kt-core
+          ./gradlew :core:publishReleasePublicationToForgejoRepository -PktCoreVersion="${GITHUB_REF_NAME#v}"
       - uses: ./.forgejo/actions/r2-cache
         if: always()
         continue-on-error: true

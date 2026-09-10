@@ -219,8 +219,8 @@ dependencies {
 }
 
 // ── Publishing ─────────────────────────────────────────────────────────
-// Publishes the release AAR to the GitLab Maven registry from the
-// kt-core-publish CI job on release tags.
+// Publishes the release AAR to the Forgejo Maven registry for tagged
+// commits.
 afterEvaluate {
     publishing {
         publications {
@@ -230,18 +230,16 @@ afterEvaluate {
                 artifactId = "polycentric-core"
             }
         }
-        if (System.getenv("CI_JOB_TOKEN") != null) {
+        if (System.getenv("FORGEJO_PACKAGE_TOKEN") != null) {
+            val owner = System.getenv("GITHUB_REPOSITORY")!!.substringBefore('/')
+            val serverUrl = System.getenv("GITHUB_SERVER_URL")!!
             repositories {
                 maven {
-                    name = "GitLab"
-                    url =
-                        uri(
-                            "${System.getenv("CI_API_V4_URL")}/projects/" +
-                                "${System.getenv("CI_PROJECT_ID")}/packages/maven",
-                        )
+                    name = "Forgejo"
+                    url = uri("$serverUrl/api/packages/$owner/maven")
                     credentials(HttpHeaderCredentials::class) {
-                        name = "Job-Token"
-                        value = System.getenv("CI_JOB_TOKEN")
+                        name = "Authorization"
+                        value = "token ${System.getenv("FORGEJO_PACKAGE_TOKEN")}"
                     }
                     authentication {
                         create<HttpHeaderAuthentication>("header")

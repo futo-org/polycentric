@@ -170,6 +170,7 @@ const flags = {
     app,
     build_sdks: rsCore || jsSdk || rnSdk || app || verifierBot,
     build_rn_sdk: rnSdk || rsCore || app,
+    kt_core_lint: ktCore,
     kt_core_build: ktCore,
     image_scraper: scraper,
     image_verifier_bot: verifierBot,
