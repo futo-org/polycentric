@@ -1,4 +1,4 @@
-import { Text } from '@/src/common/components/primitives/Text';
+import { EmojiImage } from '@/src/common/components/EmojiImage';
 import type { PostData } from '@/src/common/lib/polycentric-hooks';
 import { Atoms } from '@/src/common/theme';
 import ReactionDetailsSheet from '@/src/features/reaction/ReactionDetailsSheet';
@@ -10,8 +10,7 @@ import useReactions from '../../reaction/useReactions';
 /** Max number of stacked emojis shown in the expanded output. */
 const MAX_STACKED = 3;
 
-/** iOS clips emoji glyphs when the line height hugs the font size. */
-const EMOJI_STYLE = { fontSize: 15, lineHeight: 20 } as const;
+const EMOJI_SIZE = 18;
 
 type PostReactionOutputProps = {
   post: PostData;
@@ -52,7 +51,7 @@ export default function PostReactionOutput({ post }: PostReactionOutputProps) {
       {/** Render our own emoji on top with full opacity, if present: */}
       {myEmoji ? (
         <View style={{ zIndex: 2 }}>
-          <Text style={EMOJI_STYLE}>{myEmoji}</Text>
+          <EmojiImage sequence={myEmoji} size={EMOJI_SIZE} />
         </View>
       ) : null}
       {others.length > 0 ? (
@@ -75,7 +74,7 @@ export default function PostReactionOutput({ post }: PostReactionOutputProps) {
                 i > 0 && { marginLeft: -6 },
               ]}
             >
-              <Text style={EMOJI_STYLE}>{emoji}</Text>
+              <EmojiImage sequence={emoji} size={EMOJI_SIZE} />
             </View>
           ))}
         </View>

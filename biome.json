@@ -21,6 +21,7 @@
       "!apps/harbor/android",
       "!apps/harbor/ios",
       "!apps/harbor/src/common/assets",
+      "!apps/harbor/src/common/emoji/twemoji",
       "!packages/react-native/android",
       "!packages/react-native/ios",
       "!packages/react-native/lib",

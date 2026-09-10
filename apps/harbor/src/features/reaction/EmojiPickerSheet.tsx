@@ -75,7 +75,6 @@ export function EmojiPickerSheet({
         emoji={item.emoji}
         selected={item.emoji === selectedEmoji}
         onSelect={onSelect}
-        color={theme.palette.neutral_1000}
         highlightColor={theme.palette.neutral_100}
         size={colWidth}
       />
@@ -111,7 +110,6 @@ export function EmojiPickerSheet({
                   value={cat.key}
                   size={categoryColWidth}
                   onSelect={handleCategorySelect}
-                  color={theme.palette.neutral_1000}
                   highlightColor={theme.palette.neutral_100}
                   style={
                     cat.key === selectedCategory && {

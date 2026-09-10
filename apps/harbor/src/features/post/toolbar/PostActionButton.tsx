@@ -1,3 +1,4 @@
+import { EmojiImage } from '@/src/common/components/EmojiImage';
 import { Text } from '@/src/common/components/primitives/Text';
 import Icon, { type IconName } from '@/src/common/components/Icon';
 import { withIdentity } from '@/src/common/lib/authGate';
@@ -17,6 +18,8 @@ import {
 
 type PostActionButtonProps = {
   icon: IconName;
+  /** Rendered in place of the icon. */
+  emoji?: string;
   count?: number;
   active?: boolean;
   highlighted?: boolean;
@@ -26,6 +29,7 @@ type PostActionButtonProps = {
 
 export default function PostActionButton({
   icon,
+  emoji,
   count,
   active = false,
   highlighted = false,
@@ -72,11 +76,15 @@ export default function PostActionButton({
                 },
               ]}
             >
-              <Icon
-                name={icon}
-                size={size}
-                color={active || highlighted ? color : 'neutral_500'}
-              />
+              {emoji ? (
+                <EmojiImage sequence={emoji} size={size} />
+              ) : (
+                <Icon
+                  name={icon}
+                  size={size}
+                  color={active || highlighted ? color : 'neutral_500'}
+                />
+              )}
               {count ? (
                 <Text
                   variant="small"
