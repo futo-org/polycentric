@@ -558,6 +558,17 @@ CREATE TABLE public.pairing_session_claimer (
 
 
 --
+-- Name: profile; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.profile (
+    event_id bigint NOT NULL,
+    identity text NOT NULL,
+    search_data tsvector NOT NULL
+);
+
+
+--
 -- Name: quote; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -887,6 +898,14 @@ ALTER TABLE ONLY public.content_post_attributed_url
 
 
 --
+-- Name: profile profile_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.profile
+    ADD CONSTRAINT profile_pkey PRIMARY KEY (event_id);
+
+
+--
 -- Name: quote quote_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1144,6 +1163,13 @@ CREATE INDEX pairing_session_claimer_issuer_identity_idx ON public.pairing_sessi
 --
 
 CREATE UNIQUE INDEX pairing_session_digest_sha256_idx ON public.pairing_session USING btree (digest_sha256);
+
+
+--
+-- Name: profile_search_data; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX profile_search_data ON public.profile USING gin (search_data);
 
 
 --
