@@ -63,6 +63,7 @@ services:
   server-workers:
     profiles:
       - push
+    image: ${POLYCENTRIC_SERVER_IMAGE:-harbor-server}
     build:
       context: .
       dockerfile: services/server/Dockerfile

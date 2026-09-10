@@ -147,16 +147,19 @@ if [ "$CI_MODE" = true ]; then
   echo "==> Joining job container to the stack network ($NETWORK)…"
   docker network connect "$NETWORK" "$(self_container)"
 
-  echo "==> Starting server…"
+  echo "==> Starting server and workers…"
   export POLYCENTRIC_MODERATION_IDENTITY="$MODERATOR_IDENTITY"
+  # server-workers materializes notifications (the mention/reply integration
+  # tests poll for them); it is behind the `push` profile in compose.yml.
+  export COMPOSE_PROFILES=push
   # --no-deps avoids pulling in the `scraper` dependency, which requires
   # NET_ADMIN for its nftables egress firewall and cannot start in CI's
   # Docker-in-Docker environment.
   if [ -n "${POLYCENTRIC_SERVER_IMAGE:-}" ]; then
     docker pull -q "$POLYCENTRIC_SERVER_IMAGE"
-    docker compose up -d --no-deps --no-build --wait server
+    docker compose up -d --no-deps --no-build --wait server server-workers
   else
-    docker compose up -d --no-deps --build --wait server
+    docker compose up -d --no-deps --build --wait server server-workers
   fi
 
   # Resolve the server container's IP on the compose network and use it
