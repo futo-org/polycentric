@@ -49,13 +49,14 @@ async fn mentions_notify_identities_and_aliases_and_skip_the_reply_target() {
 
     // Mixed case: alias lookup is case-insensitive. The unlisted alias at the
     // same domain shares the one fetch and resolves to nobody.
+    let unlisted_alias_local = random_string().to_lowercase();
     let mut author = TestClient::new().await;
     author.reply(
         parent_key,
         &format!(
             "hi @{}@EXAMPLE.COM @{}@example.com @{} @{{{},Someone}} @{{{}}}",
             alias_local.to_uppercase(),
-            random_string().to_lowercase(),
+            unlisted_alias_local,
             bare_mentioned.identity(),
             curly_mentioned.identity(),
             parent_author.identity(),
@@ -83,9 +84,36 @@ async fn mentions_notify_identities_and_aliases_and_skip_the_reply_target() {
     );
     assert_eq!(
         wait_for_notifications(parent_author.identity(), 1).await,
-        vec![(NotificationKind::Reply, author_identity)],
+        vec![(NotificationKind::Reply, author_identity.clone())],
         "reply parent that is also mentioned gets one Reply, no Mention"
     );
+
+    // Both outcomes are now cached: mentioning the same aliases again
+    // notifies from the cache without another fetch (the mock still expects
+    // exactly one hit).
+    let mut second_author = TestClient::new().await;
+    second_author.post_text(
+        &format!("again @{alias_local}@example.com @{unlisted_alias_local}@example.com"),
+        DEFAULT_CREATED_AT + 2 * HOUR,
+    );
+    second_author.submit_events().await;
+
+    let mut mention_authors: Vec<(NotificationKind, String)> =
+        wait_for_notifications(alias_mentioned.identity(), 2).await;
+    mention_authors.sort();
+    let mut expected_mention_authors = vec![
+        (NotificationKind::Mention, author_identity),
+        (
+            NotificationKind::Mention,
+            second_author.identity().to_owned(),
+        ),
+    ];
+    expected_mention_authors.sort();
+    assert_eq!(
+        mention_authors, expected_mention_authors,
+        "second alias mention is served from the cache"
+    );
+    alias_document.assert_async().await;
 }
 
 /// `(kind, author identity)` of each notification addressed to `identity`,

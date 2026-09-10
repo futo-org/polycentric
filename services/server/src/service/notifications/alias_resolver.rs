@@ -43,10 +43,14 @@ static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
         .expect("failed to build alias resolver HTTP client")
 });
 
-/// The identity each of `aliases` resolves to, keyed by the alias as given.
-/// Malformed aliases, failed fetches and aliases the domain doesn't list are
-/// absent. Domains are fetched concurrently.
-pub async fn resolve_aliases(aliases: &[String]) -> HashMap<String, String> {
+/// The outcome of looking up each of `aliases`, keyed by the alias as given:
+/// the identity it resolves to, or `None` when the domain's document was
+/// unusable or doesn't list it. Malformed aliases and aliases at domains past
+/// the cap are absent, so the caller can tell "looked up, not found" from
+/// "not looked up". Domains are fetched concurrently.
+pub async fn resolve_aliases(
+    aliases: &[String],
+) -> HashMap<String, Option<String>> {
     resolve_aliases_with(&CLIENT, aliases, &|domain| {
         ORIGIN_OVERRIDES
             .get(domain)
@@ -62,7 +66,7 @@ async fn resolve_aliases_with(
     client: &reqwest::Client,
     aliases: &[String],
     origin_for_domain: &(dyn Fn(&str) -> String + Sync),
-) -> HashMap<String, String> {
+) -> HashMap<String, Option<String>> {
     // Aliases grouped by domain, in order of first mention.
     let mut aliases_by_domain: Vec<(String, Vec<(String, String)>)> =
         Vec::new();
@@ -103,19 +107,18 @@ async fn resolve_aliases_with(
         });
     }
 
-    let mut identity_by_alias_map = HashMap::new();
+    let mut outcome_by_alias_map = HashMap::new();
     while let Some(Ok((aliases_at_domain, names))) = fetches.join_next().await {
         for (alias, local) in aliases_at_domain {
-            if let Some(identity) = names
+            let identity = names
                 .get(&local)
                 .and_then(serde_json::Value::as_str)
                 .filter(|id| is_identity_key(id))
-            {
-                identity_by_alias_map.insert(alias, identity.to_string());
-            }
+                .map(str::to_string);
+            outcome_by_alias_map.insert(alias, identity);
         }
     }
-    identity_by_alias_map
+    outcome_by_alias_map
 }
 
 /// The `names` object of the `/.well-known/polycentric.json` document at
@@ -254,7 +257,7 @@ mod tests {
     async fn resolve_against(
         server: &mockito::ServerGuard,
         list: &[&str],
-    ) -> HashMap<String, String> {
+    ) -> HashMap<String, Option<String>> {
         let origin = server.url();
         resolve_aliases_with(&test_client(), &aliases(list), &|_| {
             origin.clone()
@@ -287,11 +290,15 @@ mod tests {
         )
         .await;
 
+        // Every well-formed alias at a fetched domain gets an outcome.
         assert_eq!(
             identity_by_alias_map,
             HashMap::from([
-                ("bob@x.com".to_string(), "abc123".to_string()),
-                ("x.com".to_string(), "DEF".to_string()),
+                ("bob@x.com".to_string(), Some("abc123".to_string())),
+                ("x.com".to_string(), Some("DEF".to_string())),
+                ("carol@x.com".to_string(), None),
+                ("dave@x.com".to_string(), None),
+                ("erin@x.com".to_string(), None),
             ])
         );
         mock.assert_async().await;
@@ -313,8 +320,9 @@ mod tests {
                 .with_body(body)
                 .create_async()
                 .await;
-            assert!(
-                resolve_against(&server, &["bob@x.com"]).await.is_empty(),
+            assert_eq!(
+                resolve_against(&server, &["bob@x.com"]).await,
+                HashMap::from([("bob@x.com".to_string(), None)]),
                 "status {status}, body {body:?}"
             );
         }
@@ -329,7 +337,10 @@ mod tests {
             .with_body(format!(r#"{{"names":{{"bob":"abc"}}{padding}}}"#))
             .create_async()
             .await;
-        assert!(resolve_against(&server, &["bob@x.com"]).await.is_empty());
+        assert_eq!(
+            resolve_against(&server, &["bob@x.com"]).await,
+            HashMap::from([("bob@x.com".to_string(), None)])
+        );
     }
 
     #[tokio::test]

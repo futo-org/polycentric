@@ -24,7 +24,7 @@ use crate::service::context::ServiceContext;
 use crate::service::events::TargetEventKey;
 use crate::service::feeds::repository::Query as FeedsRepository;
 use crate::service::graph::repository::Query as GraphRepository;
-use crate::service::notifications::alias_resolver;
+use crate::service::notifications::cached_alias_resolver;
 use crate::service::proofs::service::attach_proofs;
 use crate::service::verifications::repository::Query as VerificationsRepository;
 use crate::workers::{MessageHandler, Outcome, WorkerError, run_consumer};
@@ -219,10 +219,12 @@ impl MessageHandler for NotificationWorker {
         // domain can't stall the partition.
         let mention_notifications = match &content.content_body {
             Some(ContentBody::Post(post)) => {
-                let identity_by_alias_map = alias_resolver::resolve_aliases(
-                    &extract_mentioned_aliases(&post.text),
-                )
-                .await;
+                let identity_by_alias_map =
+                    cached_alias_resolver::resolve_aliases(
+                        &self.ctx.db,
+                        &extract_mentioned_aliases(&post.text),
+                    )
+                    .await;
                 build_mention_notifications(
                     author,
                     &post.text,
