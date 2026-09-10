@@ -310,6 +310,8 @@ jobs:
       # v* tags put the release notes into latest.json.
       - name: Release notes
         if: startsWith(github.ref_name, 'v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node .forgejo/scripts/release-notes.mjs release_notes.md
       - name: Publish the APK
         run: |
@@ -328,6 +330,8 @@ jobs:
         with:
           fetch-depth: 0
       - name: Release notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node .forgejo/scripts/release-notes.mjs release_notes.md
       - uses: forgejo/upload-artifact@v4
         with:

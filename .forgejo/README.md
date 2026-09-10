@@ -101,6 +101,18 @@ job: they read and write the registry cache `<image>:cache-develop` with
 needs the runner to start job containers with seccomp and AppArmor unconfined
 (harbor-ops runner config).
 
+## Release notes
+
+`release-notes.mjs` builds them the way GitLab's changelog API did: every
+commit since the previous `v*` tag with a `Changelog: <category>` line, grouped
+under `feature`, `fix`, `enhancement`, `security`, `deprecated`,
+`breaking-change`, `documentation` or `other`, each entry linking its commit
+and pull request, outside contributors credited. The line comes from the PR
+description: the pull request template starts with it, and
+`default_merge_message/SQUASH_TEMPLATE.md` carries the description into the
+squash commit (Forgejo's default keeps only the title). A PR without a
+category is left out of the notes.
+
 ## Forgejo notes
 
 - Artifacts need `forgejo/upload-artifact@v4` and
