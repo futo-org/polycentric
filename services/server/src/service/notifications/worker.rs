@@ -5,7 +5,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use common_kafka::{BorrowedMessage, FutureRecord, Message};
@@ -176,6 +176,7 @@ impl NotificationWorker {
 #[tonic::async_trait]
 impl MessageHandler for NotificationWorker {
     async fn handle(&self, message: &BorrowedMessage<'_>) -> Outcome {
+        let start = Instant::now();
         let Some(payload) = message.payload() else {
             return Outcome::Commit;
         };
@@ -384,6 +385,7 @@ impl MessageHandler for NotificationWorker {
         tracing::info!(
             worker = Self::NAME,
             notifications = ?kinds_and_recipients,
+            latency_ms = start.elapsed().as_millis() as u64,
             "created notification"
         );
         Outcome::Commit

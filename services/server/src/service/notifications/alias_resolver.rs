@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 use std::sync::LazyLock;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use tokio::task::JoinSet;
 
@@ -97,10 +97,16 @@ async fn resolve_aliases_with(
             origin_for_domain(&domain)
         );
         fetches.spawn(async move {
+            let start = Instant::now();
             let names = fetch_alias_names(&client, &url)
                 .await
                 .map_err(|e| {
-                    tracing::warn!(domain = %domain, error = %e, "alias lookup failed");
+                    tracing::warn!(
+                        domain = %domain,
+                        error = %e,
+                        latency_ms = start.elapsed().as_millis() as u64,
+                        "alias lookup failed"
+                    );
                 })
                 .unwrap_or_default();
             (aliases_at_domain, names)
