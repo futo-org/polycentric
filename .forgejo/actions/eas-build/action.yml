@@ -1,10 +1,13 @@
 name: eas-build
-description: Queues an EAS build of apps/harbor on top of the CI-built SDK artifacts (GitLab .app-eas-build); its id lands in apps/harbor/eas-build.json. Needs EXPO_TOKEN and, on tags, CI_COMMIT_TAG in env.
+description: EAS build of apps/harbor on top of the CI-built SDK artifacts (GitLab .app-eas-build). Needs EXPO_TOKEN and, on tags, CI_COMMIT_TAG in env.
 inputs:
   platform:
     required: true
   profile:
     required: true
+  wait:
+    description: Wait for the build and download the archive as apps/harbor/harbor.apk
+    default: 'false'
 runs:
   using: composite
   steps:
@@ -18,8 +21,14 @@ runs:
       env:
         EAS_PLATFORM: ${{ inputs.platform }}
         EAS_PROFILE: ${{ inputs.profile }}
+        EAS_WAIT: ${{ inputs.wait }}
       run: |
         APP_VERSION=$(node tools/expo/resolve-version.js)
         echo "Building app version ${APP_VERSION}"
         cd apps/harbor
-        npx eas-cli build --platform "$EAS_PLATFORM" --profile "$EAS_PROFILE" --non-interactive --no-wait --json > eas-build.json
+        if [ "$EAS_WAIT" = true ]; then
+          npx eas-cli build --platform "$EAS_PLATFORM" --profile "$EAS_PROFILE" --non-interactive --wait --json > eas-build.json
+          node ../../tools/expo/download-build.js eas-build.json harbor.apk
+        else
+          npx eas-cli build --platform "$EAS_PLATFORM" --profile "$EAS_PROFILE" --non-interactive --no-wait --json > eas-build.json
+        fi
