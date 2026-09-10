@@ -1,5 +1,5 @@
 name: service-image
-description: buildx image build pushed as <registry>/<image>:<sha> with a registry layer cache (GitLab .service-image).
+description: Rootless BuildKit build pushed as <registry>/<image>:<sha> with a registry layer cache (GitLab .service-image). Runs in the ci/buildkit job image, the build itself as its `user`.
 inputs:
   image:
     description: Image name under the registry (server, moderation-service, web, ...)
@@ -9,16 +9,11 @@ inputs:
     required: true
   registry:
     required: true
-  ref-slug:
-    required: true
-  default-branch-tag:
-    description: Also push the moving <default branch> tag
-    default: 'false'
   build-args:
     description: One KEY=VALUE per line
     default: ''
   export-cache:
-    description: Refresh the branch's build cache; the default branch keeps the shared one warm
+    description: Refresh the shared build cache
     default: 'false'
   registry-user:
     required: true
@@ -39,33 +34,33 @@ runs:
       env:
         IMAGE: ${{ inputs.registry }}/${{ inputs.image }}
         DOCKERFILE: ${{ inputs.dockerfile }}
-        REF_SLUG: ${{ inputs.ref-slug }}
-        DEFAULT_BRANCH_TAG: ${{ inputs.default-branch-tag }}
         BUILD_ARGS: ${{ inputs.build-args }}
         EXPORT_CACHE: ${{ inputs.export-cache }}
       run: |
-        # Matrix rows share the droplet's daemon, so the name must be unique per job.
-        builder="buildx-$(tr -d - < /proc/sys/kernel/random/uuid | cut -c1-12)"
-        docker buildx create --name "$builder" --driver docker-container --use
-        trap 'docker buildx rm "$builder"' EXIT
+        # The image sets HOME=/home/user for root too, so the login usually landed there already.
+        if [ -f ~/.docker/config.json ] && [ ! ~/.docker/config.json -ef /home/user/.docker/config.json ]; then
+          install -d /home/user/.docker
+          install -m 0600 ~/.docker/config.json /home/user/.docker/config.json
+        fi
+        chown -R user:user /home/user
+        # rootlesskit refuses root, which the job's steps run as.
+        build() {
+          su -s /bin/bash user -c "cd $(printf '%q' "$PWD") && exec env HOME=/home/user XDG_RUNTIME_DIR=/run/user/1000 TMPDIR=/home/user/.local/tmp BUILDKITD_FLAGS=--oci-worker-no-process-sandbox buildctl-daemonless.sh build $(printf '%q ' "$@")"
+        }
         # Without a per-commit label a fully cached build is byte-identical to
         # the previous one and containerd reports the older pull's digest.
-        set -- --tag "$IMAGE:$GITHUB_SHA" --label "org.opencontainers.image.revision=$GITHUB_SHA"
-        if [ "$DEFAULT_BRANCH_TAG" = true ]; then
-          set -- "$@" --tag "$IMAGE:${DEFAULT_BRANCH:-develop}"
-        fi
+        set -- --opt "label:org.opencontainers.image.revision=$GITHUB_SHA"
         while IFS= read -r arg; do
-          [ -n "$arg" ] && set -- "$@" --build-arg "$arg"
+          [ -n "$arg" ] && set -- "$@" --opt "build-arg:$arg"
         done <<< "$BUILD_ARGS"
-        set -- "$@" --file "$DOCKERFILE/Dockerfile" \
-          --cache-from "type=registry,ref=$IMAGE:cache-${DEFAULT_BRANCH:-develop}"
-        docker buildx build --push "$@" .
+        set -- "$@" --frontend dockerfile.v0 --local context=. --local "dockerfile=$DOCKERFILE" \
+          --import-cache "type=registry,ref=$IMAGE:cache-${DEFAULT_BRANCH:-develop}"
+        build "$@" --output "type=image,name=$IMAGE:$GITHUB_SHA,push=true"
         # A separate pass: zot drops one of two concurrent uploads of a blob.
         # mode=max keeps the build stages, so a later build resumes from the
         # step that changed instead of the top of the Dockerfile.
         if [ "$EXPORT_CACHE" = true ]; then
-          docker buildx build "$@" \
-            --cache-to "type=registry,ref=$IMAGE:cache-$REF_SLUG,mode=max,ignore-error=true,image-manifest=true,oci-mediatypes=true" .
+          build "$@" --export-cache "type=registry,ref=$IMAGE:cache-${DEFAULT_BRANCH:-develop},mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true"
         fi
     # Sign the commit's image by digest; the moving tags share that digest.
     - uses: ./.forgejo/actions/cosign-sign

@@ -324,7 +324,28 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn non_success_status_is_unavailable() {
+    async fn client_error_status_is_reported() {
+        let mut server = mockito::Server::new_async().await;
+        let _mock = server
+            .mock("GET", "/scrape")
+            .match_query(mockito::Matcher::Any)
+            .with_status(404)
+            .create_async()
+            .await;
+
+        let scrape_url = format!("{}/scrape", server.url());
+        let err = fetch_metadata(&scrape_url, "https://x.test")
+            .await
+            .expect_err("non-2xx should error");
+
+        let ScrapeFailure::Reported(status) = err else {
+            panic!("a 4xx should be a Reported failure");
+        };
+        assert_eq!(status.code(), Code::Unavailable);
+    }
+
+    #[tokio::test]
+    async fn server_error_status_is_unreachable() {
         let mut server = mockito::Server::new_async().await;
         let _mock = server
             .mock("GET", "/scrape")
@@ -338,8 +359,8 @@ mod tests {
             .await
             .expect_err("non-2xx should error");
 
-        let ScrapeFailure::Reported(status) = err else {
-            panic!("non-2xx should be a Reported failure");
+        let ScrapeFailure::Unreachable(status) = err else {
+            panic!("a 5xx should be an Unreachable failure");
         };
         assert_eq!(status.code(), Code::Unavailable);
     }
@@ -504,14 +525,14 @@ mod tests {
         let mock = server
             .mock("GET", "/scrape")
             .match_query(mockito::Matcher::Any)
-            .with_status(502)
+            .with_status(404)
             .expect(1)
             .create_async()
             .await;
 
         let failure_row = url_info_cache::Model {
             error_code: Some(Code::Unavailable as i32),
-            error_message: Some("scraper returned status 502".to_string()),
+            error_message: Some("target responded with status 404".to_string()),
             ..cached_row("https://dead.test", "", Utc::now())
         };
         let db = MockDatabase::new(DbBackend::Postgres)

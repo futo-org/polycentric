@@ -1,76 +1,76 @@
 # CI
 
 Forgejo Actions. Images and charts go to `registry.futo.org/harbor`, JS
-packages to npm, releases to Forgejo releases. The old GitLab pipeline is
-disabled; its scripts (`.gitlab/ci/scripts`) and images (`.gitlab/images`)
-are still used.
+packages to npm, releases to Forgejo releases. Workflows, actions, scripts
+and the CI toolchain images (`images/`) all live here.
 
-## Entry points
+## Workflows
 
 | Workflow | Runs on | Does |
 |---|---|---|
-| `pr.yml` | pull requests | checks, builds, tests |
+| `pr.yml` | pull requests | lint, package, image and docs builds, unit, integration and e2e tests, docs preview |
 | `pr-app.yml` | `build-app` label on a PR | staging EAS builds |
-| `cd-staging.yml` | push to `develop`, manual run | the above plus staging deploys |
-| `release.yml` | `v*` and `app-*` tags | the above plus the release |
-| `cd-production.yml` | manual | promote chosen components to `production`, production app builds |
-| `cd-docs-cleanup.yml` | PR closed | remove the docs preview |
+| `pr-docs-cleanup.yml` | PR closed | remove the docs preview |
+| `deploy-<component>-staging.yml` | push to `develop` touching the component, manual run | staging deploy |
+| `deploy-<component>-production.yml` | manual | production deploy |
+| `release.yml` | `v*` and `app-*` tags | packages, images, production apps, the release |
 
-Each entry point runs `changes.mjs` (the plan: which jobs run, from changed
-paths and the ref), builds missing CI images, then calls the component
-workflows.
-
-## Components
-
-| Workflow | Jobs |
-|---|---|
-| `ci-checks.yml` | zizmor, trivy |
-| `ci-packages.yml` | rs-core and js-core checks, wasm, Android, Kotlin, iOS and JS package builds |
-| `ci-rust-services.yml` | checks, images, staging deploys, integration tests |
-| `ci-js-services.yml` | checks, scraper and verifier bot images, staging deploys, tests |
-| `ci-app-web-checks.yml` | app and web lint and tests |
-| `ci-web.yml` | web image, staging deploy, web e2e |
-| `ci-app.yml` | EAS builds, store and APK deploys, iOS e2e |
-| `ci-charts.yml` | chart lint and publish |
-| `ci-docs.yml`, `cd-docs.yml` | docs build, Pages deploy, PR preview |
-| `ci-release.yml` | release notes, npm publish, crates, image tags, release |
-
-Forgejo lists called jobs flat, so job names are `<component> / <job>`.
+Shared steps are composite actions in `.forgejo/actions`; a job is a
+container, a checkout and an action. `pr.yml` starts with `changes.mjs` (the
+plan: which jobs run, from the changed paths) and builds missing CI images.
 
 Rules:
 
-- A job runs when its paths changed, or the workflow it is in (or an action
-  or script it uses) changed. Manual runs and tags run everything.
-- Builds wait for their component's checks. Deploys run right after their
-  build.
-- Libraries a run does not build come from the develop copy in the registry.
-- Only `develop` (and branches in `CI_STAGING_BRANCHES`) deploy to staging.
-  Production is `cd-production.yml`.
+- A `pr.yml` job runs when its paths changed, or the workflow (or an action
+  or script it uses) changed. Tags build everything.
+- Images are pushed as `<image>:<sha>`; every run builds the ones it needs
+  and BuildKit's registry cache decides what that costs.
+- The rs-core libraries (wasm, Android, iOS) are pushed as
+  `ci/rs-core-<name>:<key>`, the key a hash of the sources that produce that
+  library (`rs-core-libraries.sh`). A job takes the copy for its sources and
+  builds the library only when there is none, so a squash commit shares its
+  PR's copy and a copy for other sources is never used. Web and the verifier
+  bot need only wasm, the app only Android and iOS.
 - `pr.yml`'s last job, `Complete`, fails if any job in the run did. It is the
   required status check on `develop` (`PR / Complete (pull_request)`, set in
   harbor-infra `futo-git/org`), so a PR that ran nothing still reports.
 
-## Manual runs
+## Deploys
 
-`cd-staging.yml` inputs: `eas_staging` (staging app builds), `ios_e2e`. A
-manual run on `develop` builds and deploys everything.
+Components: `server`, `moderation`, `push-notifications`, `scraper`,
+`verifier-bot`, `web`, `app`, `docs`.
 
-`cd-production.yml`: tick the components to promote. Each moves the `staging`
-image and chart tags to `production`, so production gets what staging runs.
-`sha` deploys that commit instead; it only works for components that commit
-built. `apps` builds the production apps from the ref's head and submits them
-(`develop` only).
+`deploy-<component>-staging.yml` runs on a push to `develop` that touches the
+component's paths (or the workflow and the actions it uses), and manually. A
+service deploy builds the commit's image (BuildKit's registry cache makes a
+rebuild of unchanged sources a matter of seconds; `web` and `verifier-bot`
+first build the SDKs, and wasm when its copy is missing), packages and pushes
+the component's chart as
+`<next patch>-<ref>.g<sha>` with the commit as `appVersion`, then moves the
+image and chart `staging` tags. helm-controller watches the chart tag. `web`
+also uploads its bundle to the static bucket. `app` builds the staging apps on
+EAS and submits them; `ios_e2e` runs the iOS suite on the store build. `docs`
+deploys to Cloudflare Pages.
+
+`deploy-<component>-production.yml` moves the `staging` image and chart tags
+to `production`, so production gets what staging runs. `sha` deploys that
+commit instead; its image and chart must exist, and a commit has a chart only
+for the components deployed at it. `deploy-app-production.yml` builds the
+production apps from `develop`'s head and submits them.
+
+`node .forgejo/scripts/deployed.mjs` prints the commit each chart's `staging`
+and `production` tag pins, no login needed.
 
 ## Runners
 
 Repository variables with defaults: `CI_RUNNER` (`docker`), `CI_RUNNER_MACOS`
 (`macos`), `CI_RUNNER_IOS_DEVICE` (`ios-device`), `CI_NODE_IMAGE`
-(`node:24-bookworm`), `CI_TOOLS_IMAGE` (`node:24-alpine`), `CI_REGISTRY`,
-`CI_STAGING_BRANCHES`.
+(`node:24-bookworm`), `CI_TOOLS_IMAGE` (`node:24-alpine`), `CI_REGISTRY`.
 
-The docker runner must mount the docker socket into job containers. The mac
-runners are the Tart VM (`rn-ios-build`) and the device mac with the ad-hoc
-profile and Maestro (`app-ios-e2e`).
+The docker runner must mount the docker socket into job containers (compose
+integration tests, service containers, the CI image builds). The mac
+runners are the Tart VM (`ios-build`) and the device mac with the ad-hoc
+profile and Maestro (`ios-e2e`).
 
 ## Secrets and variables
 
@@ -94,15 +94,19 @@ tarballs in the R2 bucket: each Rust job's cargo registry and `target/`
 (keyed by rustc version and Cargo files), plus Gradle. sccache covers the
 crates that still compile.
 
-Image builds read the registry cache `<image>:cache-develop`. Only default
-branch runs write it, with `mode=max` so a build resumes from the step that
-changed; a PR reads it and exports nothing.
+Image builds run rootless BuildKit inside the job container (`ci/buildkit`,
+`buildctl-daemonless.sh`), no docker daemon involved, so nothing survives the
+job: they read and write the registry cache `<image>:cache-develop` with
+`mode=max`, and a build resumes from the step that changed. Rootless BuildKit
+needs the runner to start job containers with seccomp and AppArmor unconfined
+(harbor-ops runner config).
 
 ## Forgejo notes
 
 - Artifacts need `forgejo/upload-artifact@v4` and
-  `forgejo/download-artifact@v4`.
+  `forgejo/download-artifact@v4`, and stay inside one workflow run.
 - A job's `if` is evaluated by the runner, so a skipped job on a label with
   no online runner waits forever.
 - An empty matrix creates no job and blocks anything that `needs` it.
-- Reusable workflows are one level deep; the entry points repeat the calls.
+- No `workflow_run` event, so a deploy cannot follow a CI run; it checks the
+  registry for the commit's image instead.

@@ -10,6 +10,14 @@ concurrency:
   group: pr-app-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  CARGO_INCREMENTAL: '0'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  SCCACHE_R2_BUCKET: ${{ vars.SCCACHE_R2_BUCKET }}
+  SCCACHE_R2_ENDPOINT: ${{ secrets.SCCACHE_R2_ENDPOINT }}
+  SCCACHE_R2_ACCESS_KEY_ID: ${{ secrets.SCCACHE_R2_ACCESS_KEY_ID }}
+  SCCACHE_R2_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_R2_SECRET_ACCESS_KEY }}
+
 jobs:
   changes:
     name: Plan
@@ -19,18 +27,16 @@ jobs:
     outputs:
       registry: ${{ steps.plan.outputs.registry }}
       images_tag: ${{ steps.plan.outputs.images_tag }}
-      default_branch: ${{ steps.plan.outputs.default_branch }}
-      default_ref: ${{ steps.plan.outputs.default_ref }}
-      plan: ${{ steps.plan.outputs.plan }}
       images_missing: ${{ steps.plan.outputs.images_missing }}
+      have_wasm: ${{ steps.plan.outputs.have_wasm }}
+      have_android: ${{ steps.plan.outputs.have_android }}
+      have_ios: ${{ steps.plan.outputs.have_ios }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: ./.forgejo/actions/plan
         id: plan
-        with:
-          eas-staging: 'true'
 
   setup-images:
     name: Build CI images
@@ -38,6 +44,7 @@ jobs:
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/ci-images
         if: needs.changes.outputs.images_missing == 'true'
         with:
@@ -47,34 +54,126 @@ jobs:
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
           cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
 
-  packages:
-    name: Packages
+  # The rs-core libraries (the JS SDKs need wasm too), unless the registry has
+  # them for these sources.
+  wasm:
+    name: Build wasm
     needs: [changes, setup-images]
-    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.setup-images.result != 'failure' }}
-    uses: ./.forgejo/workflows/ci-packages.yml
-    secrets: inherit
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
-      registry: ${{ needs.changes.outputs.registry }}
-      images_tag: ${{ needs.changes.outputs.images_tag }}
-      default_branch: ${{ needs.changes.outputs.default_branch }}
-      default_ref: ${{ needs.changes.outputs.default_ref }}
+    if: ${{ !cancelled() && needs.changes.outputs.have_wasm != 'true' && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/wasm-build
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
 
-  app-web-checks:
-    name: App & web checks
+  android:
+    name: Build Android
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && needs.changes.outputs.have_android != 'true' && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/android-build
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
+  ios:
+    name: Build iOS
     needs: changes
-    uses: ./.forgejo/workflows/ci-app-web-checks.yml
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
+    if: needs.changes.outputs.have_ios != 'true'
+    runs-on: ${{ vars.CI_RUNNER_MACOS || 'macos' }}
+    env:
+      CARGO_HOME: ${{ github.workspace }}/.cargo
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/ios-build
 
-  app:
-    name: App
-    needs: [changes, packages, app-web-checks]
+  sdks:
+    name: Build SDKs
+    needs: [changes, wasm, android, ios]
     if: >-
-      ${{ !cancelled() && needs.changes.result == 'success' && needs.packages.result != 'failure' &&
-      needs.app-web-checks.result != 'failure' }}
-    uses: ./.forgejo/workflows/ci-app.yml
-    secrets: inherit
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
-      is_tag: 'false'
+      ${{ !cancelled() && needs.changes.result == 'success' &&
+      (needs.wasm.result == 'success' || needs.changes.outputs.have_wasm == 'true') &&
+      (needs.android.result == 'success' || needs.changes.outputs.have_android == 'true') &&
+      (needs.ios.result == 'success' || needs.changes.outputs.have_ios == 'true') }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/sdk-build
+        with:
+          registry: ${{ needs.changes.outputs.registry }}
+          natives: android ios
+          wasm-artifact: ${{ needs.wasm.result == 'success' }}
+          android-artifact: ${{ needs.android.result == 'success' }}
+          ios-artifact: ${{ needs.ios.result == 'success' }}
+          rn-sdk: 'true'
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+
+  store:
+    name: ${{ matrix.label }}
+    needs: sdks
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            name: app-android-aab-staging
+            label: Build Android AAB
+          - platform: ios
+            name: app-ios-staging
+            label: Build iOS app
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/eas-build
+        with:
+          platform: ${{ matrix.platform }}
+          profile: staging
+      - uses: forgejo/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: apps/harbor/eas-build.json
+          retention-days: 7
+
+  apk:
+    name: Build Android APK
+    needs: sdks
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/eas-build
+        with:
+          platform: android
+          profile: staging-apk
+          wait: 'true'
+      - uses: forgejo/upload-artifact@v4
+        with:
+          name: app-android-apk-staging
+          path: |
+            apps/harbor/eas-build.json
+            apps/harbor/harbor.apk
+          retention-days: 7

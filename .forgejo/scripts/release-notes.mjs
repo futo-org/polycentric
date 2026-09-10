@@ -1,5 +1,5 @@
 // Release notes from `Changelog:` commit trailers since the previous release
-// tag, grouped like .gitlab/changelog_config.yml. Needs the full history.
+// tag, grouped by conventional commit type. Needs the full history.
 //
 //   node release-notes.mjs [output-file]
 //

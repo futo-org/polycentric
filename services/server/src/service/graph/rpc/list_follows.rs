@@ -1,10 +1,11 @@
 //! Shared handler for `ListFollowing` / `ListFollowers`: a page of
 //! Follow events, tombstone-filtered, newest first.
 
+use crate::data::filter::{self, Filtered};
 use crate::data::hydration::{HydrationState, collect_identities};
+use crate::data::pipeline::{self, Fetched};
 use crate::data::{
     CursorFilter, EventWithContentRow, PaginationParams, assemble_bundles,
-    pipeline,
 };
 use crate::service::context::ServiceContext;
 use crate::service::events::{TargetEventKey, tombstone};
@@ -29,11 +30,6 @@ struct Params {
     direction: Direction,
 }
 
-struct Filtered {
-    live_rows: Vec<EventWithContentRow>,
-    page_info: feeds_pipeline::Fetched,
-}
-
 pub async fn handle(
     ctx: &ServiceContext,
     identity: String,
@@ -50,7 +46,15 @@ pub async fn handle(
         direction,
     };
 
-    pipeline::create_pipeline(ctx, &params, fetch, hydrate, filter, view).await
+    pipeline::create_pipeline(
+        ctx,
+        &params,
+        fetch,
+        hydrate,
+        filter::deleted,
+        view,
+    )
+    .await
 }
 
 async fn list_page(
@@ -84,7 +88,7 @@ async fn list_page(
 async fn fetch(
     ctx: &ServiceContext,
     params: &Params,
-) -> Result<feeds_pipeline::Fetched, Status> {
+) -> Result<Fetched<EventWithContentRow, EventCreatedAt>, Status> {
     let mut rows = list_page(
         &ctx.ro_db,
         params,
@@ -100,13 +104,13 @@ async fn fetch(
         params.pagination.limit,
         feeds_pipeline::create_event_created_at_marker,
     );
-    Ok(feeds_pipeline::Fetched { rows, page_info })
+    Ok(Fetched { rows, page_info })
 }
 
 async fn hydrate(
     ctx: &ServiceContext,
     _params: &Params,
-    fetched: &feeds_pipeline::Fetched,
+    fetched: &Fetched<EventWithContentRow, EventCreatedAt>,
 ) -> Result<HydrationState, Status> {
     let keys: Vec<TargetEventKey> = fetched
         .rows
@@ -134,37 +138,15 @@ async fn hydrate(
     })
 }
 
-async fn filter(
-    _ctx: &ServiceContext,
-    _params: &Params,
-    fetched: feeds_pipeline::Fetched,
-    hydration: &HydrationState,
-) -> Result<Filtered, Status> {
-    let mut fetched = fetched;
-    let rows = std::mem::take(&mut fetched.rows);
-    let live_rows = rows
-        .into_iter()
-        .filter(|row| {
-            !hydration
-                .deletes_by_target
-                .contains_key(&TargetEventKey::of(&row.0))
-        })
-        .collect();
-    Ok(Filtered {
-        live_rows,
-        page_info: fetched,
-    })
-}
-
 async fn view(
     _ctx: &ServiceContext,
     _params: &Params,
-    filtered: Filtered,
+    filtered: Filtered<EventWithContentRow, EventCreatedAt>,
     hydration: HydrationState,
 ) -> Result<ListFollowsResponse, Status> {
     Ok(ListFollowsResponse {
-        event_bundles: assemble_bundles(filtered.live_rows, &hydration.stats),
-        page_info: Some(filtered.page_info.page_info.to_proto()?),
+        event_bundles: assemble_bundles(filtered.rows, &hydration.stats),
+        page_info: Some(filtered.page_info.to_proto()?),
         event_hints: hydration.identity_profile_hints(),
     })
 }

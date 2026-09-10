@@ -1,33 +1,24 @@
 name: plan
-description: Runs changes.mjs and the CI image check; the outputs feed the component workflows.
+description: Runs changes.mjs, the CI image check and the rs-core library checks; the workflows gate their jobs on the outputs.
 inputs:
-  staging-branches:
-    default: ''
   event-before:
     default: ''
-  eas-staging:
-    default: 'false'
-  eas-production:
-    default: 'false'
-  ios-e2e:
-    default: 'false'
 outputs:
   registry:
     value: ${{ steps.plan.outputs.registry }}
-  ref_slug:
-    value: ${{ steps.plan.outputs.ref_slug }}
   images_tag:
     value: ${{ steps.plan.outputs.images_tag }}
-  default_branch:
-    value: ${{ steps.plan.outputs.default_branch }}
-  is_tag:
-    value: ${{ steps.plan.outputs.is_tag }}
-  default_ref:
-    value: ${{ steps.plan.outputs.default_ref }}
   plan:
     value: ${{ steps.plan.outputs.plan }}
   images_missing:
     value: ${{ steps.images.outputs.images_missing }}
+  have_wasm:
+    description: Whether the registry holds the wasm library for this commit's sources
+    value: ${{ steps.libraries.outputs.have_wasm }}
+  have_android:
+    value: ${{ steps.libraries.outputs.have_android }}
+  have_ios:
+    value: ${{ steps.libraries.outputs.have_ios }}
 runs:
   using: composite
   steps:
@@ -36,12 +27,7 @@ runs:
       shell: bash
       env:
         REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
-        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        STAGING_BRANCHES: ${{ inputs.staging-branches }}
         EVENT_BEFORE: ${{ inputs.event-before }}
-        INPUT_EAS_STAGING: ${{ inputs.eas-staging }}
-        INPUT_EAS_PRODUCTION: ${{ inputs.eas-production }}
-        INPUT_IOS_E2E: ${{ inputs.ios-e2e }}
       run: node .forgejo/scripts/changes.mjs
     - name: Check CI images
       id: images
@@ -50,3 +36,9 @@ runs:
         REGISTRY: ${{ steps.plan.outputs.registry }}
         TAG: ${{ steps.plan.outputs.images_tag }}
       run: .forgejo/scripts/ci-images.sh check
+    - name: Check rs-core libraries
+      id: libraries
+      shell: bash
+      env:
+        REGISTRY: ${{ steps.plan.outputs.registry }}
+      run: .forgejo/scripts/rs-core-libraries.sh check wasm android ios

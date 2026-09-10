@@ -1,0 +1,101 @@
+name: sdk-build
+description: The rs-core libraries a job needs (this run's artifacts, which it publishes under their sources' key, else the registry's copy for that key) and the JS SDKs built on them, uploaded as the sdk-artifacts action expects. Debian node job image.
+inputs:
+  registry:
+    required: true
+  natives:
+    description: Native libraries to have in place besides wasm (the JS SDKs need it), from android ios
+    default: ''
+  wasm-artifact:
+    description: Take rs-core-wasm-build from this run
+    default: 'false'
+  android-artifact:
+    description: Take rn-android-build from this run
+    default: 'false'
+  ios-artifact:
+    description: Take rn-ios-build from this run
+    default: 'false'
+  rn-sdk:
+    description: Also build and upload the react-native package
+    default: 'false'
+  registry-user:
+    required: true
+  registry-token:
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        CRANE_VERSION: 0.22.1
+        CRANE_SHA256: 0ab7a1d6932a213aed964ce97666c3077fe691c8606413674a8b3e0b9ec4cda0
+      run: |
+        command -v crane >/dev/null && exit 0
+        curl -fsSL -o crane.tar.gz "https://github.com/google/go-containerregistry/releases/download/v$CRANE_VERSION/go-containerregistry_Linux_x86_64.tar.gz"
+        echo "$CRANE_SHA256  crane.tar.gz" | sha256sum -c
+        tar xzf crane.tar.gz -C /usr/local/bin crane
+    - if: inputs.wasm-artifact == 'true'
+      uses: forgejo/download-artifact@v4
+      with:
+        name: rs-core-wasm-build
+        path: packages/rs-core-wasm
+    - if: inputs.android-artifact == 'true'
+      uses: forgejo/download-artifact@v4
+      with:
+        name: rn-android-build
+        path: packages/react-native/android/src/main/jniLibs
+    - if: inputs.ios-artifact == 'true'
+      uses: forgejo/download-artifact@v4
+      with:
+        name: rn-ios-build
+        path: packages/react-native
+    - uses: ./.forgejo/actions/registry-login
+      with:
+        registry: ${{ inputs.registry }}
+        registry-user: ${{ inputs.registry-user }}
+        registry-token: ${{ inputs.registry-token }}
+    - shell: bash
+      env:
+        REGISTRY: ${{ inputs.registry }}
+        NATIVES: ${{ inputs.natives }}
+        WASM: ${{ inputs.wasm-artifact }}
+        ANDROID: ${{ inputs.android-artifact }}
+        IOS: ${{ inputs.ios-artifact }}
+      run: |
+        built=""
+        [ "$WASM" = true ] && built="$built wasm"
+        [ "$ANDROID" = true ] && built="$built android"
+        [ "$IOS" = true ] && built="$built ios"
+        [ -z "$built" ] || .forgejo/scripts/rs-core-libraries.sh publish $built
+        .forgejo/scripts/rs-core-libraries.sh fetch wasm $NATIVES
+    - uses: forgejo/upload-artifact@v4
+      with:
+        name: rs-core-libraries
+        path: |
+          packages/rs-core-wasm/src/generated/wasm
+          packages/rs-core-wasm/dist
+          packages/react-native/android/src/main/jniLibs
+          packages/react-native/ios
+          packages/react-native/PolycentricReactNativeFramework.xcframework
+        retention-days: 7
+    - uses: ./.forgejo/actions/setup-pnpm
+      with:
+        install-args: --filter ./packages/js-*... --filter @polycentric/react-native...
+    - shell: bash
+      run: pnpm --filter='./packages/js-*' run build
+    - uses: forgejo/upload-artifact@v4
+      with:
+        name: js-sdks-dist
+        path: packages/js-*/dist
+        retention-days: 7
+    - if: inputs.rn-sdk == 'true'
+      shell: bash
+      run: pnpm --filter @polycentric/react-native build
+    - if: inputs.rn-sdk == 'true'
+      uses: forgejo/upload-artifact@v4
+      with:
+        name: rn-sdk
+        path: |
+          packages/react-native
+          !packages/react-native/node_modules
+        retention-days: 7

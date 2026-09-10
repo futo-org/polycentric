@@ -1,0 +1,144 @@
+name: Deploy verifier bot to staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - package.json
+      - tools/**
+      - patches/**
+      - packages/js-*/**
+      - packages/rs-core-wasm/**
+      - services/verifier-bot/**
+      - deploy/charts/harbor-verifier-bot/**
+      - .forgejo/workflows/deploy-verifier-bot-staging.yml
+      - .forgejo/actions/plan/**
+      - .forgejo/actions/ci-images/**
+      - .forgejo/actions/wasm-build/**
+      - .forgejo/actions/sdk-build/**
+      - .forgejo/actions/service-image/**
+      - .forgejo/actions/chart-publish/**
+      - .forgejo/actions/deploy-tag/**
+      - .forgejo/scripts/**
+
+concurrency:
+  group: deploy-verifier-bot-staging
+  cancel-in-progress: false
+
+env:
+  CARGO_INCREMENTAL: '0'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  SCCACHE_R2_BUCKET: ${{ vars.SCCACHE_R2_BUCKET }}
+  SCCACHE_R2_ENDPOINT: ${{ secrets.SCCACHE_R2_ENDPOINT }}
+  SCCACHE_R2_ACCESS_KEY_ID: ${{ secrets.SCCACHE_R2_ACCESS_KEY_ID }}
+  SCCACHE_R2_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_R2_SECRET_ACCESS_KEY }}
+
+jobs:
+  changes:
+    name: Plan
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    outputs:
+      registry: ${{ steps.plan.outputs.registry }}
+      images_tag: ${{ steps.plan.outputs.images_tag }}
+      images_missing: ${{ steps.plan.outputs.images_missing }}
+      have_wasm: ${{ steps.plan.outputs.have_wasm }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.forgejo/actions/plan
+        id: plan
+
+  setup-images:
+    name: Build CI images
+    needs: changes
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/ci-images
+        if: needs.changes.outputs.images_missing == 'true'
+        with:
+          registry: ${{ needs.changes.outputs.registry }}
+          tag: ${{ needs.changes.outputs.images_tag }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+
+  # wasm only when the registry has no copy for these sources.
+  wasm:
+    name: Build wasm
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && needs.changes.outputs.have_wasm != 'true' && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/wasm-build
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
+  sdks:
+    name: Build SDKs
+    needs: [changes, wasm]
+    if: >-
+      ${{ !cancelled() && needs.changes.result == 'success' &&
+      (needs.wasm.result == 'success' || needs.changes.outputs.have_wasm == 'true') }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/sdk-build
+        with:
+          registry: ${{ needs.changes.outputs.registry }}
+          wasm-artifact: ${{ needs.wasm.result == 'success' }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+
+  deploy:
+    name: Deploy
+    needs: [changes, sdks]
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/buildkit:${{ needs.changes.outputs.images_tag }}
+    env:
+      REGISTRY: ${{ needs.changes.outputs.registry }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/sdk-artifacts
+      - uses: ./.forgejo/actions/service-image
+        with:
+          image: verifier-bot
+          dockerfile: services/verifier-bot
+          registry: ${{ env.REGISTRY }}
+          export-cache: 'true'
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      - uses: ./.forgejo/actions/chart-publish
+        id: chart
+        with:
+          registry: ${{ env.REGISTRY }}
+          chart: harbor-verifier-bot
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      - uses: ./.forgejo/actions/deploy-tag
+        with:
+          registry: ${{ env.REGISTRY }}
+          image: verifier-bot
+          chart: harbor-verifier-bot
+          chart-version: ${{ steps.chart.outputs.version }}
+          environment: staging
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}

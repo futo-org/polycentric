@@ -1,8 +1,4 @@
-import {
-  hexToBytes,
-  useCurrentIdentity,
-  usePolycentric,
-} from '@/src/common/lib/polycentric-hooks';
+import { hexToBytes, usePolycentric } from '@/src/common/lib/polycentric-hooks';
 import { invalidateQuery } from '@/src/common/query/hooks/useQuery';
 import { COLLECTION, SyncStrategy, v2 } from '@polycentric/react-native';
 import { useState } from 'react';
@@ -58,7 +54,6 @@ export async function publishVerifierBotTargets(
 // Request verification of an existing claim from a specific identity.
 export default function useRequestVerification() {
   const client = usePolycentric();
-  const { identityKey } = useCurrentIdentity();
   const [isPending, setPending] = useState(false);
 
   return {
@@ -88,15 +83,7 @@ export default function useRequestVerification() {
           console.warn('Failed to push verification target to servers:', e);
         }
 
-        // Refresh the pending-requests list for this verifier and the
-        // claim's requested-verifiers list.
-        if (identityKey) {
-          invalidateQuery(client, [
-            'verification-requests',
-            identityKey,
-            identity,
-          ]);
-        }
+        // Refresh the claim's requested-verifiers list.
         invalidateQuery(client, ['verification-targets', claimId]);
       } finally {
         setPending(false);

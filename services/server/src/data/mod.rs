@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use tonic::Status;
 
+pub mod filter;
 pub mod hydration;
 pub mod pipeline;
 

@@ -1,6 +1,0 @@
-# .gitlab-ci.yml
-# temporarily disable pipeline. will be implemented in the next MR
-noop:
-  stage: build
-  script: exit 0
-  only: []

@@ -1,7 +1,8 @@
 name: PR
 
-# Pull requests: the component workflows without deploys; changes.mjs builds
-# their plan.
+# Pull requests: lint, package, image and docs builds and the tests on them;
+# changes.mjs picks the jobs. The images and rs-core libraries it pushes are
+# what the deploy-*-staging workflows reuse for the commit.
 
 on:
   pull_request:
@@ -10,6 +11,14 @@ concurrency:
   group: pr-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_INCREMENTAL: '0'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  SCCACHE_R2_BUCKET: ${{ vars.SCCACHE_R2_BUCKET }}
+  SCCACHE_R2_ENDPOINT: ${{ secrets.SCCACHE_R2_ENDPOINT }}
+  SCCACHE_R2_ACCESS_KEY_ID: ${{ secrets.SCCACHE_R2_ACCESS_KEY_ID }}
+  SCCACHE_R2_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_R2_SECRET_ACCESS_KEY }}
+
 jobs:
   changes:
     name: Plan
@@ -17,12 +26,12 @@ jobs:
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     outputs:
       registry: ${{ steps.plan.outputs.registry }}
-      ref_slug: ${{ steps.plan.outputs.ref_slug }}
       images_tag: ${{ steps.plan.outputs.images_tag }}
-      default_branch: ${{ steps.plan.outputs.default_branch }}
-      default_ref: ${{ steps.plan.outputs.default_ref }}
       plan: ${{ steps.plan.outputs.plan }}
       images_missing: ${{ steps.plan.outputs.images_missing }}
+      have_wasm: ${{ steps.plan.outputs.have_wasm }}
+      have_android: ${{ steps.plan.outputs.have_android }}
+      have_ios: ${{ steps.plan.outputs.have_ios }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,6 +47,7 @@ jobs:
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/ci-images
         if: needs.changes.outputs.images_missing == 'true'
         with:
@@ -47,125 +57,724 @@ jobs:
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
           cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
 
-  checks:
-    name: Checks
-    needs: [changes, setup-images]
-    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.setup-images.result != 'failure' }}
-    uses: ./.forgejo/workflows/ci-checks.yml
-    secrets: inherit
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
+  # Lint ---------------------------------------------------------------------
 
-  packages:
-    name: Packages
-    needs: [changes, setup-images]
-    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.setup-images.result != 'failure' }}
-    uses: ./.forgejo/workflows/ci-packages.yml
-    secrets: inherit
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
-      registry: ${{ needs.changes.outputs.registry }}
-      images_tag: ${{ needs.changes.outputs.images_tag }}
-      default_branch: ${{ needs.changes.outputs.default_branch }}
-      default_ref: ${{ needs.changes.outputs.default_ref }}
-
-  # No deploys on a PR, so no chart version.
-  rust-services:
-    name: Rust services
-    needs: [changes, setup-images]
-    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.setup-images.result != 'failure' }}
-    uses: ./.forgejo/workflows/ci-rust-services.yml
-    secrets: inherit
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
-      registry: ${{ needs.changes.outputs.registry }}
-      images_tag: ${{ needs.changes.outputs.images_tag }}
-      ref_slug: ${{ needs.changes.outputs.ref_slug }}
-      default_branch: ${{ needs.changes.outputs.default_branch }}
-      default_ref: ${{ needs.changes.outputs.default_ref }}
-      chart_version: ''
-
-  js-services:
-    name: JS services
-    needs: [changes, packages]
-    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.packages.result != 'failure' }}
-    uses: ./.forgejo/workflows/ci-js-services.yml
-    secrets: inherit
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
-      registry: ${{ needs.changes.outputs.registry }}
-      ref_slug: ${{ needs.changes.outputs.ref_slug }}
-      default_ref: ${{ needs.changes.outputs.default_ref }}
-      chart_version: ''
-
-  app-web-checks:
-    name: App & web checks
+  workflows:
+    name: Lint workflows
     needs: changes
-    uses: ./.forgejo/workflows/ci-app-web-checks.yml
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
+    if: fromJSON(needs.changes.outputs.plan).flags.workflows
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      ZIZMOR_VERSION: 1.30.0
+      ZIZMOR_SHA256: ec8c95cd800845abb9bbc5f377ec7c57d2eb8e2386a00a201d3a74ee4092e5ed
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install zizmor
+        run: |
+          curl -fsSL -o zizmor.tar.gz "https://github.com/zizmorcore/zizmor/releases/download/v$ZIZMOR_VERSION/zizmor-x86_64-unknown-linux-gnu.tar.gz"
+          echo "$ZIZMOR_SHA256  zizmor.tar.gz" | sha256sum -c
+          tar xzf zizmor.tar.gz -C /usr/local/bin zizmor
+      - name: zizmor
+        run: zizmor --no-online-audits --config .forgejo/zizmor.yml .forgejo/workflows/*.yml .forgejo/actions
 
-  web:
-    name: Web
-    needs: [changes, packages, app-web-checks]
-    if: >-
-      ${{ !cancelled() && needs.changes.result == 'success' && needs.packages.result != 'failure' &&
-      needs.app-web-checks.result != 'failure' }}
-    uses: ./.forgejo/workflows/ci-web.yml
-    secrets: inherit
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
-      registry: ${{ needs.changes.outputs.registry }}
-      ref_slug: ${{ needs.changes.outputs.ref_slug }}
-      default_ref: ${{ needs.changes.outputs.default_ref }}
-      is_tag: 'false'
-      chart_version: ''
+  # GitLab scan_dependencies.yml.
+  scan:
+    name: Scan dependencies
+    needs: changes
+    if: fromJSON(needs.changes.outputs.plan).flags.scan
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    continue-on-error: true
+    env:
+      TRIVY_NO_PROGRESS: 'true'
+      TRIVY_CACHE_DIR: .trivycache/
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin v0.72.0
+      # Report artifact instead of the GitLab code quality report.
+      - name: Report
+        run: trivy filesystem --scanners misconfig,vuln --exit-code 0 --severity CRITICAL --format json -o trivy-report.json .
+      - uses: forgejo/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.json
+          retention-days: 7
+      - name: Scan
+        run: trivy filesystem --scanners misconfig,vuln --exit-code 1 --severity CRITICAL .
+
+  rust-packages-lint:
+    name: Lint Rust packages
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.rs_core_lint && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust:${{ needs.changes.outputs.images_tag }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/rust-env
+        with:
+          cache: packages-lint
+      - name: Format
+        run: cargo fmt --check -p polycentric-core -p polycentric-common
+      - name: Clippy
+        if: ${{ !cancelled() }}
+        run: |
+          cargo clippy -p polycentric-common
+          cargo clippy -p polycentric-core -- -D warnings
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
+  rust-services-lint:
+    name: Lint Rust services
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.rust_services_lint && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust:${{ needs.changes.outputs.images_tag }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/rust-env
+        with:
+          cache: services-lint
+      - name: Format
+        run: cargo fmt --check -p server -p moderation-service -p push-notifications-service
+      - name: Clippy
+        if: ${{ !cancelled() }}
+        run: cargo clippy -p server -p moderation-service -p push-notifications-service -- -D warnings
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
+  js-packages-lint:
+    name: Lint JS packages
+    needs: changes
+    if: fromJSON(needs.changes.outputs.plan).flags.js_sdk_lint
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter polycentric
+      - name: Biome
+        run: pnpm exec biome check packages/js-core --diagnostic-level=error
+
+  js-services-lint:
+    name: Lint JS services
+    needs: changes
+    if: fromJSON(needs.changes.outputs.plan).flags.js_services_lint
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter polycentric --filter @polycentric/scraper...
+      - name: Verifier bot biome
+        continue-on-error: true
+        run: pnpm exec biome check services/verifier-bot --diagnostic-level=error
+      - name: Scraper typecheck
+        if: ${{ !cancelled() }}
+        run: pnpm --filter @polycentric/scraper build
+
+  charts-lint:
+    name: Lint charts
+    needs: changes
+    if: fromJSON(needs.changes.outputs.plan).flags.charts_lint
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git helm
+      - uses: actions/checkout@v4
+      - name: Lint charts
+        run: |
+          for chart in deploy/charts/*/; do
+            helm lint "$chart"
+            helm template "$(basename "$chart")" "$chart" > /dev/null
+          done
+
+  docs-lint:
+    name: Typecheck docs
+    needs: changes
+    if: fromJSON(needs.changes.outputs.plan).flags.docs_lint
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter=polycentric-docs...
+      - name: Typecheck
+        run: pnpm --filter=polycentric-docs run typecheck
+
+  app-lint:
+    name: Lint app
+    needs: changes
+    if: fromJSON(needs.changes.outputs.plan).flags.app_lint
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter polycentric-app...
+      - name: Biome
+        run: pnpm exec biome check apps/harbor --diagnostic-level=error
+
+  # Unit tests ---------------------------------------------------------------
+
+  rust-packages:
+    name: Test Rust packages
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.rs_core && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust:${{ needs.changes.outputs.images_tag }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/rust-env
+        with:
+          cache: packages-tests
+      - name: Tests
+        run: cargo nextest run -P ci -p polycentric-core -p polycentric-common
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+      - uses: forgejo/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-rust-packages
+          path: target/nextest/ci/junit.xml
+          retention-days: 7
+
+  rust-services:
+    name: Test Rust services
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.rust_services && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/rust-env
+        with:
+          cache: services-tests
+      - name: Tests
+        run: cargo nextest run -P ci -p server -p moderation-service -p push-notifications-service
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+      - uses: forgejo/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-rust-services
+          path: target/nextest/ci/junit.xml
+          retention-days: 7
+
+  js-packages:
+    name: Test JS packages
+    needs: changes
+    if: fromJSON(needs.changes.outputs.plan).flags.js_sdk
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter @polycentric/js-core...
+      - name: js-core
+        run: pnpm --filter @polycentric/js-core test:ci
+      - uses: forgejo/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-js-core
+          path: packages/js-core/junit.xml
+          retention-days: 7
+
+  scraper:
+    name: Test scraper
+    needs: changes
+    if: fromJSON(needs.changes.outputs.plan).flags.scraper
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter @polycentric/scraper...
+      - name: Build
+        run: pnpm --filter @polycentric/scraper build
+      - name: Tests
+        run: pnpm --filter @polycentric/scraper test:ci
+      - uses: forgejo/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-scraper
+          path: services/scraper/junit.xml
+          retention-days: 7
 
   app:
-    name: App
-    needs: [changes, packages, app-web-checks]
+    name: Test app
+    needs: changes
+    if: fromJSON(needs.changes.outputs.plan).flags.app
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter polycentric-app...
+      - name: Tests
+        run: pnpm --filter polycentric-app test:ci
+      - uses: forgejo/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-app
+          path: apps/harbor/junit.xml
+          retention-days: 7
+
+  # Packages -----------------------------------------------------------------
+  # The rs-core libraries, unless the registry has them for these sources.
+
+  wasm:
+    name: Build wasm
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && needs.changes.outputs.have_wasm != 'true' && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/wasm-build
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
+  android:
+    name: Build Android
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && needs.changes.outputs.have_android != 'true' && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/android-build
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
+  ios:
+    name: Build iOS
+    needs: changes
+    if: needs.changes.outputs.have_ios != 'true'
+    runs-on: ${{ vars.CI_RUNNER_MACOS || 'macos' }}
+    env:
+      CARGO_HOME: ${{ github.workspace }}/.cargo
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/ios-build
+
+  kt-core:
+    name: Build Kotlin
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.kt_core_build && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
+    env:
+      GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/kt-core-build
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
+  # The web and verifier bot images need wasm; Android and iOS are published
+  # here for the deploys and pr-app.yml.
+  sdks:
+    name: Build SDKs
+    needs: [changes, wasm, android, ios]
     if: >-
-      ${{ !cancelled() && needs.changes.result == 'success' && needs.packages.result != 'failure' &&
-      needs.app-web-checks.result != 'failure' }}
-    uses: ./.forgejo/workflows/ci-app.yml
-    secrets: inherit
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
-      is_tag: 'false'
+      ${{ !cancelled() && (fromJSON(needs.changes.outputs.plan).flags.build_sdks || needs.android.result == 'success' || needs.ios.result == 'success') &&
+      (needs.wasm.result == 'success' || needs.changes.outputs.have_wasm == 'true') &&
+      (needs.android.result == 'success' || needs.changes.outputs.have_android == 'true') &&
+      (needs.ios.result == 'success' || needs.changes.outputs.have_ios == 'true') }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/sdk-build
+        with:
+          registry: ${{ needs.changes.outputs.registry }}
+          wasm-artifact: ${{ needs.wasm.result == 'success' }}
+          android-artifact: ${{ needs.android.result == 'success' }}
+          ios-artifact: ${{ needs.ios.result == 'success' }}
+          rn-sdk: ${{ fromJSON(needs.changes.outputs.plan).flags.build_rn_sdk }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+
+  # Images -------------------------------------------------------------------
+
+  service-images:
+    name: ${{ matrix.label }}
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.service_images && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/buildkit:${{ needs.changes.outputs.images_tag }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.changes.outputs.plan).matrix.service_images }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/service-image
+        with:
+          image: ${{ matrix.image }}
+          dockerfile: ${{ matrix.dockerfile }}
+          registry: ${{ needs.changes.outputs.registry }}
+          export-cache: 'true'
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+
+  scraper-image:
+    name: Build scraper image
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.image_scraper && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/buildkit:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/service-image
+        with:
+          image: scraper
+          dockerfile: services/scraper
+          registry: ${{ needs.changes.outputs.registry }}
+          export-cache: 'true'
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+
+  verifier-bot-image:
+    name: Build verifier bot image
+    needs: [changes, sdks]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.image_verifier_bot && needs.sdks.result == 'success' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/buildkit:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/sdk-artifacts
+      - uses: ./.forgejo/actions/service-image
+        with:
+          image: verifier-bot
+          dockerfile: services/verifier-bot
+          registry: ${{ needs.changes.outputs.registry }}
+          export-cache: 'true'
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+
+  web-image:
+    name: Build web image
+    needs: [changes, sdks]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.web_image && needs.sdks.result == 'success' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/buildkit:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve version
+        id: version
+        run: echo "app_version=$(node tools/expo/resolve-version.js)+$(echo "$GITHUB_SHA" | cut -c1-8)" >> "$GITHUB_OUTPUT"
+      - uses: ./.forgejo/actions/sdk-artifacts
+        with:
+          rn-sdk: 'true'
+      - uses: ./.forgejo/actions/service-image
+        with:
+          image: web
+          dockerfile: apps/harbor
+          registry: ${{ needs.changes.outputs.registry }}
+          export-cache: 'true'
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.app_version }}
+            EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS=${{ vars.EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS }}
+            EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS=${{ vars.EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS }}
+            SKIP_WORKSPACE_BUILD=1
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+
+  # Tests on the builds ------------------------------------------------------
+
+  # Both suites share one Compose project name and host ports, so they run
+  # in one job, one after the other (GitLab: resource_group).
+  services-integration:
+    name: Test services integration
+    needs: [changes, service-images]
+    if: >-
+      ${{ !cancelled() && needs.service-images.result != 'failure' &&
+      (fromJSON(needs.changes.outputs.plan).flags.server_integration || fromJSON(needs.changes.outputs.plan).flags.moderation_integration) }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust-dind:${{ needs.changes.outputs.images_tag }}
+    timeout-minutes: 60
+    env:
+      POLYCENTRIC_SERVER_IMAGE: ${{ needs.changes.outputs.registry }}/server:${{ github.sha }}
+      POLYCENTRIC_SERVER_FALLBACK_IMAGE: ${{ needs.changes.outputs.registry }}/server:staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/rust-env
+        with:
+          cache: services-integration
+      - name: Server integration tests
+        if: fromJSON(needs.changes.outputs.plan).flags.server_integration && needs.service-images.result == 'success'
+        run: .forgejo/scripts/integration-server.sh --ci
+      - uses: forgejo/upload-artifact@v4
+        if: always() && fromJSON(needs.changes.outputs.plan).flags.server_integration
+        with:
+          name: junit-server-integration
+          path: target/nextest/ci/junit.xml
+          retention-days: 7
+      - name: Moderation integration tests
+        if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.moderation_integration }}
+        run: .forgejo/scripts/integration-moderation.sh
+      - uses: forgejo/upload-artifact@v4
+        if: always() && fromJSON(needs.changes.outputs.plan).flags.moderation_integration
+        with:
+          name: junit-moderation-integration
+          path: target/nextest/ci/junit.xml
+          retention-days: 7
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
+  scraper-integration:
+    name: Test scraper integration
+    needs: [changes, scraper-image]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.scraper_integration && needs.scraper-image.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    continue-on-error: true
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: '1'
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+    steps:
+      - name: Install Chromium
+        run: apt-get update && apt-get install -y --no-install-recommends chromium && rm -rf /var/lib/apt/lists/*
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter @polycentric/scraper...
+      - name: Integration tests
+        run: pnpm --filter @polycentric/scraper test:integration
+      - uses: forgejo/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-scraper-integration
+          path: services/scraper/junit.xml
+          retention-days: 7
+
+  # VERIFIER_BOT_ENV_VARS is the base64 .env content (GitLab: a file variable).
+  verifier-bot:
+    name: Test verifier bot
+    needs: [changes, sdks]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.verifier_bot_tests && needs.sdks.result == 'success' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: '1'
+      POLYCENTRIC_VERIFIER_BOT_PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+    steps:
+      - name: Install Chromium
+        run: apt-get update && apt-get install -y --no-install-recommends chromium && rm -rf /var/lib/apt/lists/*
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/sdk-artifacts
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter @polycentric/verifier-bot...
+      - name: Write test env
+        env:
+          VERIFIER_BOT_ENV_VARS: ${{ secrets.VERIFIER_BOT_ENV_VARS }}
+        run: if [ -n "$VERIFIER_BOT_ENV_VARS" ]; then echo "$VERIFIER_BOT_ENV_VARS" | base64 -d > services/verifier-bot/.test.env; fi
+      - name: Tests
+        run: pnpm --filter @polycentric/verifier-bot test:ci
+      - uses: forgejo/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-verifier-bot-tests
+          path: services/verifier-bot/junit.xml
+          retention-days: 7
+
+  # Drives the web image this run built, started as a job service.
+  web-e2e:
+    name: Test web e2e
+    needs: [changes, web-image]
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.web_e2e && needs.web-image.result == 'success' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    services:
+      web:
+        image: ${{ needs.changes.outputs.registry }}/web:${{ github.sha }}
+        env:
+          EXPO_PUBLIC_APP_VARIANT: staging
+          EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS: https://srv.staging.harbor.social,https://srv.staging.polycentric.io
+    env:
+      MAESTRO_WEB_URL: http://web:8080
+      MAESTRO_BROWSER: /usr/local/bin/e2e-chromium
+      MAESTRO_OUTPUT: reports
+    steps:
+      - name: Install Chromium
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends chromium
+          printf '#!/bin/sh\nexec /usr/bin/chromium --no-sandbox --unsafely-treat-insecure-origin-as-secure=%s "$@"\n' "$MAESTRO_WEB_URL" > "$MAESTRO_BROWSER"
+          chmod +x "$MAESTRO_BROWSER"
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter harbor-e2e...
+      - name: Web e2e
+        run: pnpm --filter harbor-e2e test:web
+      - uses: forgejo/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-web-report
+          path: e2e/reports
+          retention-days: 7
+
+  # Docs ---------------------------------------------------------------------
 
   docs:
-    name: Docs
+    name: Build docs
     needs: changes
-    uses: ./.forgejo/workflows/ci-docs.yml
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
+    if: fromJSON(needs.changes.outputs.plan).flags.docs
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter=polycentric-docs...
+      - name: Build
+        run: pnpm --filter=polycentric-docs run build
+      - uses: forgejo/upload-artifact@v4
+        with:
+          name: docs-build
+          path: docs/build
+          retention-days: 7
 
-  cd-docs:
-    name: Docs preview
+  # Preview at https://pr-<n>.polycentric-docs-cs8.pages.dev
+  docs-preview:
+    name: Deploy docs preview
     needs: [changes, docs]
-    if: ${{ !cancelled() && needs.changes.result == 'success' && needs.docs.result != 'failure' }}
-    uses: ./.forgejo/workflows/cd-docs.yml
-    secrets: inherit
-    with:
-      plan: ${{ needs.changes.outputs.plan }}
-      pr_number: ${{ github.event.pull_request.number }}
+    if: ${{ !cancelled() && fromJSON(needs.changes.outputs.plan).flags.docs_preview && needs.docs.result == 'success' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: forgejo/download-artifact@v4
+        with:
+          name: docs-build
+          path: docs/build
+      - name: Install wrangler
+        run: npm install -g wrangler # zizmor: ignore[adhoc-packages]
+      - name: Deploy
+        run: wrangler pages deploy ./docs/build --project-name=polycentric-docs --branch="pr-$PR_NUMBER"
+      - name: Preview URL
+        run: echo "https://pr-$PR_NUMBER.polycentric-docs-cs8.pages.dev"
 
-  # The branch protection status check: PR / Complete (pull_request). It runs
-  # whatever the run did, so a PR with no jobs still reports.
+  # The branch protection status check: PR / Complete (pull_request). It
+  # runs whatever the run did, so a PR with no jobs still reports.
   complete:
     name: Complete
     needs:
       - changes
       - setup-images
-      - checks
-      - packages
+      - workflows
+      - scan
+      - rust-packages-lint
+      - rust-services-lint
+      - js-packages-lint
+      - js-services-lint
+      - charts-lint
+      - docs-lint
+      - app-lint
+      - rust-packages
       - rust-services
-      - js-services
-      - app-web-checks
-      - web
+      - js-packages
+      - scraper
       - app
+      - wasm
+      - android
+      - ios
+      - kt-core
+      - sdks
+      - service-images
+      - scraper-image
+      - verifier-bot-image
+      - web-image
+      - services-integration
+      - scraper-integration
+      - verifier-bot
+      - web-e2e
       - docs
-      - cd-docs
+      - docs-preview
     if: always()
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}

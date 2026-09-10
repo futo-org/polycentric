@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# CI toolchain images, tagged by the content hash of .gitlab/images.
+# CI toolchain images, tagged by the content hash of .forgejo/images.
 #
 #   ci-images.sh check [name...]   writes images_missing=true|false to GITHUB_OUTPUT (curl only)
 #   ci-images.sh build [name...]   builds the missing ones (crane + docker, registry-login done)
 #
-# Names: rust rust-dind rust-android (default: all). Env: REGISTRY, TAG.
+# Names: rust rust-dind rust-android buildkit (default: all). Env: REGISTRY, TAG.
 set -euo pipefail
 
 mode=${1:-}; shift || true
-[ $# -gt 0 ] || set -- rust rust-dind rust-android
+[ $# -gt 0 ] || set -- rust rust-dind rust-android buildkit
 host=${REGISTRY%%/*}
 path=${REGISTRY#*/}
 
@@ -42,7 +42,7 @@ build_image() {
       --cache-from "type=registry,ref=$REGISTRY/ci/$name:latest" \
       --cache-to type=inline \
       --tag "$REGISTRY/ci/$name:$TAG" \
-      ".gitlab/images/$name" && break
+      ".forgejo/images/$name" && break
     [ "$attempt" -lt 3 ] || { echo "ci/$name:$TAG: push failed after $attempt attempts" >&2; exit 1; }
     echo "ci/$name:$TAG: push failed, retrying ($attempt/3)" >&2
     sleep 15
@@ -54,7 +54,7 @@ build_image() {
 build() {
   for name in "$@"; do
     case "$name" in
-      rust) build_image rust ;;
+      rust | buildkit) build_image "$name" ;;
       rust-dind | rust-android) build_image "$name" --build-arg "RUST_IMAGE=$REGISTRY/ci/rust:$TAG" ;;
       *) echo "unknown image $name" >&2; exit 2 ;;
     esac
