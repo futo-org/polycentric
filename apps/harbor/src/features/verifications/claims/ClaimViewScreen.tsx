@@ -198,7 +198,7 @@ export default function ViewClaimScreen() {
                   })}
                 </View>
 
-                <ClaimVerifiersList verifiers={verifiers} />
+                <ClaimVerifiersList claim={claim} verifiers={verifiers} />
 
                 <View style={[Atoms.flex_1]} />
                 <ClaimVerifyActions

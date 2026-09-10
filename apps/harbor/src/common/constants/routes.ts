@@ -93,6 +93,7 @@ export const Routes = {
       moderationSettings: '/settings/moderation-settings',
       blockedTopics: '/settings/blocked-topics',
       blockedUsers: '/settings/blocked-users',
+      legalNotices: '/settings/legal-notices',
       clientInformation: '/settings/client-information',
       switchIdentity: '/settings/switch-identity',
       removeIdentities: '/settings/remove-identities',
