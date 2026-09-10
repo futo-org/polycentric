@@ -304,7 +304,6 @@ function StatusDisplay({
             Atoms.p_sm,
             Atoms.rounded_lg,
             Atoms.w_full,
-            Atoms.text_left,
             {
               backgroundColor: detailsBg,
               borderWidth: 1,
