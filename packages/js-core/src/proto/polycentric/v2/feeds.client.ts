@@ -7,6 +7,8 @@ import { FeedsService } from "./feeds";
 import type { GetAttributionFeedRequest } from "./feeds";
 import type { GetPostThreadResponse } from "./feeds";
 import type { GetPostThreadRequest } from "./feeds";
+import type { GetPostResponse } from "./feeds";
+import type { GetPostRequest } from "./feeds";
 import type { GetExploreFeedRequest } from "./feeds";
 import type { GetFollowingFeedRequest } from "./feeds";
 import { stackIntercept } from "@protobuf-ts/runtime-rpc";
@@ -48,7 +50,13 @@ export interface IFeedsServiceClient {
      */
     getExploreFeed(input: GetExploreFeedRequest, options?: RpcOptions): UnaryCall<GetExploreFeedRequest, GetFeedResponse>;
     /**
-     * Replies to a post
+     * Get a single post.
+     *
+     * @generated from protobuf rpc: GetPost
+     */
+    getPost(input: GetPostRequest, options?: RpcOptions): UnaryCall<GetPostRequest, GetPostResponse>;
+    /**
+     * Replies to a post.
      *
      * @generated from protobuf rpc: GetPostThread
      */
@@ -111,12 +119,21 @@ export class FeedsServiceClient implements IFeedsServiceClient, ServiceInfo {
         return stackIntercept<GetExploreFeedRequest, GetFeedResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Replies to a post
+     * Get a single post.
+     *
+     * @generated from protobuf rpc: GetPost
+     */
+    getPost(input: GetPostRequest, options?: RpcOptions): UnaryCall<GetPostRequest, GetPostResponse> {
+        const method = this.methods[4], opt = this._transport.mergeOptions(options);
+        return stackIntercept<GetPostRequest, GetPostResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Replies to a post.
      *
      * @generated from protobuf rpc: GetPostThread
      */
     getPostThread(input: GetPostThreadRequest, options?: RpcOptions): UnaryCall<GetPostThreadRequest, GetPostThreadResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
+        const method = this.methods[5], opt = this._transport.mergeOptions(options);
         return stackIntercept<GetPostThreadRequest, GetPostThreadResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -125,7 +142,7 @@ export class FeedsServiceClient implements IFeedsServiceClient, ServiceInfo {
      * @generated from protobuf rpc: GetAttributionFeed
      */
     getAttributionFeed(input: GetAttributionFeedRequest, options?: RpcOptions): UnaryCall<GetAttributionFeedRequest, GetFeedResponse> {
-        const method = this.methods[5], opt = this._transport.mergeOptions(options);
+        const method = this.methods[6], opt = this._transport.mergeOptions(options);
         return stackIntercept<GetAttributionFeedRequest, GetFeedResponse>("unary", this._transport, method, opt, input);
     }
 }

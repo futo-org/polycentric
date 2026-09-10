@@ -120,6 +120,28 @@ export interface GetPostThreadResponse {
     eventHints: EventHint[];
 }
 /**
+ * @generated from protobuf message polycentric.v2.GetPostRequest
+ */
+export interface GetPostRequest {
+    /**
+     * @generated from protobuf field: polycentric.v2.EventKey event_key = 1
+     */
+    eventKey?: EventKey;
+}
+/**
+ * @generated from protobuf message polycentric.v2.GetPostResponse
+ */
+export interface GetPostResponse {
+    /**
+     * @generated from protobuf field: optional polycentric.v2.EventBundle event_bundle = 1
+     */
+    eventBundle?: EventBundle;
+    /**
+     * @generated from protobuf field: repeated polycentric.v2.EventHint event_hints = 2
+     */
+    eventHints: EventHint[];
+}
+/**
  * @generated from protobuf message polycentric.v2.GetPostThreadRequest
  */
 export interface GetPostThreadRequest {
@@ -497,6 +519,106 @@ class GetPostThreadResponse$Type extends MessageType<GetPostThreadResponse> {
  */
 export const GetPostThreadResponse = new GetPostThreadResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class GetPostRequest$Type extends MessageType<GetPostRequest> {
+    constructor() {
+        super("polycentric.v2.GetPostRequest", [
+            { no: 1, name: "event_key", kind: "message", T: () => EventKey }
+        ]);
+    }
+    create(value?: PartialMessage<GetPostRequest>): GetPostRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<GetPostRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetPostRequest): GetPostRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* polycentric.v2.EventKey event_key */ 1:
+                    message.eventKey = EventKey.internalBinaryRead(reader, reader.uint32(), options, message.eventKey);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GetPostRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* polycentric.v2.EventKey event_key = 1; */
+        if (message.eventKey)
+            EventKey.internalBinaryWrite(message.eventKey, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message polycentric.v2.GetPostRequest
+ */
+export const GetPostRequest = new GetPostRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GetPostResponse$Type extends MessageType<GetPostResponse> {
+    constructor() {
+        super("polycentric.v2.GetPostResponse", [
+            { no: 1, name: "event_bundle", kind: "message", T: () => EventBundle },
+            { no: 2, name: "event_hints", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => EventHint }
+        ]);
+    }
+    create(value?: PartialMessage<GetPostResponse>): GetPostResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.eventHints = [];
+        if (value !== undefined)
+            reflectionMergePartial<GetPostResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetPostResponse): GetPostResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* optional polycentric.v2.EventBundle event_bundle */ 1:
+                    message.eventBundle = EventBundle.internalBinaryRead(reader, reader.uint32(), options, message.eventBundle);
+                    break;
+                case /* repeated polycentric.v2.EventHint event_hints */ 2:
+                    message.eventHints.push(EventHint.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GetPostResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* optional polycentric.v2.EventBundle event_bundle = 1; */
+        if (message.eventBundle)
+            EventBundle.internalBinaryWrite(message.eventBundle, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated polycentric.v2.EventHint event_hints = 2; */
+        for (let i = 0; i < message.eventHints.length; i++)
+            EventHint.internalBinaryWrite(message.eventHints[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message polycentric.v2.GetPostResponse
+ */
+export const GetPostResponse = new GetPostResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class GetPostThreadRequest$Type extends MessageType<GetPostThreadRequest> {
     constructor() {
         super("polycentric.v2.GetPostThreadRequest", [
@@ -627,6 +749,7 @@ export const FeedsService = new ServiceType("polycentric.v2.FeedsService", [
     { name: "GetFollowingFeed", options: {}, I: GetFollowingFeedRequest, O: GetFeedResponse },
     { name: "GetRecommendedFeed", options: {}, I: GetFollowingFeedRequest, O: GetFeedResponse },
     { name: "GetExploreFeed", options: {}, I: GetExploreFeedRequest, O: GetFeedResponse },
+    { name: "GetPost", options: {}, I: GetPostRequest, O: GetPostResponse },
     { name: "GetPostThread", options: {}, I: GetPostThreadRequest, O: GetPostThreadResponse },
     { name: "GetAttributionFeed", options: {}, I: GetAttributionFeedRequest, O: GetFeedResponse }
 ]);
