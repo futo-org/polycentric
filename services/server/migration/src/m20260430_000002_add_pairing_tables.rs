@@ -1,4 +1,4 @@
-use ::entity::{pairing_session_claimer_model, pairing_session_model};
+use ::entity::{pairing_session, pairing_session_claimer};
 use sea_orm::{EntityTrait, Schema};
 use sea_orm_migration::prelude::*;
 
@@ -27,8 +27,8 @@ impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let schema = Schema::new(manager.get_database_backend());
 
-        create_entity(manager, &schema, pairing_session_model::Entity).await?;
-        create_entity(manager, &schema, pairing_session_claimer_model::Entity)
+        create_entity(manager, &schema, pairing_session::Entity).await?;
+        create_entity(manager, &schema, pairing_session_claimer::Entity)
             .await?;
 
         Ok(())
@@ -38,16 +38,12 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(
                 Table::drop()
-                    .table(pairing_session_claimer_model::Entity)
+                    .table(pairing_session_claimer::Entity)
                     .to_owned(),
             )
             .await?;
         manager
-            .drop_table(
-                Table::drop()
-                    .table(pairing_session_model::Entity)
-                    .to_owned(),
-            )
+            .drop_table(Table::drop().table(pairing_session::Entity).to_owned())
             .await?;
 
         Ok(())

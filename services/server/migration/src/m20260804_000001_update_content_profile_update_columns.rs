@@ -1,4 +1,4 @@
-use ::entity::content_profile_update_model;
+use ::entity::content_profile_update;
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
@@ -10,7 +10,7 @@ const TABLE: &str = "content_profile_update";
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let mut stmt = Table::alter();
-        stmt.table(content_profile_update_model::Entity);
+        stmt.table(content_profile_update::Entity);
 
         for old_column in [
             "avatar_digest_type",
@@ -42,7 +42,7 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let mut stmt = Table::alter();
-        stmt.table(content_profile_update_model::Entity);
+        stmt.table(content_profile_update::Entity);
 
         for new_txt_column in ["description", "alias"] {
             if manager.has_column(TABLE, new_txt_column).await? {

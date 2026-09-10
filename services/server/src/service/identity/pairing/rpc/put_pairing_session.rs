@@ -8,8 +8,8 @@ use crate::service::proto as Proto;
 use crate::service::proto::{
     PutPairingSessionRequest, PutPairingSessionResponse,
 };
-use ::entity::pairing_session_model as PairingSessionModel;
 use chrono::{DateTime, TimeDelta, Utc};
+use entity::pairing_session;
 use polycentric_common::error::CoreError;
 use sea_orm::entity::prelude::DateTimeUtc;
 use sea_orm::{
@@ -172,7 +172,7 @@ fn verify_initial_timestamp(input: &Input) -> Result<(), Status> {
 ///    required to modify it is the signed message that we allow clients to
 ///    read. Requiring fresh data in any update that we apply prevents
 ///    "replay attacks" from clients.
-fn is_stale(input: &Input, existing: &PairingSessionModel::Model) -> bool {
+fn is_stale(input: &Input, existing: &pairing_session::Model) -> bool {
     if existing.digest_sha256 == input.digest_sha256 {
         input.sequence <= existing.sequence
     } else {
@@ -197,7 +197,7 @@ async fn update_session(
     }
 
     let digest_sha256 = input.digest_sha256.clone();
-    let row = PairingSessionModel::ActiveModel {
+    let row = pairing_session::ActiveModel {
         issuer_identity: Set(input.issuer_identity),
         digest_sha256: Set(input.digest_sha256),
         issuer_state_bytes: Set(input.issuer_state_bytes),

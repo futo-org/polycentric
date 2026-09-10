@@ -496,10 +496,6 @@ export type GetEventArgs = {
     identity: string,
     collection: number,
     sequence: bigint,
-    /**
-     * Hex prefix of the signing key, to pick between events that
-     * different keys published at the same sequence.
-     */
     signerKeyPrefix?: string
 }
 

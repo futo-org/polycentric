@@ -1,4 +1,4 @@
-use ::entity::content_identity_model;
+use ::entity::content_identity;
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
@@ -16,33 +16,29 @@ impl MigrationTrait for Migration {
         manager
             .alter_table(
                 Table::alter()
-                    .table(content_identity_model::Entity)
+                    .table(content_identity::Entity)
+                    .add_column(
+                        ColumnDef::new(content_identity::Column::RotationKeys)
+                            .json_binary()
+                            .not_null()
+                            .default(Expr::cust("'[]'::jsonb")),
+                    )
+                    .add_column(
+                        ColumnDef::new(content_identity::Column::SigningKeys)
+                            .json_binary()
+                            .not_null()
+                            .default(Expr::cust("'[]'::jsonb")),
+                    )
                     .add_column(
                         ColumnDef::new(
-                            content_identity_model::Column::RotationKeys,
+                            content_identity::Column::RevocationBounds,
                         )
                         .json_binary()
                         .not_null()
                         .default(Expr::cust("'[]'::jsonb")),
                     )
                     .add_column(
-                        ColumnDef::new(
-                            content_identity_model::Column::SigningKeys,
-                        )
-                        .json_binary()
-                        .not_null()
-                        .default(Expr::cust("'[]'::jsonb")),
-                    )
-                    .add_column(
-                        ColumnDef::new(
-                            content_identity_model::Column::RevocationBounds,
-                        )
-                        .json_binary()
-                        .not_null()
-                        .default(Expr::cust("'[]'::jsonb")),
-                    )
-                    .add_column(
-                        ColumnDef::new(content_identity_model::Column::Servers)
+                        ColumnDef::new(content_identity::Column::Servers)
                             .json_binary(),
                     )
                     .to_owned(),
@@ -60,13 +56,11 @@ impl MigrationTrait for Migration {
         manager
             .alter_table(
                 Table::alter()
-                    .table(content_identity_model::Entity)
-                    .drop_column(content_identity_model::Column::RotationKeys)
-                    .drop_column(content_identity_model::Column::SigningKeys)
-                    .drop_column(
-                        content_identity_model::Column::RevocationBounds,
-                    )
-                    .drop_column(content_identity_model::Column::Servers)
+                    .table(content_identity::Entity)
+                    .drop_column(content_identity::Column::RotationKeys)
+                    .drop_column(content_identity::Column::SigningKeys)
+                    .drop_column(content_identity::Column::RevocationBounds)
+                    .drop_column(content_identity::Column::Servers)
                     .to_owned(),
             )
             .await

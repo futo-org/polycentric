@@ -19,7 +19,7 @@ use crate::service::{
     },
     stats::service::gather_stats_for,
 };
-use ::entity::notification;
+use entity::notification;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tonic::Status;
@@ -329,8 +329,8 @@ mod tests {
     use crate::service::context::ServiceContext;
     use crate::service::proto::content::ContentBody;
     use crate::service::proto::{Content, Labels};
-    use ::entity::{content_model, event_model};
     use chrono::DateTime;
+    use entity::{content, event};
     use prost::Message;
     use sea_orm::{DbBackend, MockDatabase};
 
@@ -381,7 +381,7 @@ mod tests {
             })),
         };
         (
-            event_model::Model {
+            event::Model {
                 id: 900 + row.id,
                 collection: 1,
                 identity: "moderator".to_string(),
@@ -398,7 +398,7 @@ mod tests {
                 created_at: ts,
                 synced_at: ts,
             },
-            Some(content_model::Model {
+            Some(content::Model {
                 id: 900 + row.id,
                 digest_type: 1,
                 digest_bytes: vec![row.id as u8],
@@ -433,13 +433,11 @@ mod tests {
     }
 
     async fn service() -> Arc<ServiceContext> {
+        let db = MockDatabase::new(DbBackend::Postgres).into_connection();
         let kafka_producer = common_kafka::build_producer()
             .await
             .expect("failed to build Kafka producer");
-        ServiceContext::new(
-            MockDatabase::new(DbBackend::Postgres).into_connection(),
-            kafka_producer,
-        )
+        ServiceContext::new(db.clone(), db, kafka_producer)
     }
 
     #[tokio::test]

@@ -1,6 +1,6 @@
 use super::split_event_key;
 use crate::service::proto::VerificationTarget;
-use entity::content_verification_target_model as ContentVerificationTargetModel;
+use entity::content_verification_target;
 use sea_orm::DbErr;
 use sea_orm::sea_query::{
     CommonTableExpression, DynIden, Expr, InsertStatement, SelectStatement,
@@ -48,15 +48,15 @@ pub(super) fn add_query(
 
     let mut query = InsertStatement::new();
     query
-        .into_table(ContentVerificationTargetModel::Entity)
+        .into_table(content_verification_target::Entity)
         .columns([
-            ContentVerificationTargetModel::Column::ContentId,
-            ContentVerificationTargetModel::Column::TargetIdentity,
-            ContentVerificationTargetModel::Column::ClaimEventKeyCollection,
-            ContentVerificationTargetModel::Column::ClaimEventKeyIdentity,
-            ContentVerificationTargetModel::Column::ClaimEventKeyPublicKeyType,
-            ContentVerificationTargetModel::Column::ClaimEventKeyPublicKey,
-            ContentVerificationTargetModel::Column::ClaimEventKeySequence,
+            content_verification_target::Column::ContentId,
+            content_verification_target::Column::TargetIdentity,
+            content_verification_target::Column::ClaimEventKeyCollection,
+            content_verification_target::Column::ClaimEventKeyIdentity,
+            content_verification_target::Column::ClaimEventKeyPublicKeyType,
+            content_verification_target::Column::ClaimEventKeyPublicKey,
+            content_verification_target::Column::ClaimEventKeySequence,
         ])
         .select_from({
             let mut q = SelectStatement::new();

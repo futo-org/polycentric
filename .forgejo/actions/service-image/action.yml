@@ -1,0 +1,69 @@
+name: service-image
+description: Rootless BuildKit build pushed as <registry>/<image>:<sha> with a registry layer cache (GitLab .service-image). Runs in the ci/buildkit job image, the build itself as its `user`.
+inputs:
+  image:
+    description: Image name under the registry (server, moderation-service, web, ...)
+    required: true
+  dockerfile:
+    description: Directory holding the Dockerfile; the build context is the repo root
+    required: true
+  registry:
+    required: true
+  build-args:
+    description: One KEY=VALUE per line
+    default: ''
+  export-cache:
+    description: Refresh the shared build cache
+    default: 'false'
+  registry-user:
+    required: true
+  registry-token:
+    required: true
+  cosign-key:
+    description: COSIGN_PRIVATE_KEY; the pushed image is signed with it (empty skips)
+    default: ''
+runs:
+  using: composite
+  steps:
+    - uses: ./.forgejo/actions/registry-login
+      with:
+        registry: ${{ inputs.registry }}
+        registry-user: ${{ inputs.registry-user }}
+        registry-token: ${{ inputs.registry-token }}
+    - shell: bash
+      env:
+        IMAGE: ${{ inputs.registry }}/${{ inputs.image }}
+        DOCKERFILE: ${{ inputs.dockerfile }}
+        BUILD_ARGS: ${{ inputs.build-args }}
+        EXPORT_CACHE: ${{ inputs.export-cache }}
+      run: |
+        # The image sets HOME=/home/user for root too, so the login usually landed there already.
+        if [ -f ~/.docker/config.json ] && [ ! ~/.docker/config.json -ef /home/user/.docker/config.json ]; then
+          install -d /home/user/.docker
+          install -m 0600 ~/.docker/config.json /home/user/.docker/config.json
+        fi
+        chown -R user:user /home/user
+        # rootlesskit refuses root, which the job's steps run as.
+        build() {
+          su -s /bin/bash user -c "cd $(printf '%q' "$PWD") && exec env HOME=/home/user XDG_RUNTIME_DIR=/run/user/1000 TMPDIR=/home/user/.local/tmp BUILDKITD_FLAGS=--oci-worker-no-process-sandbox buildctl-daemonless.sh build $(printf '%q ' "$@")"
+        }
+        # Without a per-commit label a fully cached build is byte-identical to
+        # the previous one and containerd reports the older pull's digest.
+        set -- --opt "label:org.opencontainers.image.revision=$GITHUB_SHA"
+        while IFS= read -r arg; do
+          [ -n "$arg" ] && set -- "$@" --opt "build-arg:$arg"
+        done <<< "$BUILD_ARGS"
+        set -- "$@" --frontend dockerfile.v0 --local context=. --local "dockerfile=$DOCKERFILE" \
+          --import-cache "type=registry,ref=$IMAGE:cache-${DEFAULT_BRANCH:-develop}"
+        build "$@" --output "type=image,name=$IMAGE:$GITHUB_SHA,push=true"
+        # A separate pass: zot drops one of two concurrent uploads of a blob.
+        # mode=max keeps the build stages, so a later build resumes from the
+        # step that changed instead of the top of the Dockerfile.
+        if [ "$EXPORT_CACHE" = true ]; then
+          build "$@" --export-cache "type=registry,ref=$IMAGE:cache-${DEFAULT_BRANCH:-develop},mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true"
+        fi
+    # Sign the commit's image by digest; the moving tags share that digest.
+    - uses: ./.forgejo/actions/cosign-sign
+      with:
+        refs: ${{ inputs.registry }}/${{ inputs.image }}:${{ github.sha }}
+        key: ${{ inputs.cosign-key }}

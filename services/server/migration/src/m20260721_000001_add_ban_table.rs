@@ -1,8 +1,8 @@
 //! Creates the `ban` table: identities banned on this server, one row
 //! per identity. Columns are spelled out here (rather than derived from
 //! the entity) so this migration is a fixed snapshot that never drifts
-//! as `entity::ban_model` evolves. `IF NOT EXISTS` keeps it a no-op on
-//! a database that already has the table.
+//! as `entity::ban` evolves. `IF NOT EXISTS` keeps it a no-op on a
+//! database that already has the table.
 
 use sea_orm_migration::{prelude::*, schema::*};
 

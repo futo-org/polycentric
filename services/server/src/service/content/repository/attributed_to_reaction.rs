@@ -1,5 +1,5 @@
 use crate::service::proto::{AttributedToReaction, attributed_to::To};
-use entity::content_attributed_to_reaction_model as Model;
+use entity::content_attributed_to_reaction;
 use sea_orm::DbErr;
 use sea_orm::sea_query::{DynIden, Expr, InsertStatement, SelectStatement};
 use tonic::Status;
@@ -21,12 +21,12 @@ pub(super) fn add_query(
 
     let mut query = InsertStatement::new();
     query
-        .into_table(Model::Entity)
+        .into_table(content_attributed_to_reaction::Entity)
         .columns([
-            Model::Column::ContentId,
-            Model::Column::Url,
-            Model::Column::Emoji,
-            Model::Column::Positive,
+            content_attributed_to_reaction::Column::ContentId,
+            content_attributed_to_reaction::Column::Url,
+            content_attributed_to_reaction::Column::Emoji,
+            content_attributed_to_reaction::Column::Positive,
         ])
         .select_from({
             let mut q = SelectStatement::new();

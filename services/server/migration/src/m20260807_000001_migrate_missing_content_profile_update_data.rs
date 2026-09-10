@@ -1,10 +1,9 @@
 use ::entity::{
-    content_blob_model, content_block_model, content_delete_model,
-    content_follow_model, content_identity_model, content_image_model,
-    content_label_model, content_model, content_post_model,
-    content_profile_update_model, content_reaction_model, content_report_model,
-    content_repost_model, content_verification_claim_model,
-    content_verification_target_model, content_verification_verify_model,
+    content, content_blob, content_block, content_delete, content_follow,
+    content_identity, content_image, content_label, content_post,
+    content_profile_update, content_reaction, content_report, content_repost,
+    content_verification_claim, content_verification_target,
+    content_verification_verify,
 };
 use polycentric_common::models::protos_v2::content::ContentBody;
 use polycentric_common::models::protos_v2::{Content, ImageSet};
@@ -21,27 +20,27 @@ impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         let conn = manager.get_connection();
 
-        let content = content_model::Entity::find()
+        let content = content::Entity::find()
             .filter(
-                content_model::Column::Id.not_in_subquery(
+                content::Column::Id.not_in_subquery(
                     Query::select()
-                        .column(content_blob_model::Column::ContentId)
-                        .from(content_blob_model::Entity)
-                        .union(UnionType::All, Query::select().column(content_block_model::Column::ContentId).from(content_block_model::Entity).to_owned())
-                        .union(UnionType::All, Query::select().column(content_delete_model::Column::ContentId).from(content_delete_model::Entity).to_owned())
-                        .union(UnionType::All, Query::select().column(content_follow_model::Column::ContentId).from(content_follow_model::Entity).to_owned())
-                        .union(UnionType::All, Query::select().column(content_identity_model::Column::ContentId).from(content_identity_model::Entity).to_owned())
-                        .union(UnionType::All, Query::select().column(content_image_model::Column::ContentId).from(content_image_model::Entity).to_owned())
-                        .union(UnionType::All, Query::select().column(content_label_model::Column::ContentId).from(content_label_model::Entity).to_owned())
-                        .union(UnionType::All, Query::select().column(content_post_model::Column::ContentId).from(content_post_model::Entity).to_owned())
-                        .union(UnionType::All, Query::select().column(content_profile_update_model::Column::ContentId).from(content_profile_update_model::Entity).to_owned())
-                        .union(UnionType::All, Query::select().column(content_reaction_model::Column::ContentId).from(content_reaction_model::Entity).to_owned())
-                        .union(UnionType::All, Query::select().column(content_report_model::Column::ContentId).from(content_report_model::Entity).to_owned())
-                        .union(UnionType::All, Query::select().column(content_repost_model::Column::ContentId).from(content_repost_model::Entity).to_owned())
-                        .union(UnionType::All, Query::select().column(content_verification_claim_model::Column::ContentId).from(content_verification_claim_model::Entity).to_owned())
-                        .union(UnionType::All, Query::select().column(content_verification_target_model::Column::ContentId).from(content_verification_target_model::Entity).to_owned())
-                        .union(UnionType::All, Query::select().column(content_verification_verify_model::Column::ContentId).from(content_verification_verify_model::Entity).to_owned())
-                        .union(UnionType::All, Query::select().column(content_block_model::Column::ContentId).from(content_block_model::Entity).to_owned())
+                        .column(content_blob::Column::ContentId)
+                        .from(content_blob::Entity)
+                        .union(UnionType::All, Query::select().column(content_block::Column::ContentId).from(content_block::Entity).to_owned())
+                        .union(UnionType::All, Query::select().column(content_delete::Column::ContentId).from(content_delete::Entity).to_owned())
+                        .union(UnionType::All, Query::select().column(content_follow::Column::ContentId).from(content_follow::Entity).to_owned())
+                        .union(UnionType::All, Query::select().column(content_identity::Column::ContentId).from(content_identity::Entity).to_owned())
+                        .union(UnionType::All, Query::select().column(content_image::Column::ContentId).from(content_image::Entity).to_owned())
+                        .union(UnionType::All, Query::select().column(content_label::Column::ContentId).from(content_label::Entity).to_owned())
+                        .union(UnionType::All, Query::select().column(content_post::Column::ContentId).from(content_post::Entity).to_owned())
+                        .union(UnionType::All, Query::select().column(content_profile_update::Column::ContentId).from(content_profile_update::Entity).to_owned())
+                        .union(UnionType::All, Query::select().column(content_reaction::Column::ContentId).from(content_reaction::Entity).to_owned())
+                        .union(UnionType::All, Query::select().column(content_report::Column::ContentId).from(content_report::Entity).to_owned())
+                        .union(UnionType::All, Query::select().column(content_repost::Column::ContentId).from(content_repost::Entity).to_owned())
+                        .union(UnionType::All, Query::select().column(content_verification_claim::Column::ContentId).from(content_verification_claim::Entity).to_owned())
+                        .union(UnionType::All, Query::select().column(content_verification_target::Column::ContentId).from(content_verification_target::Entity).to_owned())
+                        .union(UnionType::All, Query::select().column(content_verification_verify::Column::ContentId).from(content_verification_verify::Entity).to_owned())
+                        .union(UnionType::All, Query::select().column(content_block::Column::ContentId).from(content_block::Entity).to_owned())
                         .to_owned()
                 )
             )
@@ -56,7 +55,7 @@ impl MigrationTrait for Migration {
             if let Some(ContentBody::ProfileUpdate(update)) =
                 content.content_body
             {
-                Some(content_profile_update_model::ActiveModel {
+                Some(content_profile_update::ActiveModel {
                     content_id: Set(row.id),
                     name: Set(update.name),
                     avatar: Set(to_json(update.avatar)),
@@ -69,7 +68,7 @@ impl MigrationTrait for Migration {
             }
         });
 
-        content_profile_update_model::Entity::insert_many(profile_updates)
+        content_profile_update::Entity::insert_many(profile_updates)
             .exec(conn)
             .await?;
         Ok(())

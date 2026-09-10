@@ -1,7 +1,4 @@
-use ::entity::{
-    follow_model, quote_model, reaction_model, reaction_tally_model,
-    reply_model, repost_model,
-};
+use ::entity::{follow, quote, reaction, reaction_tally, reply, repost};
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
@@ -23,9 +20,9 @@ impl MigrationTrait for Migration {
                 index
                     .if_not_exists()
                     .name(REPLY_INDEX)
-                    .table(reply_model::Entity)
-                    .col(reply_model::Column::Identity)
-                    .col(reply_model::Column::Post);
+                    .table(reply::Entity)
+                    .col(reply::Column::Identity)
+                    .col(reply::Column::Post);
                 index
             })
             .await?;
@@ -36,9 +33,9 @@ impl MigrationTrait for Migration {
                 index
                     .if_not_exists()
                     .name(QUOTE_INDEX)
-                    .table(quote_model::Entity)
-                    .col(quote_model::Column::Identity)
-                    .col(quote_model::Column::Post);
+                    .table(quote::Entity)
+                    .col(quote::Column::Identity)
+                    .col(quote::Column::Post);
                 index
             })
             .await?;
@@ -49,9 +46,9 @@ impl MigrationTrait for Migration {
                 index
                     .if_not_exists()
                     .name(REPOST_INDEX)
-                    .table(repost_model::Entity)
-                    .col(repost_model::Column::Identity)
-                    .col(repost_model::Column::Post);
+                    .table(repost::Entity)
+                    .col(repost::Column::Identity)
+                    .col(repost::Column::Post);
                 index
             })
             .await?;
@@ -62,9 +59,9 @@ impl MigrationTrait for Migration {
                 index
                     .if_not_exists()
                     .name(REACTION_INDEX)
-                    .table(reaction_model::Entity)
-                    .col(reaction_model::Column::Identity)
-                    .col(reaction_model::Column::OnPost);
+                    .table(reaction::Entity)
+                    .col(reaction::Column::Identity)
+                    .col(reaction::Column::OnPost);
                 index
             })
             .await?;
@@ -75,9 +72,9 @@ impl MigrationTrait for Migration {
                 index
                     .if_not_exists()
                     .name(FOLLOW_INDEX)
-                    .table(follow_model::Entity)
-                    .col(follow_model::Column::Follower)
-                    .include(follow_model::Column::Followee);
+                    .table(follow::Entity)
+                    .col(follow::Column::Follower)
+                    .include(follow::Column::Followee);
                 index
             })
             .await?;
@@ -92,8 +89,8 @@ impl MigrationTrait for Migration {
             .await?;
         manager.get_connection().execute_unprepared(&format!(
             "CREATE INDEX {REACTION_TALLY_INDEX} ON {0} ({1}) INCLUDE (event_id) WHERE {1} > 0",
-            reaction_tally_model::Entity.quoted(),
-            reaction_tally_model::Column::DecayedCount.quoted(),
+            reaction_tally::Entity.quoted(),
+            reaction_tally::Column::DecayedCount.quoted(),
         ))
         .await?;
 
@@ -151,8 +148,8 @@ impl MigrationTrait for Migration {
             .await?;
         manager.get_connection().execute_unprepared(&format!(
             "CREATE INDEX {REACTION_TALLY_INDEX} ON {0} ({1}) WHERE {1} > 0",
-            reaction_tally_model::Entity.quoted(),
-            reaction_tally_model::Column::DecayedCount.quoted(),
+            reaction_tally::Entity.quoted(),
+            reaction_tally::Column::DecayedCount.quoted(),
         ))
         .await?;
 

@@ -1,0 +1,56 @@
+name: Deploy push notifications to staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - Cargo.toml
+      - Cargo.lock
+      - services/push-notifications/**
+      - services/common/**
+      - deploy/charts/harbor-push-notifications/**
+      - .forgejo/workflows/deploy-push-notifications-staging.yml
+      - .forgejo/actions/service-image/**
+      - .forgejo/actions/chart-publish/**
+      - .forgejo/actions/deploy-tag/**
+
+concurrency:
+  group: deploy-push-notifications-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}/ci/buildkit:latest
+    env:
+      REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/service-image
+        with:
+          image: push-notifications-service
+          dockerfile: services/push-notifications
+          registry: ${{ env.REGISTRY }}
+          export-cache: 'true'
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      - uses: ./.forgejo/actions/chart-publish
+        id: chart
+        with:
+          registry: ${{ env.REGISTRY }}
+          chart: harbor-push-notifications
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      - uses: ./.forgejo/actions/deploy-tag
+        with:
+          registry: ${{ env.REGISTRY }}
+          image: push-notifications-service
+          chart: harbor-push-notifications
+          chart-version: ${{ steps.chart.outputs.version }}
+          environment: staging
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}

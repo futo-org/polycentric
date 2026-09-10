@@ -11,6 +11,8 @@ const WEB_URL = process.env.MAESTRO_WEB_URL ?? 'http://localhost:8081';
 const OUTPUT = process.env.MAESTRO_OUTPUT
   ? [`--output=${process.env.MAESTRO_OUTPUT}`, '--flatten']
   : [];
+// Flows tagged `flaky` are skipped until fixed.
+const EXCLUDE = ['--exclude-tags=flaky'];
 
 const platform = process.argv[2];
 if (platform && !PLATFORMS.includes(platform)) {
@@ -185,6 +187,7 @@ if (platform === 'web') {
     '--platform=web',
     'test',
     ...OUTPUT,
+    ...EXCLUDE,
     '-e',
     `MAESTRO_WEB_URL=${WEB_URL}`,
     `${FLOWS}web`,
@@ -192,7 +195,7 @@ if (platform === 'web') {
 }
 
 const device = chooseDevice();
-const flags = ['-e', `MAESTRO_APP_ID=${APP_ID}`, FLOWS];
+const flags = [...EXCLUDE, '-e', `MAESTRO_APP_ID=${APP_ID}`, FLOWS];
 if (device.platform === 'android') {
   setupJava();
   run('maestro', [

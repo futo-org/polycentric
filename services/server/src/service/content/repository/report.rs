@@ -1,6 +1,6 @@
 use super::split_event_key;
 use crate::service::proto::Report;
-use entity::content_report_model as ContentReportModel;
+use entity::content_report;
 use sea_orm::DbErr;
 use sea_orm::sea_query::{DynIden, Expr, InsertStatement, SelectStatement};
 use tonic::Status;
@@ -18,16 +18,16 @@ pub(super) fn add_query(
 
     let mut query = InsertStatement::new();
     query
-        .into_table(ContentReportModel::Entity)
+        .into_table(content_report::Entity)
         .columns([
-            ContentReportModel::Column::ContentId,
-            ContentReportModel::Column::Category,
-            ContentReportModel::Column::AdditionalInfo,
-            ContentReportModel::Column::EventKeyCollection,
-            ContentReportModel::Column::EventKeyIdentity,
-            ContentReportModel::Column::EventKeyPublicKeyType,
-            ContentReportModel::Column::EventKeyPublicKey,
-            ContentReportModel::Column::EventKeySequence,
+            content_report::Column::ContentId,
+            content_report::Column::Category,
+            content_report::Column::AdditionalInfo,
+            content_report::Column::EventKeyCollection,
+            content_report::Column::EventKeyIdentity,
+            content_report::Column::EventKeyPublicKeyType,
+            content_report::Column::EventKeyPublicKey,
+            content_report::Column::EventKeySequence,
         ])
         .select_from({
             let mut q = SelectStatement::new();

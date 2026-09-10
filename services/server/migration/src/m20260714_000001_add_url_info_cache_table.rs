@@ -1,4 +1,4 @@
-use ::entity::url_info_cache_model;
+use ::entity::url_info_cache;
 use sea_orm::Schema;
 use sea_orm_migration::prelude::*;
 
@@ -14,7 +14,7 @@ impl MigrationTrait for Migration {
         let schema = Schema::new(manager.get_database_backend());
         manager
             .create_table(
-                schema.create_table_from_entity(url_info_cache_model::Entity),
+                schema.create_table_from_entity(url_info_cache::Entity),
             )
             .await?;
 
@@ -22,8 +22,8 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name("idx_url_info_cache_updated_at")
-                    .table(url_info_cache_model::Entity)
-                    .col(url_info_cache_model::Column::UpdatedAt)
+                    .table(url_info_cache::Entity)
+                    .col(url_info_cache::Column::UpdatedAt)
                     .to_owned(),
             )
             .await?;
@@ -36,7 +36,7 @@ impl MigrationTrait for Migration {
             .drop_table(
                 Table::drop()
                     .if_exists()
-                    .table(url_info_cache_model::Entity)
+                    .table(url_info_cache::Entity)
                     .to_owned(),
             )
             .await

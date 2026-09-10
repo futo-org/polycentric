@@ -12,7 +12,7 @@ use crate::service::feeds::repository::EventCreatedAt;
 use crate::service::proofs::service::attach_proofs;
 use crate::service::proto::content::ContentBody;
 use crate::service::proto::{Content, EventBundle, EventHint, PageParams};
-use entity::content_model;
+use entity::content;
 use prost::Message;
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -46,10 +46,8 @@ impl<SortedBy> Params<SortedBy> {
     }
 }
 
-pub struct Fetched<SortedBy = EventCreatedAt> {
-    pub rows: Vec<EventWithContentRow>,
-    pub page_info: PageInfo<SortedBy>,
-}
+pub type Fetched<SortedBy = EventCreatedAt> =
+    pipeline::Fetched<EventWithContentRow, SortedBy>;
 
 pub struct GetFeedResponseFilter<SortedBy = EventCreatedAt> {
     pub live_rows: Vec<EventWithContentRow>,
@@ -119,9 +117,7 @@ pub fn referenced_target(
     }
 }
 
-pub fn referenced_target2(
-    content: &content_model::Model,
-) -> Option<Referenced> {
+pub fn referenced_target2(content: &content::Model) -> Option<Referenced> {
     let Ok(decoded) = Content::decode(content.serialized_bytes.as_slice())
     else {
         return None;
@@ -351,9 +347,8 @@ mod tests {
         Content, EventBundle, EventKey, Labels, Post, PostReply, PublicKey,
         Repost,
     };
-    use ::entity::content_model as ContentModel;
-    use ::entity::event_model as EventModel;
     use chrono::DateTime;
+    use entity::{content, event};
     use sea_orm::prelude::DateTimeWithTimeZone;
     use std::collections::HashSet;
     use std::sync::Arc;
@@ -369,8 +364,8 @@ mod tests {
         identity: &str,
         collection: i16,
         sequence: i64,
-    ) -> EventModel::Model {
-        EventModel::Model {
+    ) -> event::Model {
+        event::Model {
             id,
             collection,
             identity: identity.to_string(),
@@ -389,8 +384,8 @@ mod tests {
         }
     }
 
-    fn content_row(id: i64, content: &Content) -> ContentModel::Model {
-        ContentModel::Model {
+    fn content_row(id: i64, content: &Content) -> content::Model {
+        content::Model {
             id,
             digest_type: 1,
             digest_bytes: vec![id as u8],

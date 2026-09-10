@@ -1,8 +1,7 @@
-use ::entity::content_model as ContentModel;
-use ::entity::content_verification_claim_model as ClaimModel;
-use ::entity::content_verification_target_model as TargetModel;
-use ::entity::content_verification_verify_model as VerifyModel;
-use ::entity::event_model as EventModel;
+use ::entity::{
+    content, content_verification_claim, content_verification_target,
+    content_verification_verify, event,
+};
 use polycentric_common::models::collections;
 use sea_orm::sea_query::extension::postgres::PgBinOper;
 use sea_orm::sea_query::{Alias, Expr, Query as SeaQuery};
@@ -31,8 +30,8 @@ pub struct VerificationTargetDto {
 /// callers can group verification state per claim.
 #[derive(Debug, Clone)]
 pub struct VerificationEventDto {
-    pub event: EventModel::Model,
-    pub content: Option<ContentModel::Model>,
+    pub event: event::Model,
+    pub content: Option<content::Model>,
     pub claim_key: TargetEventKey,
 }
 
@@ -103,13 +102,13 @@ impl Query {
         db: &DbConn,
         identity: &str,
     ) -> Result<Vec<EventWithContentRow>, DbErr> {
-        EventModel::Entity::find()
-            .select_also(ContentModel::Entity)
+        event::Entity::find()
+            .select_also(content::Entity)
             .join(JoinType::InnerJoin, content_join())
             .join(JoinType::InnerJoin, claim_join())
-            .filter(EventModel::Column::Collection.eq(VERIFICATIONS_COLLECTION))
-            .filter(EventModel::Column::Identity.eq(identity))
-            .order_by_desc(EventModel::Column::Sequence)
+            .filter(event::Column::Collection.eq(VERIFICATIONS_COLLECTION))
+            .filter(event::Column::Identity.eq(identity))
+            .order_by_desc(event::Column::Sequence)
             .limit(MAX_ROWS)
             .all(db)
             .await
@@ -134,29 +133,38 @@ impl Query {
         match_fields: serde_json::Value,
         verified_by: &HashSet<String>,
     ) -> Result<Vec<EventWithContentRow>, DbErr> {
-        let mut select = EventModel::Entity::find()
-            .select_also(ContentModel::Entity)
+        let mut select = event::Entity::find()
+            .select_also(content::Entity)
             .join(JoinType::InnerJoin, content_join())
             .join(JoinType::InnerJoin, claim_join())
-            .filter(EventModel::Column::Collection.eq(VERIFICATIONS_COLLECTION))
+            .filter(event::Column::Collection.eq(VERIFICATIONS_COLLECTION))
             .filter(
-                Expr::col((ClaimModel::Entity, ClaimModel::Column::Fields))
-                    .binary(
-                        PgBinOper::Contains,
-                        Expr::val(match_fields).cast_as(Alias::new("jsonb")),
-                    ),
+                Expr::col((
+                    content_verification_claim::Entity,
+                    content_verification_claim::Column::Fields,
+                ))
+                .binary(
+                    PgBinOper::Contains,
+                    Expr::val(match_fields).cast_as(Alias::new("jsonb")),
+                ),
             )
             .filter(Expr::exists(verified_by_trusted_subquery(verified_by)));
         if let Some((digest_type, digest_bytes)) = schema_digest {
             select = select
-                .filter(ClaimModel::Column::SchemaDigestType.eq(digest_type))
-                .filter(ClaimModel::Column::SchemaDigestBytes.eq(digest_bytes));
+                .filter(
+                    content_verification_claim::Column::SchemaDigestType
+                        .eq(digest_type),
+                )
+                .filter(
+                    content_verification_claim::Column::SchemaDigestBytes
+                        .eq(digest_bytes),
+                );
         }
         select
-            .order_by_desc(EventModel::Column::Sequence)
+            .order_by_desc(event::Column::Sequence)
             // Deterministic tiebreaker: `sequence` is a per-identity counter,
             // so it does not totally order rows across identities.
-            .order_by_desc(EventModel::Column::Id)
+            .order_by_desc(event::Column::Id)
             .limit(MAX_ROWS)
             .all(db)
             .await
@@ -171,21 +179,23 @@ impl Query {
         if claim_keys.is_empty() {
             return Ok(Vec::new());
         }
-        let rows = EventModel::Entity::find()
-            .select_also(ContentModel::Entity)
+        let rows = event::Entity::find()
+            .select_also(content::Entity)
             .join(JoinType::InnerJoin, content_join())
-            .and_also_related(TargetModel::Entity)
-            .filter(EventModel::Column::Collection.eq(VERIFICATIONS_COLLECTION))
-            .filter(claim_keys_condition!(TargetModel, claim_keys))
+            .and_also_related(content_verification_target::Entity)
+            .filter(event::Column::Collection.eq(VERIFICATIONS_COLLECTION))
+            .filter(claim_keys_condition!(
+                content_verification_target,
+                claim_keys
+            ))
             // Only the claim owner's own targeting events count.
-            .filter(
-                Expr::col((EventModel::Entity, EventModel::Column::Identity))
-                    .equals((
-                        TargetModel::Entity,
-                        TargetModel::Column::ClaimEventKeyIdentity,
-                    )),
-            )
-            .order_by_desc(EventModel::Column::Sequence)
+            .filter(Expr::col((event::Entity, event::Column::Identity)).equals(
+                (
+                    content_verification_target::Entity,
+                    content_verification_target::Column::ClaimEventKeyIdentity,
+                ),
+            ))
+            .order_by_desc(event::Column::Sequence)
             .limit(MAX_ROWS)
             .all(db)
             .await?;
@@ -218,13 +228,16 @@ impl Query {
         if claim_keys.is_empty() {
             return Ok(Vec::new());
         }
-        let rows = EventModel::Entity::find()
-            .select_also(ContentModel::Entity)
+        let rows = event::Entity::find()
+            .select_also(content::Entity)
             .join(JoinType::InnerJoin, content_join())
-            .and_also_related(VerifyModel::Entity)
-            .filter(EventModel::Column::Collection.eq(VERIFICATIONS_COLLECTION))
-            .filter(claim_keys_condition!(VerifyModel, claim_keys))
-            .order_by_desc(EventModel::Column::Sequence)
+            .and_also_related(content_verification_verify::Entity)
+            .filter(event::Column::Collection.eq(VERIFICATIONS_COLLECTION))
+            .filter(claim_keys_condition!(
+                content_verification_verify,
+                claim_keys
+            ))
+            .order_by_desc(event::Column::Sequence)
             .limit(MAX_ROWS)
             .all(db)
             .await?;
@@ -253,22 +266,24 @@ impl Query {
         db: &DbConn,
         target_identity: &str,
     ) -> Result<Vec<VerificationTargetDto>, DbErr> {
-        let rows = EventModel::Entity::find()
-            .select_also(TargetModel::Entity)
+        let rows = event::Entity::find()
+            .select_also(content_verification_target::Entity)
             .join(JoinType::InnerJoin, content_join())
             .join(JoinType::InnerJoin, target_join())
-            .filter(EventModel::Column::Collection.eq(VERIFICATIONS_COLLECTION))
-            .filter(TargetModel::Column::TargetIdentity.eq(target_identity))
-            // Only the claim's own owner can ask for its verification.
+            .filter(event::Column::Collection.eq(VERIFICATIONS_COLLECTION))
             .filter(
-                Expr::col((EventModel::Entity, EventModel::Column::Identity))
-                    .equals((
-                        TargetModel::Entity,
-                        TargetModel::Column::ClaimEventKeyIdentity,
-                    )),
+                content_verification_target::Column::TargetIdentity
+                    .eq(target_identity),
             )
-            .order_by_desc(EventModel::Column::CreatedAt)
-            .order_by_desc(EventModel::Column::Id)
+            // Only the claim's own owner can ask for its verification.
+            .filter(Expr::col((event::Entity, event::Column::Identity)).equals(
+                (
+                    content_verification_target::Entity,
+                    content_verification_target::Column::ClaimEventKeyIdentity,
+                ),
+            ))
+            .order_by_desc(event::Column::CreatedAt)
+            .order_by_desc(event::Column::Id)
             .limit(MAX_ROWS)
             .all(db)
             .await?;
@@ -293,23 +308,25 @@ impl Query {
         claim_key: &TargetEventKey,
         target_identity: &str,
     ) -> Result<bool, DbErr> {
-        let count = EventModel::Entity::find()
+        let count = event::Entity::find()
             .join(JoinType::InnerJoin, content_join())
             .join(JoinType::InnerJoin, target_join())
-            .filter(EventModel::Column::Collection.eq(VERIFICATIONS_COLLECTION))
-            .filter(TargetModel::Column::TargetIdentity.eq(target_identity))
+            .filter(event::Column::Collection.eq(VERIFICATIONS_COLLECTION))
+            .filter(
+                content_verification_target::Column::TargetIdentity
+                    .eq(target_identity),
+            )
             .filter(claim_keys_condition!(
-                TargetModel,
+                content_verification_target,
                 std::slice::from_ref(claim_key)
             ))
             // Only the claim's own owner can ask for its verification.
-            .filter(
-                Expr::col((EventModel::Entity, EventModel::Column::Identity))
-                    .equals((
-                        TargetModel::Entity,
-                        TargetModel::Column::ClaimEventKeyIdentity,
-                    )),
-            )
+            .filter(Expr::col((event::Entity, event::Column::Identity)).equals(
+                (
+                    content_verification_target::Entity,
+                    content_verification_target::Column::ClaimEventKeyIdentity,
+                ),
+            ))
             .count(db)
             .await?;
         Ok(count > 0)
@@ -328,26 +345,20 @@ impl Query {
         for key in keys.iter().take(MAX_ROWS as usize) {
             matches_any = matches_any.add(
                 Condition::all()
-                    .add(EventModel::Column::Collection.eq(key.collection))
-                    .add(EventModel::Column::Identity.eq(key.identity.as_str()))
-                    .add(
-                        EventModel::Column::PublicKeyType
-                            .eq(key.public_key_type),
-                    )
-                    .add(
-                        EventModel::Column::PublicKey
-                            .eq(key.public_key.clone()),
-                    )
-                    .add(EventModel::Column::Sequence.eq(key.sequence)),
+                    .add(event::Column::Collection.eq(key.collection))
+                    .add(event::Column::Identity.eq(key.identity.as_str()))
+                    .add(event::Column::PublicKeyType.eq(key.public_key_type))
+                    .add(event::Column::PublicKey.eq(key.public_key.clone()))
+                    .add(event::Column::Sequence.eq(key.sequence)),
             );
         }
-        EventModel::Entity::find()
-            .select_also(ContentModel::Entity)
+        event::Entity::find()
+            .select_also(content::Entity)
             .join(JoinType::InnerJoin, content_join())
             // A target may reference any event key; only claims qualify.
             .join(JoinType::InnerJoin, claim_join())
             .filter(matches_any)
-            .order_by_desc(EventModel::Column::Sequence)
+            .order_by_desc(event::Column::Sequence)
             .limit(MAX_ROWS)
             .all(db)
             .await
@@ -356,17 +367,17 @@ impl Query {
 
 /// Relation joining a content row to its VerificationTarget rows.
 fn target_join() -> RelationDef {
-    ContentModel::Entity::belongs_to(TargetModel::Entity)
-        .from(ContentModel::Column::Id)
-        .to(TargetModel::Column::ContentId)
+    content::Entity::belongs_to(content_verification_target::Entity)
+        .from(content::Column::Id)
+        .to(content_verification_target::Column::ContentId)
         .into()
 }
 
 /// Relation joining a content row to its VerificationClaim row.
 fn claim_join() -> RelationDef {
-    ContentModel::Entity::belongs_to(ClaimModel::Entity)
-        .from(ContentModel::Column::Id)
-        .to(ClaimModel::Column::ContentId)
+    content::Entity::belongs_to(content_verification_claim::Entity)
+        .from(content::Column::Id)
+        .to(content_verification_claim::Column::ContentId)
         .into()
 }
 
@@ -384,71 +395,70 @@ fn verified_by_trusted_subquery(
     let vc = Alias::new("vc");
     let mut sub = SeaQuery::select();
     sub.expr(Expr::val(1))
-        .from(VerifyModel::Entity)
+        .from(content_verification_verify::Entity)
         .join_as(
             JoinType::InnerJoin,
-            ContentModel::Entity,
+            content::Entity,
             vc.clone(),
-            Expr::col((vc.clone(), ContentModel::Column::Id))
-                .equals((VerifyModel::Entity, VerifyModel::Column::ContentId)),
+            Expr::col((vc.clone(), content::Column::Id)).equals((
+                content_verification_verify::Entity,
+                content_verification_verify::Column::ContentId,
+            )),
         )
         .join_as(
             JoinType::InnerJoin,
-            EventModel::Entity,
+            event::Entity,
             ve.clone(),
-            Expr::col((ve.clone(), EventModel::Column::ContentDigestType))
-                .equals((vc.clone(), ContentModel::Column::DigestType))
+            Expr::col((ve.clone(), event::Column::ContentDigestType))
+                .equals((vc.clone(), content::Column::DigestType))
                 .and(
-                    Expr::col((
-                        ve.clone(),
-                        EventModel::Column::ContentDigestBytes,
-                    ))
-                    .equals((vc.clone(), ContentModel::Column::DigestBytes)),
+                    Expr::col((ve.clone(), event::Column::ContentDigestBytes))
+                        .equals((vc.clone(), content::Column::DigestBytes)),
                 ),
         )
         .and_where(
-            Expr::col((ve.clone(), EventModel::Column::Collection))
+            Expr::col((ve.clone(), event::Column::Collection))
                 .eq(VERIFICATIONS_COLLECTION),
         )
         .and_where(
-            Expr::col((ve.clone(), EventModel::Column::Identity))
+            Expr::col((ve.clone(), event::Column::Identity))
                 .is_in(verified_by.iter().cloned()),
         )
         // Correlate the verify row to the outer (unaliased) claim event.
         .and_where(
             Expr::col((
-                VerifyModel::Entity,
-                VerifyModel::Column::ClaimEventKeyCollection,
+                content_verification_verify::Entity,
+                content_verification_verify::Column::ClaimEventKeyCollection,
             ))
-            .equals((EventModel::Entity, EventModel::Column::Collection)),
+            .equals((event::Entity, event::Column::Collection)),
         )
         .and_where(
             Expr::col((
-                VerifyModel::Entity,
-                VerifyModel::Column::ClaimEventKeyIdentity,
+                content_verification_verify::Entity,
+                content_verification_verify::Column::ClaimEventKeyIdentity,
             ))
-            .equals((EventModel::Entity, EventModel::Column::Identity)),
+            .equals((event::Entity, event::Column::Identity)),
         )
         .and_where(
             Expr::col((
-                VerifyModel::Entity,
-                VerifyModel::Column::ClaimEventKeyPublicKeyType,
+                content_verification_verify::Entity,
+                content_verification_verify::Column::ClaimEventKeyPublicKeyType,
             ))
-            .equals((EventModel::Entity, EventModel::Column::PublicKeyType)),
+            .equals((event::Entity, event::Column::PublicKeyType)),
         )
         .and_where(
             Expr::col((
-                VerifyModel::Entity,
-                VerifyModel::Column::ClaimEventKeyPublicKey,
+                content_verification_verify::Entity,
+                content_verification_verify::Column::ClaimEventKeyPublicKey,
             ))
-            .equals((EventModel::Entity, EventModel::Column::PublicKey)),
+            .equals((event::Entity, event::Column::PublicKey)),
         )
         .and_where(
             Expr::col((
-                VerifyModel::Entity,
-                VerifyModel::Column::ClaimEventKeySequence,
+                content_verification_verify::Entity,
+                content_verification_verify::Column::ClaimEventKeySequence,
             ))
-            .equals((EventModel::Entity, EventModel::Column::Sequence)),
+            .equals((event::Entity, event::Column::Sequence)),
         );
     sub
 }

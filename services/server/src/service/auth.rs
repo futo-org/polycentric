@@ -270,8 +270,8 @@ mod tests {
      {
         use crate::service::proto::content::ContentBody;
         use crate::service::proto::{Content, Identity};
-        use ::entity::{content_model, event_model};
         use chrono::DateTime;
+        use entity::{content, event};
         use polycentric_common::models::collections;
         use prost::Message;
 
@@ -292,7 +292,7 @@ mod tests {
         };
 
         let now = DateTime::from_timestamp_secs(1).unwrap().fixed_offset();
-        let event = event_model::Model {
+        let event = event::Model {
             id: 1,
             collection: collections::IDENTITY as i16,
             identity: iss.clone(),
@@ -309,7 +309,7 @@ mod tests {
             created_at: now,
             synced_at: now,
         };
-        let content_row = content_model::Model {
+        let content_row = content::Model {
             id: 1,
             digest_type: 1,
             digest_bytes: vec![1],

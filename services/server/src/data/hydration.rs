@@ -9,7 +9,7 @@ use crate::service::identity::service::{
     list_identity_events, list_profile_events,
 };
 use crate::service::stats::service::{EventStats, gather_stats_for};
-use entity::{content_model, event_model};
+use entity::{content, event};
 use polycentric_common::models::protos_v2::content::ContentBody;
 use polycentric_common::models::protos_v2::{
     Content, EventBundle, EventHint, EventKey,
@@ -374,8 +374,8 @@ where
 }
 
 pub fn event_identities(
-    event: &event_model::Model,
-    content: Option<&content_model::Model>,
+    event: &event::Model,
+    content: Option<&content::Model>,
     identities: &mut HashSet<String>,
 ) {
     identities.insert(event.identity.clone());

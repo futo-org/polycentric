@@ -5,8 +5,8 @@ use crate::service::context::ServiceContext;
 use crate::service::identity::repository::{self as id_repo, BanCursor};
 use crate::service::identity::rpc::common::require_moderator;
 use crate::service::proto::{ListBansRequest, ListBansResponse, PageInfo};
-use ::entity::ban_model;
 use chrono::DateTime;
+use entity::ban;
 use tonic::{Request, Status};
 
 const DEFAULT_LIMIT: u32 = 10;
@@ -82,7 +82,7 @@ pub async fn handle(
 
 /// Cursor is `<created_at_micros>:<identity>`; identities are hex so the
 /// first `:` unambiguously separates the two parts.
-fn encode_cursor(row: &ban_model::Model) -> String {
+fn encode_cursor(row: &ban::Model) -> String {
     format!("{}:{}", row.created_at.timestamp_micros(), row.identity)
 }
 

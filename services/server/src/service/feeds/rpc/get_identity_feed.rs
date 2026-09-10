@@ -127,13 +127,13 @@ async fn view(
 mod tests {
     use super::*;
     use crate::service::context::ServiceContext;
-    use ::entity::block_model as BlockModel;
+    use entity::block;
     use sea_orm::{DbBackend, MockDatabase};
     use std::sync::Arc;
 
     async fn ctx_where_alice_blocks_bob() -> Arc<ServiceContext> {
         let db = MockDatabase::new(DbBackend::Postgres)
-            .append_query_results([vec![BlockModel::Model {
+            .append_query_results([vec![block::Model {
                 event_id: 1,
                 blocker: "alice".to_string(),
                 blocked: "bob".to_string(),
@@ -142,7 +142,7 @@ mod tests {
         let kafka_producer = common_kafka::build_producer()
             .await
             .expect("failed to build Kafka producer");
-        ServiceContext::new(db, kafka_producer)
+        ServiceContext::new(db.clone(), db, kafka_producer)
     }
 
     #[tokio::test]

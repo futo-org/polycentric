@@ -1,0 +1,24 @@
+# pr.yml, Lint workflows.
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        # Resolved on data.forgejo.org / code.forgejo.org mirrors.
+        actions/*: ref-pin
+        forgejo/*: ref-pin
+        '*': hash-pin
+  # GitHub-only syntax; Forgejo does not resolve $/.
+  self-repository:
+    disable: true
+  # Forgejo ignores `permissions:`.
+  excessive-permissions:
+    disable: true
+  # Job images come from repo variables and content-hashed ci/* tags.
+  unpinned-images:
+    disable: true
+  # The called workflows are this repo's own files.
+  secrets-inherit:
+    disable: true
+  # Artifacts upload explicit paths, never the checkout.
+  artipacked:
+    disable: true

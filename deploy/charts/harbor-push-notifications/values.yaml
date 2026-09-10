@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   # Built by the push-notifications-image CI job.
-  repository: gitlab.futo.org:5050/harbor/harbor/push-notifications-service
+  repository: registry.futo.org/harbor/push-notifications-service
   # Defaults to the chart's appVersion (the commit SHA set by charts-publish).
   tag: ""
   pullPolicy: IfNotPresent

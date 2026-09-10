@@ -1,0 +1,56 @@
+name: Deploy server to staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - Cargo.toml
+      - Cargo.lock
+      - services/server/**
+      - services/common/**
+      - deploy/charts/harbor-server/**
+      - .forgejo/workflows/deploy-server-staging.yml
+      - .forgejo/actions/service-image/**
+      - .forgejo/actions/chart-publish/**
+      - .forgejo/actions/deploy-tag/**
+
+concurrency:
+  group: deploy-server-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}/ci/buildkit:latest
+    env:
+      REGISTRY: ${{ vars.CI_REGISTRY || 'registry.futo.org/harbor' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/service-image
+        with:
+          image: server
+          dockerfile: services/server
+          registry: ${{ env.REGISTRY }}
+          export-cache: 'true'
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      - uses: ./.forgejo/actions/chart-publish
+        id: chart
+        with:
+          registry: ${{ env.REGISTRY }}
+          chart: harbor-server
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      - uses: ./.forgejo/actions/deploy-tag
+        with:
+          registry: ${{ env.REGISTRY }}
+          image: server
+          chart: harbor-server
+          chart-version: ${{ steps.chart.outputs.version }}
+          environment: staging
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}

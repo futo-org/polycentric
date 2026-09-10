@@ -1,0 +1,56 @@
+name: deploy-tag
+description: Tags the commit's image and chart with the environment label helm-controller watches (GitLab .service-deploy-image / .web-deploy-image).
+inputs:
+  registry:
+    required: true
+  image:
+    required: true
+  chart:
+    required: true
+  chart-version:
+    description: Existing tag of the chart to relabel
+    required: true
+  environment:
+    description: staging or production
+    required: true
+  tag:
+    description: Existing tag of the image to relabel (default GITHUB_SHA)
+    default: ''
+  web-assets:
+    description: Upload the web bundle to the static bucket first (needs STATIC_* env)
+    default: 'false'
+  registry-user:
+    required: true
+  registry-token:
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: ./.forgejo/actions/registry-login
+      with:
+        registry: ${{ inputs.registry }}
+        registry-user: ${{ inputs.registry-user }}
+        registry-token: ${{ inputs.registry-token }}
+    - shell: bash
+      env:
+        REGISTRY: ${{ inputs.registry }}
+        IMAGE: ${{ inputs.image }}
+        CHART: ${{ inputs.chart }}
+        CHART_VERSION: ${{ inputs.chart-version }}
+        ENVIRONMENT_TAG: ${{ inputs.environment }}
+        TAG: ${{ inputs.tag }}
+        WEB_ASSETS: ${{ inputs.web-assets }}
+      run: |
+        TAG="${TAG:-$GITHUB_SHA}"
+        IMAGE_REF="$REGISTRY/$IMAGE:$TAG"
+        CHART_REF="$REGISTRY/charts/$CHART:$CHART_VERSION"
+        for ref in "$IMAGE_REF" "$CHART_REF"; do
+          crane digest "$ref" >/dev/null || { echo "::error::$ref is not in the registry"; exit 1; }
+        done
+        if [ "$WEB_ASSETS" = true ]; then
+          ASSETS_BASE_URL="${STATIC_PUBLIC_BASE_URL%/}/web/${ENVIRONMENT_TAG}"
+          crane export "$IMAGE_REF" - | tar -x app/dist/client
+          node .forgejo/scripts/publish-web-assets.mjs app/dist/client "web/${ENVIRONMENT_TAG}" "$ASSETS_BASE_URL"
+        fi
+        crane tag "$IMAGE_REF" "$ENVIRONMENT_TAG"
+        crane tag "$CHART_REF" "$ENVIRONMENT_TAG"

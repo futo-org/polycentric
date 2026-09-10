@@ -3,13 +3,9 @@ use crate::data::{Cursor, CursorFilter};
 use crate::service::events::TargetEventKey;
 use crate::util::db::{CONTENT_PREFIX, EVENT_PREFIX, select_model_columns};
 use ::entity::{
-    content_label_model as ContentLabelModel, content_model as ContentModel,
-    content_post_attributed_url_model as ContentPostAttributedUrlModel,
-    content_reaction_model as ContentReactionModel, event_model as EventModel,
-    follow_model as FollowModel, quote_model as QuoteModel,
-    reaction_model as ReactionModel,
-    reaction_tally_model as ReactionTallyModel, reply_model as ReplyModel,
-    repost_model as RepostModel,
+    content, content_label, content_post_attributed_url,
+    content_reaction as Contentreaction, event, follow, quote, reaction,
+    reaction_tally, reply, repost,
 };
 use polycentric_common::models::collections;
 use polycentric_common::models::protos_v2::SortPostsBy;
@@ -34,8 +30,8 @@ pub type EventCreatedAt = DateTimeWithTimeZone;
 // the search rank) from SeaORM.
 #[derive(Debug)]
 pub struct ExploreEvent {
-    pub event: EventModel::Model,
-    pub content: ContentModel::Model,
+    pub event: event::Model,
+    pub content: content::Model,
     /// Number of positive reactions decayed over time (see the
     /// `reaction_count_decay` SQL function).
     /// Will default to zero if not returned.
@@ -187,19 +183,16 @@ impl Query {
         let cursor_filter =
             cursor_filter.unwrap_or(&CursorFilter::Forward(Cursor::Start));
 
-        let mut query = EventModel::Entity::find().select_only();
-        query = select_model_columns(
-            query,
-            EVENT_PREFIX,
-            EventModel::Column::iter(),
-        );
+        let mut query = event::Entity::find().select_only();
+        query =
+            select_model_columns(query, EVENT_PREFIX, event::Column::iter());
         query = select_model_columns(
             query,
             CONTENT_PREFIX,
-            ContentModel::Column::iter(),
+            content::Column::iter(),
         );
         query = query.join(JoinType::InnerJoin, content_join()).filter(
-            Expr::col(EventModel::Column::Collection.as_column_ref())
+            Expr::col(event::Column::Collection.as_column_ref())
                 .eq(Expr::Constant(collections::FEED.into())),
         );
 
@@ -208,14 +201,11 @@ impl Query {
             // themselves.
             let mut following = SelectStatement::new();
             following
-                .column(FollowModel::Column::Followee)
-                .from(FollowModel::Entity)
+                .column(follow::Column::Followee)
+                .from(follow::Entity)
                 .and_where(
-                    Expr::col((
-                        FollowModel::Entity,
-                        FollowModel::Column::Follower,
-                    ))
-                    .eq(for_identity),
+                    Expr::col((follow::Entity, follow::Column::Follower))
+                        .eq(for_identity),
                 );
             if include_own_posts {
                 following.union(UnionType::All, {
@@ -236,14 +226,14 @@ impl Query {
 
             let mut select_followee = SelectStatement::new();
             select_followee
-                .column(FollowModel::Column::Followee)
+                .column(follow::Column::Followee)
                 .from(FOLLOWING_TABLE);
 
             query = query.filter({
                 let mut condition = Condition::any()
                     // Created by an identity the `for_identity` is following.
                     .add(
-                        EventModel::Column::Identity
+                        event::Column::Identity
                             .in_subquery(select_followee.clone()),
                     );
 
@@ -251,45 +241,45 @@ impl Query {
                     // Include additional interactions.
                     condition = condition
                         // Reacted on by an identity the `for_identity` is following.
-                        .add(EventModel::Column::Id.in_subquery({
+                        .add(event::Column::Id.in_subquery({
                             let mut q = SelectStatement::new();
-                            q.column(ReactionModel::Column::OnPost)
-                                .from(ReactionModel::Entity)
+                            q.column(reaction::Column::OnPost)
+                                .from(reaction::Entity)
                                 .and_where(
-                                    ReactionModel::Column::Identity
+                                    reaction::Column::Identity
                                         .in_subquery(select_followee.clone()),
                                 );
                             q
                         }))
                         // Reposted by an identity the `for_identity` is following.
-                        .add(EventModel::Column::Id.in_subquery({
+                        .add(event::Column::Id.in_subquery({
                             let mut q = SelectStatement::new();
-                            q.column(RepostModel::Column::Post)
-                                .from(RepostModel::Entity)
+                            q.column(repost::Column::Post)
+                                .from(repost::Entity)
                                 .and_where(
-                                    RepostModel::Column::Identity
+                                    repost::Column::Identity
                                         .in_subquery(select_followee.clone()),
                                 );
                             q
                         }))
                         // Quoted by an identity the `for_identity` is following.
-                        .add(EventModel::Column::Id.in_subquery({
+                        .add(event::Column::Id.in_subquery({
                             let mut q = SelectStatement::new();
-                            q.column(QuoteModel::Column::Post)
-                                .from(QuoteModel::Entity)
+                            q.column(quote::Column::Post)
+                                .from(quote::Entity)
                                 .and_where(
-                                    QuoteModel::Column::Identity
+                                    quote::Column::Identity
                                         .in_subquery(select_followee.clone()),
                                 );
                             q
                         }))
                         // Replied to by an identity the `for_identity` is following.
-                        .add(EventModel::Column::Id.in_subquery({
+                        .add(event::Column::Id.in_subquery({
                             let mut q = SelectStatement::new();
-                            q.column(ReplyModel::Column::Post)
-                                .from(ReplyModel::Entity)
+                            q.column(reply::Column::Post)
+                                .from(reply::Entity)
                                 .and_where(
-                                    ReplyModel::Column::Identity
+                                    reply::Column::Identity
                                         .in_subquery(select_followee),
                                 );
                             q
@@ -299,7 +289,7 @@ impl Query {
                 if !include_own_posts {
                     // Explicitly exclude any posts made by the user themselves.
                     condition = Condition::all()
-                        .add(EventModel::Column::Identity.ne(for_identity))
+                        .add(event::Column::Identity.ne(for_identity))
                         .add(condition);
                 }
 
@@ -312,8 +302,8 @@ impl Query {
             SortPostsBy::Top => {
                 QuerySelect::query(&mut query)
                     .inner_join(
-                        ReactionTallyModel::Entity,
-                        ReactionTallyModel::Relation::EventModel.def().rev(),
+                        reaction_tally::Entity,
+                        reaction_tally::Relation::Event.def().rev(),
                     )
                     // We can't decode numerics as we don't have a type for it,
                     // so we have to use floats, but those lose precision, so
@@ -321,7 +311,7 @@ impl Query {
                     .expr_as(
                         Func::cast_as(
                             Expr::col(
-                                ReactionTallyModel::Column::DecayedCount
+                                reaction_tally::Column::DecayedCount
                                     .as_column_ref(),
                             ),
                             "TEXT",
@@ -332,7 +322,7 @@ impl Query {
                     // Matches the `reaction_tally_decayed_count` index.
                     .cond_where(
                         Expr::col(
-                            ReactionTallyModel::Column::DecayedCount
+                            reaction_tally::Column::DecayedCount
                                 .as_column_ref(),
                         )
                         .gt(Expr::Constant(0.0.into())),
@@ -346,7 +336,7 @@ impl Query {
         QueryOrder::query(&mut query)
             .order_by_expr(order_column.clone(), Order::Desc)
             .order_by_expr(
-                Expr::col(EventModel::Column::Id.as_column_ref()),
+                Expr::col(event::Column::Id.as_column_ref()),
                 Order::Desc,
             );
 
@@ -362,7 +352,7 @@ impl Query {
                     query = query.filter(
                         Expr::tuple([
                             order_column,
-                            Expr::col(EventModel::Column::Id.as_column_ref()),
+                            Expr::col(event::Column::Id.as_column_ref()),
                         ])
                         .lt(Expr::tuple([
                             marker.sorted_by.as_db_value(),
@@ -383,7 +373,7 @@ impl Query {
                     query = query.filter(
                         Expr::tuple([
                             order_column,
-                            Expr::col(EventModel::Column::Id.as_column_ref()),
+                            Expr::col(event::Column::Id.as_column_ref()),
                         ])
                         .gt(Expr::tuple([
                             marker.sorted_by.as_db_value(),
@@ -448,18 +438,17 @@ impl Query {
             .as_ref()
             .unwrap_or(&CursorFilter::Forward(Cursor::Start));
 
-        let mut query = EventModel::Entity::find()
-            .select_also(ContentModel::Entity)
+        let mut query = event::Entity::find()
+            .select_also(content::Entity)
             .join(JoinType::LeftJoin, content_join())
-            .filter(EventModel::Column::Collection.eq(FEED_COLLECTION));
+            .filter(event::Column::Collection.eq(FEED_COLLECTION));
 
         if let Some(identities) = only_identities {
             if identities.is_empty() {
                 return Ok(Vec::new());
             }
 
-            query =
-                query.filter(EventModel::Column::Identity.is_in(identities));
+            query = query.filter(event::Column::Identity.is_in(identities));
         }
 
         if let Some(url) = only_attributed_url {
@@ -467,10 +456,10 @@ impl Query {
             // keep only events whose content is attributed to `url`.
             query = query
                 .join(JoinType::InnerJoin, attributed_url_join())
-                .filter(ContentPostAttributedUrlModel::Column::Url.eq(url));
+                .filter(content_post_attributed_url::Column::Url.eq(url));
         }
 
-        let columns = (EventModel::Column::CreatedAt, EventModel::Column::Id);
+        let columns = (event::Column::CreatedAt, event::Column::Id);
         let mut sea_cursor = query.cursor_by(columns);
         sea_cursor.desc();
 
@@ -516,19 +505,14 @@ impl Query {
             };
             filter = filter.add(
                 Condition::all()
+                    .add(event::Column::Collection.eq(key.collection as i16))
+                    .add(event::Column::Identity.eq(key.identity.clone()))
                     .add(
-                        EventModel::Column::Collection
-                            .eq(key.collection as i16),
-                    )
-                    .add(EventModel::Column::Identity.eq(key.identity.clone()))
-                    .add(
-                        EventModel::Column::PublicKeyType
+                        event::Column::PublicKeyType
                             .eq(signed_by.key_type as i16),
                     )
-                    .add(
-                        EventModel::Column::PublicKey.eq(signed_by.key.clone()),
-                    )
-                    .add(EventModel::Column::Sequence.eq(key.sequence as i64)),
+                    .add(event::Column::PublicKey.eq(signed_by.key.clone()))
+                    .add(event::Column::Sequence.eq(key.sequence as i64)),
             );
             any_added = true;
         }
@@ -536,8 +520,8 @@ impl Query {
             return Ok(Vec::new());
         }
 
-        EventModel::Entity::find()
-            .select_also(ContentModel::Entity)
+        event::Entity::find()
+            .select_also(content::Entity)
             .join(JoinType::LeftJoin, content_join())
             .filter(filter)
             .all(db)
@@ -567,23 +551,23 @@ impl Query {
             event_key_filter = event_key_filter.add(
                 Condition::all()
                     .add(
-                        ContentLabelModel::Column::EventKeyCollection
+                        content_label::Column::EventKeyCollection
                             .eq(key.collection),
                     )
                     .add(
-                        ContentLabelModel::Column::EventKeyIdentity
+                        content_label::Column::EventKeyIdentity
                             .eq(key.identity.clone()),
                     )
                     .add(
-                        ContentLabelModel::Column::EventKeyPublicKeyType
+                        content_label::Column::EventKeyPublicKeyType
                             .eq(key.public_key_type),
                     )
                     .add(
-                        ContentLabelModel::Column::EventKeyPublicKey
+                        content_label::Column::EventKeyPublicKey
                             .eq(key.public_key.clone()),
                     )
                     .add(
-                        ContentLabelModel::Column::EventKeySequence
+                        content_label::Column::EventKeySequence
                             .eq(key.sequence),
                     ),
             );
@@ -594,42 +578,33 @@ impl Query {
         // only select events from the trusted moderator identity
         let mut query = SeaQuery::select();
         query
-            .column((
-                ContentLabelModel::Entity,
-                ContentLabelModel::Column::ContentId,
-            ))
-            .from(ContentLabelModel::Entity)
+            .column((content_label::Entity, content_label::Column::ContentId))
+            .from(content_label::Entity)
             .inner_join(
-                ContentModel::Entity,
+                content::Entity,
                 Expr::col((
-                    ContentLabelModel::Entity,
-                    ContentLabelModel::Column::ContentId,
+                    content_label::Entity,
+                    content_label::Column::ContentId,
                 ))
-                .equals((ContentModel::Entity, ContentModel::Column::Id)),
+                .equals((content::Entity, content::Column::Id)),
             )
             .inner_join(
-                EventModel::Entity,
-                Expr::col((
-                    EventModel::Entity,
-                    EventModel::Column::ContentDigestType,
-                ))
-                .equals((
-                    ContentModel::Entity,
-                    ContentModel::Column::DigestType,
-                ))
-                .and(
-                    Expr::col((
-                        EventModel::Entity,
-                        EventModel::Column::ContentDigestBytes,
-                    ))
-                    .equals((
-                        ContentModel::Entity,
-                        ContentModel::Column::DigestBytes,
-                    )),
-                ),
+                event::Entity,
+                Expr::col((event::Entity, event::Column::ContentDigestType))
+                    .equals((content::Entity, content::Column::DigestType))
+                    .and(
+                        Expr::col((
+                            event::Entity,
+                            event::Column::ContentDigestBytes,
+                        ))
+                        .equals((
+                            content::Entity,
+                            content::Column::DigestBytes,
+                        )),
+                    ),
             )
             .and_where(
-                Expr::col((EventModel::Entity, EventModel::Column::Identity))
+                Expr::col((event::Entity, event::Column::Identity))
                     .eq(moderator.to_owned()),
             )
             .and_where(event_key_filter.into());
@@ -659,10 +634,10 @@ impl Query {
         }
 
         // Return event entities that match the content IDs
-        EventModel::Entity::find()
-            .select_also(ContentModel::Entity)
+        event::Entity::find()
+            .select_also(content::Entity)
             .join(JoinType::LeftJoin, content_join())
-            .filter(ContentModel::Column::Id.is_in(content_ids))
+            .filter(content::Column::Id.is_in(content_ids))
             .all(db)
             .await
     }
@@ -676,14 +651,14 @@ impl Query {
         public_key: Vec<u8>,
         sequence: i64,
     ) -> Result<Option<EventWithContentRow>, DbErr> {
-        EventModel::Entity::find()
-            .select_also(ContentModel::Entity)
+        event::Entity::find()
+            .select_also(content::Entity)
             .join(JoinType::LeftJoin, content_join())
-            .filter(EventModel::Column::Collection.eq(collection))
-            .filter(EventModel::Column::Identity.eq(identity))
-            .filter(EventModel::Column::PublicKeyType.eq(public_key_type))
-            .filter(EventModel::Column::PublicKey.eq(public_key))
-            .filter(EventModel::Column::Sequence.eq(sequence))
+            .filter(event::Column::Collection.eq(collection))
+            .filter(event::Column::Identity.eq(identity))
+            .filter(event::Column::PublicKeyType.eq(public_key_type))
+            .filter(event::Column::PublicKey.eq(public_key))
+            .filter(event::Column::Sequence.eq(sequence))
             .one(db)
             .await
     }
@@ -699,12 +674,12 @@ impl Query {
         if identities.is_empty() {
             return Ok(Vec::new());
         }
-        let rows = EventModel::Entity::find()
-            .select_also(ContentModel::Entity)
+        let rows = event::Entity::find()
+            .select_also(content::Entity)
             .join(JoinType::LeftJoin, content_join())
-            .filter(EventModel::Column::Collection.eq(PROFILE_COLLECTION))
-            .filter(EventModel::Column::Identity.is_in(identities))
-            .order_by_desc(EventModel::Column::Sequence)
+            .filter(event::Column::Collection.eq(PROFILE_COLLECTION))
+            .filter(event::Column::Identity.is_in(identities))
+            .order_by_desc(event::Column::Sequence)
             .all(db)
             .await?;
 
@@ -729,10 +704,10 @@ impl Query {
         if ids.is_empty() {
             return Ok(Vec::new());
         }
-        EventModel::Entity::find()
-            .select_also(ContentModel::Entity)
+        event::Entity::find()
+            .select_also(content::Entity)
             .join(JoinType::LeftJoin, content_join())
-            .filter(EventModel::Column::Id.is_in(ids))
+            .filter(event::Column::Id.is_in(ids))
             .all(db)
             .await
     }
@@ -856,48 +831,47 @@ impl Query {
         emoji: Option<&str>,
         limit: u64,
     ) -> Result<Vec<EventWithContentRow>, DbErr> {
-        let mut query = EventModel::Entity::find()
-            .select_also(ContentModel::Entity)
+        let mut query = event::Entity::find()
+            .select_also(content::Entity)
             // Include content and reaction information:
             .join(JoinType::InnerJoin, content_join())
             .join(
                 JoinType::InnerJoin,
-                ContentModel::Entity::belongs_to(ContentReactionModel::Entity)
-                    .from(ContentModel::Column::Id)
-                    .to(ContentReactionModel::Column::ContentId)
+                content::Entity::belongs_to(Contentreaction::Entity)
+                    .from(content::Column::Id)
+                    .to(Contentreaction::Column::ContentId)
                     .into(),
             )
             // Keep only reactions targetting the requested post:
             .filter(
-                ContentReactionModel::Column::EventKeyCollection
+                Contentreaction::Column::EventKeyCollection
                     .eq(target.collection),
             )
             .filter(
-                ContentReactionModel::Column::EventKeyIdentity
+                Contentreaction::Column::EventKeyIdentity
                     .eq(target.identity.clone()),
             )
             .filter(
-                ContentReactionModel::Column::EventKeyPublicKeyType
+                Contentreaction::Column::EventKeyPublicKeyType
                     .eq(target.public_key_type),
             )
             .filter(
-                ContentReactionModel::Column::EventKeyPublicKey
+                Contentreaction::Column::EventKeyPublicKey
                     .eq(target.public_key.clone()),
             )
             .filter(
-                ContentReactionModel::Column::EventKeySequence
-                    .eq(target.sequence),
+                Contentreaction::Column::EventKeySequence.eq(target.sequence),
             )
             // Deterministically sort by newest
-            .order_by_desc(EventModel::Column::CreatedAt)
-            .order_by_desc(EventModel::Column::Id);
+            .order_by_desc(event::Column::CreatedAt)
+            .order_by_desc(event::Column::Id);
 
         // TODO: this is currently buggy when a user creates a new reaction
         // without deleting the old one.
         // We may filter out the newest reaction and send back an outdated reaction.
         // With no tombstone, it will be rendered as active.
         if let Some(emoji) = emoji {
-            query = query.filter(ContentReactionModel::Column::Emoji.eq(emoji));
+            query = query.filter(Contentreaction::Column::Emoji.eq(emoji));
         }
 
         query.limit(limit).all(db).await
@@ -907,20 +881,20 @@ impl Query {
 /// Relation joining a content row to its attributed-URL rows on content.id.
 /// Used to filter feed events down to those attributed to a given URL.
 pub(crate) fn attributed_url_join() -> RelationDef {
-    ContentModel::Entity::has_many(ContentPostAttributedUrlModel::Entity)
-        .from(ContentModel::Column::Id)
-        .to(ContentPostAttributedUrlModel::Column::ContentId)
+    content::Entity::has_many(content_post_attributed_url::Entity)
+        .from(content::Column::Id)
+        .to(content_post_attributed_url::Column::ContentId)
         .into()
 }
 
 /// Relation joining an event to its content row on (digest_type, digest_bytes).
 pub(crate) fn content_join() -> RelationDef {
-    EventModel::Entity::belongs_to(ContentModel::Entity)
-        .from(EventModel::Column::ContentDigestType)
-        .to(ContentModel::Column::DigestType)
+    event::Entity::belongs_to(content::Entity)
+        .from(event::Column::ContentDigestType)
+        .to(content::Column::DigestType)
         .on_condition(|event_tbl, content_tbl| {
-            Expr::col((event_tbl, EventModel::Column::ContentDigestBytes))
-                .equals((content_tbl, ContentModel::Column::DigestBytes))
+            Expr::col((event_tbl, event::Column::ContentDigestBytes))
+                .equals((content_tbl, content::Column::DigestBytes))
                 .into_condition()
         })
         .into()
@@ -929,10 +903,10 @@ pub(crate) fn content_join() -> RelationDef {
 fn sort_posts_by_column(sort_by: SortPostsBy) -> Expr {
     match sort_by {
         SortPostsBy::Default | SortPostsBy::Latest => {
-            Expr::col(EventModel::Column::CreatedAt.as_column_ref())
+            Expr::col(event::Column::CreatedAt.as_column_ref())
         }
         SortPostsBy::Top => {
-            Expr::col(ReactionTallyModel::Column::DecayedCount.as_column_ref())
+            Expr::col(reaction_tally::Column::DecayedCount.as_column_ref())
         }
     }
 }

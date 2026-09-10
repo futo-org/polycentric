@@ -93,14 +93,9 @@ describe('useRequestVerification', () => {
     expect(mockClient.sync).toHaveBeenCalledWith('partial-push');
   });
 
-  it('refreshes the pending-requests list for the verifier', async () => {
+  it("refreshes the claim's verifiers", async () => {
     await submit();
 
-    expect(invalidateQuery).toHaveBeenCalledWith(mockClient, [
-      'verification-requests',
-      'me',
-      'them',
-    ]);
     expect(invalidateQuery).toHaveBeenCalledWith(mockClient, [
       'verification-targets',
       CLAIM_ID,

@@ -1,4 +1,4 @@
-use ::entity::{application_model, event_model};
+use ::entity::{application, event};
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
@@ -10,41 +10,38 @@ const FOREIGN_KEY: &str = "fk_events_application";
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        if manager
-            .has_table(application_model::Entity.unquoted())
-            .await?
-        {
+        if manager.has_table(application::Entity.unquoted()).await? {
             return Ok(());
         }
 
         manager
             .create_table(
                 Table::create()
-                    .table(application_model::Entity.unquoted())
+                    .table(application::Entity.unquoted())
                     .col(
-                        ColumnDef::new(application_model::Column::Id)
+                        ColumnDef::new(application::Column::Id)
                             .integer()
                             .not_null()
                             .auto_increment()
                             .primary_key(),
                     )
                     .col(
-                        ColumnDef::new(application_model::Column::Name)
+                        ColumnDef::new(application::Column::Name)
                             .text()
                             .not_null(),
                     )
                     .col(
-                        ColumnDef::new(application_model::Column::Identifier)
+                        ColumnDef::new(application::Column::Identifier)
                             .text()
                             .not_null(),
                     )
                     .col(
-                        ColumnDef::new(application_model::Column::Version)
+                        ColumnDef::new(application::Column::Version)
                             .text()
                             .not_null(),
                     )
                     .col(
-                        ColumnDef::new(application_model::Column::Url)
+                        ColumnDef::new(application::Column::Url)
                             .text()
                             .not_null(),
                     )
@@ -56,11 +53,11 @@ impl MigrationTrait for Migration {
             .create_index(
                 Index::create()
                     .name(UNIQUE_INDEX)
-                    .table(application_model::Entity.unquoted())
-                    .col(application_model::Column::Name)
-                    .col(application_model::Column::Identifier)
-                    .col(application_model::Column::Version)
-                    .col(application_model::Column::Url)
+                    .table(application::Entity.unquoted())
+                    .col(application::Column::Name)
+                    .col(application::Column::Identifier)
+                    .col(application::Column::Version)
+                    .col(application::Column::Url)
                     .unique()
                     .to_owned(),
             )
@@ -69,9 +66,9 @@ impl MigrationTrait for Migration {
         manager
             .alter_table(
                 Table::alter()
-                    .table(event_model::Entity)
+                    .table(event::Entity)
                     .add_column(
-                        ColumnDef::new(event_model::Column::ApplicationId)
+                        ColumnDef::new(event::Column::ApplicationId)
                             .integer()
                             .null(),
                     )
@@ -84,32 +81,26 @@ impl MigrationTrait for Migration {
                 ForeignKey::create()
                     .name(FOREIGN_KEY)
                     .from(
-                        event_model::Entity.unquoted(),
-                        event_model::Column::ApplicationId,
+                        event::Entity.unquoted(),
+                        event::Column::ApplicationId,
                     )
-                    .to(
-                        application_model::Entity.unquoted(),
-                        application_model::Column::Id,
-                    )
+                    .to(application::Entity.unquoted(), application::Column::Id)
                     .to_owned(),
             )
             .await
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        if !manager
-            .has_table(application_model::Entity.unquoted())
-            .await?
-        {
+        if !manager.has_table(application::Entity.unquoted()).await? {
             return Ok(());
         }
 
         manager
             .alter_table(
                 Table::alter()
-                    .table(event_model::Entity)
+                    .table(event::Entity)
                     .drop_foreign_key(FOREIGN_KEY)
-                    .drop_column(event_model::Column::ApplicationId)
+                    .drop_column(event::Column::ApplicationId)
                     .to_owned(),
             )
             .await?;
@@ -117,7 +108,7 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(
                 Table::drop()
-                    .table(application_model::Entity.unquoted())
+                    .table(application::Entity.unquoted())
                     .to_owned(),
             )
             .await

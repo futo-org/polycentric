@@ -1,4 +1,4 @@
-use ::entity::url_info_cache_model;
+use ::entity::url_info_cache;
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
@@ -13,12 +13,10 @@ impl MigrationTrait for Migration {
         manager
             .alter_table(
                 Table::alter()
-                    .table(url_info_cache_model::Entity)
+                    .table(url_info_cache::Entity)
                     .add_column(
-                        ColumnDef::new(
-                            url_info_cache_model::Column::RawResponse,
-                        )
-                        .string(),
+                        ColumnDef::new(url_info_cache::Column::RawResponse)
+                            .string(),
                     )
                     .to_owned(),
             )
@@ -32,8 +30,8 @@ impl MigrationTrait for Migration {
         manager
             .alter_table(
                 Table::alter()
-                    .table(url_info_cache_model::Entity)
-                    .drop_column(url_info_cache_model::Column::RawResponse)
+                    .table(url_info_cache::Entity)
+                    .drop_column(url_info_cache::Column::RawResponse)
                     .to_owned(),
             )
             .await

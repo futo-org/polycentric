@@ -1,7 +1,5 @@
 use crate::service::proto::Blob;
-use ::entity::{
-    content_blob_model as ContentBlobModel, content_model as ContentModel,
-};
+use ::entity::{content, content_blob};
 use chrono::Utc;
 use polycentric_common::models::protos_v2::{ContentDigest, ContentDigestType};
 use prost::Message;
@@ -19,10 +17,10 @@ impl Query {
         db: &C,
         digest_type: i16,
         digest_bytes: &[u8],
-    ) -> Result<Option<ContentBlobModel::Model>, DbErr> {
-        ContentBlobModel::Entity::find()
-            .filter(ContentBlobModel::Column::DigestType.eq(digest_type))
-            .filter(ContentBlobModel::Column::DigestBytes.eq(digest_bytes))
+    ) -> Result<Option<content_blob::Model>, DbErr> {
+        content_blob::Entity::find()
+            .filter(content_blob::Column::DigestType.eq(digest_type))
+            .filter(content_blob::Column::DigestBytes.eq(digest_bytes))
             .one(db)
             .await
     }
@@ -42,11 +40,11 @@ impl Query {
             .map(|digest| (digest.r#type, digest.value.clone()))
             .collect::<Vec<_>>();
 
-        let present = ContentBlobModel::Entity::find()
+        let present = content_blob::Entity::find()
             .filter(
                 Expr::tuple([
-                    Expr::col(ContentBlobModel::Column::DigestType),
-                    Expr::col(ContentBlobModel::Column::DigestBytes),
+                    Expr::col(content_blob::Column::DigestType),
+                    Expr::col(content_blob::Column::DigestBytes),
                 ])
                 .in_tuples(digest_tuples),
             )
@@ -84,24 +82,24 @@ impl Mutation {
         serialized_bytes: &[u8],
         digest: &ContentDigest,
     ) -> InsertStatement {
-        let content_row = ContentModel::ActiveModel {
+        let content_row = content::ActiveModel {
             id: NotSet,
             digest_type: Set(digest.r#type),
             digest_bytes: Set(digest.value.clone()),
             serialized_bytes: Set(serialized_bytes.into()),
             synced_at: Set(Utc::now().fixed_offset()),
         };
-        let mut query = ContentModel::Entity::insert(content_row)
+        let mut query = content::Entity::insert(content_row)
             .on_conflict({
                 let mut c = OnConflict::columns([
-                    ContentModel::Column::DigestType,
-                    ContentModel::Column::DigestBytes,
+                    content::Column::DigestType,
+                    content::Column::DigestBytes,
                 ]);
                 c.do_nothing();
                 c
             })
             .into_query();
-        query.returning_col(ContentModel::Column::Id);
+        query.returning_col(content::Column::Id);
         query
     }
 
@@ -136,7 +134,7 @@ impl Mutation {
         };
 
         let blob_insert =
-            ContentBlobModel::Entity::insert(ContentBlobModel::ActiveModel {
+            content_blob::Entity::insert(content_blob::ActiveModel {
                 content_id: Set(content_id),
                 digest_type: Set(digest.r#type as i16),
                 digest_bytes: Set(digest.value.clone()),
@@ -145,8 +143,8 @@ impl Mutation {
             })
             .on_conflict(
                 OnConflict::columns([
-                    ContentBlobModel::Column::DigestType,
-                    ContentBlobModel::Column::DigestBytes,
+                    content_blob::Column::DigestType,
+                    content_blob::Column::DigestBytes,
                 ])
                 .do_nothing()
                 .to_owned(),

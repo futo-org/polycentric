@@ -1,0 +1,29 @@
+name: kt-core-build
+description: Kotlin AAR, uploaded as kt-core-build (GitLab build_kt_core.yml). ci/rust-android job image with GRADLE_USER_HOME under the workspace; save the Rust cache after it.
+runs:
+  using: composite
+  steps:
+    - uses: ./.forgejo/actions/rust-env
+      with:
+        cache: kt-core
+    - uses: ./.forgejo/actions/r2-cache
+      with:
+        mode: restore
+        key: gradle-${{ hashFiles('packages/kt-core/gradle/libs.versions.toml', 'packages/kt-core/gradle/wrapper/gradle-wrapper.properties') }}
+        path: |
+          .gradle/wrapper
+          .gradle/caches
+    - shell: bash
+      run: cd packages/kt-core && ./gradlew :core:assembleRelease
+    - uses: ./.forgejo/actions/r2-cache
+      with:
+        mode: save
+        key: gradle-${{ hashFiles('packages/kt-core/gradle/libs.versions.toml', 'packages/kt-core/gradle/wrapper/gradle-wrapper.properties') }}
+        path: |
+          .gradle/wrapper
+          .gradle/caches
+    - uses: forgejo/upload-artifact@v4
+      with:
+        name: kt-core-build
+        path: packages/kt-core/core/build/
+        retention-days: 7

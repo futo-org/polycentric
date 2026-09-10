@@ -1,9 +1,6 @@
 use crate::service::proto::{FieldKind, VerificationClaim, VerificationSchema};
 use base64::prelude::*;
-use entity::{
-    content_verification_claim_model as ContentVerificationClaimModel,
-    verification_schema_model as VerificationSchemaModel,
-};
+use entity::{content_verification_claim, verification_schema};
 use prost::Message;
 use sea_orm::sea_query::{
     CommonTableExpression, DynIden, Expr, InsertStatement, OnConflict,
@@ -33,23 +30,22 @@ pub(super) fn add_query(
         VerificationSchema::decode(schema.schema_bytes.as_slice())
             .map(|s| schema_to_json(&s))
             .unwrap_or(serde_json::Value::Null);
-    let insert_schema = VerificationSchemaModel::Entity::insert(
-        VerificationSchemaModel::ActiveModel {
+    let insert_schema =
+        verification_schema::Entity::insert(verification_schema::ActiveModel {
             digest_type: Set(digest.r#type),
             digest_bytes: Set(digest.value.clone()),
             schema_bytes: Set(schema.schema_bytes.clone()),
             schema: Set(schema_json),
-        },
-    )
-    .on_conflict(
-        OnConflict::columns([
-            VerificationSchemaModel::Column::DigestType,
-            VerificationSchemaModel::Column::DigestBytes,
-        ])
-        .do_nothing()
-        .to_owned(),
-    )
-    .into_query();
+        })
+        .on_conflict(
+            OnConflict::columns([
+                verification_schema::Column::DigestType,
+                verification_schema::Column::DigestBytes,
+            ])
+            .do_nothing()
+            .to_owned(),
+        )
+        .into_query();
     let mut cte = CommonTableExpression::new();
     cte.table_name("verification_claim_schema")
         .query(insert_schema);
@@ -57,12 +53,12 @@ pub(super) fn add_query(
 
     let mut query = InsertStatement::new();
     query
-        .into_table(ContentVerificationClaimModel::Entity)
+        .into_table(content_verification_claim::Entity)
         .columns([
-            ContentVerificationClaimModel::Column::ContentId,
-            ContentVerificationClaimModel::Column::SchemaDigestType,
-            ContentVerificationClaimModel::Column::SchemaDigestBytes,
-            ContentVerificationClaimModel::Column::Fields,
+            content_verification_claim::Column::ContentId,
+            content_verification_claim::Column::SchemaDigestType,
+            content_verification_claim::Column::SchemaDigestBytes,
+            content_verification_claim::Column::Fields,
         ])
         .select_from({
             let mut q = SelectStatement::new();

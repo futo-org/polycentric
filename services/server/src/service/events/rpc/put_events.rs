@@ -13,9 +13,9 @@ use crate::service::{
         PutEventsRequest, PutEventsResponse,
     },
 };
-use ::entity::event_model as EventModel;
 use chrono::{DateTime, Utc};
 use common_kafka::FutureRecord;
+use entity::event;
 use polycentric_common::models::{collections, protos_v2::Blob};
 use prost::Message;
 use rdkafka::message::{Header, OwnedHeaders};
@@ -201,7 +201,7 @@ async fn process_event(
     let event_identity = key.identity.clone();
     let event_collection = key.collection;
 
-    let active_model = EventModel::ActiveModel {
+    let active_model = event::ActiveModel {
         id: NotSet,
         collection: Set(key.collection as i16),
         identity: Set(key.identity),

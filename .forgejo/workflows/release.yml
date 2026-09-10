@@ -1,0 +1,447 @@
+name: Release
+
+# v* and app-* tags: the packages, images and production apps of the tagged
+# commit, then the release (GitLab release.yml). The commit was tested on its
+# PR.
+
+on:
+  push:
+    tags: ['v*', 'app-*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_INCREMENTAL: '0'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  SCCACHE_R2_BUCKET: ${{ vars.SCCACHE_R2_BUCKET }}
+  SCCACHE_R2_ENDPOINT: ${{ secrets.SCCACHE_R2_ENDPOINT }}
+  SCCACHE_R2_ACCESS_KEY_ID: ${{ secrets.SCCACHE_R2_ACCESS_KEY_ID }}
+  SCCACHE_R2_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_R2_SECRET_ACCESS_KEY }}
+  CI_COMMIT_TAG: ${{ github.ref_name }}
+
+jobs:
+  changes:
+    name: Plan
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    outputs:
+      registry: ${{ steps.plan.outputs.registry }}
+      images_tag: ${{ steps.plan.outputs.images_tag }}
+      images_missing: ${{ steps.plan.outputs.images_missing }}
+      have_wasm: ${{ steps.plan.outputs.have_wasm }}
+      have_android: ${{ steps.plan.outputs.have_android }}
+      have_ios: ${{ steps.plan.outputs.have_ios }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.forgejo/actions/plan
+        id: plan
+
+  setup-images:
+    name: Build CI images
+    needs: changes
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/ci-images
+        if: needs.changes.outputs.images_missing == 'true'
+        with:
+          registry: ${{ needs.changes.outputs.registry }}
+          tag: ${{ needs.changes.outputs.images_tag }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+
+  # Packages -----------------------------------------------------------------
+  # The rs-core libraries, unless the registry has them for these sources.
+
+  wasm:
+    name: Build wasm
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && needs.changes.outputs.have_wasm != 'true' && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/wasm-build
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
+  android:
+    name: Build Android
+    needs: [changes, setup-images]
+    if: ${{ !cancelled() && needs.changes.outputs.have_android != 'true' && needs.setup-images.result != 'failure' }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/android-build
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
+  ios:
+    name: Build iOS
+    needs: changes
+    if: needs.changes.outputs.have_ios != 'true'
+    runs-on: ${{ vars.CI_RUNNER_MACOS || 'macos' }}
+    env:
+      CARGO_HOME: ${{ github.workspace }}/.cargo
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/ios-build
+
+  kt-core:
+    name: Build Kotlin
+    needs: [changes, setup-images]
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
+    env:
+      GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/kt-core-build
+      - uses: ./.forgejo/actions/r2-cache
+        if: always()
+        continue-on-error: true
+        with:
+          mode: save
+          key: ${{ env.RUST_CACHE_KEY }}
+          path: ${{ env.RUST_CACHE_PATHS }}
+
+  sdks:
+    name: Build SDKs
+    needs: [changes, wasm, android, ios]
+    if: >-
+      ${{ !cancelled() && needs.changes.result == 'success' &&
+      (needs.wasm.result == 'success' || needs.changes.outputs.have_wasm == 'true') &&
+      (needs.android.result == 'success' || needs.changes.outputs.have_android == 'true') &&
+      (needs.ios.result == 'success' || needs.changes.outputs.have_ios == 'true') }}
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/sdk-build
+        with:
+          registry: ${{ needs.changes.outputs.registry }}
+          natives: android ios
+          wasm-artifact: ${{ needs.wasm.result == 'success' }}
+          android-artifact: ${{ needs.android.result == 'success' }}
+          ios-artifact: ${{ needs.ios.result == 'success' }}
+          rn-sdk: 'true'
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+
+  # Images -------------------------------------------------------------------
+
+  server-image:
+    name: Build server image
+    needs: [changes, setup-images]
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/buildkit:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/service-image
+        with:
+          image: server
+          dockerfile: services/server
+          registry: ${{ needs.changes.outputs.registry }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+
+  # The tag is the version (tools/expo/resolve-version.js reads CI_COMMIT_TAG).
+  web-image:
+    name: Build web image
+    needs: [changes, sdks]
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/buildkit:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve version
+        id: version
+        run: echo "app_version=$(node tools/expo/resolve-version.js)" >> "$GITHUB_OUTPUT"
+      - uses: ./.forgejo/actions/sdk-artifacts
+        with:
+          rn-sdk: 'true'
+      - uses: ./.forgejo/actions/service-image
+        with:
+          image: web
+          dockerfile: apps/harbor
+          registry: ${{ needs.changes.outputs.registry }}
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.app_version }}
+            EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS=${{ vars.EXPO_PUBLIC_POLYCENTRIC_SEED_SERVERS }}
+            EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS=${{ vars.EXPO_PUBLIC_POLYCENTRIC_VERIFIER_SERVERS }}
+            SKIP_WORKSPACE_BUILD=1
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+          cosign-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+
+  # Apps ---------------------------------------------------------------------
+
+  # Store builds only queue on EAS, so their submit jobs follow right away
+  # and EAS waits for the build itself.
+  store:
+    name: ${{ matrix.label }}
+    needs: sdks
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            name: app-android-aab-production
+            label: Build Android AAB
+          - platform: ios
+            name: app-ios-production
+            label: Build iOS app
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/eas-build
+        with:
+          platform: ${{ matrix.platform }}
+          profile: production
+      - uses: forgejo/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: apps/harbor/eas-build.json
+          retention-days: 7
+
+  apk:
+    name: Build Android APK
+    needs: sdks
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/eas-build
+        with:
+          platform: android
+          profile: production-apk
+          wait: 'true'
+      - uses: forgejo/upload-artifact@v4
+        with:
+          name: app-android-apk-production
+          path: |
+            apps/harbor/eas-build.json
+            apps/harbor/harbor.apk
+          retention-days: 7
+
+  # eas-cli needs the expo project config even when submitting by id.
+  store-deploy:
+    name: ${{ matrix.label }}
+    needs: store
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: android
+            build: app-android-aab-production
+            label: Deploy Android app
+          - platform: ios
+            build: app-ios-production
+            label: Deploy iOS app
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: forgejo/download-artifact@v4
+        with:
+          name: ${{ matrix.build }}
+          path: apps/harbor
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install-args: --filter polycentric-app...
+      - name: Submit to the store
+        working-directory: apps/harbor
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          BUILD_ID=$(node -p "[].concat(JSON.parse(require('fs').readFileSync('eas-build.json', 'utf8')))[0].id")
+          npx eas-cli submit --platform "$PLATFORM" --profile production --id "$BUILD_ID" --non-interactive --no-wait
+
+  apk-deploy:
+    name: Deploy APK
+    needs: apk
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      UPDATE_CHANNEL: production
+      STATIC_S3_ENDPOINT: ${{ secrets.STATIC_S3_ENDPOINT }}
+      STATIC_S3_BUCKET: ${{ vars.STATIC_S3_BUCKET }}
+      STATIC_S3_ACCESS_KEY_ID: ${{ secrets.STATIC_S3_ACCESS_KEY_ID }}
+      STATIC_S3_SECRET_ACCESS_KEY: ${{ secrets.STATIC_S3_SECRET_ACCESS_KEY }}
+      STATIC_PUBLIC_BASE_URL: ${{ vars.STATIC_PUBLIC_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: forgejo/download-artifact@v4
+        with:
+          name: app-android-apk-production
+          path: apps/harbor
+      # v* tags put the release notes into latest.json.
+      - name: Release notes
+        if: startsWith(github.ref_name, 'v')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .forgejo/scripts/release-notes.mjs release_notes.md
+      - name: Publish the APK
+        run: |
+          export CI_COMMIT_SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-8)
+          export CI_COMMIT_TITLE=$(git log -1 --format=%s)
+          node .forgejo/scripts/publish-android-update.mjs
+
+  # Release ------------------------------------------------------------------
+
+  notes:
+    name: Write notes
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Release notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .forgejo/scripts/release-notes.mjs release_notes.md
+      - uses: forgejo/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release_notes.md
+          retention-days: 7
+
+  npm:
+    name: Publish npm packages
+    needs: sdks
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/sdk-artifacts
+        with:
+          rn-sdk: 'true'
+      - uses: ./.forgejo/actions/setup-pnpm
+        with:
+          install: 'false'
+      - name: npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> ~/.npmrc
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Publish
+        run: .forgejo/scripts/npm_publish.sh
+
+  crates:
+    name: Package crates
+    needs: [changes, setup-images]
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container:
+      image: ${{ needs.changes.outputs.registry }}/ci/rust:${{ needs.changes.outputs.images_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package crates
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Bump the crate versions and give the path dependency a version so
+          # the crates package cleanly.
+          sed -i "s/^version = \".*\"/version = \"${VERSION}\"/" packages/rs-common/Cargo.toml packages/rs-core/Cargo.toml
+          sed -i "s#path = \"../rs-common\" }#path = \"../rs-common\", version = \"${VERSION}\" }#" packages/rs-core/Cargo.toml
+          mkdir -p target/package
+          cargo package -p polycentric-common --no-verify --allow-dirty || true
+          cargo package -p polycentric-core --no-verify --allow-dirty || true
+          if ! ls target/package/*.crate >/dev/null 2>&1; then
+            echo "cargo package produced no .crate; falling back to a source tarball" >&2
+            tar czf "target/package/polycentric-core-${VERSION}.crate" packages/rs-core packages/rs-common
+          fi
+      - uses: forgejo/upload-artifact@v4
+        with:
+          name: rs-core-crates
+          path: target/package/*.crate
+          retention-days: 7
+
+  tag-images:
+    name: Tag images
+    needs: [changes, server-image, web-image]
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_TOOLS_IMAGE || 'node:24-alpine' }}
+    steps:
+      - name: Install tools
+        run: apk add --no-cache bash git crane
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/registry-login
+        with:
+          registry: ${{ needs.changes.outputs.registry }}
+          registry-user: ${{ vars.REGISTRY_USER }}
+          registry-token: ${{ secrets.REGISTRY_TOKEN }}
+      - name: Tag the release images
+        env:
+          REGISTRY: ${{ needs.changes.outputs.registry }}
+        run: |
+          crane tag "$REGISTRY/web:$GITHUB_SHA" "$GITHUB_REF_NAME"
+          crane tag "$REGISTRY/server:$GITHUB_SHA" "$GITHUB_REF_NAME"
+
+  release:
+    name: Create release
+    needs: [notes, npm, crates, tag-images, apk, kt-core]
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: forgejo/download-artifact@v4
+        with:
+          name: release-notes
+          path: .
+      - uses: forgejo/download-artifact@v4
+        with:
+          name: app-android-apk-production
+          path: apps/harbor
+      - uses: forgejo/download-artifact@v4
+        with:
+          name: kt-core-build
+          path: packages/kt-core/core/build
+      - uses: forgejo/download-artifact@v4
+        with:
+          name: rs-core-crates
+          path: crates
+      - name: Create the release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node .forgejo/scripts/release.mjs release_notes.md \
+            "harbor-${GITHUB_REF_NAME}.apk=apps/harbor/harbor.apk" \
+            "polycentric-core-${GITHUB_REF_NAME#v}.aar=packages/kt-core/core/build/outputs/aar/core-release.aar" \
+            crates/*.crate
+      - name: Announce on Mattermost
+        env:
+          MATTERMOST_RELEASES_WEBHOOK: ${{ secrets.MATTERMOST_RELEASES_WEBHOOK }}
+        run: node .forgejo/scripts/announce-release.mjs release_notes.md

@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   # Built by the verifier-bot-image CI job.
-  repository: gitlab.futo.org:5050/harbor/harbor/verifier-bot
+  repository: registry.futo.org/harbor/verifier-bot
   # Defaults to the chart's appVersion (the commit SHA set by charts-publish).
   tag: ""
   pullPolicy: IfNotPresent

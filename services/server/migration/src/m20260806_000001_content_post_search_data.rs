@@ -1,4 +1,4 @@
-use entity::content_post_model;
+use entity::content_post;
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
@@ -13,7 +13,7 @@ impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         if !manager.has_column(TABLE, COLUMN).await? {
             let mut stmt = Table::alter();
-            stmt.table(content_post_model::Entity)
+            stmt.table(content_post::Entity)
                 .add_column(ColumnDef::new(COLUMN).custom("tsvector").not_null()
                     .generated(
                         Expr::cust("
@@ -40,7 +40,7 @@ impl MigrationTrait for Migration {
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         if manager.has_column(TABLE, COLUMN).await? {
             let mut stmt = Table::alter();
-            stmt.table(content_post_model::Entity).drop_column(COLUMN);
+            stmt.table(content_post::Entity).drop_column(COLUMN);
             manager.alter_table(stmt).await?;
         }
 

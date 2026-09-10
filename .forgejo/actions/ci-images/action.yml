@@ -1,0 +1,53 @@
+name: ci-images
+description: Builds the CI toolchain images whose content tag is missing (ci-images.sh). Alpine job container, after checkout.
+inputs:
+  registry:
+    required: true
+  tag:
+    required: true
+  registry-user:
+    required: true
+  registry-token:
+    required: true
+  cosign-key:
+    description: COSIGN_PRIVATE_KEY; freshly built images are signed with it (empty skips)
+    default: ''
+runs:
+  using: composite
+  steps:
+    - shell: sh
+      run: apk add --no-cache bash git crane cosign docker-cli docker-cli-buildx
+    - uses: ./.forgejo/actions/registry-login
+      with:
+        registry: ${{ inputs.registry }}
+        registry-user: ${{ inputs.registry-user }}
+        registry-token: ${{ inputs.registry-token }}
+    # Existing tags are skipped; rust-dind and rust-android build on rust.
+    - name: Build rust image
+      shell: bash
+      env:
+        REGISTRY: ${{ inputs.registry }}
+        TAG: ${{ inputs.tag }}
+        COSIGN_PRIVATE_KEY: ${{ inputs.cosign-key }}
+      run: .forgejo/scripts/ci-images.sh build rust
+    - name: Build rust-dind image
+      shell: bash
+      env:
+        REGISTRY: ${{ inputs.registry }}
+        TAG: ${{ inputs.tag }}
+        COSIGN_PRIVATE_KEY: ${{ inputs.cosign-key }}
+      run: .forgejo/scripts/ci-images.sh build rust-dind
+    - name: Build rust-android image
+      shell: bash
+      env:
+        REGISTRY: ${{ inputs.registry }}
+        TAG: ${{ inputs.tag }}
+        COSIGN_PRIVATE_KEY: ${{ inputs.cosign-key }}
+      run: .forgejo/scripts/ci-images.sh build rust-android
+    - name: Build buildkit image
+      shell: bash
+      env:
+        REGISTRY: ${{ inputs.registry }}
+        TAG: ${{ inputs.tag }}
+        COSIGN_PRIVATE_KEY: ${{ inputs.cosign-key }}
+      run: .forgejo/scripts/ci-images.sh build buildkit

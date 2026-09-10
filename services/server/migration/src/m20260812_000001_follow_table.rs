@@ -1,4 +1,4 @@
-use entity::follow_model;
+use entity::follow;
 use sea_orm::EntityName;
 use sea_orm_migration::prelude::*;
 
@@ -11,10 +11,10 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 TableCreateStatement::new()
-                    .table(follow_model::Entity.table_ref())
+                    .table(follow::Entity.table_ref())
                     .if_not_exists()
                     .col({
-                        let col = follow_model::COLUMN.event_id;
+                        let col = follow::COLUMN.event_id;
                         ColumnDef::new_with_type(
                             col.as_column_ref().1,
                             col.def().get_column_type().clone(),
@@ -23,7 +23,7 @@ impl MigrationTrait for Migration {
                         .take()
                     })
                     .col({
-                        let col = follow_model::COLUMN.follower;
+                        let col = follow::COLUMN.follower;
                         ColumnDef::new_with_type(
                             col.as_column_ref().1,
                             col.def().get_column_type().clone(),
@@ -33,7 +33,7 @@ impl MigrationTrait for Migration {
                         .take()
                     })
                     .col({
-                        let col = follow_model::COLUMN.followee;
+                        let col = follow::COLUMN.followee;
                         ColumnDef::new_with_type(
                             col.as_column_ref().1,
                             col.def().get_column_type().clone(),
@@ -47,7 +47,7 @@ impl MigrationTrait for Migration {
             .await?;
 
         let index = IndexCreateStatement::new()
-            .table(follow_model::Entity.table_ref())
+            .table(follow::Entity.table_ref())
             .col("follower")
             .col("followee")
             .take();
@@ -59,7 +59,7 @@ impl MigrationTrait for Migration {
         manager
             .drop_table(
                 TableDropStatement::new()
-                    .table(follow_model::Entity.table_ref())
+                    .table(follow::Entity.table_ref())
                     .if_exists()
                     .restrict()
                     .take(),
