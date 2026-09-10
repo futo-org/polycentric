@@ -19,6 +19,14 @@ async fn mentions_notify_the_newest_alias_claimer_and_skip_the_reply_target() {
     let mut newer_claimer = TestClient::new().await;
     newer_claimer.profile_update(claim_alias(&alias), DEFAULT_CREATED_AT);
     newer_claimer.submit_events().await;
+    // Claimed the alias most recently of all, but the latest profile moved on.
+    let mut former_claimer = TestClient::new().await;
+    former_claimer.profile_update(claim_alias(&alias), DEFAULT_CREATED_AT);
+    former_claimer.profile_update(
+        claim_alias(&format!("{}@example.com", random_string().to_lowercase())),
+        DEFAULT_CREATED_AT + HOUR,
+    );
+    former_claimer.submit_events().await;
 
     let mut parent_author = TestClient::new().await;
     parent_author.post_text("parent", DEFAULT_CREATED_AT);
@@ -65,6 +73,12 @@ async fn mentions_notify_the_newest_alias_claimer_and_skip_the_reply_target() {
             .await
             .is_empty(),
         "older alias claimer gets nothing"
+    );
+    assert!(
+        wait_for_notifications(former_claimer.identity(), 0)
+            .await
+            .is_empty(),
+        "claimer whose latest profile dropped the alias gets nothing"
     );
 }
 

@@ -3,6 +3,7 @@
 //! equality lookup instead of a scan. Partial: rows without an alias never
 //! match, so they aren't indexed.
 
+use ::entity::content_profile_update;
 use sea_orm_migration::prelude::*;
 
 #[derive(DeriveMigrationName)]
@@ -14,14 +15,22 @@ const INDEX: &str = "content_profile_update_alias_lower";
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .get_connection()
-            .execute_unprepared(&format!(
-                "CREATE INDEX IF NOT EXISTS {INDEX} \
-                 ON content_profile_update (lower(alias)) \
-                 WHERE alias IS NOT NULL"
-            ))
+            .create_index({
+                let mut index = Index::create();
+                index
+                    .if_not_exists()
+                    .name(INDEX)
+                    .table(content_profile_update::Entity)
+                    .col(Func::lower(Expr::col(
+                        content_profile_update::Column::Alias,
+                    )))
+                    .and_where(
+                        Expr::col(content_profile_update::Column::Alias)
+                            .is_not_null(),
+                    );
+                index
+            })
             .await
-            .map(|_| ())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {

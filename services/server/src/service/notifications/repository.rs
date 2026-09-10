@@ -1,8 +1,13 @@
+use std::cmp::Reverse;
 use std::collections::HashMap;
 
-use ::entity::notification;
+use crate::service::feeds::repository::content_join;
+use ::entity::{content, content_profile_update, event, notification};
 use polycentric_common::models::collections;
 use sea_orm::*;
+use sea_query::{Expr, Func};
+
+const PROFILE_COLLECTION: i16 = collections::PROFILE as i16;
 
 pub struct Query;
 
@@ -37,50 +42,66 @@ impl Query {
         if aliases.is_empty() {
             return Ok(HashMap::new());
         }
+        let lower_alias = || {
+            Func::lower(Expr::col((
+                content_profile_update::Entity,
+                content_profile_update::Column::Alias,
+            )))
+        };
         // Candidates: identities with any profile claiming one of the
-        // aliases (hits the lower(alias) index). Then keep only each
-        // candidate's latest profile, and only if it still claims the alias.
-        let rows = db
-            .query_all_raw(Statement::from_sql_and_values(
-                DbBackend::Postgres,
-                "SELECT alias, identity FROM (\
-                   SELECT DISTINCT ON (e.identity) \
-                     lower(cpu.alias) AS alias, e.identity, e.id \
-                   FROM events e \
-                   JOIN content c \
-                     ON c.digest_type = e.content_digest_type \
-                    AND c.digest_bytes = e.content_digest_bytes \
-                   JOIN content_profile_update cpu ON cpu.content_id = c.id \
-                   WHERE e.collection = $2 \
-                     AND e.identity IN (\
-                       SELECT e2.identity \
-                       FROM content_profile_update cpu2 \
-                       JOIN content c2 ON c2.id = cpu2.content_id \
-                       JOIN events e2 \
-                         ON e2.content_digest_type = c2.digest_type \
-                        AND e2.content_digest_bytes = c2.digest_bytes \
-                       WHERE e2.collection = $2 \
-                         AND lower(cpu2.alias) = ANY($1)) \
-                   ORDER BY e.identity, e.sequence DESC \
-                 ) latest \
-                 WHERE alias = ANY($1) \
-                 ORDER BY id DESC",
-                [
-                    aliases.to_vec().into(),
-                    (collections::PROFILE as i16).into(),
-                ],
-            ))
+        // aliases (hits the lower(alias) index).
+        let mut claimers = event::Entity::find()
+            .select_only()
+            .column(event::Column::Identity)
+            .join(JoinType::InnerJoin, content_join())
+            .join(
+                JoinType::InnerJoin,
+                content::Relation::ContentProfileUpdate.def(),
+            )
+            .filter(event::Column::Collection.eq(PROFILE_COLLECTION))
+            .filter(Expr::from(lower_alias()).is_in(aliases.iter().cloned()));
+        // Each candidate's latest profile, whatever alias it claims now.
+        let mut latest_profiles = event::Entity::find()
+            .select_only()
+            .expr_as(lower_alias(), "alias")
+            .column(event::Column::Identity)
+            .column(event::Column::Id)
+            .distinct_on([event::Column::Identity.as_column_ref()])
+            .join(JoinType::InnerJoin, content_join())
+            .join(
+                JoinType::InnerJoin,
+                content::Relation::ContentProfileUpdate.def(),
+            )
+            .filter(event::Column::Collection.eq(PROFILE_COLLECTION))
+            .filter(
+                Expr::col(event::Column::Identity.as_column_ref())
+                    .in_subquery(QuerySelect::query(&mut claimers).to_owned()),
+            )
+            .order_by_asc(event::Column::Identity)
+            .order_by_desc(event::Column::Sequence)
+            .into_model::<LatestProfileAlias>()
+            .all(db)
             .await?;
 
-        // Rows are newest first, so the first identity per alias wins.
+        // Only profiles still claiming an alias count; newest wins per alias.
+        latest_profiles.sort_by_key(|row| Reverse(row.id));
         let mut identity_by_alias_map = HashMap::new();
-        for row in rows {
-            let alias: String = row.try_get("", "alias")?;
-            let identity: String = row.try_get("", "identity")?;
-            identity_by_alias_map.entry(alias).or_insert(identity);
+        for row in latest_profiles {
+            if let Some(alias) = row.alias.filter(|a| aliases.contains(a)) {
+                identity_by_alias_map.entry(alias).or_insert(row.identity);
+            }
         }
         Ok(identity_by_alias_map)
     }
+}
+
+/// One identity's latest profile: the alias it claims (lowercased) and the
+/// event id, for picking the most recently synced claim.
+#[derive(Debug, FromQueryResult)]
+struct LatestProfileAlias {
+    alias: Option<String>,
+    identity: String,
+    id: i64,
 }
 
 #[cfg(test)]
@@ -89,10 +110,15 @@ mod tests {
     use sea_orm::{DatabaseBackend, MockDatabase};
     use std::collections::BTreeMap;
 
-    fn alias_row(alias: &str, identity: &str) -> BTreeMap<String, Value> {
+    fn alias_row(
+        alias: Option<&str>,
+        identity: &str,
+        id: i64,
+    ) -> BTreeMap<String, Value> {
         BTreeMap::from([
             ("alias".to_string(), Value::from(alias)),
             ("identity".to_string(), Value::from(identity)),
+            ("id".to_string(), Value::from(id)),
         ])
     }
 
@@ -100,9 +126,12 @@ mod tests {
     async fn the_newest_claim_of_an_alias_wins() {
         let db = MockDatabase::new(DatabaseBackend::Postgres)
             .append_query_results([vec![
-                alias_row("bob@x.com", "bob"),
-                alias_row("bob@x.com", "impostor"),
-                alias_row("carol@x.com", "carol"),
+                alias_row(Some("bob@x.com"), "impostor", 1),
+                alias_row(Some("bob@x.com"), "bob", 3),
+                alias_row(Some("carol@x.com"), "carol", 2),
+                // Claimed an alias once, but the latest profile moved on.
+                alias_row(Some("dave@y.com"), "dave", 4),
+                alias_row(None, "erin", 5),
             ]])
             .into_connection();
 
