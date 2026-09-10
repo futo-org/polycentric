@@ -6,10 +6,11 @@ use crate::data::{
     assemble_hint, bundle_into_hint, pipeline,
 };
 use crate::service::context::RequestContext;
-use crate::service::events::TargetEventKey;
 use crate::service::feeds::repository::Query;
 use crate::service::proofs::service::attach_proofs;
-use crate::service::proto::{EventBundle, GetPostRequest, GetPostResponse};
+use crate::service::proto::{
+    EventBundle, EventKey, GetPostRequest, GetPostResponse,
+};
 
 use tonic::Status;
 
@@ -17,14 +18,15 @@ pub async fn handle(
     ctx: &RequestContext<'_>,
     req: GetPostRequest,
 ) -> Result<GetPostResponse, Status> {
-    let params = Params {
-        event_key: TargetEventKey::from_request(req.event_key, "event_key")?,
+    let Some(event_key) = req.event_key else {
+        return Err(Status::invalid_argument(format!("event_key is required")));
     };
+    let params = Params { event_key };
     pipeline::create_pipeline(ctx, &params, fetch, hydrate, filter, view).await
 }
 
 struct Params {
-    event_key: TargetEventKey,
+    event_key: EventKey,
 }
 
 async fn fetch(

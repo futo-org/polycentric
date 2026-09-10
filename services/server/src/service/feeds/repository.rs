@@ -8,7 +8,7 @@ use ::entity::{
     reaction_tally, reply, repost,
 };
 use polycentric_common::models::collections;
-use polycentric_common::models::protos_v2::SortPostsBy;
+use polycentric_common::models::protos_v2::{EventKey, SortPostsBy};
 use sea_orm::{
     Condition, FromQueryResult,
     entity::prelude::*,
@@ -823,16 +823,20 @@ impl Query {
     /// Get a single post.
     pub(super) async fn get_post(
         db: &DbConn,
-        target: &TargetEventKey,
+        target: &EventKey,
     ) -> Result<Option<EventWithContentRow>, Status> {
         let mut query = event::Entity::find().select_also(content::Entity);
         query = query
             .join(JoinType::InnerJoin, content_join())
             .filter(event::Column::Collection.eq(target.collection))
             .filter(event::Column::Identity.eq(target.identity.clone()))
-            .filter(event::Column::PublicKeyType.eq(target.public_key_type))
-            .filter(event::Column::PublicKey.eq(target.public_key.clone()))
             .filter(event::Column::Sequence.eq(target.sequence));
+
+        if let Some(signed_by) = target.signed_by.as_ref() {
+            query = query
+                .filter(event::Column::PublicKeyType.eq(signed_by.key_type))
+                .filter(event::Column::PublicKey.eq(signed_by.key.clone()))
+        }
 
         query.one(db).await.map_err(|err| {
             tracing::error!("failed to get post: {err}");

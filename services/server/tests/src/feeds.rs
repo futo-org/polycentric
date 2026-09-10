@@ -950,6 +950,49 @@ async fn get_post() {
 }
 
 #[tokio::test]
+async fn get_post_no_public_key() {
+    let mut client = TestClient::new().await;
+    client.post_text("Text", DEFAULT_CREATED_AT);
+    let target = client.get_last_event_key();
+    client.submit_events().await;
+
+    let mut feed = connect_feeds().await;
+    let response = feed
+        .get_post(GetPostRequest {
+            event_key: Some({
+                let mut t = target.clone();
+                // We should be able to get a post without a signing key.
+                t.signed_by = None;
+                t
+            }),
+        })
+        .await
+        .expect("failed to get post failed")
+        .into_inner();
+
+    eprintln!("Got event bundle: {:#?}", response.event_bundle);
+    let event_bundle = response.event_bundle.unwrap();
+    let content = Content::decode(
+        &*event_bundle
+            .serialized_content
+            .as_ref()
+            .unwrap()
+            .content_bytes,
+    )
+    .unwrap();
+    if !matches!(&content.content_body, Some(ContentBody::Post(_))) {
+        panic!("unexpected event content: {content:?}");
+    };
+
+    let event = Event::decode(
+        &*event_bundle.signed_event.as_ref().unwrap().event_bytes,
+    )
+    .unwrap();
+    let key = event.key.as_ref().unwrap();
+    assert_eq!(*key, target, "expected: {target:?}, event: {key:?}");
+}
+
+#[tokio::test]
 async fn get_post_not_created() {
     let mut client = TestClient::new().await;
     client.post_text("Text", DEFAULT_CREATED_AT);
