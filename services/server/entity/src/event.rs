@@ -72,6 +72,9 @@ pub struct Model {
     /// Only if this a post event that replies to another post.
     #[sea_orm(has_one)] // Really has zero or one.
     pub reply: HasOne<super::reply::Entity>,
+    /// Only if this a profile update event.
+    #[sea_orm(has_one)] // Really has zero or one.
+    pub profile: HasOne<super::profile::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}
