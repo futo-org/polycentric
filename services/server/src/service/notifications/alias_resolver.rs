@@ -7,7 +7,6 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 use std::time::Duration;
 
-use serde::Deserialize;
 use tokio::task::JoinSet;
 
 /// Distinct domains one post may make the worker fetch from. One fetch
@@ -90,28 +89,26 @@ async fn resolve_aliases_with(
     let mut identity_by_alias_map = HashMap::new();
     while let Some(Ok((aliases_at_domain, names))) = fetches.join_next().await {
         for (alias, local) in aliases_at_domain {
-            if let Some(identity) =
-                names.get(&local).filter(|id| is_identity_key(id))
+            if let Some(identity) = names
+                .get(&local)
+                .and_then(serde_json::Value::as_str)
+                .filter(|id| is_identity_key(id))
             {
-                identity_by_alias_map.insert(alias, identity.clone());
+                identity_by_alias_map.insert(alias, identity.to_string());
             }
         }
     }
     identity_by_alias_map
 }
 
-/// The `/.well-known/polycentric.json` document: alias local part -> identity.
-#[derive(Deserialize, Default)]
-struct AliasDocument {
-    #[serde(default)]
-    names: HashMap<String, String>,
-}
-
-/// The `names` map at `url`, or why it couldn't be read.
+/// The `names` object of the `/.well-known/polycentric.json` document at
+/// `url`, or why it couldn't be read. Left untyped so a partially valid
+/// document (an entry that isn't a string) still serves its other entries,
+/// as in the client.
 async fn fetch_alias_names(
     client: &reqwest::Client,
     url: &str,
-) -> Result<HashMap<String, String>, String> {
+) -> Result<serde_json::Value, String> {
     let mut response = client
         .get(url)
         .header("accept", "application/json")
@@ -128,8 +125,8 @@ async fn fetch_alias_names(
         }
         body.extend_from_slice(&chunk);
     }
-    serde_json::from_slice::<AliasDocument>(&body)
-        .map(|doc| doc.names)
+    serde_json::from_slice::<serde_json::Value>(&body)
+        .map(|doc| doc.get("names").cloned().unwrap_or(serde_json::Value::Null))
         .map_err(|e| e.to_string())
 }
 
@@ -255,7 +252,7 @@ mod tests {
             .mock("GET", "/.well-known/polycentric.json")
             .expect(1)
             .with_body(
-                r#"{"names":{"bob":"abc123","*":"DEF","carol":"not hex"}}"#,
+                r#"{"names":{"bob":"abc123","*":"DEF","carol":"not hex","erin":123}}"#,
             )
             .create_async()
             .await;
@@ -267,6 +264,7 @@ mod tests {
                 "x.com",
                 "carol@x.com",
                 "dave@x.com",
+                "erin@x.com",
                 "malformed@x",
             ],
         )
@@ -288,6 +286,8 @@ mod tests {
             (404, r#"{"names":{"bob":"abc"}}"#),
             (200, "not json"),
             (200, r#"{"other":1}"#),
+            (200, r#"{"names":"bob"}"#),
+            (200, r#"[1,2]"#),
         ] {
             let mut server = mockito::Server::new_async().await;
             server
