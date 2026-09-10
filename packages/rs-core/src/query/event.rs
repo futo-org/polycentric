@@ -5,9 +5,10 @@ pub mod merge;
 use std::sync::{Arc, Mutex};
 
 use polycentric_common::models::protos_v2;
+use polycentric_common::models::protos_v2::feeds_service_client::FeedsServiceClient;
 use polycentric_common::models::protos_v2::{
-    EventBundle, EventHint, ListEventsFilters, ListEventsRequest, ListEventsResponse,
-    event_sync_service_client::EventSyncServiceClient,
+    EventBundle, EventHint, GetPostRequest, ListEventsFilters, ListEventsRequest,
+    ListEventsResponse, event_sync_service_client::EventSyncServiceClient,
 };
 use prost::Message;
 
@@ -36,6 +37,15 @@ pub struct GetEventArgs {
     pub identity: String,
     pub collection: i32,
     pub sequence: u64,
+    pub signer_key_prefix: Option<String>,
+}
+
+#[derive(Clone, Debug, uniffi::Record)]
+pub struct GetPostArgs {
+    pub identity: String,
+    pub collection: i32,
+    pub sequence: u64,
+    // TODO:
     pub signer_key_prefix: Option<String>,
 }
 
@@ -233,6 +243,129 @@ pub fn get_event(
                 let mut c = client.lock_recover();
                 c.copy_bundles(hint_bundles);
                 c.copy_bundles(response.event_bundles);
+                c.find_event_bundle_by_sequence(
+                    &identity,
+                    collection,
+                    sequence,
+                    signer_key_prefix.as_deref(),
+                )
+            };
+
+            let bytes = bundle
+                .as_ref()
+                .map(EventBundle::encode_to_vec)
+                .unwrap_or_default();
+
+            Ok(bytes)
+        }
+    };
+
+    Arc::new(query_client.fetch(query_key, query_fn, merge_fn, opts))
+}
+
+/// Return a single event post based on its key (or partial key)
+pub fn get_post(
+    query_client: &QueryClient<Vec<u8>>,
+    query_key: Option<QueryKey>,
+    args: GetPostArgs,
+    opts: Option<QueryOpts>,
+) -> Arc<dyn QueryObservable> {
+    let GetPostArgs {
+        identity,
+        collection,
+        sequence,
+        signer_key_prefix,
+    } = args;
+    let signer_key_prefix = Arc::new(signer_key_prefix);
+
+    if let Some(bundle) = query_client
+        .client()
+        .lock_recover()
+        .find_event_bundle_by_sequence(
+            &identity,
+            collection,
+            sequence,
+            signer_key_prefix.as_deref(),
+        )
+    {
+        let bytes = bundle.encode_to_vec();
+        let observable: Observable<QueryResult<Vec<u8>>> = Observable::new(move |subscriber| {
+            subscriber.next(QueryResult {
+                data: Some(bytes.clone()),
+                status: QueryStatus::Success,
+                successful_servers: 0,
+                pending_servers: 0,
+            });
+            subscriber.complete();
+        });
+        return Arc::new(observable);
+    }
+
+    let request = GetPostRequest {
+        event_key: Some(protos_v2::EventKey {
+            collection,
+            identity: identity.clone(),
+            signed_by: Some(protos_v2::PublicKey {
+                // TODO.
+                key_type: 1,
+                key: Vec::new(),
+            }),
+            sequence,
+        }),
+    };
+
+    let client = query_client.client().clone();
+
+    // The query function will copy event bundles and hints into the local store,
+    // so we can rely on the local store to handle tombstones properly.
+    let merge_fn = {
+        let identity = identity.clone();
+        let signer_key_prefix = signer_key_prefix.clone();
+
+        move |_values: &[Vec<u8>],
+              _previous: Option<&Vec<u8>>,
+              client: &Arc<Mutex<PolycentricClient>>| {
+            let bundle = client.clone().lock_recover().find_event_bundle_by_sequence(
+                &identity,
+                collection,
+                sequence,
+                signer_key_prefix.as_deref(),
+            );
+
+            bundle
+                .as_ref()
+                .map(EventBundle::encode_to_vec)
+                .unwrap_or_default()
+        }
+    };
+
+    let query_fn = move |server_url: String| {
+        let request = request.clone();
+        let identity = identity.clone();
+        let client = client.clone();
+        let signer_key_prefix = signer_key_prefix.clone();
+
+        async move {
+            let response = FeedsServiceClient::new(channel(&server_url).await?)
+                .get_post(request)
+                .await
+                .map_err(|e| format!("get_event [{server_url}]: {e}"))?
+                .into_inner();
+
+            let hint_bundles: Vec<_> = response
+                .event_hints
+                .into_iter()
+                .filter_map(|h| h.event_bundle)
+                .collect();
+
+            // Copy events and content to local stores so that we can rely on
+            // the client to handle tombstone checking logic
+            let bundle = {
+                let mut c = client.lock_recover();
+                c.copy_bundles(hint_bundles);
+                if let Some(event_bundle) = response.event_bundle {
+                    c.copy_bundles(vec![event_bundle]);
+                }
                 c.find_event_bundle_by_sequence(
                     &identity,
                     collection,

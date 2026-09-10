@@ -38,7 +38,7 @@ export function usePostById(
       keyFingerprint ?? '',
       sequence?.toString() ?? '',
     ],
-    new Query.GetEvent({
+    new Query.GetPost({
       identity: identityId ?? '',
       collection: COLLECTION.FEED,
       sequence: sequence ?? 0n,
