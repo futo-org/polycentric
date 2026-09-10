@@ -185,6 +185,19 @@ impl MigrationTrait for Migration {
             .full_text();
         tx.execute(&index).await?;
 
+        if manager
+            .has_column(
+                content_profile_update::Entity.unquoted(),
+                "search_data",
+            )
+            .await?
+        {
+            let mut stmt = Table::alter();
+            stmt.table(content_profile_update::Entity.unquoted())
+                .drop_column("search_data");
+            manager.alter_table(stmt).await?;
+        }
+
         Ok(())
     }
 
@@ -195,6 +208,28 @@ impl MigrationTrait for Migration {
             .table(profile::Entity.unquoted())
             .restrict();
         manager.drop_table(drop_table).await?;
+
+        if !manager
+            .has_column(
+                content_profile_update::Entity.unquoted(),
+                "search_data",
+            )
+            .await?
+        {
+            let mut stmt = Table::alter();
+            stmt.table(content_profile_update::Entity.unquoted())
+                .add_column(ColumnDef::new("search_data").custom("tsvector").not_null()
+                    .generated(
+                        Expr::cust("
+                            setweight(to_tsvector('simple', COALESCE(alias, '')), 'A') ||
+                            setweight(to_tsvector('simple', COALESCE(name, '')), 'B') ||
+                            setweight(to_tsvector('english', COALESCE(description, '')), 'C')
+                        "),
+                        true /* stored */)
+                    );
+            manager.alter_table(stmt).await?;
+        }
+
         Ok(())
     }
 }

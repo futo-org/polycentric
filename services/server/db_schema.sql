@@ -332,8 +332,7 @@ CREATE TABLE public.content_profile_update (
     avatar jsonb,
     banner jsonb,
     description text,
-    alias text,
-    search_data tsvector GENERATED ALWAYS AS (((public.create_tsvector('simple'::regconfig, alias, 'A'::"char") || public.create_tsvector('simple'::regconfig, (name)::text, 'B'::"char")) || public.create_tsvector('english'::regconfig, description, 'C'::"char"))) STORED NOT NULL
+    alias text
 );
 
 
@@ -1024,13 +1023,6 @@ CREATE INDEX content_post_reply_parent ON public.content_post USING btree (reply
 --
 
 CREATE INDEX content_post_search_data ON public.content_post USING gin (search_data);
-
-
---
--- Name: content_profile_update_search_data; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX content_profile_update_search_data ON public.content_profile_update USING gin (search_data);
 
 
 --
