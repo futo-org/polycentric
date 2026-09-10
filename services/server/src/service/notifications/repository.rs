@@ -1,13 +1,5 @@
-use std::cmp::Reverse;
-use std::collections::HashMap;
-
-use crate::service::feeds::repository::content_join;
-use ::entity::{content, content_profile_update, event, notification};
-use polycentric_common::models::collections;
+use ::entity::notification;
 use sea_orm::*;
-use sea_query::{Expr, Func};
-
-const PROFILE_COLLECTION: i16 = collections::PROFILE as i16;
 
 pub struct Query;
 
@@ -30,131 +22,12 @@ impl Query {
 
         query.all(db).await
     }
-
-    /// The identity each of `aliases` (lowercased) resolves to, per the
-    /// alias each identity's latest profile claims. Aliases nobody claims are
-    /// absent. Unverified: a profile may claim any alias; when several claim
-    /// the same one, the most recently synced profile wins.
-    pub async fn find_identities_by_aliases(
-        db: &DbConn,
-        aliases: &[String],
-    ) -> Result<HashMap<String, String>, DbErr> {
-        if aliases.is_empty() {
-            return Ok(HashMap::new());
-        }
-        let lower_alias = || {
-            Func::lower(Expr::col((
-                content_profile_update::Entity,
-                content_profile_update::Column::Alias,
-            )))
-        };
-        // Candidates: identities with any profile claiming one of the
-        // aliases (hits the lower(alias) index).
-        let mut claimers = event::Entity::find()
-            .select_only()
-            .column(event::Column::Identity)
-            .join(JoinType::InnerJoin, content_join())
-            .join(
-                JoinType::InnerJoin,
-                content::Relation::ContentProfileUpdate.def(),
-            )
-            .filter(event::Column::Collection.eq(PROFILE_COLLECTION))
-            .filter(Expr::from(lower_alias()).is_in(aliases.iter().cloned()));
-        // Each candidate's latest profile, whatever alias it claims now.
-        let mut latest_profiles = event::Entity::find()
-            .select_only()
-            .expr_as(lower_alias(), "alias")
-            .column(event::Column::Identity)
-            .column(event::Column::Id)
-            .distinct_on([event::Column::Identity.as_column_ref()])
-            .join(JoinType::InnerJoin, content_join())
-            .join(
-                JoinType::InnerJoin,
-                content::Relation::ContentProfileUpdate.def(),
-            )
-            .filter(event::Column::Collection.eq(PROFILE_COLLECTION))
-            .filter(
-                Expr::col(event::Column::Identity.as_column_ref())
-                    .in_subquery(QuerySelect::query(&mut claimers).to_owned()),
-            )
-            .order_by_asc(event::Column::Identity)
-            .order_by_desc(event::Column::Sequence)
-            .into_model::<LatestProfileAlias>()
-            .all(db)
-            .await?;
-
-        // Only profiles still claiming an alias count; newest wins per alias.
-        latest_profiles.sort_by_key(|row| Reverse(row.id));
-        let mut identity_by_alias_map = HashMap::new();
-        for row in latest_profiles {
-            if let Some(alias) = row.alias.filter(|a| aliases.contains(a)) {
-                identity_by_alias_map.entry(alias).or_insert(row.identity);
-            }
-        }
-        Ok(identity_by_alias_map)
-    }
-}
-
-/// One identity's latest profile: the alias it claims (lowercased) and the
-/// event id, for picking the most recently synced claim.
-#[derive(Debug, FromQueryResult)]
-struct LatestProfileAlias {
-    alias: Option<String>,
-    identity: String,
-    id: i64,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use sea_orm::{DatabaseBackend, MockDatabase};
-    use std::collections::BTreeMap;
-
-    fn alias_row(
-        alias: Option<&str>,
-        identity: &str,
-        id: i64,
-    ) -> BTreeMap<String, Value> {
-        BTreeMap::from([
-            ("alias".to_string(), Value::from(alias)),
-            ("identity".to_string(), Value::from(identity)),
-            ("id".to_string(), Value::from(id)),
-        ])
-    }
-
-    #[tokio::test]
-    async fn the_newest_claim_of_an_alias_wins() {
-        let db = MockDatabase::new(DatabaseBackend::Postgres)
-            .append_query_results([vec![
-                alias_row(Some("bob@x.com"), "impostor", 1),
-                alias_row(Some("bob@x.com"), "bob", 3),
-                alias_row(Some("carol@x.com"), "carol", 2),
-                // Claimed an alias once, but the latest profile moved on.
-                alias_row(Some("dave@y.com"), "dave", 4),
-                alias_row(None, "erin", 5),
-            ]])
-            .into_connection();
-
-        let identity_by_alias_map = Query::find_identities_by_aliases(
-            &db,
-            &["bob@x.com".to_string(), "carol@x.com".to_string()],
-        )
-        .await
-        .expect("query should succeed");
-        assert_eq!(identity_by_alias_map["bob@x.com"], "bob");
-        assert_eq!(identity_by_alias_map["carol@x.com"], "carol");
-        assert_eq!(identity_by_alias_map.len(), 2);
-    }
-
-    #[tokio::test]
-    async fn no_aliases_skips_the_query() {
-        // No `append_query_results`, so the mock errors if a query runs.
-        let db = MockDatabase::new(DatabaseBackend::Postgres).into_connection();
-        let identity_by_alias_map = Query::find_identities_by_aliases(&db, &[])
-            .await
-            .expect("no lookup should be attempted");
-        assert!(identity_by_alias_map.is_empty());
-    }
 
     fn sample_row(id: i64, kind: i32) -> notification::Model {
         let ts = chrono::DateTime::from_timestamp(0, 0).unwrap();

@@ -1,6 +1,8 @@
-//! Mention notifications end to end: the worker must resolve alias mentions
-//! against the profiles claiming them (a real-DB check of
-//! `find_identities_by_aliases`). Needs the `workers` process running.
+//! Mention notifications end to end: a post mentioning identities notifies
+//! them, except the reply target, which gets its Reply only. Alias mentions
+//! resolve through a real HTTPS domain's `.well-known/polycentric.json`, so
+//! they aren't covered here (see the resolver's unit tests). Needs the
+//! `workers` process running.
 
 use crate::*;
 use polycentric_common::models::protos_v2::notification_service_client::NotificationServiceClient;
@@ -9,25 +11,7 @@ use std::time::{Duration, Instant};
 const NOTIFICATION_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[tokio::test]
-async fn mentions_notify_the_newest_alias_claimer_and_skip_the_reply_target() {
-    let alias = format!("{}@example.com", random_string().to_lowercase());
-
-    // Two profiles claim the same alias; the most recently synced one wins.
-    let mut older_claimer = TestClient::new().await;
-    older_claimer.profile_update(claim_alias(&alias), DEFAULT_CREATED_AT);
-    older_claimer.submit_events().await;
-    let mut newer_claimer = TestClient::new().await;
-    newer_claimer.profile_update(claim_alias(&alias), DEFAULT_CREATED_AT);
-    newer_claimer.submit_events().await;
-    // Claimed the alias most recently of all, but the latest profile moved on.
-    let mut former_claimer = TestClient::new().await;
-    former_claimer.profile_update(claim_alias(&alias), DEFAULT_CREATED_AT);
-    former_claimer.profile_update(
-        claim_alias(&format!("{}@example.com", random_string().to_lowercase())),
-        DEFAULT_CREATED_AT + HOUR,
-    );
-    former_claimer.submit_events().await;
-
+async fn mentions_notify_identities_and_skip_the_reply_target() {
     let mut parent_author = TestClient::new().await;
     parent_author.post_text("parent", DEFAULT_CREATED_AT);
     let parent_key = parent_author.get_last_event_key();
@@ -35,16 +19,17 @@ async fn mentions_notify_the_newest_alias_claimer_and_skip_the_reply_target() {
 
     let mut curly_mentioned = TestClient::new().await;
     curly_mentioned.submit_events().await;
+    let mut bare_mentioned = TestClient::new().await;
+    bare_mentioned.submit_events().await;
 
-    // Mixed case: alias lookup is case-insensitive.
     let mut author = TestClient::new().await;
     author.reply(
         parent_key,
         &format!(
-            "hi @{} @{{{}}} @{{{},Someone}}",
-            alias.to_uppercase(),
-            parent_author.identity(),
+            "hi @{} @{{{},Someone}} @{{{}}}",
+            bare_mentioned.identity(),
             curly_mentioned.identity(),
+            parent_author.identity(),
         ),
         DEFAULT_CREATED_AT + HOUR,
     );
@@ -52,9 +37,9 @@ async fn mentions_notify_the_newest_alias_claimer_and_skip_the_reply_target() {
 
     let author_identity = author.identity().to_owned();
     assert_eq!(
-        wait_for_notifications(newer_claimer.identity(), 1).await,
+        wait_for_notifications(bare_mentioned.identity(), 1).await,
         vec![(NotificationKind::Mention, author_identity.clone())],
-        "newest alias claimer gets one Mention"
+        "bare identity mention gets one Mention"
     );
     assert_eq!(
         wait_for_notifications(curly_mentioned.identity(), 1).await,
@@ -65,20 +50,6 @@ async fn mentions_notify_the_newest_alias_claimer_and_skip_the_reply_target() {
         wait_for_notifications(parent_author.identity(), 1).await,
         vec![(NotificationKind::Reply, author_identity)],
         "reply parent that is also mentioned gets one Reply, no Mention"
-    );
-    // The mention path above already processed this post, so the older
-    // claimer's absence is final rather than a timing artifact.
-    assert!(
-        wait_for_notifications(older_claimer.identity(), 0)
-            .await
-            .is_empty(),
-        "older alias claimer gets nothing"
-    );
-    assert!(
-        wait_for_notifications(former_claimer.identity(), 0)
-            .await
-            .is_empty(),
-        "claimer whose latest profile dropped the alias gets nothing"
     );
 }
 
@@ -119,15 +90,5 @@ async fn wait_for_notifications(
                 .collect();
         }
         tokio::time::sleep(Duration::from_millis(500)).await;
-    }
-}
-
-fn claim_alias(alias: &str) -> ProfileUpdate {
-    ProfileUpdate {
-        name: Some(random_string()),
-        avatar: None,
-        banner: None,
-        description: None,
-        alias: Some(alias.to_owned()),
     }
 }

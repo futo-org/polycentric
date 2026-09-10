@@ -2,6 +2,10 @@
  * Alias resolution: maps an alias like `user@domain.com` to the polycentric
  * identity it points at, by looking it up at the domain's
  * `/.well-known/polycentric.json`.
+ *
+ * The server's notification worker has a Rust port of this
+ * (`services/server/src/service/notifications/alias_resolver.rs`). Keep the
+ * two in sync.
  */
 
 /** Give up on a slow/unresponsive domain rather than hang the resolver. */

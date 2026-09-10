@@ -24,7 +24,7 @@ use crate::service::context::ServiceContext;
 use crate::service::events::TargetEventKey;
 use crate::service::feeds::repository::Query as FeedsRepository;
 use crate::service::graph::repository::Query as GraphRepository;
-use crate::service::notifications::repository::Query as NotificationsRepository;
+use crate::service::notifications::alias_resolver;
 use crate::service::proofs::service::attach_proofs;
 use crate::service::verifications::repository::Query as VerificationsRepository;
 use crate::workers::{MessageHandler, Outcome, WorkerError, run_consumer};
@@ -214,26 +214,15 @@ impl MessageHandler for NotificationWorker {
         let event_notifications = build_notifications(author, &content);
 
         // A post also notifies the identities it mentions. Alias mentions
-        // resolve through the profiles claiming them.
+        // resolve through their domain's `.well-known/polycentric.json`; a
+        // failed lookup drops that mention rather than retrying, so a dead
+        // domain can't stall the partition.
         let mention_notifications = match &content.content_body {
             Some(ContentBody::Post(post)) => {
-                let identity_by_alias_map =
-                    match NotificationsRepository::find_identities_by_aliases(
-                        &self.ctx.ro_db,
-                        &extract_mentioned_aliases(&post.text),
-                    )
-                    .await
-                    {
-                        Ok(identity_by_alias_map) => identity_by_alias_map,
-                        Err(e) => {
-                            tracing::warn!(
-                                worker = Self::NAME,
-                                error = %e,
-                                "failed to resolve mentioned aliases"
-                            );
-                            return Outcome::Retry;
-                        }
-                    };
+                let identity_by_alias_map = alias_resolver::resolve_aliases(
+                    &extract_mentioned_aliases(&post.text),
+                )
+                .await;
                 build_mention_notifications(
                     author,
                     &post.text,
