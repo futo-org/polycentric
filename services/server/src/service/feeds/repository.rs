@@ -820,6 +820,26 @@ impl Query {
         DescendantRef::find_by_statement(stmt).all(db).await
     }
 
+    /// Get a single post.
+    pub(super) async fn get_post(
+        db: &DbConn,
+        target: &TargetEventKey,
+    ) -> Result<Option<EventWithContentRow>, Status> {
+        let mut query = event::Entity::find().select_also(content::Entity);
+        query = query
+            .join(JoinType::InnerJoin, content_join())
+            .filter(event::Column::Collection.eq(target.collection))
+            .filter(event::Column::Identity.eq(target.identity.clone()))
+            .filter(event::Column::PublicKeyType.eq(target.public_key_type))
+            .filter(event::Column::PublicKey.eq(target.public_key.clone()))
+            .filter(event::Column::Sequence.eq(target.sequence));
+
+        query.one(db).await.map_err(|err| {
+            tracing::error!("failed to get post: {err}");
+            Status::internal("internal server error")
+        })
+    }
+
     /// Get up to `limit` reaction events for the target post.
     /// Fetches in order of most-recent to least-recent so that we don't fetch
     /// outdated reactions from a user that have been superseded without also

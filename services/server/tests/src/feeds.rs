@@ -926,6 +926,312 @@ async fn thread_omit_labels_not_matching_keeps_post() {
 }
 
 #[tokio::test]
+async fn get_post() {
+    let mut client = TestClient::new().await;
+    client.post_text("Text", DEFAULT_CREATED_AT);
+    let target_key = client.get_last_event_key();
+    client.submit_events().await;
+
+    test_get_post(
+        target_key,
+        Some(EventMetadata {
+            reply_count: None,
+            reaction_count: Some(0),
+            upvote_count: Some(0),
+            downvote_count: Some(0),
+            emoji_reactions: Vec::new(),
+        }),
+        vec![
+            ExpectHint::moderator_identity(),
+            ExpectHint::Identity(client.identity().to_owned()),
+        ],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn get_post_not_created() {
+    let mut client = TestClient::new().await;
+    client.post_text("Text", DEFAULT_CREATED_AT);
+    let target_key = client.get_last_event_key();
+    client.pending.clear();
+    // NOTE: not submitting the post event.
+
+    test_get_post(target_key, None, Vec::new()).await;
+}
+
+#[tokio::test]
+async fn get_post_deleted() {
+    let mut client = TestClient::new().await;
+    client.post_text("Text", DEFAULT_CREATED_AT);
+    let target_key = client.get_last_event_key();
+    client.delete_key(target_key.clone(), DEFAULT_CREATED_AT + 1);
+    client.submit_events().await;
+
+    test_get_post(
+        target_key.clone(),
+        // We don't expect a post to be returned, but we do expect the deletion
+        // event.
+        None,
+        vec![
+            ExpectHint::moderator_identity(),
+            ExpectHint::Identity(client.identity().to_owned()),
+            ExpectHint::Delete(target_key),
+        ],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn get_post_with_quotes() {
+    let mut client = TestClient::new().await;
+    client.post_text("Text", DEFAULT_CREATED_AT);
+    let quoted_post = client.get_last_event_key();
+    client.quote(quoted_post.clone(), "Text that quotes", DEFAULT_CREATED_AT);
+    let post_with_quote = client.get_last_event_key();
+    client.submit_events().await;
+
+    // The original post that was quoted.
+    test_get_post(
+        quoted_post.clone(),
+        Some(EventMetadata {
+            reply_count: None,
+            reaction_count: Some(0),
+            upvote_count: Some(0),
+            downvote_count: Some(0),
+            emoji_reactions: Vec::new(),
+        }),
+        vec![
+            ExpectHint::moderator_identity(),
+            ExpectHint::Identity(client.identity().to_owned()),
+        ],
+    )
+    .await;
+
+    // The post that quotes the other one.
+    test_get_post(
+        post_with_quote,
+        Some(EventMetadata {
+            reply_count: None,
+            reaction_count: Some(0),
+            upvote_count: Some(0),
+            downvote_count: Some(0),
+            emoji_reactions: Vec::new(),
+        }),
+        vec![
+            ExpectHint::moderator_identity(),
+            ExpectHint::Identity(client.identity().to_owned()),
+            ExpectHint::Post(quoted_post.clone()),
+        ],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn get_post_with_reposts() {
+    let mut client = TestClient::new().await;
+    client.post_text("Text", DEFAULT_CREATED_AT);
+    let post = client.get_last_event_key();
+    client.repost_key(post.clone(), DEFAULT_CREATED_AT);
+    client.submit_events().await;
+
+    test_get_post(
+        post.clone(),
+        Some(EventMetadata {
+            reply_count: None,
+            reaction_count: Some(0),
+            upvote_count: Some(0),
+            downvote_count: Some(0),
+            emoji_reactions: Vec::new(),
+        }),
+        vec![
+            ExpectHint::moderator_identity(),
+            ExpectHint::Identity(client.identity().to_owned()),
+        ],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn get_post_with_labels() {
+    let mut client = TestClient::new().await;
+    client.post_text("Text", DEFAULT_CREATED_AT);
+    let post = client.get_last_event_key();
+    client.submit_events().await;
+
+    let (mut moderator, guard) = TestClient::trusted_moderator().await;
+    let labels = vec!["Label".into()];
+    moderator.label_key(post.clone(), labels.clone(), DEFAULT_CREATED_AT);
+    moderator.submit_events().await;
+    drop(guard);
+
+    test_get_post(
+        post,
+        Some(EventMetadata {
+            reply_count: None,
+            reaction_count: Some(0),
+            upvote_count: Some(0),
+            downvote_count: Some(0),
+            emoji_reactions: Vec::new(),
+        }),
+        vec![
+            ExpectHint::moderator_identity(),
+            ExpectHint::Identity(client.identity().to_owned()),
+            ExpectHint::Labels(labels),
+        ],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn get_post_with_reactions() {
+    let mut client = TestClient::new().await;
+    client.post_text("Text", DEFAULT_CREATED_AT);
+    let post = client.get_last_event_key();
+    client.thumbs_up(post.clone(), DEFAULT_CREATED_AT);
+    client.submit_events().await;
+    let post_identity = client.identity().to_owned();
+
+    let mut client = TestClient::new().await;
+    client.thumbs_up(post.clone(), DEFAULT_CREATED_AT);
+    client.submit_events().await;
+
+    test_get_post(
+        post,
+        Some(EventMetadata {
+            reply_count: None,
+            reaction_count: Some(2),
+            upvote_count: Some(2),
+            downvote_count: Some(0),
+            emoji_reactions: vec![ReactionTally {
+                emoji: "👍".to_owned(),
+                positive: true,
+                count: 2,
+            }],
+        }),
+        vec![
+            ExpectHint::moderator_identity(),
+            ExpectHint::Identity(post_identity),
+            /* These are not added.
+            ExpectHint::Reaction("👍".to_owned(), true),
+            ExpectHint::Reaction("👍".to_owned(), true),
+            */
+        ],
+    )
+    .await;
+}
+
+#[derive(Debug)]
+enum ExpectHint {
+    Identity(String),
+    Post(EventKey),
+    Delete(EventKey),
+    Labels(Vec<String>),
+    #[allow(dead_code)]
+    Reaction(String, bool),
+}
+
+impl ExpectHint {
+    fn moderator_identity() -> ExpectHint {
+        ExpectHint::Identity(
+            "020225a394cac01413ff43527f1644b1772d78d2cea873de1e8ae2f9c3c9f47b"
+                .to_owned(),
+        )
+    }
+}
+
+async fn test_get_post(
+    target: EventKey,
+    metadata: Option<EventMetadata>,
+    hints: Vec<ExpectHint>,
+) {
+    let mut feed = connect_feeds().await;
+    let response = feed
+        .get_post(GetPostRequest {
+            event_key: Some(target.clone()),
+        })
+        .await
+        .expect("failed to get post failed")
+        .into_inner();
+
+    eprintln!("Got event bundle: {:#?}", response.event_bundle);
+    if let Some(event_bundle) = response.event_bundle {
+        let metadata = metadata.expect("unexpected post");
+
+        let content = Content::decode(
+            &*event_bundle
+                .serialized_content
+                .as_ref()
+                .unwrap()
+                .content_bytes,
+        )
+        .unwrap();
+        if !matches!(&content.content_body, Some(ContentBody::Post(_))) {
+            panic!("unexpected event content: {content:?}");
+        };
+
+        let event = Event::decode(
+            &*event_bundle.signed_event.as_ref().unwrap().event_bytes,
+        )
+        .unwrap();
+        let key = event.key.as_ref().unwrap();
+        assert_eq!(*key, target, "expected: {target:?}, event: {key:?}");
+
+        assert_eq!(event_bundle.meta, Some(metadata));
+    } else {
+        assert!(metadata.is_none(), "missing post");
+    }
+
+    eprintln!("Got hints: {:#?}", response.event_hints);
+    assert_eq!(response.event_hints.len(), hints.len());
+    for (hint, expected) in response.event_hints.into_iter().zip(hints) {
+        let event_bundle = hint.event_bundle.as_ref().unwrap();
+        let content = Content::decode(
+            &*event_bundle
+                .serialized_content
+                .as_ref()
+                .unwrap()
+                .content_bytes,
+        )
+        .unwrap();
+        match (content.content_body.as_ref().unwrap(), &expected) {
+            (
+                ContentBody::Identity(identity),
+                ExpectHint::Identity(expected),
+            ) => {
+                assert_eq!(identity.derive_hex_key(), *expected);
+            }
+            (ContentBody::Delete(delete), ExpectHint::Delete(expected)) => {
+                assert_eq!(delete.event_key.as_ref().unwrap(), expected);
+            }
+            (ContentBody::Post(_), ExpectHint::Post(expected)) => {
+                let event = Event::decode(
+                    &*event_bundle.signed_event.as_ref().unwrap().event_bytes,
+                )
+                .unwrap();
+                let key = event.key.as_ref().unwrap();
+                assert_eq!(*key, *expected);
+            }
+            (ContentBody::Labels(labels), ExpectHint::Labels(expected)) => {
+                assert_eq!(*labels.event_key.as_ref().unwrap(), target);
+                assert_eq!(labels.label_values, *expected);
+            }
+            (
+                ContentBody::Reaction(reaction),
+                ExpectHint::Reaction(emoji, positive),
+            ) => {
+                assert_eq!(*reaction.event_key.as_ref().unwrap(), target);
+                assert_eq!(reaction.emoji.as_ref(), Some(&*emoji));
+                assert_eq!(reaction.positive, *positive);
+            }
+            (got, expected) => {
+                panic!("unexpected event: {got:?}, expected: {expected:?}")
+            }
+        }
+    }
+}
+
+#[tokio::test]
 async fn explore_feed_exists() {
     let mut feeds = connect_feeds().await;
 
