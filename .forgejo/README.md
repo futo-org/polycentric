@@ -9,7 +9,7 @@ and the CI toolchain images (`images/`) all live here.
 | Workflow | Runs on | Does |
 |---|---|---|
 | `pr.yml` | pull requests | lint, package, image and docs builds, unit, integration and e2e tests, docs preview |
-| `pr-app.yml` | `build-app` label on a PR | staging EAS builds |
+| `pr-app.yml` | `PR / Build App` label on a PR, or `PR / Build App / Android APK`, `PR / Build App / Android AAB`, `PR / Build App / iOS` for one target | staging EAS builds |
 | `pr-docs-cleanup.yml` | PR closed | remove the docs preview |
 | `deploy-<component>-staging.yml` | push to `develop` touching the component, manual run | staging deploy |
 | `deploy-<component>-production.yml` | manual | production deploy |
