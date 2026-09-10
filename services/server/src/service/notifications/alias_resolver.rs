@@ -105,22 +105,32 @@ async fn resolve_aliases_with(
                         domain = %domain,
                         error = %e,
                         latency_ms = start.elapsed().as_millis() as u64,
-                        "alias lookup failed"
+                        "alias document fetch failed"
                     );
                 })
-                .unwrap_or_default();
-            (aliases_at_domain, names)
+                .ok();
+            (domain, aliases_at_domain, names)
         });
     }
 
     let mut outcome_by_alias_map = HashMap::new();
-    while let Some(Ok((aliases_at_domain, names))) = fetches.join_next().await {
+    while let Some(Ok((domain, aliases_at_domain, names))) =
+        fetches.join_next().await
+    {
         for (alias, local) in aliases_at_domain {
-            let identity = names
-                .get(&local)
-                .and_then(serde_json::Value::as_str)
-                .filter(|id| is_identity_key(id))
-                .map(str::to_string);
+            let identity = names.as_ref().and_then(|names| {
+                match names.get(&local).and_then(serde_json::Value::as_str) {
+                    Some(id) if is_identity_key(id) => Some(id.to_string()),
+                    Some(_) => {
+                        tracing::warn!(domain = %domain, alias, "alias entry is not an identity key");
+                        None
+                    }
+                    None => {
+                        tracing::warn!(domain = %domain, alias, "alias not listed in document");
+                        None
+                    }
+                }
+            });
             outcome_by_alias_map.insert(alias, identity);
         }
     }
@@ -128,7 +138,8 @@ async fn resolve_aliases_with(
 }
 
 /// The `names` object of the `/.well-known/polycentric.json` document at
-/// `url`, or why it couldn't be read. Left untyped so a partially valid
+/// `url`, or why it couldn't be read (transport, status, size, invalid JSON,
+/// no `names` object). Left untyped so a partially valid
 /// document (an entry that isn't a string) still serves its other entries,
 /// as in the client.
 async fn fetch_alias_names(
@@ -151,9 +162,12 @@ async fn fetch_alias_names(
         }
         body.extend_from_slice(&chunk);
     }
-    serde_json::from_slice::<serde_json::Value>(&body)
-        .map(|doc| doc.get("names").cloned().unwrap_or(serde_json::Value::Null))
-        .map_err(|e| e.to_string())
+    let doc: serde_json::Value = serde_json::from_slice(&body)
+        .map_err(|e| format!("invalid json: {e}"))?;
+    match doc.get("names") {
+        Some(names) if names.is_object() => Ok(names.clone()),
+        _ => Err("no names object".to_string()),
+    }
 }
 
 /// An alias split into the `names` key to look up and the domain serving it.
