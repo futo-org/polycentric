@@ -3,7 +3,8 @@ import type { PropsWithChildren } from 'react';
 
 const ROOT_STYLE =
   'html{overflow-y:scroll}#root{display:flex;flex-direction:column;min-height:100vh}' +
-  'html>body[data-scroll-locked]{overflow:visible!important;margin-right:0!important}';
+  'html>body[data-scroll-locked]{overflow:visible!important;margin-right:0!important}' +
+  '@media(hover:hover){.underlineOnHover:hover{text-decoration:underline}}';
 
 // Declared here rather than through expo-font, whose injected @font-face has
 // no font-weight range: browsers then clamp the variable font to 400 and

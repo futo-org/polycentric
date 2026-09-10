@@ -1,7 +1,6 @@
 import Icon from '@/src/common/components/Icon';
-import { ExternalLink } from '@/src/common/components/primitives';
 import { Atoms, typography, useTheme } from '@/src/common/theme';
-import type { ExternalPathString } from 'expo-router';
+import { type ExternalPathString, Link } from 'expo-router';
 import { type ComponentProps, useCallback } from 'react';
 import { Pressable, View } from 'react-native';
 import { FUTO_URL } from '../../constants';
@@ -71,12 +70,13 @@ type FooterLinkProps = {
 function FooterLink({ href, text }: FooterLinkProps) {
   const { theme } = useTheme();
   return (
-    <ExternalLink
+    <Link
+      className="underlineOnHover"
       href={href}
       accessibilityLabel={text}
       style={theme.atoms.text_neutral_low}
     >
       {text}
-    </ExternalLink>
+    </Link>
   );
 }

@@ -1,4 +1,4 @@
-import { ExternalLink, Text } from '@/src/common/components/primitives';
+import { Text } from '@/src/common/components/primitives';
 import { Routes } from '@/src/common/constants';
 import type { PostData } from '@/src/common/lib/polycentric-hooks';
 import {
@@ -8,7 +8,7 @@ import {
 import { Atoms } from '@/src/common/theme';
 import { useProfile } from '@/src/features/profile/hooks/useProfile';
 import { v2 } from '@polycentric/react-native';
-import { type ExternalPathString, router } from 'expo-router';
+import { type ExternalPathString, Link, router } from 'expo-router';
 import { memo, useCallback, useMemo } from 'react';
 import { Pressable, View } from 'react-native';
 import { PostImages } from '../PostImages';
@@ -104,9 +104,13 @@ function ApplicationSubheader({
         {prefix}
       </Text>
       {url ? (
-        <ExternalLink href={url as ExternalPathString} target="_blank">
+        <Link
+          className="underlineOnHover"
+          href={url as ExternalPathString}
+          target="_blank"
+        >
           {label}
-        </ExternalLink>
+        </Link>
       ) : (
         label
       )}

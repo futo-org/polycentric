@@ -1,15 +1,16 @@
 import { Text } from '@/src/common/components/primitives';
 import { Routes } from '@/src/common/constants/routes';
 import { useWebHover } from '@/src/common/lib/useWebHover';
-import { Atoms } from '@/src/common/theme';
+import { Atoms, useTheme } from '@/src/common/theme';
 import {
   parseTextLinks,
   truncateSegments,
   type TextSegment,
 } from '@/src/common/util/parseTextLinks';
-import { router } from 'expo-router';
+import { isWeb } from '@/src/common/util/platform';
+import { type Href, Link, router } from 'expo-router';
 import { memo, useMemo, useState } from 'react';
-import { Linking, Pressable } from 'react-native';
+import { Pressable } from 'react-native';
 
 const PREVIEW_LIMIT = 240;
 const MAX_DISPLAY_LIMIT = 2000;
@@ -50,7 +51,9 @@ export const PostText = memo(function PostText({
   return (
     <>
       <Text variant="secondary" selectable={selectable} {...size}>
-        {segments.map((segment, key) => renderSegment(segment, key, size))}
+        {segments.map((segment) => (
+          <Segment key={segment.start} segment={segment} size={size} />
+        ))}
         {truncated ? '…' : ''}
       </Text>
       {truncateToPreview && truncated ? (
@@ -81,46 +84,67 @@ function ShowMoreToggle({ onPress }: { onPress: () => void }) {
   );
 }
 
-/**
- * Render one parsed segment: plain text, a hyperlink (URLs/bare domains,
- * opened in the browser), a hashtag (navigates to search), or a mention — an
- * alias (`@user@domain.com`) or identity (`@<64-hex>`) — that navigates to
- * that profile in-app. The tap is stopped from also triggering the
- * surrounding post-card press.
- */
-function renderSegment(segment: TextSegment, key: number, size: PostTextSize) {
-  if (segment.type === 'text') {
-    return segment.value;
+function Segment({
+  segment,
+  size,
+}: {
+  segment: TextSegment;
+  size: PostTextSize;
+}) {
+  const { theme } = useTheme();
+
+  if (segment.type === 'text') return segment.value;
+
+  const href = buildSegmentHref(segment);
+
+  if (isWeb) {
+    return (
+      <Link
+        className="underlineOnHover"
+        href={href}
+        target={segment.type === 'link' ? '_blank' : undefined}
+        style={{ color: theme.palette.primary_500 }}
+        // Don't open the surrounding post card.
+        onPress={(e) => e.stopPropagation?.()}
+      >
+        {segment.value}
+      </Link>
+    );
   }
 
   return (
     <Text
-      key={key}
       variant="secondary"
       color="primary_500"
       fontWeight="regular"
       {...size}
       onPress={(e) => {
+        // Don't open the surrounding post card.
         e.stopPropagation?.();
-        if (segment.type === 'link') {
-          void Linking.openURL(segment.url).catch(() => {});
-        } else if (segment.type === 'hashtag') {
-          router.push({
-            pathname: Routes.tabs.explore.search,
-            params: { q: segment.tag },
-          });
-        } else {
-          router.push({
-            pathname: '/[identityId]',
-            params: {
-              identityId:
-                segment.type === 'alias' ? segment.alias : segment.identity,
-            },
-          });
-        }
+        // expo-router hands URLs (anything with a scheme) to Linking.openURL
+        // and navigates in-app otherwise.
+        router.push(href);
       }}
     >
       {segment.value}
     </Text>
   );
+}
+
+function buildSegmentHref(
+  segment: Exclude<TextSegment, { type: 'text' }>,
+): Href {
+  switch (segment.type) {
+    case 'link':
+      return segment.url as Href;
+    case 'hashtag':
+      return {
+        pathname: Routes.tabs.explore.search,
+        params: { q: segment.tag },
+      };
+    case 'alias':
+      return Routes.tabs.profile(segment.alias);
+    case 'identity':
+      return Routes.tabs.profile(segment.identity);
+  }
 }
