@@ -23,6 +23,8 @@ pub struct Model {
     ///
     /// Same as `events.identity`.
     pub identity: String,
+    /// Same as `content_profile_update.name`.
+    pub name: Option<String>,
 
     #[sea_orm(belongs_to, from = "event_id", to = "id")]
     pub parent: HasOne<super::event::Entity>,

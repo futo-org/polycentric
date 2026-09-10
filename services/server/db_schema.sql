@@ -564,6 +564,7 @@ CREATE TABLE public.pairing_session_claimer (
 CREATE TABLE public.profile (
     event_id bigint NOT NULL,
     identity text NOT NULL,
+    name text,
     search_data tsvector NOT NULL
 );
 

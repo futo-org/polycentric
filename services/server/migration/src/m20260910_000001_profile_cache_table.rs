@@ -25,6 +25,11 @@ impl MigrationTrait for Migration {
                 def
             })
             .col({
+                let mut def = ColumnDef::new(profile::Column::Name);
+                def.text().null();
+                def
+            })
+            .col({
                 let mut def = ColumnDef::new("search_data");
                 def.custom("tsvector").null(); // NOTE: set to NOT NULL below.
                 def
@@ -37,6 +42,7 @@ impl MigrationTrait for Migration {
             .columns([
                 profile::Column::EventId.unquoted(),
                 profile::Column::Identity.unquoted(),
+                profile::Column::Name.unquoted(),
                 "search_data",
             ])
             .select_from({
@@ -57,6 +63,7 @@ impl MigrationTrait for Migration {
                         )
                     )
                     .expr(Expr::col(event::Column::Identity.as_column_ref()))
+                    .expr(Expr::cust("any_value(content_profile_update.name)"))
                     .expr(Expr::cust("create_tsvector('simple', COALESCE(any_value(content_profile_update.alias), ''), 'A') || create_tsvector('simple', COALESCE(any_value(content_profile_update.name)::TEXT, ''), 'B')"))
                     .from(event::Entity)
                     .inner_join(
