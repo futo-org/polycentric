@@ -17,6 +17,7 @@ base64.workspace = true
 ed25519-dalek.workspace = true
 getrandom.workspace = true
 hex.workspace = true
+mockito = { version = "1", default-features = false }
 polycentric-common = { workspace = true, features = ["transport"] }
 prost = { version = "0.14", default-features = false }
 rand = { version = "0.10", default-features = false, features = ["std", "std_rng", "thread_rng"] }

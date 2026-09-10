@@ -1,8 +1,9 @@
 //! Mention notifications end to end: a post mentioning identities notifies
 //! them, except the reply target, which gets its Reply only. Alias mentions
-//! resolve through a real HTTPS domain's `.well-known/polycentric.json`, so
-//! they aren't covered here (see the resolver's unit tests). Needs the
-//! `workers` process running.
+//! resolve through `<domain>/.well-known/polycentric.json`, which this test
+//! serves from a local mock server, so the workers must be started with
+//! `POLYCENTRIC_ALIAS_ORIGIN_OVERRIDES=example.com=http://localhost:3999`.
+//! Needs the `workers` process running.
 
 use crate::*;
 use polycentric_common::models::protos_v2::notification_service_client::NotificationServiceClient;
@@ -10,8 +11,32 @@ use std::time::{Duration, Instant};
 
 const NOTIFICATION_TIMEOUT: Duration = Duration::from_secs(60);
 
+/// Where the workers fetch `example.com`'s alias document from. One test
+/// owns this port; a second alias test would have to share its server.
+const ALIAS_MOCK_PORT: u16 = 3999;
+
 #[tokio::test]
-async fn mentions_notify_identities_and_skip_the_reply_target() {
+async fn mentions_notify_identities_and_aliases_and_skip_the_reply_target() {
+    let mut alias_mentioned = TestClient::new().await;
+    alias_mentioned.submit_events().await;
+    let alias_local = random_string().to_lowercase();
+    let mut alias_server =
+        mockito::Server::new_with_opts_async(mockito::ServerOpts {
+            host: "0.0.0.0",
+            port: ALIAS_MOCK_PORT,
+            ..Default::default()
+        })
+        .await;
+    let alias_document = alias_server
+        .mock("GET", "/.well-known/polycentric.json")
+        .expect(1)
+        .with_body(format!(
+            r#"{{"names":{{"{alias_local}":"{}"}}}}"#,
+            alias_mentioned.identity()
+        ))
+        .create_async()
+        .await;
+
     let mut parent_author = TestClient::new().await;
     parent_author.post_text("parent", DEFAULT_CREATED_AT);
     let parent_key = parent_author.get_last_event_key();
@@ -22,11 +47,15 @@ async fn mentions_notify_identities_and_skip_the_reply_target() {
     let mut bare_mentioned = TestClient::new().await;
     bare_mentioned.submit_events().await;
 
+    // Mixed case: alias lookup is case-insensitive. The unlisted alias at the
+    // same domain shares the one fetch and resolves to nobody.
     let mut author = TestClient::new().await;
     author.reply(
         parent_key,
         &format!(
-            "hi @{} @{{{},Someone}} @{{{}}}",
+            "hi @{}@EXAMPLE.COM @{}@example.com @{} @{{{},Someone}} @{{{}}}",
+            alias_local.to_uppercase(),
+            random_string().to_lowercase(),
             bare_mentioned.identity(),
             curly_mentioned.identity(),
             parent_author.identity(),
@@ -36,6 +65,12 @@ async fn mentions_notify_identities_and_skip_the_reply_target() {
     author.submit_events().await;
 
     let author_identity = author.identity().to_owned();
+    assert_eq!(
+        wait_for_notifications(alias_mentioned.identity(), 1).await,
+        vec![(NotificationKind::Mention, author_identity.clone())],
+        "alias mention gets one Mention"
+    );
+    alias_document.assert_async().await;
     assert_eq!(
         wait_for_notifications(bare_mentioned.identity(), 1).await,
         vec![(NotificationKind::Mention, author_identity.clone())],

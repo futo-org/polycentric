@@ -41,6 +41,8 @@ services:
       - POLYCENTRIC_SCRAPER_URL=http://scraper:8855
       # Accepted JWT audiences (emulator needs 10.0.2.2). Defaults to SERVER_NAME.
       - POLYCENTRIC_ALLOW_HOSTS=${POLYCENTRIC_ALLOW_HOSTS:-http://localhost:3000}
+      # Test hook only (see integration-server.sh); unset in real deployments.
+      - POLYCENTRIC_ALIAS_ORIGIN_OVERRIDES=${POLYCENTRIC_ALIAS_ORIGIN_OVERRIDES:-}
     # On both the shared app network and the isolated scraper link, so it can
     # talk to postgres/kafka/etc. AND to the scraper.
     networks:

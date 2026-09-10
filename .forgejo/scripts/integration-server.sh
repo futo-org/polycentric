@@ -149,6 +149,12 @@ if [ "$CI_MODE" = true ]; then
 
   echo "==> Starting server and workers…"
   export POLYCENTRIC_MODERATION_IDENTITY="$MODERATOR_IDENTITY"
+  # The mention integration test serves example.com's alias document from a
+  # mock server in this job container; the workers reach it over the stack
+  # network (see ALIAS_MOCK_PORT in services/server/tests/src/notifications.rs).
+  JOB_IP=$(docker inspect -f '{{(index .NetworkSettings.Networks "'${NETWORK}'").IPAddress}}' "$(self_container)")
+  export POLYCENTRIC_ALIAS_ORIGIN_OVERRIDES="example.com=http://${JOB_IP}:3999"
+  echo "    alias origin override: ${POLYCENTRIC_ALIAS_ORIGIN_OVERRIDES}"
   # server-workers materializes notifications (the mention/reply integration
   # tests poll for them); it is behind the `push` profile in compose.yml.
   export COMPOSE_PROFILES=push
