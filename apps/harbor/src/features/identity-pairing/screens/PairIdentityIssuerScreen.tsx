@@ -6,7 +6,7 @@ import { usePairIdentityIssuer } from '@/src/features/identity-pairing/hooks/use
 import { publicKeyEmojiFingerprint } from '@/src/features/identity-pairing/publicKeyEmojiFingerprint';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { encodePairingCode, EncodingMode } from '../pairingCode';
@@ -35,18 +35,28 @@ export default function PairIdentityIssuerScreen() {
     setClaimerCursor((count) => (count === claimerCursor ? count + 1 : count));
   };
 
-  // TODO: it would be nice to have a success status page for 'done'
-  // and an error status page for `expired`.
-  useEffect(() => {
-    if (stage === 'done' || expired) {
-      router.back();
-    }
-  }, [stage, expired]);
-
   let pendingClaimer: string | null = null;
 
   if ((stage === 'polling' || stage === 'approving') && !expired) {
     pendingClaimer = claimers.at(claimerCursor) ?? null;
+  }
+
+  let mainContent: ReactNode;
+
+  if (expired) {
+    mainContent = (
+      <StatusDisplay status="error" message="The pairing code expired." />
+    );
+  } else if (error) {
+    mainContent = <StatusDisplay status="error" message={error} />;
+  } else if (stage === 'done') {
+    mainContent = (
+      <StatusDisplay status="success" message="Pairing successful." />
+    );
+  } else {
+    mainContent = (
+      <PairingInfoCard info={info} remainingSeconds={remainingSeconds} />
+    );
   }
 
   return (
@@ -70,16 +80,7 @@ export default function PairIdentityIssuerScreen() {
                 { paddingTop: 100 },
               ]}
             >
-              {error ? (
-                <Text variant="body" color="negative_500">
-                  {error}
-                </Text>
-              ) : (
-                <PairingInfoCard
-                  info={info}
-                  remainingSeconds={remainingSeconds}
-                />
-              )}
+              {mainContent}
             </ScrollView>
           </View>
         </Screen.PrimaryColumn>
@@ -228,6 +229,44 @@ function CopyButton({ info }: { info: v2.PairingInfo | null }) {
       disabled={!info}
       onPress={doCopy}
     />
+  );
+}
+
+/** Display the outcome of the pairing process to the user. */
+function StatusDisplay({
+  status,
+  message,
+}: {
+  status: 'success' | 'error';
+  message: string;
+}) {
+  const successful = status === 'success';
+
+  return (
+    <View
+      style={[
+        Atoms.py_2xl,
+        Atoms.gap_md,
+        Atoms.items_center,
+        { width: '100%', maxWidth: 320 },
+      ]}
+    >
+      <Icon
+        name={successful ? 'checkmarkCircle' : 'closeCircle'}
+        size={72}
+        color={successful ? 'primary_500' : 'negative_500'}
+      />
+      <Text variant="subtitle" style={Atoms.text_left}>
+        {message}
+      </Text>
+      <Button
+        title="Done"
+        variant="primary"
+        size="md"
+        fullWidth
+        onPress={() => router.back()}
+      />
+    </View>
   );
 }
 
