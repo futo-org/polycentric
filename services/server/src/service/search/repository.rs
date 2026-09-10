@@ -4,14 +4,13 @@ use crate::service::proto::{SortPostsBy, SortUsersBy};
 use crate::service::search::rpc::search_posts::SortedPostsBy;
 use crate::service::search::rpc::search_users::SortedUsersBy;
 use crate::util::db::{CONTENT_PREFIX, EVENT_PREFIX, select_model_columns};
-use entity::{content, event};
+use entity::{content, event, profile};
 use sea_orm::sea_query::{Expr, Order, Value};
 use sea_orm::{
     ColumnTrait, ConnectionTrait, EntityTrait, FromQueryResult, Iterable,
     JoinType, QueryFilter, QueryOrder, QueryResult, QuerySelect, RelationTrait,
     TryGetError, TryGetableMany,
 };
-use std::collections::HashSet;
 use tonic::Status;
 
 // This type only exists to work around trying to get additional columns (e.g.
@@ -85,7 +84,7 @@ impl Query {
         let cursor_filter =
             cursor_filter.unwrap_or(&CursorFilter::Forward(Cursor::Start));
 
-        let mut query = event::Entity::find().select_only();
+        let mut query = profile::Entity::find().select_only();
         query =
             select_model_columns(query, EVENT_PREFIX, event::Column::iter());
         query = select_model_columns(
@@ -96,24 +95,24 @@ impl Query {
         query = query
             // TODO: we can use ts_rank_cd as well here.
             .expr_as(
-                Expr::cust("ts_rank(search_data, search_query($1))"),
+                Expr::cust("ts_rank(profile.search_data, search_query($1))"),
                 SEARCH_RANK_COLUMN,
             )
-            .expr_as(Expr::cust("content_profile_update.name"), "profile_name")
-            .join(JoinType::InnerJoin, content_join())
-            .join(
-                JoinType::InnerJoin,
-                content::Relation::ContentProfileUpdate.def(),
+            .expr_as(
+                Expr::col(profile::Column::Name.as_column_ref()),
+                "profile_name",
             )
+            .inner_join(event::Entity)
+            .join(JoinType::InnerJoin, content_join())
             .filter(Expr::cust_with_values(
-                "search_data @@ search_query($1)",
+                "profile.search_data @@ search_query($1)",
                 [search_query],
             ));
 
         let (column, order) = sort_users_by_column(sort_by);
         QueryOrder::query(&mut query)
-            .order_by_expr(Expr::cust(column), order.clone())
-            .order_by_expr(Expr::cust("events.id"), order);
+            .order_by_expr(column, order.clone())
+            .order_by(event::Column::Id.as_column_ref(), order);
 
         match cursor_filter {
             CursorFilter::Forward(cur) => match cur {
@@ -174,23 +173,11 @@ impl Query {
         }
         query = query.limit(limit + 1); // + 1 for pagination.
 
-        let mut rows: Vec<SearchUsersEvent> =
+        let rows: Vec<SearchUsersEvent> =
             query.into_tuple().all(db).await.map_err(|err| {
-                tracing::warn!("failed to search for users: {err}");
+                tracing::error!("failed to search for users: {err}");
                 Status::internal("internal server error")
             })?;
-
-        // Keep the highest sequence row per identity.
-        let mut seen = HashSet::new();
-        rows.extract_if(.., |row| {
-            if seen.contains(&row.event.identity) {
-                true // Remove
-            } else {
-                seen.insert(row.event.identity.clone());
-                false
-            }
-        })
-        .for_each(drop);
         Ok(rows)
     }
 
@@ -290,16 +277,18 @@ impl Query {
         query = query.limit(limit + 1); // + 1 for pagination.
 
         query.into_tuple().all(db).await.map_err(|err| {
-            tracing::warn!("failed to search for users: {err}");
+            tracing::error!("failed to search for users: {err}");
             Status::internal("internal server error")
         })
     }
 }
 
-fn sort_users_by_column(sort_by: SortUsersBy) -> (&'static str, Order) {
+fn sort_users_by_column(sort_by: SortUsersBy) -> (Expr, Order) {
     match sort_by {
-        SortUsersBy::Default => (SEARCH_RANK_COLUMN, Order::Desc),
-        SortUsersBy::Alpha => ("name", Order::Asc),
+        SortUsersBy::Default => (Expr::col(SEARCH_RANK_COLUMN), Order::Desc),
+        SortUsersBy::Alpha => {
+            (Expr::col(profile::Column::Name.as_column_ref()), Order::Asc)
+        }
     }
 }
 
