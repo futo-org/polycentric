@@ -2,6 +2,7 @@ import { Button, Screen, ScreenHeader, Text } from '@/src/common/components';
 import Icon from '@/src/common/components/Icon';
 import type { IconProps } from '@/src/common/components/Icon';
 import { Sheet } from '@/src/common/components/sheet';
+import { Routes } from '@/src/common/constants/routes';
 import { Atoms, type Palette, useTheme } from '@/src/common/theme';
 import { usePairIdentityIssuer } from '@/src/features/identity-pairing/hooks/usePairIdentityIssuer';
 import { publicKeyEmojiFingerprint } from '@/src/features/identity-pairing/publicKeyEmojiFingerprint';
@@ -478,5 +479,7 @@ function ApprovalSheet({
 function exit() {
   if (router.canGoBack()) {
     router.back();
+  } else {
+    router.replace(Routes.tabs.settings.index);
   }
 }
