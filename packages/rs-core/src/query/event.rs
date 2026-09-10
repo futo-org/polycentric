@@ -45,7 +45,6 @@ pub struct GetPostArgs {
     pub identity: String,
     pub collection: i32,
     pub sequence: u64,
-    // TODO:
     pub signer_key_prefix: Option<String>,
 }
 
@@ -305,11 +304,9 @@ pub fn get_post(
         event_key: Some(protos_v2::EventKey {
             collection,
             identity: identity.clone(),
-            signed_by: Some(protos_v2::PublicKey {
-                // TODO.
-                key_type: 1,
-                key: Vec::new(),
-            }),
+            // We don't have the full key, so don't send it and validate it when
+            // we get the events.
+            signed_by: None,
             sequence,
         }),
     };
