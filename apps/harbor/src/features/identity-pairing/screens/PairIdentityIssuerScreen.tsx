@@ -42,9 +42,11 @@ export default function PairIdentityIssuerScreen() {
 
   let pendingClaimer: string | null = null;
 
+  const errorIsExpired = error === RS_CORE_EXPIRATION_ERROR_MSG;
+
   // Expiration can be surfaced by rs-core as a validation error or from our
   // countdown reaching 0.
-  const expired = countdown.expired || error === RS_CORE_EXPIRATION_ERROR_MSG;
+  const expired = countdown.expired || errorIsExpired;
 
   if ((stage === 'polling' || stage === 'approving') && !expired) {
     pendingClaimer = claimers.at(claimerCursor) ?? null;
@@ -52,15 +54,8 @@ export default function PairIdentityIssuerScreen() {
 
   let mainContent: ReactNode;
 
-  if (error) {
-    mainContent = (
-      <StatusDisplay icon="error" summary={'Pairing failed.'} details={error} />
-    );
-  } else if (expired) {
-    mainContent = (
-      <StatusDisplay icon="error" summary="The pairing code expired." />
-    );
-  } else if (stage === 'done') {
+  if (stage === 'done') {
+    // Successful pairing takes precedence over any other status.
     mainContent = (
       <StatusDisplay
         icon="success"
@@ -68,7 +63,17 @@ export default function PairIdentityIssuerScreen() {
         details="Your other device should see the approval soon."
       />
     );
+  } else if (error && !errorIsExpired) {
+    // Keep any fatal error showing even after the session expires
+    mainContent = (
+      <StatusDisplay icon="error" summary={'Pairing failed.'} details={error} />
+    );
+  } else if (expired) {
+    mainContent = (
+      <StatusDisplay icon="error" summary="The pairing code expired." />
+    );
   } else {
+    // If we still believe the session to be valid, display its pairing info.
     mainContent = (
       <PairingInfoCard info={info} remainingSeconds={remainingSeconds} />
     );
