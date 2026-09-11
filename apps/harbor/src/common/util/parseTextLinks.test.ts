@@ -1,6 +1,7 @@
 import {
   mentionsToPlainText,
   parseTextLinks,
+  truncateSegments,
   type TextSegment,
 } from './parseTextLinks';
 
@@ -461,5 +462,39 @@ describe('mentionsToPlainText', () => {
     expect(mentionsToPlainText('plain https://x.com #tag')).toBe(
       'plain https://x.com #tag',
     );
+  });
+});
+
+describe('truncateSegments', () => {
+  const rendered = (text: string, limit: number) =>
+    truncateSegments(parseTextLinks(text), limit)
+      .segments.map((s) => s.value)
+      .join('');
+
+  it('cuts plain text mid-way', () => {
+    expect(rendered('hello world', 5)).toBe('hello');
+  });
+
+  it('counts a curly mention by its display name, not its raw length', () => {
+    const text = `hi @{${HEX64},Jane} bye`;
+    expect(rendered(text, 6)).toBe('hi ');
+    expect(rendered(text, 7)).toBe('hi Jane');
+    expect(rendered(text, 100)).toBe('hi Jane bye');
+  });
+
+  it('drops a mention/link that does not fit instead of splitting it', () => {
+    expect(rendered(`hi @{${HEX64},Jane Doe} bye`, 6)).toBe('hi ');
+    expect(rendered('see https://example.com now', 10)).toBe('see ');
+  });
+
+  it('keeps raw offsets consistent on a cut text segment', () => {
+    const [cut] = truncateSegments(parseTextLinks('abcdef'), 3).segments;
+    expect(cut).toEqual({ type: 'text', value: 'abc', start: 0, end: 3 });
+  });
+
+  it('reports whether anything was cut', () => {
+    const segments = parseTextLinks(`hi @{${HEX64},Jane}`);
+    expect(truncateSegments(segments, 7).truncated).toBe(false);
+    expect(truncateSegments(segments, 6).truncated).toBe(true);
   });
 });
