@@ -1,4 +1,4 @@
-import { twemojiCode } from '@/src/common/util/emoji';
+import { TWEMOJI_URL, twemojiCode } from '@/src/common/util/emoji';
 import { memo, useState } from 'react';
 import { Image, type ImageStyle, type StyleProp, Text } from 'react-native';
 
@@ -18,7 +18,7 @@ export const EmojiImage = memo(function EmojiImage({
   if (missing) return <Text style={{ fontSize: size * 0.85 }}>{sequence}</Text>;
   return (
     <Image
-      source={{ uri: `/twemoji/${twemojiCode(sequence)}.svg` }}
+      source={{ uri: `${TWEMOJI_URL}${twemojiCode(sequence)}.svg` }}
       resizeMode="contain"
       style={[{ width: size, height: size }, style]}
       accessibilityLabel={sequence}
