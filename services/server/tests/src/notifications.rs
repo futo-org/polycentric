@@ -2,7 +2,7 @@
 //! them, except the reply target, which gets its Reply only. Alias mentions
 //! resolve through `<domain>/.well-known/polycentric.json`, which this test
 //! serves from a local mock server, so the workers must be started with
-//! `POLYCENTRIC_ALIAS_ORIGIN_OVERRIDES=example.com=http://localhost:3999`.
+//! `POLYCENTRIC_ALIAS_TEST_ORIGIN=http://localhost:3999`.
 //! Needs the `workers` process running.
 
 use crate::*;
@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 const NOTIFICATION_TIMEOUT: Duration = Duration::from_secs(60);
 
-/// Where the workers fetch `example.com`'s alias document from. One test
+/// Where the workers fetch the alias document from. One test
 /// owns this port; a second alias test would have to share its server.
 const ALIAS_MOCK_PORT: u16 = 3999;
 

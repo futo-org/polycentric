@@ -47,6 +47,11 @@ pub struct Config {
     pub dynamic_feeds_gravity_hours: usize,
     /// How often the decayed reaction counts should be updated.
     pub feed_count_update_frequency: Duration,
+    /// Test hook (`POLYCENTRIC_ALIAS_TEST_ORIGIN`): fetch every mention
+    /// alias domain's `/.well-known/polycentric.json` from this origin
+    /// instead of `https://<domain>`, and allow plain HTTP. `None` in
+    /// production.
+    pub alias_test_origin: Option<String>,
 }
 
 static CONFIG: OnceLock<Config> = OnceLock::new();
@@ -108,6 +113,10 @@ pub fn init() -> &'static Config {
                 .and_then(|s| s.trim().parse().ok())
                 .unwrap_or(5 * 60), // 5 minutes (as seconds).
             ),
+            alias_test_origin: std::env::var("POLYCENTRIC_ALIAS_TEST_ORIGIN")
+                .ok()
+                .map(|s| s.trim().trim_end_matches('/').to_string())
+                .filter(|s| !s.is_empty()),
             server_name,
         }
     })

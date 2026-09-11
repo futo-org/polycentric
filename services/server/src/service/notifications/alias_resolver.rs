@@ -18,25 +18,12 @@ const MAX_DOCUMENT_BYTES: usize = 16 * 1024;
 
 const FETCH_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Test hook: `POLYCENTRIC_ALIAS_ORIGIN_OVERRIDES=domain=origin,...` fetches
-/// those domains' documents from the given origins instead of
-/// `https://domain`, so the integration tests can serve one from a local mock
-/// server. Setting it also allows plain HTTP. Leave unset in production.
-static ORIGIN_OVERRIDES: LazyLock<HashMap<String, String>> =
-    LazyLock::new(|| {
-        std::env::var("POLYCENTRIC_ALIAS_ORIGIN_OVERRIDES")
-            .unwrap_or_default()
-            .split(',')
-            .filter_map(|pair| pair.trim().split_once('='))
-            .map(|(domain, origin)| (domain.to_string(), origin.to_string()))
-            .collect()
-    });
-
 /// HTTPS only, no redirects: post text picks the host, so the fetch stays
-/// exactly where the alias points.
+/// exactly where the alias points. Plain HTTP only under the integration
+/// tests' `alias_test_origin`.
 static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
     reqwest::Client::builder()
-        .https_only(ORIGIN_OVERRIDES.is_empty())
+        .https_only(crate::config::get().alias_test_origin.is_none())
         .redirect(reqwest::redirect::Policy::none())
         .timeout(FETCH_TIMEOUT)
         .build()
@@ -52,9 +39,9 @@ pub async fn resolve_aliases(
     aliases: &[String],
 ) -> HashMap<String, Option<String>> {
     resolve_aliases_with(&CLIENT, aliases, &|domain| {
-        ORIGIN_OVERRIDES
-            .get(domain)
-            .cloned()
+        crate::config::get()
+            .alias_test_origin
+            .clone()
             .unwrap_or_else(|| format!("https://{domain}"))
     })
     .await
