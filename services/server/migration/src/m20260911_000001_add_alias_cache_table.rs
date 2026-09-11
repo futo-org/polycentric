@@ -16,15 +16,6 @@ impl MigrationTrait for Migration {
         let schema = Schema::new(manager.get_database_backend());
         manager
             .create_table(schema.create_table_from_entity(alias_cache::Entity))
-            .await?;
-        manager
-            .create_index(
-                Index::create()
-                    .name("idx_alias_cache_updated_at")
-                    .table(alias_cache::Entity)
-                    .col(alias_cache::Column::UpdatedAt)
-                    .to_owned(),
-            )
             .await
     }
 
