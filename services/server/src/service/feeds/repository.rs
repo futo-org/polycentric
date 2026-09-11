@@ -384,7 +384,7 @@ impl Query {
                 Cursor::End => { /* No filtering. */ }
             },
         }
-        query = query.limit(limit + 1); // + 1 for pagination.
+        query = query.limit(limit);
 
         query.into_tuple().all(db).await.map_err(|err| {
             tracing::warn!(error = %err, "failed to list feed events");
