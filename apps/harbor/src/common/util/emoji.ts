@@ -140,6 +140,10 @@ export function splitEmoji(text: string): string[] {
   return parts;
 }
 
+// Where `public/twemoji/` is served. A separate export so the bundle keeps
+// the literal, which the web deploy rewrites to the static bucket.
+export const TWEMOJI_URL = '/twemoji/';
+
 /**
  * Twemoji's file name for a sequence: code points in hex joined by "-", with
  * U+FE0F dropped unless the sequence has a ZWJ (matching twemoji.js).

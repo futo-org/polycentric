@@ -44,10 +44,14 @@ const CONTENT_TYPES = {
 };
 
 // Only a quote starts a URL; `expo-router/assets/` and `common/assets/`
-// also contain the substring as an inner path segment.
+// also contain the substring as an inner path segment. `twemoji/` is the
+// `public/` tree the app loads at runtime (TWEMOJI_URL).
 function rewriteAssetUrls(file) {
   const source = readFileSync(file, 'utf8');
-  const rewritten = source.replaceAll('"/assets/', `"${base}/assets/`);
+  const rewritten = source.replace(
+    /(["'])\/(assets|twemoji)\//g,
+    `$1${base}/$2/`,
+  );
   if (rewritten !== source) writeFileSync(file, rewritten);
 }
 
