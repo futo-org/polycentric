@@ -645,11 +645,17 @@ impl Mutation {
                 let mut q = SelectStatement::new();
                 q.from(event_table.clone())
                     .expr(Expr::col((event_table.clone(), event_id)))
-                    .expr(Expr::col((event_table, identity)))
+                    .expr(Expr::col((event_table.clone(), identity.clone())))
                     .expr(Expr::from(update.name.clone()))
                     .expr(Expr::cust_with_exprs(
-                        "create_tsvector('simple', COALESCE($1, ''), 'A') || create_tsvector('simple', COALESCE($2, ''), 'B')",
-                        [Expr::from(update.alias.clone()), Expr::from(update.name.clone())],
+                        "  create_tsvector('simple', COALESCE($1, ''), 'A')
+                        || create_tsvector('simple', $2, 'A')
+                        || create_tsvector('simple', COALESCE($3, ''), 'B')",
+                        [
+                            Expr::from(update.alias.clone()),
+                            Expr::col((event_table, identity)),
+                            Expr::from(update.name.clone()),
+                        ],
                     ));
                 q
             })

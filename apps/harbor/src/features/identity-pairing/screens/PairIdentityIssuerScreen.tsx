@@ -1,12 +1,14 @@
 import { Button, Screen, ScreenHeader, Text } from '@/src/common/components';
 import Icon from '@/src/common/components/Icon';
+import type { IconProps } from '@/src/common/components/Icon';
 import { Sheet } from '@/src/common/components/sheet';
-import { Atoms, useTheme } from '@/src/common/theme';
+import { Routes } from '@/src/common/constants/routes';
+import { Atoms, type Palette, useTheme } from '@/src/common/theme';
 import { usePairIdentityIssuer } from '@/src/features/identity-pairing/hooks/usePairIdentityIssuer';
 import { publicKeyEmojiFingerprint } from '@/src/features/identity-pairing/publicKeyEmojiFingerprint';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { encodePairingCode, EncodingMode } from '../pairingCode';
@@ -16,13 +18,17 @@ import type { v2 } from '@polycentric/react-native';
 /** Width of the UI elements in the pairing info card. */
 const PAIRING_BLOCK_WIDTH = 300;
 
+// TODO: structured error reporting from rs-core
+const RS_CORE_EXPIRATION_ERROR_MSG =
+  'CoreError.InvalidInput: Invalid input: pairing session has expired';
+
 export default function PairIdentityIssuerScreen() {
   const { theme } = useTheme();
 
   const { info, expiresAt, claimers, error, stage, approveClaimer } =
     usePairIdentityIssuer();
 
-  const { remainingSeconds, expired } = useCountdown(expiresAt);
+  const { remainingSeconds, ...countdown } = useCountdown(expiresAt);
 
   /**
    * The index into the claimers array to display to the user.
@@ -35,18 +41,43 @@ export default function PairIdentityIssuerScreen() {
     setClaimerCursor((count) => (count === claimerCursor ? count + 1 : count));
   };
 
-  // TODO: it would be nice to have a success status page for 'done'
-  // and an error status page for `expired`.
-  useEffect(() => {
-    if (stage === 'done' || expired) {
-      router.back();
-    }
-  }, [stage, expired]);
-
   let pendingClaimer: string | null = null;
+
+  const errorIsExpired = error === RS_CORE_EXPIRATION_ERROR_MSG;
+
+  // Expiration can be surfaced by rs-core as a validation error or from our
+  // countdown reaching 0.
+  const expired = countdown.expired || errorIsExpired;
 
   if ((stage === 'polling' || stage === 'approving') && !expired) {
     pendingClaimer = claimers.at(claimerCursor) ?? null;
+  }
+
+  let mainContent: ReactNode;
+
+  if (stage === 'done') {
+    // Successful pairing takes precedence over any other status.
+    mainContent = (
+      <StatusDisplay
+        icon="success"
+        summary="Pairing successful."
+        details="Your other device should see the approval soon."
+      />
+    );
+  } else if (error && !errorIsExpired) {
+    // Keep any fatal error showing even after the session expires
+    mainContent = (
+      <StatusDisplay icon="error" summary={'Pairing failed.'} details={error} />
+    );
+  } else if (expired) {
+    mainContent = (
+      <StatusDisplay icon="error" summary="The pairing code expired." />
+    );
+  } else {
+    // If we still believe the session to be valid, display its pairing info.
+    mainContent = (
+      <PairingInfoCard info={info} remainingSeconds={remainingSeconds} />
+    );
   }
 
   return (
@@ -60,26 +91,18 @@ export default function PairIdentityIssuerScreen() {
               { backgroundColor: theme.atoms.bg.backgroundColor },
             ]}
           >
-            <ScreenHeader title="Pair Identity" onBack={() => router.back()} />
+            <ScreenHeader title="Pair Identity" onBack={exit} />
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={[
                 Atoms.gap_lg,
                 Atoms.pb_lg,
                 Atoms.items_center,
+                Atoms.w_full,
                 { paddingTop: 100 },
               ]}
             >
-              {error ? (
-                <Text variant="body" color="negative_500">
-                  {error}
-                </Text>
-              ) : (
-                <PairingInfoCard
-                  info={info}
-                  remainingSeconds={remainingSeconds}
-                />
-              )}
+              {mainContent}
             </ScrollView>
           </View>
         </Screen.PrimaryColumn>
@@ -228,6 +251,77 @@ function CopyButton({ info }: { info: v2.PairingInfo | null }) {
       disabled={!info}
       onPress={doCopy}
     />
+  );
+}
+
+/** Display the outcome of the pairing process to the user. */
+function StatusDisplay({
+  icon,
+  summary,
+  details,
+}: {
+  icon: 'success' | 'error';
+  summary: string;
+  details?: string;
+}) {
+  const { theme } = useTheme();
+
+  let iconName: IconProps['name'];
+  let iconColor: IconProps['color'];
+  let detailsColor: keyof Palette;
+  let detailsBg: string;
+  let detailsBorder: string;
+
+  if (icon === 'success') {
+    iconName = 'checkmarkCircle';
+    iconColor = 'primary_500';
+    detailsColor = 'neutral_900';
+    detailsBg = theme.palette.neutral_25;
+    detailsBorder = theme.palette.neutral_100;
+  } else {
+    iconName = 'closeCircle';
+    iconColor = 'negative_500';
+    detailsColor = 'negative_600';
+    detailsBg = theme.palette.negative_25;
+    detailsBorder = theme.palette.negative_100;
+  }
+
+  return (
+    <View
+      style={[
+        Atoms.py_2xl,
+        Atoms.gap_md,
+        Atoms.items_center,
+        { width: '100%', maxWidth: 450 },
+      ]}
+    >
+      <Icon name={iconName} size={72} color={iconColor} />
+
+      <Text variant="subtitle">{summary}</Text>
+
+      {details ? (
+        <View
+          style={[
+            Atoms.p_sm,
+            Atoms.rounded_lg,
+            Atoms.w_full,
+            {
+              backgroundColor: detailsBg,
+              borderWidth: 1,
+              borderColor: detailsBorder,
+            },
+          ]}
+        >
+          <Text variant="secondary" color={detailsColor}>
+            {details}
+          </Text>
+        </View>
+      ) : null}
+
+      <View style={{ width: '100%' }}>
+        <Button title="Done" variant="primary" fullWidth onPress={exit} />
+      </View>
+    </View>
   );
 }
 
@@ -380,4 +474,12 @@ function ApprovalSheet({
       </Sheet.Content>
     </Sheet>
   );
+}
+
+function exit() {
+  if (router.canGoBack()) {
+    router.back();
+  } else {
+    router.replace(Routes.tabs.settings.index);
+  }
 }

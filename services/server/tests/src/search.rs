@@ -95,6 +95,33 @@ async fn search_users_match_alias() {
 }
 
 #[tokio::test]
+async fn search_users_match_identity() {
+    let mut client = TestClient::new().await;
+
+    let alias = random_string();
+    let profile_update = ProfileUpdate {
+        name: Some(random_string()),
+        avatar: None,
+        banner: None,
+        description: None,
+        alias: Some(alias.clone()),
+    };
+    client.profile_update(profile_update.clone(), DEFAULT_CREATED_AT);
+    client.submit_events().await;
+    let identity = client.identity().to_owned();
+
+    expect_searched_users(
+        SearchUsersRequest {
+            query: identity,
+            sort_by: None,
+            page_params: None,
+        },
+        vec![profile_update],
+    )
+    .await;
+}
+
+#[tokio::test]
 async fn search_users_only_consider_latest_update() {
     let mut client = TestClient::new().await;
 

@@ -59,6 +59,7 @@ mod m20260904_000001_remove_unused_tables;
 mod m20260904_000003_recommended_feed_indices;
 mod m20260908_000001_recommended_feed_more_indices;
 mod m20260910_000001_profile_cache_table;
+mod m20260910_000002_profile_search_include_identity;
 
 mod old_entity;
 
@@ -127,6 +128,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260904_000003_recommended_feed_indices::Migration),
             Box::new(m20260908_000001_recommended_feed_more_indices::Migration),
             Box::new(m20260910_000001_profile_cache_table::Migration),
+            Box::new(m20260910_000002_profile_search_include_identity::Migration),
         ]
     }
 }
