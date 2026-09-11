@@ -4,7 +4,7 @@ use crate::service::content::repository::Mutation as ContentChildRepository;
 use crate::service::content::repository::{EventKeyParts, split_event_key};
 use crate::service::events::rpc::put_events::event_is_authorised;
 use ::entity::{
-    application, block, content, content_delete, event, follow, quote,
+    application, block, content, content_delete, event, follow, profile, quote,
     reaction, reaction_tally, reply, repost,
 };
 use chrono::Utc;
@@ -12,7 +12,7 @@ use polycentric_common::models::collections;
 use polycentric_common::models::protos_v2::content::ContentBody;
 use polycentric_common::models::protos_v2::{
     Application, Block, Content, ContentDigest, Delete, EventKey, Follow, Post,
-    Reaction, Repost,
+    ProfileUpdate, Reaction, Repost,
 };
 use sea_orm::sea_query::{
     CommonTableExpression, DeleteStatement, Expr, Func, InsertStatement,
@@ -23,6 +23,7 @@ use sea_orm::*;
 use tonic::Status;
 
 const COLLECTION_FEED: i16 = collections::FEED as i16;
+const COLLECTION_PROFILE: i16 = collections::PROFILE as i16;
 const COLLECTION_SOCIAL: i16 = collections::SOCIAL_GRAPH as i16;
 const COLLECTION_INTERACTIONS: i16 = collections::INTERACTIONS as i16;
 
@@ -299,6 +300,10 @@ impl Mutation {
             }
             ContentBody::Reaction(reaction) => {
                 Mutation::reaction_query(with, reaction, event_id_identity)
+                    .map(|q| Some(q.into()))
+            }
+            ContentBody::ProfileUpdate(update) => {
+                Mutation::profile_update_query(with, update, event_id_identity)
                     .map(|q| Some(q.into()))
             }
             ContentBody::Repost(repost) => {
@@ -606,6 +611,61 @@ impl Mutation {
         Ok(query)
     }
 
+    fn profile_update_query(
+        with: &mut WithClause,
+        update: &ProfileUpdate,
+        (event_table, event_id, identity): (DynIden, DynIden, DynIden),
+    ) -> Result<InsertStatement, DbErr> {
+        // Delete the previous profile.
+        let mut delete_old_profile = DeleteStatement::new();
+        delete_old_profile.from_table(profile::Entity).cond_where(
+            profile::Column::Identity.in_subquery({
+                let mut q = SelectStatement::new();
+                q.from(event_table.clone())
+                    .expr(Expr::col((event_table.clone(), identity.clone())));
+                q
+            }),
+        );
+        let mut cte = CommonTableExpression::new();
+        cte.table_name("delete_old_profile")
+            .query(delete_old_profile);
+        with.cte(cte);
+
+        // Insert the new profile.
+        let mut query = InsertStatement::new();
+        query
+            .into_table(profile::Entity)
+            .columns([
+                profile::Column::EventId.unquoted(),
+                profile::Column::Identity.unquoted(),
+                profile::Column::Name.unquoted(),
+                "search_data",
+            ])
+            .select_from({
+                let mut q = SelectStatement::new();
+                q.from(event_table.clone())
+                    .expr(Expr::col((event_table.clone(), event_id)))
+                    .expr(Expr::col((event_table.clone(), identity.clone())))
+                    .expr(Expr::from(update.name.clone()))
+                    .expr(Expr::cust_with_exprs(
+                        "  create_tsvector('simple', COALESCE($1, ''), 'A')
+                        || create_tsvector('simple', $2, 'A')
+                        || create_tsvector('simple', COALESCE($3, ''), 'B')",
+                        [
+                            Expr::from(update.alias.clone()),
+                            Expr::col((event_table, identity)),
+                            Expr::from(update.name.clone()),
+                        ],
+                    ));
+                q
+            })
+            .map_err(|err| {
+                DbErr::Custom(format!("incorrect amount of values: {err}"))
+            })?;
+
+        Ok(query)
+    }
+
     fn repost_query(
         repost: &Repost,
         (event_table, event_id, identity): (DynIden, DynIden, DynIden),
@@ -739,6 +799,13 @@ impl Mutation {
                 );
 
                 Ok(Some(query.into()))
+            }
+            COLLECTION_PROFILE => {
+                let mut delete_profile = DeleteStatement::new();
+                delete_profile
+                    .from_table(profile::Entity)
+                    .cond_where(profile::Column::EventId.in_subquery(event_id));
+                Ok(Some(delete_profile.into()))
             }
             // Deletion of a following or of a block. The event key does not
             // say which, so clear both caches.

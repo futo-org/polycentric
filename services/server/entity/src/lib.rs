@@ -42,11 +42,12 @@
 //!
 //! We also have cache tables that contain various pre-computed values to make
 //! it easier and cheapier to query for them. These include the following tables:
-//!  * [`follow`]contains a list of which identities are following which.
+//!  * [`follow`] contains a list of which identities are following which.
 //!  * [`reaction`] and [`reaction_tally`] contains the reaction made on posts.
 //!  * [`repost`] contains the reposts of posts made.
 //!  * [`quote`] contains the posts that are quoted by another post.
 //!  * [`reply`] contains the posts that are replied by another post.
+//!  * [`profile`] contains the latest profile information for an identity.
 //!
 //! The cache tables represent the current state, meaning that a delete event
 //! will remove it from the cache table, but the original event remains in the
@@ -86,6 +87,7 @@ pub mod moderator;
 pub mod notification;
 pub mod pairing_session;
 pub mod pairing_session_claimer;
+pub mod profile;
 pub mod quote;
 pub mod reaction;
 pub mod reaction_tally;
