@@ -40,9 +40,16 @@ export const PostContent = memo(function PostContent({
   const withApp = thirdPartyApplication(post.application);
 
   return (
-    <View style={[Atoms.gap_2xs, Atoms.mr_3xl]}>
+    <View style={Atoms.gap_2xs}>
       {replyParentId || withApp ? (
-        <View style={[Atoms.flex_row, Atoms.align_center, Atoms.max_w_full]}>
+        <View
+          style={[
+            Atoms.flex_row,
+            Atoms.align_center,
+            Atoms.max_w_full,
+            Atoms.mr_3xl,
+          ]}
+        >
           {replyParentId ? (
             <ReplyingToSubheader parentId={replyParentId} />
           ) : null}
