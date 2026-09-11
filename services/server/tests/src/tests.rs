@@ -562,6 +562,90 @@ pub fn current_timestamp() -> u64 {
     SystemTime::UNIX_EPOCH.elapsed().unwrap().as_millis() as u64
 }
 
+#[derive(Debug)]
+#[allow(dead_code)] // TODO: remove, not all variants are used yet.
+enum ExpectHint {
+    Identity(String),
+    Post(EventKey),
+    Delete(EventKey),
+    Labels {
+        post: EventKey,
+        values: Vec<String>,
+    },
+    Reaction {
+        post: EventKey,
+        emoji: String,
+        positive: bool,
+    },
+}
+
+impl ExpectHint {
+    fn moderator_identity() -> ExpectHint {
+        ExpectHint::Identity(
+            "020225a394cac01413ff43527f1644b1772d78d2cea873de1e8ae2f9c3c9f47b"
+                .to_owned(),
+        )
+    }
+}
+
+fn expect_hints(got: &[EventHint], expected: Vec<ExpectHint>) {
+    eprintln!("Got hints: {:#?}", got);
+    eprintln!("Expected hints: {:#?}", expected);
+    assert_eq!(got.len(), expected.len());
+    for (got, expected) in got.into_iter().zip(expected.iter()) {
+        let event_bundle = got.event_bundle.as_ref().unwrap();
+        let content = Content::decode(
+            &*event_bundle
+                .serialized_content
+                .as_ref()
+                .unwrap()
+                .content_bytes,
+        )
+        .unwrap();
+        match (content.content_body.as_ref().unwrap(), expected) {
+            (
+                ContentBody::Identity(identity),
+                ExpectHint::Identity(expected),
+            ) => {
+                assert_eq!(identity.derive_hex_key(), *expected);
+            }
+            (ContentBody::Delete(delete), ExpectHint::Delete(expected)) => {
+                assert_eq!(delete.event_key.as_ref().unwrap(), expected);
+            }
+            (ContentBody::Post(_), ExpectHint::Post(expected)) => {
+                let event = Event::decode(
+                    &*event_bundle.signed_event.as_ref().unwrap().event_bytes,
+                )
+                .unwrap();
+                let key = event.key.as_ref().unwrap();
+                assert_eq!(*key, *expected);
+            }
+            (
+                ContentBody::Labels(labels),
+                ExpectHint::Labels { post, values },
+            ) => {
+                assert_eq!(labels.event_key.as_ref().unwrap(), post);
+                assert_eq!(&*labels.label_values, &*values);
+            }
+            (
+                ContentBody::Reaction(reaction),
+                ExpectHint::Reaction {
+                    post,
+                    emoji,
+                    positive,
+                },
+            ) => {
+                assert_eq!(reaction.event_key.as_ref().unwrap(), post);
+                assert_eq!(reaction.emoji.as_ref(), Some(&*emoji));
+                assert_eq!(reaction.positive, *positive);
+            }
+            (got, expected) => {
+                panic!("unexpected event: {got:?}, expected: {expected:?}")
+            }
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn make_event(
     collection: i32,

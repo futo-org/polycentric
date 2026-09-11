@@ -679,6 +679,43 @@ async fn omit_labels_untrusted_label_does_not_hide() {
     );
 }
 
+#[tokio::test] // Regression test for #1492.
+async fn identity_feed_include_reply_to_identity() {
+    // Identity who doesn't have any posts in the feed, but who identity feed
+    // should still show up in the hints because of the reply below.
+    let mut other_client = TestClient::new().await;
+    other_client.post_text("Post 1", current_timestamp());
+    let post1_key = other_client.get_last_event_key();
+    other_client.submit_events().await;
+    let other_identity = other_client.identity().to_owned();
+
+    // Identity feed we're interested in.
+    let mut client = TestClient::new().await;
+    client.reply(post1_key.clone(), "Reply", current_timestamp());
+    client.submit_events().await;
+    let identity = client.identity().to_owned();
+
+    let response = connect_feeds()
+        .await
+        .get_identity_feed(GetIdentityFeedRequest {
+            identity: identity.clone(),
+            page_params: None,
+            omit_labels: Vec::new(),
+        })
+        .await
+        .expect("get_identity_feed failed")
+        .into_inner();
+
+    expect_hints(
+        &response.event_hints,
+        vec![
+            ExpectHint::moderator_identity(),
+            ExpectHint::Identity(identity),
+            ExpectHint::Identity(other_identity),
+        ],
+    );
+}
+
 #[tokio::test]
 async fn thread_no_labels_returns_post() {
     let mut event = connect_event_sync().await;
