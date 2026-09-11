@@ -50,3 +50,7 @@ docs/build
 
 # Secrets
 .env
+
+
+# local alias server document (dev/alias-server/server.mjs)
+dev/alias-server/polycentric.json
