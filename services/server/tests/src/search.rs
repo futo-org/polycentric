@@ -43,7 +43,7 @@ async fn search_users_match_profile_name() {
 }
 
 #[tokio::test]
-async fn search_users_match_description() {
+async fn search_users_does_not_match_description() {
     let mut client = TestClient::new().await;
 
     let description = random_string();
@@ -54,7 +54,7 @@ async fn search_users_match_description() {
         description: Some(description.clone()),
         alias: None,
     };
-    client.profile_update(profile_update.clone(), DEFAULT_CREATED_AT);
+    client.profile_update(profile_update, DEFAULT_CREATED_AT);
     client.submit_events().await;
 
     expect_searched_users(
@@ -63,7 +63,7 @@ async fn search_users_match_description() {
             sort_by: None,
             page_params: None,
         },
-        vec![profile_update],
+        vec![],
     )
     .await;
 }
@@ -90,6 +90,109 @@ async fn search_users_match_alias() {
             page_params: None,
         },
         vec![profile_update],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn search_users_match_identity() {
+    let mut client = TestClient::new().await;
+
+    let alias = random_string();
+    let profile_update = ProfileUpdate {
+        name: Some(random_string()),
+        avatar: None,
+        banner: None,
+        description: None,
+        alias: Some(alias.clone()),
+    };
+    client.profile_update(profile_update.clone(), DEFAULT_CREATED_AT);
+    client.submit_events().await;
+    let identity = client.identity().to_owned();
+
+    expect_searched_users(
+        SearchUsersRequest {
+            query: identity,
+            sort_by: None,
+            page_params: None,
+        },
+        vec![profile_update],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn search_users_only_consider_latest_update() {
+    let mut client = TestClient::new().await;
+
+    let old_alias = random_string();
+    let profile_update = ProfileUpdate {
+        name: Some(random_string()),
+        avatar: None,
+        banner: None,
+        description: None,
+        alias: Some(old_alias.clone()),
+    };
+    client.profile_update(profile_update, DEFAULT_CREATED_AT);
+    // Remove the alias, so we shouldn't match any more.
+    let profile_update = ProfileUpdate {
+        name: Some(random_string()),
+        avatar: None,
+        banner: None,
+        description: None,
+        alias: None,
+    };
+    client.profile_update(profile_update, DEFAULT_CREATED_AT + 1);
+    client.submit_events().await;
+
+    expect_searched_users(
+        SearchUsersRequest {
+            query: old_alias,
+            sort_by: None,
+            page_params: None,
+        },
+        vec![],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn search_users_do_not_consider_deleted_updates() {
+    let mut client = TestClient::new().await;
+
+    let alias = random_string();
+    let profile_update = ProfileUpdate {
+        name: Some(random_string()),
+        avatar: None,
+        banner: None,
+        description: None,
+        alias: Some(alias.clone()),
+    };
+    client.profile_update(profile_update.clone(), DEFAULT_CREATED_AT);
+    let event_key = client.get_last_event_key();
+    client.submit_events().await;
+
+    expect_searched_users(
+        SearchUsersRequest {
+            query: alias.clone(),
+            sort_by: None,
+            page_params: None,
+        },
+        vec![profile_update],
+    )
+    .await;
+
+    // After the profile update is deleted we shouldn't find the user any more.
+    client.delete_key(event_key, DEFAULT_CREATED_AT + 1);
+    client.submit_events().await;
+
+    expect_searched_users(
+        SearchUsersRequest {
+            query: alias,
+            sort_by: None,
+            page_params: None,
+        },
+        vec![],
     )
     .await;
 }
@@ -132,13 +235,13 @@ async fn search_users_order_by_rank() {
     let mut expected = Vec::new();
     for n in 1..=3 {
         let mut client = TestClient::new().await;
-        let description = repeated_string(n, &query, " ");
+        let alias = repeated_string(n, &query, " ");
         let profile_update = ProfileUpdate {
             name: Some(random_string()),
             avatar: None,
             banner: None,
-            description: Some(description),
-            alias: None,
+            description: None,
+            alias: Some(alias),
         };
         client.profile_update(profile_update.clone(), DEFAULT_CREATED_AT);
         client.submit_events().await;
@@ -165,13 +268,13 @@ async fn search_users_order_by_alpha() {
     let mut expected = Vec::new();
     for (n, name) in ["A", "B", "C"].into_iter().enumerate() {
         let mut client = TestClient::new().await;
-        let description = repeated_string(n + 1, &query, " ");
+        let alias = repeated_string(n + 1, &query, " ");
         let profile_update = ProfileUpdate {
             name: Some(name.to_owned()),
             avatar: None,
             banner: None,
-            description: Some(description),
-            alias: None,
+            description: None,
+            alias: Some(alias),
         };
         client.profile_update(profile_update.clone(), DEFAULT_CREATED_AT);
         client.submit_events().await;
@@ -197,13 +300,13 @@ async fn search_users_pagination_order_by_rank() {
     let mut expected = Vec::new();
     for n in 1..=3 {
         let mut client = TestClient::new().await;
-        let description = repeated_string(n, &query, " ");
+        let alias = repeated_string(n, &query, " ");
         let profile_update = ProfileUpdate {
             name: Some(random_string()),
             avatar: None,
             banner: None,
-            description: Some(description),
-            alias: None,
+            description: None,
+            alias: Some(alias),
         };
         client.profile_update(profile_update.clone(), DEFAULT_CREATED_AT);
         client.submit_events().await;
@@ -289,13 +392,13 @@ async fn search_users_pagination_order_by_alpha() {
     let mut expected = Vec::new();
     for (n, name) in ["A", "B", "C"].into_iter().enumerate() {
         let mut client = TestClient::new().await;
-        let description = repeated_string(n + 1, &query, " ");
+        let alias = repeated_string(n + 1, &query, " ");
         let profile_update = ProfileUpdate {
             name: Some(name.to_owned()),
             avatar: None,
             banner: None,
-            description: Some(description),
-            alias: None,
+            description: None,
+            alias: Some(alias),
         };
         client.profile_update(profile_update.clone(), DEFAULT_CREATED_AT);
         client.submit_events().await;
@@ -580,7 +683,6 @@ async fn search_posts_order_by_latest() {
 }
 
 #[tokio::test]
-#[ignore] // Currently failing, to be fixed in #201.
 async fn search_posts_omit_labels() {
     let query = random_string();
     let label = random_string();
@@ -590,7 +692,7 @@ async fn search_posts_omit_labels() {
     let post_event_key = client.get_last_event_key();
     client.submit_events().await;
 
-    let mut trusted_moderator = TestClient::trusted_moderator().await;
+    let (mut trusted_moderator, _guard) = TestClient::trusted_moderator().await;
     trusted_moderator.label(
         Labels {
             event_key: Some(post_event_key),

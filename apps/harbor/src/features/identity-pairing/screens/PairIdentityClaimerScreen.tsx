@@ -148,6 +148,11 @@ export default function PairIdentityClaimerScreen() {
                 Waiting for approval
               </Text>
             </View>
+
+            <Text variant="secondary" italic color="neutral_600">
+              On your other device, press "Approve" when the emojis match the
+              ones above.
+            </Text>
           </>
         )}
       </View>

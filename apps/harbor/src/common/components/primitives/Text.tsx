@@ -1,5 +1,7 @@
 import { UITextView } from '@bsky.app/react-native-uitextview';
-import type { TextProps as RNTextProps } from 'react-native';
+import { Children, type ReactNode } from 'react';
+import { type TextProps as RNTextProps, StyleSheet } from 'react-native';
+import { EmojiImage } from '@/src/common/components/EmojiImage';
 import {
   useTheme,
   typography,
@@ -8,6 +10,7 @@ import {
   type FontSizeToken,
   type LineHeightToken,
 } from '@/src/common/theme';
+import { splitEmoji } from '@/src/common/util/emoji';
 import { isWeb } from '@/src/common/util/platform';
 
 const WEB_FONT_STACK =
@@ -26,6 +29,45 @@ const NATIVE_FONTS: Record<
   '600': { normal: 'NotoSans-SemiBold', italic: 'NotoSans-SemiBoldItalic' },
   '700': { normal: 'NotoSans-Bold', italic: 'NotoSans-BoldItalic' },
 };
+
+// Inline Twemoji images, kept within the ascent (iOS clips above it) and
+// nudged below the baseline like a platform emoji glyph.
+const EMOJI_SIZE = 1.05;
+const EMOJI_BASELINE_SHIFT = 0.12;
+const EMOJI_GAP = 0.1;
+
+function withEmojiImages(text: string, fontSize: number): ReactNode {
+  const parts = splitEmoji(text);
+  if (parts.length === 1) return text;
+  const size = Math.round(fontSize * EMOJI_SIZE);
+  const shift = Math.round(fontSize * EMOJI_BASELINE_SHIFT);
+  const gap = Math.round(fontSize * EMOJI_GAP);
+  return parts.map((part, i) =>
+    i % 2 ? (
+      <EmojiImage
+        // biome-ignore lint/suspicious/noArrayIndexKey: runs are positional, derived from the string
+        key={i}
+        sequence={part}
+        size={size}
+        style={[
+          // iOS ignores margins on text attachments.
+          isWeb ? { marginHorizontal: gap } : { width: size + 2 * gap },
+          { transform: [{ translateY: shift }] },
+        ]}
+      />
+    ) : (
+      part
+    ),
+  );
+}
+
+function renderChildren(children: ReactNode, fontSize: number): ReactNode {
+  if (typeof children === 'string') return withEmojiImages(children, fontSize);
+  if (!Array.isArray(children)) return children;
+  return Children.map(children, (child) =>
+    typeof child === 'string' ? withEmojiImages(child, fontSize) : child,
+  );
+}
 
 export type TextVariant = 'title' | 'subtitle' | 'body' | 'secondary' | 'small';
 
@@ -46,6 +88,7 @@ export function Text({
   lineHeight,
   italic,
   style,
+  children,
   ...props
 }: TextProps) {
   const { theme } = useTheme();
@@ -94,7 +137,12 @@ export function Text({
         style,
       ]}
       {...props}
-    />
+    >
+      {renderChildren(
+        children,
+        StyleSheet.flatten(style)?.fontSize ?? resolvedFontSize,
+      )}
+    </UITextView>
   );
 }
 

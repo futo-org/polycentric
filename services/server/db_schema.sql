@@ -332,8 +332,7 @@ CREATE TABLE public.content_profile_update (
     avatar jsonb,
     banner jsonb,
     description text,
-    alias text,
-    search_data tsvector GENERATED ALWAYS AS (((public.create_tsvector('simple'::regconfig, alias, 'A'::"char") || public.create_tsvector('simple'::regconfig, (name)::text, 'B'::"char")) || public.create_tsvector('english'::regconfig, description, 'C'::"char"))) STORED NOT NULL
+    alias text
 );
 
 
@@ -554,6 +553,18 @@ CREATE TABLE public.pairing_session_claimer (
     claimer_key_type integer NOT NULL,
     claimer_key bytea NOT NULL,
     issuer_identity character varying NOT NULL
+);
+
+
+--
+-- Name: profile; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.profile (
+    event_id bigint NOT NULL,
+    identity text NOT NULL,
+    name text,
+    search_data tsvector NOT NULL
 );
 
 
@@ -887,6 +898,14 @@ ALTER TABLE ONLY public.content_post_attributed_url
 
 
 --
+-- Name: profile profile_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.profile
+    ADD CONSTRAINT profile_pkey PRIMARY KEY (event_id);
+
+
+--
 -- Name: quote quote_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1004,13 +1023,6 @@ CREATE INDEX content_post_reply_parent ON public.content_post USING btree (reply
 --
 
 CREATE INDEX content_post_search_data ON public.content_post USING gin (search_data);
-
-
---
--- Name: content_profile_update_search_data; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX content_profile_update_search_data ON public.content_profile_update USING gin (search_data);
 
 
 --
@@ -1144,6 +1156,13 @@ CREATE INDEX pairing_session_claimer_issuer_identity_idx ON public.pairing_sessi
 --
 
 CREATE UNIQUE INDEX pairing_session_digest_sha256_idx ON public.pairing_session USING btree (digest_sha256);
+
+
+--
+-- Name: profile_search_data; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX profile_search_data ON public.profile USING gin (search_data);
 
 
 --

@@ -9,7 +9,7 @@ and the CI toolchain images (`images/`) all live here.
 | Workflow | Runs on | Does |
 |---|---|---|
 | `pr.yml` | pull requests | lint, package, image and docs builds, unit, integration and e2e tests, docs preview |
-| `pr-app.yml` | `build-app` label on a PR | staging EAS builds |
+| `pr-app.yml` | `PR / Build App` label on a PR, or `PR / Build App / Android APK`, `PR / Build App / Android AAB`, `PR / Build App / iOS` for one target | staging EAS builds |
 | `pr-docs-cleanup.yml` | PR closed | remove the docs preview |
 | `deploy-<component>-staging.yml` | push to `develop` touching the component, manual run | staging deploy |
 | `deploy-<component>-production.yml` | manual | production deploy |
@@ -48,12 +48,9 @@ first build the SDKs, and wasm when its copy is missing), packages and pushes
 the component's chart as
 `<next patch>-<ref>.g<sha>` with the commit as `appVersion`, then moves the
 image and chart `staging` tags. helm-controller watches the chart tag. `web`
-also uploads its bundle to the static bucket. `app` queues the store builds
-on EAS and submits them, and builds the APK on the runner (`eas build
---local` in the `ci/rust-android` image, with the EAS profile's credentials
-and version) before uploading it and its update manifest to the static
-bucket. `ios_e2e` runs the iOS suite on the store build. `docs` deploys to
-Cloudflare Pages.
+also uploads its bundle to the static bucket. `app` builds the staging apps on
+EAS and submits them; `ios_e2e` runs the iOS suite on the store build. `docs`
+deploys to Cloudflare Pages.
 
 `deploy-<component>-production.yml` moves the `staging` image and chart tags
 to `production`, so production gets what staging runs. `sha` deploys that
@@ -103,6 +100,18 @@ job: they read and write the registry cache `<image>:cache-develop` with
 `mode=max`, and a build resumes from the step that changed. Rootless BuildKit
 needs the runner to start job containers with seccomp and AppArmor unconfined
 (harbor-ops runner config).
+
+## Release notes
+
+`release-notes.mjs` builds them the way GitLab's changelog API did: every
+commit since the previous `v*` tag with a `Changelog: <category>` line, grouped
+under `feature`, `fix`, `enhancement`, `security`, `deprecated`,
+`breaking-change`, `documentation` or `other`, each entry linking its commit
+and pull request, outside contributors credited. The line comes from the PR
+description: the pull request template starts with it, and
+`default_merge_message/SQUASH_TEMPLATE.md` carries the description into the
+squash commit (Forgejo's default keeps only the title). A PR without a
+category is left out of the notes.
 
 ## Forgejo notes
 

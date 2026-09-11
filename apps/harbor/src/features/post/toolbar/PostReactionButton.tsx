@@ -51,9 +51,9 @@ function PostReactionButton({ post }: PostReactionButtonProps) {
   const button = (
     <PostActionButton
       icon={hasReaction ? 'reaction' : 'reactionOutline'}
+      emoji={reaction?.positive ? reaction.emoji : undefined}
       active={hasReaction}
       highlighted={open}
-      color={'negative_500'}
       count={count}
     />
   );

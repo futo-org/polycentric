@@ -3,11 +3,11 @@
 //   apk/<channel>/harbor-latest.apk              (stable download link)
 //   apk/<channel>/latest.json                    (polled by the app)
 //
-// Reads apps/harbor/harbor.apk and release_notes.md (production tags only).
+// Reads apps/harbor/{eas-build.json,harbor.apk} and release_notes.md
+// (production tags only) from earlier jobs' artifacts.
 //
-// Env: UPDATE_CHANNEL (staging|production), APP_VERSION_NAME,
-// APP_VERSION_CODE (the apk-build action's outputs), STATIC_PUBLIC_BASE_URL,
-// and the STATIC_S3_* variables read by tools/static-bucket.
+// Env: UPDATE_CHANNEL (staging|production), STATIC_PUBLIC_BASE_URL, and
+// the STATIC_S3_* variables read by tools/static-bucket.
 
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -26,12 +26,17 @@ if (!publicBaseUrl) {
 
 const bucket = createStaticBucket();
 
-const versionName = process.env.APP_VERSION_NAME;
-const versionCode = Number(process.env.APP_VERSION_CODE);
+// `eas build --json` emits an array of builds.
+const easOutput = JSON.parse(
+  readFileSync('apps/harbor/eas-build.json', 'utf8'),
+);
+const build = Array.isArray(easOutput) ? easOutput[0] : easOutput;
+const versionName = build?.appVersion;
+const versionCode = Number(build?.appBuildVersion);
 if (!versionName || !Number.isInteger(versionCode) || versionCode <= 0) {
   console.error(
-    `APP_VERSION_NAME/APP_VERSION_CODE must name the APK's version ` +
-      `(got ${versionName} / ${process.env.APP_VERSION_CODE})`,
+    `could not read appVersion/appBuildVersion from eas-build.json ` +
+      `(got ${build?.appVersion} / ${build?.appBuildVersion})`,
   );
   process.exit(1);
 }
@@ -62,15 +67,20 @@ writeFileSync('latest.json', `${JSON.stringify(manifest, null, 2)}\n`);
 
 const APK_CONTENT_TYPE = 'application/vnd.android.package-archive';
 
-bucket.put(
+await bucket.put(
   apkKey,
   apkFile,
   APK_CONTENT_TYPE,
   'public, max-age=31536000, immutable',
 );
-bucket.put(latestApkKey, apkFile, APK_CONTENT_TYPE, 'public, max-age=300');
+await bucket.put(
+  latestApkKey,
+  apkFile,
+  APK_CONTENT_TYPE,
+  'public, max-age=300',
+);
 // Manifest goes last so it never points at an APK that isn't there yet.
-bucket.put(
+await bucket.put(
   manifestKey,
   'latest.json',
   'application/json',

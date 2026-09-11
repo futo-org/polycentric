@@ -1,6 +1,9 @@
 name: PR apps
 
-# The build-app label on a pull request: the staging EAS builds for its head.
+# Labels on a pull request start the staging EAS builds for its head:
+# `PR / Build App` builds everything; `PR / Build
+# App / Android APK`, `PR / Build App / Android AAB` and `PR / Build App / iOS`
+# just that one. The SDKs are built either way; only the EAS jobs are gated.
 
 on:
   pull_request:
@@ -21,7 +24,7 @@ env:
 jobs:
   changes:
     name: Plan
-    if: github.event.label.name == 'build-app'
+    if: contains(fromJSON('["PR / Build App", "PR / Build App / Android APK", "PR / Build App / Android AAB", "PR / Build App / iOS"]'), github.event.label.name)
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     outputs:
@@ -127,52 +130,65 @@ jobs:
           registry-user: ${{ vars.REGISTRY_USER }}
           registry-token: ${{ secrets.REGISTRY_TOKEN }}
 
-  store:
-    name: ${{ matrix.label }}
+  aab:
+    name: Build Android AAB
     needs: sdks
+    if: contains(fromJSON('["PR / Build App", "PR / Build App / Android AAB"]'), github.event.label.name)
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
     container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: android
-            name: app-android-aab-staging
-            label: Build Android AAB
-          - platform: ios
-            name: app-ios-staging
-            label: Build iOS app
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/eas-build
         with:
-          platform: ${{ matrix.platform }}
+          platform: android
           profile: staging
       - uses: forgejo/upload-artifact@v4
         with:
-          name: ${{ matrix.name }}
+          name: app-android-aab-staging
+          path: apps/harbor/eas-build.json
+          retention-days: 7
+
+  ios-app:
+    name: Build iOS app
+    needs: sdks
+    if: contains(fromJSON('["PR / Build App", "PR / Build App / iOS"]'), github.event.label.name)
+    runs-on: ${{ vars.CI_RUNNER || 'docker' }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/eas-build
+        with:
+          platform: ios
+          profile: staging
+      - uses: forgejo/upload-artifact@v4
+        with:
+          name: app-ios-staging
           path: apps/harbor/eas-build.json
           retention-days: 7
 
   apk:
     name: Build Android APK
-    needs: [changes, setup-images, sdks]
-    if: ${{ !cancelled() && needs.sdks.result == 'success' && needs.setup-images.result != 'failure' }}
+    needs: sdks
+    if: contains(fromJSON('["PR / Build App", "PR / Build App / Android APK"]'), github.event.label.name)
     runs-on: ${{ vars.CI_RUNNER || 'docker' }}
-    container:
-      image: ${{ needs.changes.outputs.registry }}/ci/rust-android:${{ needs.changes.outputs.images_tag }}
+    container: ${{ vars.CI_NODE_IMAGE || 'node:24-bookworm' }}
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.forgejo/actions/apk-build
+      - uses: ./.forgejo/actions/eas-build
         with:
+          platform: android
           profile: staging-apk
+          wait: 'true'
       - uses: forgejo/upload-artifact@v4
         with:
           name: app-android-apk-staging
-          path: apps/harbor/harbor.apk
+          path: |
+            apps/harbor/eas-build.json
+            apps/harbor/harbor.apk
           retention-days: 7

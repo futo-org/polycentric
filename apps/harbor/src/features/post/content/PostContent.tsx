@@ -5,21 +5,17 @@ import {
   hexToBytes,
   thirdPartyApplication,
 } from '@/src/common/lib/polycentric-hooks/helpers';
-import { useWebHover } from '@/src/common/lib/useWebHover';
 import { Atoms } from '@/src/common/theme';
 import { useProfile } from '@/src/features/profile/hooks/useProfile';
 import { v2 } from '@polycentric/react-native';
 import { type ExternalPathString, router } from 'expo-router';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { Pressable, View } from 'react-native';
 import { PostImages } from '../PostImages';
 import { PostLabels } from '../PostLabels';
 import { PostText } from '../PostText';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import { PostContentQuote } from './PostContentQuote';
-
-const PREVIEW_LIMIT = 240;
-const MAX_DISPLAY_LIMIT = 2000;
 
 /** A post's body: what it is replying to, its text, and its attachments. */
 export const PostContent = memo(function PostContent({
@@ -40,9 +36,16 @@ export const PostContent = memo(function PostContent({
   const withApp = thirdPartyApplication(post.application);
 
   return (
-    <View style={[Atoms.gap_2xs, Atoms.mr_3xl]}>
+    <View style={Atoms.gap_2xs}>
       {replyParentId || withApp ? (
-        <View style={[Atoms.flex_row, Atoms.align_center, Atoms.max_w_full]}>
+        <View
+          style={[
+            Atoms.flex_row,
+            Atoms.align_center,
+            Atoms.max_w_full,
+            Atoms.mr_3xl,
+          ]}
+        >
           {replyParentId ? (
             <ReplyingToSubheader parentId={replyParentId} />
           ) : null}
@@ -60,15 +63,12 @@ export const PostContent = memo(function PostContent({
       ) : null}
 
       {post.content ? (
-        focusedView ? (
-          <PostText
-            content={post.content.slice(0, MAX_DISPLAY_LIMIT)}
-            large
-            selectable
-          />
-        ) : (
-          <ExpandablePostText content={post.content} />
-        )
+        <PostText
+          content={post.content}
+          expandable={!focusedView}
+          large={focusedView}
+          selectable={focusedView}
+        />
       ) : null}
       {/* Render only the first link preview. A post may carry multiple
         `links` (e.g. from another client), but we cap the UI at one. */}
@@ -82,61 +82,6 @@ export const PostContent = memo(function PostContent({
     </View>
   );
 });
-
-/** Post text capped at PREVIEW_LIMIT with a Show more / Show less toggle. */
-function ExpandablePostText({ content }: { content: string }) {
-  const [expanded, setExpanded] = useState(false);
-
-  const { displayContent, isTruncatedPreview, showToggle } = useMemo(() => {
-    const capped =
-      content.length > MAX_DISPLAY_LIMIT
-        ? content.slice(0, MAX_DISPLAY_LIMIT)
-        : content;
-    const shown =
-      expanded || capped.length <= PREVIEW_LIMIT
-        ? capped
-        : capped.slice(0, PREVIEW_LIMIT);
-    const toggle = content.length > PREVIEW_LIMIT;
-    return {
-      displayContent: shown,
-      isTruncatedPreview: !expanded && toggle,
-      showToggle: toggle,
-    };
-  }, [content, expanded]);
-
-  const { hovered, onHoverIn, onHoverOut } = useWebHover();
-
-  const toggleExpanded = useCallback(() => {
-    setExpanded((v) => !v);
-  }, []);
-
-  return (
-    <>
-      <PostText
-        content={displayContent}
-        suffix={isTruncatedPreview ? '...' : ''}
-      />
-      {showToggle && (
-        <Pressable
-          onPress={toggleExpanded}
-          onHoverIn={onHoverIn}
-          onHoverOut={onHoverOut}
-          style={[Atoms.self_start]}
-        >
-          {!expanded && (
-            <Text
-              variant="body"
-              color="primary_500"
-              style={hovered ? { textDecorationLine: 'underline' } : undefined}
-            >
-              Show more
-            </Text>
-          )}
-        </Pressable>
-      )}
-    </>
-  );
-}
 
 function ApplicationSubheader({
   prefix,
