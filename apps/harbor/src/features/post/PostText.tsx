@@ -1,14 +1,85 @@
 import { Text } from '@/src/common/components/primitives';
 import { Routes } from '@/src/common/constants/routes';
+import { useWebHover } from '@/src/common/lib/useWebHover';
+import { Atoms } from '@/src/common/theme';
 import {
   parseTextLinks,
+  truncateSegments,
   type TextSegment,
 } from '@/src/common/util/parseTextLinks';
 import { router } from 'expo-router';
-import { memo, useMemo } from 'react';
-import { Linking } from 'react-native';
+import { memo, useMemo, useState } from 'react';
+import { Linking, Pressable } from 'react-native';
+
+const PREVIEW_LIMIT = 240;
+const MAX_DISPLAY_LIMIT = 2000;
 
 type PostTextSize = { fontSize?: 'lg'; lineHeight?: 'lg' };
+
+/**
+ * Renders post body text with tappable links and mentions.
+ */
+export const PostText = memo(function PostText({
+  content,
+  expandable = false,
+  large = false,
+  selectable = false,
+}: {
+  content: string;
+  /** Feed rendering: preview-capped with a Show more toggle. */
+  expandable?: boolean;
+  /** Detail-view sizing for a focused post. */
+  large?: boolean;
+  selectable?: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const truncateToPreview = expandable && !expanded;
+
+  const parsedSegments = useMemo(() => parseTextLinks(content), [content]);
+  const { segments, truncated } = useMemo(
+    () =>
+      truncateSegments(
+        parsedSegments,
+        truncateToPreview ? PREVIEW_LIMIT : MAX_DISPLAY_LIMIT,
+      ),
+    [parsedSegments, truncateToPreview],
+  );
+
+  const size: PostTextSize = large ? { fontSize: 'lg', lineHeight: 'lg' } : {};
+
+  return (
+    <>
+      <Text variant="secondary" selectable={selectable} {...size}>
+        {segments.map((segment, key) => renderSegment(segment, key, size))}
+        {truncated ? '…' : ''}
+      </Text>
+      {truncateToPreview && truncated ? (
+        <ShowMoreToggle onPress={() => setExpanded(true)} />
+      ) : null}
+    </>
+  );
+});
+
+function ShowMoreToggle({ onPress }: { onPress: () => void }) {
+  const { hovered, onHoverIn, onHoverOut } = useWebHover();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onHoverIn={onHoverIn}
+      onHoverOut={onHoverOut}
+      style={[Atoms.self_start]}
+    >
+      <Text
+        variant="body"
+        color="primary_500"
+        style={hovered ? { textDecorationLine: 'underline' } : undefined}
+      >
+        Show more
+      </Text>
+    </Pressable>
+  );
+}
 
 /**
  * Render one parsed segment: plain text, a hyperlink (URLs/bare domains,
@@ -53,27 +124,3 @@ function renderSegment(segment: TextSegment, key: number, size: PostTextSize) {
     </Text>
   );
 }
-
-/** Renders post body text with tappable links and mentions. */
-export const PostText = memo(function PostText({
-  content,
-  suffix,
-  large = false,
-  selectable = false,
-}: {
-  content: string;
-  suffix?: string;
-  /** Detail-view sizing for a focused post. */
-  large?: boolean;
-  selectable?: boolean;
-}) {
-  const segments = useMemo(() => parseTextLinks(content), [content]);
-  const size: PostTextSize = large ? { fontSize: 'lg', lineHeight: 'lg' } : {};
-
-  return (
-    <Text variant="secondary" selectable={selectable} {...size}>
-      {segments.map((segment, key) => renderSegment(segment, key, size))}
-      {suffix}
-    </Text>
-  );
-});
