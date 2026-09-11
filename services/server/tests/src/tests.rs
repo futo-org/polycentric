@@ -562,9 +562,8 @@ pub fn current_timestamp() -> u64 {
     SystemTime::UNIX_EPOCH.elapsed().unwrap().as_millis() as u64
 }
 
-#[derive(Debug)]
-#[allow(dead_code)] // TODO: remove, not all variants are used yet.
-enum ExpectHint {
+#[derive(Debug, Eq, PartialEq)]
+pub enum ExpectHint {
     Identity(String),
     Post(EventKey),
     Delete(EventKey),
@@ -588,11 +587,11 @@ impl ExpectHint {
     }
 }
 
-fn expect_hints(got: &[EventHint], expected: Vec<ExpectHint>) {
+pub fn expect_hints(got: &[EventHint], mut expected: Vec<ExpectHint>) {
     eprintln!("Got hints: {:#?}", got);
     eprintln!("Expected hints: {:#?}", expected);
     assert_eq!(got.len(), expected.len());
-    for (got, expected) in got.into_iter().zip(expected.iter()) {
+    for got in got {
         let event_bundle = got.event_bundle.as_ref().unwrap();
         let content = Content::decode(
             &*event_bundle
@@ -602,7 +601,18 @@ fn expect_hints(got: &[EventHint], expected: Vec<ExpectHint>) {
                 .content_bytes,
         )
         .unwrap();
-        match (content.content_body.as_ref().unwrap(), expected) {
+        let hint_content = content.content_body.as_ref().unwrap();
+        let hint_event = Event::decode(
+            &*event_bundle.signed_event.as_ref().unwrap().event_bytes,
+        )
+        .unwrap();
+
+        // Ordering of the hints is not guaranteed, so we need find the hint we
+        // expect.
+        let expected = find_expected(&mut expected, hint_content, &hint_event)
+            .unwrap_or_else(|| panic!("unexpected hint: {hint_content:?}"));
+
+        match (hint_content, expected) {
             (
                 ContentBody::Identity(identity),
                 ExpectHint::Identity(expected),
@@ -610,22 +620,18 @@ fn expect_hints(got: &[EventHint], expected: Vec<ExpectHint>) {
                 assert_eq!(identity.derive_hex_key(), *expected);
             }
             (ContentBody::Delete(delete), ExpectHint::Delete(expected)) => {
-                assert_eq!(delete.event_key.as_ref().unwrap(), expected);
+                assert_eq!(*delete.event_key.as_ref().unwrap(), expected);
             }
             (ContentBody::Post(_), ExpectHint::Post(expected)) => {
-                let event = Event::decode(
-                    &*event_bundle.signed_event.as_ref().unwrap().event_bytes,
-                )
-                .unwrap();
-                let key = event.key.as_ref().unwrap();
-                assert_eq!(*key, *expected);
+                let key = hint_event.key.as_ref().unwrap();
+                assert_eq!(*key, expected);
             }
             (
                 ContentBody::Labels(labels),
                 ExpectHint::Labels { post, values },
             ) => {
-                assert_eq!(labels.event_key.as_ref().unwrap(), post);
-                assert_eq!(&*labels.label_values, &*values);
+                assert_eq!(*labels.event_key.as_ref().unwrap(), post);
+                assert_eq!(labels.label_values, values);
             }
             (
                 ContentBody::Reaction(reaction),
@@ -635,15 +641,52 @@ fn expect_hints(got: &[EventHint], expected: Vec<ExpectHint>) {
                     positive,
                 },
             ) => {
-                assert_eq!(reaction.event_key.as_ref().unwrap(), post);
-                assert_eq!(reaction.emoji.as_ref(), Some(&*emoji));
-                assert_eq!(reaction.positive, *positive);
+                assert_eq!(*reaction.event_key.as_ref().unwrap(), post);
+                assert_eq!(reaction.emoji.as_deref(), Some(emoji).as_deref());
+                assert_eq!(reaction.positive, positive);
             }
-            (got, expected) => {
-                panic!("unexpected event: {got:?}, expected: {expected:?}")
-            }
+            // This will panic at not being able to find the expected event
+            // above.
+            _ => unreachable!(),
         }
     }
+}
+
+fn find_expected(
+    expected: &mut Vec<ExpectHint>,
+    hint_content: &ContentBody,
+    hint_event: &Event,
+) -> Option<ExpectHint> {
+    let idx = match hint_content {
+        ContentBody::Identity(identity) => {
+            let got = identity.derive_hex_key();
+            expected.iter().position(|e| matches!(e, ExpectHint::Identity(expected) if *expected == got))?
+        }
+        ContentBody::Delete(delete) => {
+            let got = delete.event_key.as_ref().unwrap();
+            expected.iter().position(|e| matches!(e, ExpectHint::Delete(expected) if expected == got))?
+        }
+        ContentBody::Post(_) => {
+            let got = hint_event.key.as_ref().unwrap();
+            expected.iter().position(
+                |e| matches!(e, ExpectHint::Post(expected) if expected == got),
+            )?
+        }
+        ContentBody::Labels(labels) => {
+            let got = labels.event_key.as_ref().unwrap();
+            expected.iter().position(
+                |e| matches!(e, ExpectHint::Labels { post, ..} if post == got),
+            )?
+        }
+        ContentBody::Reaction(reaction) => {
+            let got = reaction.event_key.as_ref().unwrap();
+            expected.iter().position(
+                |e| matches!(e, ExpectHint::Reaction { post, ..} if post == got),
+            )?
+        }
+        _ => return None,
+    };
+    Some(expected.swap_remove(idx))
 }
 
 #[allow(clippy::too_many_arguments)]
