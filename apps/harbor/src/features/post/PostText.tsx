@@ -38,9 +38,11 @@ export const PostText = memo(function PostText({
   const parsedSegments = useMemo(() => parseTextLinks(content), [content]);
   const { segments, truncated } = useMemo(
     () =>
+      // A preview never shows half a mention; the hard cap cuts anywhere.
       truncateSegments(
         parsedSegments,
         truncateToPreview ? PREVIEW_LIMIT : MAX_DISPLAY_LIMIT,
+        { atomic: truncateToPreview },
       ),
     [parsedSegments, truncateToPreview],
   );

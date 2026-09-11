@@ -175,16 +175,19 @@ function parseSegment(raw: string, isCurly: boolean): SegmentBody | null {
 }
 
 /**
- * The leading `segments` whose rendered text fits in `limit` characters. Plain
- * text is cut mid-way; a mention, link, or hashtag that doesn't fit is dropped
- * whole along with everything after it, so a curly mention never renders half
- * parsed. Counts rendered `value`s, not raw text — slice segments, not the
- * raw string, when capping post text. `truncated` says whether anything was
- * cut.
+ * The leading `segments` whose rendered text fits in `limit` characters.
+ * Plain text is cut mid-way. With `atomic`, a mention, link, or hashtag that
+ * doesn't fit is dropped whole along with everything after it, so a curly
+ * mention never renders half parsed; without it, the token's displayed
+ * `value` is cut too while its target (url, alias, identity, tag) and raw
+ * span are kept intact, so it still works as a link. Counts rendered
+ * `value`s, not raw text — slice segments, not the raw string, when capping
+ * post text. `truncated` says whether anything was cut.
  */
 export function truncateSegments(
   segments: TextSegment[],
   limit: number,
+  { atomic }: { atomic: boolean },
 ): { segments: TextSegment[]; truncated: boolean } {
   const kept: TextSegment[] = [];
   let remaining = limit;
@@ -194,11 +197,14 @@ export function truncateSegments(
       remaining -= segment.value.length;
       continue;
     }
-    if (segment.type === 'text' && remaining > 0) {
+    const isText = segment.type === 'text';
+    if ((isText || !atomic) && remaining > 0) {
       kept.push({
         ...segment,
         value: segment.value.slice(0, remaining),
-        end: segment.start + remaining,
+        // Only plain text maps 1:1 onto the source; a cut token keeps its
+        // full raw span.
+        end: isText ? segment.start + remaining : segment.end,
       });
     }
     return { segments: kept, truncated: true };
