@@ -466,11 +466,11 @@ describe('mentionsToPlainText', () => {
 });
 
 describe('truncateSegments', () => {
-  const truncate = (text: string, limit: number) =>
-    truncateSegments(parseTextLinks(text), limit);
+  const truncate = (text: string, limit: number, atomic = true) =>
+    truncateSegments(parseTextLinks(text), limit, { atomic });
 
-  const rendered = (text: string, limit: number) =>
-    truncate(text, limit)
+  const rendered = (text: string, limit: number, atomic = true) =>
+    truncate(text, limit, atomic)
       .segments.map((s) => s.value)
       .join('');
 
@@ -580,7 +580,7 @@ describe('truncateSegments', () => {
 
     it('returns kept atomic segments by reference', () => {
       const segments = parseTextLinks('see https://example.com now');
-      const kept = truncateSegments(segments, 23).segments;
+      const kept = truncateSegments(segments, 23, { atomic: true }).segments;
       expect(kept[1]).toBe(segments[1]);
     });
   });
@@ -600,32 +600,105 @@ describe('truncateSegments', () => {
       expect(truncate('hello', 4).truncated).toBe(true);
     });
 
-    it('is exactly "rendered length exceeds limit"', () => {
+    it.each([true, false])(
+      'is exactly "rendered length exceeds limit" (atomic: %s)',
+      (atomic) => {
+        const text = `a @{${HEX64},Jane} b https://x.com #t @u.example.com`;
+        const renderedLength = mentionsToPlainText(text).length;
+        for (const limit of [
+          0,
+          1,
+          2,
+          5,
+          6,
+          7,
+          renderedLength - 1,
+          renderedLength,
+          renderedLength + 1,
+        ]) {
+          expect(truncate(text, limit, atomic).truncated).toBe(
+            limit < renderedLength,
+          );
+        }
+      },
+    );
+
+    it.each([true, false])(
+      'kept segments tile a prefix of the raw text (atomic: %s)',
+      (atomic) => {
+        const text = `a @{${HEX64},Jane} b https://x.com #t @u.example.com end`;
+        for (const limit of [0, 1, 3, 6, 7, 9, 20, 25, 40, 100]) {
+          let cursor = 0;
+          for (const s of truncate(text, limit, atomic).segments) {
+            expect(s.start).toBe(cursor);
+            cursor = s.end;
+          }
+        }
+      },
+    );
+  });
+
+  describe('non-atomic', () => {
+    it('cuts the displayed text of a link but keeps its url', () => {
+      const [, link] = truncate(
+        'see https://example.com now',
+        10,
+        false,
+      ).segments;
+      expect(link).toEqual({
+        type: 'link',
+        value: 'https:',
+        url: 'https://example.com',
+        start: 4,
+        end: 23,
+      });
+    });
+
+    it('cuts a curly mention display name but keeps its identity', () => {
+      const text = `hi @{${HEX64},Jane Doe} bye`;
+      const [, mention] = truncate(text, 7, false).segments;
+      expect(mention).toEqual({
+        type: 'identity',
+        value: 'Jane',
+        identity: HEX64,
+        start: 3,
+        end: text.indexOf('}') + 1,
+      });
+    });
+
+    it('cuts a hashtag and an alias but keeps their targets', () => {
+      const [, tag] = truncate('go #hashtag now', 5, false).segments;
+      expect(tag).toMatchObject({
+        type: 'hashtag',
+        value: '#h',
+        tag: 'hashtag',
+      });
+
+      const [, alias] = truncate('cc @user.example.com now', 6, false).segments;
+      expect(alias).toMatchObject({
+        type: 'alias',
+        value: '@us',
+        alias: 'user.example.com',
+      });
+    });
+
+    it('never renders past the limit', () => {
       const text = `a @{${HEX64},Jane} b https://x.com #t @u.example.com`;
-      const renderedLength = mentionsToPlainText(text).length;
-      for (const limit of [
-        0,
-        1,
-        2,
-        5,
-        6,
-        7,
-        renderedLength - 1,
-        renderedLength,
-        renderedLength + 1,
-      ]) {
-        expect(truncate(text, limit).truncated).toBe(limit < renderedLength);
+      for (const limit of [0, 1, 3, 5, 9, 14, 20, 30, 100]) {
+        expect(rendered(text, limit, false).length).toBeLessThanOrEqual(limit);
       }
     });
 
-    it('kept segments tile a prefix of the raw text', () => {
-      const text = `a @{${HEX64},Jane} b https://x.com #t @u.example.com end`;
-      for (const limit of [0, 1, 3, 6, 7, 9, 20, 25, 40, 100]) {
-        let cursor = 0;
-        for (const s of truncate(text, limit).segments) {
-          expect(s.start).toBe(cursor);
-          cursor = s.end;
-        }
+    it('stops at a segment boundary without adding an empty token', () => {
+      const { segments } = truncate('go #hashtag now', 3, false);
+      expect(segments).toHaveLength(1);
+      expect(segments[0]).toMatchObject({ type: 'text', value: 'go ' });
+    });
+
+    it('matches atomic mode whenever nothing is cut mid-token', () => {
+      const text = `hi @{${HEX64},Jane} bye`;
+      for (const limit of [0, 2, 3, 7, 8, 11, 100]) {
+        expect(truncate(text, limit, false)).toEqual(truncate(text, limit));
       }
     });
   });
